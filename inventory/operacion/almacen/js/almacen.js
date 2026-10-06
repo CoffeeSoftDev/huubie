@@ -511,7 +511,6 @@ class Productos extends Templates {
                 required: false,
                 class: "col-12 col-md-4"
             },
-            // Vida útil = número × periodo; viaja en días en el oculto shelf_life_days.
             {
                 opc: "input",
                 id: "shelf_life_qty",
@@ -527,6 +526,7 @@ class Productos extends Templates {
                 id: "shelf_life_unit",
                 lbl: "Periodo",
                 class: "col-12 col-md-4",
+                required: false,
                 onchange: "products.calcShelfLife()",
                 data: PERIODOS_VIDA
             },
@@ -585,6 +585,7 @@ class Productos extends Templates {
         else this.calcCostWithTax();
     }
 
+    // El ctrl solo lee shelf_life_days (oculto); número y periodo son de captura.
     calcShelfLife() {
         const qty = parseFloat($('#shelf_life_qty').val());
         $('#shelf_life_days').val(isNaN(qty) ? '' : Math.round(qty * Number($('#shelf_life_unit').val())));
@@ -604,8 +605,7 @@ class Productos extends Templates {
         mountFieldHints(formId, { cost_unit: "Se actualiza con cada entrada." });
     }
 
-    // "+ Nueva" junto a Área y Unidad de medida: abre el alta del Catálogo encima del
-    // producto (que no se cierra) y, al guardar, la deja elegida en el select.
+    // El alta del Catálogo se abre encima: el producto no se cierra ni pierde lo capturado.
     mountCatalogShortcuts(formId) {
         const $form = $(`#${formId}`);
 
@@ -613,7 +613,7 @@ class Productos extends Templates {
             const $label = $form.find(`label[for="${field}"]`);
             const $btn   = $('<button>', {
                 type:  'button',
-                class: 'inline-flex items-center gap-0.5 text-[11px] font-semibold text-blue-600 hover:text-blue-700'
+                class: 'inline-flex items-center gap-0.5 h-4 !p-0 !leading-none text-[11px] font-semibold text-blue-600 hover:text-blue-700'
             }).append(
                 $('<i>', { 'data-lucide': 'plus', class: 'w-3 h-3' }),
                 $('<span>', { text: 'Nueva' })
@@ -629,7 +629,7 @@ class Productos extends Templates {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    // Lo recién creado entra como opción (con su color si es área) y queda elegido.
+    // El select se armó con el catálogo de antes: la opción nueva se agrega a mano.
     pickCreated(formId, field, list, id) {
         const item = list.find(it => String(it.id) === String(id));
         if (!item) return;

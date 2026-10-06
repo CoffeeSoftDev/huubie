@@ -274,12 +274,14 @@ class Area extends Templates {
     }
 
     // `onCreated(id)`: el formulario de Productos la recibe ya con `areas` recargado.
+    // `prefijo`: se abre encima del producto y sus #name/#description chocarían.
     addArea(onCreated = null) {
         this.createModalForm({
             id: "formAreaAdd",
             data: { opc: "addArea" },
             theme: 'light',
             coffeesoft: true,
+            prefijo: 'area_',
             bootbox: { title: "Agregar área", size: 'small', closeButton: true },
             json: this.jsonArea(),
             success: async (response) => {
@@ -476,12 +478,14 @@ class Unit extends Templates {
     }
 
     // `onCreated(id)`: el formulario de Productos la recibe ya con `unidades` recargado.
+    // `prefijo`: se abre encima del producto y su #name chocaría.
     addUnit(onCreated = null) {
         this.createModalForm({
             id: "formUnitAdd",
             data: { opc: "addUnit" },
             theme: 'light',
             coffeesoft: true,
+            prefijo: 'unit_',
             bootbox: { title: "Agregar unidad", size: 'small', closeButton: true },
             json: this.jsonUnit(),
             success: async (response) => {
