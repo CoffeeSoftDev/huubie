@@ -2,6 +2,14 @@ let api = 'ctrl/ctrl-almacen.php';
 let main, products, asistente, conteo;
 let categorias, unidades, areas, proveedores, almacenes, superAdmin;
 
+// Vida útil: cuántos días vale cada periodo del selector.
+const PERIODOS_VIDA = [
+    { id: '1',  valor: 'Días' },
+    { id: '7',  valor: 'Semanas (7 días)' },
+    { id: '14', valor: 'Dos semanas (14 días)' },
+    { id: '30', valor: 'Meses (30 días)' }
+];
+
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
 let  cataloge, category, area, unit, warehouse, inflow, shrinkage, supplier, transferStatus;
@@ -331,7 +339,7 @@ class Productos extends Templates {
 
     // Orden de captura: identificación (nombre, categoría, unidad, código, foto), costo
     // (costo con impuesto, IVA de compra y último costo), inventario (inventariable,
-    // área, mínimo, máximo, vida útil) y notas. El precio de venta no se captura aquí.
+    // área, mínimo, máximo, vida útil y su periodo) y notas. El precio de venta no se captura aquí.
     // Rejilla de 3 en 3 (col-md-4, mismo ancho en todos); la descripción a lo ancho.
     // Los encabezados son `opc: "label"`; su estilo va en la clase porque coffeeForm la
     // pasa al contenedor (cfToTailwindGrid borra mt-N / p-N, por eso se usa pt-/pb-).
@@ -503,13 +511,31 @@ class Productos extends Templates {
                 required: false,
                 class: "col-12 col-md-4"
             },
+            // Vida útil = número × periodo; viaja en días en el oculto shelf_life_days.
             {
                 opc: "input",
-                id: "shelf_life_days",
-                lbl: "Vida útil (días)",
+                id: "shelf_life_qty",
+                lbl: "Vida útil",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-4"
+                class: "col-12 col-md-4",
+                onkeyup: "products.calcShelfLife()",
+                onchange: "products.calcShelfLife()"
+            },
+            {
+                opc: "select",
+                id: "shelf_life_unit",
+                lbl: "Periodo",
+                class: "col-12 col-md-4",
+                onchange: "products.calcShelfLife()",
+                data: PERIODOS_VIDA
+            },
+            {
+                opc: "input",
+                type: "hidden",
+                id: "shelf_life_days",
+                required: false,
+                class: "hidden"
             },
 
             // -- Descripción --
@@ -559,11 +585,59 @@ class Productos extends Templates {
         else this.calcCostWithTax();
     }
 
+    calcShelfLife() {
+        const qty = parseFloat($('#shelf_life_qty').val());
+        $('#shelf_life_days').val(isNaN(qty) ? '' : Math.round(qty * Number($('#shelf_life_unit').val())));
+    }
+
+    // Al editar, los días guardados se muestran en meses o semanas si cuadran exacto.
+    shelfLifeParts(days) {
+        const n    = parseInt(days, 10);
+        const unit = n > 0 ? ([30, 7].find(d => n % d === 0) || 1) : 1;
+        return { qty: isNaN(n) ? '' : String(n / unit), unit: String(unit) };
+    }
+
     // La nota del último costo va debajo del input, en chico (antes era el placeholder).
     // Si el formulario no cabe entero se deja el scroll propio del cuerpo de cfModal
     // (72vh), así los botones Aceptar/Cancelar siempre se ven.
     mountMaterialHints(formId) {
         mountFieldHints(formId, { cost_unit: "Se actualiza con cada entrada." });
+    }
+
+    // "+ Nueva" junto a Área y Unidad de medida: abre el alta del Catálogo encima del
+    // producto (que no se cierra) y, al guardar, la deja elegida en el select.
+    mountCatalogShortcuts(formId) {
+        const $form = $(`#${formId}`);
+
+        const shortcut = (field, onClick) => {
+            const $label = $form.find(`label[for="${field}"]`);
+            const $btn   = $('<button>', {
+                type:  'button',
+                class: 'inline-flex items-center gap-0.5 text-[11px] font-semibold text-blue-600 hover:text-blue-700'
+            }).append(
+                $('<i>', { 'data-lucide': 'plus', class: 'w-3 h-3' }),
+                $('<span>', { text: 'Nueva' })
+            );
+
+            $label.removeClass('mb-1.5').wrap($('<div>', { class: 'flex items-center justify-between gap-2 mb-1.5' }));
+            $label.after($btn.on('click', onClick));
+        };
+
+        shortcut('warehouse_area_id', () => area.addArea((id) => this.pickCreated(formId, 'warehouse_area_id', areas, id)));
+        shortcut('unit_id', () => unit.addUnit((id) => this.pickCreated(formId, 'unit_id', unidades, id)));
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Lo recién creado entra como opción (con su color si es área) y queda elegido.
+    pickCreated(formId, field, list, id) {
+        const item = list.find(it => String(it.id) === String(id));
+        if (!item) return;
+
+        $(`#${formId} #${field}`)
+            .append($('<option>', { value: item.id, text: item.valor, 'data-color': item.color, 'data-bg': item.bg }))
+            .val(String(item.id))
+            .trigger('change');
     }
 
     // Foto: vista previa, "Subir foto" / "Cambiar foto" y "Quitar". Se achica en el
@@ -629,10 +703,12 @@ class Productos extends Templates {
             data: { opc: 'addMaterial' },
             theme:'light',
             coffeesoft:true,
+            closeOnError: false,
             bootbox: {
                 title: 'Nuevo Producto',
                 size: 'large',
-                closeButton: true
+                closeButton: true,
+                escapeClose: false
             },
             json: this.jsonMaterial(),
             success: (response) => {
@@ -656,6 +732,7 @@ class Productos extends Templates {
         });
 
         this.mountMaterialHints('formMaterialAdd');
+        this.mountCatalogShortcuts('formMaterialAdd');
         this.mountProductPhoto('formMaterialAdd');
     }
 
@@ -668,6 +745,9 @@ class Productos extends Templates {
         if (request.status === 200) {
             // Sin área llega NULL; '' selecciona la opción "Sin área" del select.
             request.data.warehouse_area_id = request.data.warehouse_area_id || '';
+            const vida = this.shelfLifeParts(request.data.shelf_life_days);
+            request.data.shelf_life_qty  = vida.qty;
+            request.data.shelf_life_unit = vida.unit;
             this.costAnchor = 'unit';
 
             this.createModalForm({
@@ -675,10 +755,12 @@ class Productos extends Templates {
                 data: { opc: 'editMaterial', id: id },
                 theme:'light',
                 coffeesoft:true,
+                closeOnError: false,
                 bootbox: {
                     title: 'Editar Producto',
                     size: 'large',
-                    closeButton: true
+                    closeButton: true,
+                    escapeClose: false
                 },
                 autofill: request.data,
                 json: this.jsonMaterialEdit(),
@@ -703,6 +785,7 @@ class Productos extends Templates {
             });
 
             this.mountMaterialHints('formMaterialEdit');
+            this.mountCatalogShortcuts('formMaterialEdit');
             this.mountProductPhoto('formMaterialEdit', request.data.image);
         }
     }

@@ -129,6 +129,11 @@ class mdl extends CRUD {
         ]);
     }
 
+    function getMaxAreaId() {
+        $result = $this->_Read("SELECT MAX(id) AS id FROM {$this->bd}warehouse_area WHERE companies_id = ".$_SESSION['company_id'], null);
+        return (int) ($result[0]['id'] ?? 0);
+    }
+
     function updateArea($array) {
         return $this->_Update([
             'table'  => "{$this->bd}warehouse_area",
@@ -228,6 +233,11 @@ class mdl extends CRUD {
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
+    }
+
+    function getMaxUnitId() {
+        $result = $this->_Read("SELECT MAX(id) AS id FROM {$this->bd}unit WHERE companies_id = ".$_SESSION['company_id'], null);
+        return (int) ($result[0]['id'] ?? 0);
     }
 
     function updateUnit($array) {

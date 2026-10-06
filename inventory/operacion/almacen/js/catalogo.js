@@ -273,7 +273,8 @@ class Area extends Templates {
         });
     }
 
-    addArea() {
+    // `onCreated(id)`: el formulario de Productos la recibe ya con `areas` recargado.
+    addArea(onCreated = null) {
         this.createModalForm({
             id: "formAreaAdd",
             data: { opc: "addArea" },
@@ -281,11 +282,12 @@ class Area extends Templates {
             coffeesoft: true,
             bootbox: { title: "Agregar área", size: 'small', closeButton: true },
             json: this.jsonArea(),
-            success: (response) => {
+            success: async (response) => {
                 if (response.status === 200) {
                     this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsArea();
-                    products.reloadAreas();
+                    await products.reloadAreas();
+                    if (onCreated) onCreated(response.id);
                 } else {
                     this.alertBox({ type: "error", theme: "light", title: response.message });
                 }
@@ -473,7 +475,8 @@ class Unit extends Templates {
         });
     }
 
-    addUnit() {
+    // `onCreated(id)`: el formulario de Productos la recibe ya con `unidades` recargado.
+    addUnit(onCreated = null) {
         this.createModalForm({
             id: "formUnitAdd",
             data: { opc: "addUnit" },
@@ -481,11 +484,12 @@ class Unit extends Templates {
             coffeesoft: true,
             bootbox: { title: "Agregar unidad", size: 'small', closeButton: true },
             json: this.jsonUnit(),
-            success: (response) => {
+            success: async (response) => {
                 if (response.status === 200) {
                     this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsUnit();
-                    products.reloadUnidades();
+                    await products.reloadUnidades();
+                    if (onCreated) onCreated(response.id);
                 } else {
                     this.alertBox({ type: "error", theme: "light", title: response.message });
                 }

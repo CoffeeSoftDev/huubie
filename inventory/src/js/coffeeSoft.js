@@ -2193,6 +2193,8 @@ class Components extends Complements {
             theme: 'light',
             closeButton: true,
             backdropClose: false,
+            // false: Escape no lo cierra (formularios de captura); queda Cancelar o la X.
+            escapeClose: true,
             okLabel: 'Aceptar',
             cancelLabel: 'Cancelar',
             okBg: '',
@@ -2270,10 +2272,11 @@ class Components extends Complements {
         overlay.append(themeWrap);
 
         overlay.on('mousedown', (e) => { if (e.target === overlay[0] && o.backdropClose) close(); });
-        // Escape cierra; Enter (desde un input/select de ESTE modal) equivale a pulsar Aceptar.
-        // Se respeta textarea (saltos de línea) y botones, evitando dobles envíos.
+        // Escape cierra (salvo escapeClose:false); Enter (desde un input/select de ESTE modal)
+        // equivale a pulsar Aceptar. Se respeta textarea (saltos de línea) y botones,
+        // evitando dobles envíos.
         const onKey = (e) => {
-            if (e.key === 'Escape') { close(); return; }
+            if (e.key === 'Escape') { if (o.escapeClose) close(); return; }
             if (e.key === 'Enter') {
                 if (!overlay[0].contains(e.target)) return;
                 const tag = (e.target.tagName || '').toLowerCase();
@@ -2308,6 +2311,8 @@ class Components extends Complements {
             prefijo: '',
             showRequired: true,
             coffeeModal: true, // true -> modal propio CoffeeSoft (cfModal); false -> bootbox.
+            // false -> si el ctrl no responde 200 el modal sigue abierto con lo capturado.
+            closeOnError: true,
             bootbox: {
                 title: 'Modal example',
                 closeButton: true,
@@ -2332,6 +2337,7 @@ class Components extends Complements {
                 size: bb.size || 'default',
                 theme: conf.theme,
                 closeButton: bb.closeButton !== false,
+                escapeClose: bb.escapeClose !== false,
                 okBg: conf.okBg,
                 onOk: () => { if (self.cfModalForm) self.cfModalForm.trigger('submit'); }
             });
@@ -2386,7 +2392,7 @@ class Components extends Complements {
                     data: Object.assign({}, formData, dyn),
                     success: (req) => {
                         if (conf.success) conf.success(req);
-                        closeModal();
+                        if (conf.closeOnError !== false || (req && req.status === 200)) closeModal();
                     }
                 });
             }

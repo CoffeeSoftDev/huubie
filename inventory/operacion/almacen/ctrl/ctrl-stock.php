@@ -134,9 +134,11 @@ class ctrl extends mdl {
         return ['status' => 200, 'row' => $row];
     }
 
-    // Abre el conteo del almacen de la sucursal; si ya hay uno abierto, lo retoma.
+    // Abre el conteo del almacen de la sucursal elegida; si ya hay uno abierto, lo retoma.
     function addConteo() {
-        $branchId  = (int) ($_POST['branch_id'] ?? 0) ?: $this->branchId;
+        $branchId = (int) ($_POST['branch_id'] ?? 0);
+        if (!$branchId) return ['status' => 400, 'message' => 'Elige una sucursal: el conteo físico es por sucursal'];
+
         $warehouse = $this->getDefaultWarehouse([$branchId, $this->companiesId]);
         if (!$warehouse) return ['status' => 404, 'message' => 'La sucursal no tiene un almacén activo'];
 
@@ -184,6 +186,7 @@ class ctrl extends mdl {
             $porArea[$k] = ($porArea[$k] ?? 0) + 1;
             $sheet[] = [
                 'id'     => (int) $it['item_id'],
+                'area'   => $k,
                 'system' => $this->_conteoSystem($it),
                 'cost'   => (float) $it['cost'],
                 'qty'    => $it['physical_quantity'] === null ? null : (float) $it['physical_quantity']

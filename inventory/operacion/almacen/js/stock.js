@@ -341,7 +341,7 @@ class App extends Templates {
                 className: 'w-100',
                 class:     'col-12 col-md-4 col-lg-2',
                 color_btn: 'primary',
-                onClick:   () => stockCount.render()
+                onClick:   () => stockCount.addConteo()
             }
         ];
 
@@ -1495,16 +1495,7 @@ class StockCount extends Templates {
 
     // -- Interface --
 
-    async render(id = null) {
-        if (!id) {
-            const r = await useFetch({ url: apiStock, data: { opc: 'addConteo', branch_id: app.getFilters().branch_id } });
-            if (!r || r.status !== 200) {
-                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo abrir el conteo' });
-                return;
-            }
-            id = r.id;
-        }
-
+    async render(id) {
         this.id     = id;
         this.areaId = '';
         this.counts = {};
@@ -1633,6 +1624,44 @@ class StockCount extends Templates {
         this.sheet = r.sheet || [];
         this.perms = r.perms || {};
         return r;
+    }
+
+    // Nada se crea hasta aceptar la sucursal. Si su almacen ya tiene un borrador
+    // abierto, el ctrl lo retoma en vez de crear otro. Sin sucursales que elegir,
+    // cuenta la de la sesion.
+    addConteo() {
+        const sucursales = app.dataInit.sucursales || [];
+
+        this.createModalForm({
+            id:         'frmConteo',
+            coffeesoft: true,
+            theme:      'light',
+            bootbox:    { title: '¿Deseas crear un conteo físico?', closeButton: true },
+            data:       { opc: 'addConteo' },
+            json: [
+                {
+                    opc:   'label',
+                    text:  'Elige la sucursal que vas a contar. Si ya tiene un conteo en borrador, se abre ese para continuar. El stock no cambia hasta que apliques el ajuste.',
+                    class: 'col-12 text-[12px] text-gray-500 leading-relaxed'
+                },
+                {
+                    opc:   'select',
+                    id:    'conteoBranch',
+                    name:  'branch_id',
+                    lbl:   'Sucursal',
+                    class: 'col-12',
+                    value: $('#branch_id').val() || app.subId,
+                    data:  sucursales.length ? sucursales : [{ id: app.subId, valor: 'Sucursal actual' }]
+                }
+            ],
+            success: (r) => {
+                if (!r || r.status !== 200) {
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo abrir el conteo' });
+                    return;
+                }
+                this.render(r.id);
+            }
+        });
     }
 
     async editConteo(silent = false) {
@@ -1837,10 +1866,14 @@ class StockCount extends Templates {
         this.renderSummary();
     }
 
-    summary() {
-        let counted = 0, differences = 0, net = 0;
+    // Sin area resume todo el almacen (lo que aplica el ajuste); con area, solo esa pestana.
+    summary(areaId = '') {
+        let total = 0, counted = 0, differences = 0, net = 0;
 
         this.sheet.forEach(s => {
+            if (areaId && s.area !== areaId) return;
+            total++;
+
             const dirty = Object.prototype.hasOwnProperty.call(this.counts, s.id);
             const raw   = dirty ? this.counts[s.id] : s.qty;
             if (raw === '' || raw === null || raw === undefined) return;
@@ -1854,7 +1887,7 @@ class StockCount extends Templates {
         });
 
         return {
-            total:       this.sheet.length,
+            total:       total,
             counted:     counted,
             differences: differences,
             net:         net,
@@ -1863,7 +1896,7 @@ class StockCount extends Templates {
     }
 
     renderSummary() {
-        if (this.modal) this.modal.setSummary(this.summary());
+        if (this.modal) this.modal.setSummary(this.summary(this.areaId));
     }
 
     // Cierra sin autoguardar; al aplicar, el conteo queda marcado como nuevo en Ajustes.
@@ -1937,7 +1970,7 @@ class Ajustes extends Templates {
                     className: 'w-100',
                     class:     'col-12 col-md-4 col-lg-2',
                     color_btn: 'primary',
-                    onClick:   () => stockCount.render()
+                    onClick:   () => stockCount.addConteo()
                 }
             ]
         });

@@ -266,15 +266,18 @@ class ctrl extends mdl {
         }
 
         $create = $this->createArea($this->util->sql($_POST));
+        $id     = null;
 
         if ($create) {
             $status  = 200;
             $message = 'Área creada exitosamente';
+            $id      = $this->getMaxAreaId();
         }
 
         return [
             'status'  => $status,
-            'message' => $message
+            'message' => $message,
+            'id'      => $id
         ];
     }
 
@@ -439,15 +442,18 @@ class ctrl extends mdl {
         }
 
         $create = $this->createUnit($this->util->sql($_POST));
+        $id     = null;
 
         if ($create) {
             $status  = 200;
             $message = 'Unidad creada exitosamente';
+            $id      = $this->getMaxUnitId();
         }
 
         return [
             'status'  => $status,
-            'message' => $message
+            'message' => $message,
+            'id'      => $id
         ];
     }
 
