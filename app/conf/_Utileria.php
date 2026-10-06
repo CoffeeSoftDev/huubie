@@ -1,4 +1,4 @@
- <?php
+<?php
 // UTC-6 fijo. Ojo: en Etc/GMT+N el signo va invertido, +6 significa UTC-6.
 // No usamos 'America/Mexico_City' porque la tzdata que trae PHP 8.0 es anterior a
 // que Mexico aboliera el horario de verano (oct-2022) y adelanta 1h en verano.
