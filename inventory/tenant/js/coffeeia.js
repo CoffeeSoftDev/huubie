@@ -1,7 +1,7 @@
 // -- CoffeeIAConfig --
 
-// Configuración básica de coffeeIA (tono, modelos y esfuerzo), la misma para
-// los chats de Catálogo, Entradas y Salidas. Vive al lado de "Personalización".
+// Configuración básica de coffeeIA (encendido, tono, modelos y esfuerzo), la misma
+// para los chats de Catálogo, Entradas y Salidas. Vive al lado de "Personalización".
 class CoffeeIAConfig extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
@@ -77,6 +77,22 @@ class CoffeeIAConfig extends Templates {
 
     jsonCoffeeIA() {
         return [
+            {
+                opc: 'select',
+                id: 'active',
+                lbl: 'Estado',
+                data: [
+                    {
+                        id: '1',
+                        valor: 'Encendido · el ícono sale abajo en el menú lateral del Catálogo'
+                    },
+                    {
+                        id: '0',
+                        valor: 'Apagado · no sale el ícono'
+                    }
+                ],
+                class: 'col-12 mb-3'
+            },
             {
                 opc: 'textarea',
                 id: 'tone',

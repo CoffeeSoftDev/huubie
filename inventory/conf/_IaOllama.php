@@ -5,11 +5,13 @@
     (coffee/app/credentials/.env), junto con su cacert.pem. Se queda en el
     servidor y nunca viaja al navegador.
 
-    Hace dos cosas:
+    Hace tres cosas:
     - chatJson(): pregunta y exige la respuesta en JSON (format: "json").
     - transcribirImagen(): pasa una foto a texto con un modelo que ve. El de
       texto no admite imagenes, asi que la foto se transcribe antes y lo que
       sigue ya es texto. Mismo camino que coffeeIA de erp-pro (mirarImagen).
+    - mirarImagen(): lo mismo con otra instruccion (el editor de temas la
+      usa para describir el logo de una marca).
 
     Quien manda, en orden: la configuracion global de coffeeIA (Administrador >
     CoffeeIA, tabla fayxzvov_erp.coffeeia_config), el .env (IA_PRODUCTOS_MODEL,
@@ -125,6 +127,18 @@ class IaOllama {
     // Transcribe, no interpreta: la interpretacion es del modelo de texto, que
     // tiene el catalogo delante. Devuelve ['texto', 'aviso'].
     function transcribirImagen($ruta) {
+        return $this->mirarImagen($ruta,
+            "Transcribe esta imagen para alguien que no la puede ver.\n\n"
+            . "- Si tiene texto, TRANSCRÍBELO COMPLETO y literal: nombres, cantidades, precios y claves tal como aparecen.\n"
+            . "- Si es una lista, tabla, ticket o menú, pon un renglón por producto con sus columnas separadas por \" | \".\n"
+            . "- No opines, no resumas y no completes lo que no se ve. Si algo no se lee, escribe [ilegible].\n\n"
+            . "Contesta en español."
+        );
+    }
+
+    // La imagen con la instruccion de quien llama (transcribir un ticket,
+    // describir una marca...). Devuelve ['texto', 'aviso'].
+    function mirarImagen($ruta, $instruccion) {
         $b64 = self::imagenBase64($ruta);
 
         if ($b64 === null) return ['texto' => '', 'aviso' => 'No pude abrir esa imagen. Vuelve a guardarla como JPG o PNG.'];
@@ -135,11 +149,7 @@ class IaOllama {
             'options'  => ['temperature' => 0.1],
             'messages' => [[
                 'role'    => 'user',
-                'content' => "Transcribe esta imagen para alguien que no la puede ver.\n\n"
-                           . "- Si tiene texto, TRANSCRÍBELO COMPLETO y literal: nombres, cantidades, precios y claves tal como aparecen.\n"
-                           . "- Si es una lista, tabla, ticket o menú, pon un renglón por producto con sus columnas separadas por \" | \".\n"
-                           . "- No opines, no resumas y no completes lo que no se ve. Si algo no se lee, escribe [ilegible].\n\n"
-                           . "Contesta en español.",
+                'content' => $instruccion,
                 'images'  => [$b64]
             ]]
         ]);

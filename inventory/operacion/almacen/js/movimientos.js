@@ -5,7 +5,7 @@ let branchId;
 
 const VIEW_HEADER_MOVIMIENTOS = {
     title:    'Visor de Movimientos',
-    subtitle: 'Kardex de inventario · entradas, mermas y traspasos',
+    subtitle: 'Kardex de inventario · entradas, salidas y traspasos',
     // back:     { href: '/inventory/operacion/almacen/index.php', title: 'Regresar al inicio' }
 };
 
@@ -128,7 +128,7 @@ class App extends Templates {
         const tipos = [
             { id: '',              valor: 'Todos los tipos' },
             { id: 'ENTRADA',       valor: 'Entradas' },
-            { id: 'MERMA',         valor: 'Mermas' },
+            { id: 'SALIDA',        valor: 'Salidas' },
             { id: 'TRANSFERENCIA', valor: 'Traspasos' }
         ];
 
@@ -295,7 +295,7 @@ class Movimientos extends Templates {
         const kpis = [
             { id: 'kpiTotal',    label: 'Total Movs', value: parseInt(c.total          || 0, 10), tone: 'default' },
             { id: 'kpiEntradas', label: 'Entradas',   value: parseInt(c.total_entradas || 0, 10), tone: 'success' },
-            { id: 'kpiMermas',   label: 'Mermas',     value: parseInt(c.total_mermas   || 0, 10), tone: 'danger'  },
+            { id: 'kpiSalidas',  label: 'Salidas',    value: parseInt(c.total_salidas  || 0, 10), tone: 'danger'  },
             { id: 'kpiTransf',   label: 'Traspasos',  value: parseInt(c.total_traspasos|| 0, 10), tone: 'info'    }
         ];
         movimientosView.renderInfoCards(kpis);
@@ -459,7 +459,7 @@ class MovimientosView extends Templates {
             },
             tipoPalettes: {
                 'ENTRADA':       { bg: 'rgba(63,193,137,0.15)', fg: '#15803D' },
-                'MERMA':         { bg: 'rgba(224,36,36,0.15)',  fg: '#B91C1C' },
+                'SALIDA':        { bg: 'rgba(224,36,36,0.15)',  fg: '#B91C1C' },
                 'TRANSFERENCIA': { bg: 'rgb(var(--brand-600, 192 90 64) /0.15)',  fg: 'rgb(var(--brand-600, 192 90 64))' },
                 'AJUSTE':        { bg: 'rgba(167,139,250,0.15)', fg: '#7C3AED' }
             },

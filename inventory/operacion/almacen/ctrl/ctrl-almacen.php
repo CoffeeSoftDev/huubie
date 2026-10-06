@@ -13,10 +13,20 @@ class ctrl extends mdl {
     const IMAGE_MAX = 4194304;
 
     function init() {
-        // Cada área lleva los colores de su badge para que el select la pinte igual que la tabla.
+        // Cada área lleva los colores de su badge para que el select la pinte igual que la
+        // tabla, y su descripción para el badge. Una descripción sin letras ni números
+        // ("*", "-") es relleno de captura y no se manda.
         $areas = array_map(function ($area) {
             $tone = areaColors($area['id'], $area['color_hex']);
-            return ['id' => $area['id'], 'valor' => $area['valor'], 'color' => $tone['fg'], 'bg' => $tone['bg']];
+            $note = trim((string) $area['description']);
+
+            return [
+                'id'          => $area['id'],
+                'valor'       => $area['valor'],
+                'color'       => $tone['fg'],
+                'bg'          => $tone['bg'],
+                'description' => preg_match('/[\p{L}\p{N}]/u', $note) ? $note : ''
+            ];
         }, $this->lsAreas() ?: []);
 
         return [
@@ -25,7 +35,8 @@ class ctrl extends mdl {
             'areas'       => $areas,
             'proveedores' => $this->lsProveedores(),
             'almacenes'   => $this->lsWarehouses(),
-            'superadmin'  => $this->esSuperAdminIA()
+            'superadmin'  => $this->esSuperAdminIA(),
+            'coffeeia'    => $this->coffeeIAActive()
         ];
     }
 
@@ -114,6 +125,11 @@ class ctrl extends mdl {
         ];
     }
 
+    // El formulario lo consulta mientras se escribe el nombre: avisa antes de guardar.
+    function lsSimilarMaterials() {
+        return ['status' => 200] + $this->nameMatches($_POST['name'] ?? '', (int) ($_POST['id'] ?? 0));
+    }
+
     function addMaterial() {
         $status  = 500;
         $message = 'No se pudo agregar el insumo';
@@ -125,6 +141,10 @@ class ctrl extends mdl {
                 'message' => 'El nombre del producto es obligatorio'
             ];
         }
+
+        $nameCheck = $this->checkMaterialName($_POST['name'], 0);
+
+        if ($nameCheck) return $nameCheck;
 
         // SKU tecleado por el usuario; vacío = automático (skuFor).
         $sku = mb_substr(trim($_POST['sku'] ?? ''), 0, 40);
@@ -296,6 +316,13 @@ class ctrl extends mdl {
             ];
         }
 
+        // Solo si cambió el nombre: uno que ya se llamaba igual que otro no se traba al editar.
+        if ($this->normalizarIA($_POST['name'] ?? '') !== $this->normalizarIA($material['name'] ?? '')) {
+            $nameCheck = $this->checkMaterialName($_POST['name'] ?? '', $id);
+
+            if ($nameCheck) return $nameCheck;
+        }
+
         $photo = $_POST['image_b64'] ?? '';
 
         if ($photo !== '' && !$this->decodeProductImage($photo)) {
@@ -386,6 +413,140 @@ class ctrl extends mdl {
         ]);
 
         return $prefix . str_pad($last + 1, 3, '0', STR_PAD_LEFT);
+    }
+
+    // -- Nombre repetido o parecido --
+
+    // Mismo nombre (sin importar mayúsculas, acentos ni signos): no se guarda.
+    // Parecido: se avisa y solo se guarda si lo confirman; el formulario manda
+    // similar_ok = 1 cuando ya enseñó los parecidos de ese nombre.
+    private function checkMaterialName($name, $exceptId) {
+        $matches = $this->nameMatches($name, $exceptId);
+
+        if ($matches['exact']) {
+            return [
+                'status'  => 409,
+                'message' => 'Ya existe un producto con ese nombre: ' . $this->nameList([$matches['exact']], 0)
+                           . ($matches['exact']['active'] ? '.' : '. Actívalo desde el filtro Estado: Inactivos.'),
+                'matches' => $matches
+            ];
+        }
+
+        if ($matches['similar'] && ($_POST['similar_ok'] ?? '') !== '1') {
+            return [
+                'status'  => 409,
+                'message' => 'Ya existe un producto con un nombre similar: ' . $this->nameList($matches['similar'], $matches['more'])
+                           . '. Si es otro producto, pulsa Aceptar otra vez.',
+                'matches' => $matches
+            ];
+        }
+
+        return null;
+    }
+
+    // Contra todos los productos de la empresa, activos e inactivos. De los
+    // parecidos van los 5 que más se parecen; 'more' dice cuántos quedaron fuera.
+    private function nameMatches($name, $exceptId) {
+        $key     = $this->normalizarIA($name);
+        $words   = $this->nameWords($key);
+        $exact   = null;
+        $similar = [];
+
+        if ($key === '') {
+            return [
+                'exact'   => null,
+                'similar' => [],
+                'more'    => 0
+            ];
+        }
+
+        foreach ($this->listMaterialNames([$_SESSION['company_id'], (int) $exceptId]) as $producto) {
+            $other = $this->normalizarIA($producto['name']);
+            $match = [
+                'id'     => (int) $producto['id'],
+                'name'   => $producto['name'],
+                'active' => (int) $producto['active'] === 1
+            ];
+
+            if ($other === $key) {
+                if ($exact === null || $match['active']) $exact = $match;
+                continue;
+            }
+
+            $score = $this->nameScore($key, $words, $other);
+
+            if ($score > 0) $similar[] = $match + ['score' => $score];
+        }
+
+        usort($similar, function ($a, $b) {
+            return $b['score'] <=> $a['score'];
+        });
+
+        return [
+            'exact'   => $exact,
+            'similar' => array_slice($similar, 0, 5),
+            'more'    => max(0, count($similar) - 5)
+        ];
+    }
+
+    // 0 = no se parece. Se parecen si uno trae todas las palabras del otro ("Pan" y
+    // "Pan blanco chico"), si comparten dos palabras o más y son la mitad de todas
+    // ("Pan blanco mediano" y "Pan blanco chico"), o si casi se escriben igual
+    // ("Twinkis" y "Twinkies", 80% de las letras).
+    private function nameScore($key, $words, $other) {
+        $otherWords = $this->nameWords($other);
+
+        if ($words && $otherWords) {
+            $shared = count(array_filter($words, function ($word) use ($otherWords) {
+                return $this->hasWord($otherWords, $word);
+            }));
+            $back = count(array_filter($otherWords, function ($word) use ($words) {
+                return $this->hasWord($words, $word);
+            }));
+
+            // Entre más palabras de sobra trae el otro, menos se parece ("Chorizo" va antes que "Chorizo argentino").
+            if ($shared === count($words) || $back === count($otherWords)) {
+                return 0.85 + 0.1 * min(count($words), count($otherWords)) / max(count($words), count($otherWords));
+            }
+
+            $union = count($words) + count($otherWords) - $shared;
+
+            if ($shared >= 2 && $shared / $union >= 0.5) return $shared / $union;
+        }
+
+        $a     = substr($key, 0, 255);
+        $b     = substr($other, 0, 255);
+        $ratio = 1 - levenshtein($a, $b) / max(strlen($a), strlen($b), 1);
+
+        return $ratio >= 0.8 ? $ratio : 0;
+    }
+
+    // Las palabras que distinguen un producto: sin medidas ni números (2lt, 600, pz)
+    // ni artículos o preposiciones.
+    private function nameWords($key) {
+        $skip = ['del', 'las', 'los', 'con', 'para', 'por', 'pza', 'pzs', 'pzas', 'grs', 'kgs', 'lts', 'mls'];
+
+        return array_values(array_unique(array_filter(explode(' ', $key), function ($word) use ($skip) {
+            return strlen($word) >= 3 && !preg_match('/\d/', $word) && !in_array($word, $skip, true);
+        })));
+    }
+
+    // Singular y plural cuentan como la misma palabra: tomate/tomates, limon/limones.
+    private function hasWord($list, $word) {
+        foreach ($list as $palabra) {
+            if (in_array($palabra, [$word, $word . 's', $word . 'es'], true) || in_array($word, [$palabra . 's', $palabra . 'es'], true)) return true;
+        }
+
+        return false;
+    }
+
+    // El mensaje lo pinta alertBox como HTML: los nombres van escapados.
+    private function nameList($items, $more) {
+        $names = array_map(function ($producto) {
+            return '«' . htmlspecialchars($producto['name']) . '»' . ($producto['active'] ? '' : ' (inactivo)');
+        }, $items);
+
+        return implode(', ', $names) . ($more > 0 ? ' y ' . $more . ' más' : '');
     }
 
     // -- Foto del producto --
@@ -645,7 +806,7 @@ class ctrl extends mdl {
             'detail_inventory_inflow'      => null,
             'inventory_inflow'             => ['entrada', 'entradas'],
             'detail_inventory_shrinkage'   => null,
-            'inventory_shrinkage'          => ['salida o merma', 'salidas y mermas'],
+            'inventory_shrinkage'          => ['salida', 'salidas'],
             'detail_inventory_adjustment'  => null,
             'inventory_adjustment_history' => null,
             'inventory_adjustment'         => ['ajuste', 'ajustes'],
@@ -734,6 +895,8 @@ class ctrl extends mdl {
 
     function askAsistente() {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
+
+        if (!$this->coffeeIAActive()) return ['status' => 403, 'message' => 'CoffeeIA está apagado. Se enciende en Administrador > CoffeeIA.'];
 
         $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 4000);
         $adjuntos  = json_decode((string) ($_POST['adjuntos'] ?? '[]'), true);
@@ -853,6 +1016,14 @@ class ctrl extends mdl {
         ];
     }
 
+    // Encendido o apagado en Administrador > CoffeeIA. Si la columna aún no existe
+    // (migración pendiente) se queda encendido, como estaba.
+    private function coffeeIAActive() {
+        $config = $this->getCoffeeIAConfigById([1]);
+
+        return !$config || (int) $config['active'] === 1;
+    }
+
     // -- Asistente IA · contexto y prompt --
 
     private function contextoIA() {
@@ -960,7 +1131,7 @@ class ctrl extends mdl {
             '- Números sin signo de pesos ni separador de miles: 1250.5',
             '- Como mucho ' . self::IA_MAX_CAMBIOS . ' cambios por respuesta; si hay más, propone los primeros y avísalo en "reply".',
             $super
-                ? '- VACIAR (esta persona es Super Admin): si pide vaciar, limpiar o borrar TODO un bloque, manda un solo cambio {"entity": "purge", "action": "purge", "scope": "..."} y ningún otro. scope: "movements" (entradas, salidas, mermas, ajustes, traspasos, órdenes de compra y existencias), "products" (todos los productos, con sus movimientos) o "catalogs" (categorías, áreas y proveedores, con productos y movimientos). Unidades, almacenes y sucursales no se vacían. Para quitar registros sueltos usa "deactivate", nunca "purge".'
+                ? '- VACIAR (esta persona es Super Admin): si pide vaciar, limpiar o borrar TODO un bloque, manda un solo cambio {"entity": "purge", "action": "purge", "scope": "..."} y ningún otro. scope: "movements" (entradas, salidas, ajustes, traspasos, órdenes de compra y existencias), "products" (todos los productos, con sus movimientos) o "catalogs" (categorías, áreas y proveedores, con productos y movimientos). Unidades, almacenes y sucursales no se vacían. Para quitar registros sueltos usa "deactivate", nunca "purge".'
                 : '- VACIAR la base de datos es solo para el Super Admin. Si esta persona lo pide, dile que no tiene permiso y no mandes cambios.',
             '',
             'Responde SOLO con un objeto JSON, sin texto antes ni después. Ejemplo de la forma:',
@@ -1992,22 +2163,25 @@ function renderProductImage($foto, $nombre) {
     // pinta en la celda (f_size). Con text-xs quedaba clavado en 9.8px, porque
     // compact.css lo fija con !important y eso le gana al estilo del <td>.
     // La tabla va en minusculas (lowercase); first-letter devuelve la mayuscula inicial.
+    // min-w-0 + break-words: la columna tiene ancho fijo y un nombre largo se parte.
     return '
         <div class="flex items-center justify-start gap-2 py-1 text-center">
             ' . $img . '
-            <div class="first-letter:uppercase">' . htmlspecialchars($nombre) . '</div>
+            <div class="min-w-0 break-words first-letter:uppercase">' . htmlspecialchars($nombre) . '</div>
         </div>';
 }
 
 // Badge del área: el color elegido en Catálogo > Área, o el automático por id
 // (areaColors en conf/_Utileria.php). cs-badge-soft deja que dark-mode.css lo
-// convierta en velo si la página va en oscuro.
+// convierta en velo si la página va en oscuro. La columna es de ancho fijo: un nombre
+// largo se corta con "..." y completo sale al pasar el mouse.
 function renderArea($areaId, $name, $hex = null) {
     if (empty($areaId) || $name === null || $name === '') return '-';
 
     $tone = areaColors($areaId, $hex);
 
-    return '<span class="cs-badge-soft inline-block px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap first-letter:uppercase"'
+    return '<span class="cs-badge-soft inline-block max-w-full truncate align-middle px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap first-letter:uppercase"'
+         . ' title="' . htmlspecialchars($name) . '"'
          . ' style="--b-fg:' . $tone['fg'] . ';background:' . $tone['bg'] . ';color:' . $tone['fg'] . ';">'
          . htmlspecialchars($name)
          . '</span>';

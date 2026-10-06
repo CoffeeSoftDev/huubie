@@ -1704,7 +1704,7 @@ function mountFieldHints(formId, hints) {
     const $form = $(`#${formId}`);
 
     Object.keys(hints).forEach((name) => {
-        const $input = $form.find(`input[name="${name}"]`);
+        const $input = $form.find(`input[name="${name}"], textarea[name="${name}"]`);
         if (!$input.length) return;
 
         $input.parent().append($("<p>", { class: "mt-1 text-[11px] leading-snug text-gray-400", text: hints[name] }));

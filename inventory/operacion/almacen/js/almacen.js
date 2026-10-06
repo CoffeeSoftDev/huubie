@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-almacen.php';
 let main, products, asistente, conteo;
-let categorias, unidades, areas, proveedores, almacenes, superAdmin;
+let categorias, unidades, areas, proveedores, almacenes, superAdmin, coffeeIA;
 
 // Vida útil: cuántos días vale cada periodo del selector.
 const PERIODOS_VIDA = [
@@ -22,6 +22,7 @@ $(async () => {
     proveedores    = data.proveedores || [];
     almacenes      = data.almacenes   || [];
     superAdmin     = !!data.superadmin;
+    coffeeIA       = data.coffeeia !== false;
 
     main = new Main(api, "root");
     main.render();
@@ -45,6 +46,9 @@ $(async () => {
 
     asistente = new AsistenteProductos(api, "root");
     conteo    = new FormatoConteo(api, "root");
+
+    // Se enciende o apaga en Administrador > CoffeeIA.
+    if (coffeeIA) asistente.renderLauncher();
 });
 
 class Main extends Templates {
@@ -171,6 +175,8 @@ class Productos extends Templates {
     layout() {
         // Ultimo tramo de la cadena flex: el contenedor de la tabla llena el panel y es
         // el que scrollea. Asi con 0 filas el area ocupa todo y con muchas no desborda.
+        // scrollbar-gutter: el hueco de la barra va siempre; si no, la columna Insumo
+        // cambiaba 16px entre una pagina con scroll y otra sin el.
         this.primaryLayout({
             parent: 'container-productos',
             id: this.PROJECT_NAME,
@@ -178,7 +184,7 @@ class Productos extends Templates {
             card: {
                 class: 'flex flex-col col-12 flex-1 min-h-0',
                 filterBar: { class: 'w-full mb-3 flex-shrink-0', id: 'filterBar' + this.PROJECT_NAME },
-                container: { class: 'w-full flex-1 min-h-0 overflow-auto', id: 'container' + this.PROJECT_NAME }
+                container: { class: 'w-full flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]', id: 'container' + this.PROJECT_NAME }
             }
         });
     }
@@ -234,18 +240,8 @@ class Productos extends Templates {
                     color_btn: "primary",
                     onClick: () => this.addMaterial()
                 },
-                // Colores fijos, no del tema: `blue-*` sigue al acento (terracota en Claro),
-                // por eso el azul va en hex (el de erp-pro). El `!` gana al color del preset.
-                {
-                    opc: "button",
-                    id: "btnAsistenteIA",
-                    text: "CoffeeIA",
-                    icon: "icon-magic",
-                    className: 'w-100 !border-[#2563EB] !text-[#2563EB] hover:!bg-[#2563EB] hover:!text-white focus:!ring-[#2563EB]',
-                    class: "col-12 col-md-2",
-                    color_btn: "outline",
-                    onClick: () => asistente.render()
-                },
+                // CoffeeIA ya no va aquí: es el ícono al pie del menú lateral (AsistenteProductos.renderLauncher).
+                // Color fijo, no del tema: el verde de Excel va en hex. El `!` gana al color del preset.
                 {
                     opc: "button",
                     id: "btnFormatoConteo",
@@ -288,7 +284,7 @@ class Productos extends Templates {
             attr: {
                 id: 'tbMateriales',
                 theme: 'light',
-                class: 'w-100 lowercase',
+                class: 'w-100 lowercase table-fixed min-w-[1080px]',
                 striped:true,
                 center: [2,3,5,6,7,9],
                 right: [4],
@@ -537,6 +533,14 @@ class Productos extends Templates {
                 required: false,
                 class: "hidden"
             },
+            // 1 = el formulario ya enseñó los productos de nombre parecido (paintNameCheck).
+            {
+                opc: "input",
+                type: "hidden",
+                id: "similar_ok",
+                required: false,
+                class: "hidden"
+            },
 
             // -- Descripción --
             {
@@ -544,7 +548,7 @@ class Productos extends Templates {
                 id: "description",
                 lbl: "Descripción",
                 class: "col-12 pt-1",
-                placeholder: "Notas del producto (opcional)",
+                placeholder: "Notas y otros nombres con que se conoce el producto (opcional)",
                 required: false,
                 rows: 2
             }
@@ -598,11 +602,115 @@ class Productos extends Templates {
         return { qty: isNaN(n) ? '' : String(n / unit), unit: String(unit) };
     }
 
-    // La nota del último costo va debajo del input, en chico (antes era el placeholder).
-    // Si el formulario no cabe entero se deja el scroll propio del cuerpo de cfModal
-    // (72vh), así los botones Aceptar/Cancelar siempre se ven.
+    // Las notas del último costo y de la descripción (otros nombres del producto) van
+    // debajo de su campo, en chico. Si el formulario no cabe entero se deja el scroll
+    // propio del cuerpo de cfModal (72vh), así los botones Aceptar/Cancelar siempre se ven.
     mountMaterialHints(formId) {
-        mountFieldHints(formId, { cost_unit: "Se actualiza con cada entrada." });
+        mountFieldHints(formId, {
+            cost_unit: "Se actualiza con cada entrada.",
+            description: "Agrega cómo también se le conoce al producto. Ej.: Jitomate → tomate, tomate rojo. Colorante Azul No. 1 / E-133 → colorante azul, color azul, azul, gel azul brillante, gel Azul Brillante Enco 1131-250."
+        });
+    }
+
+    // Mientras se escribe el nombre se avisa si ya existe (no se podrá guardar) o si hay
+    // otros parecidos. Al editar no se consulta si el nombre sigue siendo el de antes.
+    mountNameCheck(formId, id = 0, original = '') {
+        const $form = $(`#${formId}`);
+        const $name = $form.find('#name');
+        const key   = (text) => plainText(text).replace(/[^a-z0-9]+/g, ' ').trim();
+        let timer   = null;
+        let turn    = 0;
+        let hover   = false;
+
+        // El input y su mensaje de error van juntos: la validación del core lo busca
+        // en el mismo padre. El ícono y el tooltip flotan: el formulario no se mueve.
+        $name.add($name.nextAll('.tw-error')).wrapAll($('<div>', { class: 'relative' }));
+
+        const $flag = $('<span>', {
+            'data-name-flag': '',
+            class: 'hidden absolute right-2.5 top-1/2 -translate-y-1/2 cursor-help'
+        }).append($('<i>', { 'data-lucide': 'alert-circle', class: 'w-4 h-4' }));
+
+        const $tip = $('<div>', {
+            'data-name-check': '',
+            role: 'tooltip',
+            class: 'hidden pointer-events-none absolute left-0 top-full mt-1.5 z-30 w-max max-w-[320px] rounded-lg bg-gray-800 px-2.5 py-1.5 text-[11px] leading-snug text-white shadow-lg'
+        });
+
+        // El tooltip se ve mientras se escribe el nombre o con el mouse sobre el ícono.
+        const toggleTip = () => $tip.toggleClass('hidden', $flag.hasClass('hidden') || !(hover || $name.is(':focus')));
+
+        $name.after($flag, $tip).on('focus blur', toggleTip);
+        $flag.on('mouseenter mouseleave', (e) => {
+            hover = e.type === 'mouseenter';
+            toggleTip();
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        $name.on('input', () => {
+            const name = $name.val().trim();
+            const mine = ++turn;
+
+            clearTimeout(timer);
+
+            if (name.length < 3 || key(name) === key(original)) {
+                this.paintNameCheck(formId, null);
+                return;
+            }
+
+            $form.find('#similar_ok').val('');
+
+            timer = setTimeout(async () => {
+                const response = await useFetch({
+                    url: this._link,
+                    data: { opc: 'lsSimilarMaterials', name: name, id: id }
+                });
+
+                if (mine === turn && $name.val().trim() === name) this.paintNameCheck(formId, response);
+            }, 350);
+        });
+    }
+
+    // Nombre igual en rojo; parecidos en ámbar (borde del campo e ícono). El texto va
+    // en el tooltip. Enseñar los parecidos de ESTE nombre pone similar_ok = 1: el
+    // servidor ya no vuelve a frenar el guardado por ellos.
+    paintNameCheck(formId, matches) {
+        const $form   = $(`#${formId}`);
+        const $name   = $form.find('#name');
+        const $flag   = $form.find('[data-name-flag]');
+        const $tip    = $form.find('[data-name-check]');
+        const exact   = matches && matches.exact;
+        const similar = (matches && matches.similar) || [];
+        const label   = (item) => `«${item.name}»${item.active ? '' : ' (inactivo)'}`;
+        const more    = matches && matches.more ? ` y ${matches.more} más` : '';
+
+        $form.find('#similar_ok').val(!exact && similar.length ? '1' : '');
+        $name.removeClass('pr-8 !border-red-400 !border-amber-400');
+        $flag.removeClass('text-red-500 text-amber-500').addClass('hidden');
+        $tip.addClass('hidden').text('');
+
+        if (!exact && !similar.length) return;
+
+        $name.addClass(exact ? 'pr-8 !border-red-400' : 'pr-8 !border-amber-400');
+        $flag.removeClass('hidden').addClass(exact ? 'text-red-500' : 'text-amber-500');
+        $tip.text(exact
+            ? `Ya existe un producto con este nombre: ${label(exact)}.`
+            : `Ya existe con un nombre similar: ${similar.map(label).join(', ')}${more}. Si es otro producto, puedes guardarlo.`
+        ).toggleClass('hidden', !$name.is(':focus'));
+    }
+
+    // Error al guardar. Si fue por el nombre (repetido o parecido) el aviso se queda en
+    // el campo y la alerta no se cierra sola, para alcanzar a leer qué productos son.
+    alertNameCheck(formId, response) {
+        if (response.matches) this.paintNameCheck(formId, response.matches);
+
+        this.alertBox({
+            type: response.matches ? "warning" : "error",
+            theme: "light",
+            title: response.message,
+            timer: response.matches ? 0 : 2500
+        });
     }
 
     // El alta del Catálogo se abre encima: el producto no se cierra ni pierde lo capturado.
@@ -636,7 +744,13 @@ class Productos extends Templates {
         if (!item) return;
 
         $(`#${formId} #${field}`)
-            .append($('<option>', { value: item.id, text: item.valor, 'data-color': item.color, 'data-bg': item.bg }))
+            .append($('<option>', {
+                value: item.id,
+                text: item.valor,
+                'data-color': item.color,
+                'data-bg': item.bg,
+                'data-description': item.description
+            }))
             .val(String(item.id))
             .trigger('change');
     }
@@ -692,10 +806,31 @@ class Productos extends Templates {
             paint('');
         });
 
+        // Los ocultos no vuelven solos a vacío con el reset del form (resetMaterialForm).
+        $field.closest('form').on('reset', () => {
+            $b64.val('');
+            $remove.val('0');
+            paint('');
+        });
+
         $field.addClass('flex items-center gap-3').append($thumb, $pick, $drop, $file, $b64, $remove);
         paint(inventoryFileUrl(image));
     }
 
+    // Vuelve el alta a como abrió: campos, select2, foto, vida útil y aviso del nombre.
+    // Lo que se dio de alta con "+ Nueva" se queda en los selects.
+    resetMaterialForm(formId) {
+        const $form = $(`#${formId}`);
+
+        $form[0].reset();
+        $form.find('select').trigger('change.select2');
+        $form.find('#shelf_life_days, #similar_ok').val('');
+        this.costAnchor = 'unit';
+        this.paintNameCheck(formId, null);
+        $form.find('#name').trigger('focus');
+    }
+
+    // Captura en serie: al guardar, el modal sigue abierto y se limpia para el siguiente.
     addMaterial() {
         this.costAnchor = 'unit';
 
@@ -705,6 +840,7 @@ class Productos extends Templates {
             theme:'light',
             coffeesoft:true,
             closeOnError: false,
+            closeOnSuccess: false,
             bootbox: {
                 title: 'Nuevo Producto',
                 size: 'large',
@@ -721,18 +857,15 @@ class Productos extends Templates {
                         timer: 1500
                     });
                     this.lsMateriales();
+                    this.resetMaterialForm('formMaterialAdd');
                 } else {
-                    this.alertBox({
-                        type: "error",
-                        theme: "light",
-                        title: response.message,
-                        timer: 2500
-                    });
+                    this.alertNameCheck('formMaterialAdd', response);
                 }
             }
         });
 
         this.mountMaterialHints('formMaterialAdd');
+        this.mountNameCheck('formMaterialAdd');
         this.mountCatalogShortcuts('formMaterialAdd');
         this.mountProductPhoto('formMaterialAdd');
     }
@@ -775,17 +908,13 @@ class Productos extends Templates {
                         });
                         this.lsMateriales();
                     } else {
-                        this.alertBox({
-                            type: "error",
-                            theme: "light",
-                            title: response.message,
-                            timer: 2500
-                        });
+                        this.alertNameCheck('formMaterialEdit', response);
                     }
                 }
             });
 
             this.mountMaterialHints('formMaterialEdit');
+            this.mountNameCheck('formMaterialEdit', id, request.data.name);
             this.mountCatalogShortcuts('formMaterialEdit');
             this.mountProductPhoto('formMaterialEdit', request.data.image);
         }
@@ -900,6 +1029,30 @@ if ($.fn.dataTable) {
     });
 }
 
+// Ancho fijo por columna (la tabla va con table-fixed): al paginar, buscar o filtrar
+// las columnas ya no se acomodan al texto de cada página. Insumo (el producto) no
+// lleva ancho: se queda con lo que sobra.
+const PRODUCT_WIDTHS = {
+    'categoría':    '140px',
+    'área':         '140px',
+    'último costo': '100px',
+    'stock':        '70px',
+    'mín':          '60px',
+    'máx':          '60px',
+    'vida útil':    '80px',
+    'estado':       '80px',
+    '':             '96px'
+};
+
+// La columna Estado solo sale con el filtro "Todos": los anchos van por encabezado,
+// no por posición. El de las acciones (engrane) no tiene texto.
+function productsColumnDefs(table) {
+    return $(table).find('thead th').map((i, th) => {
+        const width = PRODUCT_WIDTHS[$(th).text().trim().toLowerCase()];
+        return width ? { targets: i, width: width } : null;
+    }).get();
+}
+
 // DataTable de Productos (conf.fn_datatable): como simple_data_table, más el selector
 // de cuántos ver (10/25/50/100), que se recuerda en la sesión, y el buscador (busca en
 // las filas ya cargadas: nombre, categoría, área...). createCoffeeTable3 deja el
@@ -921,6 +1074,8 @@ function productsDataTable(table, no) {
         searching: true,
         order: [],
         info: true,
+        autoWidth: false,
+        columnDefs: productsColumnDefs(table),
         language: {
             search: "",
             searchPlaceholder: "Buscar producto...",
@@ -1089,10 +1244,47 @@ class AsistenteProductos extends Templates {
 
     // -- Interface --
 
+    // coffeeIA en el riel del menú, en la esquina de abajo (el espaciador flex-1 que
+    // deja sidebar.js lo empuja ahí): la cara con un "IA" chico encima, abajo a la
+    // derecha, en el color del tema (--nav-accent de navbar.js). Abre y cierra el chat.
+    // El riel se pinta solo y asíncrono, y render() lo reescribe entero: si aún no
+    // está, se espera su aviso.
+    renderLauncher() {
+        const mount = () => {
+            const $rail = $('#menu-sidebar.sidebar-container');
+            if (!$rail.length) return false;
+
+            $(`#launcher${this.PROJECT_NAME}`).remove();
+
+            const $launcher = $('<button>', {
+                type: 'button',
+                id: `launcher${this.PROJECT_NAME}`,
+                class: 'relative flex-shrink-0 w-[48px] h-[46px] p-0 flex items-center justify-center rounded-[11px] border border-transparent bg-transparent transition-colors hover:bg-black/5',
+                title: 'CoffeeIA',
+                'aria-label': 'Abrir CoffeeIA'
+            }).append(
+                $('<span>', {
+                    class: 'relative block w-[26px] h-[26px]',
+                    html: this.iaIcon(`launcher${this.PROJECT_NAME}`)
+                }).append($('<span>', {
+                    class: 'absolute right-[-4px] top-[13px] text-[9px] font-extrabold tracking-[-.02em] leading-none pointer-events-none text-[color:var(--nav-accent,#C05A40)]',
+                    text: 'IA'
+                }))
+            );
+
+            $launcher.on('click', () => this.render());
+            $rail.append($launcher);
+            return true;
+        };
+
+        if (!mount()) $(document).one('sidebarReady', mount);
+    }
+
     render() {
         if (!this.chat) {
             this.chat = this.iaChat({
                 id:          `chat${this.PROJECT_NAME}`,
+                dock:        "bottom-4 left-[72px]",
                 title:       "CoffeeIA",
                 subtitle:    "Productos, categorías, unidades, áreas, almacenes y proveedores",
                 placeholder: "Escribe o adjunta un Excel o una foto…",

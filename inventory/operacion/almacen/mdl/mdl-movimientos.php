@@ -135,7 +135,7 @@ class mdl extends CRUD {
             SELECT
                 COUNT(*) AS total,
                 COUNT(CASE WHEN mv.movement_type = 'ENTRADA'       THEN 1 END) AS total_entradas,
-                COUNT(CASE WHEN mv.movement_type = 'MERMA'         THEN 1 END) AS total_mermas,
+                COUNT(CASE WHEN mv.movement_type = 'SALIDA'        THEN 1 END) AS total_salidas,
                 COUNT(CASE WHEN mv.movement_type = 'TRANSFERENCIA' THEN 1 END) AS total_traspasos
             FROM {$this->bd}inventory_movement mv
             WHERE {$where}
@@ -143,7 +143,7 @@ class mdl extends CRUD {
         $r = $this->_Read($query, $data);
         return !empty($r) ? $r[0] : [
             'total' => 0, 'total_entradas' => 0,
-            'total_mermas' => 0, 'total_traspasos' => 0
+            'total_salidas' => 0, 'total_traspasos' => 0
         ];
     }
 }

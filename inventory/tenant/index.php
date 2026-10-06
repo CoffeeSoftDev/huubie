@@ -103,6 +103,9 @@ $embed = isset($_GET['embed']);
     <script src="../src/js/components/cs-icon-picker.js?t=<?php echo time(); ?>"></script>
     <!-- Panel + acordeones de la pestaña Secciones (access.js). -->
     <script src="../src/js/components/cs-grouped-list.js?t=<?php echo time(); ?>"></script>
+    <!-- Chat de CoffeeIA del editor de temas (temas.js); forja-blob dibuja el muñeco. -->
+    <script src="../src/js/components/forja-blob.js?v=<?php echo filemtime(__DIR__ . '/../src/js/components/forja-blob.js'); ?>"></script>
+    <script src="../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../src/js/components/ia-chat.js'); ?>"></script>
 
     <!-- Módulo Administrador del Tenant -->
     <script src="js/saas.js?t=<?php echo time(); ?>"></script>

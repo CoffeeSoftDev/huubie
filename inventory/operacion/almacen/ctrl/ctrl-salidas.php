@@ -126,7 +126,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
 
-        $folio         = $this->nextFolio('M-', 'inventory_shrinkage', $this->companiesId);
+        $folio         = $this->nextFolio('S-', 'inventory_shrinkage', $this->companiesId);
         $totalProducts = count($productos);
         $totalUnits    = 0;
         $totalLoss     = 0;

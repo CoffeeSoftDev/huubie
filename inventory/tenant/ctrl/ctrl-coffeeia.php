@@ -4,9 +4,10 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once '../mdl/mdl-coffeeia.php';
 
-// Configuración básica de coffeeIA para los chats de inventory: tono, modelo de
-// razonamiento, esfuerzo y modelo para imagen. Es global (una fila) y manda
-// sobre el .env; lo que se deja en "Predeterminado" sigue saliendo del .env.
+// Configuración básica de coffeeIA para los chats de inventory: encendido o
+// apagado (el ícono del Catálogo), tono, modelo de razonamiento, esfuerzo y modelo
+// para imagen. Es global (una fila) y manda sobre el .env; lo que se deja en
+// "Predeterminado" sigue saliendo del .env.
 class ctrl extends mdl {
 
     const CONFIG_ID = 1;
@@ -58,9 +59,10 @@ class ctrl extends mdl {
     function lsCoffeeIAConfig() {
         $c = $this->getCoffeeIAConfig([self::CONFIG_ID]);
 
-        if (!$c) return ['status' => 200, 'row' => [], 'message' => 'Falta correr la migración 2026-09-30_coffeeia-config.sql'];
+        if (!$c) return ['status' => 200, 'row' => [], 'message' => 'Falta correr las migraciones 2026-09-30_coffeeia-config.sql y 2026-10-06_coffeeia-activo.sql'];
 
         $row = [
+            ['Ajuste' => 'Estado',                  'Valor' => renderActive($c['active']),                                 'Para qué sirve' => 'Encendido: el ícono de coffeeIA sale abajo en el menú lateral del Catálogo. Apagado: no sale y el chat no contesta.'],
             ['Ajuste' => 'Tono',                    'Valor' => renderTone($c['tone']),                                     'Para qué sirve' => 'Cómo redacta lo que te contesta. Se suma a las instrucciones de cada chat.'],
             ['Ajuste' => 'Modelo para razonamiento', 'Valor' => renderChoice($c['model'], self::MODELOS),                  'Para qué sirve' => 'El que entiende lo que pides, lo cruza con el catálogo y contesta.'],
             ['Ajuste' => 'Esfuerzo',                'Valor' => renderChoice($c['effort'], self::ESFUERZOS),                'Para qué sirve' => 'Cuánto piensa antes de contestar. Más esfuerzo, más lento.'],
@@ -75,11 +77,12 @@ class ctrl extends mdl {
     function getCoffeeIA() {
         $c = $this->getCoffeeIAConfig([self::CONFIG_ID]);
 
-        if (!$c) return ['status' => 404, 'message' => 'Falta correr la migración 2026-09-30_coffeeia-config.sql'];
+        if (!$c) return ['status' => 404, 'message' => 'Falta correr las migraciones 2026-09-30_coffeeia-config.sql y 2026-10-06_coffeeia-activo.sql'];
 
         return [
             'status' => 200,
             'data'   => [
+                'active'       => (int) $c['active'] === 1 ? '1' : '0',
                 'tone'         => (string) $c['tone'],
                 'model'        => $c['model']        ?: self::AUTO,
                 'effort'       => $c['effort']       ?: self::AUTO,
@@ -90,7 +93,7 @@ class ctrl extends mdl {
 
     function editCoffeeIA() {
         if (!$this->getCoffeeIAConfig([self::CONFIG_ID])) {
-            return ['status' => 404, 'message' => 'Falta correr la migración 2026-09-30_coffeeia-config.sql'];
+            return ['status' => 404, 'message' => 'Falta correr las migraciones 2026-09-30_coffeeia-config.sql y 2026-10-06_coffeeia-activo.sql'];
         }
 
         $tone = trim(preg_replace('/\s+/u', ' ', (string) $_POST['tone']));
@@ -105,11 +108,13 @@ class ctrl extends mdl {
         if ($effort === false) return ['status' => 400, 'message' => 'Ese nivel de esfuerzo no está en la lista.'];
         if ($vision === false) return ['status' => 400, 'message' => 'Ese modelo para imagen no está en la lista.'];
 
+        $active = ($_POST['active'] ?? '1') === '0' ? 0 : 1;
+
         // Sin util->sql(): los NULL son a propósito (NULL = manda el .env).
         $ok = $this->updateCoffeeIAConfig([
-            'values' => ['tone', 'model', 'effort', 'vision_model', 'updated_at'],
+            'values' => ['active', 'tone', 'model', 'effort', 'vision_model', 'updated_at'],
             'where'  => ['id'],
-            'data'   => [$tone === '' ? null : $tone, $model, $effort, $vision, date('Y-m-d H:i:s'), self::CONFIG_ID]
+            'data'   => [$active, $tone === '' ? null : $tone, $model, $effort, $vision, date('Y-m-d H:i:s'), self::CONFIG_ID]
         ]);
 
         return [
@@ -141,6 +146,12 @@ class ctrl extends mdl {
 }
 
 // Complements
+
+function renderActive($active) {
+    return (int) $active === 1
+        ? '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-green-100 text-green-700">Encendido</span>'
+        : '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-red-100 text-red-700">Apagado</span>';
+}
 
 function renderTone($tone) {
     $tone = trim((string) $tone);

@@ -60,14 +60,13 @@ class ctrl extends mdl {
                 'id'        => $r['product_id'],
                 'Producto'  => [
                     'class' => 'justify-start px-2 py-2',
-                    'html'  => $this->_productCell($r['image'] ?? '', $r['product_name'], $r['product_id'], $r['sku'] ?: '')
+                    'html'  => $this->_productCell($r['image'] ?? '', $r['product_name'], $r['product_id'], $r['sku'] ?: '', $r['category_name'] ?: '')
                 ],
-                'Categoría' => $r['category_name'] ?: '-',
                 'Stock'     => in_array($txt, ['0', '-0'], true) ? '-' : $txt,
                 'Mín'       => $min > 0 ? $this->_qty($min) : '-',
                 'Máx'       => $max > 0 ? $this->_qty($max) : '-',
                 'Unidad'    => $r['unit_code'] ?: '-',
-                'Estado'    => $this->_levelBadge($qty, $min),
+                'Estado'    => $this->_levelBadge($qty, $min, $max),
                 'Últ. Mov'  => $this->_lastMovBadge($r['last_movement_type'] ?? ''),
                 'a'         => [
                     [
@@ -399,13 +398,13 @@ class ctrl extends mdl {
 
         $typeMap = [
             'ENTRADA'       => 'in',
-            'MERMA'         => 'out',
+            'SALIDA'        => 'out',
             'TRANSFERENCIA' => 'tr',
             'AJUSTE'        => 'adjust'
         ];
         $labelMap = [
             'ENTRADA'       => 'Entrada',
-            'MERMA'         => 'Merma',
+            'SALIDA'        => 'Salida',
             'TRANSFERENCIA' => 'Transferencia',
             'AJUSTE'        => 'Ajuste'
         ];
@@ -475,7 +474,7 @@ class ctrl extends mdl {
 
         $salidas = [];
         foreach ($movsRows as $m) {
-            if ($m['movement_type'] === 'MERMA' || (float) $m['quantity'] < 0) {
+            if ($m['movement_type'] === 'SALIDA' || (float) $m['quantity'] < 0) {
                 $salidas[] = abs((float) $m['quantity']);
             }
         }
@@ -659,13 +658,14 @@ class ctrl extends mdl {
     // La foto (item.image) es relativa a inventory/ (uploads/productos/...) y esta tabla
     // se pinta en operacion/almacen/: mismo criterio que renderProductImage (ctrl-almacen)
     // e inventoryFileUrl (coffeeSoft.js). Si no carga, queda el cubo.
-    private function _productCell($image, $name, $id = 0, $sku = '') {
-        $image = trim((string) $image);
-        $src   = '';
+    private function _productCell($image, $name, $id = 0, $sku = '', $category = '') {
+        $image    = trim((string) $image);
+        $src      = '';
         if ($image !== '') $src = preg_match('#^(https?:)?//|^/#', $image) ? $image : '../../' . $image;
-        $label = htmlspecialchars(trim((string) $name), ENT_QUOTES);
-        $sku   = trim((string) $sku);
-        $id    = (int) $id;
+        $label    = htmlspecialchars(trim((string) $name), ENT_QUOTES);
+        $sku      = trim((string) $sku);
+        $category = trim((string) $category);
+        $id       = (int) $id;
 
         $imgTag = $src !== ''
             ? '<img src="' . htmlspecialchars($src, ENT_QUOTES) . '" onerror="this.remove();"'
@@ -675,8 +675,12 @@ class ctrl extends mdl {
         $click = $id ? ' onclick="app.selectProduct(' . $id . ')" title="Clic para ver detalle"' : '';
         $hover = $id ? ' cursor-pointer transition duration-150 hover:ring-2 hover:ring-blue-400/60 hover:scale-105' : '';
 
-        $skuTag = $sku !== ''
-            ? '<span class="font-mono text-[10px] text-gray-400">' . htmlspecialchars($sku, ENT_QUOTES) . '</span>'
+        $meta = [];
+        if ($sku !== '')      $meta[] = '<span class="font-mono">' . htmlspecialchars($sku, ENT_QUOTES) . '</span>';
+        if ($category !== '') $meta[] = htmlspecialchars($category, ENT_QUOTES);
+
+        $metaTag = $meta
+            ? '<span class="text-[10px] text-gray-400">' . implode(' - ', $meta) . '</span>'
             : '';
 
         return '
@@ -687,7 +691,7 @@ class ctrl extends mdl {
                 </div>
                 <div class="flex flex-col leading-tight">
                     <span class="text-sm text-gray-800">' . $label . '</span>
-                    ' . $skuTag . '
+                    ' . $metaTag . '
                 </div>
             </div>';
     }
@@ -906,7 +910,7 @@ class ctrl extends mdl {
         }
         $map = [
             'ENTRADA'       => ['bg' => 'rgba(63,193,137,0.15)', 'fg' => '#15803D', 'lbl' => 'Entrada'],
-            'MERMA'         => ['bg' => 'rgba(224,36,36,0.15)',  'fg' => '#B91C1C', 'lbl' => 'Merma'],
+            'SALIDA'        => ['bg' => 'rgba(224,36,36,0.15)',  'fg' => '#B91C1C', 'lbl' => 'Salida'],
             'TRANSFERENCIA' => ['bg' => 'rgb(var(--brand-600, 192 90 64) / 0.15)',  'fg' => 'rgb(var(--brand-600, 192 90 64))', 'lbl' => 'Traspaso'],
             'AJUSTE'        => ['bg' => 'rgba(167,139,250,0.15)','fg' => '#7C3AED', 'lbl' => 'Ajuste']
         ];
@@ -914,11 +918,13 @@ class ctrl extends mdl {
         return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>{$c['lbl']}</span>";
     }
 
-    private function _levelBadge($qty, $min) {
+    private function _levelBadge($qty, $min, $max) {
         if ($qty <= 0) {
             $c = ['bg' => 'rgba(224,36,36,0.18)', 'fg' => '#E02424', 'lbl' => 'AGOTADO'];
         } elseif ($qty <= $min) {
             $c = ['bg' => 'rgba(251,191,36,0.18)', 'fg' => '#FBBF24', 'lbl' => 'BAJO'];
+        } elseif ($max > 0 && $qty > $max) {
+            $c = ['bg' => 'rgba(2,132,199,0.18)', 'fg' => '#0284C7', 'lbl' => 'ALTO'];
         } else {
             $c = ['bg' => 'rgba(63,193,137,0.18)', 'fg' => '#3FC189', 'lbl' => 'OK'];
         }

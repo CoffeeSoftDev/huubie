@@ -85,16 +85,19 @@ main {
  * ───────────────────────────────────────────────────────────── */
 
 /* ─────────────────────────────────────────────────────────────
- *  Select2 del filterBar (Productos > Área: select2Checklist en almacen.js).
+ *  Select2 del filterBar (Productos > Área: select2Checklist en almacen.js)
+ *  y de los formularios en modal (Nuevo/Editar producto: Categoría y Área).
  *
  *  El tema bootstrap-5 + compact.css dejan la caja de select2 más baja
- *  (28px) y con esquinas más cerradas que los selects nativos de coffeeForm
- *  que tiene al lado (33.5px, radio 7px). Se iguala por la clase que
- *  select2Checklist le pone a la caja (selectionCssClass). compact.css usa
- *  !important con dos clases; esta regla lleva tres para ganarle. El
- *  padding derecho deja lugar a la flecha del tema.
+ *  (28px) y con esquinas más cerradas que los inputs y selects nativos de
+ *  coffeeForm que tiene al lado (33.5px, radio 7px). En el filtro se iguala
+ *  por la clase que select2Checklist le pone a la caja (selectionCssClass);
+ *  en el modal, por el contenedor .cf-modal. compact.css usa !important con
+ *  dos clases; estas reglas llevan tres para ganarle. El padding derecho
+ *  deja lugar a la flecha del tema.
  * ───────────────────────────────────────────────────────────── */
-.select2-container--bootstrap-5 .select2-selection.cs-select2-filter {
+.select2-container--bootstrap-5 .select2-selection.cs-select2-filter,
+.cf-modal .select2-container--bootstrap-5 .select2-selection--single {
     min-height: 2.4rem !important;
     padding: 0.375rem 2.25rem 0.375rem 1rem !important;
     border-color: #dee2e6;

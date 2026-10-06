@@ -470,9 +470,9 @@ class Salidas extends Templates {
                 id:          'chatSalidaIA',
                 title:       'CoffeeIA',
                 subtitle:    'Revisa y captura la salida desde una foto o un Excel',
-                placeholder: 'Adjunta la nota de merma o escribe qué sale…',
+                placeholder: 'Adjunta la nota de salida o escribe qué sale…',
                 accept:      '.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv',
-                welcome:     'Adjunta la foto de la nota, hoja de merma o lista. Te digo qué productos salen, cuáles no están en el catálogo y cuáles no tienen stock suficiente. Nada entra sin tu confirmación.',
+                welcome:     'Adjunta la foto de la nota, hoja de salida o lista. Te digo qué productos salen, cuáles no están en el catálogo y cuáles no tienen stock suficiente. Nada entra sin tu confirmación.',
                 actions: {
                     add: {
                         label: 'Agregar',

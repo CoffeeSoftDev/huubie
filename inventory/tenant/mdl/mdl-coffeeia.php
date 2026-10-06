@@ -16,7 +16,7 @@ class mdl extends CRUD {
 
     function getCoffeeIAConfig($array) {
         $query = "
-            SELECT id, tone, model, effort, vision_model, updated_at
+            SELECT id, active, tone, model, effort, vision_model, updated_at
             FROM {$this->bd}coffeeia_config
             WHERE id = ?
             LIMIT 1

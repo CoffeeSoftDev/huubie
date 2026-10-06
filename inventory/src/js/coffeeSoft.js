@@ -566,16 +566,24 @@ class Complements {
     // Plantilla de select2 para campos con badge:true: la opción como pastilla con su
     // color (data-color = texto, data-bg = fondo). cs-badge-soft + --b-fg la vuelven
     // velo en páginas oscuras (dark-mode.css), igual que el badge de las tablas.
-    // Las opciones sin color (ej. "Sin área") van en texto chico y gris.
+    // Las opciones sin color (ej. "Sin área") van en texto chico y gris. Con
+    // data-description el badge la lleva después del nombre, en peso normal; si no
+    // cabe (el valor elegido en un select angosto) se corta con "...".
     cfBadgeOption(opt) {
         const color = opt.element ? opt.element.getAttribute('data-color') : null;
         if (!color) return $('<span>', { class: 'text-xs text-gray-500', text: opt.text });
 
-        return $('<span>', {
-            class: 'cs-badge-soft inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap',
+        const note  = opt.element.getAttribute('data-description');
+        const badge = $('<span>', {
+            class: 'cs-badge-soft inline-block max-w-full truncate align-middle px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap',
             text: opt.text,
+            title: note ? `${opt.text} · ${note}` : null,
             style: `--b-fg:${color};background:${opt.element.getAttribute('data-bg') || 'transparent'};color:${color};`
         });
+
+        if (note) badge.append($('<span>', { class: 'font-normal opacity-75', text: ` · ${note}` }));
+
+        return badge;
     }
 
     cfToTailwindGrid(bsClass) {
@@ -1042,9 +1050,11 @@ class Components extends Complements {
                                 value: item.id,
                                 text: item.valor,
                                 selected: bandera,
-                                // badge:true -> cada opción lleva su color (texto) y bg (fondo).
+                                // badge:true -> cada opción lleva su color (texto), bg (fondo)
+                                // y, si la trae, la descripción que va dentro del badge.
                                 'data-color': x.badge ? item.color : undefined,
                                 'data-bg': x.badge ? item.bg : undefined,
+                                'data-description': x.badge ? item.description : undefined,
                             }));
                         });
                     }
@@ -1267,6 +1277,8 @@ class Components extends Complements {
                     // La búsqueda solo aparece con listas largas, salvo con search:true.
                     cfg.templateResult = cfg.templateSelection = (opt) => self.cfBadgeOption(opt);
                     cfg.minimumResultsForSearch = f.search ? 0 : 10;
+                    // La lista se ensancha a lo que mida el badge más largo (con su descripción).
+                    cfg.dropdownAutoWidth = true;
                     // Con placeholder (aunque sea '') select2 esconde la opción de valor vacío
                     // y "Sin área" no se podría elegir.
                     if (!f.placeholder) delete cfg.placeholder;
@@ -2313,6 +2325,8 @@ class Components extends Complements {
             coffeeModal: true, // true -> modal propio CoffeeSoft (cfModal); false -> bootbox.
             // false -> si el ctrl no responde 200 el modal sigue abierto con lo capturado.
             closeOnError: true,
+            // false -> con 200 el modal sigue abierto (captura en serie: `success` lo limpia).
+            closeOnSuccess: true,
             bootbox: {
                 title: 'Modal example',
                 closeButton: true,
@@ -2391,8 +2405,10 @@ class Components extends Complements {
                     url: self._link,
                     data: Object.assign({}, formData, dyn),
                     success: (req) => {
+                        const ok = req && req.status === 200;
+
                         if (conf.success) conf.success(req);
-                        if (conf.closeOnError !== false || (req && req.status === 200)) closeModal();
+                        if (ok ? conf.closeOnSuccess !== false : conf.closeOnError !== false) closeModal();
                     }
                 });
             }

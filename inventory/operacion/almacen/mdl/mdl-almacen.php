@@ -39,7 +39,7 @@ class mdl extends CRUD {
 
     function lsAreas() {
         $query = "
-            SELECT id, name AS valor, color_hex
+            SELECT id, name AS valor, color_hex, description
             FROM {$this->bd}warehouse_area
             WHERE active = 1
             AND companies_id = ".$_SESSION['company_id']."
@@ -69,6 +69,18 @@ class mdl extends CRUD {
             ORDER BY b.name ASC, w.is_default DESC, w.name ASC
         ";
         return $this->_Read($query, []);
+    }
+
+    // Administrador > CoffeeIA (fila única y global). Sin la migración
+    // 2026-10-06_coffeeia-activo.sql regresa null.
+    function getCoffeeIAConfigById($array) {
+        $query = "
+            SELECT active
+            FROM fayxzvov_erp.coffeeia_config
+            WHERE id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0] ?? null;
     }
 
     function getCompanyById($array) {
@@ -266,6 +278,17 @@ class mdl extends CRUD {
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['count'] > 0;
+    }
+
+    function listMaterialNames($array) {
+        // [companies_id, id que no se compara (el que se edita; 0 en un alta)]
+        $query = "
+            SELECT id, name, active
+            FROM {$this->bd}item
+            WHERE companies_id = ?
+            AND id <> ?
+        ";
+        return $this->_Read($query, $array);
     }
 
     // Solo LLENA el SKU: si el producto ya tiene uno, no se toca.

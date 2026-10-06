@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../conf/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 require_once '../mdl/mdl-temas.php';
+require_once __DIR__ . '/../../conf/_IaOllama.php';
 
 // Temas del navbar: alta, edición, imagen de temporada y "por defecto".
 // La barra sigue el modelo de erp-pro/pro/app/dev/ctrl/ctrl-temas.php. El
@@ -23,6 +24,13 @@ class ctrl extends mdl {
     ];
 
     const IMAGE_MAX = 3145728;
+
+    // El navegador ya la manda encogida a 1024 px; esto solo frena lo absurdo.
+    const MARCA_MAX = 8388608;
+
+    // El texto de la barra de cada mode (el mismo de la vista previa de
+    // temas.js). Con él se mide si se lee sobre el fondo propuesto.
+    private $inks = ['light' => '#111827', 'dark' => '#F8FAFC'];
 
     function init() {
         return [
@@ -269,6 +277,94 @@ class ctrl extends mdl {
         ];
     }
 
+    // -- CoffeeIA --
+
+    // El logo o la foto de la marca, descrito por el modelo que ve. Los colores
+    // exactos los mide el navegador en los píxeles; aquí va lo que un píxel no
+    // dice: qué es, qué estilo tiene y qué color manda. No se guarda en disco.
+    function readMarca() {
+        $f = $_FILES['archivo'] ?? null;
+
+        if (!is_array($f)) return ['status' => 400, 'message' => 'No llegó ninguna imagen.'];
+
+        if (in_array((int) $f['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+            return ['status' => 413, 'message' => 'La imagen pasa del tope del servidor (' . ini_get('upload_max_filesize') . ').'];
+        }
+
+        if ((int) $f['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($f['tmp_name'])) {
+            return ['status' => 400, 'message' => 'La imagen no llegó completa. Vuelve a subirla.'];
+        }
+
+        if ((int) $f['size'] > self::MARCA_MAX) return ['status' => 413, 'message' => 'La imagen pesa más de 8 MB.'];
+
+        $info = @getimagesize($f['tmp_name']);
+        if ($info === false || !isset($this->imageTypes[$info[2]])) {
+            return ['status' => 415, 'message' => 'Sube el logo como imagen JPG, PNG o WEBP.'];
+        }
+
+        $ia = IaOllama::desdeCredenciales($this);
+        if ($ia === null) return ['status' => 503, 'message' => 'CoffeeIA no está configurado: falta la llave de Ollama.'];
+
+        // Sin esto la sesión queda bloqueada mientras el modelo mira la imagen.
+        session_write_close();
+        set_time_limit(180);
+
+        $leido = $ia->mirarImagen($f['tmp_name'],
+            "Mira esta imagen de una marca (logo, letrero, empaque o foto del local) y descríbela para quien va a elegir los colores de un sistema:\n"
+            . "1. Qué es y, si se lee, el nombre de la marca.\n"
+            . "2. El estilo en pocas palabras (artesanal, moderno, infantil, elegante, deportivo...).\n"
+            . "3. Los colores de la MARCA por orden de importancia, cada uno con su hexadecimal aproximado y dónde aparece.\n"
+            . "4. El color del fondo de la imagen y si es parte de la marca o solo el fondo.\n\n"
+            . "Máximo 8 renglones. No inventes lo que no se ve. Contesta en español."
+        );
+
+        if ($leido['texto'] === '') {
+            return ['status' => 422, 'message' => $leido['aviso'] !== '' ? $leido['aviso'] : 'No pude sacar nada en claro de esa imagen.'];
+        }
+
+        return ['status' => 200, 'data' => ['texto' => mb_substr($leido['texto'], 0, 4000)]];
+    }
+
+    // Propone el tema, no lo guarda: las filas van a la vista previa del chat y
+    // de ahí al formulario. Lo guarda el Aceptar del modal, con validate().
+    function askTheme() {
+        $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 2000);
+        $adjuntos  = $this->jsonPost('adjuntos');
+        $historial = $this->jsonPost('historial');
+        $actual    = $this->temaActual($this->jsonPost('actual'));
+        $nuevo     = (int) ($_POST['nuevo'] ?? 0) === 1;
+
+        if ($mensaje === '' && empty($adjuntos)) {
+            return ['status' => 400, 'message' => 'Descríbeme la marca o sube su logo.'];
+        }
+
+        $ia = IaOllama::desdeCredenciales($this);
+        if ($ia === null) return ['status' => 503, 'message' => 'CoffeeIA no está configurado: falta la llave de Ollama.'];
+
+        $existentes = array_column(array_merge($this->listThemes([1]), $this->listThemes([0])), 'name');
+
+        session_write_close();
+        set_time_limit(180);
+
+        $respuesta = $ia->chatJson($this->mensajesTema($mensaje, $adjuntos, $historial, $actual, $nuevo, $existentes));
+
+        if (!$respuesta['ok']) return ['status' => 502, 'message' => $respuesta['error']];
+
+        $tema      = $respuesta['data']['theme'] ?? [];
+        $propuesta = $this->propuestaTema(is_array($tema) ? $tema : [], $actual);
+        $row       = $this->filasTema($propuesta, $actual);
+        $reply     = $respuesta['data']['reply'] ?? '';
+        $reply     = is_scalar($reply) ? mb_substr(trim((string) $reply), 0, 1200) : '';
+
+        if ($reply === '') {
+            $reply = empty($row)
+                ? 'No encontré nada que cambiar. Cuéntame más de la marca o sube su logo.'
+                : 'Revisa la propuesta y pásala al formulario.';
+        }
+
+        return ['status' => 200, 'reply' => $reply, 'row' => $row];
+    }
+
     // -- Auxiliares --
 
     private function validate() {
@@ -338,6 +434,223 @@ class ctrl extends mdl {
         $base = rtrim(str_replace('\\', '/', $base), '/');
 
         return $base . '/' . $image . '?v=' . filemtime($file);
+    }
+
+    // -- Auxiliares de CoffeeIA --
+
+    private function jsonPost($field) {
+        $d = json_decode((string) ($_POST[$field] ?? ''), true);
+        return is_array($d) ? $d : [];
+    }
+
+    // Lo que hay en el formulario ahora. Lo que no sea válido toma el mismo
+    // respaldo que la vista previa de temas.js.
+    private function temaActual($a) {
+        $accent = $this->hexValor($a['accent'] ?? '') ?? '#C05A40';
+
+        return [
+            'name'            => $this->nombreTema($a['name'] ?? ''),
+            'tipo'            => $this->enLista($a['tipo'] ?? '', $this->tipos, 'color'),
+            'color'           => $this->hexValor($a['color'] ?? '') ?? '#FFFFFF',
+            'mode'            => $this->enLista($a['mode'] ?? '', $this->modes, 'light'),
+            'scheme'          => $this->enLista($a['scheme'] ?? '', $this->schemes, 'light'),
+            'accent'          => $accent,
+            'primary_color'   => $this->hexValor($a['primary_color'] ?? '') ?? '#292524',
+            'secondary_color' => $this->hexValor($a['secondary_color'] ?? '') ?? $accent
+        ];
+    }
+
+    // Lo que mandó el modelo encima de lo actual: cada campo se valida igual que
+    // al guardar y lo que no pasa se queda como estaba. Luego se revisa que se
+    // lea: el texto de la barra se corrige solo; lo demás solo se avisa.
+    private function propuestaTema($t, $actual) {
+        $p      = $actual;
+        $avisos = [];
+
+        foreach (['color', 'accent', 'primary_color', 'secondary_color'] as $k) {
+            $hex = $this->hexValor($t[$k] ?? '');
+            if ($hex !== null) $p[$k] = $hex;
+        }
+
+        $p['mode']   = $this->enLista($t['mode'] ?? '', $this->modes, $p['mode']);
+        $p['scheme'] = $this->enLista($t['scheme'] ?? '', $this->schemes, $p['scheme']);
+
+        $nombre = $this->nombreTema($t['name'] ?? '');
+        if ($nombre !== '') $p['name'] = $nombre;
+
+        // Con imagen la barra lleva un velo encima: ahí el contraste no se mide.
+        if ($p['tipo'] === 'color') {
+            $otro = $p['mode'] === 'dark' ? 'light' : 'dark';
+
+            if ($this->contraste($this->inks[$p['mode']], $p['color']) < 4.5
+                && $this->contraste($this->inks[$otro], $p['color']) > $this->contraste($this->inks[$p['mode']], $p['color'])) {
+                $p['mode']      = $otro;
+                $avisos['mode'] = 'Lo ajusté yo: sobre ese fondo el otro color de texto no se leía.';
+            }
+        }
+
+        if ($this->contraste('#FFFFFF', $p['primary_color']) < 3) {
+            $avisos['primary_color'] = 'El texto blanco de los botones se va a leer poco sobre este color.';
+        }
+
+        // En clara el acento es texto sobre blanco; en oscura, fondo de la pestaña con texto blanco.
+        if ($this->contraste('#FFFFFF', $p['accent']) < 2.5) {
+            $avisos['accent'] = $p['scheme'] === 'light'
+                ? 'Muy claro: en pestañas y chips se va a leer poco.'
+                : 'Muy claro para las pestañas, que llevan texto blanco.';
+        }
+
+        return ['tema' => $p, 'avisos' => $avisos];
+    }
+
+    // Una fila por campo que cambia. 'action' es el grupo (la etiqueta de color
+    // del chat); 'field' y 'value' son lo que temas.js pone en el formulario.
+    private function filasTema($propuesta, $actual) {
+        $campos = [
+            'name'            => ['tema',    'Nombre',     false],
+            'color'           => ['barra',   'Fondo',      true],
+            'mode'            => ['barra',   'Texto',      false],
+            'scheme'          => ['pagina',  'Fondo',      false],
+            'accent'          => ['colores', 'Acento',     true],
+            'primary_color'   => ['colores', 'Primario',   true],
+            'secondary_color' => ['colores', 'Secundario', true]
+        ];
+        $textos = [
+            'mode'   => ['light' => 'Oscuro', 'dark' => 'Claro'],
+            'scheme' => array_column($this->init()['schemes'], 'valor', 'id')
+        ];
+        $row = [];
+
+        foreach ($campos as $campo => $c) {
+            $antes   = (string) $actual[$campo];
+            $despues = (string) $propuesta['tema'][$campo];
+
+            if ($despues === '' || strcasecmp($antes, $despues) === 0) continue;
+
+            $row[] = [
+                'idx'     => count($row),
+                'action'  => $c[0],
+                'name'    => $c[1],
+                'field'   => $campo,
+                'value'   => $despues,
+                'valid'   => true,
+                'warn'    => $propuesta['avisos'][$campo] ?? '',
+                'changes' => [[
+                    'label'  => '',
+                    'before' => $textos[$campo][$antes] ?? $antes,
+                    'after'  => $textos[$campo][$despues] ?? $despues,
+                    'swatch' => $c[2]
+                ]]
+            ];
+        }
+
+        return $row;
+    }
+
+    private function mensajesTema($mensaje, $adjuntos, $historial, $actual, $nuevo, $existentes) {
+        $mensajes = [['role' => 'system', 'content' => $this->promptTema($actual, $nuevo, $existentes)]];
+
+        foreach (array_slice($historial, -8) as $h) {
+            $rol   = is_array($h) && is_scalar($h['role'] ?? null) ? (string) $h['role'] : '';
+            $texto = is_array($h) && is_scalar($h['content'] ?? null) ? trim((string) $h['content']) : '';
+
+            if (($rol === 'user' || $rol === 'assistant') && $texto !== '') {
+                $mensajes[] = ['role' => $rol, 'content' => mb_substr($texto, 0, 2000)];
+            }
+        }
+
+        $pregunta = 'MENSAJE: ' . ($mensaje !== '' ? $mensaje : '(sin texto: solo subió la imagen de su marca)');
+
+        foreach (array_slice($adjuntos, 0, 2) as $a) {
+            $texto  = is_array($a) && is_scalar($a['texto'] ?? null) ? mb_substr(trim((string) $a['texto']), 0, 6000) : '';
+            $nombre = is_array($a) && is_scalar($a['nombre'] ?? null) ? mb_substr(trim((string) $a['nombre']), 0, 120) : 'imagen';
+
+            if ($texto !== '') $pregunta .= "\n\nIMAGEN «" . $nombre . "»:\n" . $texto;
+        }
+
+        $mensajes[] = ['role' => 'user', 'content' => $pregunta];
+
+        return $mensajes;
+    }
+
+    // Tres partes, como el asistente del catálogo: las reglas editables
+    // (ia/asistente-temas.md), el contrato que valida propuestaTema() y el
+    // tema que está ahora en el formulario.
+    private function promptTema($actual, $nuevo, $existentes) {
+        $ruta   = __DIR__ . '/../ia/asistente-temas.md';
+        $reglas = is_readable($ruta) ? trim(preg_replace('/<!--.*?-->/s', '', (string) file_get_contents($ruta))) : '';
+
+        return implode("\n", [
+            $reglas !== '' ? $reglas : 'Eres CoffeeIA y diseñas los colores de un tema del sistema a partir de una marca. Hablas español, en frases cortas.',
+            '',
+            '== CONTRATO (lo que el sistema acepta) ==',
+            'Campos del tema. Todos son opcionales: manda solo los que propones cambiar.',
+            '- name: nombre corto del tema, máximo 40 caracteres.',
+            '- color: fondo de la barra superior, hexadecimal #RRGGBB.',
+            '- mode: color del TEXTO de la barra. "light" = texto oscuro, para fondos claros. "dark" = texto claro, para fondos oscuros.',
+            '- scheme: fondo de la página. "light" = gris claro de siempre; "huubie" = oscura navy; "midnight" = oscura azul noche; "rose" = oscura vino.',
+            '- accent: acento #RRGGBB (pestañas activas, chips, enlaces).',
+            '- primary_color: primario #RRGGBB (botones principales; llevan texto BLANCO encima).',
+            '- secondary_color: secundario #RRGGBB (píldora de la sucursal, foco de los campos, hover).',
+            '',
+            'Responde SOLO con un objeto JSON, sin texto antes ni después. Ejemplo de la forma:',
+            '{"reply": "Tomé el verde olivo del logo como acento y un café profundo para los botones.", "theme": {"name": "Olivo", "color": "#FFFFFF", "mode": "light", "scheme": "light", "accent": "#6B7F2A", "primary_color": "#3E2A1E", "secondary_color": "#B08458"}}',
+            'Si no te piden un tema o te falta algo para proponerlo, "theme" va vacío y en "reply" preguntas lo que falte.',
+            '',
+            '== EL FORMULARIO AHORA (' . ($nuevo ? 'tema nuevo' : 'edición de un tema que ya existe') . ') ==',
+            'name: ' . ($actual['name'] !== '' ? $actual['name'] : '(vacío)'),
+            'color: ' . $actual['color'] . ($actual['tipo'] === 'imagen' ? ' (la barra lleva una imagen de temporada encima)' : ''),
+            'mode: ' . $actual['mode'],
+            'scheme: ' . $actual['scheme'],
+            'accent: ' . $actual['accent'],
+            'primary_color: ' . $actual['primary_color'],
+            'secondary_color: ' . $actual['secondary_color'],
+            $nuevo ? 'Ponle un nombre que no repita los de la lista de abajo.' : 'Es una edición: NO cambies "name" salvo que te lo pidan.',
+            '',
+            'Temas que ya existen: ' . (empty($existentes) ? '(ninguno)' : implode(', ', $existentes))
+        ]);
+    }
+
+    // Un hex suelto (no un campo del POST) a #RRGGBB; null si no lo es.
+    private function hexValor($v) {
+        if (!is_scalar($v)) return null;
+
+        $c = strtoupper(trim((string) $v));
+        if (preg_match('/^#[0-9A-F]{3}$/', $c)) $c = '#' . $c[1] . $c[1] . $c[2] . $c[2] . $c[3] . $c[3];
+
+        return preg_match('/^#[0-9A-F]{6}$/', $c) ? $c : null;
+    }
+
+    private function enLista($v, $lista, $respaldo) {
+        $v = is_scalar($v) ? strtolower(trim((string) $v)) : '';
+        return in_array($v, $lista, true) ? $v : $respaldo;
+    }
+
+    private function nombreTema($v) {
+        if (!is_scalar($v)) return '';
+
+        $n = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $v)));
+        return mb_substr($n, 0, 40);
+    }
+
+    // Contraste WCAG entre dos hex: 1 (iguales) a 21 (negro sobre blanco).
+    private function contraste($a, $b) {
+        $la = $this->luminancia($a);
+        $lb = $this->luminancia($b);
+
+        return (max($la, $lb) + 0.05) / (min($la, $lb) + 0.05);
+    }
+
+    private function luminancia($hex) {
+        $c     = $this->hexValor($hex) ?? '#FFFFFF';
+        $canal = function ($v) {
+            $v = $v / 255;
+            return $v <= 0.03928 ? $v / 12.92 : pow(($v + 0.055) / 1.055, 2.4);
+        };
+
+        return 0.2126 * $canal(hexdec(substr($c, 1, 2)))
+             + 0.7152 * $canal(hexdec(substr($c, 3, 2)))
+             + 0.0722 * $canal(hexdec(substr($c, 5, 2)));
     }
 
     private function actionBtnClass($variant, $last = false) {

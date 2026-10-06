@@ -160,7 +160,7 @@ class ctrl extends mdl {
 function movementBadge($type) {
     $map = [
         'ENTRADA'       => ['bg' => 'rgba(63,193,137,0.15)', 'fg' => '#15803D'],
-        'MERMA'         => ['bg' => 'rgba(224,36,36,0.15)',  'fg' => '#B91C1C'],
+        'SALIDA'        => ['bg' => 'rgba(224,36,36,0.15)',  'fg' => '#B91C1C'],
         'TRANSFERENCIA' => ['bg' => 'rgb(var(--brand-600, 192 90 64) / 0.15)',  'fg' => 'rgb(var(--brand-600, 192 90 64))'],
         'AJUSTE'        => ['bg' => 'rgba(167,139,250,0.15)','fg' => '#7C3AED']
     ];

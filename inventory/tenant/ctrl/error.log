@@ -1,3 +1,103 @@
+[ 2026-10-06 16:54:38 ]
+[ UNIX_USR ] :: SomxDev
+[ WINDOWS_USR ] :: SomxDev
+[ INFO ] ::  
+            SELECT id, active, tone, model, effort, vision_model, updated_at
+            FROM fayxzvov_erp.coffeeia_config
+            WHERE id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 16:54:38 ]
+[ UNIX_USR ] :: SomxDev
+[ WINDOWS_USR ] :: SomxDev
+[ INFO ] ::  SELECT id, active FROM fayxzvov_erp.coffeeia_config WHERE id = ?
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 16:54:26 ]
+[ UNIX_USR ] :: SomxDev
+[ WINDOWS_USR ] :: SomxDev
+[ INFO ] ::  
+            SELECT id, active, tone, model, effort, vision_model, updated_at
+            FROM fayxzvov_erp.coffeeia_config
+            WHERE id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 16:54:26 ]
+[ UNIX_USR ] :: SomxDev
+[ WINDOWS_USR ] :: SomxDev
+[ INFO ] ::  
+            SELECT id, active, tone, model, effort, vision_model, updated_at
+            FROM fayxzvov_erp.coffeeia_config
+            WHERE id = ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 16:52:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_erp.company_themes (company_id,theme_id,created_at) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.company_themes' doesn't exist
+
+
+[ 2026-10-06 16:52:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_erp.company_themes (company_id,theme_id,created_at) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.company_themes' doesn't exist
+
+
+[ 2026-10-06 16:52:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_erp.company_themes (company_id,theme_id,created_at) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.company_themes' doesn't exist
+
+
+[ 2026-10-06 16:52:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_erp.company_themes (company_id,theme_id,created_at) VALUES (?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.company_themes' doesn't exist
+
+
+[ 2026-10-06 16:52:29 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  DELETE FROM fayxzvov_erp.company_themes WHERE company_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.company_themes' doesn't exist
+
+
+[ 2026-10-06 16:52:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT theme_id
+            FROM fayxzvov_erp.company_themes
+            WHERE company_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.company_themes' doesn't exist
+
+
+[ 2026-10-06 16:52:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT theme_id
+            FROM fayxzvov_erp.company_themes
+            WHERE company_id = ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.company_themes' doesn't exist
+
+
 [ 2026-10-05 14:24:52 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-56GL0L8$

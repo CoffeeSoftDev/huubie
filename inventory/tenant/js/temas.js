@@ -8,6 +8,7 @@ class Themes extends Templates {
         super(link, divModule);
         this.PROJECT_NAME = 'Themes';
         this.options = {};
+        this.assistant = new ThemeAssistant(link, divModule);
     }
 
     async render() {
@@ -65,7 +66,7 @@ class Themes extends Templates {
     }
 
     addTheme() {
-        this.createModalForm({
+        const modal = this.createModalForm({
             id: 'formThemeAdd',
             data: { opc: 'addTheme' },
             theme: 'light',
@@ -76,6 +77,7 @@ class Themes extends Templates {
         });
 
         this.mountThemePreview('formThemeAdd', '');
+        this.assistant.mount(modal, 'formThemeAdd', true);
     }
 
     async editTheme(id) {
@@ -88,7 +90,7 @@ class Themes extends Templates {
 
         const data = request.data;
 
-        this.createModalForm({
+        const modal = this.createModalForm({
             id: 'formThemeEdit',
             data: { opc: 'editTheme', id: id },
             theme: 'light',
@@ -100,6 +102,7 @@ class Themes extends Templates {
         });
 
         this.mountThemePreview('formThemeEdit', data.image_url || '');
+        this.assistant.mount(modal, 'formThemeEdit', false);
     }
 
     statusTheme(id, active) {
@@ -346,21 +349,38 @@ class Themes extends Templates {
 
         $tipo.add($mode).add($scheme).on('change', paint);
 
+        // CoffeeIA (ThemeAssistant) cambia los campos por código: esto vuelve a
+        // medir qué colores siguen ligados, repinta los recuadros y la muestra.
+        $form.data('themePreview', {
+            refresh: () => {
+                linked    = this.hexOf($accent.val(), '') === this.hexOf($primary.val(), '');
+                linkedSec = this.hexOf($accent.val(), '') === this.hexOf($secondary.val(), '');
+                $hex.add($accent).add($primary).add($secondary).trigger('sync');
+                paint();
+            }
+        });
+
         paint();
     }
 
-    // Pone un <input type="color"> junto al campo hexadecimal y los mantiene
-    // iguales en los dos sentidos. El evento 'sync' repinta solo el recuadro
-    // cuando otro campo le cambia el valor por código.
+    // Pone un <input type="color"> chico DENTRO del campo hexadecimal, a la
+    // izquierda, y los mantiene iguales en los dos sentidos. El evento 'sync'
+    // repinta solo el recuadro cuando otro campo le cambia el valor por código.
     mountColorPicker($hex, onChange) {
         const $picker = $('<input>', {
             type: 'color',
-            class: 'w-11 h-[38px] rounded-md border border-gray-300 bg-white p-0.5 cursor-pointer shrink-0'
+            title: 'Elegir color',
+            class: 'absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 p-0 border-0 bg-transparent rounded-md cursor-pointer appearance-none '
+                 + '[&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-md [&::-webkit-color-swatch]:border-black/15 '
+                 + '[&::-moz-color-swatch]:rounded-md [&::-moz-color-swatch]:border-black/15'
         });
-        const $row = $('<div>', { class: 'flex items-center gap-2' });
+        const $row = $('<div>', { class: 'relative' });
 
         $hex.before($row);
         $row.append($picker, $hex);
+
+        // Inline con !important: el px-3 de Bootstrap también lo lleva.
+        $hex[0].style.setProperty('padding-left', '2.5rem', 'important');
 
         const syncPicker = () => {
             const hex = this.hexOf($hex.val(), '');
@@ -391,5 +411,367 @@ class Themes extends Templates {
     // Espejo de isTintedBar() de navbar.js: casi blanco (#F5F5F5) cuenta como blanca.
     isTintedBar(hex) {
         return [1, 3, 5].some((i) => parseInt(hex.substr(i, 2), 16) < 235);
+    }
+}
+
+// -- Theme Assistant --
+
+// "Crear con CoffeeIA" del editor de temas: el chat de CoffeeIA (ia-chat.js)
+// montado dentro del modal. Propone el tema desde una descripción o el logo de
+// la marca; lo que se aprueba pasa al formulario y lo guarda el Aceptar de siempre.
+class ThemeAssistant extends Templates {
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'ThemeAssistant';
+        this.seq       = 0;
+        this.chat      = null;
+        this.modal     = null;
+        this.watcher   = null;
+        this.formId    = '';
+        this.isNew     = false;
+        this.proposals = {};
+    }
+
+    // Cada modal trae su chat: nace con el primer clic y se va con el modal
+    // (cfModal quita su capa del body al cerrar). El id cambia por modal para
+    // que una respuesta que llegue tarde no caiga en el chat del siguiente.
+    mount(modal, formId, isNew) {
+        this.destroy();
+
+        if (!modal || !modal.el) return;
+
+        this.seq++;
+        this.modal     = modal;
+        this.formId    = formId;
+        this.isNew     = isNew;
+        this.proposals = {};
+
+        modal.el.attr('id', `themeModal${this.seq}`);
+        $(`#${formId}`).prepend(this.launcher());
+        if (window.lucide) lucide.createIcons();
+
+        this.watcher = new MutationObserver(() => {
+            if (!document.body.contains(modal.el[0])) this.destroy();
+        });
+        this.watcher.observe(document.body, { childList: true });
+    }
+
+    render() {
+        if (!this.modal) return;
+
+        if (!this.chat) {
+            this.chat = this.iaChat({
+                parent:      `themeModal${this.seq}`,
+                id:          `chat${this.PROJECT_NAME}${this.seq}`,
+                title:       'CoffeeIA',
+                subtitle:    'Temas a partir de tu marca',
+                placeholder: 'Describe la marca o adjunta su logo…',
+                accept:      '.png,.jpg,.jpeg,.webp',
+                maxFiles:    2,
+                welcome:     'Descríbeme la marca o súbeme su logo y te propongo los colores. Nada se guarda hasta que le des Aceptar al tema.',
+                suggestions: [
+                    'Cafetería artesanal: café tostado y verde olivo',
+                    'Navidad: rojo y dorado con la barra oscura',
+                    'Tecnología: azul eléctrico y la página oscura'
+                ],
+                labels: {
+                    attach:       'Adjuntar el logo',
+                    attachHint:   'Logo o foto de la marca (PNG, JPG o WEBP)',
+                    readingImage: 'Midiendo los colores…'
+                },
+                actions: {
+                    tema:    { label: 'Tema',    tone: 'bg-gray-100 text-gray-700' },
+                    barra:   { label: 'Barra',   tone: 'bg-sky-100 text-sky-700' },
+                    colores: { label: 'Colores', tone: 'bg-violet-100 text-violet-700' },
+                    pagina:  { label: 'Página',  tone: 'bg-amber-100 text-amber-700' }
+                },
+                onAttach:  (file) => this.readMarca(file),
+                onSend:    (text, adjuntos, historial) => this.askTheme(text, adjuntos, historial),
+                onConfirm: (token, ids) => this.applyTheme(token, ids)
+            });
+        }
+
+        const dock = !this.chat.moved;
+
+        this.chat.toggle();
+
+        // En la siguiente tarea: la primera vez Tailwind (CDN) aún no compila el
+        // ancho del chat y el panel mide toda la pantalla.
+        if (dock && this.chat.isOpen()) setTimeout(() => this.dock(), 0);
+    }
+
+    // El botón va arriba del formulario: es lo primero que se ve al abrirlo.
+    launcher() {
+        return $('<button>', {
+            type: 'button',
+            class: 'col-span-12 mb-1 flex items-center gap-3 w-full px-3 py-2 rounded-lg border border-dashed border-blue-300 bg-blue-50/50 text-left transition-colors hover:bg-blue-50 hover:border-blue-400 dark:bg-blue-900/20 dark:border-blue-700 dark:hover:bg-blue-900/30'
+        }).append(
+            $('<span>', { class: 'w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0' })
+                .append($('<i>', { 'data-lucide': 'sparkles', class: 'w-4 h-4' })),
+            $('<span>', { class: 'flex flex-col min-w-0 leading-tight' }).append(
+                $('<span>', { class: 'text-[13px] font-semibold text-gray-800 dark:text-gray-100', text: 'Crear con CoffeeIA' }),
+                $('<span>', { class: 'text-[11px] text-gray-500 dark:text-gray-400 truncate', text: 'Describe la marca o sube su logo y te propongo los colores' })
+            ),
+            $('<i>', { 'data-lucide': 'chevron-right', class: 'w-4 h-4 ml-auto text-gray-400 shrink-0' })
+        ).on('click', () => this.render());
+    }
+
+    // Junto al modal, a su derecha, si cabe; si no, se queda abajo a la derecha.
+    dock() {
+        if (!this.chat || !this.modal) return;
+
+        const panel = this.modal.el.find('.cf-modal-panel')[0];
+        const box   = document.getElementById(this.chat.opts.id);
+
+        if (!panel || !box) return;
+
+        const r    = panel.getBoundingClientRect();
+        const left = r.right + 12;
+
+        if (left + box.offsetWidth + 8 <= window.innerWidth) this.chat.place(left, r.top);
+    }
+
+    destroy() {
+        if (this.watcher) this.watcher.disconnect();
+        if (this.chat) this.chat.destroy();
+
+        this.watcher = null;
+        this.chat    = null;
+        this.modal   = null;
+    }
+
+    // -- CRUD --
+
+    // El logo se mide aquí y se describe en el servidor: los píxeles dan los hex
+    // exactos (el modelo que ve solo los aproxima); el modelo dice qué es y qué
+    // color manda. Si la descripción falla, los colores medidos bastan.
+    async readMarca(file) {
+        let bitmap = null;
+
+        try {
+            bitmap = await createImageBitmap(file);
+        } catch (e) {
+            bitmap = null;
+        }
+
+        if (!bitmap) return { status: 415, message: 'No pude abrir esa imagen. Guárdala como PNG o JPG.' };
+
+        const colores = this.paletteOf(bitmap);
+        const foto    = await this.photoOf(bitmap, 1024);
+
+        if (bitmap.close) bitmap.close();
+
+        const vista       = foto ? await this.lookBrand(foto) : null;
+        const descripcion = vista && vista.status === 200 && vista.data ? String(vista.data.texto || '') : '';
+
+        if (!colores.list.length && !descripcion) {
+            return { status: 422, message: (vista && vista.message) || 'No encontré colores en esa imagen.' };
+        }
+
+        const texto = ['COLORES MEDIDOS EN LOS PÍXELES (exactos; % de la parte visible que ocupa cada uno):'];
+
+        colores.list.forEach((c) => texto.push(`- ${c.hex} · ${c.pct}%${c.tone ? ' · ' + c.tone : ''}`));
+        if (colores.clear >= 5) texto.push(`Fondo transparente: ${colores.clear}% de la imagen.`);
+
+        texto.push('', 'LO QUE SE VE (descripción; sus hexadecimales son aproximados):');
+        texto.push(descripcion || `No se pudo describir${vista && vista.message ? ': ' + vista.message : '.'}`);
+
+        return {
+            status: 200,
+            data: {
+                clase:   'imagen',
+                texto:   texto.join('\n'),
+                detalle: `${colores.list.length} colores · ${descripcion ? 'descrita' : 'sin descripción'}`
+            }
+        };
+    }
+
+    async lookBrand(blob) {
+        const data = new FormData();
+        data.append('opc', 'readMarca');
+        data.append('archivo', blob, 'marca.jpg');
+
+        try {
+            const response = await fetch(this._link, { method: 'POST', credentials: 'same-origin', body: data });
+            return await response.json();
+        } catch (e) {
+            return { status: 500, message: 'el servidor no respondió' };
+        }
+    }
+
+    async askTheme(text, adjuntos, historial) {
+        const seq      = this.seq;
+        const response = await useFetch({
+            url: this._link,
+            data: {
+                opc:       'askTheme',
+                mensaje:   text,
+                adjuntos:  JSON.stringify(adjuntos),
+                historial: JSON.stringify(historial),
+                actual:    JSON.stringify(this.formValues()),
+                nuevo:     this.isNew ? 1 : 0
+            }
+        });
+
+        if (!response) return { status: 500, message: 'CoffeeIA no respondió. Inténtalo otra vez.' };
+
+        // El chat solo deja confirmar con token. Aquí el servidor no guarda nada:
+        // el token apunta a las filas, que se aplican en el formulario.
+        if (seq === this.seq && response.status === 200 && Array.isArray(response.row) && response.row.length) {
+            response.token = `tema${seq}_${Object.keys(this.proposals).length + 1}`;
+            this.proposals[response.token] = response.row;
+        }
+
+        return response;
+    }
+
+    // Pasa al formulario lo marcado en la vista previa. Guardar es del Aceptar.
+    applyTheme(token, ids) {
+        const fields = ['name', 'color', 'mode', 'scheme', 'accent', 'primary_color', 'secondary_color'];
+        const $form  = $(`#${this.formId}`);
+        const rows   = (this.proposals[token] || []).filter((r) => r.valid && ids.includes(r.idx) && fields.includes(r.field));
+
+        if (!$form.length || !rows.length) return { status: 409, message: 'Esa propuesta ya no está vigente. Pídemela otra vez.' };
+
+        rows.forEach((r) => this.flash($form.find(`[name="${r.field}"]`).val(r.value)));
+
+        const preview = $form.data('themePreview');
+        if (preview) preview.refresh();
+
+        return {
+            status:  200,
+            message: `Listo, ${rows.length === 1 ? 'pasé 1 cambio' : `pasé ${rows.length} cambios`} al formulario. Revísalo y dale Aceptar para guardar el tema.`
+        };
+    }
+
+    // -- Complements --
+
+    formValues() {
+        const $form = $(`#${this.formId}`);
+        const v     = {};
+
+        ['name', 'tipo', 'color', 'mode', 'scheme', 'accent', 'primary_color', 'secondary_color'].forEach((k) => {
+            v[k] = $form.find(`[name="${k}"]`).val() || '';
+        });
+
+        return v;
+    }
+
+    // Los colores de la imagen: cubetas de 16 niveles por canal y luego se juntan
+    // las cercanas (el antialias y los degradados no son colores aparte).
+    paletteOf(bitmap) {
+        const px    = this.pixelsOf(bitmap, 96);
+        const cubos = new Map();
+        let opacos  = 0;
+
+        for (let i = 0; i < px.length; i += 4) {
+            if (px[i + 3] < 128) continue;
+
+            const key = ((px[i] >> 4) << 8) | ((px[i + 1] >> 4) << 4) | (px[i + 2] >> 4);
+            const c   = cubos.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+
+            c.n++;
+            c.r += px[i];
+            c.g += px[i + 1];
+            c.b += px[i + 2];
+            cubos.set(key, c);
+            opacos++;
+        }
+
+        const total = px.length / 4;
+        const clear = total ? Math.round((total - opacos) / total * 100) : 0;
+
+        if (!opacos) return { list: [], clear: clear };
+
+        const grupos = [];
+
+        [...cubos.values()].sort((a, b) => b.n - a.n).forEach((c) => {
+            const rgb = [c.r / c.n, c.g / c.n, c.b / c.n];
+            const g   = grupos.find((x) => Math.hypot(x.rgb[0] - rgb[0], x.rgb[1] - rgb[1], x.rgb[2] - rgb[2]) < 40);
+
+            if (!g) {
+                grupos.push({ rgb: rgb, n: c.n });
+                return;
+            }
+
+            const n = g.n + c.n;
+            g.rgb = g.rgb.map((v, k) => (v * g.n + rgb[k] * c.n) / n);
+            g.n   = n;
+        });
+
+        const list = grupos
+            .sort((a, b) => b.n - a.n)
+            .filter((g) => g.n / opacos >= 0.01)
+            .slice(0, 6)
+            .map((g) => ({ hex: this.hexFromRgb(g.rgb), pct: Math.round(g.n / opacos * 100), tone: this.toneOf(g.rgb) }));
+
+        return { list: list, clear: clear };
+    }
+
+    pixelsOf(bitmap, max) {
+        const cv = this.canvasOf(bitmap, max, '');
+
+        try {
+            return cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+        } catch (e) {
+            return [];
+        }
+    }
+
+    // La foto para el modelo que ve: encogida y en JPEG sobre blanco (un logo con
+    // transparencia se ve como en una barra clara) para no chocar con el tope de subida.
+    photoOf(bitmap, max) {
+        const cv = this.canvasOf(bitmap, max, '#FFFFFF');
+
+        return new Promise((resolve) => {
+            try {
+                cv.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
+            } catch (e) {
+                resolve(null);
+            }
+        });
+    }
+
+    canvasOf(bitmap, max, fondo) {
+        const k   = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+        const cv  = document.createElement('canvas');
+
+        cv.width  = Math.max(1, Math.round(bitmap.width * k));
+        cv.height = Math.max(1, Math.round(bitmap.height * k));
+
+        const ctx = cv.getContext('2d');
+
+        if (fondo) {
+            ctx.fillStyle = fondo;
+            ctx.fillRect(0, 0, cv.width, cv.height);
+        }
+
+        ctx.drawImage(bitmap, 0, 0, cv.width, cv.height);
+
+        return cv;
+    }
+
+    hexFromRgb(rgb) {
+        return '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+
+    // Los neutros se marcan: casi siempre son el fondo del logo, no color de marca.
+    toneOf(rgb) {
+        const max    = Math.max(...rgb) / 255;
+        const min    = Math.min(...rgb) / 255;
+        const luz    = (max + min) / 2;
+        const croma  = max - min;
+
+        if (luz >= 0.9 && croma < 0.12) return 'casi blanco';
+        if (luz <= 0.12) return 'casi negro';
+        if (croma < 0.08) return 'gris';
+
+        return '';
+    }
+
+    // Marca un momento los campos que cambió CoffeeIA.
+    flash($field) {
+        $field.addClass('ring-2 ring-blue-300');
+        setTimeout(() => $field.removeClass('ring-2 ring-blue-300'), 1600);
     }
 }

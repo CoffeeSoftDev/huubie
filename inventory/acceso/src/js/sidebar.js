@@ -12,6 +12,10 @@ class Sidebar {
         this.loadDarkMode();
         this.handleResize();
         if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        // El rail nace asíncrono y render() lo reescribe entero: quien quiera
+        // agregarle algo (el Catálogo pone CoffeeIA abajo) espera este aviso.
+        document.dispatchEvent(new CustomEvent('sidebarReady'));
     }
 
     // Base del host hasta /inventory/ (ej. "/huubie/inventory" o "/inventory").

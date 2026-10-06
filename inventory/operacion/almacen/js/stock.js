@@ -3,13 +3,6 @@ let app, stock, stockView, stockPrediction, stockCount, ajustes;
 
 let branch_id;
 
-const NIVELES_STOCK = [
-    { id: '',        valor: 'Todos los niveles' },
-    { id: 'ok',      valor: 'Stock OK'          },
-    { id: 'bajo',    valor: 'Stock Bajo'         },
-    { id: 'agotado', valor: 'Agotado'            }
-];
-
 const MOVIMIENTOS_STOCK = [
     { id: '',    valor: 'Todos los productos' },
     { id: 'con', valor: 'Con movimientos'     }
@@ -33,6 +26,7 @@ class App extends Templates {
         this.subId        = null;
         this.selectedId   = null;
         this.ajustesReady = false;
+        this.nivel        = '';
     }
 
     async init() {
@@ -43,8 +37,7 @@ class App extends Templates {
                 sucursales:      r.sucursales      || [],
                 categorias:      r.categorias      || [],
                 areas:           r.areas           || [],
-                estadosAjuste:   r.estados_ajuste  || [],
-                niveles:         NIVELES_STOCK
+                estadosAjuste:   r.estados_ajuste  || []
             };
         } else {
             this.dataInit = {
@@ -52,8 +45,7 @@ class App extends Templates {
                 sucursales:      [],
                 categorias:      [],
                 areas:           [],
-                estadosAjuste:   [],
-                niveles:         NIVELES_STOCK
+                estadosAjuste:   []
             };
         }
         this.subId      = this.dataInit.branch_id;
@@ -98,7 +90,7 @@ class App extends Templates {
         this.tabLayout({
             parent:          'tabsRow',
             id:              'tabsStock',
-            type:            'short',
+            type:            'button',
             theme:           'light',
             renderContainer: false,
             json: [
@@ -143,13 +135,8 @@ class App extends Templates {
             class:'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
             children: [
                 {
-                    id:    'viewHeader',
-                    text:  '#viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
-                },
-                {
-                    id:    'tabsRow',
-                    class: 'px-4 py-2 bg-white border-b border-gray-200 flex-shrink-0'
+                    id:    'headerRow',
+                    class: 'px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id: 'filterBar',
@@ -213,6 +200,27 @@ class App extends Templates {
                 id:        this.PROJECT_NAME,
                 class:     'flex-1 min-h-0 w-full flex flex-row overflow-hidden relative bg-white rounded-lg border border-gray-200',
                 container: [mainPanel, detailResizer, detailPanel, backdrop]
+            }
+        });
+
+        this.createLayout({
+            parent: 'headerRow',
+            design: false,
+            data: {
+                id:        'headerRowWrap',
+                class:     'flex items-center justify-between gap-3',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'viewHeader',
+                        class: 'flex-1 min-w-0'
+                    },
+                    {
+                        type:  'div',
+                        id:    'tabsRow',
+                        class: 'flex-shrink-0'
+                    }
+                ]
             }
         });
 
@@ -316,15 +324,6 @@ class App extends Templates {
             },
             {
                 opc:      'select',
-                id:       'fNivel',
-                lbl:      'Nivel:',
-                class:    'col-12 col-md-4 col-lg-2',
-                onchange: 'app.onChangeFilters()',
-                value:    '',
-                data:     NIVELES_STOCK
-            },
-            {
-                opc:      'select',
                 id:       'fMovimiento',
                 lbl:      'Movimientos:',
                 class:    'col-12 col-md-4 col-lg-2',
@@ -379,7 +378,7 @@ class App extends Templates {
             branch_id: $('#branch_id').val() || this.subId || '',
             categoria:       $('#fCategoria').val()     || '',
             area:            $('#fArea').val()          || '',
-            nivel:           $('#fNivel').val()         || '',
+            nivel:           this.nivel,
             movimiento:      $('#fMovimiento').val()    || '',
             q:               $('#qBuscar').val()        || ''
         };
@@ -395,9 +394,8 @@ class App extends Templates {
     }
 
     filterByKpi(kpi) {
-        const rel     = (kpi && kpi.rel) || '';
-        const current = $('#fNivel').val() || '';
-        $('#fNivel').val(current === rel ? '' : rel);
+        const rel  = (kpi && kpi.rel) || '';
+        this.nivel = this.nivel === rel ? '' : rel;
         this.onChangeFilters();
     }
 
@@ -454,7 +452,7 @@ class Stock extends Templates {
                 theme:        'light',
                 striped:      true,
                 f_size:       12,
-                center:       [3, 7, 8, 9],
+                center:       [2, 6, 7, 8],
                 emptyMessage: 'No se encontraron productos con los filtros aplicados',
                 emptyIcon:    'icon-cube'
             }
@@ -556,11 +554,16 @@ class StockView extends Templates {
 
     renderInfoCards(rows, activeId) {
         this.kpisRow({
-            parent:   'kpisRow',
-            json:     rows,
-            cols:     4,
-            activeId: activeId,
-            onClick:  (kpi) => app.filterByKpi(kpi)
+            parent:        'kpisRow',
+            json:          rows,
+            cols:          4,
+            activeId:      activeId,
+            cardClass:     'bg-white rounded-lg border border-gray-200 px-2.5 py-1.5 cursor-pointer hover:shadow-md transition-shadow',
+            labelClass:    'text-[9px] uppercase tracking-wider font-bold text-gray-500 whitespace-nowrap truncate text-left',
+            valueClass:    'text-sm font-bold text-right leading-tight',
+            iconWrapClass: 'w-5 h-5 rounded flex items-center justify-center flex-shrink-0',
+            iconClass:     'w-3 h-3',
+            onClick:       (kpi) => app.filterByKpi(kpi)
         });
     }
 

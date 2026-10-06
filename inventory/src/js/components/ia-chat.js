@@ -261,6 +261,8 @@ class IaChat {
         const defaults = {
             parent:      'body',
             id:          'iaChat',
+            // Esquina donde abre el panel (clases Tailwind de posición fija).
+            dock:        'bottom-4 right-4',
             title:       'Asistente',
             subtitle:    '',
             placeholder: 'Escribe un mensaje…',
@@ -354,6 +356,18 @@ class IaChat {
         this.isOpen() ? this.close() : this.open();
     }
 
+    // Lo quita del todo: el muñeco, el reloj de espera, los eventos de la ventana y
+    // el panel. Para un chat que vive lo que dura otra pieza (un modal).
+    destroy() {
+        const o = this.opts;
+
+        clearInterval(this.ticker);
+        this.stopBot();
+        $(document).off(`mousedown.${o.id}`);
+        $(window).off(`resize.${o.id}`);
+        $(`#${o.id}`).remove();
+    }
+
     isOpen() {
         return !$(`#${this.opts.id}`).hasClass('hidden');
     }
@@ -391,7 +405,7 @@ class IaChat {
         const parent = o.parent === 'body' ? $('body') : $(`#${o.parent}`);
 
         parent.append(`
-            <div id="${o.id}" class="hidden fixed bottom-4 right-4 z-[1040] w-[380px] max-w-[calc(100vw-16px)] h-[520px] max-h-[72vh] flex-col bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_22px_55px_rgba(15,23,42,.20)] overflow-hidden transition-[width,height] duration-200">
+            <div id="${o.id}" class="hidden fixed ${o.dock} z-[1040] w-[380px] max-w-[calc(100vw-16px)] h-[520px] max-h-[72vh] flex-col bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_22px_55px_rgba(15,23,42,.20)] overflow-hidden transition-[width,height] duration-200">
                 <div data-head class="flex items-center justify-between gap-2 px-[11px] py-[9px] border-b border-[#F1F5F9] flex-shrink-0 cursor-grab touch-none select-none">
                     <div class="flex items-center gap-[9px] min-w-0 flex-1">
                         <span id="${o.id}_cara" class="iac-mini block w-10 h-10 -my-[6px] -ml-[4px] flex-shrink-0">${this.coffeeBot()}</span>
@@ -764,7 +778,7 @@ class IaChat {
         const changes = (r.changes && r.changes.length) ? r.changes : (r.after ? [{ label: '', before: r.before, after: r.after }] : []);
         const lines   = changes.map(ch => `
                     <div class="text-[11px] text-gray-500 mt-0.5 break-words">
-                        ${ch.label ? `<span class="text-gray-400">${this.esc(ch.label)}:</span> ` : ''}${this.change(ch.before, ch.after)}
+                        ${ch.label ? `<span class="text-gray-400">${this.esc(ch.label)}:</span> ` : ''}${this.change(ch.before, ch.after, ch.swatch)}
                     </div>`).join('');
 
         return `
@@ -1114,6 +1128,14 @@ class IaChat {
                 e.preventDefault();
                 this.send();
             }
+        });
+
+        // Escape y Enter se quedan en el chat: Escape lo cierra solo a él, y un Enter
+        // aquí no confirma el modal que esté detrás (el editor de temas lo monta adentro).
+        panel.on('keydown', e => {
+            if (e.key !== 'Escape' && e.key !== 'Enter') return;
+
+            e.stopPropagation();
             if (e.key === 'Escape') this.close();
         });
 
@@ -1369,10 +1391,19 @@ class IaChat {
         return `${(h % 12) || 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
     }
 
-    change(before, after) {
-        const antes = before && before !== '—' ? `${this.esc(before)} <i data-lucide="arrow-right" class="inline w-3 h-3 mx-0.5 -mt-px"></i> ` : '';
+    // Con `swatch` cada valor que sea un hex lleva su muestra de color al lado.
+    change(before, after, swatch) {
+        const sw    = v => swatch ? this.swatch(v) : '';
+        const antes = before && before !== '—' ? `${sw(before)}${this.esc(before)} <i data-lucide="arrow-right" class="inline w-3 h-3 mx-0.5 -mt-px"></i> ` : '';
 
-        return `${antes}<b class="font-semibold text-gray-800">${this.esc(after)}</b>`;
+        return `${antes}<b class="font-semibold text-gray-800">${sw(after)}${this.esc(after)}</b>`;
+    }
+
+    // Solo #RRGGBB: el valor termina dentro de un style.
+    swatch(hex) {
+        if (!/^#[0-9A-Fa-f]{6}$/.test(String(hex))) return '';
+
+        return `<span class="inline-block w-2.5 h-2.5 mr-1 rounded-[3px] border border-black/10 align-[-1px]" style="background:${hex}"></span>`;
     }
 
     badge(action, text) {
@@ -1393,4 +1424,14 @@ Templates.prototype.iaChat = function (options) {
     const chat = new IaChat(options);
     chat.tpl = this;
     return chat;
+};
+
+// -- Ícono --
+
+// La cara de CoffeeBot (la de la cabecera del chat) quieta, para usarla de ícono
+// en otro lado, ej. el menú lateral del Catálogo, aunque el chat todavía no exista.
+// `id` hace único su clipPath.
+Templates.prototype.iaIcon = function (id) {
+    IaChat.prototype.ensureStyles();
+    return IaChat.prototype.coffeeBot.call({ opts: { id: id } });
 };
