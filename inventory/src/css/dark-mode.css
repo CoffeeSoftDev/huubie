@@ -664,6 +664,19 @@ body.dark-mode .bg-blue-100 {
     background-color: rgb(var(--brand-600, 192 90 64) / .16) !important;
 }
 
+/* Sus variantes con opacidad (encabezado de resultados del buscador, renglón
+   vacío, hover de un resultado): sin esto se veían como un gris lavado. */
+body.dark-mode .bg-blue-50\/30,
+body.dark-mode .bg-blue-50\/50,
+body.dark-mode .bg-blue-50\/60 {
+    background-color: rgb(var(--brand-600, 192 90 64) / .10) !important;
+}
+
+body.dark-mode .hover\:bg-blue-50:hover,
+body.dark-mode .hover\:bg-blue-50\/60:hover {
+    background-color: rgb(var(--brand-600, 192 90 64) / .14) !important;
+}
+
 body.dark-mode .border-blue-100,
 body.dark-mode .border-blue-200,
 body.dark-mode .border-blue-300 {
@@ -813,6 +826,46 @@ body.dark-mode .cs-visor #detailPanel [id$="_cancel"]:hover,
 body.dark-mode .cs-visor #detailPanel [id$="_reject"]:hover,
 body.dark-mode .cs-visor #detailPanel [id$="_delete"]:hover {
     background: rgb(244 63 94 / .24) !important;
+}
+
+/* Modales de captura (.cs-captura: Nueva entrada, salida, orden y solicitud).
+   Una sola superficie de tarjeta: el bg-gray-50 / bg-white de cada sección
+   (encabezado, campos, buscador, pie) quedaba en dos tonos, página y tarjeta,
+   partidos por líneas. La lista de productos es un pozo un nivel abajo
+   (--dk-sunken) y el resumen de totales sube uno (--dk-row), como en el visor. */
+body.dark-mode .cs-captura {
+    background-color: var(--dk-card) !important;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Secciones = hijas directas. El desplegable flotante (absolute) se queda. */
+body.dark-mode .cs-captura > div:not(.absolute) {
+    background-color: transparent !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode .cs-captura > div.cs-captura-lista {
+    background-color: var(--dk-sunken) !important;
+}
+
+body.dark-mode .cs-captura > div.cs-captura-resumen {
+    background-color: var(--dk-row) !important;
+}
+
+/* Franjas internas (encabezado de la tabla, pie de los resultados del buscador,
+   costo bloqueado): un nivel abajo de la tarjeta, no el negro de la página. */
+body.dark-mode .cs-captura .bg-gray-50 {
+    background-color: var(--dk-sunken) !important;
+}
+
+/* Teclas de atajo (↑↓, Enter, Esc) de los modales: traen el gris claro fijo. */
+body.dark-mode .ef-kbd,
+body.dark-mode .sf-kbd,
+body.dark-mode .tf-kbd,
+body.dark-mode .sol-kbd {
+    background: var(--dk-input) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-muted) !important;
 }
 
 /* Barra de pestañas de la variante oscura de tabLayout (#19232D): es la de

@@ -64,6 +64,23 @@ label.text-sm {
     font-size: 0.875rem !important;
 }
 
+/* Modales de captura (.cs-captura: Nueva entrada, salida, orden, solicitud):
+   sus select traen text-xs / text-sm, que les ganan al 1rem de arriba (clase >
+   elemento) y quedaban más chicos que la fecha y el buscador (input[type] sí
+   lo conserva). Mismo tamaño para todos los campos; el interlineado de
+   text-xs (1rem) los dejaba además más bajos que el input de al lado. */
+.cs-captura select {
+    font-size: 1rem !important;
+    line-height: 1.25 !important;
+}
+
+/* Sus select de flecha propia (appearance-none + ícono) llevan px-3 pr-8, pero
+   el .px-3 de Bootstrap trae !important y le gana al pr-8 de Tailwind: el texto
+   largo quedaba debajo de la flecha. La tabla de productos no entra. */
+.cs-captura > div:not(.cs-captura-lista) select.appearance-none {
+    padding-right: 2rem !important;
+}
+
 .tw-error {
     font-size: 0.8rem !important;
 }

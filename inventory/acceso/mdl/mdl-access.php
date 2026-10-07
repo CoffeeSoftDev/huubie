@@ -320,10 +320,8 @@ class MAccess extends CRUD {
         return !empty($r);
     }
 
-    // Menú del Super Admin. module_id = 0 trae todos los módulos.
-    // Incluye las secciones apagadas (is_active = 0) de los módulos activos: el Super
-    // Admin las ve antes de abrirlas a los demás roles, que siguen sin verlas.
-    function getSuperAdminSections($array) {
+    // Todas las secciones activas (menú del Super Admin). module_id = 0 trae todos los módulos.
+    function getAllActiveSections($array) {
         // [module_id, module_id]
         $query = "
             SELECT
@@ -331,7 +329,7 @@ class MAccess extends CRUD {
                 m.name AS module_name
             FROM {$this->bd}sections s
             LEFT JOIN {$this->bd}modules m ON m.id = s.module_id
-            WHERE (s.is_active = 1 OR m.is_active = 1)
+            WHERE s.is_active = 1
                 AND (? = 0 OR s.module_id = ?)
             ORDER BY m.orden ASC, s.orden ASC, s.id ASC
         ";

@@ -420,10 +420,9 @@ class Access extends MAccess {
 
         // Con modulo resuelto se acota a sus secciones; si no (pagina fuera de un
         // modulo) se cae al comportamiento previo: todas las secciones accesibles.
-        // El Super Admin ve todas las secciones (incluso las apagadas de los modulos
-        // activos) sin depender de permissions.
+        // El Super Admin ve todas las secciones activas sin depender de permissions.
         if ($this->userIsSuperAdmin([$userId, $branchId])) {
-            $ls = $this->getSuperAdminSections([$moduleId, $moduleId]);
+            $ls = $this->getAllActiveSections([$moduleId, $moduleId]);
         } else {
             $ls = $moduleId > 0
                 ? $this->getAccessibleSectionsByModule([$userId, $branchId, $moduleId])

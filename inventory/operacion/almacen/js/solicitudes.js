@@ -1575,7 +1575,7 @@ class SolicitudesView extends Templates {
 
         const $modal = $(`
             <div id="${modalId}" class="fixed inset-0 z-[9999] bg-black/45 flex items-stretch md:items-center justify-center p-0 md:p-4 overflow-y-auto">
-                <div class="w-full md:max-w-[960px] md:mx-3 bg-white flex flex-col overflow-hidden min-h-screen md:min-h-0 md:h-[90vh] md:rounded-2xl md:shadow-[0_24px_64px_rgba(0,0,0,0.25)]">
+                <div class="cs-captura w-full md:max-w-[960px] md:mx-3 bg-white flex flex-col overflow-hidden min-h-screen md:min-h-0 md:h-[90vh] md:rounded-2xl md:shadow-[0_24px_64px_rgba(0,0,0,0.25)]">
 
                     <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
                         <div class="flex items-center gap-3">
@@ -1631,7 +1631,7 @@ class SolicitudesView extends Templates {
                         <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">Materiales solicitados</p>
                     </div>
 
-                    <div class="flex-1 min-h-0 overflow-y-auto cs-scroll">
+                    <div class="cs-captura-lista flex-1 min-h-0 overflow-y-auto cs-scroll">
                         <table class="w-full border-collapse">
                             <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                                 <tr>

@@ -907,7 +907,7 @@ class OrdenesView extends Templates {
         const $modal = $(`
             <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center">
                 <div class="absolute inset-0 bg-black/40"></div>
-                <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+                <div class="cs-captura relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
 
                     <!-- Header -->
                     <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
@@ -983,7 +983,7 @@ class OrdenesView extends Templates {
                     </div>
 
                     <!-- Lista de materiales (zona flexible con scroll) -->
-                    <div class="flex-1 min-h-0 overflow-y-auto cs-scroll">
+                    <div class="cs-captura-lista flex-1 min-h-0 overflow-y-auto cs-scroll">
                         <table class="w-full border-collapse">
                             <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                                 <tr>
@@ -1001,7 +1001,7 @@ class OrdenesView extends Templates {
                     </div>
 
                     <!-- Resumen (zona fija) -->
-                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
+                    <div class="cs-captura-resumen flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
                         <div class="flex items-center gap-5 text-[11px] text-gray-500">
                             <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Unidades <strong class="text-gray-800 text-sm" id="${modalId}_totUds">0</strong></span>
                         </div>
