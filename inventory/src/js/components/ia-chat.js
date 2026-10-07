@@ -253,6 +253,213 @@ class IaBot {
     }
 }
 
+// -- Píldora --
+
+// Lo de Compacto de Notch Buddy (erp-pro, ERP24/avatars/notch-buddy.html, pestaña
+// Notch): con el chat cerrado y coffeeIA trabajando, una píldora cuelga del botón de
+// la navbar con el muñeco buscando (p_busca del motor), del color de lo que hace, y
+// el paso en curso. Al terminar dice «Listo» o «No se pudo» un rato y se recoge sola;
+// tocarla abre el chat. El chat no cambia. Sin motor o sin botón en la navbar, no sale.
+const IA_PIL = {
+    // La gota con `sinZoom` mide 188 de diámetro, centrada en (160, 160): con esta
+    // ventana ocupa 0,6 de la caja (24 px de cuerpo en la caja de 40).
+    vista:  '3.333 3.333 313.333 313.333',
+    clases: { cuerpo: 'iac-pil-cuerpo', ojo: 'iac-pil-ojo', punto: 'iac-pil-punto' },
+    frente: { yaw: 0, pitch: 0, roll: 0 },
+    ancho:  236,
+    // Los estados de Notch Buddy (STATES): su color, cuánto sube el tinte, y la
+    // animación y el gesto que el motor ya tiene para cada uno.
+    estados: {
+        busca: { col: '#6366F1', tint: 0.72, anim: 'p_busca', gesto: 'curioso' },
+        listo: { col: '#34D399', tint: 0.35, anim: 'p_listo', gesto: 'feliz' },
+        error: { col: '#F4505E', tint: 0.78, anim: 'p_error', gesto: 'triste' }
+    },
+    queda:  4500   // ms que se queda «Listo» o «No se pudo» antes de recogerse
+};
+
+class IaPildora {
+
+    constructor(chat) {
+        this.chat    = chat;
+        this.id      = `${chat.opts.id}_pildora`;
+        this.est     = null;
+        this.col     = [99, 102, 241];
+        this.colT    = this.col;
+        this.tint    = 0;
+        this.tintT   = 0;
+        this.desde   = 0;
+        this.raf     = 0;
+        this.reloj   = 0;
+        this.visible = false;
+        this.gestos  = {};
+        this.still   = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+        this.loop    = this.loop.bind(this);
+
+        $(`#${this.id}`).remove();
+        $('body').append(`
+            <button type="button" id="${this.id}" style="width:${IA_PIL.ancho}px" class="iac-pildora fixed z-[1040] h-10 flex items-center gap-2 pl-0.5 pr-3.5 bg-white border border-[#E2E8F0] rounded-full shadow-[0_10px_28px_rgba(15,23,42,.14)] text-left" aria-live="polite">
+                <svg viewBox="${IA_PIL.vista}" class="w-10 h-10 flex-shrink-0" aria-hidden="true"></svg>
+                <span class="min-w-0 leading-[1.3]">
+                    <b data-pil-big class="block text-[11.5px] font-bold text-[#0F172A] truncate"></b>
+                    <span data-pil-sub class="block text-[10px] text-[#94A3B8] truncate"></span>
+                </span>
+            </button>`);
+
+        this.el  = $(`#${this.id}`);
+        this.svg = this.el.find('svg')[0];
+        this.el.on('click', () => chat.open());
+    }
+
+    // -- Public API --
+
+    // Cuelga buscando, con el paso en curso. Si ya colgaba, solo cambia el texto.
+    trabaja(label) {
+        clearTimeout(this.reloj);
+        this.poner('busca', label, '');
+        this.show();
+    }
+
+    paso(label) {
+        if (this.est === 'busca') this.el.find('[data-pil-big]').text(label);
+    }
+
+    // Solo si estaba colgada: con el chat abierto la respuesta ya se ve ahí.
+    termina(ok) {
+        if (!this.visible) return;
+
+        this.poner(ok ? 'listo' : 'error', ok ? 'Listo' : 'No se pudo', ok ? 'Toca para ver la respuesta' : 'Toca para ver qué pasó');
+        clearTimeout(this.reloj);
+        this.reloj = setTimeout(() => this.hide(), IA_PIL.queda);
+    }
+
+    hide() {
+        clearTimeout(this.reloj);
+        if (!this.visible) return;
+
+        this.visible = false;
+        this.el.removeClass('is-vista').addClass('is-cerrando');
+        setTimeout(() => {
+            if (this.visible) return;
+            cancelAnimationFrame(this.raf);
+            this.raf = 0;
+        }, 400);
+    }
+
+    destroy() {
+        this.hide();
+        cancelAnimationFrame(this.raf);
+        this.el.remove();
+    }
+
+    // -- Motor --
+
+    // El tinte arranca en cero al colgar: el color sube desde abajo mientras crece.
+    show() {
+        if (!this.place()) return;
+
+        if (!this.visible) {
+            this.tint = 0;
+            this.col  = this.colT;
+        }
+
+        this.visible = true;
+        this.el.removeClass('is-cerrando').addClass('is-vista');
+
+        if (!this.raf) {
+            this.last = performance.now();
+            this.raf  = requestAnimationFrame(this.loop);
+        }
+    }
+
+    poner(est, big, sub) {
+        const E = IA_PIL.estados[est];
+
+        if (est !== this.est) {
+            this.est   = est;
+            this.desde = performance.now();
+        }
+
+        this.colT  = this.rgb(E.col);
+        this.tintT = E.tint;
+        this.sub   = sub;
+        this.el.find('[data-pil-big]').text(big);
+        this.el.find('[data-pil-sub]').text(sub || 'CoffeeIA');
+    }
+
+    // Bajo la navbar, con el borde derecho a 26 px del centro del botón: crece desde ahí.
+    place() {
+        const btn = $('[data-ia-nav]:visible')[0];
+        if (!btn) return false;
+
+        const r   = btn.getBoundingClientRect();
+        const bar = (btn.closest('.navbar-main, header, nav') || btn).getBoundingClientRect();
+        this.el.css({ top: Math.round(bar.bottom + 6), left: Math.max(8, Math.round(r.left + r.width / 2 + 26 - IA_PIL.ancho)) });
+        return true;
+    }
+
+    // El color y el tinte se mezclan como Bot.update de Buddy; el muñeco se repinta
+    // a 30 cuadros y el reloj de segundos, de paso.
+    loop(now) {
+        this.raf = requestAnimationFrame(this.loop);
+
+        const dt = Math.min(Math.max((now - this.last) / 1000, 0), 0.05);
+        this.last = now;
+
+        const k = 1 - Math.pow(0.002, dt);
+        this.col  = this.col.map((v, i) => v + (this.colT[i] - v) * k);
+        this.tint += (this.tintT - this.tint) * (1 - Math.pow(0.0008, dt));
+
+        if (now - (this.pinto || 0) < 33) return;
+        this.pinto = now;
+
+        this.place();
+
+        if (this.est === 'busca' && !this.sub && this.chat.avance) {
+            this.el.find('[data-pil-sub]').text(`CoffeeIA · ${this.chat.segundos(this.chat.avance.t0)} s`);
+        }
+
+        // Buscando da vueltas mientras dure; «Listo» y «No se pudo» pasan una vez y se
+        // quedan en su último cuadro (a media vuelta de Terminado no se le ven los ojos).
+        const A    = window.Bloub.ANIMS[IA_PIL.estados[this.est].anim];
+        let   fase = Math.max(0, now - this.desde) / 1000;
+        if (this.est !== 'busca' && A) fase = Math.min(fase, A.per - 0.001);
+
+        this.svg.innerHTML = this.paint(now / 1000, fase);
+    }
+
+    // El motor con la piel de inventory y, encima del cuerpo, el tinte del estado: su
+    // color subiendo desde abajo hasta un cuarto de radio por encima del centro, a
+    // 0,92 × `tint` (Bot.draw de Buddy). El filo va en otra copia del contorno, encima
+    // del tinte, para que no lo tape.
+    paint(t, fase) {
+        const B = window.Bloub;
+        const E = IA_PIL.estados[this.est];
+        const a = 0.92 * this.tint;
+        const g = this.gestos[E.gesto] || (this.gestos[E.gesto] = Object.assign({}, (B.GESTOS[E.gesto] || B.GESTOS.calma).f(0.62) || {}, { gaze: IA_PIL.frente }));
+
+        let s = B.cuadro(
+            { forma: 'gota', gesto: g, accesorio: 'ninguno', anim: B.ANIMS[E.anim] ? E.anim : 'ninguna', color: '#FFFFFF' },
+            t, null,
+            { sinZoom: true, pose: IA_PIL.frente, clases: IA_PIL.clases, quieto: this.still, fase: this.still ? null : fase }
+        );
+
+        s = s.replace(/<path id="b\d+" d="([^"]*)" class="iac-pil-cuerpo"\/>/, (todo, d) =>
+            todo + (a > 0.004 ? `<path d="${d}" fill="url(#${this.id}T)"/>` : '') + `<path d="${d}" class="iac-pil-filo"/>`);
+
+        if (a <= 0.004) return s;
+
+        const c = `rgb(${this.col.map(Math.round).join(',')})`;
+
+        return `<defs><linearGradient id="${this.id}T" x1="0" y1="1" x2="0" y2="0.375"><stop offset="0" stop-color="${c}" stop-opacity="${a.toFixed(3)}"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient></defs>${s}`;
+    }
+
+    // -- Helpers --
+
+    rgb(hex) {
+        return [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    }
+}
+
 // -- Chat --
 
 class IaChat {
@@ -323,6 +530,7 @@ class IaChat {
         this.ticker    = null;
         this.dragDepth = 0;
         this.bot       = null;
+        this.pildora   = null;
 
         this.ensureStyles();
         this.mount();
@@ -343,13 +551,16 @@ class IaChat {
             this.bot.resume();
             this.bot.gesture('curioso', 3);
         }
+        if (this.pildora) this.pildora.hide();
     }
 
-    // Cerrado no se ve: el motor del muñeco se pausa.
+    // Cerrado no se ve: el motor del muñeco se pausa. Si se cierra a medio trabajo,
+    // la píldora cuelga del botón con lo que va haciendo.
     close() {
         this.menu(false);
         $(`#${this.opts.id}`).removeClass('flex').addClass('hidden');
         if (this.bot) this.bot.pause();
+        if (this.busy && this.pill()) this.pildora.trabaja(this.step.label);
     }
 
     toggle() {
@@ -363,6 +574,7 @@ class IaChat {
 
         clearInterval(this.ticker);
         this.stopBot();
+        if (this.pildora) this.pildora.destroy();
         $(document).off(`mousedown.${o.id}`);
         $(window).off(`resize.${o.id}`);
         $(`#${o.id}`).remove();
@@ -370,6 +582,12 @@ class IaChat {
 
     isOpen() {
         return !$(`#${this.opts.id}`).hasClass('hidden');
+    }
+
+    // La píldora nace la primera vez que hace falta, si hay motor y botón en la navbar.
+    pill() {
+        if (!this.pildora && window.Bloub && window.Bloub.cuadro && $('[data-ia-nav]').length) this.pildora = new IaPildora(this);
+        return this.pildora;
     }
 
     // Vuelve a la portada: se van mensajes, historial, adjuntos y vistas previas.
@@ -603,6 +821,8 @@ class IaChat {
         this.renderBusy();
 
         this.ticker = setInterval(() => this.tickBusy(), 80);
+
+        if (!this.isOpen() && this.pill()) this.pildora.trabaja(this.step.label);
     }
 
     // Paso del proceso real, lo manda quien atiende onSend con la fracción del total
@@ -624,6 +844,7 @@ class IaChat {
 
         this.step = { label: label, at: Date.now() };
         this.renderBusy();
+        if (this.pildora) this.pildora.paso(label);
     }
 
     // Al terminar bien, la barra se completa (y coffeeIA da su brinco) antes de dar
@@ -928,6 +1149,7 @@ class IaChat {
         if (r && r.status === 200) await this.finishBusy();
 
         this.setBusy(false);
+        if (this.pildora) this.pildora.termina(!!(r && r.status === 200));
 
         if (!r || r.status !== 200) {
             this.history.pop();
@@ -1354,7 +1576,15 @@ class IaChat {
             .iac-portada .iac-wrap { border-color:#E5EAF0 !important; border-radius:18px !important; padding:6px 6px 6px 8px !important; box-shadow:0 8px 24px rgba(15,23,42,.07) !important; }
             .iac-portada .iac-wrap:focus-within { border-color:rgb(var(--brand-600, 192 90 64) / .3) !important; box-shadow:0 0 0 3px rgb(var(--brand-600, 192 90 64) / .08), 0 8px 24px rgba(15,23,42,.07) !important; }
             .iac-portada .iac-input { font-size:13px !important; }
-            .iac-portada .iac-send { width:34px !important; height:34px !important; border-radius:9999px !important; background:rgb(var(--brand-600, 192 90 64)) !important; box-shadow:0 4px 12px rgb(var(--brand-600, 192 90 64) / .35); }`;
+            .iac-portada .iac-send { width:34px !important; height:34px !important; border-radius:9999px !important; background:rgb(var(--brand-600, 192 90 64)) !important; box-shadow:0 4px 12px rgb(var(--brand-600, 192 90 64) / .35); }
+            .iac-pildora { opacity:0; transform:scale(.3); transform-origin:calc(100% - 26px) -6px; pointer-events:none; transition:opacity .25s ease, transform .52s cubic-bezier(.32,1.22,.42,1); }
+            .iac-pildora.is-vista { opacity:1; transform:none; pointer-events:auto; }
+            .iac-pildora.is-cerrando { transition:opacity .2s ease, transform .34s cubic-bezier(.45,0,.2,1); }
+            .iac-pil-cuerpo { fill:#FFFFFF; }
+            .iac-pil-filo { fill:none; stroke:#D6D6D6; stroke-width:1px; vector-effect:non-scaling-stroke; }
+            .iac-pil-ojo { fill:none; stroke:#1E293B; stroke-linecap:round; }
+            .iac-pil-punto { fill:#1E293B; }
+            @media (prefers-reduced-motion: reduce) { .iac-pildora, .iac-pildora.is-cerrando { transition:opacity .15s ease; transform:none; } }`;
 
         const style = document.createElement('style');
         style.id = 'iaChatStyles';
@@ -1469,7 +1699,8 @@ Templates.prototype.iaNavButton = function (options) {
             id: o.id,
             class: 'nav-theme-toggle',
             title: o.title,
-            'aria-label': `Abrir ${o.title}`
+            'aria-label': `Abrir ${o.title}`,
+            'data-ia-nav': ''
         }).append($('<span>', { class: 'relative block' }).append(
             $(this.iaIcon()).addClass('block w-[21px] h-[21px]'),
             $('<span>', {

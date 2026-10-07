@@ -85,6 +85,29 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    function lsCategorias($array) {
+        $query = "
+            SELECT id, name AS valor
+            FROM {$this->bd}item_category
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Orden del Catálogo > Unidad (arrastre), igual que en Entradas.
+    function lsUnidades($array) {
+        $query = "
+            SELECT id, name AS valor
+            FROM {$this->bd}unit
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY sort_order ASC, name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     function findSupplierByName($array) {
         $query = "
             SELECT id, name
@@ -115,7 +138,9 @@ class mdl extends CRUD {
                 COALESCE(ia.cost_unit, 0)                  AS costo_sin_iva,
                 COALESCE(ia.cost_tax, i.tax, 0)            AS iva_compra,
                 ROUND(COALESCE(ia.cost_unit, 0) * (1 + COALESCE(ia.cost_tax, i.tax, 0) / 100), 2) AS costo,
-                i.image                                    AS image
+                i.image                                    AS image,
+                ia.description                             AS descripcion,
+                ia.stock_max                               AS stock_max
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id

@@ -1,4 +1,6 @@
-let apiOrdenes = 'ctrl/ctrl-ordenes.php';
+let apiOrdenes  = 'ctrl/ctrl-ordenes.php';
+let apiEntradas = 'ctrl/ctrl-entradas.php';
+let apiAlmacen  = 'ctrl/ctrl-almacen.php';
 let app, ordenes, ordenesView;
 
 $(async () => {
@@ -31,6 +33,8 @@ class App extends Templates {
                 sucursales:    r.sucursales    || [],
                 almacenes:     r.almacenes     || [],
                 proveedores:   r.proveedores   || [],
+                categorias:    r.categorias    || [],
+                unidades:      r.unidades      || [],
                 productos:     r.productos     || [],
                 estados_orden: r.estados_orden || []
             };
@@ -42,6 +46,8 @@ class App extends Templates {
                 sucursales:    [],
                 almacenes:     [],
                 proveedores:   [],
+                categorias:    [],
+                unidades:      [],
                 productos:     [],
                 estados_orden: []
             };
@@ -841,424 +847,179 @@ class OrdenesView extends Templates {
     }
 
     // ----------------------------------------------------------
-    // Modal de nueva orden / edición
+    // Modal de nueva orden / edición (formato de Entradas: orden-form.js)
     // ----------------------------------------------------------
 
     openOrdenForm(orden) {
-        const isEdit  = !!(orden && orden.id);
-        const esc     = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmtNum  = (n) => n != null ? Number(n).toFixed(2) : '';
+        const form = this.ordenFormInstance();
 
-        const sucursales  = (app.dataInit.sucursales  || []).filter(s => s.id !== '');
-        const almacenes   = app.dataInit.almacenes    || [];
-        const proveedores = (app.dataInit.proveedores || []).filter(p => p.id !== '');
-        const productos   = app.dataInit.productos    || [];
-
-        // Renglones iniciales (modo edición: se cargan del orden existente)
-        let renglones = [];
-        if (isEdit && orden.productos) {
-            renglones = orden.productos.map(p => ({
-                id:    p.product_id,
-                nombre: p.nombre,
-                sku:   p.sku,
-                cant:  p.quantity_ordered,
-                cost:  p.cost,
-                tax:   p.tax,
-                unit_id: p.unit_id
-            }));
-        }
-
-        // Opciones select sucursal destino (a quien se le pide)
-        const optsDest = `<option value="">-- Selecciona sucursal --</option>` + sucursales.map(s =>
-            `<option value="${s.id}"${isEdit && String(orden.destination_branch_id) === String(s.id) ? ' selected' : ''}>${esc(s.valor)}</option>`
-        ).join('');
-
-        // Opciones select almacén
-        const optsAlm = `<option value="">-- Sin definir --</option>` + almacenes.map(a =>
-            `<option value="${a.id}"${isEdit && String(orden.warehouse_id) === String(a.id) ? ' selected' : ''}>${esc(a.valor)}</option>`
-        ).join('');
-
-        // Opciones select proveedor
-        const optsProv = `<option value="">-- Sin proveedor --</option>` + proveedores.map(p =>
-            `<option value="${p.id}"${isEdit && String(orden.supplier_id) === String(p.id) ? ' selected' : ''}>${esc(p.valor)}</option>`
-        ).join('');
-
-        const modalId  = 'modalOrdenForm';
-        const $existing = $(`#${modalId}`);
-        if ($existing.length) $existing.remove();
-
-        const $modal = $(`
-            <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center">
-                <div class="absolute inset-0 bg-black/40"></div>
-                <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
-
-                    <!-- Header -->
-                    <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
-                                <i data-lucide="clipboard-list" class="w-5 h-5 text-white"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-sm font-bold text-gray-800">${isEdit ? 'Editar orden ' + esc(orden.folio) : 'Nueva orden de compra'}</h3>
-                                <p class="text-[11px] text-gray-500">${isEdit ? 'Modifica los datos de la solicitud' : 'Arma la lista de materiales a solicitar'}</p>
-                            </div>
-                        </div>
-                        <button id="${modalId}_close" class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400">
-                            <i data-lucide="x" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-
-                    <!-- Datos (zona fija) -->
-                    <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Fecha de solicitud</label>
-                                <input type="date" id="${modalId}_date_order" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all" value="${isEdit ? esc(orden.date_order) : moment().format('YYYY-MM-DD')}">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Sucursal destino</label>
-                                <div class="relative">
-                                    <select id="${modalId}_destination_branch_id" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8">${optsDest}</select>
-                                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacen destino <span class="text-gray-400 normal-case">(opcional)</span></label>
-                                <div class="relative">
-                                    <select id="${modalId}_warehouse_id" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8">${optsAlm}</select>
-                                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                </div>
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Proveedor <span class="text-gray-400 normal-case">(opcional)</span></label>
-                                <div class="flex gap-2">
-                                    <div class="relative flex-1">
-                                        <select id="${modalId}_supplier_id" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8">${optsProv}</select>
-                                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                    </div>
-                                    <button id="${modalId}_btnCrearProv" class="px-2.5 py-1.5 text-[11px] font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all flex items-center gap-1.5 whitespace-nowrap">
-                                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
-                                <input type="text" id="${modalId}_note" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400" placeholder="Comentario para quien revise la solicitud..." value="${isEdit ? esc(orden.note) : ''}">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Buscador (zona fija) -->
-                    <div class="px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0">
-                        <div class="relative">
-                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center"><i data-lucide="search" class="w-4 h-4"></i></span>
-                            <input type="text" id="${modalId}_search" autocomplete="off" placeholder="Buscar materiales por nombre o SKU..." class="w-full pl-9 pr-3 py-2.5 text-sm text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400">
-                            <div id="${modalId}_results" class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden max-h-72 overflow-y-auto divide-y divide-gray-100"></div>
-                        </div>
-                    </div>
-
-                    <!-- Encabezado lista (zona fija) -->
-                    <div class="px-5 py-2.5 border-b border-gray-200 flex items-center gap-2 flex-shrink-0 bg-gray-50">
-                        <div class="w-6 h-6 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center">
-                            <i data-lucide="boxes" class="w-3.5 h-3.5 text-blue-600"></i>
-                        </div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">Materiales a solicitar</p>
-                    </div>
-
-                    <!-- Lista de materiales (zona flexible con scroll) -->
-                    <div class="flex-1 min-h-0 overflow-y-auto cs-scroll">
-                        <table class="w-full border-collapse">
-                            <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
-                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Cantidad</th>
-                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo unit.</th>
-                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Tax %</th>
-                                    <th class="text-right px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Subtotal</th>
-                                    <th class="w-12 px-3 py-2"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="${modalId}_tbody" class="divide-y divide-gray-100">
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Resumen (zona fija) -->
-                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-5 text-[11px] text-gray-500">
-                            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Unidades <strong class="text-gray-800 text-sm" id="${modalId}_totUds">0</strong></span>
-                        </div>
-                        <div class="flex items-baseline gap-2.5">
-                            <span class="text-[10px] uppercase tracking-wider text-gray-500">Costo total</span>
-                            <span class="font-bold text-lg leading-none" style="color:#3FC189" id="${modalId}_totCosto">$0.00</span>
-                        </div>
-                    </div>
-
-                    <!-- Footer -->
-                    <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                        <button id="${modalId}_btnCancelar" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all">Cancelar</button>
-                        <div class="flex gap-2">
-                            <button id="${modalId}_btnBorrador" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all flex items-center gap-1.5">
-                                <i data-lucide="save" class="w-3.5 h-3.5"></i><span>Guardar borrador</span>
-                            </button>
-                            <button id="${modalId}_btnEnviar" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
-                                <i data-lucide="send" class="w-3.5 h-3.5"></i><span>${isEdit ? 'Guardar cambios' : 'Guardar y enviar a revision'}</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `);
-
-        $('body').append($modal);
-        if (window.lucide) lucide.createIcons();
-
-        // Estado interno del modal
-        let rows = [...renglones];
-
-        const calcSubtotal = (cant, cost, tax) => {
-            const c = Number(cost || 0);
-            const q = Number(cant || 0);
-            return q * c;
-        };
-
-        const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-        const renderTbody = () => {
-            const $tbody = $(`#${modalId}_tbody`);
-            if (!rows.length) {
-                $tbody.html(`<tr><td colspan="6" class="px-3 py-4 text-center text-xs text-gray-400 italic">Agrega materiales usando el buscador</td></tr>`);
-                $(`#${modalId}_totUds`).text('0');
-                $(`#${modalId}_totCosto`).text('$0.00');
-                return;
-            }
-            $tbody.html(rows.map((row, idx) => {
-                const sub = calcSubtotal(row.cant, row.cost, row.tax);
-                return `
-                    <tr data-idx="${idx}">
-                        <td class="px-3 py-2">
-                            <p class="font-medium text-gray-700">${esc(row.nombre)}</p>
-                            ${row.sku ? `<p class="text-[10px] text-gray-400">${esc(row.sku)}</p>` : ''}
-                        </td>
-                        <td class="px-3 py-2">
-                            <input type="number" data-field="cant" data-idx="${idx}" value="${row.cant}" min="0.01" step="0.01"
-                                class="ord-field no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-600 outline-none">
-                        </td>
-                        <td class="px-3 py-2">
-                            <div class="relative">
-                                <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">$</span>
-                                <input type="number" data-field="cost" data-idx="${idx}" value="${row.cost != null ? row.cost : ''}" min="0" step="0.01" placeholder="—"
-                                    class="ord-field no-spin w-full pl-5 pr-2 py-1 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-600 outline-none">
-                            </div>
-                        </td>
-                        <td class="px-3 py-2 text-center">
-                            <input type="number" data-field="tax" data-idx="${idx}" value="${row.tax != null ? row.tax : 0}" min="0" step="0.01"
-                                class="ord-field no-spin w-16 px-2 py-1 text-xs text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-600 outline-none">
-                        </td>
-                        <td class="px-3 py-2 text-right font-semibold text-gray-800 row-sub">${row.cost != null ? fmtMoney(sub) : '—'}</td>
-                        <td class="px-3 py-2 text-center">
-                            <button class="btn-remove-row text-gray-300 hover:text-rose-500" data-idx="${idx}">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </td>
-                    </tr>`;
-            }).join(''));
-            if (window.lucide) lucide.createIcons();
-            updateTotals();
-        };
-
-        const updateTotals = () => {
-            let uds = 0, costo = 0;
-            rows.forEach(r => {
-                uds   += Number(r.cant || 0);
-                costo += calcSubtotal(r.cant, r.cost, r.tax);
-            });
-            const udsVal = (uds % 1 === 0) ? String(uds) : uds.toFixed(2);
-            $(`#${modalId}_totUds`).text(udsVal);
-            $(`#${modalId}_totCosto`).text(fmtMoney(costo));
-        };
-
-        renderTbody();
-
-        // Buscador de productos
-        const $search  = $(`#${modalId}_search`);
-        const $results = $(`#${modalId}_results`);
-
-        $search.on('input', function () {
-            const q = $(this).val().trim().toLowerCase();
-            if (!q) { $results.addClass('hidden').html(''); return; }
-            const found = productos.filter(p =>
-                p.nombre.toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase().includes(q))
-            ).slice(0, 20);
-            if (!found.length) {
-                $results.removeClass('hidden').html(`<div class="px-3 py-2 text-xs text-gray-400 italic">Sin resultados</div>`);
-                return;
-            }
-            $results.removeClass('hidden').html(found.map(p => `
-                <div class="prod-result flex items-center justify-between px-3 py-2.5 hover:bg-blue-50/60 cursor-pointer transition-all border-b border-gray-100 last:border-b-0"
-                     data-id="${p.id}" data-nombre="${esc(p.nombre)}" data-sku="${esc(p.sku)}" data-cost="${p.costo}" data-tax="${p.tax != null ? p.tax : 0}">
-                    <div class="flex items-center gap-2">
-                        <span class="w-7 h-7 rounded bg-gray-100 flex items-center justify-center">
-                            <i data-lucide="package" class="w-3.5 h-3.5 text-gray-500"></i>
-                        </span>
-                        <div>
-                            <p class="text-xs font-medium text-gray-700">${esc(p.nombre)}</p>
-                            <p class="text-[10px] text-gray-400">${esc(p.sku || 'Sin SKU')}</p>
-                        </div>
-                    </div>
-                    <span class="text-[11px] font-semibold flex items-center gap-1" style="color:rgb(var(--brand-600, 192 90 64))">
-                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar
-                    </span>
-                </div>
-            `).join(''));
-            if (window.lucide) lucide.createIcons();
-        });
-
-        $results.on('click', '.prod-result', function () {
-            const id   = String($(this).data('id'));
-            const nombre = $(this).data('nombre');
-            const sku  = $(this).data('sku');
-            const cost = $(this).data('cost');
-            const tax  = $(this).data('tax');
-            const exists = rows.findIndex(r => String(r.id) === id);
-            if (exists >= 0) {
-                rows[exists].cant += 1;
-            } else {
-                rows.push({ id, nombre, sku, cant: 1, cost: cost || null, tax: tax || 0 });
-            }
-            $search.val('');
-            $results.addClass('hidden').html('');
-            renderTbody();
-        });
-
-        // Cambios en campos de renglones
-        $(`#${modalId}_tbody`).on('input', '.ord-field', function () {
-            const idx   = parseInt($(this).attr('data-idx'), 10);
-            const field = $(this).attr('data-field');
-            const val   = $(this).val();
-            if (field === 'cant') {
-                rows[idx].cant = parseFloat(val) || 0;
-            } else if (field === 'cost') {
-                rows[idx].cost = val === '' ? null : parseFloat(val);
-            } else if (field === 'tax') {
-                rows[idx].tax = parseFloat(val) || 0;
-            }
-            const sub = calcSubtotal(rows[idx].cant, rows[idx].cost, rows[idx].tax);
-            $(this).closest('tr').find('.row-sub').text(rows[idx].cost != null ? fmtMoney(sub) : '—');
-            updateTotals();
-        });
-
-        // Eliminar renglon
-        $(`#${modalId}_tbody`).on('click', '.btn-remove-row', function () {
-            const idx = parseInt($(this).attr('data-idx'), 10);
-            rows.splice(idx, 1);
-            renderTbody();
-        });
-
-        // Crear proveedor inline
-        $(`#${modalId}_btnCrearProv`).on('click', () => {
-            this.alertBox({
-                type:        'confirm',
-                title:       'Nuevo proveedor',
-                okLabel:     'Crear',
-                cancelLabel: 'Cancelar',
-                detailHtml: `
-                    <div class="text-left space-y-2 text-sm">
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-0.5">Nombre *</label>
-                        <input id="ab_prov_name" class="w-full px-3 py-1.5 text-[13px] border border-gray-300 rounded-xl focus:outline-none" placeholder="Nombre del proveedor"></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-0.5">Contacto</label>
-                        <input id="ab_prov_contact" class="w-full px-3 py-1.5 text-[13px] border border-gray-300 rounded-xl focus:outline-none" placeholder="Nombre de contacto"></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-0.5">Telefono</label>
-                        <input id="ab_prov_phone" class="w-full px-3 py-1.5 text-[13px] border border-gray-300 rounded-xl focus:outline-none" placeholder="Telefono"></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-0.5">Email</label>
-                        <input id="ab_prov_email" class="w-full px-3 py-1.5 text-[13px] border border-gray-300 rounded-xl focus:outline-none" placeholder="Email"></div>
-                    </div>
-                `,
-                onOk: () => {
-                    // Los campos viven en detailHtml (no en el input nativo de alertBox),
-                    // por eso la validacion del nombre se hace aqui, no con inputValidator.
-                    const name = ($('#ab_prov_name').val() || '').trim();
-                    if (!name) {
-                        this.alertBox({ type: 'warning', title: 'El nombre es obligatorio', detailHtml: 'Captura el nombre del proveedor para continuar.', timer: 1800 });
-                        return;
-                    }
-                    const payload = {
-                        name:         name,
-                        contact_name: ($('#ab_prov_contact').val() || '').trim(),
-                        phone:        ($('#ab_prov_phone').val()   || '').trim(),
-                        email:        ($('#ab_prov_email').val()   || '').trim()
-                    };
-                    useFetch({
-                        url:  apiOrdenes,
-                        data: Object.assign({ opc: 'createSupplier' }, payload)
-                    }).then(r => {
-                        if (r && r.status === 200 && r.id) {
-                            this.alertBox({ type: 'success', title: r.message || 'Proveedor creado', timer: 1600 });
-                            const $sel = $(`#${modalId}_supplier_id`);
-                            if (!$sel.find(`option[value="${r.id}"]`).length) {
-                                $sel.append(`<option value="${r.id}">${esc(r.valor)}</option>`);
-                            }
-                            $sel.val(r.id);
-                        } else {
-                            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el proveedor' });
-                        }
-                    });
-                }
-            });
-        });
-
-        // Cerrar modal
-        const closeModal = () => $(`#${modalId}`).remove();
-        $(`#${modalId}_close`).on('click', closeModal);
-        $(`#${modalId}_btnCancelar`).on('click', closeModal);
-        $modal.on('click', (e) => { if ($(e.target).is(`#${modalId}`)) closeModal(); });
-
-        // Guardar borrador
-        $(`#${modalId}_btnBorrador`).on('click', () => this._submitOrdenForm(modalId, rows, isEdit, orden, false, closeModal));
-
-        // Guardar y enviar
-        $(`#${modalId}_btnEnviar`).on('click', () => {
-            if (isEdit) {
-                this._submitOrdenForm(modalId, rows, true, orden, false, closeModal);
-            } else {
-                this._submitOrdenForm(modalId, rows, false, orden, true, closeModal);
-            }
-        });
-    }
-
-    async _submitOrdenForm(modalId, rows, isEdit, orden, submit, closeModal) {
-        if (!rows.length) {
-            this.alertBox({ type: 'warning', title: 'Agrega al menos un material' });
+        if (orden && orden.id) {
+            this.openEditOrden(form, orden);
             return;
         }
 
-        const payload = {
-            branch_id:             (isEdit && orden ? orden.branch_id : ($('#branch_id').val() || app.subId)) || '',
-            destination_branch_id: $(`#${modalId}_destination_branch_id`).val() || '',
-            warehouse_id:          $(`#${modalId}_warehouse_id`).val()          || '',
-            supplier_id:           $(`#${modalId}_supplier_id`).val()           || '',
-            date_order:            $(`#${modalId}_date_order`).val()            || moment().format('YYYY-MM-DD'),
-            note:                  $(`#${modalId}_note`).val()                  || '',
-            submit:                submit,
-            productos:     rows.map(r => ({
-                product_id:        r.id,
-                quantity:          r.cant,
-                cost:              r.cost,
-                price_without_tax: null,
-                tax:               r.tax != null ? r.tax : 0,
-                unit_id:           r.unit_id || null
-            }))
+        this.ordenEditando = null;
+        form.setMode(null);
+        form.setData({ branch_id: '', warehouse_id: '', fecha: moment().format('YYYY-MM-DD'), nota: '' });
+        form.open();
+    }
+
+    // Editar = el mismo modal del alta con los datos de la orden. Un renglón sin costo
+    // (lo capturó el solicitante) se siembra con el último costo del catálogo.
+    openEditOrden(form, orden) {
+        const catalogo = app.dataInit.productos || [];
+        this.ordenEditando = orden;
+
+        form.openEdit({
+            id:           orden.id,
+            folio:        orden.folio,
+            branch_id:    orden.destination_branch_id || '',
+            warehouse_id: orden.warehouse_id || '',
+            supplier_id:  orden.supplier_id,
+            fecha:        String(orden.date_order || '').slice(0, 10),
+            nota:         orden.note || '',
+            productos: (orden.productos || []).map(p => {
+                const prod  = catalogo.find(c => String(c.id) === String(p.product_id)) || {};
+                const costo = p.cost != null
+                    ? { costo: p.cost, tax: p.tax, costoSinTax: p.price_without_tax != null ? p.price_without_tax : form.baseFromCost(p.cost, p.tax) }
+                    : form.seedTax(prod);
+                return Object.assign({
+                    id:        String(p.product_id),
+                    nombre:    p.nombre,
+                    sku:       p.sku || '',
+                    categoria: prod.categoria || 'Sin categoria',
+                    unit_id:   p.unit_id,
+                    cantidad:  p.quantity_ordered,
+                    stock:     0,
+                    image:     p.image || '',
+                    icon:      'package',
+                    bg:        'bg-gray-100',
+                    color:     'text-gray-500'
+                }, costo);
+            })
+        });
+    }
+
+    ordenFormInstance() {
+        if (!this.ordenFormApi) {
+            this.ordenFormApi = this.ordenForm({
+                parent: 'body',
+                id:     'ordenFormModal',
+                json:   app.dataInit.productos || [],
+                data: {
+                    sucursales:  (app.dataInit.sucursales  || []).filter(s => s.id !== ''),
+                    almacenes:   app.dataInit.almacenes   || [],
+                    categorias:  app.dataInit.categorias  || [],
+                    unidades:    app.dataInit.unidades    || [],
+                    proveedores: (app.dataInit.proveedores || []).filter(p => p.id !== ''),
+                    fecha:       moment().format('YYYY-MM-DD')
+                },
+                onWarehouseChange: async (warehouseId, done) => {
+                    if (!warehouseId) { done({}); return; }
+                    const r = await useFetch({
+                        url:  apiOrdenes,
+                        data: { opc: 'stockByWarehouse', warehouse_id: warehouseId }
+                    });
+                    done((r && r.status === 200) ? (r.stock || {}) : {});
+                },
+                onCreateSupplier: async (data, done) => {
+                    const r = await useFetch({
+                        url:  apiOrdenes,
+                        data: Object.assign({ opc: 'createSupplier' }, data)
+                    });
+                    if (r && r.status === 200 && r.id) {
+                        this.alertBox({ type: 'success', title: r.message || 'Proveedor creado', timer: 1600 });
+                        done({ id: r.id, valor: r.valor });
+                    } else {
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el proveedor' });
+                    }
+                },
+                // Misma alta exprés que Entradas (ctrl-almacen::addProductoRapido).
+                onCreateProduct: async (data, done) => {
+                    const r = await useFetch({
+                        url:  apiAlmacen,
+                        data: Object.assign({ opc: 'addProductoRapido' }, data)
+                    }).catch(() => null);
+
+                    if (!(r && r.status === 200 && r.id)) {
+                        done(null, (r && r.message) || 'No se pudo crear el producto');
+                        return;
+                    }
+
+                    done(this.productoNuevo(r, data));
+                },
+                onAdd:    (payload) => this.saveOrdenForm(payload),
+                onUpdate: (payload) => this.saveOrdenForm(payload),
+                // Los formatos son los mismos de Entradas (ctrl-entradas): uno sirve en las dos capturas.
+                onLoadFormatos: async () => {
+                    const r = await useFetch({ url: apiEntradas, data: { opc: 'lsFormatos' } });
+                    return (r && r.status === 200) ? (r.formatos || []) : [];
+                },
+                onSaveFormato: async (data) => {
+                    const r = await useFetch({
+                        url:  apiEntradas,
+                        data: {
+                            opc:       'saveFormato',
+                            name:      data.name,
+                            scope:     data.scope,
+                            productos: JSON.stringify((data.productos || []).map(p => ({ id: p.id, cantidad: p.cantidad })))
+                        }
+                    });
+                    if (r && r.status === 200) {
+                        if (!data.silent) this.alertBox({ type: 'success', title: r.message || 'Formato guardado', timer: 1600 });
+                    } else {
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el formato' });
+                    }
+                },
+                onDeleteFormato: async (id) => {
+                    const r = await useFetch({ url: apiEntradas, data: { opc: 'deleteFormato', id: id } });
+                    if (r && r.status === 200) {
+                        this.alertBox({ type: 'success', title: r.message || 'Formato eliminado', timer: 1600 });
+                    } else {
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo eliminar el formato' });
+                    }
+                }
+            });
+        }
+        return this.ordenFormApi;
+    }
+
+    // Renglón de catálogo (mismo shape que init) para un producto recién dado de alta.
+    productoNuevo(r, data) {
+        const cat = (app.dataInit.categorias || []).find(c => String(c.id) === String(data.category_id));
+        return {
+            id:                String(r.id),
+            nombre:            data.name,
+            sku:               r.sku || '',
+            categoria:         cat ? cat.valor : 'Sin categoria',
+            costo:             data.costo,
+            price_without_tax: data.cost_unit,
+            tax:               data.cost_tax,
+            stock:             0,
+            image:             '',
+            icon:              'package',
+            bg:                'bg-gray-100',
+            color:             'text-gray-500'
         };
+    }
 
-        const data = isEdit
-            ? { opc: 'editOrden', id: orden.id, payload: JSON.stringify(payload) }
-            : { opc: 'saveOrden', payload: JSON.stringify(payload) };
+    // La sucursal que pide (branch_id) es la del filtro; al editar se conserva la de la orden.
+    async saveOrdenForm(payload) {
+        const orden  = this.ordenEditando;
+        const isEdit = !!payload.id;
+        const data   = Object.assign({}, payload, {
+            branch_id: (isEdit && orden ? orden.branch_id : ($('#branch_id').val() || app.subId)) || ''
+        });
 
-        const r = await useFetch({ url: apiOrdenes, data: data });
+        const r = await useFetch({
+            url:  apiOrdenes,
+            data: isEdit
+                ? { opc: 'editOrden', id: payload.id, payload: JSON.stringify(data) }
+                : { opc: 'saveOrden', payload: JSON.stringify(data) }
+        }).catch(() => null);
 
         if (r && r.status === 200) {
             this.alertBox({ type: 'success', title: r.message || (isEdit ? 'Orden actualizada' : 'Orden creada'), timer: 1600 });
-            closeModal();
             ordenes.lsOrdenes();
             ordenes.lsKpis();
             if (isEdit && orden && orden.folio) {

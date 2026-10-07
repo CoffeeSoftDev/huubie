@@ -36,6 +36,9 @@ class ctrl extends mdl {
                 'price_without_tax' => (float) $producto['costo_sin_iva'],
                 'tax'               => (float) $producto['iva_compra'],
                 'stock'             => 0,
+                // Sobrenombres (Catálogo > Descripción): el buscador también los consulta.
+                'descripcion'       => $producto['descripcion'] ?? '',
+                'stock_max'         => (float) ($producto['stock_max'] ?? 0),
                 'image'             => $producto['image'] ?? '',
                 'icon'              => 'package',
                 'bg'                => 'bg-gray-100',
@@ -51,6 +54,9 @@ class ctrl extends mdl {
             'sucursales'    => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'     => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'proveedores'   => $this->lsSuppliers([$this->companiesId]),
+            // Para el alta exprés de producto del formulario.
+            'categorias'    => $this->lsCategorias([$this->companiesId]),
+            'unidades'      => $this->lsUnidades([$this->companiesId]),
             'productos'     => $productos,
             'estados_orden' => [
                 ['id' => '',           'valor' => 'Todos los estados'],

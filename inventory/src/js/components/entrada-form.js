@@ -625,20 +625,34 @@ class EntradaForm {
                     </div>
                     <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
                     <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
-                    <input id="${o.id}_voucherInput" type="file" accept="image/*,application/pdf" class="hidden">
-                    <button id="${o.id}_btnVoucher" type="button" class="${cls.btnIco} flex-shrink-0" title="${this.esc(o.labels.compDrop)}">
-                        <i data-lucide="paperclip" class="w-3.5 h-3.5 flex-shrink-0"></i><span id="${o.id}_voucherLbl" class="truncate max-w-[140px]">${this.esc(o.labels.comprobante)}</span>
-                    </button>
-                    <button id="${o.id}_voucherClear" type="button" class="hidden w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarComp)}">
-                        <i data-lucide="x" class="w-3 h-3"></i>
-                    </button>
+                    ${this.renderVoucher()}
                 </div>
-                <div class="flex gap-2 flex-shrink-0">
-                    <button class="${cls.btnOut}" data-modal-close>${this.esc(o.labels.cancelar)}</button>
-                    <button id="${o.id}_btnRegistrar" class="${cls.btnOk}">
-                        <i data-lucide="package-plus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
-                    </button>
-                </div>
+                ${this.renderFooterActions()}
+            </div>`;
+    }
+
+    renderVoucher() {
+        const o   = this.opts;
+        const cls = this.cls;
+        return `
+            <input id="${o.id}_voucherInput" type="file" accept="image/*,application/pdf" class="hidden">
+            <button id="${o.id}_btnVoucher" type="button" class="${cls.btnIco} flex-shrink-0" title="${this.esc(o.labels.compDrop)}">
+                <i data-lucide="paperclip" class="w-3.5 h-3.5 flex-shrink-0"></i><span id="${o.id}_voucherLbl" class="truncate max-w-[140px]">${this.esc(o.labels.comprobante)}</span>
+            </button>
+            <button id="${o.id}_voucherClear" type="button" class="hidden w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarComp)}">
+                <i data-lucide="x" class="w-3 h-3"></i>
+            </button>`;
+    }
+
+    renderFooterActions() {
+        const o   = this.opts;
+        const cls = this.cls;
+        return `
+            <div class="flex gap-2 flex-shrink-0">
+                <button class="${cls.btnOut}" data-modal-close>${this.esc(o.labels.cancelar)}</button>
+                <button id="${o.id}_btnRegistrar" class="${cls.btnOk}">
+                    <i data-lucide="package-plus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
+                </button>
             </div>`;
     }
 

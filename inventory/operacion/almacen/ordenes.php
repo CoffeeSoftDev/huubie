@@ -33,6 +33,10 @@ require_once('layout/core-libraries.php');
     <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
     <script src="../../acceso/src/js/sidebar.js"></script>
 
+    <!-- Captura con el formato de Entradas: orden-form extiende entrada-form -->
+    <script src="../../src/js/components/entrada-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/entrada-form.js'); ?>"></script>
+    <script src="../../src/js/components/orden-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/orden-form.js'); ?>"></script>
+
     <!-- Módulo de Órdenes de Compra -->
     <script src="js/ordenes.js?t=<?php echo time(); ?>"></script>
 </body>
