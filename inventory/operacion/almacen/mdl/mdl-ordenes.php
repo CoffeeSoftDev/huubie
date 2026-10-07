@@ -325,6 +325,7 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
+    // unidad: la del renglón; si no trae, la del producto en Catálogo.
     function qGetOrdenDetail($array) {
         $query = "
             SELECT
@@ -340,10 +341,12 @@ class mdl extends CRUD {
                 d.subtotal,
                 i.name  AS product_name,
                 ia.sku,
-                i.image
+                i.image,
+                un.name AS unidad
             FROM {$this->bd}detail_purchase_order d
             INNER JOIN {$this->bd}item            i  ON i.id = d.item_id
             LEFT  JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT  JOIN {$this->bd}unit            un ON un.id = COALESCE(d.unit_id, ia.unit_id)
             WHERE d.purchase_order_id = ? AND d.active = 1
             ORDER BY d.id ASC
         ";
