@@ -32,7 +32,8 @@ class ctrl extends mdl {
                 ['id' => '1', 'valor' => 'Activos'],
                 ['id' => '0', 'valor' => 'Inactivos']
             ],
-            'sucursales'   => $this->qBranchesForSelect([$this->companiesId])
+            'sucursales'   => $this->qBranchesForSelect([$this->companiesId]),
+            'roles'        => $this->qRolesForSelect([$this->companiesId])
         ];
     }
 
@@ -212,8 +213,9 @@ class ctrl extends mdl {
         if (!$data) {
             return ['status' => 404, 'message' => 'Usuario no encontrado', 'data' => null];
         }
-        $data['branch_ids'] = $this->qUserBranchIds([$id]);
-        $data['photo_url']  = $this->photoUrl($data['photo'] ?? '');
+        $data['branch_ids']   = $this->qUserBranchIds([$id]);
+        $data['branch_roles'] = $this->qUserBranchRoles([$id]);
+        $data['photo_url']    = $this->photoUrl($data['photo'] ?? '');
         return [
             'status'  => 200,
             'message' => 'OK',
@@ -330,7 +332,12 @@ class ctrl extends mdl {
             }
         }
 
-        return $this->transaction(function () use ($name, $lastName, $email, $password, $branchIds, $color) {
+        $roles = $this->resolveBranchRoles($branchIds, []);
+        if ($roles === null) {
+            return ['status' => 400, 'message' => 'Elige el rol del usuario en cada sucursal'];
+        }
+
+        return $this->transaction(function () use ($name, $lastName, $email, $password, $branchIds, $roles, $color) {
             $this->qInsertUser([
                 $name,
                 $lastName ?: null,
@@ -347,10 +354,8 @@ class ctrl extends mdl {
                 throw new \Exception('No se pudo obtener el id del usuario creado');
             }
 
-            // El alta no captura rol todavia: la fila nace sin el y el usuario
-            // no vera modulos hasta que se le asigne uno.
             foreach ($branchIds as $bid) {
-                $this->qInsertUserBranch([$newId, $bid, null]);
+                $this->qInsertUserBranch([$newId, $bid, $roles[$bid]]);
             }
 
             // La foto se guarda al final porque su nombre lleva el id del usuario,
@@ -403,15 +408,16 @@ class ctrl extends mdl {
             }
         }
 
-        // Foto de los roles antes de tocar users_braches: el rol vive solo en esa
-        // tabla y la edicion la borra entera, asi que hay que leerlo primero.
-        $roleByBranch = $this->qUserBranchRoles([$id]);
-        $rolesActuales = array_filter($roleByBranch, function ($r) { return $r !== null; });
-        $fallbackRole  = !empty($rolesActuales) ? reset($rolesActuales) : null;
+        // Roles de antes de tocar users_braches: la edicion la borra entera y el
+        // Super Admin de una sucursal se conserva tal cual (resolveBranchRoles).
+        $roles = $this->resolveBranchRoles($branchIds, $this->qUserBranchRoles([$id]));
+        if ($roles === null) {
+            return ['status' => 400, 'message' => 'Elige el rol del usuario en cada sucursal'];
+        }
 
         $photoActual = $current['photo'] ?? '';
 
-        return $this->transaction(function () use ($id, $name, $lastName, $email, $branchIds, $color, $password, $roleByBranch, $fallbackRole, $photoActual) {
+        return $this->transaction(function () use ($id, $name, $lastName, $email, $branchIds, $roles, $color, $password, $photoActual) {
             $this->qUpdateUser([
                 $name,
                 $lastName ?: null,
@@ -424,11 +430,8 @@ class ctrl extends mdl {
 
             $this->qDeleteUserBranches([$id]);
 
-            // Se reinserta cada sucursal con el rol que ya tenia. Una sucursal
-            // recien asignada no tiene rol propio: hereda el del resto para no
-            // quedarse en NULL, que es lo que dejaba al usuario sin modulos.
             foreach ($branchIds as $bid) {
-                $this->qInsertUserBranch([$id, $bid, $roleByBranch[$bid] ?? $fallbackRole]);
+                $this->qInsertUserBranch([$id, $bid, $roles[$bid]]);
             }
 
             if ($password !== '') {
@@ -508,6 +511,39 @@ class ctrl extends mdl {
             if ($int > 0) $result[] = $int;
         }
         return array_values(array_unique($result));
+    }
+
+    // Rol de cada sucursal (branch_id => role_id) a partir de `branch_roles`.
+    // Solo valen los roles de la empresa (qRolesForSelect, sin el 1). Donde el
+    // usuario ya es Super Admin se queda así: ese rol es del sistema y no se
+    // asigna ni se quita desde aquí. null = falta o no vale el rol de alguna.
+    private function resolveBranchRoles($branchIds, $currentRoles) {
+        $allowed = array_map('intval', array_column($this->qRolesForSelect([$this->companiesId]), 'id'));
+        $sent    = $this->normalizeBranchRoles($_POST['branch_roles'] ?? '');
+
+        $roles = [];
+        foreach ($branchIds as $bid) {
+            if ((int) ($currentRoles[$bid] ?? 0) === 1) {
+                $roles[$bid] = 1;
+                continue;
+            }
+
+            $role = $sent[$bid] ?? 0;
+            if (!in_array($role, $allowed, true)) return null;
+            $roles[$bid] = $role;
+        }
+        return $roles;
+    }
+
+    private function normalizeBranchRoles($raw) {
+        $decoded = is_string($raw) && $raw !== '' ? json_decode($raw, true) : $raw;
+        if (!is_array($decoded)) return [];
+
+        $result = [];
+        foreach ($decoded as $branchId => $roleId) {
+            if ((int) $branchId > 0) $result[(int) $branchId] = (int) $roleId;
+        }
+        return $result;
     }
 
     private function normalizeColor($raw) {

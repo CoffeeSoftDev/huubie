@@ -180,7 +180,7 @@ class App extends Templates {
                 text:      'Nueva orden',
                 color_btn: 'invernal',
                 class:     'col-12 col-md-6 col-lg-3',
-                onClick:   () => ordenesView.openOrdenForm()
+                onClick:   () => ordenesView.openNuevaOrden()
             }
         ];
 
@@ -436,6 +436,7 @@ class Ordenes extends Templates {
                 sku:               d.sku         || '',
                 image:             d.image       || '',
                 unit_id:           d.unit_id,
+                unidad:            d.unidad      || '',
                 quantity_ordered:  Number(d.quantity_ordered  || 0),
                 quantity_received: Number(d.quantity_received || 0),
                 price_without_tax: d.price_without_tax != null ? Number(d.price_without_tax) : null,
@@ -456,7 +457,107 @@ class Ordenes extends Templates {
             }
             o = this.mapOrdenDetail(r.header || {}, r.detail || []);
         }
-        this._renderOrdenDoc(o);
+        // Solicitada = todavía hay que conseguir los productos: se imprime la lista de compras.
+        if (o.status === 'Solicitada') this._renderListaCompras(o);
+        else this._renderOrdenDoc(o);
+    }
+
+    // Formato de compras: lo pedido para abastecer, con casilla para palomear y
+    // espacio para anotar lo que de verdad se compró y a qué precio.
+    _renderListaCompras(o) {
+        const esc      = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtNum   = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
+        const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+        const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const fmtFecha = (raw) => {
+            if (!raw) return '-';
+            const d = new Date(String(raw).length <= 10 ? raw + 'T00:00:00' : String(raw).replace(' ', 'T'));
+            if (isNaN(d.getTime())) return raw;
+            return `${DOW[d.getDay()]} ${String(d.getDate()).padStart(2,'0')} ${MON[d.getMonth()]} ${d.getFullYear()}`;
+        };
+
+        const productos = o.productos || [];
+        const totals    = productos.reduce((acc, p) => {
+            const cant = Math.max(0, p.quantity_ordered - p.quantity_received);
+            acc.uds   += cant;
+            acc.costo += cant * (p.cost || 0);
+            return acc;
+        }, { uds: 0, costo: 0 });
+
+        const rowsHtml = productos.map(p => {
+            const cant    = Math.max(0, p.quantity_ordered - p.quantity_received);
+            const hasCost = p.cost != null;
+            return `<tr>
+                <td class="c"><span class="check"></span></td>
+                <td><span class="prod-name">${esc(p.nombre)}</span>${p.sku ? ` <span class="sku">${esc(p.sku)}</span>` : ''}</td>
+                <td class="c">${esc(p.unidad || '-')}</td>
+                <td class="c qty">${fmtNum(cant)}</td>
+                <td class="r">${hasCost ? fmtMoney(p.cost) : '—'}</td>
+                <td class="r">${hasCost ? fmtMoney(cant * p.cost) : '—'}</td>
+                <td class="fill"></td>
+                <td class="fill"></td>
+            </tr>`;
+        }).join('');
+
+        const surtir = [o.destination_branch_name, o.warehouse_name].filter(Boolean).map(esc).join(' &middot; ');
+
+        const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Lista de compras ${esc(o.folio||'')}</title>
+        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800}.folio{font-size:20px;font-weight:800;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 6px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:7px 6px;font-size:11px;border-bottom:1px solid #d4d4d4;vertical-align:middle}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}td.qty{font-size:13px;font-weight:800}td.fill{width:90px;border-bottom:1px solid #000}.check{display:inline-block;width:14px;height:14px;border:1.5px solid #000;border-radius:2px}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:15px;font-weight:800}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
+        </head><body>
+        <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
+        <div class="sheet">
+            <div class="doc-header">
+                <div>
+                    <div class="doc-title">Lista de compras</div>
+                    <div style="font-size:12px;color:#555;margin-top:3px">Productos solicitados para abastecer</div>
+                </div>
+                <div>
+                    <div class="folio">${esc(o.folio||'-')}</div>
+                    <span class="status">${esc(o.status)}</span>
+                </div>
+            </div>
+            <div class="info-grid">
+                <div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(o.supplier_name||'Sin asignar')}</span></div>
+                <div class="info-item"><span class="k">Fecha solicitud</span><span class="v">${esc(fmtFecha(o.date_order))}</span></div>
+                <div class="info-item"><span class="k">Solicita</span><span class="v">${esc(o.branch_name||'-')}</span></div>
+                <div class="info-item"><span class="k">Abastecer en</span><span class="v">${surtir||'-'}</span></div>
+                <div class="info-item"><span class="k">Solicitado por</span><span class="v">${esc(o.user_name||'-')}</span></div>
+                ${o.expected_date?`<div class="info-item"><span class="k">Fecha esperada</span><span class="v">${esc(fmtFecha(o.expected_date))}</span></div>`:''}
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="c" style="width:28px"></th>
+                        <th>Producto</th>
+                        <th class="c">Unidad</th>
+                        <th class="c">Comprar</th>
+                        <th class="r">Costo ref.</th>
+                        <th class="r">Importe est.</th>
+                        <th class="c">Comprado</th>
+                        <th class="c">Precio real</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml||'<tr><td colspan="8" class="c">Sin productos</td></tr>'}</tbody>
+            </table>
+            <div class="totals">
+                <div class="totals-box">
+                    <div class="totals-row"><span>Productos</span><span>${productos.length}</span></div>
+                    <div class="totals-row"><span>Unidades a comprar</span><span>${fmtNum(totals.uds)}</span></div>
+                    <div class="totals-row grand"><span>Total estimado</span><span>${fmtMoney(totals.costo)}</span></div>
+                </div>
+            </div>
+            ${o.note?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(o.note)}</div>`:''}
+        </div></body></html>`;
+
+        const w = window.open('', '_blank', 'width=900,height=1000');
+        if (!w) {
+            this.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el documento.' });
+            return;
+        }
+        w.document.write(html);
+        w.document.close();
+        w.focus();
     }
 
     _renderOrdenDoc(o) {
@@ -867,7 +968,100 @@ class OrdenesView extends Templates {
     // Modal de nueva orden / edición (formato de Entradas: orden-form.js)
     // ----------------------------------------------------------
 
-    openOrdenForm(orden) {
+    // Igual que Entradas: antes de la captura se eligen Sucursal destino (arranca en la
+    // de la sesión), Almacén y Fecha. El ctrl los revisa (verifyNuevaOrden) y la captura
+    // abre con ellos; ahí se pueden seguir cambiando.
+    openNuevaOrden() {
+        const hoy = moment().format('YYYY-MM-DD');
+
+        this.createModalForm({
+            id: 'formNuevaOrden',
+            data: { opc: 'verifyNuevaOrden' },
+            theme: 'light',
+            coffeesoft: true,
+            prefijo: 'no_',
+            closeOnError: false,
+            bootbox: {
+                title: 'Nueva orden de compra',
+                size: 'small',
+                closeButton: true
+            },
+            json: this.jsonNuevaOrden(app.subId, hoy),
+            success: (response) => {
+                if (response && response.status === 200) {
+                    this.openOrdenForm(null, response.data);
+                } else {
+                    this.alertBox({ type: 'warning', title: (response && response.message) || 'No se pudo abrir la orden' });
+                }
+            }
+        });
+
+        $('#no_date_order').attr('max', hoy);
+        this.mountNuevaOrdenIconos();
+    }
+
+    jsonNuevaOrden(curSub, hoy) {
+        return [
+            {
+                opc: 'select',
+                id: 'branch_id',
+                lbl: 'Sucursal destino',
+                class: 'col-12',
+                value: curSub,
+                data: (app.dataInit.sucursales || []).filter(s => s.id !== ''),
+                onchange: 'ordenesView.syncNuevaOrdenAlmacen()',
+                required: true
+            },
+            {
+                opc: 'select',
+                id: 'warehouse_id',
+                lbl: 'Almacén',
+                class: 'col-12',
+                data: this.almacenesDe(curSub),
+                required: false
+            },
+            {
+                opc: 'input',
+                type: 'date',
+                id: 'date_order',
+                lbl: 'Fecha de solicitud',
+                class: 'col-12',
+                value: hoy,
+                required: true
+            }
+        ];
+    }
+
+    // Íconos dentro de los selects, como en el formulario previo de Entradas.
+    mountNuevaOrdenIconos() {
+        const iconos = {
+            no_branch_id:    'building-2',
+            no_warehouse_id: 'warehouse'
+        };
+
+        $.each(iconos, (id, icon) => {
+            $('#' + id).addClass('!pl-10').before(
+                $('<span>', { class: 'pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center' })
+                    .append($('<i>', { 'data-lucide': icon, class: 'w-4 h-4' }))
+            );
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // El Almacén es uno DE la sucursal elegida, o ninguno.
+    syncNuevaOrdenAlmacen() {
+        const almacenes = this.almacenesDe($('#no_branch_id').val());
+        $('#no_warehouse_id').empty().append(almacenes.map(a => $('<option>', { value: a.id, text: a.valor })));
+    }
+
+    almacenesDe(branchId) {
+        const almacenes = (app.dataInit.almacenes || []).filter(a => String(a.branch_id) === String(branchId));
+        return [{ id: '', valor: 'Sin definir' }].concat(almacenes);
+    }
+
+    // `prefill` = lo que eligió el formulario previo (branch_id, warehouse_id, fecha).
+    openOrdenForm(orden, prefill = null) {
         const form = this.ordenFormInstance();
 
         if (orden && orden.id) {
@@ -877,7 +1071,7 @@ class OrdenesView extends Templates {
 
         this.ordenEditando = null;
         form.setMode(null);
-        form.setData({ branch_id: '', warehouse_id: '', fecha: moment().format('YYYY-MM-DD'), nota: '' });
+        form.setData(Object.assign({ branch_id: app.subId, warehouse_id: '', fecha: moment().format('YYYY-MM-DD'), nota: '' }, prefill || {}));
         form.open();
     }
 

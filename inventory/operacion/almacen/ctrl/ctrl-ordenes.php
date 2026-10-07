@@ -194,6 +194,36 @@ class ctrl extends mdl {
         ];
     }
 
+    // Formulario previo de "Nueva orden": Sucursal destino (obligatoria), Almacén
+    // (opcional, de esa sucursal) y Fecha (no posterior a hoy).
+    function verifyNuevaOrden() {
+        $branchId   = (int) ($_POST['branch_id'] ?? 0);
+        $almacen    = (int) ($_POST['warehouse_id'] ?? 0);
+        $fecha      = trim((string) ($_POST['date_order'] ?? ''));
+        $sucursales = $this->_userBranchIds();
+
+        if ($branchId <= 0 || ($sucursales && !in_array($branchId, $sucursales, true))) {
+            return ['status' => 400, 'message' => 'Elige una de tus sucursales'];
+        }
+
+        if ($almacen > 0) {
+            $almacenes = array_map('intval', array_column($this->lsWarehouses(['companies_id' => $this->companiesId, 'branch_id' => $branchId]) ?: [], 'id'));
+            if (!in_array($almacen, $almacenes, true)) return ['status' => 400, 'message' => 'Elige un almacén de esa sucursal'];
+        }
+
+        $errorFecha = $this->fechaInvalida($fecha);
+        if ($errorFecha) return ['status' => 400, 'message' => $errorFecha];
+
+        return [
+            'status' => 200,
+            'data'   => [
+                'branch_id'    => $branchId,
+                'warehouse_id' => $almacen ?: '',
+                'fecha'        => $fecha
+            ]
+        ];
+    }
+
     function saveOrden() {
         $_POST += ['payload' => '[]'];
 
@@ -644,6 +674,25 @@ class ctrl extends mdl {
 
     // Solo la sucursal destino puede aprobar/rechazar solicitudes inter-sucursal.
     // Si la orden no tiene destino definido o es mono-sucursal, no se restringe.
+    private function fechaInvalida($fecha) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $fecha) || !strtotime($fecha)) return 'Elige una fecha válida';
+        if ($fecha > date('Y-m-d')) return 'La fecha no puede ser posterior a hoy';
+
+        return null;
+    }
+
+    // Sucursales del usuario (las del select); el dueño no tiene restricción.
+    private function _userBranchIds() {
+        if ((int) ($_SESSION['is_owner'] ?? 0) === 1) return [];
+
+        $ids = array_map(function ($s) { return (int) $s['id']; }, $this->lsSucursales([
+            'company_id' => $this->companiesId,
+            'user_id'    => $this->userId,
+            'is_owner'   => 0
+        ]));
+        return $ids ?: [0];
+    }
+
     private function puedeGestionarDestino($header) {
         $dest = (int) ($header['destination_branch_id'] ?? 0);
         $orig = (int) ($header['branch_id'] ?? 0);

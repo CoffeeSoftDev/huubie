@@ -2,6 +2,7 @@ let api = 'ctrl/ctrl-accesos.php';
 let app, subsidiaries, users;
 let statusFilter = [];
 let sucursalesData = [];
+let rolesData = [];
 let dataInit = {};
 
 const USER_COLOR_PALETTE = [
@@ -58,6 +59,7 @@ $(async () => {
     dataInit       = await useFetch({ url: api, data: { opc: 'init' } });
     statusFilter   = dataInit.statusFilter || [];
     sucursalesData = dataInit.sucursales   || [];
+    rolesData      = dataInit.roles        || [];
 
     app          = new App(api, 'root');
     subsidiaries = new Subsidiaries(api, 'root');
@@ -326,10 +328,10 @@ class Users extends Templates {
             json: this.jsonUser(false),
             success: (r) => this._afterSave(r)
         });
-        this.injectSucursalChips('add_sucursales_chips', []);
+        this.injectSucursalChips('add_sucursales_chips', [], {});
         this.renderPhotoPicker('formUserAdd', '', null);
         this.renderColorSwatches('formUserAdd', null);
-        this.guardPasswordMatch(modal);
+        this.guardUserForm(modal);
         this.mountPasswordEyes();
     }
 
@@ -354,10 +356,10 @@ class Users extends Templates {
             json: this.jsonUser(true),
             success: (r) => this._afterSave(r)
         });
-        this.injectSucursalChips('edit_sucursales_chips', branchIds);
+        this.injectSucursalChips('edit_sucursales_chips', branchIds, data.branch_roles || {});
         this.renderPhotoPicker('formUserEdit', data.photo_url || '', color);
         this.renderColorSwatches('formUserEdit', color);
-        this.guardPasswordMatch(modal);
+        this.guardUserForm(modal);
         this.mountPasswordEyes();
     }
 
@@ -390,26 +392,103 @@ class Users extends Templates {
         });
 
         $('#branch_ids').val(selectedIds.join(','));
+        this.renderBranchRoles(containerId, selectedIds);
     }
 
     // jsonUser() pinta branch_ids como <select>; aqui se saca ese select y en
     // su lugar quedan el hidden que viaja al ctrl y la caja de chips (mismo
     // patron portado de admin/usuarios/js/admin.js, que a su vez viene de
-    // app/admin/src/js/app.js).
-    injectSucursalChips(chipsId, selectedIds = []) {
+    // app/admin/src/js/app.js). Debajo va el rol de cada sucursal elegida.
+    injectSucursalChips(chipsId, selectedIds = [], branchRoles = {}) {
         const $hidden = $('<input>', {
             type: 'hidden', id: 'branch_ids', name: 'branch_ids', value: selectedIds.join(',')
         });
+        const $rolesHidden = $('<input>', {
+            type: 'hidden', id: 'branch_roles', name: 'branch_roles', value: '{}'
+        });
         const $box = $('<div>', {
             id: chipsId, class: 'flex flex-wrap bg-white border border-gray-200 rounded-lg p-2'
+        });
+        const $roles = $('<div>', { id: chipsId + '_rolesBlock', class: 'mt-3 hidden' })
+            .append($('<label>', { class: 'block text-xs font-semibold text-gray-600 mb-1.5', text: 'Rol en cada sucursal' }))
+            .append($('<div>', { id: chipsId + '_roles', class: 'bg-white border border-gray-200 rounded-lg divide-y divide-gray-100' }));
+
+        // Rol elegido por sucursal (branch_id => role_id, en texto), propio de este formulario.
+        this.branchRoles = {};
+        Object.keys(branchRoles || {}).forEach(bid => {
+            if (branchRoles[bid] != null) this.branchRoles[String(bid)] = String(branchRoles[bid]);
         });
 
         const $select = $('#branch_ids');
         $select.siblings().remove(); // quita el chevron que dejo el <select>
         $select.replaceWith($hidden);
-        $hidden.after($box);
+        $hidden.after($rolesHidden, $box, $roles);
 
         this.renderSucursalChips(chipsId, selectedIds);
+    }
+
+    // -- Rol por sucursal --
+
+    // Las opciones son los roles de la empresa (rolesData, sin el 1). Donde el
+    // usuario ya es Super Admin (rol 1, del sistema) el renglón queda fijo: no se
+    // asigna ni se quita desde aquí, y el ctrl lo conserva. Una sucursal recién
+    // marcada toma el rol que ya tienen las demás, para no elegirlo cada vez.
+    renderBranchRoles(chipsId, selectedIds) {
+        const $list     = $('#' + chipsId + '_roles').empty();
+        const selected  = sucursalesData.filter(s => selectedIds.includes(String(s.id)));
+        const inherited = selected.map(s => this.branchRoles[String(s.id)]).find(r => r && r !== '1') || '';
+
+        $('#' + chipsId + '_rolesBlock').toggleClass('hidden', !selected.length);
+
+        selected.forEach(s => {
+            const bid = String(s.id);
+            if (!this.branchRoles[bid]) this.branchRoles[bid] = inherited;
+
+            const $row = $('<div>', { class: 'flex items-center justify-between gap-3 px-3 py-2' })
+                .append($('<span>', { class: 'text-sm text-gray-700 truncate', text: s.valor }));
+
+            if (this.branchRoles[bid] === '1') {
+                $row.append($('<span>', {
+                    class: 'shrink-0 px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-600',
+                    text:  'Super Admin',
+                    title: 'Rol del sistema: no se cambia desde Accesos'
+                }));
+            } else {
+                const $sel = $('<select>', {
+                    class: 'tw-input w-44 shrink-0 rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-blue-600 bg-white dark:bg-gray-700 cursor-pointer'
+                }).append($('<option>', { value: '', text: '-- Elige rol --' }));
+
+                rolesData.forEach(r => {
+                    $sel.append($('<option>', { value: r.id, text: r.valor, selected: String(r.id) === this.branchRoles[bid] }));
+                });
+
+                $sel.on('change', () => {
+                    this.branchRoles[bid] = $sel.val();
+                    this.syncBranchRoles(selectedIds);
+                });
+
+                $row.append($sel);
+            }
+
+            $list.append($row);
+        });
+
+        this.syncBranchRoles(selectedIds);
+    }
+
+    // Lo que viaja al ctrl: solo los roles asignables (el Super Admin lo conserva el ctrl).
+    syncBranchRoles(selectedIds) {
+        const map = {};
+        selectedIds.forEach(bid => {
+            const role = this.branchRoles[bid];
+            if (role && role !== '1') map[bid] = role;
+        });
+        $('#branch_roles').val(JSON.stringify(map));
+    }
+
+    missingBranchRole() {
+        const selectedIds = ($('#branch_ids').val() || '').split(',').filter(Boolean);
+        return selectedIds.some(bid => !this.branchRoles[bid]);
     }
 
     // -- Foto del colaborador --
@@ -518,35 +597,37 @@ class Users extends Templates {
         $form.find('[name="color"]').closest('div').after($colorWrap);
     }
 
-    // -- Doble confirmacion de contrasena --
+    // -- Validacion antes de enviar: contrasena doble y rol por sucursal --
 
     // El cfModal no expone un hook previo al envio: el boton Aceptar dispara
     // cfModalForm.trigger('submit') desde su propio click, y el atajo Enter
     // llama onOk() desde un keydown en document. Se frenan los dos en fase de
     // captura sobre el overlay, que corre antes que ambos manejadores.
-    guardPasswordMatch(modal) {
+    guardUserForm(modal) {
         const btnOk = modal.footer.find('button').last()[0];
         if (!btnOk) return;
 
-        const match = () => $('#password').val() === $('#password_confirmation').val();
+        const problem = () => {
+            if ($('#password').val() !== $('#password_confirmation').val()) return 'Las contraseñas no coinciden';
+            if (this.missingBranchRole()) return 'Elige el rol del usuario en cada sucursal';
+            return '';
+        };
         const block = (e) => {
+            const msg = problem();
+            if (!msg) return;
             e.preventDefault();
             e.stopPropagation();
-            alert({ icon: 'error', text: 'Las contraseñas no coinciden', btn1: true });
+            alert({ icon: 'error', text: msg, btn1: true });
         };
 
         modal.el[0].addEventListener('click', (e) => {
-            if (e.target.closest('button') !== btnOk) return;
-            if (match()) return;
-            block(e);
+            if (e.target.closest('button') === btnOk) block(e);
         }, true);
 
         modal.el[0].addEventListener('keydown', (e) => {
             if (e.key !== 'Enter') return;
             const tag = (e.target.tagName || '').toLowerCase();
-            if (tag !== 'input' && tag !== 'select') return;
-            if (match()) return;
-            block(e);
+            if (tag === 'input' || tag === 'select') block(e);
         }, true);
 
         $('#password, #password_confirmation').on('input', function () {

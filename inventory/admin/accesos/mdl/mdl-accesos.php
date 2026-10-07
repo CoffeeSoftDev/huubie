@@ -85,6 +85,22 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    /* ====================== Roles ====================== */
+
+    // Roles que se asignan por sucursal en Accesos: los activos de la empresa.
+    // El 1 (Super Admin) es del sistema y no se asigna desde aquí.
+    function qRolesForSelect($array) {
+        // [company_id]
+        $query = "
+            SELECT id, name AS valor
+            FROM {$this->bd}roles
+            WHERE company_id = ? AND is_active = 1 AND id <> 1
+            ORDER BY id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     /* ====================== Usuarios ====================== */
 
     function qUsers($array) {

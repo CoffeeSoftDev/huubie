@@ -1,7 +1,7 @@
 // Captura de una orden de compra con el mismo formato que la de Entradas (EntradaForm):
 // buscador, renglón vacío con ↓, impuesto escribe-o-elige, alta exprés de producto y
-// formatos. Cambia lo propio de la orden: Sucursal destino, Almacén y Proveedor
-// opcionales, sin comprobante, y se guarda como borrador o se envía a revisión.
+// formatos. Cambia lo propio de la orden: Sucursal destino obligatoria, Almacén y
+// Proveedor opcionales, sin comprobante, y se guarda como borrador o se envía a revisión.
 // Requiere entrada-form.js cargado antes.
 class OrdenForm extends EntradaForm {
 
@@ -32,8 +32,8 @@ class OrdenForm extends EntradaForm {
             stockSinAlm:   'Elige un almacén para ver su stock',
             borrador:      'Guardar borrador',
             registrar:     'Guardar y enviar a revisión',
-            confirmAdd:    'Deseas enviar la orden a revisión?',
-            confirmAddOk:  'Si, enviar',
+            confirmAdd:    'Deseas crear la orden de compra?',
+            confirmAddOk:  'Si, crear',
             confirmDraft:  'Deseas guardar la orden como borrador?',
             confirmDraftOk:'Si, guardar',
             titleEdit:     'Editar orden',
@@ -56,7 +56,6 @@ class OrdenForm extends EntradaForm {
                         <label class="${cls.label}">${this.esc(o.labels.sucursal)}</label>
                         ${this.selectWrap(`
                             <select id="${o.id}_selSucursal" class="${cls.select} !pl-10">
-                                <option value="">${this.esc(o.labels.sinDefinir)}</option>
                                 ${(o.data.sucursales || []).map(it => this.optionTag(it, o.data.branch_id)).join('')}
                             </select>
                         `, 'building-2')}
