@@ -132,17 +132,31 @@ class ctrl extends mdl {
     }
 
     function showEntradas() {
-        $kpis = $this->getEntradaKpis([
-            'companies_id'    => $this->companiesId,
-            'branch_id'       => $_POST['branch_id'] ?? '',
-            'branch_ids'      => $this->_userBranchIds(),
-            'origin_id'       => $_POST['origin_id']       ?? '',
-            'status'          => $_POST['status']          ?? '',
-            'fi'              => $_POST['fi']              ?? '',
-            'ff'              => $_POST['ff']              ?? '',
-            'q'               => $_POST['q']               ?? ''
-        ]);
+        $kpis = $this->getEntradaKpis($this->kpiFilters());
         return ['status' => 200, 'counts' => $kpis];
+    }
+
+    function lsKpiDetail() {
+        $filters = $this->kpiFilters();
+
+        switch ($_POST['kpi']) {
+            case 'kpiEntradas':
+                $row = $this->kpiRowsByOrigin($filters);
+                break;
+            case 'kpiCosto':
+                $row = $this->kpiRowsByProduct($filters, 'cost');
+                break;
+            case 'kpiUnidades':
+                $row = $this->kpiRowsByProduct($filters, 'units');
+                break;
+            case 'kpiAplicadas':
+                $row = $this->kpiRowsApplied($filters);
+                break;
+            default:
+                return ['status' => 400, 'message' => 'Indicador no reconocido'];
+        }
+
+        return ['status' => 200, 'row' => $row];
     }
 
     function getEntrada() {
@@ -1034,6 +1048,108 @@ class ctrl extends mdl {
 
         $ok = $this->qDeleteFormato([$id, $this->companiesId]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Formato eliminado' : 'No se pudo eliminar el formato'];
+    }
+
+    // Los mismos filtros para las cards y para su desglose.
+    private function kpiFilters() {
+        return [
+            'companies_id'    => $this->companiesId,
+            'branch_id'       => $_POST['branch_id'] ?? '',
+            'branch_ids'      => $this->_userBranchIds(),
+            'origin_id'       => $_POST['origin_id']       ?? '',
+            'status'          => $_POST['status']          ?? '',
+            'fi'              => $_POST['fi']              ?? '',
+            'ff'              => $_POST['ff']              ?? '',
+            'q'               => $_POST['q']               ?? ''
+        ];
+    }
+
+    private function kpiRowsByOrigin($filters) {
+        $origins = $this->listEntradasByOrigin($filters);
+        $total   = array_sum(array_column($origins, 'total_entradas'));
+
+        $row = [];
+        foreach ($origins as $key => $origin) {
+            $row[] = [
+                'id'              => $key + 1,
+                'Tipo de entrada' => badge($origin['origin_name'] ?: 'Sin tipo', $origin['origin_color'] ?: '#9CA3AF', 100, $origin['origin_bg'] ?? null, $origin['origin_icon'] ?? null),
+                'Entradas'        => (int) $origin['total_entradas'],
+                'Unidades'        => kpiQuantity($origin['total_unidades']),
+                'Costo'           => evaluar((float) $origin['total_costo']),
+                'Participación'   => kpiPercent($origin['total_entradas'], $total)
+            ];
+        }
+
+        if ($row) {
+            $row[] = kpiTotalRow([
+                'Tipo de entrada' => 'Total',
+                'Entradas'        => $total,
+                'Unidades'        => kpiQuantity(array_sum(array_column($origins, 'total_unidades'))),
+                'Costo'           => evaluar(array_sum(array_column($origins, 'total_costo'))),
+                'Participación'   => kpiPercent($total, $total)
+            ]);
+        }
+        return $row;
+    }
+
+    private function kpiRowsByProduct($filters, $order) {
+        $products = $this->listEntradaProducts(array_merge($filters, ['order' => $order]));
+        $field    = $order === 'units' ? 'total_unidades' : 'total_costo';
+        $total    = array_sum(array_column($products, $field));
+
+        $row = [];
+        foreach ($products as $key => $product) {
+            $cells = [
+                'id'       => $key + 1,
+                'Producto' => kpiProduct($product['product_name'], $product['sku']),
+                'Unidad'   => $product['unit'] ?: '-',
+                'Cantidad' => kpiQuantity($product['total_unidades'])
+            ];
+            if ($order === 'cost') $cells['Costo'] = evaluar((float) $product['total_costo']);
+            $cells['Participación'] = kpiPercent($product[$field], $total);
+            $row[] = $cells;
+        }
+
+        if ($row) {
+            $totals = [
+                'Producto' => 'Total',
+                'Unidad'   => '',
+                'Cantidad' => kpiQuantity(array_sum(array_column($products, 'total_unidades')))
+            ];
+            if ($order === 'cost') $totals['Costo'] = evaluar($total);
+            $totals['Participación'] = kpiPercent($total, $total);
+            $row[] = kpiTotalRow($totals);
+        }
+        return $row;
+    }
+
+    private function kpiRowsApplied($filters) {
+        $entradas = $this->qEntradas(array_merge($filters, ['applied' => true]));
+
+        $row = [];
+        foreach ($entradas as $entrada) {
+            $row[] = [
+                'id'              => $entrada['id'],
+                'Folio'           => $entrada['folio'],
+                'Fecha'           => formatSpanishDate($entrada['date_inflow']),
+                'Tipo de entrada' => badge($entrada['origin_name'], $entrada['origin_color'], 100, $entrada['origin_bg'] ?? null, $entrada['origin_icon'] ?? null),
+                'Sucursal'        => $entrada['branch_name'] ?: '-',
+                'Unidades'        => kpiQuantity($entrada['total_units']),
+                'Costo'           => evaluar((float) $entrada['total_cost'])
+            ];
+        }
+
+        if ($row) {
+            $row[] = kpiTotalRow([
+                'Folio'           => 'Total',
+                'Fecha'           => '',
+                'Tipo de entrada' => '',
+                'Sucursal'        => '',
+                'Unidades'        => kpiQuantity(array_sum(array_column($entradas, 'total_units'))),
+                'Costo'           => evaluar(array_sum(array_column($entradas, 'total_cost')))
+            ]);
+        }
+        return $row;
     }
 
     // "Todas" = las sucursales que el usuario puede ver; un dueño ve la empresa
