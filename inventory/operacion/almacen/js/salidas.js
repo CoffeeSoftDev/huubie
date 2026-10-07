@@ -122,7 +122,7 @@ class App extends Templates {
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class: '!hidden w-full md:w-[var(--salidas-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 border-gray-200 dark:!border-0 flex flex-col overflow-hidden',
+            class: '!hidden w-full md:w-[var(--salidas-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-1 border-t md:border-t-0 border-gray-200 dark:!border-0 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -300,6 +300,18 @@ class App extends Templates {
     toggleVisor(show) {
         $('#detailPanel, #detailResizer').toggleClass('!hidden', !show);
     }
+
+    // Renglón de la salida abierta en el visor: el mismo row-active de Entradas.
+    // Se ubica por el getSalida(id) del folio y del ojo.
+    markRow(id) {
+        this.selectedId = id || null;
+        const $rows = $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
+        if (!this.selectedId) return;
+
+        $rows.filter(function () {
+            return $(this).find(`[onclick*="getSalida(${id})"]`).length > 0;
+        }).addClass('row-active');
+    }
 }
 
 class Salidas extends Templates {
@@ -346,6 +358,7 @@ class Salidas extends Templates {
         }
         if (window.lucide) lucide.createIcons();
         app.updateFooterInfo(`Mostrando ${total} salida${total !== 1 ? 's' : ''}`);
+        app.markRow(app.selectedId);
     }
 
     async lsKpis() {
@@ -902,7 +915,8 @@ class SalidasView extends Templates {
         this.PROJECT_NAME = 'salidas';
     }
 
-    // El ojo abre el visor; la X, cancelar, eliminar o un error al cargar lo ocultan.
+    // El folio o el ojo abren el visor y marcan su renglón; la X, cancelar,
+    // eliminar o un error al cargar lo ocultan y lo desmarcan.
     renderDetail(salida) {
         this.salidaDetailPanel({
             parent:           'detailPanel',
@@ -915,6 +929,7 @@ class SalidasView extends Templates {
             onRemoveEvidence: (m) => { if (m) salidas.removeEvidence(m.id); }
         });
         app.toggleVisor(!!salida);
+        app.markRow(salida ? salida.id : null);
     }
 
     renderInfoCards(rows) {

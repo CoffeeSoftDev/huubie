@@ -166,9 +166,16 @@ body.dark-mode table tbody tr:not([data-opc]) > td.bg-\[\#1F2A37\]:not([colspan]
 }
 
 body.dark-mode table tbody tr:hover > td:not([class*="bg-"]),
-body.dark-mode table tbody tr:not([data-opc]):hover > td.bg-\[\#283341\]:not([colspan]),
-body.dark-mode table tbody tr:not([data-opc]):hover > td.bg-\[\#1F2A37\]:not([colspan]) {
+body.dark-mode table tbody tr:not([data-opc]):not(.row-active):hover > td.bg-\[\#283341\]:not([colspan]),
+body.dark-mode table tbody tr:not([data-opc]):not(.row-active):hover > td.bg-\[\#1F2A37\]:not([colspan]) {
     background-color: var(--dk-row-hover) !important;
+}
+
+/* Fila abierta en el visor (row-active, table.css): conserva su tinte en todas
+   las filas. Misma especificidad que la regla sin zebra de arriba y va
+   después; también le gana al remapeo de hex de Midnight/Rosé. */
+body.dark-mode table tbody tr.row-active:not([data-opc]) > td:not([colspan]) {
+    background-color: var(--primary1) !important;
 }
 
 body.dark-mode .breadcrumb-item .parent {

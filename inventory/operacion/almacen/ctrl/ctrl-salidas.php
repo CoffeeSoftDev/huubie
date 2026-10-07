@@ -79,7 +79,9 @@ class ctrl extends mdl {
         foreach ($rows as $salida) {
             $row[] = [
                 'id'         => $salida['id'],
-                'Folio'      => $salida['folio'],
+                'Folio'      => [
+                    'html' => renderFolioLink($salida['folio'], $salida['id'])
+                ],
                 'Fecha'      => fechaHoraSalida($salida['created_at']),
                 'Tipo'       => badge($salida['reason_name'], $salida['reason_color'], 100, $salida['reason_bg'] ?? null, $salida['reason_icon'] ?? null),
                 'Sucursal'   => $salida['branch_name'] ?: '-',
@@ -619,6 +621,13 @@ class ctrl extends mdl {
         }
         return $row;
     }
+}
+
+// Folio que abre el visor, igual que el ojo (y que el folio de Entradas).
+function renderFolioLink($folio, $id) {
+    $label = htmlspecialchars($folio, ENT_QUOTES);
+    return "<a href='#' onclick=\"salidas.getSalida(" . (int) $id . "); return false;\""
+         . " class='font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700' title='Ver detalle de la salida'>{$label}</a>";
 }
 
 // 20/SEP/2026 10:00 AM. El mes va de una lista fija: strftime depende del locale
