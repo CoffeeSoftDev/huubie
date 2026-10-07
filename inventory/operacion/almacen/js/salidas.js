@@ -87,15 +87,15 @@ class App extends Templates {
             children: [
                 {
                     id:    'viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                    class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 dark:!border-0 flex-shrink-0'
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                    class: 'px-3 py-3 bg-white border-b border-gray-200 dark:!border-0 flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0'
+                    class: 'px-3 py-3 bg-gray-50 border-b border-gray-200 dark:!border-0 flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
@@ -107,7 +107,7 @@ class App extends Templates {
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class: 'w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
+            class: 'w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 dark:!border-0 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -125,7 +125,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
+                class:     'cs-visor flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200 dark:!border-0',
                 container: [mainPanel, detailPanel]
             }
         });
@@ -356,6 +356,44 @@ class Salidas extends Templates {
             { id: 'kpiCanceladas', label: 'Canceladas',   value: parseInt(c.total_canceladas || 0, 10),  tone: 'danger'  }
         ];
         salidasView.renderInfoCards(kpis);
+    }
+
+    async lsKpiDetail(kpi) {
+        const views = {
+            kpiPerdida:    { title: 'Valor de salidas por producto', center: [2, 3, 5], right: [4] },
+            kpiRegistros:  { title: 'Registros por tipo de salida',  center: [2, 3, 5], right: [4] },
+            kpiUnidades:   { title: 'Unidades por producto',         center: [2, 3, 4], right: [] },
+            kpiCanceladas: { title: 'Salidas canceladas',            center: [2, 3, 5], right: [6], size: 'xl' }
+        };
+        const view = views[kpi.id];
+        if (!view) return;
+
+        const f = app.getFilters();
+        const r = await useFetch({
+            url:  apiSalidas,
+            data: {
+                opc:       'lsKpiDetail',
+                kpi:       kpi.id,
+                branch_id: f.branch_id,
+                reason_id: f.motivo,
+                status:    f.status,
+                fi:        f.fi,
+                ff:        f.ff
+            }
+        });
+
+        if (!(r && r.status === 200)) {
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cargar el desglose' });
+            return;
+        }
+
+        const branch = (app.dataInit.sucursales || []).find(s => String(s.id) === String(f.branch_id));
+
+        salidasView.kpiDetailModal(Object.assign({}, view, {
+            value:    kpi.value,
+            subtitle: `Del ${moment(f.fi).format('DD/MM/YYYY')} al ${moment(f.ff).format('DD/MM/YYYY')} · ${branch ? branch.valor : 'Todas las sucursales'}`,
+            data:     { row: r.row || [] }
+        }));
     }
 
     async getSalida(id) {
@@ -811,9 +849,10 @@ class SalidasView extends Templates {
 
     renderInfoCards(rows) {
         this.kpisRow({
-            parent:  'kpisRow',
-            json:    rows,
-            onClick: () => {}
+            parent:    'kpisRow',
+            json:      rows,
+            cardClass: 'bg-white rounded-lg border border-gray-200 dark:!border-0 px-3 py-3 cursor-pointer hover:shadow-md transition-shadow',
+            onClick:   (kpi) => salidas.lsKpiDetail(kpi)
         });
     }
 
@@ -825,7 +864,43 @@ class SalidasView extends Templates {
         });
     }
 
-  
+    kpiDetailModal(options) {
+        const defaults = {
+            id:       'kpiDetail',
+            title:    '',
+            value:    '',
+            subtitle: '',
+            size:     'large',
+            center:   [],
+            right:    [],
+            data:     { row: [] }
+        };
+
+        const opts  = Object.assign({}, defaults, options || {});
+        const modal = this.cfModal({ title: opts.title, size: opts.size, backdropClose: true });
+
+        // Solo lectura: se cierra con la X, Escape o clic afuera.
+        modal.footer.remove();
+        modal.body.attr('id', `${opts.id}${this.PROJECT_NAME}`);
+
+        this.createCoffeeTable3({
+            parent:       `${opts.id}${this.PROJECT_NAME}`,
+            id:           `tb${opts.id}${this.PROJECT_NAME}`,
+            theme:        'light',
+            title:        opts.value,
+            subtitle:     opts.subtitle,
+            center:       opts.center,
+            right:        opts.right,
+            extends:      true,
+            scrollable:   false,
+            f_size:       12,
+            emptyMessage: 'Sin movimientos con los filtros aplicados',
+            emptyIcon:    'icon-doc-text',
+            data:         opts.data
+        });
+
+        if (window.lucide) lucide.createIcons();
+    }
 
     viewHeader(options) {
         const defaults = {
@@ -975,7 +1050,7 @@ class SalidasView extends Templates {
             const btn  = cancelled
                 ? `<button id="${opts.id}_delete" class="${base}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.eliminar)}</button>`
                 : `<button id="${opts.id}_cancel" class="${base}"><i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}</button>`;
-            return `<div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">${btn}</div>`;
+            return `<div class="px-4 py-3 border-t border-gray-200 dark:!border-0 flex gap-2 flex-shrink-0">${btn}</div>`;
         };
 
         const emptyView = () => `
@@ -991,30 +1066,32 @@ class SalidasView extends Templates {
                 const cu  = Number(it.costo_unit || 0);
                 const sub = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * cu;
                 return `
-                    <tr class="border-b border-gray-100 align-top">
-                        <td class="!py-1 !pl-0 !pr-2">
+                    <tr class="border-b border-gray-100 last:border-b-0 align-top">
+                        <td class="!py-1 !pl-2 !pr-2">
                             <p class="text-[11px] font-medium text-gray-700 leading-tight">${esc(it.name)}${it.sku ? ` <span class="text-[10px] font-normal text-gray-400">${esc(it.sku)}</span>` : ''}</p>
                         </td>
                         <td class="!py-1 !px-1 text-right text-[11px] text-gray-500 whitespace-nowrap">${fmtMoney(cu)}</td>
                         <td class="!py-1 !px-1 text-center text-[11px]"><span class="font-semibold text-gray-800">-${it.qty}</span></td>
                         <td class="!py-1 !px-1 text-right text-[11px] font-semibold text-gray-700 whitespace-nowrap">-${fmtMoney(sub)}</td>
-                        <td class="!py-1 !pl-1 !pr-0 text-center text-[11px] text-gray-500">${esc(it.unidad || '-')}</td>
+                        <td class="!py-1 !pl-1 !pr-2 text-center text-[11px] text-gray-500">${esc(it.unidad || '-')}</td>
                     </tr>`;
             }).join('');
 
             return `
-                <table class="w-full border-collapse">
-                    <thead>
-                        <tr class="text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-200">
-                            <th class="text-left font-semibold text-[10px] !py-1 !pl-0 !pr-2">Producto</th>
-                            <th class="text-right font-semibold text-[10px] !py-1 !px-1">Precio</th>
-                            <th class="text-center font-semibold text-[10px] !py-1 !px-1">Cant</th>
-                            <th class="text-right font-semibold text-[10px] !py-1 !px-1">Importe</th>
-                            <th class="text-center font-semibold text-[10px] !py-1 !pl-1 !pr-0">Unidad</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows || '<tr><td colspan="5" class="py-2 text-center text-xs text-gray-400">Sin productos</td></tr>'}</tbody>
-                </table>`;
+                <div class="rounded-lg overflow-hidden border border-gray-200 dark:!border-0">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50 border-b border-gray-200">
+                                <th class="text-left font-semibold text-[10px] !py-1.5 !pl-2 !pr-2">Producto</th>
+                                <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Precio</th>
+                                <th class="text-center font-semibold text-[10px] !py-1.5 !px-1">Cant</th>
+                                <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Importe</th>
+                                <th class="text-center font-semibold text-[10px] !py-1.5 !pl-1 !pr-2">Unidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows || '<tr><td colspan="5" class="py-2 text-center text-xs text-gray-400">Sin productos</td></tr>'}</tbody>
+                    </table>
+                </div>`;
         };
 
         const fotoHtml = (foto, editable) => {
@@ -1062,7 +1139,7 @@ class SalidasView extends Templates {
 
             return `
                 <div class="flex-1 flex flex-col overflow-hidden">
-                    <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                    <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 dark:!border-0 flex items-center justify-between flex-shrink-0">
                         <div>
                             <p class="text-xs text-gray-500 uppercase tracking-wider">${esc(opts.labels.subtitleLbl)}</p>
                             <p class="text-base font-bold text-gray-800">${esc(m.folio || '-')}</p>
@@ -1078,7 +1155,7 @@ class SalidasView extends Templates {
                         </div>
                     </div>
 
-                    <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
+                    <div class="px-4 py-3 border-b border-gray-200 dark:!border-0 flex-shrink-0 space-y-1.5">
                         ${infoRow(opts.labels.motivo, motivoBadge)}
                         ${infoRow(opts.labels.fecha, `<span class="text-gray-700 text-right">${esc(fmtFecha(m.fecha))}</span>`)}
                         ${infoRow(opts.labels.sucursal, `<span class="text-gray-700 text-right">${esc(m.sucursal || '-')}</span>`)}
@@ -1090,7 +1167,7 @@ class SalidasView extends Templates {
                         ${productTable(m)}
                     </div>
 
-                    <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                    <div class="cs-visor-totals px-4 py-2.5 border-t border-gray-200 dark:!border-0 bg-gray-50 flex-shrink-0">
                         <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
                             <span>Unidades</span>
                             <span class="font-semibold text-gray-700">-${fmtUds(totUds)}</span>
@@ -1101,7 +1178,7 @@ class SalidasView extends Templates {
                         </div>
                     </div>
 
-                    <div class="px-4 py-2.5 border-t border-gray-200 flex-shrink-0 space-y-1.5">
+                    <div class="px-4 py-2.5 border-t border-gray-200 dark:!border-0 flex-shrink-0 space-y-1.5">
                         ${infoRow(opts.labels.registrado, `<span class="text-gray-700 text-right">${esc(reg)}</span>`)}
                         ${m.nota ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-24 flex-shrink-0">${esc(opts.labels.notaLbl)}</span><span class="text-gray-700 text-right">${esc(m.nota)}</span></div>` : ''}
                         ${infoRow(opts.labels.evidenciaLbl, fotoHtml(m.foto, editable))}

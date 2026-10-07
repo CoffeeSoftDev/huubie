@@ -139,9 +139,9 @@ body.dark-mode .btn-outline-secondary:active {
 
 /* Tablas: las de coffeeSoft se pintan SOLAS con su variante 'dark', la
    misma de alpha/ (Huubie): header #374151 text-gray-300, filas #283341,
-   alternas #111827, separadores gray-700. Por eso estas reglas solo tocan
-   celdas SIN clase de color propia (tablas sueltas: rpt_json_table2,
-   plugins), con esos mismos valores. Nunca pisar las de coffeeSoft. */
+   separadores gray-700. Por eso estas reglas solo tocan celdas SIN clase
+   de color propia (tablas sueltas: rpt_json_table2, plugins), con esos
+   mismos valores. Nunca pisar las de coffeeSoft. */
 body.dark-mode table thead th:not([class*="bg-"]) {
     background-color: var(--dk-th) !important;
     color: #D1D5DB !important;
@@ -155,11 +155,19 @@ body.dark-mode table tbody td:not([class*="bg-"]) {
     border-color: var(--dk-line) !important;
 }
 
-body.dark-mode table tbody tr:nth-child(even) > td:not([class*="bg-"]) {
-    background-color: var(--dk-row-alt) !important;
+/* Sin zebra en página oscura. Aquí coffeeSoft arma toda tabla en 'dark'
+   aunque el módulo pida 'light' (cfPageTheme): fila bg-[#283341] y, con
+   striped, alterna bg-[#1F2A37]. La alterna toma el color de fila y el hover
+   cubre las dos. Las de grupo (tr[data-opc]) y colgroup (td[colspan])
+   conservan su tono; esos :not() además suben la especificidad sobre el
+   remapeo de hex de Midnight/Rosé (más abajo). */
+body.dark-mode table tbody tr:not([data-opc]) > td.bg-\[\#1F2A37\]:not([colspan]) {
+    background-color: var(--dk-row) !important;
 }
 
-body.dark-mode table tbody tr:hover > td:not([class*="bg-"]) {
+body.dark-mode table tbody tr:hover > td:not([class*="bg-"]),
+body.dark-mode table tbody tr:not([data-opc]):hover > td.bg-\[\#283341\]:not([colspan]),
+body.dark-mode table tbody tr:not([data-opc]):hover > td.bg-\[\#1F2A37\]:not([colspan]) {
     background-color: var(--dk-row-hover) !important;
 }
 
@@ -744,6 +752,43 @@ body.dark-mode [id*="container"] {
     background-color: transparent !important;
 }
 
+/* Módulos con visor lateral (.cs-visor: Entradas, Salidas). Dentro de la
+   tarjeta no van franjas del color de página: el bg-gray-50 de la fila de KPIs
+   y del visor quedaba como hueco negro. Escala de Huubie (PALETTE.md): tarjeta
+   #1F2A37 → elevado #283341 (cards de KPI, totales) y el visor un nivel abajo
+   (--dk-sunken, #1a2332), que lo separa de la tabla sin línea. */
+body.dark-mode .cs-visor #kpisRow {
+    background-color: transparent !important;
+}
+
+body.dark-mode .cs-visor #kpisRow [data-kpi-idx] {
+    background-color: var(--dk-row) !important;
+}
+
+body.dark-mode .cs-visor #detailPanel {
+    background-color: var(--dk-sunken) !important;
+    border-radius: 0.5rem;
+}
+
+body.dark-mode .cs-visor #detailPanel .bg-gray-50 {
+    background-color: transparent !important;
+}
+
+body.dark-mode .cs-visor #detailPanel .cs-visor-totals {
+    background-color: var(--dk-row) !important;
+}
+
+/* Cancelar / Eliminar del visor: velo rojo y no el rosa sólido, que competía
+   con el primario (Editar) de al lado. */
+body.dark-mode .cs-visor #detailPanel .bg-rose-600 {
+    background-color: rgb(244 63 94 / .14) !important;
+    color: #FDA4AF !important;
+}
+
+body.dark-mode .cs-visor #detailPanel .bg-rose-600:hover {
+    background-color: rgb(244 63 94 / .24) !important;
+}
+
 /* Barra de pestañas de la variante oscura de tabLayout (#19232D): es la de
    Huubie tal cual; en las demás páginas oscuras toma su fondo de página. */
 :root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#19232D\] {
@@ -839,35 +884,123 @@ body.dark-mode .bootbox .close {
     color: var(--dk-muted) !important;
 }
 
-/* DateRangePicker Dark Mode */
+/* DateRangePicker Dark Mode: tarjeta oscura con el panel de rangos un tono
+   abajo, como en claro (blanco + #F9FAFB). daterangepicker.css trae blancos
+   clavados en .ranges, .drp-buttons y la flechita; se pisan todos aquí. */
 body.dark-mode .daterangepicker {
-    background-color: var(--dk-bg) !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text-soft) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45) !important;
+}
+
+body.dark-mode .daterangepicker:before {
+    border-bottom-color: var(--dk-line) !important;
+}
+
+body.dark-mode .daterangepicker:after {
+    border-bottom-color: var(--dk-card) !important;
+}
+
+body.dark-mode .daterangepicker.drop-up:before {
+    border-top-color: var(--dk-line) !important;
+}
+
+body.dark-mode .daterangepicker.drop-up:after {
+    border-top-color: var(--dk-card) !important;
+}
+
+body.dark-mode .daterangepicker .ranges {
+    background-color: var(--dk-hover) !important;
+}
+
+body.dark-mode .daterangepicker .ranges li {
+    color: var(--dk-text-soft) !important;
+}
+
+body.dark-mode .daterangepicker .ranges li:hover {
+    background-color: var(--dk-row-hover) !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .daterangepicker .ranges li.active {
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .daterangepicker.show-ranges .drp-calendar.left,
+body.dark-mode .daterangepicker.show-ranges .drp-calendar.right {
     border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .daterangepicker .calendar-table {
-    background-color: var(--dk-bg) !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
 }
 
-body.dark-mode .daterangepicker td.available:hover {
-    background-color: var(--dk-card-hi) !important;
-}
-
-body.dark-mode .daterangepicker td.active {
-    background-color: rgb(var(--brand-600, 192 90 64)) !important;
-}
-
-body.dark-mode .daterangepicker .drp-buttons {
-    border-color: var(--dk-line) !important;
-}
-
-body.dark-mode .daterangepicker th,
-body.dark-mode .daterangepicker td {
+/* Celdas del calendario: las reglas de tablas de arriba también las pintan
+   (fondo de fila, rejilla, hover de fila). El .drp-calendar extra sube la
+   especificidad por encima de esas. */
+body.dark-mode .daterangepicker .drp-calendar .calendar-table th,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td {
+    background-color: transparent !important;
+    border-color: transparent !important;
     color: var(--dk-text-soft) !important;
 }
 
-body.dark-mode .daterangepicker td.off {
+body.dark-mode .daterangepicker .drp-calendar .calendar-table th {
+    color: var(--dk-muted) !important;
+}
+
+body.dark-mode .daterangepicker .calendar-table .next span,
+body.dark-mode .daterangepicker .calendar-table .prev span {
+    border-color: var(--dk-muted) !important;
+}
+
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.available:hover,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table th.available:hover {
+    background-color: var(--dk-row-hover) !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.in-range {
+    background-color: rgb(var(--brand-600, 192 90 64) / .22) !important;
+    color: rgb(var(--brand-300, 232 166 143)) !important;
+}
+
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.active,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.active:hover {
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+/* Días de otro mes: sin relleno aunque caigan en el rango, como en claro. */
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.off,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.off.in-range,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.off.start-date,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.off.end-date {
+    background-color: transparent !important;
     color: #6B7280 !important;
+}
+
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.disabled {
+    color: var(--dk-line-hi) !important;
+}
+
+body.dark-mode .daterangepicker .drp-buttons {
+    background-color: transparent !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .daterangepicker .drp-selected {
+    color: var(--dk-muted) !important;
+}
+
+/* Cancelar (btn-outline-danger): el #9D3434 no se lee sobre la tarjeta. En
+   reposo, el rojo claro del botón de salir de la barra; al pasar se rellena. */
+body.dark-mode .daterangepicker .cancelBtn:not(:hover):not(:focus):not(:active) {
+    color: #F87171 !important;
+    border-color: rgb(248 113 113 / .45) !important;
 }
 
 /* Pagination */

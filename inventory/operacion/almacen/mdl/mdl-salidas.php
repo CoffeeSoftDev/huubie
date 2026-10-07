@@ -107,7 +107,8 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function qSalidas($array) {
+    // Filtros comunes de la lista, las cards y su desglose (sin el estado).
+    private function salidaFilters($array) {
         $where = 'm.active = 1 AND m.companies_id = ?';
         $data  = [$array['companies_id']];
 
@@ -119,10 +120,6 @@ class mdl extends CRUD {
             $where .= ' AND m.shrinkage_reason_id = ?';
             $data[] = $array['reason_id'];
         }
-        if (!empty($array['status'])) {
-            $where .= ' AND m.status = ?';
-            $data[] = $array['status'];
-        }
         if (!empty($array['fi']) && !empty($array['ff'])) {
             $where .= ' AND DATE(m.created_at) BETWEEN ? AND ?';
             $data[] = $array['fi'];
@@ -132,6 +129,31 @@ class mdl extends CRUD {
             $where .= ' AND (m.folio LIKE ? OR m.note LIKE ?)';
             $data[] = '%' . $array['q'] . '%';
             $data[] = '%' . $array['q'] . '%';
+        }
+
+        return ['where' => $where, 'data' => $data];
+    }
+
+    // Valor, Registros y Unidades: nunca cuentan las canceladas, que tienen su card.
+    private function salidaKpiFilters($array) {
+        $filters = $this->salidaFilters($array);
+        $filters['where'] .= " AND m.status <> 'Cancelada'";
+
+        if (!empty($array['status'])) {
+            $filters['where'] .= ' AND m.status = ?';
+            $filters['data'][]  = $array['status'];
+        }
+        return $filters;
+    }
+
+    function qSalidas($array) {
+        $filters = $this->salidaFilters($array);
+        $where   = $filters['where'];
+        $data    = $filters['data'];
+
+        if (!empty($array['status'])) {
+            $where .= ' AND m.status = ?';
+            $data[] = $array['status'];
         }
 
         $query = "
@@ -170,29 +192,8 @@ class mdl extends CRUD {
     }
 
     function getSalidaKpis($array) {
-        $whereCommon = "m.active = 1 AND m.companies_id = ?";
-        $dataCommon  = [$array['companies_id']];
-
-        if (!empty($array['branch_id'])) {
-            $whereCommon .= ' AND m.branch_id = ?';
-            $dataCommon[] = $array['branch_id'];
-        }
-        if (!empty($array['reason_id'])) {
-            $whereCommon .= ' AND m.shrinkage_reason_id = ?';
-            $dataCommon[] = $array['reason_id'];
-        }
-        if (!empty($array['fi']) && !empty($array['ff'])) {
-            $whereCommon .= ' AND DATE(m.created_at) BETWEEN ? AND ?';
-            $dataCommon[] = $array['fi'];
-            $dataCommon[] = $array['ff'];
-        }
-
-        $where = $whereCommon . " AND m.status <> 'Cancelada'";
-        $data  = $dataCommon;
-        if (!empty($array['status'])) {
-            $where .= ' AND m.status = ?';
-            $data[] = $array['status'];
-        }
+        $filters = $this->salidaKpiFilters($array);
+        $common  = $this->salidaFilters($array);
 
         $query = "
             SELECT
@@ -200,9 +201,9 @@ class mdl extends CRUD {
                 IFNULL(SUM(m.total_cost), 0)  AS total_costo,
                 IFNULL(SUM(m.total_units), 0) AS total_unidades
             FROM {$this->bd}inventory_shrinkage m
-            WHERE {$where}
+            WHERE {$filters['where']}
         ";
-        $r    = $this->_Read($query, $data);
+        $r    = $this->_Read($query, $filters['data']);
         $base = !empty($r) ? $r[0] : [
             'total_salidas'   => 0,
             'total_costo'    => 0,
@@ -212,12 +213,58 @@ class mdl extends CRUD {
         $queryCanc = "
             SELECT COUNT(m.id) AS total_canceladas
             FROM {$this->bd}inventory_shrinkage m
-            WHERE {$whereCommon} AND m.status = 'Cancelada'
+            WHERE {$common['where']} AND m.status = 'Cancelada'
         ";
-        $canc                     = $this->_Read($queryCanc, $dataCommon);
+        $canc                     = $this->_Read($queryCanc, $common['data']);
         $base['total_canceladas'] = !empty($canc) ? (int) $canc[0]['total_canceladas'] : 0;
 
         return $base;
+    }
+
+    function listSalidasByReason($array) {
+        $filters = $this->salidaKpiFilters($array);
+
+        $query = "
+            SELECT
+                sr.name                        AS reason_name,
+                sr.color_hex                   AS reason_color,
+                sr.bg_hex                      AS reason_bg,
+                sr.icon                        AS reason_icon,
+                COUNT(m.id)                    AS total_salidas,
+                IFNULL(SUM(m.total_units), 0)  AS total_unidades,
+                IFNULL(SUM(m.total_cost), 0)   AS total_costo
+            FROM {$this->bd}inventory_shrinkage m
+            LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            WHERE {$filters['where']}
+            GROUP BY m.shrinkage_reason_id, sr.name, sr.color_hex, sr.bg_hex, sr.icon
+            ORDER BY total_salidas DESC, total_costo DESC
+        ";
+        $r = $this->_Read($query, $filters['data']);
+        return is_array($r) ? $r : [];
+    }
+
+    function listSalidaProducts($array) {
+        $filters = $this->salidaKpiFilters($array);
+        $order   = ($array['order'] ?? '') === 'units' ? 'total_unidades' : 'total_costo';
+
+        $query = "
+            SELECT
+                it.name                     AS product_name,
+                ia.sku,
+                COALESCE(iu.code, '')       AS unit,
+                SUM(d.quantity)             AS total_unidades,
+                IFNULL(SUM(d.subtotal), 0)  AS total_costo
+            FROM {$this->bd}inventory_shrinkage m
+            INNER JOIN {$this->bd}detail_inventory_shrinkage d ON d.inventory_shrinkage_id = m.id AND d.active = 1
+            INNER JOIN {$this->bd}item it ON it.id = d.item_id
+            LEFT  JOIN {$this->bd}item_attribute ia ON ia.item_id = it.id AND ia.active = 1
+            LEFT  JOIN {$this->bd}unit iu ON iu.id = ia.unit_id
+            WHERE {$filters['where']}
+            GROUP BY d.item_id, it.name, ia.sku, unit
+            ORDER BY {$order} DESC, it.name ASC
+        ";
+        $r = $this->_Read($query, $filters['data']);
+        return is_array($r) ? $r : [];
     }
 
     function qGetSalida($array) {

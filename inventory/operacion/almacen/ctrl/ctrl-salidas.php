@@ -99,15 +99,31 @@ class ctrl extends mdl {
     }
 
     function showSalidas() {
-        $kpis = $this->getSalidaKpis([
-            'companies_id'    => $this->companiesId,
-            'branch_id'       => $_POST['branch_id'] ?? '',
-            'reason_id'       => $_POST['reason_id']       ?? '',
-            'status'          => $_POST['status']          ?? '',
-            'fi'              => $_POST['fi']              ?? '',
-            'ff'              => $_POST['ff']              ?? ''
-        ]);
+        $kpis = $this->getSalidaKpis($this->kpiFilters());
         return ['status' => 200, 'counts' => $kpis];
+    }
+
+    function lsKpiDetail() {
+        $filters = $this->kpiFilters();
+
+        switch ($_POST['kpi']) {
+            case 'kpiPerdida':
+                $row = $this->kpiRowsByProduct($filters, 'cost');
+                break;
+            case 'kpiRegistros':
+                $row = $this->kpiRowsByReason($filters);
+                break;
+            case 'kpiUnidades':
+                $row = $this->kpiRowsByProduct($filters, 'units');
+                break;
+            case 'kpiCanceladas':
+                $row = $this->kpiRowsCancelled($filters);
+                break;
+            default:
+                return ['status' => 400, 'message' => 'Indicador no reconocido'];
+        }
+
+        return ['status' => 200, 'row' => $row];
     }
 
     function getSalida() {
@@ -498,6 +514,107 @@ class ctrl extends mdl {
 
     private function textoSalidaIA($v) {
         return mb_substr(trim(strip_tags(is_string($v) ? $v : '')), 0, 200);
+    }
+
+    // Los mismos filtros para las cards y para su desglose.
+    private function kpiFilters() {
+        return [
+            'companies_id'    => $this->companiesId,
+            'branch_id'       => $_POST['branch_id'] ?? '',
+            'reason_id'       => $_POST['reason_id']       ?? '',
+            'status'          => $_POST['status']          ?? '',
+            'fi'              => $_POST['fi']              ?? '',
+            'ff'              => $_POST['ff']              ?? ''
+        ];
+    }
+
+    private function kpiRowsByReason($filters) {
+        $reasons = $this->listSalidasByReason($filters);
+        $total   = array_sum(array_column($reasons, 'total_salidas'));
+
+        $row = [];
+        foreach ($reasons as $key => $reason) {
+            $row[] = [
+                'id'             => $key + 1,
+                'Tipo de salida' => badge($reason['reason_name'] ?: 'Sin tipo', $reason['reason_color'] ?: '#9CA3AF', 100, $reason['reason_bg'] ?? null, $reason['reason_icon'] ?? null),
+                'Registros'      => (int) $reason['total_salidas'],
+                'Unidades'       => kpiQuantity($reason['total_unidades']),
+                'Valor'          => evaluar((float) $reason['total_costo']),
+                'Participación'  => kpiPercent($reason['total_salidas'], $total)
+            ];
+        }
+
+        if ($row) {
+            $row[] = kpiTotalRow([
+                'Tipo de salida' => 'Total',
+                'Registros'      => $total,
+                'Unidades'       => kpiQuantity(array_sum(array_column($reasons, 'total_unidades'))),
+                'Valor'          => evaluar(array_sum(array_column($reasons, 'total_costo'))),
+                'Participación'  => kpiPercent($total, $total)
+            ]);
+        }
+        return $row;
+    }
+
+    private function kpiRowsByProduct($filters, $order) {
+        $products = $this->listSalidaProducts(array_merge($filters, ['order' => $order]));
+        $field    = $order === 'units' ? 'total_unidades' : 'total_costo';
+        $total    = array_sum(array_column($products, $field));
+
+        $row = [];
+        foreach ($products as $key => $product) {
+            $cells = [
+                'id'       => $key + 1,
+                'Producto' => kpiProduct($product['product_name'], $product['sku']),
+                'Unidad'   => $product['unit'] ?: '-',
+                'Cantidad' => kpiQuantity($product['total_unidades'])
+            ];
+            if ($order === 'cost') $cells['Valor'] = evaluar((float) $product['total_costo']);
+            $cells['Participación'] = kpiPercent($product[$field], $total);
+            $row[] = $cells;
+        }
+
+        if ($row) {
+            $totals = [
+                'Producto' => 'Total',
+                'Unidad'   => '',
+                'Cantidad' => kpiQuantity(array_sum(array_column($products, 'total_unidades')))
+            ];
+            if ($order === 'cost') $totals['Valor'] = evaluar($total);
+            $totals['Participación'] = kpiPercent($total, $total);
+            $row[] = kpiTotalRow($totals);
+        }
+        return $row;
+    }
+
+    // Como la card: las canceladas del periodo, sin importar el filtro de estado.
+    private function kpiRowsCancelled($filters) {
+        $salidas = $this->qSalidas(array_merge($filters, ['status' => 'Cancelada']));
+
+        $row = [];
+        foreach ($salidas as $salida) {
+            $row[] = [
+                'id'             => $salida['id'],
+                'Folio'          => $salida['folio'],
+                'Fecha'          => fechaHoraSalida($salida['created_at']),
+                'Tipo de salida' => badge($salida['reason_name'], $salida['reason_color'], 100, $salida['reason_bg'] ?? null, $salida['reason_icon'] ?? null),
+                'Sucursal'       => $salida['branch_name'] ?: '-',
+                'Unidades'       => kpiQuantity($salida['total_units']),
+                'Valor'          => evaluar((float) $salida['total_cost_loss'])
+            ];
+        }
+
+        if ($row) {
+            $row[] = kpiTotalRow([
+                'Folio'          => 'Total',
+                'Fecha'          => '',
+                'Tipo de salida' => '',
+                'Sucursal'       => '',
+                'Unidades'       => kpiQuantity(array_sum(array_column($salidas, 'total_units'))),
+                'Valor'          => evaluar(array_sum(array_column($salidas, 'total_cost_loss')))
+            ]);
+        }
+        return $row;
     }
 }
 

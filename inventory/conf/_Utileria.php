@@ -152,3 +152,31 @@ function statusSwitch($fn, $id, $active) {
         'onclick' => $fn . '(' . (int) $id . ', ' . ($on ? 1 : 0) . ')'
     ];
 }
+// Desglose de las cards (Entradas, Salidas): celdas de createCoffeeTable3.
+// Cantidad sin ceros de relleno: 120, 12.5, 0.25.
+function kpiQuantity($value) {
+    return rtrim(rtrim(number_format((float) $value, 2, '.', ','), '0'), '.');
+}
+
+function kpiPercent($part, $total) {
+    return (float) $total > 0 ? number_format((float) $part * 100 / (float) $total, 1) . ' %' : '-';
+}
+
+function kpiProduct($name, $sku) {
+    $html = htmlspecialchars((string) $name, ENT_QUOTES, 'UTF-8');
+    if (!empty($sku)) $html .= ' <span class="text-[10px] text-gray-400">' . htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') . '</span>';
+    return $html;
+}
+
+// Fila de total al pie (opc 2: coffeeSoft le pone el borde superior grueso).
+function kpiTotalRow($cells) {
+    $row = ['id' => 'total'];
+    foreach ($cells as $column => $value) {
+        $row[$column] = [
+            'html'  => $value,
+            'class' => 'font-bold'
+        ];
+    }
+    $row['opc'] = 2;
+    return $row;
+}

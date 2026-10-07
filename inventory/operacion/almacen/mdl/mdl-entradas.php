@@ -183,7 +183,9 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
-    function qEntradas($array) {
+    // Filtros de la lista, las cards y su desglose: los tres cuentan lo mismo.
+    // 'applied' deja solo las aplicadas (card Aplicadas).
+    private function entradaFilters($array) {
         $where = 'i.active = 1 AND i.companies_id = ?';
         $data  = [$array['companies_id']];
 
@@ -216,6 +218,15 @@ class mdl extends CRUD {
             $data[] = '%' . $array['q'] . '%';
             $data[] = '%' . $array['q'] . '%';
         }
+        if (!empty($array['applied'])) {
+            $where .= " AND i.status = 'Aplicada'";
+        }
+
+        return ['where' => $where, 'data' => $data];
+    }
+
+    function qEntradas($array) {
+        $filters = $this->entradaFilters($array);
 
         $query = "
             SELECT
@@ -253,46 +264,15 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}supplier            sp ON sp.id = i.supplier_id
             LEFT JOIN {$this->bdErp}users            u  ON u.id  = i.user_id
             LEFT JOIN {$this->bdErp}users            cu ON cu.id = i.confirmed_user_id
-            WHERE {$where}
+            WHERE {$filters['where']}
             ORDER BY i.date_inflow DESC, i.id DESC
         ";
-        $r = $this->_Read($query, $data);
+        $r = $this->_Read($query, $filters['data']);
         return is_array($r) ? $r : [];
     }
 
     function getEntradaKpis($array) {
-        $where = 'i.active = 1 AND i.companies_id = ?';
-        $data  = [$array['companies_id']];
-
-        if (!empty($array['branch_id'])) {
-            $where .= ' AND i.branch_id = ?';
-            $data[] = $array['branch_id'];
-        } elseif (!empty($array['branch_ids'])) {
-            $where .= ' AND i.branch_id IN (' . implode(',', array_fill(0, count($array['branch_ids']), '?')) . ')';
-            $data   = array_merge($data, $array['branch_ids']);
-        }
-        if (!empty($array['origin_id'])) {
-            $where .= ' AND i.inflow_origin_id = ?';
-            $data[] = $array['origin_id'];
-        }
-        if (!empty($array['status'])) {
-            if ($array['status'] === 'Activas') {
-                $where .= " AND i.status <> 'Cancelada'";
-            } else {
-                $where .= ' AND i.status = ?';
-                $data[] = $array['status'];
-            }
-        }
-        if (!empty($array['fi']) && !empty($array['ff'])) {
-            $where .= ' AND (i.date_inflow IS NULL OR DATE(i.date_inflow) BETWEEN ? AND ?)';
-            $data[] = $array['fi'];
-            $data[] = $array['ff'];
-        }
-        if (!empty($array['q'])) {
-            $where .= ' AND (i.folio LIKE ? OR i.note LIKE ?)';
-            $data[] = '%' . $array['q'] . '%';
-            $data[] = '%' . $array['q'] . '%';
-        }
+        $filters = $this->entradaFilters($array);
 
         $query = "
             SELECT
@@ -301,15 +281,63 @@ class mdl extends CRUD {
                 IFNULL(SUM(i.total_units), 0)      AS total_unidades,
                 SUM(i.status = 'Aplicada')         AS total_aplicadas
             FROM {$this->bd}inventory_inflow i
-            WHERE {$where}
+            WHERE {$filters['where']}
         ";
-        $r = $this->_Read($query, $data);
+        $r = $this->_Read($query, $filters['data']);
         return !empty($r) ? $r[0] : [
             'total_entradas'  => 0,
             'total_costo'     => 0,
             'total_unidades'  => 0,
             'total_aplicadas' => 0
         ];
+    }
+
+    function listEntradasByOrigin($array) {
+        $filters = $this->entradaFilters($array);
+
+        $query = "
+            SELECT
+                io.name                        AS origin_name,
+                io.color_hex                   AS origin_color,
+                io.bg_hex                      AS origin_bg,
+                io.icon                        AS origin_icon,
+                COUNT(i.id)                    AS total_entradas,
+                IFNULL(SUM(i.total_units), 0)  AS total_unidades,
+                IFNULL(SUM(i.total_cost), 0)   AS total_costo
+            FROM {$this->bd}inventory_inflow i
+            LEFT JOIN {$this->bd}inflow_origin io ON io.id = i.inflow_origin_id
+            WHERE {$filters['where']}
+            GROUP BY i.inflow_origin_id, io.name, io.color_hex, io.bg_hex, io.icon
+            ORDER BY total_entradas DESC, total_costo DESC
+        ";
+        $r = $this->_Read($query, $filters['data']);
+        return is_array($r) ? $r : [];
+    }
+
+    // Misma cantidad que suma total_units: la confirmada si existe.
+    function listEntradaProducts($array) {
+        $filters = $this->entradaFilters($array);
+        $order   = ($array['order'] ?? '') === 'units' ? 'total_unidades' : 'total_costo';
+
+        $query = "
+            SELECT
+                it.name                                          AS product_name,
+                ia.sku,
+                COALESCE(du.code, iu.code, '')                   AS unit,
+                SUM(COALESCE(d.confirmed_quantity, d.quantity))  AS total_unidades,
+                IFNULL(SUM(d.subtotal), 0)                       AS total_costo
+            FROM {$this->bd}inventory_inflow i
+            INNER JOIN {$this->bd}detail_inventory_inflow d ON d.inventory_inflow_id = i.id AND d.active = 1
+            INNER JOIN {$this->bd}item it ON it.id = d.item_id
+            LEFT  JOIN {$this->bd}item_attribute ia ON ia.item_id = it.id AND ia.active = 1
+            LEFT  JOIN {$this->bd}unit du ON du.id = d.unit_id
+            LEFT  JOIN {$this->bd}unit iu ON iu.id = ia.unit_id
+            WHERE {$filters['where']}
+            GROUP BY d.item_id, it.name, ia.sku, unit
+            ORDER BY {$order} DESC, it.name ASC
+        ";
+        $r = $this->_Read($query, $filters['data']);
+        return is_array($r) ? $r : [];
     }
 
     function qGetEntrada($array) {

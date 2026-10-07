@@ -40,6 +40,7 @@
     --dk-bg:        #111928;   /* bg-body: fondo de página */
     --dk-chrome:    #141d2b;
     --dk-card:      #1F2A37;   /* bg-card: contenedor, cards, modales */
+    --dk-sunken:    #1a2332;   /* un nivel abajo de la tarjeta: visor lateral */
     --dk-card-hi:   #1F2937;
     --dk-th:        #374151;   /* tabla (como alpha/): header */
     --dk-row:       #283341;   /*   filas */
@@ -62,6 +63,7 @@
     --dk-bg:        #0B1420;
     --dk-chrome:    #101B29;
     --dk-card:      #142132;
+    --dk-sunken:    #101B2A;
     --dk-card-hi:   #16243A;
     --dk-th:        #22354F;
     --dk-row:       #1B2C44;
@@ -86,6 +88,7 @@
     --dk-bg:        #1A1216;
     --dk-chrome:    #1E1519;
     --dk-card:      #251A20;
+    --dk-sunken:    #20161B;
     --dk-card-hi:   #2A1E25;
     --dk-th:        #3B2A33;
     --dk-row:       #2E2128;
