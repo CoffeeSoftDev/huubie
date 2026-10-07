@@ -44,6 +44,7 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.visorResize({ key: 'movimientos', label: 'Ancho de los movimientos del producto' });
         this.filterBar();
         this.renderHeader();
         movimientosView.renderDetail(null);
@@ -93,10 +94,19 @@ class App extends Templates {
             ]
         };
 
+        // Tirador entre la tabla y el visor (visorResize). Los dos arrancan ocultos
+        // (!hidden le gana a md:block y a flex): la tabla toma todo el ancho hasta
+        // que se abre un producto (toggleVisor).
+        const detailResizer = {
+            type:  'div',
+            id:    'detailResizer',
+            class: "!hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
+        };
+
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: 'w-full md:w-[380px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
+            class: '!hidden w-full md:w-[var(--movimientos-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 border-gray-200 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'detailContent',
@@ -111,10 +121,14 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
-                container: [mainPanel, detailPanel]
+                class:     'cs-visor flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
+                container: [mainPanel, detailResizer, detailPanel]
             }
         });
+    }
+
+    toggleVisor(show) {
+        $('#detailPanel, #detailResizer').toggleClass('!hidden', !show);
     }
 
     filterBar() {
@@ -310,6 +324,7 @@ class MovimientosView extends Templates {
         this.PROJECT_NAME = 'Movimientos';
     }
 
+    // El botón ver abre el visor; la X o un cambio de filtros lo ocultan.
     renderDetail(producto) {
         this.productMovimientosPanel({
             parent:  'detailPanel',
@@ -320,6 +335,7 @@ class MovimientosView extends Templates {
                 $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
             }
         });
+        app.toggleVisor(!!producto);
     }
 
     renderInfoCards(rows) {

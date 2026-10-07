@@ -1,3 +1,663 @@
+[ 2026-10-06 23:27:20 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:26:51 ]
+[ UNIX_USR ] :: rosaa
+[ WINDOWS_USR ] :: rosaa
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:25:53 ]
+[ UNIX_USR ] :: rosaa
+[ WINDOWS_USR ] :: rosaa
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:24:46 ]
+[ UNIX_USR ] :: rosaa
+[ WINDOWS_USR ] :: rosaa
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:24:32 ]
+[ UNIX_USR ] :: rosaa
+[ WINDOWS_USR ] :: rosaa
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:23:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:23:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:22:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:21:51 ]
+[ UNIX_USR ] :: rosaa
+[ WINDOWS_USR ] :: rosaa
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:21:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:20:06 ]
+[ UNIX_USR ] :: rosaa
+[ WINDOWS_USR ] :: rosaa
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:19:31 ]
+[ UNIX_USR ] :: rosaa
+[ WINDOWS_USR ] :: rosaa
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:19:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:19:20 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:19:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:17:52 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:16:16 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:16:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:16:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:09:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:08:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:01:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:01:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:01:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:01:40 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 23:01:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:58:41 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:58:27 ]
+[ UNIX_USR ] :: rosaa
+[ WINDOWS_USR ] :: rosaa
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:58:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:58:01 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:55:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:55:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:55:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:55:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:55:07 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:55:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:55:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:54:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:52:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:52:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:52:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:52:34 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:52:34 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:52:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:52:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:52:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:52:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:52:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:52:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:51:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:51:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:51:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:51:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:51:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:50:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:50:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:50:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:50:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:45:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:45:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:45:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:45:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:45:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:45:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:45:28 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:45:27 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:45:27 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:45:20 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'active' in 'field list'
+
+
+[ 2026-10-06 22:37:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:13:17 ]
+[ UNIX_USR ] :: rosaa
+[ WINDOWS_USR ] :: rosaa
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:07:20 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:03:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:03:14 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:02:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:02:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:01:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 22:00:14 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:59:41 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:59:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:59:32 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
 [ 2026-10-06 21:58:58 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: ROSY$

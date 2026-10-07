@@ -63,6 +63,7 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.visorResize({ key: 'solicitudes', label: 'Ancho del detalle de la solicitud' });
         this.filterBar();
         this.renderHeader();
         solicitudesView.renderDetail(null);
@@ -133,10 +134,20 @@ class App extends Templates {
             ]
         };
 
+        // Tirador entre la tabla y el visor (visorResize). Los dos arrancan ocultos
+        // (!hidden le gana a md:block y a md:flex): la tabla toma todo el ancho hasta
+        // que se abre una solicitud (toggleVisor). En celular el detalle va en
+        // #mobileDetailOverlay.
+        const detailResizer = {
+            type:  'div',
+            id:    'detailResizer',
+            class: "!hidden hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
+        };
+
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: 'hidden md:flex w-full md:w-[400px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex-col overflow-hidden'
+            class: '!hidden hidden md:flex w-full md:w-[var(--solicitudes-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 border-gray-200 flex-col overflow-hidden'
         };
 
         this.createLayout({
@@ -144,8 +155,8 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
-                container: [mainPanel, detailPanel]
+                class:     'cs-visor flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
+                container: [mainPanel, detailResizer, detailPanel]
             }
         });
 
@@ -317,6 +328,10 @@ class App extends Templates {
     // en este modulo es alias de selectSolicitud.
     selectOrden(folio, id) {
         this.selectSolicitud(folio, id);
+    }
+
+    toggleVisor(show) {
+        $('#detailPanel, #detailResizer').toggleClass('!hidden', !show);
     }
 }
 
@@ -539,6 +554,7 @@ class SolicitudesView extends Templates {
             onSubmit:    (o) => this.enviarBorrador(o),
             onEdit:      (o) => this.editarSolicitud(o)
         });
+        app.toggleVisor(!!orden);
     }
 
     openMobileDetail(folio, id) {
@@ -1559,7 +1575,7 @@ class SolicitudesView extends Templates {
 
         const $modal = $(`
             <div id="${modalId}" class="fixed inset-0 z-[9999] bg-black/45 flex items-stretch md:items-center justify-center p-0 md:p-4 overflow-y-auto">
-                <div class="w-full md:max-w-[960px] md:mx-3 bg-white flex flex-col overflow-hidden min-h-screen md:min-h-0 md:h-[90vh] md:rounded-2xl md:shadow-[0_24px_64px_rgba(0,0,0,0.25)]">
+                <div class="cs-captura w-full md:max-w-[960px] md:mx-3 bg-white flex flex-col overflow-hidden min-h-screen md:min-h-0 md:h-[90vh] md:rounded-2xl md:shadow-[0_24px_64px_rgba(0,0,0,0.25)]">
 
                     <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
                         <div class="flex items-center gap-3">
@@ -1615,7 +1631,7 @@ class SolicitudesView extends Templates {
                         <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">Materiales solicitados</p>
                     </div>
 
-                    <div class="flex-1 min-h-0 overflow-y-auto cs-scroll">
+                    <div class="cs-captura-lista flex-1 min-h-0 overflow-y-auto cs-scroll">
                         <table class="w-full border-collapse">
                             <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                                 <tr>

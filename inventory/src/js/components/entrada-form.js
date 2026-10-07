@@ -543,7 +543,7 @@ class EntradaForm {
     renderResumen() {
         const o = this.opts;
         return `
-            <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
+            <div class="cs-captura-resumen flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
                 <div class="flex items-center gap-5 text-[11px] text-gray-500">
                     <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Productos <strong class="text-gray-800 text-sm" id="${o.id}_qtyItems">0</strong></span>
                     <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>${this.esc(o.labels.unidadesLbl)} <strong class="text-gray-800 text-sm" id="${o.id}_qtyUnits">0</strong> uds</span>
@@ -871,7 +871,7 @@ class EntradaForm {
         this.wrap = $('<div>', { id: o.id, class: o.class });
         this.wrap.html(`
             <div class="absolute inset-0 bg-black/40"></div>
-            <div id="${o.id}_panel" class="relative z-10 w-full max-w-[1080px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+            <div id="${o.id}_panel" class="cs-captura relative z-10 w-full max-w-[1080px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
                 <div id="${o.id}_drop" class="hidden absolute inset-2 z-[80] rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/90 flex-col items-center justify-center gap-2 pointer-events-none">
                     <i data-lucide="paperclip" class="w-8 h-8 text-blue-600"></i>
                     <p class="text-sm font-semibold text-blue-700">${this.esc(o.labels.compSuelta)}</p>
@@ -880,7 +880,7 @@ class EntradaForm {
                 ${this.renderConfigRow()}
                 ${this.renderSearchBar()}
                 ${this.renderLoteHeader()}
-                <div id="${o.id}_listaProductos" class="flex-1 min-h-0 overflow-y-auto cs-scroll"></div>
+                <div id="${o.id}_listaProductos" class="cs-captura-lista flex-1 min-h-0 overflow-y-auto cs-scroll"></div>
                 ${this.renderResumen()}
                 ${this.renderFooter()}
                 <div id="${o.id}_float" class="hidden absolute z-[60] bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>

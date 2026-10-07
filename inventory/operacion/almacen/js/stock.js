@@ -56,7 +56,7 @@ class App extends Templates {
 
     render() {
         this.layout();
-        this.resizePanel();
+        this.visorResize({ key: 'stock', label: 'Ancho del visor del producto', width: 420 });
         this.renderTabs();
         this.filterBar();
         stockView.renderDetail(null);
@@ -162,17 +162,20 @@ class App extends Templates {
             ]
         };
 
-        // Tirador entre la tabla y el visor: el ancho del visor vive en --stock-detail-w.
+        // Tirador entre la tabla y el visor (visorResize): el ancho vive en --stock-detail-w.
+        // En escritorio los dos arrancan ocultos (md:!hidden) y la tabla toma todo el
+        // ancho hasta que se abre un producto; en celular el visor es un cajón que
+        // entra deslizándose (openDetailDrawer).
         const detailResizer = {
             type:  'div',
             id:    'detailResizer',
-            class: "hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
+            class: "hidden md:block md:!hidden relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
         };
 
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class:'detail-drawer fixed inset-y-0 right-0 z-50 w-full max-w-md transform translate-x-full transition-transform duration-300 ease-out md:relative md:translate-x-0 md:w-[var(--stock-detail-w,420px)] md:max-w-[60vw] md:transition-none md:z-auto flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden shadow-2xl md:shadow-none',
+            class:'detail-drawer md:!hidden fixed inset-y-0 right-0 z-50 w-full max-w-md transform translate-x-full transition-transform duration-300 ease-out md:relative md:translate-x-0 md:w-[var(--stock-detail-w,420px)] md:max-w-[60vw] md:transition-none md:z-auto flex-shrink-0 bg-white border-t md:border-t-0 border-gray-200 flex flex-col overflow-hidden shadow-2xl md:shadow-none',
             children: [
                 {
                     id:    'emptyDetail',
@@ -198,7 +201,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-row overflow-hidden relative bg-white rounded-lg border border-gray-200',
+                class:     'cs-visor flex-1 min-h-0 w-full flex flex-row overflow-hidden relative bg-white rounded-lg border border-gray-200',
                 container: [mainPanel, detailResizer, detailPanel, backdrop]
             }
         });
@@ -227,68 +230,15 @@ class App extends Templates {
         $('#detailBackdrop').off('click').on('click', () => this.selectProduct(null));
     }
 
-    // Arrastrar el tirador cambia el ancho del visor y la tabla toma el resto.
-    resizePanel() {
-        const handle = document.getElementById('detailResizer');
-        const panel  = document.getElementById('detailPanel');
-        if (!handle || !panel) return;
-
-        this.applyPanelWidth(this.savedPanelWidth() || 420, false);
-        handle.setAttribute('role', 'separator');
-        handle.setAttribute('aria-orientation', 'vertical');
-        handle.setAttribute('aria-label', 'Ancho del visor del producto');
-
-        const move = (e) => this.applyPanelWidth(panel.getBoundingClientRect().right - e.clientX, false);
-
-        handle.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0) return;
-
-            e.preventDefault();
-            handle.setPointerCapture(e.pointerId);
-            handle.classList.add('after:bg-blue-600');
-            document.body.style.cursor     = 'col-resize';
-            document.body.style.userSelect = 'none';
-
-            const release = () => {
-                handle.classList.remove('after:bg-blue-600');
-                document.body.style.cursor     = '';
-                document.body.style.userSelect = '';
-                handle.removeEventListener('pointermove', move);
-                this.applyPanelWidth(panel.getBoundingClientRect().width, true);
-            };
-
-            handle.addEventListener('pointermove', move);
-            handle.addEventListener('pointerup', release, { once: true });
-            handle.addEventListener('pointercancel', release, { once: true });
-        });
-    }
-
-    applyPanelWidth(px, save) {
-        const width = Math.round(Math.min(760, Math.max(300, px)));
-        document.documentElement.style.setProperty('--stock-detail-w', `${width}px`);
-
-        if (!save) return;
-        try {
-            localStorage.setItem('inventory:stock:detailWidth', width);
-        } catch (e) { }
-    }
-
-    savedPanelWidth() {
-        try {
-            const px = Number(localStorage.getItem('inventory:stock:detailWidth'));
-            return px > 0 ? px : null;
-        } catch (e) {
-            return null;
-        }
-    }
-
     openDetailDrawer() {
         $('#detailPanel').removeClass('translate-x-full');
+        $('#detailPanel, #detailResizer').removeClass('md:!hidden');
         $('#detailBackdrop').removeClass('hidden');
     }
 
     closeDetailDrawer() {
         $('#detailPanel').addClass('translate-x-full');
+        $('#detailPanel, #detailResizer').addClass('md:!hidden');
         $('#detailBackdrop').addClass('hidden');
     }
 
