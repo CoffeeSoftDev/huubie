@@ -3,11 +3,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compras Planificadas - Huubie Inventarios</title>
+    <title>Compras - Huubie Inventarios</title>
 
     <!-- Tailwind Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Tema "Arcilla Invernal": remapea blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <!-- Tema "Arcilla Invernal": remapea blue a terracota (#C05A40). DEBE ir justo despues del CDN. -->
     <script>
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
@@ -31,9 +31,22 @@
 
     <style>
         body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; }
-        tbody tr.row-active { background:#FBF3EF !important; box-shadow: inset 3px 0 0 #C05A40; }
-        #tablaView tbody tr { cursor:pointer; }
+        .lbl { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; margin-bottom:4px; }
+        .inp { width:100%; padding:7px 10px; font-size:12px; color:#1f2937; background:#fff; border:1px solid #d1d5db; border-radius:6px; outline:none; }
+        .inp:focus { border-color:#C8694C; }
+        .cell { width:100%; padding:4px 8px; font-size:12px; font-weight:700; text-align:center; border:1px solid #d1d5db; border-radius:4px; outline:none; background:#fff; }
+        .cell:focus { border-color:#C05A40; box-shadow:0 0 0 2px rgba(192,90,64,.15); }
+        .chip { padding:5px 11px; font-size:11px; font-weight:600; border-radius:999px; border:1px solid #e5e7eb; color:#4b5563; background:#fff; display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
+        .chip.on { background:#FBF3EF; border-color:#EFC9BC; color:#A84A33; }
         .seg-on { background:#fff; color:#A84A33; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+        .tipo-card { border:2px solid #e5e7eb; border-radius:10px; padding:10px 12px; cursor:pointer; text-align:left; transition:.15s; }
+        .tipo-card:hover { border-color:#d1d5db; }
+        .tipo-card.on { border-color:#C05A40; background:#FBF3EF; }
+        .day { width:36px; height:30px; border-radius:6px; font-size:11px; font-weight:600; border:1px solid #e5e7eb; color:#4b5563; background:#fff; }
+        .day.on { background:#C05A40; border-color:#C05A40; color:#fff; }
+        tbody tr.row-active { background:#FBF3EF !important; box-shadow: inset 3px 0 0 #C05A40; }
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
         ::-webkit-scrollbar{width:8px;height:8px}
         ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
     </style>
@@ -42,231 +55,686 @@
 <body class="h-screen overflow-hidden text-gray-800">
 
 <!-- ============================================================
-     COMPRAS PLANIFICADAS (minimalista)
-     Misma estructura que ordenes-compra.html: panel principal + aside 420.
+     COMPRAS (prototipo funcional, datos en memoria + localStorage)
 
-     Una compra planificada = lista de materiales + programacion:
-       · Unica      -> una fecha (ej. Roscas de Reyes, 05 ene)
-       · Recurrente -> dias de la semana (ej. cada lunes)
-     Cada fecha programada genera una "hoja de surtido":
+     Tres tipos de compra, un solo flujo:
+       · Rutina      : la compra de siempre, se repite (ej. cada lunes)
+       · Programada  : anticipada para una fecha especial (ej. roscas)
+       · Esporadica  : de una vez, cuando surge (ej. se acabo el gas)
 
-       Programada  -(Imprimir hoja)->  En surtido  -(Capturar)->  Capturada
-
-       "Retomar" copia los materiales de una compra ya capturada
-       a una fecha nueva (ej. las roscas del proximo año).
-
-     Al capturar se genera la entrada al almacen con lo realmente surtido.
+     Estados:
+       Pendiente  (Imprimir hoja)  En surtido  (Capturar)  Capturada
+       La esporadica puede capturarse directo, sin imprimir.
+       Cualquier compra capturada se puede "Retomar" en otra fecha
+       (copia sus materiales a una compra nueva).
 ============================================================ -->
 <div class="h-screen p-3">
-<div id="compras-planificadas" class="h-full w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200">
+<div id="compras" class="h-full w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200">
 
     <!-- ===================== PANEL PRINCIPAL ===================== -->
     <div id="mainPanel" class="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full">
 
         <!-- viewHeader -->
-        <div id="viewHeader" class="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
+        <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 flex-shrink-0">
             <div>
-                <h1 class="text-lg font-bold text-gray-800">Compras Planificadas</h1>
-                <p class="text-xs text-gray-500">Programa compras por fecha o por semana, imprime la hoja y captura lo surtido</p>
+                <h1 class="text-lg font-bold text-gray-800">Compras</h1>
+                <p class="text-xs text-gray-500">Rutina, programadas y esporadicas: imprime la hoja, surte y captura</p>
             </div>
-            <!-- Vista: lista / calendario -->
-            <div class="inline-flex p-0.5 bg-gray-100 rounded-lg" id="segVista">
-                <button data-vista="tabla" class="seg seg-on px-3 py-1.5 text-xs font-semibold rounded-md text-gray-500 flex items-center gap-1.5"><i data-lucide="list" class="w-3.5 h-3.5"></i> Lista</button>
-                <button data-vista="calendario" class="seg px-3 py-1.5 text-xs font-semibold rounded-md text-gray-500 flex items-center gap-1.5"><i data-lucide="calendar-days" class="w-3.5 h-3.5"></i> Calendario</button>
+            <div class="flex items-center gap-2">
+                <button onclick="resetDemo()" class="text-[11px] text-gray-400 hover:text-gray-600 flex items-center gap-1" title="Restablecer datos de ejemplo"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reiniciar demo</button>
+                <div class="inline-flex p-0.5 bg-gray-100 rounded-lg">
+                    <button data-vista="tabla" onclick="setVista('tabla')" class="vista-btn px-3 py-1.5 text-xs font-semibold rounded-md text-gray-500 flex items-center gap-1.5"><i data-lucide="list" class="w-3.5 h-3.5"></i> Lista</button>
+                    <button data-vista="calendario" onclick="setVista('calendario')" class="vista-btn px-3 py-1.5 text-xs font-semibold rounded-md text-gray-500 flex items-center gap-1.5"><i data-lucide="calendar-days" class="w-3.5 h-3.5"></i> Calendario</button>
+                </div>
             </div>
         </div>
 
         <!-- filterBar -->
-        <div id="filterBar" class="px-3 py-3 border-b border-gray-200 flex-shrink-0">
+        <div class="px-3 py-3 border-b border-gray-200 flex-shrink-0">
             <div class="flex flex-wrap items-end gap-3">
-                <div class="min-w-[150px]">
-                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Mes</label>
-                    <select class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500">
-                        <option>Diciembre 2026</option><option>Enero 2027</option>
-                    </select>
-                </div>
-                <div class="min-w-[150px]">
-                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Sucursal</label>
-                    <select class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500">
-                        <option>Sucursal Centro</option><option>Sucursal Norte</option>
-                    </select>
-                </div>
+                <div id="chipsTipo" class="flex flex-wrap items-center gap-1.5 pb-0.5"></div>
                 <div class="min-w-[140px]">
-                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Estado</label>
-                    <select class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500">
-                        <option>Todos</option><option>Programada</option><option>En surtido</option><option>Capturada</option>
+                    <label class="lbl">Estado</label>
+                    <select id="fEstado" class="inp" onchange="state.fEstado=this.value; render()">
+                        <option value="">Activas</option>
+                        <option value="programada">Pendiente</option>
+                        <option value="surtido">En surtido</option>
+                        <option value="capturada">Capturada</option>
+                        <option value="cancelada">Cancelada</option>
+                        <option value="todas">Todas</option>
                     </select>
+                </div>
+                <div class="min-w-[180px]">
+                    <label class="lbl">Buscar</label>
+                    <input id="fBuscar" class="inp" placeholder="Folio o nombre..." oninput="state.q=this.value; render()">
                 </div>
                 <div class="ml-auto">
-                    <button onclick="openModal('modals/modal-compra-planificada.html')"
-                            class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
-                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva compra planificada
+                    <button onclick="abrirForm()" class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva compra
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- ===== Vista LISTA ===== -->
-        <div id="tablaView" class="p-3 flex-1 min-h-0 overflow-auto">
-            <table class="w-full text-[13px] border-collapse">
-                <thead class="sticky top-0 z-10">
-                    <tr class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wider">
-                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Folio</th>
-                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Compra</th>
-                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Programacion</th>
-                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Fecha</th>
-                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Materiales</th>
-                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Estado</th>
-                    </tr>
-                </thead>
-                <tbody class="text-gray-700">
-                    <tr class="border-b border-gray-100 hover:bg-gray-50">
-                        <td class="px-3 py-2 font-semibold text-gray-800">CP-0041</td>
-                        <td class="px-3 py-2">Surtido semanal panaderia</td>
-                        <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600"><i data-lucide="repeat" class="w-3 h-3"></i> Cada lunes</span></td>
-                        <td class="px-3 py-2">lun 07 dic</td>
-                        <td class="px-3 py-2 text-center">8</td>
-                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-green-500/15 text-green-700 border border-green-500/30">Capturada</span></td>
-                    </tr>
-                    <tr class="border-b border-gray-100 hover:bg-gray-50">
-                        <td class="px-3 py-2 font-semibold text-gray-800">CP-0042</td>
-                        <td class="px-3 py-2">Surtido semanal panaderia</td>
-                        <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600"><i data-lucide="repeat" class="w-3 h-3"></i> Cada lunes</span></td>
-                        <td class="px-3 py-2">lun 14 dic</td>
-                        <td class="px-3 py-2 text-center">8</td>
-                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-orange-500/15 text-orange-600 border border-orange-500/30">En surtido</span></td>
-                    </tr>
-                    <tr class="border-b border-gray-100 hover:bg-gray-50">
-                        <td class="px-3 py-2 font-semibold text-gray-800">CP-0043</td>
-                        <td class="px-3 py-2">Surtido semanal panaderia</td>
-                        <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600"><i data-lucide="repeat" class="w-3 h-3"></i> Cada lunes</span></td>
-                        <td class="px-3 py-2">lun 21 dic</td>
-                        <td class="px-3 py-2 text-center">8</td>
-                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Programada</span></td>
-                    </tr>
-                    <tr class="row-active border-b border-gray-100 hover:bg-gray-50">
-                        <td class="px-3 py-2 font-semibold text-gray-800">CP-0044</td>
-                        <td class="px-3 py-2">Roscas de Reyes</td>
-                        <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700"><i data-lucide="star" class="w-3 h-3"></i> Fecha especial</span></td>
-                        <td class="px-3 py-2">lun 04 ene</td>
-                        <td class="px-3 py-2 text-center">6</td>
-                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Programada</span></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        <!-- Vista LISTA -->
+        <div id="tablaView" class="p-3 flex-1 min-h-0 overflow-auto"></div>
 
-        <!-- ===== Vista CALENDARIO ===== -->
-        <div id="calendarioView" class="hidden p-3 flex-1 min-h-0 overflow-auto">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm font-bold text-gray-800">Diciembre 2026</p>
-                <div class="flex gap-1">
-                    <button class="w-7 h-7 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-500"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
-                    <button class="w-7 h-7 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-500"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
-                </div>
-            </div>
-            <div id="calGrid" class="grid grid-cols-7 border-l border-t border-gray-200 text-[11px]"></div>
-            <p class="text-[11px] text-gray-400 mt-2">Clic en un dia vacio para programar una compra en esa fecha.</p>
-        </div>
+        <!-- Vista CALENDARIO -->
+        <div id="calView" class="hidden p-3 flex-1 min-h-0 overflow-auto"></div>
     </div>
 
-    <!-- ===================== PANEL DETALLE (aside 420) ===================== -->
-    <!-- ============================================================
-         ACCIONES POR ESTADO (documentacion para backend):
-           Programada: [Imprimir hoja] [Editar] [Cancelar]     <-- mostrada abajo
-           En surtido: [Capturar surtido] [Reimprimir]
-           Capturada:  [Retomar en otra fecha] [Ver entrada]
-    ============================================================ -->
-    <aside id="detailPanel" class="w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden">
-
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-            <div>
-                <p class="text-xs text-gray-500 uppercase tracking-wider">CP-0044</p>
-                <p class="text-base font-bold text-gray-800">Roscas de Reyes</p>
-            </div>
-            <span class="px-2 py-0.5 rounded text-xs font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Programada</span>
-        </div>
-
-        <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
-            <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28">Programacion</span><span class="text-gray-700 text-right">Fecha especial · lun 04 ene 2027</span></div>
-            <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28">Surte</span><span class="text-gray-700 text-right">Pedro Gomez</span></div>
-            <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28">Almacen destino</span><span class="text-gray-700 text-right">Almacen General</span></div>
-            <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28">Retomada de</span><span class="text-blue-700 font-semibold text-right">CP-0003 · Roscas 2026</span></div>
-        </div>
-
-        <div class="flex-1 overflow-y-auto px-4 py-3">
-            <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">Materiales (6)</p>
-            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Harina de trigo 25 kg</span><span class="font-semibold text-gray-800">8 bto</span></div>
-            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Azucar estandar 50 kg</span><span class="font-semibold text-gray-800">2 bto</span></div>
-            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Mantequilla sin sal</span><span class="font-semibold text-gray-800">20 kg</span></div>
-            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Huevo (caja 360)</span><span class="font-semibold text-gray-800">4 cja</span></div>
-            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Ate y fruta cristalizada</span><span class="font-semibold text-gray-800">6 kg</span></div>
-            <div class="flex items-center justify-between py-2 text-xs"><span class="font-medium text-gray-700">Muñequitos para rosca (bolsa 100)</span><span class="font-semibold text-gray-800">5 bol</span></div>
-
-            <p class="text-xs uppercase tracking-wider text-gray-500 mt-5 mb-2">Veces anteriores</p>
-            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs">
-                <span class="text-gray-700">CP-0003 · 05 ene 2026</span>
-                <span class="text-gray-500">Surtido $9,840.00</span>
-            </div>
-        </div>
-
-        <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0 flex items-center justify-between">
-            <span class="text-sm font-semibold text-gray-700">Ultimo costo</span>
-            <span class="text-lg font-bold text-green-600">$9,840.00</span>
-        </div>
-
-        <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
-            <button onclick="openModal('hoja-surtido.html')" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-blue-600 hover:bg-blue-700 flex items-center justify-center gap-1.5">
-                <i data-lucide="printer" class="w-3.5 h-3.5"></i>Imprimir hoja
-            </button>
-            <button onclick="openModal('modals/modal-captura.html')" class="flex-1 px-3 py-1.5 text-xs font-semibold text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 flex items-center justify-center gap-1.5">
-                <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i>Capturar
-            </button>
-            <button onclick="openModal('modals/modal-compra-planificada.html')" class="px-3 py-1.5 text-xs font-semibold text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 flex items-center justify-center" title="Editar">
-                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-            </button>
-        </div>
-    </aside>
-
+    <!-- ===================== PANEL DETALLE ===================== -->
+    <aside id="detailPanel" class="w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden"></aside>
 </div>
 </div>
+
+<!-- Modal generico -->
+<div id="modal" class="hidden fixed inset-0 z-40 bg-gray-900/45 flex items-start justify-center p-4 overflow-y-auto"></div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg bg-gray-900 text-white text-xs font-semibold shadow-xl flex items-center gap-2"></div>
 
 <script>
-    // Lista / Calendario
-    document.querySelectorAll('#segVista .seg').forEach(btn => btn.onclick = () => {
-        document.querySelectorAll('#segVista .seg').forEach(b => b.classList.toggle('seg-on', b === btn));
-        document.getElementById('tablaView').classList.toggle('hidden', btn.dataset.vista !== 'tabla');
-        document.getElementById('calendarioView').classList.toggle('hidden', btn.dataset.vista !== 'calendario');
-    });
+// -- Catalogos --
+const CATALOGO = [
+    { id: 1,  nombre: 'Harina de trigo 25 kg',            unidad: 'bto', costo: 650 },
+    { id: 2,  nombre: 'Azucar estandar 50 kg',            unidad: 'bto', costo: 1090 },
+    { id: 3,  nombre: 'Mantequilla sin sal',              unidad: 'kg',  costo: 175 },
+    { id: 4,  nombre: 'Huevo (caja 360)',                 unidad: 'cja', costo: 840 },
+    { id: 5,  nombre: 'Levadura seca 500 g',              unidad: 'paq', costo: 95 },
+    { id: 6,  nombre: 'Leche entera 1 L',                 unidad: 'pza', costo: 28 },
+    { id: 7,  nombre: 'Ate y fruta cristalizada',         unidad: 'kg',  costo: 115 },
+    { id: 8,  nombre: 'Muñequitos para rosca (bolsa 100)',unidad: 'bol', costo: 120 },
+    { id: 9,  nombre: 'Vainilla natural 1 L',             unidad: 'pza', costo: 210 },
+    { id: 10, nombre: 'Chocolate semiamargo 1 kg',        unidad: 'kg',  costo: 260 },
+    { id: 11, nombre: 'Cafe molido 1 kg',                 unidad: 'kg',  costo: 320 },
+    { id: 12, nombre: 'Cloro 3.75 L',                     unidad: 'pza', costo: 62 },
+    { id: 13, nombre: 'Jabon liquido para manos 1 L',     unidad: 'pza', costo: 68 },
+    { id: 14, nombre: 'Bolsa para basura jumbo (paq 10)', unidad: 'paq', costo: 45 },
+    { id: 15, nombre: 'Papel higienico jumbo (caja 6)',   unidad: 'cja', costo: 310 },
+    { id: 16, nombre: 'Servilletas (paq 500)',            unidad: 'paq', costo: 85 },
+    { id: 17, nombre: 'Vasos desechables 12 oz (100)',    unidad: 'paq', costo: 140 },
+    { id: 18, nombre: 'Gas LP cilindro 30 kg',            unidad: 'pza', costo: 720 },
+    { id: 19, nombre: 'Garrafon de agua 20 L',            unidad: 'pza', costo: 38 },
+    { id: 20, nombre: 'Papel encerado (rollo)',           unidad: 'rll', costo: 160 }
+];
+const PERSONAS  = ['Pedro Gomez', 'Laura Mendez', 'Jorge Ruiz'];
+const ALMACENES = ['Almacen General', 'Almacen Frio'];
 
-    // Filas
-    document.querySelectorAll('#tablaView tbody tr').forEach(r => r.onclick = () => {
-        document.querySelectorAll('#tablaView tbody tr').forEach(x => x.classList.remove('row-active'));
-        r.classList.add('row-active');
-    });
+const TIPOS = {
+    rutina:     { label: 'Rutina',     icon: 'repeat',   badge: 'bg-indigo-500/15 text-indigo-700 border border-indigo-500/30', dot: 'bg-indigo-500', chip: 'bg-indigo-500/15 text-indigo-700', desc: 'La compra de siempre, se repite' },
+    programada: { label: 'Programada', icon: 'star',     badge: 'bg-blue-500/15 text-blue-700 border border-blue-500/30',       dot: 'bg-blue-600',   chip: 'bg-blue-500/15 text-blue-700',     desc: 'Anticipada para una fecha especial' },
+    esporadica: { label: 'Esporadica', icon: 'zap',      badge: 'bg-teal-500/15 text-teal-700 border border-teal-500/30',       dot: 'bg-teal-500',   chip: 'bg-teal-500/15 text-teal-700',     desc: 'De una vez, cuando surge' }
+};
+const ESTADOS = {
+    programada: { label: 'Pendiente',  badge: 'bg-yellow-500/15 text-yellow-700 border border-yellow-500/30' },
+    surtido:    { label: 'En surtido', badge: 'bg-orange-500/15 text-orange-600 border border-orange-500/30' },
+    capturada:  { label: 'Capturada',  badge: 'bg-green-500/15 text-green-700 border border-green-500/30' },
+    cancelada:  { label: 'Cancelada',  badge: 'bg-gray-500/15 text-gray-500 border border-gray-400/30' }
+};
 
-    // Calendario: diciembre 2026 inicia en martes
-    (function(){
-        const grid = document.getElementById('calGrid');
-        const ev = {
-            7:  [['Semanal panaderia', 'bg-green-500/15 text-green-700']],
-            14: [['Semanal panaderia', 'bg-orange-500/15 text-orange-600']],
-            21: [['Semanal panaderia', 'bg-yellow-500/15 text-yellow-700']],
-            28: [['Semanal panaderia', 'bg-yellow-500/15 text-yellow-700']],
-            22: [['Pedido navideño', 'bg-yellow-500/15 text-yellow-700']]
-        };
-        ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'].forEach(d =>
-            grid.insertAdjacentHTML('beforeend', `<div class="px-2 py-1.5 bg-gray-50 border-r border-b border-gray-200 font-semibold text-gray-500 uppercase text-[10px]">${d}</div>`));
-        grid.insertAdjacentHTML('beforeend', '<div class="border-r border-b border-gray-200 bg-gray-50/50"></div>');
-        for (let d = 1; d <= 31; d++) {
-            const chips = (ev[d] || []).map(([t, c]) => `<div class="mt-1 px-1.5 py-0.5 rounded ${c} font-semibold truncate">${t}</div>`).join('');
-            grid.insertAdjacentHTML('beforeend', `<div class="min-h-[84px] p-1.5 border-r border-b border-gray-200 hover:bg-gray-50 cursor-pointer"><span class="${d === 14 ? 'inline-flex w-5 h-5 rounded-full bg-blue-600 text-white items-center justify-center font-bold' : 'text-gray-600'}">${d}</span>${chips}</div>`);
-        }
-        for (let i = 0; i < 3; i++) grid.insertAdjacentHTML('beforeend', '<div class="border-r border-b border-gray-200 bg-gray-50/50"></div>');
-    })();
+// -- Fechas --
+const DIAS  = ['dom','lun','mar','mie','jue','vie','sab'];
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MESES_L = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const pad   = n => String(n).padStart(2, '0');
+const iso   = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parse = s => new Date(s + 'T00:00:00');
+const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
+const fmt   = (s, year = true) => { const d = parse(s); return `${DIAS[d.getDay()]} ${pad(d.getDate())} ${MESES[d.getMonth()]}${year ? ' ' + d.getFullYear() : ''}`; };
+const HOY   = iso(new Date());
+const money = n => '$' + Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    function openModal(file){ window.open(file, '_blank', 'width=1100,height=820'); }
+// -- Datos de ejemplo (relativos a hoy) --
+function seed() {
+    const d = parse(HOY);
+    const lunes = iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)));
+    const year  = d.getFullYear();
+    const roscasPasada = `${year}-01-05` < HOY ? `${year}-01-05` : `${year - 1}-01-05`;
+    const roscasProx   = `${year}-01-04` > HOY ? `${year}-01-04` : `${year + 1}-01-04`;
+    const navidad      = `${year}-12-22` > HOY ? `${year}-12-22` : `${year + 1}-12-22`;
+    const it = (id, cant, surt, costo, prov) => {
+        const p = CATALOGO.find(x => x.id === id);
+        return { pid: id, nombre: p.nombre, unidad: p.unidad, cant, surt: surt ?? null, costo: costo ?? null, prov: prov || '' };
+    };
+    const semanal = c => [it(1, 4, c && 4, c && 2600, 'Abarrotes del Sureste'), it(2, 1, c && 1, c && 1090, 'Abarrotes del Sureste'), it(3, 10, c && 10, c && 1750, 'Cremeria La Vaquita'), it(4, 2, c && 2, c && 1680, 'Avicola San Juan'), it(5, 3, c && 3, c && 285, 'Abarrotes del Sureste'), it(12, 4, c && 4, c && 248, 'Limpieza Maya')];
+    const lunesHoyEstado = lunes <= HOY ? 'surtido' : 'programada';
+    return [
+        { id: 1, folio: 'CP-0001', tipo: 'programada', nombre: 'Roscas de Reyes', fecha: roscasPasada, serie: null, surte: 'Pedro Gomez', almacen: 'Almacen General', nota: '', origen: null, estado: 'capturada', entrada: 'ENT-0102',
+          items: [it(1, 8, 8, 5200, 'Abarrotes del Sureste'), it(2, 2, 2, 2180, 'Abarrotes del Sureste'), it(3, 20, 18, 3150, 'Cremeria La Vaquita'), it(4, 4, 4, 3360, 'Avicola San Juan'), it(7, 6, 6, 690, 'Mercado'), it(8, 5, 5, 600, 'Dulceria Centro')] },
+        { id: 2, folio: 'CP-0002', tipo: 'rutina', nombre: 'Surtido semanal panaderia', fecha: addDays(lunes, -7), serie: 'S1', dias: [1], surte: 'Laura Mendez', almacen: 'Almacen General', nota: '', origen: null, estado: 'capturada', entrada: 'ENT-0140', items: semanal(true) },
+        { id: 3, folio: 'CP-0003', tipo: 'esporadica', nombre: 'Refaccion y gas', fecha: addDays(HOY, -3), serie: null, surte: 'Jorge Ruiz', almacen: 'Almacen General', nota: 'Se acabo el gas del horno 2', origen: null, estado: 'capturada', entrada: 'ENT-0141',
+          items: [it(18, 1, 1, 720, 'Gas del Golfo')] },
+        { id: 4, folio: 'CP-0004', tipo: 'rutina', nombre: 'Surtido semanal panaderia', fecha: lunes, serie: 'S1', dias: [1], surte: 'Laura Mendez', almacen: 'Almacen General', nota: '', origen: null, estado: lunesHoyEstado, items: semanal(false) },
+        { id: 5, folio: 'CP-0005', tipo: 'rutina', nombre: 'Surtido semanal panaderia', fecha: addDays(lunes, 7),  serie: 'S1', dias: [1], surte: 'Laura Mendez', almacen: 'Almacen General', nota: '', origen: null, estado: 'programada', items: semanal(false) },
+        { id: 6, folio: 'CP-0006', tipo: 'rutina', nombre: 'Surtido semanal panaderia', fecha: addDays(lunes, 14), serie: 'S1', dias: [1], surte: 'Laura Mendez', almacen: 'Almacen General', nota: '', origen: null, estado: 'programada', items: semanal(false) },
+        { id: 7, folio: 'CP-0007', tipo: 'esporadica', nombre: 'Garrafones y limpieza', fecha: HOY, serie: null, surte: 'Jorge Ruiz', almacen: 'Almacen General', nota: 'Urgente, no hay agua', origen: null, estado: 'programada',
+          items: [it(19, 6), it(13, 2), it(14, 2)] },
+        { id: 8, folio: 'CP-0008', tipo: 'programada', nombre: 'Pedido navideño', fecha: navidad, serie: null, surte: 'Pedro Gomez', almacen: 'Almacen General', nota: '', origen: null, estado: 'programada',
+          items: [it(10, 10), it(9, 3), it(1, 6), it(20, 4)] },
+        { id: 9, folio: 'CP-0009', tipo: 'programada', nombre: 'Roscas de Reyes', fecha: roscasProx, serie: null, surte: 'Pedro Gomez', almacen: 'Almacen General', nota: 'La mantequilla en la cremeria de siempre', origen: 'CP-0001', estado: 'programada',
+          items: [it(1, 8), it(2, 2), it(3, 20), it(4, 4), it(7, 6), it(8, 5)] }
+    ];
+}
+
+// -- Estado --
+const KEY = 'huubie-compras-demo-v1';
+let compras;
+try { compras = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch (e) { compras = seed(); }
+const state = { fTipo: '', fEstado: '', q: '', vista: 'tabla', sel: null, mes: HOY.slice(0, 7) };
+state.sel = (compras.find(c => c.fecha >= HOY && c.estado !== 'cancelada') || compras[0]).id;
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(compras)); } catch (e) {} }
+function resetDemo() { compras = seed(); save(); state.sel = 7; render(); toast('Datos de ejemplo restablecidos'); }
+const byId  = id => compras.find(c => c.id === id);
+const nextFolio = () => 'CP-' + pad(Math.max(...compras.map(c => +c.folio.slice(3))) + 1).padStart(4, '0');
+const totalCompra = c => c.items.reduce((s, i) => s + (Number(i.costo) || 0), 0);
+const estimado = c => c.items.reduce((s, i) => s + (CATALOGO.find(p => p.id === i.pid)?.costo || 0) * i.cant, 0);
+
+function visibles() {
+    const q = state.q.trim().toLowerCase();
+    return compras
+        .filter(c => !state.fTipo || c.tipo === state.fTipo)
+        .filter(c => state.fEstado === 'todas' ? true : state.fEstado ? c.estado === state.fEstado : (c.estado === 'programada' || c.estado === 'surtido' || (c.estado === 'capturada' && c.fecha >= addDays(HOY, -14))))
+        .filter(c => !q || c.folio.toLowerCase().includes(q) || c.nombre.toLowerCase().includes(q))
+        .sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+// -- Render --
+function render() {
+    renderChips();
+    document.querySelectorAll('.vista-btn').forEach(b => b.classList.toggle('seg-on', b.dataset.vista === state.vista));
+    document.getElementById('tablaView').classList.toggle('hidden', state.vista !== 'tabla');
+    document.getElementById('calView').classList.toggle('hidden', state.vista !== 'calendario');
+    state.vista === 'tabla' ? renderTabla() : renderCal();
+    renderDetalle();
     lucide.createIcons();
+}
+
+function renderChips() {
+    const n = t => compras.filter(c => (!t || c.tipo === t) && (c.estado === 'programada' || c.estado === 'surtido')).length;
+    const chip = (t, label, icon) => `<span class="chip ${state.fTipo === t ? 'on' : ''}" onclick="state.fTipo='${t}'; render()">${icon ? `<i data-lucide="${icon}" class="w-3 h-3"></i>` : ''}${label} <span class="text-[10px] opacity-70">${n(t)}</span></span>`;
+    document.getElementById('chipsTipo').innerHTML =
+        `<div><label class="lbl">Tipo</label><div class="flex flex-wrap gap-1.5">` +
+        chip('', 'Todas') + Object.entries(TIPOS).map(([k, t]) => chip(k, t.label, t.icon)).join('') +
+        `</div></div>`;
+}
+
+function badgeTipo(c)   { const t = TIPOS[c.tipo];   return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold ${t.badge}"><i data-lucide="${t.icon}" class="w-3 h-3"></i>${t.label}</span>`; }
+function badgeEstado(c) { const e = ESTADOS[c.estado]; return `<span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold ${e.badge}">${e.label}</span>`; }
+function cuando(c) {
+    if (c.fecha === HOY) return '<span class="font-semibold text-blue-700">Hoy</span>';
+    if (c.fecha === addDays(HOY, 1)) return '<span class="font-semibold text-gray-800">Mañana</span>';
+    return fmt(c.fecha, c.fecha.slice(0, 4) !== HOY.slice(0, 4));
+}
+
+function renderTabla() {
+    const rows = visibles();
+    const el = document.getElementById('tablaView');
+    if (!rows.length) {
+        el.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center text-gray-400 gap-2"><i data-lucide="inbox" class="w-8 h-8"></i><p class="text-sm">No hay compras con estos filtros</p></div>`;
+        return;
+    }
+    el.innerHTML = `
+    <table class="w-full text-[13px] border-collapse">
+        <thead class="sticky top-0 z-10"><tr class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wider">
+            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Folio</th>
+            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Compra</th>
+            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Tipo</th>
+            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Fecha</th>
+            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Surte</th>
+            <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Materiales</th>
+            <th class="text-right font-semibold px-3 py-2 border-b border-gray-200">Importe</th>
+            <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Estado</th>
+        </tr></thead>
+        <tbody class="text-gray-700">
+        ${rows.map(c => `
+            <tr onclick="seleccionar(${c.id})" class="cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${c.id === state.sel ? 'row-active' : ''} ${c.estado === 'cancelada' ? 'opacity-50' : ''}">
+                <td class="px-3 py-2 font-semibold text-gray-800">${c.folio}</td>
+                <td class="px-3 py-2">${c.nombre}${c.origen ? `<span class="ml-1.5 text-[10px] text-gray-400">retoma ${c.origen}</span>` : ''}</td>
+                <td class="px-3 py-2">${badgeTipo(c)}</td>
+                <td class="px-3 py-2">${cuando(c)}</td>
+                <td class="px-3 py-2 text-gray-500">${c.surte}</td>
+                <td class="px-3 py-2 text-center">${c.items.length}</td>
+                <td class="px-3 py-2 text-right font-medium">${c.estado === 'capturada' ? money(totalCompra(c)) : `<span class="text-gray-400">~${money(estimado(c))}</span>`}</td>
+                <td class="px-3 py-2 text-center">${badgeEstado(c)}</td>
+            </tr>`).join('')}
+        </tbody>
+    </table>`;
+}
+
+function renderCal() {
+    const [y, m] = state.mes.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    const offset = (first.getDay() + 6) % 7;
+    const days = new Date(y, m, 0).getDate();
+    const list = visibles().filter(c => c.estado !== 'cancelada');
+    let cells = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'].map(d => `<div class="px-2 py-1.5 bg-gray-50 border-r border-b border-gray-200 font-semibold text-gray-500 uppercase text-[10px]">${d}</div>`).join('');
+    for (let i = 0; i < offset; i++) cells += '<div class="border-r border-b border-gray-200 bg-gray-50/60"></div>';
+    for (let d = 1; d <= days; d++) {
+        const f = `${y}-${pad(m)}-${pad(d)}`;
+        const chips = list.filter(c => c.fecha === f).map(c =>
+            `<div onclick="event.stopPropagation(); seleccionar(${c.id})" class="mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold truncate cursor-pointer ${TIPOS[c.tipo].chip} ${c.id === state.sel ? 'ring-2 ring-blue-500' : ''} ${c.estado === 'capturada' ? 'line-through opacity-60' : ''}">${c.nombre}</div>`).join('');
+        cells += `<div onclick="abrirForm(null, '${f}')" title="Programar compra este dia" class="min-h-[88px] p-1.5 border-r border-b border-gray-200 hover:bg-gray-50 cursor-pointer ${f < HOY ? 'bg-gray-50/40' : ''}">
+            <span class="${f === HOY ? 'inline-flex w-5 h-5 rounded-full bg-blue-600 text-white items-center justify-center font-bold' : 'text-gray-600'} text-[11px]">${d}</span>${chips}</div>`;
+    }
+    const rest = (7 - ((offset + days) % 7)) % 7;
+    for (let i = 0; i < rest; i++) cells += '<div class="border-r border-b border-gray-200 bg-gray-50/60"></div>';
+
+    document.getElementById('calView').innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+            <p class="text-sm font-bold text-gray-800">${MESES_L[m - 1]} ${y}</p>
+            <div class="flex items-center gap-1">
+                <button onclick="moverMes(-1)" class="w-7 h-7 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-500"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                <button onclick="state.mes=HOY.slice(0,7); render()" class="px-2 h-7 rounded-md border border-gray-200 hover:bg-gray-50 text-[11px] font-semibold text-gray-600">Hoy</button>
+                <button onclick="moverMes(1)" class="w-7 h-7 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-500"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+            </div>
+        </div>
+        <div class="grid grid-cols-7 border-l border-t border-gray-200">${cells}</div>
+        <div class="flex flex-wrap items-center gap-4 mt-2 text-[11px] text-gray-500">
+            ${Object.values(TIPOS).map(t => `<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full ${t.dot}"></span>${t.label}</span>`).join('')}
+            <span class="ml-auto text-gray-400">Clic en un dia para programar una compra</span>
+        </div>`;
+}
+function moverMes(n) { const [y, m] = state.mes.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); state.mes = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; render(); }
+function setVista(v) { state.vista = v; render(); }
+function seleccionar(id) { state.sel = id; const c = byId(id); if (c) state.mes = c.fecha.slice(0, 7); render(); }
+
+function renderDetalle() {
+    const el = document.getElementById('detailPanel');
+    const c = byId(state.sel);
+    if (!c) { el.innerHTML = `<div class="flex-1 flex flex-col items-center justify-center text-gray-400 gap-2"><i data-lucide="mouse-pointer-click" class="w-7 h-7"></i><p class="text-sm">Selecciona una compra</p></div>`; return; }
+
+    const capturada = c.estado === 'capturada';
+    const fila = (k, v) => `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">${k}</span><span class="text-gray-700 text-right">${v}</span></div>`;
+    const prog = c.tipo === 'rutina' ? `Cada ${(c.dias || []).map(d => DIAS[d]).join(', ')} · esta: ${fmt(c.fecha)}` : fmt(c.fecha);
+    const anteriores = compras.filter(x => x.id !== c.id && x.nombre === c.nombre && x.estado === 'capturada' && x.fecha < c.fecha).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 3);
+
+    const items = c.items.map(i => {
+        let right = `<span class="font-semibold text-gray-800">${i.cant} ${i.unidad}</span>`;
+        if (capturada) {
+            const color = i.surt >= i.cant ? 'text-green-600' : i.surt > 0 ? 'text-orange-500' : 'text-rose-500';
+            right = `<span class="text-gray-400 mr-2">${i.cant}</span><span class="font-bold ${color}">${i.surt ?? 0} ${i.unidad}</span><span class="text-gray-500 w-20 text-right">${money(i.costo)}</span>`;
+        }
+        return `<div class="flex items-center justify-between gap-2 py-2 border-b border-gray-100 text-xs"><div class="min-w-0"><p class="font-medium text-gray-700 truncate">${i.nombre}</p>${capturada && i.prov ? `<p class="text-[10px] text-gray-400">${i.prov}</p>` : ''}</div><div class="flex items-center gap-1 flex-shrink-0">${right}</div></div>`;
+    }).join('');
+
+    const btn = (label, icon, fn, primary) => `<button onclick="${fn}" class="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 ${primary ? 'text-white bg-blue-600 hover:bg-blue-700' : 'text-gray-700 border border-gray-300 hover:bg-gray-50'}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${label}</button>`;
+    const iconBtn = (icon, fn, title, danger) => `<button onclick="${fn}" title="${title}" class="px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 hover:bg-gray-50 ${danger ? 'text-rose-500' : 'text-gray-600'}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i></button>`;
+    let acciones = '';
+    if (c.estado === 'programada') {
+        acciones = btn('Imprimir hoja', 'printer', `imprimir(${c.id})`, true)
+                 + (c.tipo === 'esporadica' ? btn('Capturar directo', 'clipboard-check', `abrirCaptura(${c.id})`) : '')
+                 + iconBtn('pencil', `abrirForm(${c.id})`, 'Editar') + iconBtn('ban', `cancelar(${c.id})`, 'Cancelar', true);
+    } else if (c.estado === 'surtido') {
+        acciones = btn('Capturar surtido', 'clipboard-check', `abrirCaptura(${c.id})`, true) + btn('Reimprimir', 'printer', `imprimir(${c.id})`);
+    } else if (capturada) {
+        acciones = btn('Retomar en otra fecha', 'calendar-plus', `retomar(${c.id})`, true) + iconBtn('printer', `imprimir(${c.id})`, 'Imprimir');
+    } else {
+        acciones = btn('Retomar', 'calendar-plus', `retomar(${c.id})`);
+    }
+
+    el.innerHTML = `
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-start justify-between gap-2 flex-shrink-0">
+            <div class="min-w-0">
+                <p class="text-xs text-gray-500 uppercase tracking-wider">${c.folio}</p>
+                <p class="text-base font-bold text-gray-800 truncate">${c.nombre}</p>
+                <div class="mt-1">${badgeTipo(c)}</div>
+            </div>
+            ${badgeEstado(c)}
+        </div>
+        <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
+            ${fila(c.tipo === 'rutina' ? 'Se repite' : 'Fecha', prog)}
+            ${fila('Surte', c.surte)}
+            ${fila('Almacen destino', c.almacen)}
+            ${c.origen ? fila('Retomada de', `<span class="text-blue-700 font-semibold">${c.origen}</span>`) : ''}
+            ${c.entrada ? fila('Entrada generada', `<span class="font-semibold text-green-700">${c.entrada}</span>`) : ''}
+            ${c.nota ? `<p class="text-[11px] bg-amber-50 border border-amber-100 text-amber-800 rounded-md px-2.5 py-1.5 mt-2">${c.nota}</p>` : ''}
+        </div>
+        <div class="flex-1 overflow-y-auto px-4 py-3">
+            <div class="flex items-center justify-between mb-1"><p class="text-xs uppercase tracking-wider text-gray-500">Materiales (${c.items.length})</p>${capturada ? '<p class="text-[10px] text-gray-400">pedido · surtido · costo</p>' : ''}</div>
+            ${items}
+            ${anteriores.length ? `<p class="text-xs uppercase tracking-wider text-gray-500 mt-5 mb-1">Veces anteriores</p>` + anteriores.map(a => `<div onclick="seleccionar(${a.id})" class="flex items-center justify-between py-2 border-b border-gray-100 text-xs cursor-pointer hover:bg-gray-50"><span class="text-gray-700">${a.folio} · ${fmt(a.fecha)}</span><span class="text-gray-500">${money(totalCompra(a))}</span></div>`).join('') : ''}
+        </div>
+        <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0 flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-700">${capturada ? 'Total gastado' : 'Estimado'}</span>
+            <span class="text-lg font-bold ${capturada ? 'text-green-600' : 'text-gray-700'}">${money(capturada ? totalCompra(c) : estimado(c))}</span>
+        </div>
+        <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">${acciones}</div>`;
+}
+
+// -- Modal: nueva / editar / retomar --
+let frm = null;
+
+function abrirForm(id = null, fecha = null, base = null) {
+    const c = id ? byId(id) : null;
+    frm = c ? { ...JSON.parse(JSON.stringify(c)) }
+             : { id: null, tipo: base?.tipo || 'esporadica', nombre: base?.nombre || '', fecha: fecha || HOY, dias: [1], semanas: 4, surte: base?.surte || PERSONAS[0], almacen: base?.almacen || ALMACENES[0], nota: '', origen: base?.folio || null,
+                 items: base ? base.items.map(i => ({ pid: i.pid, nombre: i.nombre, unidad: i.unidad, cant: i.cant })) : [] };
+    if (fecha && !c) frm.tipo = fecha > HOY ? 'programada' : 'esporadica';
+    if (base) { frm.tipo = 'programada'; frm.fecha = mismaFechaFutura(base.fecha); }
+    if (frm.tipo === 'rutina' && !frm.semanas) frm.semanas = 4;
+    pintarForm();
+    document.getElementById('modal').classList.remove('hidden');
+}
+
+function pintarForm() {
+    const f = frm;
+    const edit = !!f.id;
+    const tipoCard = (k) => { const t = TIPOS[k]; return `
+        <button type="button" ${edit ? 'disabled' : ''} onclick="frm.tipo='${k}'; pintarForm()" class="tipo-card ${f.tipo === k ? 'on' : ''} ${edit && f.tipo !== k ? 'opacity-40' : ''}">
+            <div class="flex items-center gap-2"><span class="w-8 h-8 rounded-lg flex items-center justify-center ${t.chip}"><i data-lucide="${t.icon}" class="w-4 h-4"></i></span>
+            <div><p class="text-xs font-bold text-gray-800">${t.label}</p><p class="text-[10px] text-gray-500 leading-tight">${t.desc}</p></div></div>
+        </button>`; };
+
+    let cuando = '';
+    if (f.tipo === 'rutina' && !edit) {
+        cuando = `
+        <div class="space-y-3">
+            <div><label class="lbl">Dias de compra</label><div class="flex flex-wrap gap-1.5">
+                ${[1,2,3,4,5,6,0].map(d => `<button type="button" onclick="toggleDia(${d})" class="day ${f.dias.includes(d) ? 'on' : ''}">${DIAS[d].slice(0,1).toUpperCase() + DIAS[d].slice(1)}</button>`).join('')}
+            </div></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Desde</label><input type="date" class="inp" value="${f.fecha}" onchange="frm.fecha=this.value; pintarForm()"></div>
+                <div><label class="lbl">Programar las proximas</label><select class="inp" onchange="frm.semanas=+this.value; pintarForm()">${[2,4,8,12].map(n => `<option value="${n}" ${f.semanas === n ? 'selected' : ''}>${n} semanas</option>`).join('')}</select></div>
+            </div>
+            <p class="text-[11px] text-gray-500 flex items-center gap-1"><i data-lucide="info" class="w-3 h-3"></i> Se crearan <b class="text-gray-700">${fechasRutina(f).length}</b> compras: ${fechasRutina(f).slice(0, 4).map(x => fmt(x, false)).join(', ')}${fechasRutina(f).length > 4 ? '...' : ''}</p>
+        </div>`;
+    } else {
+        const lbl = f.tipo === 'programada' ? 'Fecha de compra' : 'Fecha';
+        const hint = f.tipo === 'esporadica' ? 'Normalmente hoy. Si ya se compro, usa "Capturar directo".' : f.tipo === 'programada' ? 'Compra unos dias antes de la fecha de venta.' : 'Solo esta fecha (para cambiar toda la rutina, crea una nueva).';
+        cuando = `<div class="grid grid-cols-2 gap-3"><div><label class="lbl">${lbl}</label><input type="date" class="inp" value="${f.fecha}" onchange="frm.fecha=this.value"></div><p class="text-[11px] text-gray-500 self-end pb-2">${hint}</p></div>`;
+    }
+
+    const plantillas = [...new Map(compras.filter(c => c.items.length && c.id !== f.id).sort((a, b) => b.fecha.localeCompare(a.fecha)).map(c => [c.nombre, c])).values()];
+
+    document.getElementById('modal').innerHTML = `
+    <div class="w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col my-auto max-h-[95vh] overflow-hidden">
+        <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center"><i data-lucide="${edit ? 'pencil' : 'shopping-cart'}" class="w-4 h-4 text-blue-700"></i></span>
+                <div><h2 class="text-sm font-bold text-gray-800">${edit ? 'Editar ' + f.folio : f.origen ? 'Retomar ' + f.origen : 'Nueva compra'}</h2><p class="text-[11px] text-gray-500">Que se compra, cuando y quien surte</p></div>
+            </div>
+            <button onclick="cerrarModal()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="overflow-y-auto px-5 py-4 flex-1 space-y-4">
+            <div><label class="lbl">Tipo de compra</label><div class="grid grid-cols-1 sm:grid-cols-3 gap-2">${Object.keys(TIPOS).map(tipoCard).join('')}</div></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div><label class="lbl">Nombre</label><input id="fNombre" class="inp" value="${f.nombre}" placeholder="${f.tipo === 'rutina' ? 'Ej. Surtido semanal panaderia' : f.tipo === 'programada' ? 'Ej. Roscas de Reyes' : 'Ej. Gas y garrafones'}" oninput="frm.nombre=this.value"></div>
+                <div><label class="lbl">Copiar materiales de <span class="normal-case text-gray-400">(opcional)</span></label>
+                    <select class="inp" onchange="copiarDe(+this.value)"><option value="">-- Elegir compra anterior --</option>${plantillas.map(p => `<option value="${p.id}">${p.folio} · ${p.nombre}</option>`).join('')}</select></div>
+            </div>
+            ${cuando}
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Quien surte</label><select class="inp" onchange="frm.surte=this.value">${PERSONAS.map(p => `<option ${p === f.surte ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+                <div><label class="lbl">Almacen destino</label><select class="inp" onchange="frm.almacen=this.value">${ALMACENES.map(a => `<option ${a === f.almacen ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
+            </div>
+            <div>
+                <label class="lbl">Materiales</label>
+                <div class="relative mb-2">
+                    <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-[9px]"></i>
+                    <input id="buscaProd" class="inp" style="padding-left:2rem" placeholder="Buscar producto para agregar..." oninput="sugerir(this.value)" autocomplete="off">
+                    <div id="sugerencias" class="hidden absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-56 overflow-y-auto"></div>
+                </div>
+                <div id="formItems"></div>
+            </div>
+            <div><label class="lbl">Nota para quien surte <span class="normal-case text-gray-400">(opcional)</span></label><textarea rows="2" class="inp resize-none" oninput="frm.nota=this.value" placeholder="Ej. la mantequilla en la cremeria de siempre">${f.nota || ''}</textarea></div>
+        </div>
+        <div class="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+            <button onclick="cerrarModal()" class="px-3.5 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
+            <button onclick="guardarForm()" class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5"></i> ${edit ? 'Guardar cambios' : f.tipo === 'rutina' ? 'Programar rutina' : 'Guardar compra'}</button>
+        </div>
+    </div>`;
+    pintarItems();
+    lucide.createIcons();
+}
+
+function pintarItems() {
+    const el = document.getElementById('formItems');
+    if (!frm.items.length) { el.innerHTML = `<div class="border border-dashed border-gray-300 rounded-lg py-6 text-center text-xs text-gray-400">Busca productos o copia los de una compra anterior</div>`; return; }
+    el.innerHTML = `
+    <div class="border border-gray-200 rounded-lg overflow-hidden">
+        <table class="w-full text-xs">
+            <thead><tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider"><th class="text-left font-semibold px-3 py-2">Producto</th><th class="text-center font-semibold px-3 py-2 w-28">Cantidad</th><th class="text-center font-semibold px-3 py-2 w-16">Unidad</th><th class="w-10"></th></tr></thead>
+            <tbody class="divide-y divide-gray-100">
+            ${frm.items.map((i, k) => `<tr>
+                <td class="px-3 py-1.5 font-medium text-gray-700">${i.nombre}</td>
+                <td class="px-3 py-1.5"><input type="number" min="0" step="any" class="cell no-spin" value="${i.cant}" oninput="frm.items[${k}].cant=+this.value"></td>
+                <td class="text-center text-gray-500">${i.unidad}</td>
+                <td class="text-center"><button onclick="frm.items.splice(${k},1); pintarItems(); lucide.createIcons()" class="text-gray-300 hover:text-rose-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+            </tr>`).join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+function sugerir(q) {
+    const box = document.getElementById('sugerencias');
+    q = q.trim().toLowerCase();
+    const res = q ? CATALOGO.filter(p => p.nombre.toLowerCase().includes(q)).slice(0, 8) : [];
+    if (!res.length) { box.classList.add('hidden'); return; }
+    box.innerHTML = res.map(p => `<div onclick="agregarProd(${p.id})" class="flex items-center justify-between px-3 py-2 hover:bg-blue-50 cursor-pointer text-xs"><span class="text-gray-700">${p.nombre}</span><span class="text-blue-700 font-semibold flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> ${p.unidad}</span></div>`).join('');
+    box.classList.remove('hidden');
+    lucide.createIcons();
+}
+function agregarProd(pid) {
+    const p = CATALOGO.find(x => x.id === pid);
+    const ex = frm.items.find(i => i.pid === pid);
+    ex ? ex.cant++ : frm.items.push({ pid, nombre: p.nombre, unidad: p.unidad, cant: 1 });
+    document.getElementById('buscaProd').value = '';
+    document.getElementById('sugerencias').classList.add('hidden');
+    pintarItems(); lucide.createIcons();
+}
+function copiarDe(id) {
+    const c = byId(id); if (!c) return;
+    frm.items = c.items.map(i => ({ pid: i.pid, nombre: i.nombre, unidad: i.unidad, cant: i.cant }));
+    if (!frm.nombre) frm.nombre = c.nombre;
+    pintarForm();
+    toast(`Materiales copiados de ${c.folio}`);
+}
+function toggleDia(d) { const i = frm.dias.indexOf(d); i >= 0 ? frm.dias.splice(i, 1) : frm.dias.push(d); pintarForm(); }
+function fechasRutina(f) {
+    const out = [], fin = addDays(f.fecha, f.semanas * 7);
+    for (let x = f.fecha; x < fin; x = addDays(x, 1)) if (f.dias.includes(parse(x).getDay())) out.push(x);
+    return out;
+}
+
+function guardarForm() {
+    const f = frm;
+    f.nombre = (f.nombre || '').trim();
+    if (!f.nombre) return toast('Ponle un nombre a la compra', true);
+    if (!f.items.length) return toast('Agrega al menos un material', true);
+    if (f.items.some(i => !(i.cant > 0))) return toast('Revisa las cantidades', true);
+
+    if (f.id) {
+        Object.assign(byId(f.id), { nombre: f.nombre, fecha: f.fecha, surte: f.surte, almacen: f.almacen, nota: f.nota, items: f.items });
+        toast(`${f.folio} actualizada`);
+    } else if (f.tipo === 'rutina') {
+        const fechas = fechasRutina(f);
+        if (!fechas.length) return toast('Elige al menos un dia de la semana', true);
+        const serie = 'S' + Date.now();
+        let first;
+        fechas.forEach(fe => {
+            const c = { id: Date.now() + Math.random(), folio: nextFolio(), tipo: 'rutina', nombre: f.nombre, fecha: fe, serie, dias: [...f.dias], surte: f.surte, almacen: f.almacen, nota: f.nota, origen: f.origen, estado: 'programada', items: JSON.parse(JSON.stringify(f.items)) };
+            compras.push(c); first = first || c;
+        });
+        state.sel = first.id;
+        toast(`Rutina programada: ${fechas.length} compras`);
+    } else {
+        const c = { id: Date.now(), folio: nextFolio(), tipo: f.tipo, nombre: f.nombre, fecha: f.fecha, serie: null, surte: f.surte, almacen: f.almacen, nota: f.nota, origen: f.origen, estado: 'programada', items: f.items };
+        compras.push(c); state.sel = c.id;
+        toast(`${c.folio} creada`);
+    }
+    state.mes = (byId(state.sel)?.fecha || HOY).slice(0, 7);
+    save(); cerrarModal(); render();
+}
+
+// Misma fecha (dia y mes) en el siguiente año que aun no pase: las roscas del 05 ene se retoman para el proximo enero.
+function mismaFechaFutura(f) {
+    let d = parse(f);
+    while (iso(d) <= HOY) d.setFullYear(d.getFullYear() + 1);
+    return iso(d);
+}
+function retomar(id) { const c = byId(id); abrirForm(null, null, c); }
+function cancelar(id) { const c = byId(id); if (!confirm(`¿Cancelar ${c.folio}?`)) return; c.estado = 'cancelada'; save(); render(); toast(`${c.folio} cancelada`); }
+
+// -- Modal: captura --
+let cap = null;
+function abrirCaptura(id) {
+    const c = byId(id);
+    cap = { id, fecha: c.fecha <= HOY ? HOY : c.fecha, surte: c.surte, almacen: c.almacen, nota: '', items: c.items.map(i => ({ ...i, surt: i.surt ?? i.cant, costo: i.costo ?? '', prov: i.prov || '' })) };
+    pintarCaptura();
+    document.getElementById('modal').classList.remove('hidden');
+}
+function pintarCaptura() {
+    const c = byId(cap.id);
+    document.getElementById('modal').innerHTML = `
+    <div class="w-full max-w-4xl bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col my-auto max-h-[95vh] overflow-hidden">
+        <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center"><i data-lucide="clipboard-check" class="w-4 h-4 text-blue-700"></i></span>
+                <div><h2 class="text-sm font-bold text-gray-800">Capturar surtido</h2><p class="text-[11px] text-gray-500"><b class="text-gray-700">${c.folio}</b> · ${c.nombre} · ${fmt(c.fecha)}</p></div>
+            </div>
+            <button onclick="cerrarModal()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="overflow-y-auto px-5 py-4 flex-1">
+            <div class="mb-4 flex items-start gap-2.5 rounded-lg border-l-4 border-blue-600 bg-blue-600/5 px-3.5 py-2.5">
+                <i data-lucide="info" class="w-4 h-4 text-blue-700 mt-0.5 flex-shrink-0"></i>
+                <p class="text-[11px] text-gray-600">Copia lo anotado en la hoja. Si algo no se consiguio, pon 0. Al confirmar se genera una <b class="text-gray-800">entrada al almacen</b> con lo surtido.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <div><label class="lbl">Surtio</label><select class="inp" onchange="cap.surte=this.value">${PERSONAS.map(p => `<option ${p === cap.surte ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+                <div><label class="lbl">Fecha de surtido</label><input type="date" class="inp" value="${cap.fecha}" onchange="cap.fecha=this.value"></div>
+                <div><label class="lbl">Almacen destino</label><select class="inp" onchange="cap.almacen=this.value">${ALMACENES.map(a => `<option ${a === cap.almacen ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
+            </div>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <table class="w-full text-xs">
+                    <thead><tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2">Producto</th><th class="text-center font-semibold px-3 py-2 w-20">Pedido</th>
+                        <th class="text-center font-semibold px-3 py-2 w-24">Surtido</th><th class="text-center font-semibold px-3 py-2 w-28">Costo total</th>
+                        <th class="text-left font-semibold px-3 py-2 w-44">Proveedor</th>
+                    </tr></thead>
+                    <tbody id="capRows" class="divide-y divide-gray-100"></tbody>
+                </table>
+                <div class="px-3 py-2 border-t border-gray-100 relative">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-blue-700"></i>
+                        <input id="capExtra" class="text-[11px] outline-none flex-1 placeholder:text-blue-700 placeholder:font-semibold" placeholder="Agregar algo que se compro de mas..." oninput="sugerirExtra(this.value)" autocomplete="off">
+                    </div>
+                    <div id="sugExtra" class="hidden absolute z-10 left-3 right-3 bottom-full mb-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto"></div>
+                </div>
+            </div>
+            <div class="mt-4"><label class="lbl">Nota <span class="text-gray-400 normal-case">(opcional)</span></label><textarea rows="2" class="inp resize-none" oninput="cap.nota=this.value" placeholder="Faltantes, cambios de precio, etc."></textarea></div>
+            <div id="capResumen" class="mt-4 flex flex-wrap items-center justify-end gap-6 text-xs"></div>
+        </div>
+        <div class="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+            <button onclick="cerrarModal()" class="px-3.5 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
+            <button onclick="confirmarCaptura()" class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center gap-1.5"><i data-lucide="package-check" class="w-3.5 h-3.5"></i> Confirmar y dar entrada</button>
+        </div>
+    </div>`;
+    pintarCapRows();
+}
+function pintarCapRows() {
+    document.getElementById('capRows').innerHTML = cap.items.map((i, k) => {
+        const s = Number(i.surt) || 0;
+        const st = s >= i.cant && i.cant > 0 ? ['check-circle-2', 'text-green-600', ''] : s > 0 ? ['circle-dashed', 'text-orange-400', 'bg-orange-500/5'] : i.cant === 0 ? ['plus-circle', 'text-blue-600', 'bg-blue-50/50'] : ['x-circle', 'text-rose-400', 'bg-rose-500/5'];
+        return `<tr class="${st[2]}">
+            <td class="px-3 py-2"><div class="flex items-center gap-2"><i data-lucide="${st[0]}" class="w-4 h-4 ${st[1]} flex-shrink-0"></i><span class="font-medium text-gray-700">${i.nombre}</span>${i.cant === 0 ? '<span class="text-[10px] text-blue-700 font-semibold">extra</span>' : ''}</div></td>
+            <td class="text-center text-gray-600">${i.cant ? i.cant + ' ' + i.unidad : '—'}</td>
+            <td class="px-3 py-1.5"><input type="number" min="0" step="any" class="cell no-spin" value="${i.surt}" onchange="cap.items[${k}].surt=+this.value; pintarCapRows()"></td>
+            <td class="px-3 py-1.5"><input type="number" min="0" step="any" class="cell no-spin" value="${i.costo}" placeholder="0.00" oninput="cap.items[${k}].costo=this.value; pintarResumen()"></td>
+            <td class="px-3 py-1.5"><input class="inp" value="${i.prov}" placeholder="${s ? 'Donde se compro' : 'No se consiguio'}" oninput="cap.items[${k}].prov=this.value"></td>
+        </tr>`;
+    }).join('');
+    pintarResumen();
+    lucide.createIcons();
+}
+function pintarResumen() {
+    const it = cap.items.filter(i => i.cant > 0);
+    const comp = it.filter(i => (+i.surt || 0) >= i.cant).length;
+    const parc = it.filter(i => (+i.surt || 0) > 0 && (+i.surt) < i.cant).length;
+    const no   = it.filter(i => !(+i.surt)).length;
+    const tot  = cap.items.reduce((s, i) => s + (Number(i.costo) || 0), 0);
+    document.getElementById('capResumen').innerHTML = `
+        <div><span class="text-gray-500">Completo: </span><b class="text-green-600">${comp}</b></div>
+        <div><span class="text-gray-500">Parcial: </span><b class="text-orange-500">${parc}</b></div>
+        <div><span class="text-gray-500">No surtido: </span><b class="text-rose-500">${no}</b></div>
+        <div class="text-sm"><span class="text-gray-500">Total gastado: </span><b class="text-gray-800">${money(tot)}</b></div>`;
+}
+function sugerirExtra(q) {
+    const box = document.getElementById('sugExtra');
+    q = q.trim().toLowerCase();
+    const res = q ? CATALOGO.filter(p => p.nombre.toLowerCase().includes(q)).slice(0, 6) : [];
+    if (!res.length) { box.classList.add('hidden'); return; }
+    box.innerHTML = res.map(p => `<div onclick="agregarExtra(${p.id})" class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-xs text-gray-700">${p.nombre}</div>`).join('');
+    box.classList.remove('hidden');
+}
+function agregarExtra(pid) {
+    const p = CATALOGO.find(x => x.id === pid);
+    cap.items.push({ pid, nombre: p.nombre, unidad: p.unidad, cant: 0, surt: 1, costo: '', prov: '' });
+    document.getElementById('capExtra').value = '';
+    document.getElementById('sugExtra').classList.add('hidden');
+    pintarCapRows();
+}
+function confirmarCaptura() {
+    if (cap.items.some(i => (+i.surt) > 0 && !(+i.costo > 0))) return toast('Falta el costo de algun producto surtido', true);
+    const c = byId(cap.id);
+    const entrada = 'ENT-' + pad(Math.max(0, ...compras.filter(x => x.entrada).map(x => +x.entrada.slice(4))) + 1).padStart(4, '0');
+    Object.assign(c, { estado: 'capturada', surte: cap.surte, almacen: cap.almacen, entrada, nota: [c.nota, cap.nota].filter(Boolean).join(' · '),
+        items: cap.items.map(i => ({ ...i, surt: +i.surt || 0, costo: +i.costo || 0 })) });
+    save(); cerrarModal(); render();
+    toast(`${c.folio} capturada · entrada ${entrada} generada`);
+}
+
+// -- Hoja de surtido (impresion) --
+function imprimir(id) {
+    const c = byId(id);
+    const filas = c.items.map((i, k) => `<tr><td class="n">${k + 1}</td><td>${i.nombre}</td><td class="c b">${i.cant} ${i.unidad}</td><td><div class="l"></div></td><td><div class="l"></div></td><td><div class="l"></div></td></tr>`).join('')
+        + [1, 2].map(k => `<tr><td class="n g">${c.items.length + k}</td><td><div class="l"></div></td><td><div class="l"></div></td><td><div class="l"></div></td><td><div class="l"></div></td><td><div class="l"></div></td></tr>`).join('');
+    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Hoja ${c.folio}</title>
+    <style>
+        @page{size:letter;margin:14mm} *{box-sizing:border-box} body{font-family:Inter,Arial,sans-serif;color:#111;font-size:12px;margin:0}
+        .bar{display:flex;justify-content:flex-end;gap:8px;padding:10px;background:#f3f4f6;border-bottom:1px solid #e5e7eb}
+        .bar button{padding:6px 14px;border-radius:6px;border:1px solid #d1d5db;background:#fff;font-weight:600;cursor:pointer}
+        .bar .p{background:#C05A40;color:#fff;border-color:#C05A40} .hoja{max-width:190mm;margin:0 auto;padding:16px 0}
+        .hd{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:10px} h1{font-size:20px;margin:2px 0}
+        .k{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#666;font-weight:700} .muted{color:#555}
+        .meta{display:flex;gap:40px;margin:10px 0} .nota{border:1px solid #bbb;border-radius:4px;padding:6px 10px;margin:8px 0}
+        table{width:100%;border-collapse:collapse;margin-top:12px} th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:8px 6px;border-top:2px solid #111;border-bottom:2px solid #111}
+        td{padding:10px 6px;border-bottom:1px solid #ccc} .c{text-align:center} .b{font-weight:700} .n{width:24px;color:#666;text-align:center} .g{color:#bbb}
+        .l{border-bottom:1px solid #888;height:18px} .tot td{border-top:2px solid #111;border-bottom:none;font-weight:700}
+        .firmas{display:flex;gap:60px;margin-top:70px;text-align:center} .firmas div{flex:1;border-top:1px solid #111;padding-top:6px}
+        @media print{.bar{display:none}.hoja{padding:0}}
+    </style></head><body>
+    <div class="bar"><button onclick="window.close()">Cerrar</button><button class="p" onclick="window.print()">Imprimir</button></div>
+    <div class="hoja">
+        <div class="hd"><div><div class="k">Hoja de surtido · ${TIPOS[c.tipo].label}</div><h1>${c.nombre}</h1><div class="muted">${c.almacen}</div></div>
+        <div style="text-align:right"><div style="font-size:18px;font-weight:800">${c.folio}</div><div class="muted">Fecha de compra: <b>${fmt(c.fecha)}</b></div><div class="muted">Impresa: ${fmt(HOY)}</div></div></div>
+        <div class="meta"><div><span class="muted">Surte:</span> <b>${c.surte}</b></div>${c.origen ? `<div><span class="muted">Retoma:</span> <b>${c.origen}</b></div>` : ''}</div>
+        ${c.nota ? `<div class="nota"><b>Nota:</b> ${c.nota}</div>` : ''}
+        <table><thead><tr><th>#</th><th>Producto</th><th class="c" style="width:80px">Pedido</th><th style="width:90px">Surtido</th><th style="width:100px">Costo total</th><th style="width:140px">Donde / proveedor</th></tr></thead>
+        <tbody>${filas}</tbody><tfoot><tr class="tot"><td colspan="4" style="text-align:right">TOTAL GASTADO</td><td><div class="l"></div></td><td></td></tr></tfoot></table>
+        <p class="muted" style="font-size:10px">Si algo no se consiguio, anota 0 en "Surtido". Engrapa los tickets al reverso de esta hoja.</p>
+        <div class="firmas"><div><b>${c.surte}</b><br><span class="muted">Surtio · fecha y firma</span></div><div><b>Recibe en almacen</b><br><span class="muted">Nombre, fecha y firma</span></div></div>
+    </div></body></html>`;
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (w) { w.document.write(html); w.document.close(); }
+    if (c.estado === 'programada') { c.estado = 'surtido'; save(); render(); toast(`${c.folio} pasa a En surtido`); }
+}
+
+// -- Utilidades --
+function cerrarModal() { document.getElementById('modal').classList.add('hidden'); document.getElementById('modal').innerHTML = ''; frm = cap = null; }
+let toastT;
+function toast(msg, error) {
+    const t = document.getElementById('toast');
+    t.className = `fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg text-white text-xs font-semibold shadow-xl flex items-center gap-2 ${error ? 'bg-rose-600' : 'bg-gray-900'}`;
+    t.innerHTML = `<i data-lucide="${error ? 'alert-circle' : 'check-circle-2'}" class="w-4 h-4"></i>${msg}`;
+    lucide.createIcons();
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && frm !== null || e.key === 'Escape' && cap !== null) cerrarModal(); });
+
+render();
 </script>
 </body>
 </html>
