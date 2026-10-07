@@ -752,11 +752,23 @@ body.dark-mode [id*="container"] {
     background-color: transparent !important;
 }
 
-/* Módulos con visor lateral (.cs-visor: Entradas, Salidas). Dentro de la
-   tarjeta no van franjas del color de página: el bg-gray-50 de la fila de KPIs
-   y del visor quedaba como hueco negro. Escala de Huubie (PALETTE.md): tarjeta
-   #1F2A37 → elevado #283341 (cards de KPI, totales) y el visor un nivel abajo
-   (--dk-sunken, #1a2332), que lo separa de la tabla sin línea. */
+/* Módulos con visor lateral (.cs-visor: Entradas, Salidas, Movimientos, Órdenes,
+   Solicitudes, Stock, Traspasos). Dentro de la tarjeta no van franjas del color
+   de página ni líneas de contenedor: el bg-gray-50 de la fila de KPIs y del visor
+   quedaba como hueco negro. Escala de Huubie (PALETTE.md): tarjeta #1F2A37 →
+   elevado #283341 (cards de KPI, tarjetas del visor, totales) y el visor un nivel
+   abajo (--dk-sunken, #1a2332), que lo separa de la tabla sin línea. Las demás
+   líneas del visor (renglones, línea de tiempo) se quedan. */
+body.dark-mode .cs-visor,
+body.dark-mode .cs-visor #mainPanel > *,
+body.dark-mode .cs-visor #kpisRow [data-kpi-idx],
+body.dark-mode .cs-visor #detailPanel,
+body.dark-mode .cs-visor #detailPanel .border-t.border-gray-200,
+body.dark-mode .cs-visor #detailPanel .border-b.border-gray-200,
+body.dark-mode .cs-visor #detailPanel .border.border-gray-200 {
+    border-color: transparent !important;
+}
+
 body.dark-mode .cs-visor #kpisRow {
     background-color: transparent !important;
 }
@@ -770,23 +782,37 @@ body.dark-mode .cs-visor #detailPanel {
     border-radius: 0.5rem;
 }
 
-body.dark-mode .cs-visor #detailPanel .bg-gray-50 {
+/* Franjas del visor (encabezado, resumen): toman el fondo del visor. */
+body.dark-mode .cs-visor #detailPanel .bg-gray-50,
+body.dark-mode .cs-visor #detailPanel .bg-gray-50\/50,
+body.dark-mode .cs-visor #detailPanel .bg-gray-50\/60,
+body.dark-mode .cs-visor #detailPanel .bg-gray-50\/80 {
     background-color: transparent !important;
 }
 
+/* Tarjetas del visor (las de borde completo) y totales: un nivel arriba; la
+   línea pasa a superficie. Ganan a la franja aunque traigan bg-gray-50. */
+body.dark-mode .cs-visor #detailPanel .border.border-gray-200,
 body.dark-mode .cs-visor #detailPanel .cs-visor-totals {
     background-color: var(--dk-row) !important;
 }
 
-/* Cancelar / Eliminar del visor: velo rojo y no el rosa sólido, que competía
-   con el primario (Editar) de al lado. */
-body.dark-mode .cs-visor #detailPanel .bg-rose-600 {
-    background-color: rgb(244 63 94 / .14) !important;
+/* Cancelar / Rechazar / Eliminar del visor: velo rojo y no el sólido, que
+   competía con el primario (Editar, Surtir) de al lado. Unos traen bg-rose-600
+   y otros el color en línea (ordenes, traspasos): se reconocen por el id. */
+body.dark-mode .cs-visor #detailPanel .bg-rose-600,
+body.dark-mode .cs-visor #detailPanel [id$="_cancel"],
+body.dark-mode .cs-visor #detailPanel [id$="_reject"],
+body.dark-mode .cs-visor #detailPanel [id$="_delete"] {
+    background: rgb(244 63 94 / .14) !important;
     color: #FDA4AF !important;
 }
 
-body.dark-mode .cs-visor #detailPanel .bg-rose-600:hover {
-    background-color: rgb(244 63 94 / .24) !important;
+body.dark-mode .cs-visor #detailPanel .bg-rose-600:hover,
+body.dark-mode .cs-visor #detailPanel [id$="_cancel"]:hover,
+body.dark-mode .cs-visor #detailPanel [id$="_reject"]:hover,
+body.dark-mode .cs-visor #detailPanel [id$="_delete"]:hover {
+    background: rgb(244 63 94 / .24) !important;
 }
 
 /* Barra de pestañas de la variante oscura de tabLayout (#19232D): es la de

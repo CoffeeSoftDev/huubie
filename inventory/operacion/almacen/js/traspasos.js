@@ -47,6 +47,7 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.visorResize({ key: 'traspasos', label: 'Ancho del detalle del traspaso' });
         this.filterBar();
         this.renderHeader();
         traspasosView.renderDetail(null);
@@ -96,10 +97,19 @@ class App extends Templates {
             ]
         };
 
+        // Tirador entre la tabla y el visor (visorResize). Los dos arrancan ocultos
+        // (!hidden le gana a md:block y a flex): la tabla toma todo el ancho hasta
+        // que se abre un traspaso (toggleVisor).
+        const detailResizer = {
+            type:  'div',
+            id:    'detailResizer',
+            class: "!hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
+        };
+
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: 'w-full md:w-[400px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
+            class: '!hidden w-full md:w-[var(--traspasos-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 border-gray-200 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'detailContent',
@@ -114,10 +124,14 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
-                container: [mainPanel, detailPanel]
+                class:     'cs-visor flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
+                container: [mainPanel, detailResizer, detailPanel]
             }
         });
+    }
+
+    toggleVisor(show) {
+        $('#detailPanel, #detailResizer').toggleClass('!hidden', !show);
     }
 
     filterBar() {
@@ -721,6 +735,7 @@ class TraspasosView extends Templates {
             onCancel:  (t) => traspasos.cancelTraspaso(t && t.id),
             onPrint:   (t) => traspasos.printTraspaso(t)
         });
+        app.toggleVisor(!!traspaso);
     }
 
     renderInfoCards(rows, activeId) {

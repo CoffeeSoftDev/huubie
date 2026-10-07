@@ -6913,6 +6913,72 @@ class Templates extends Components {
         });
     }
 
+    // Tirador entre la tabla y el visor lateral (detailPanel). Arrastrarlo cambia el
+    // ancho del visor y la tabla toma el resto. El ancho vive en --{key}-detail-w
+    // (el panel lo usa en md:w-[var(--{key}-detail-w,420px)]) y se recuerda por
+    // módulo en localStorage. Sin ancho guardado, en laptop (< 1600 px) arranca
+    // más angosto.
+    visorResize(options) {
+        const opts = Object.assign({
+            key:    'detail',
+            handle: 'detailResizer',
+            panel:  'detailPanel',
+            label:  'Ancho del detalle',
+            width:  window.innerWidth < 1600 ? 340 : 420,
+            min:    300,
+            max:    760
+        }, options || {});
+
+        const handle  = document.getElementById(opts.handle);
+        const panel   = document.getElementById(opts.panel);
+        const storage = `inventory:${opts.key}:detailWidth`;
+        if (!handle || !panel) return;
+
+        const apply = (px, save) => {
+            const width = Math.round(Math.min(opts.max, Math.max(opts.min, px)));
+            document.documentElement.style.setProperty(`--${opts.key}-detail-w`, `${width}px`);
+
+            if (!save) return;
+            try {
+                localStorage.setItem(storage, width);
+            } catch (e) { }
+        };
+
+        let saved = 0;
+        try {
+            saved = Number(localStorage.getItem(storage)) || 0;
+        } catch (e) { }
+
+        apply(saved > 0 ? saved : opts.width, false);
+        handle.setAttribute('role', 'separator');
+        handle.setAttribute('aria-orientation', 'vertical');
+        handle.setAttribute('aria-label', opts.label);
+
+        const move = (e) => apply(panel.getBoundingClientRect().right - e.clientX, false);
+
+        handle.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+
+            e.preventDefault();
+            handle.setPointerCapture(e.pointerId);
+            handle.classList.add('after:bg-blue-600');
+            document.body.style.cursor     = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            const release = () => {
+                handle.classList.remove('after:bg-blue-600');
+                document.body.style.cursor     = '';
+                document.body.style.userSelect = '';
+                handle.removeEventListener('pointermove', move);
+                apply(panel.getBoundingClientRect().width, true);
+            };
+
+            handle.addEventListener('pointermove', move);
+            handle.addEventListener('pointerup', release, { once: true });
+            handle.addEventListener('pointercancel', release, { once: true });
+        });
+    }
+
 }
 
 // Archivo guardado con ruta relativa a inventory/ (ej. item.image =

@@ -67,7 +67,7 @@ class App extends Templates {
 
     render() {
         this.layout();
-        this.resizePanel();
+        this.visorResize({ key: 'entradas', label: 'Ancho del detalle de recepción' });
         this.filterBar();
         entradasView.renderDetail(null);
         this.populateFilters();
@@ -152,62 +152,6 @@ class App extends Templates {
                 container: [mainPanel, detailResizer, detailPanel]
             }
         });
-    }
-
-    // Arrastrar el tirador cambia el ancho del visor y la tabla toma el resto.
-    // Sin ancho guardado, en laptop (< 1600 px) el visor arranca más angosto.
-    resizePanel() {
-        const handle = document.getElementById('detailResizer');
-        const panel  = document.getElementById('detailPanel');
-        if (!handle || !panel) return;
-
-        this.applyPanelWidth(this.savedPanelWidth() || (window.innerWidth < 1600 ? 340 : 420), false);
-        handle.setAttribute('role', 'separator');
-        handle.setAttribute('aria-orientation', 'vertical');
-        handle.setAttribute('aria-label', 'Ancho del detalle de recepción');
-
-        const move = (e) => this.applyPanelWidth(panel.getBoundingClientRect().right - e.clientX, false);
-
-        handle.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0) return;
-
-            e.preventDefault();
-            handle.setPointerCapture(e.pointerId);
-            handle.classList.add('after:bg-blue-600');
-            document.body.style.cursor     = 'col-resize';
-            document.body.style.userSelect = 'none';
-
-            const release = () => {
-                handle.classList.remove('after:bg-blue-600');
-                document.body.style.cursor     = '';
-                document.body.style.userSelect = '';
-                handle.removeEventListener('pointermove', move);
-                this.applyPanelWidth(panel.getBoundingClientRect().width, true);
-            };
-
-            handle.addEventListener('pointermove', move);
-            handle.addEventListener('pointerup', release, { once: true });
-            handle.addEventListener('pointercancel', release, { once: true });
-        });
-    }
-
-    applyPanelWidth(px, save) {
-        const width = Math.round(Math.min(760, Math.max(300, px)));
-        document.documentElement.style.setProperty('--entradas-detail-w', `${width}px`);
-
-        if (!save) return;
-        try {
-            localStorage.setItem('inventory:entradas:detailWidth', width);
-        } catch (e) { }
-    }
-
-    savedPanelWidth() {
-        try {
-            const px = Number(localStorage.getItem('inventory:entradas:detailWidth'));
-            return px > 0 ? px : null;
-        } catch (e) {
-            return null;
-        }
     }
 
     filterBar() {

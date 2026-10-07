@@ -52,6 +52,7 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.visorResize({ key: 'ordenes', label: 'Ancho del detalle de la orden' });
         this.filterBar();
         ordenesView.renderHeader({
             title:    'Ordenes de Compra',
@@ -88,10 +89,19 @@ class App extends Templates {
             ]
         };
 
+        // Tirador entre la tabla y el visor (visorResize). Los dos arrancan ocultos
+        // (!hidden le gana a md:block y a flex): la tabla toma todo el ancho hasta
+        // que se abre una orden (toggleVisor).
+        const detailResizer = {
+            type:  'div',
+            id:    'detailResizer',
+            class: "!hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
+        };
+
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: 'w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
+            class: '!hidden w-full md:w-[var(--ordenes-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 border-gray-200 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -109,10 +119,14 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
-                container: [mainPanel, detailPanel]
+                class:     'cs-visor flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
+                container: [mainPanel, detailResizer, detailPanel]
             }
         });
+    }
+
+    toggleVisor(show) {
+        $('#detailPanel, #detailResizer').toggleClass('!hidden', !show);
     }
 
     filterBar() {
@@ -555,6 +569,8 @@ class OrdenesView extends Templates {
     // Panel de detalle (aside derecho)
     // ----------------------------------------------------------
 
+    // Ver abre el visor; la X, un cambio de estado que cierra la orden o un error
+    // al cargarla lo ocultan.
     renderDetail(orden) {
         this.ordenDetailPanel({
             parent:  'detailPanel',
@@ -568,6 +584,7 @@ class OrdenesView extends Templates {
             onRecibir:       (o) => (String(o && o.folio || '').startsWith('REAB-') ? this.openRecepcionModal(o) : this.openSurtidoModal(o)),
             onCancel:        (o) => this.doCancelOrden(o)
         });
+        app.toggleVisor(!!orden);
     }
 
     // ----------------------------------------------------------
@@ -1964,7 +1981,7 @@ class OrdenesView extends Templates {
                 </div>
 
                 <!-- Totales -->
-                <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                <div class="cs-visor-totals px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                     <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
                         <span>Unidades</span>
                         <span class="font-semibold text-gray-700">${fmtNum(totUds)}</span>
