@@ -166,8 +166,9 @@ class mdl extends CRUD {
     // Listado / KPIs de ordenes
     // -----------------------------------------------------------------------
 
+    // Las compras (folio CP-) comparten la tabla pero se gestionan en Compras.
     function qOrdenes($array) {
-        $where = 'po.active = 1 AND po.companies_id = ?';
+        $where = "po.active = 1 AND po.companies_id = ? AND po.folio NOT LIKE 'CP-%'";
         $data  = [$array['companies_id']];
 
         if (!empty($array['branch_id'])) {
@@ -239,7 +240,7 @@ class mdl extends CRUD {
     }
 
     function getOrdenKpis($array) {
-        $where = 'po.active = 1 AND po.companies_id = ?';
+        $where = "po.active = 1 AND po.companies_id = ? AND po.folio NOT LIKE 'CP-%'";
         $data  = [$array['companies_id']];
 
         if (!empty($array['branch_id'])) {
