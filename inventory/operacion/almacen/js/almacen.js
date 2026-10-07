@@ -240,7 +240,7 @@ class Productos extends Templates {
                     color_btn: "primary",
                     onClick: () => this.addMaterial()
                 },
-                // CoffeeIA ya no va aquí: es el ícono al pie del menú lateral (AsistenteProductos.renderLauncher).
+                // CoffeeIA ya no va aquí: es el ícono de la navbar (AsistenteProductos.renderLauncher).
                 // Color fijo, no del tema: el verde de Excel va en hex. El `!` gana al color del preset.
                 {
                     opc: "button",
@@ -1244,47 +1244,19 @@ class AsistenteProductos extends Templates {
 
     // -- Interface --
 
-    // coffeeIA en el riel del menú, en la esquina de abajo (el espaciador flex-1 que
-    // deja sidebar.js lo empuja ahí): la cara con un "IA" chico encima, abajo a la
-    // derecha, en el color del tema (--nav-accent de navbar.js). Abre y cierra el chat.
-    // El riel se pinta solo y asíncrono, y render() lo reescribe entero: si aún no
-    // está, se espera su aviso.
+    // CoffeeIA en la navbar (iaNavButton, ia-chat.js): abre y cierra el chat.
     renderLauncher() {
-        const mount = () => {
-            const $rail = $('#menu-sidebar.sidebar-container');
-            if (!$rail.length) return false;
-
-            $(`#launcher${this.PROJECT_NAME}`).remove();
-
-            const $launcher = $('<button>', {
-                type: 'button',
-                id: `launcher${this.PROJECT_NAME}`,
-                class: 'relative flex-shrink-0 w-[48px] h-[46px] p-0 flex items-center justify-center rounded-[11px] border border-transparent bg-transparent transition-colors hover:bg-black/5',
-                title: 'CoffeeIA',
-                'aria-label': 'Abrir CoffeeIA'
-            }).append(
-                $('<span>', {
-                    class: 'relative block w-[26px] h-[26px]',
-                    html: this.iaIcon(`launcher${this.PROJECT_NAME}`)
-                }).append($('<span>', {
-                    class: 'absolute right-[-4px] top-[13px] text-[9px] font-extrabold tracking-[-.02em] leading-none pointer-events-none text-[color:var(--nav-accent,#C05A40)]',
-                    text: 'IA'
-                }))
-            );
-
-            $launcher.on('click', () => this.render());
-            $rail.append($launcher);
-            return true;
-        };
-
-        if (!mount()) $(document).one('sidebarReady', mount);
+        this.iaNavButton({
+            id:      `launcher${this.PROJECT_NAME}`,
+            onClick: () => this.render()
+        });
     }
 
     render() {
         if (!this.chat) {
             this.chat = this.iaChat({
                 id:          `chat${this.PROJECT_NAME}`,
-                dock:        "bottom-4 left-[72px]",
+                dock:        "top-[68px] right-4",
                 title:       "CoffeeIA",
                 subtitle:    "Productos, categorías, unidades, áreas, almacenes y proveedores",
                 placeholder: "Escribe o adjunta un Excel o una foto…",

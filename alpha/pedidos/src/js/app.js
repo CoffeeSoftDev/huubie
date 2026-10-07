@@ -2,8 +2,8 @@ let api          = 'ctrl/ctrl-pedidos.php';
 let api_catalogo = 'ctrl/ctrl-pedidos-catalogo.php';
 let api_custom   = 'ctrl/ctrl-pedidos-personalizado.php';
 
-let normal, app, custom, cierre; //Clases.
 let idFolio, sub_name, user_name;
+let normal, app, custom, cierre; //Clases.
 let categories, estado, clients;
 
 let rol, subsidiaries, udn;

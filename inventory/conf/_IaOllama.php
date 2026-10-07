@@ -85,6 +85,17 @@ class IaOllama {
         return is_array($r) && !empty($r) ? $r[0] : [];
     }
 
+    // Encendido o apagado en Administrador > CoffeeIA: el ícono de la navbar y el
+    // chat de Catálogo, Entradas y Salidas. Sin la fila o sin la columna (migración
+    // 2026-10-06_coffeeia-activo.sql pendiente) se queda encendido, como estaba.
+    static function activo($db) {
+        if (!is_object($db) || !method_exists($db, '_Read')) return true;
+
+        $r = $db->_Read("SELECT active FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1", [1]);
+
+        return !(is_array($r) && !empty($r) && (int) $r[0]['active'] === 0);
+    }
+
     // Devuelve ['ok', 'data', 'error']. 'data' es el objeto JSON ya decodificado.
     function chatJson($mensajes) {
         // El tono va justo despues de las instrucciones del chat: las matiza, no

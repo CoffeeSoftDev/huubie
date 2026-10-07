@@ -36,7 +36,7 @@ class ctrl extends mdl {
             'proveedores' => $this->lsProveedores(),
             'almacenes'   => $this->lsWarehouses(),
             'superadmin'  => $this->esSuperAdminIA(),
-            'coffeeia'    => $this->coffeeIAActive()
+            'coffeeia'    => IaOllama::activo($this)
         ];
     }
 
@@ -896,7 +896,7 @@ class ctrl extends mdl {
     function askAsistente() {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
 
-        if (!$this->coffeeIAActive()) return ['status' => 403, 'message' => 'CoffeeIA está apagado. Se enciende en Administrador > CoffeeIA.'];
+        if (!IaOllama::activo($this)) return ['status' => 403, 'message' => 'CoffeeIA está apagado. Se enciende en Administrador > CoffeeIA.'];
 
         $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 4000);
         $adjuntos  = json_decode((string) ($_POST['adjuntos'] ?? '[]'), true);
@@ -1014,14 +1014,6 @@ class ctrl extends mdl {
             'message' => $this->resumenIA($hechos),
             'data'    => ['entidades' => $entidades]
         ];
-    }
-
-    // Encendido o apagado en Administrador > CoffeeIA. Si la columna aún no existe
-    // (migración pendiente) se queda encendido, como estaba.
-    private function coffeeIAActive() {
-        $config = $this->getCoffeeIAConfigById([1]);
-
-        return !$config || (int) $config['active'] === 1;
     }
 
     // -- Asistente IA · contexto y prompt --

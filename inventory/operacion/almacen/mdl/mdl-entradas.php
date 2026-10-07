@@ -107,7 +107,7 @@ class mdl extends CRUD {
 
     function lsInflowOrigins() {
         $query = "
-            SELECT id, code, name, name AS valor, color_hex, requires_supplier
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
             FROM {$this->bd}inflow_origin
             WHERE active = 1
             ORDER BY sort_order ASC, id ASC
@@ -161,7 +161,9 @@ class mdl extends CRUD {
                 ia.sku                                     AS sku,
                 ic.name                                    AS categoria,
                 {$this->ultimoCostoCols()},
-                i.image                                    AS image
+                i.image                                    AS image,
+                ia.description                             AS descripcion,
+                ia.stock_max                               AS stock_max
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
@@ -227,6 +229,7 @@ class mdl extends CRUD {
                 i.total_cost,
                 i.status,
                 i.date_inflow,
+                i.created_at,
                 i.inflow_origin_id,
                 io.name        AS origin_name,
                 io.code        AS origin_code,

@@ -35,7 +35,8 @@ class App extends Templates {
                 sucursales:      r.sucursales       || [],
                 motivos:         r.motivos_salida    || [],
                 almacenes:       r.almacenes        || [],
-                productos:       r.productos        || []
+                productos:       r.productos        || [],
+                coffeeia:        r.coffeeia !== false
             };
         } else {
             this.dataInit = {
@@ -43,13 +44,17 @@ class App extends Templates {
                 sucursales:      [],
                 motivos:         [],
                 almacenes:       [],
-                productos:       []
+                productos:       [],
+                coffeeia:        false
             };
         }
         this.subId      = this.dataInit.branch_id;
         branch_id = this.subId;
 
         this.render();
+
+        // Se enciende o apaga en Administrador > CoffeeIA.
+        if (this.dataInit.coffeeia) salidas.renderLauncher();
     }
 
     render() {
@@ -404,6 +409,14 @@ class Salidas extends Templates {
 
     openSalidaForm() {
         const curSub = $('#branch_id').val() || app.subId;
+        const form   = this.salidaFormInstance();
+        form.setData({ branch_id: curSub, fecha: moment().format('YYYY-MM-DD') });
+        form.open();
+    }
+
+    // Se crea una sola vez; CoffeeIA también la usa (sin abrirla) para dejarle productos.
+    salidaFormInstance() {
+        const curSub = $('#branch_id').val() || app.subId;
         if (!this.salidaFormApi) {
             this.salidaFormApi = salidasView.salidaForm({
                 parent: 'body',
@@ -452,15 +465,43 @@ class Salidas extends Templates {
                         app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la salida' });
                     }
                 },
-                onOpenIA: () => this.openChatIA(),
+                // Con CoffeeIA apagado el formulario no pinta su botón CoffeeIA.
+                onOpenIA: app.dataInit.coffeeia ? () => this.openChatIA() : null,
                 onClose:  () => { if (this.chatIA) this.chatIA.close(); }
             });
         }
-        this.salidaFormApi.setData({ branch_id: curSub, fecha: moment().format('YYYY-MM-DD') });
-        this.salidaFormApi.open();
+        return this.salidaFormApi;
     }
 
     // -- CoffeeIA --
+
+    // CoffeeIA en la navbar (iaNavButton, ia-chat.js), igual que en Catálogo.
+    renderLauncher() {
+        this.iaNavButton({
+            id:      'launcherSalidaIA',
+            onClick: () => this.toggleChatIA()
+        });
+    }
+
+    // El ícono solo abre o cierra el chat. La captura se abre al subir un ticket
+    // (openCapturaIA) y lo que se confirma entra a su lote aunque todavía no esté abierta.
+    toggleChatIA() {
+        if (this.chatIA && this.chatIA.isOpen()) {
+            this.chatIA.close();
+            return;
+        }
+
+        this.openChatIA();
+    }
+
+    capturaAbierta() {
+        return !!(this.salidaFormApi && !this.salidaFormApi.wrap.hasClass('hidden'));
+    }
+
+    // Subir un ticket abre la salida si no hay una abierta.
+    openCapturaIA() {
+        if (!this.capturaAbierta()) this.openSalidaForm();
+    }
 
     // El mismo chat de Catálogo y Entradas (iaChat): se adjunta la nota o un Excel,
     // la IA propone qué sale, se revisa en la vista previa y lo marcado entra al lote.
@@ -487,7 +528,10 @@ class Salidas extends Templates {
                         tone:  'bg-gray-100 text-gray-500'
                     }
                 },
-                onAttach:  (file) => this.readArchivoIA(file),
+                onAttach:  (file) => {
+                    this.openCapturaIA();
+                    return this.readArchivoIA(file);
+                },
                 onSend:    (text, adjuntos, historial, progress) => this.askSalidaIA(text, adjuntos, historial, progress),
                 onConfirm: (token, ids) => this.applySalidaIA(token, ids)
             });
@@ -518,8 +562,10 @@ class Salidas extends Templates {
     // avisa qué dejaría el stock en negativo (se puede agregar igual, como al capturar
     // a mano). La barra del chat avanza con los dos pasos: buscar en el catálogo (el
     // 90 % del trabajo, lo hace el modelo) y revisar el stock.
+    // Sin la salida abierta no hay almacén elegido: el stock se revisa en la captura.
     async askSalidaIA(text, adjuntos, historial, progress) {
-        const catalogo = this.salidaFormApi ? (this.salidaFormApi.opts.json || []) : [];
+        const abierta  = this.capturaAbierta();
+        const catalogo = abierta ? (this.salidaFormApi.opts.json || []) : (app.dataInit.productos || []);
         const pedido   = adjuntos.length
             ? `lo de ${adjuntos.map(a => a.nombre).join(', ')}`
             : `«${text.length > 40 ? text.slice(0, 40) + '…' : text}»`;
@@ -538,14 +584,18 @@ class Salidas extends Templates {
 
         if (!(r && r.status === 200)) return r || { status: 500, message: 'CoffeeIA no respondió. Inténtalo otra vez.' };
 
-        const form    = this.salidaFormApi;
-        const almacen = form ? $(`#${form.opts.id}_selAlmacen option:selected`).text().trim() : '';
-        progress(`Revisando el stock de ${almacen || 'el almacén'}`, 1);
-
         const yaEstan = this.marcarYaEnSalida(r.row || []);
         if (yaEstan) {
             r.reply = `${r.reply || ''}\n${yaEstan} ${yaEstan === 1 ? 'ya está' : 'ya están'} en la salida: no los vuelvo a agregar.`.trim();
         }
+
+        if (!abierta) {
+            if (r.token) this.iaPropuesta = { token: r.token, row: r.row || [] };
+            return r;
+        }
+
+        const almacen = $(`#${this.salidaFormApi.opts.id}_selAlmacen option:selected`).text().trim();
+        progress(`Revisando el stock de ${almacen || 'el almacén'}`, 1);
 
         const usado = {};
         (r.row || []).forEach((x) => {
@@ -575,11 +625,13 @@ class Salidas extends Templates {
 
     // Al aplicar se revisa otra vez: entre la vista previa y el clic en Aplicar se
     // pudo capturar a mano alguno de esos productos.
+    // Con la salida cerrada van a su lote igual (cerrarla es lo que lo vacía): se ven
+    // en cuanto se abre.
     applySalidaIA(token, ids) {
-        const pv   = this.iaPropuesta;
-        const form = this.salidaFormApi;
+        const pv      = this.iaPropuesta;
+        const abierta = this.capturaAbierta();
+        const form    = this.salidaFormInstance();
         if (!pv || pv.token !== token) return { status: 400, message: 'Esa vista previa ya no es válida. Pídemela otra vez.' };
-        if (!form || form.wrap.hasClass('hidden')) return { status: 400, message: 'Abre la salida para agregar los productos.' };
 
         const desmarcados = pv.row.filter(x => x.valid && x.action === 'add' && !ids.includes(x.idx));
         this.marcarYaEnSalida(pv.row.filter(x => ids.includes(x.idx)));
@@ -597,7 +649,9 @@ class Salidas extends Templates {
             ...desmarcados.map(x => `${x.name} (${x.cantidad}): lo desmarcaste`)
         ];
 
-        const message = `Agregué ${n} ${n === 1 ? 'producto' : 'productos'} a la salida.`;
+        const message = abierta
+            ? `Agregué ${n} ${n === 1 ? 'producto' : 'productos'} a la salida.`
+            : `Dejé listos ${n} ${n === 1 ? 'producto' : 'productos'}: se cargan a la salida en cuanto la abras.`;
         return {
             status:  200,
             message: fuera.length ? `${message}\nNo agregué ${fuera.length}:\n• ${fuera.join('\n• ')}` : message
