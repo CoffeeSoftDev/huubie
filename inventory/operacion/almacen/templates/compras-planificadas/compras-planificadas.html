@@ -31,25 +31,9 @@
 
     <style>
         body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; }
-        .lbl { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; margin-bottom:4px; }
-        .sel { width:100%; padding:6px 10px; font-size:12px; color:#1f2937; background:#fff; border:1px solid #d1d5db; border-radius:6px; outline:none; cursor:pointer; }
-        .sel:focus { border-color:#C8694C; }
-        .tab-btn { position:relative; padding:10px 14px; font-size:12px; font-weight:600; color:#6b7280; display:flex; align-items:center; gap:6px; white-space:nowrap; }
-        .tab-btn:hover { color:#374151; }
-        .tab-btn.active { color:#A84A33; }
-        .tab-btn.active::after { content:''; position:absolute; left:8px; right:8px; bottom:-1px; height:2px; background:#C05A40; border-radius:2px; }
-        .chip { padding:4px 10px; font-size:11px; font-weight:600; border-radius:999px; border:1px solid #e5e7eb; color:#4b5563; background:#fff; display:inline-flex; align-items:center; gap:5px; }
-        .chip.active { background:#FBF3EF; border-color:#EFC9BC; color:#A84A33; }
-        /* Tipos de solicitud: color fijo para distinguirlas de un vistazo */
-        .tipo-tienda     { background:rgba(14,165,233,.12); color:#0369a1; border:1px solid rgba(14,165,233,.3); }
-        .tipo-produccion { background:rgba(16,185,129,.12); color:#047857; border:1px solid rgba(16,185,129,.3); }
-        .tipo-semanal    { background:rgba(99,102,241,.12); color:#4338ca; border:1px solid rgba(99,102,241,.3); }
-        .tipo-evento     { background:rgba(236,72,153,.12); color:#be185d; border:1px solid rgba(236,72,153,.3); }
-        .badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; }
         tbody tr.row-active { background:#FBF3EF !important; box-shadow: inset 3px 0 0 #C05A40; }
-        tbody tr { cursor:pointer; }
-        .bar { height:6px; border-radius:999px; background:#f3f4f6; overflow:hidden; }
-        .bar > span { display:block; height:100%; border-radius:999px; }
+        #tablaView tbody tr { cursor:pointer; }
+        .seg-on { background:#fff; color:#A84A33; box-shadow:0 1px 2px rgba(0,0,0,.06); }
         ::-webkit-scrollbar{width:8px;height:8px}
         ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
     </style>
@@ -58,621 +42,227 @@
 <body class="h-screen overflow-hidden text-gray-800">
 
 <!-- ============================================================
-     COMPRAS PLANIFICADAS (vista del comprador / administrador)
+     COMPRAS PLANIFICADAS (minimalista)
+     Misma estructura que ordenes-compra.html: panel principal + aside 420.
 
-     Flujo:
-       1. PLAN       -> el comprador abre un plan de compra anticipada:
-                        · Semanal (recurrente, ej. "Semana 41")
-                        · Evento especial (ej. "Boda Hernandez - 350 pax")
-                        Cada plan tiene fecha de CORTE (limite para solicitar)
-                        y fecha de ENTREGA (cuando debe estar el insumo).
-       2. SOLICITUD  -> los empleados piden insumos ligados a un plan.
-                        Dos tipos que NO se mezclan:
-                        · Tienda     : limpieza, desechables, papeleria (jabon, cloro...)
-                        · Produccion : ingredientes para elaborar productos
-                                       (se capturan productos a elaborar y la
-                                        receta los explota a insumos)
-       3. CONSOLIDADO-> al corte, las solicitudes aprobadas se suman por
-                        insumo, se descuenta el stock disponible y se agrupan
-                        por proveedor para generar las Ordenes de Compra.
+     Una compra planificada = lista de materiales + programacion:
+       · Unica      -> una fecha (ej. Roscas de Reyes, 05 ene)
+       · Recurrente -> dias de la semana (ej. cada lunes)
+     Cada fecha programada genera una "hoja de surtido":
 
-     Modelo sugerido (para backend):
-       purchase_plan        (id, type: weekly|event, name, cutoff_date, delivery_date,
-                             event_guests, status: open|closed|ordered, budget)
-       purchase_request     (id, plan_id, type: store|production, branch_id, user_id,
-                             area, needed_date, status, notes)
-       purchase_request_det (id, request_id, product_id, qty, unit, source: manual|recipe,
-                             recipe_id NULL, produce_qty NULL)
-       -> consolidado = SUM(qty) GROUP BY plan_id, product_id - stock - en_transito
+       Programada  -(Imprimir hoja)->  En surtido  -(Capturar)->  Capturada
+
+       "Retomar" copia los materiales de una compra ya capturada
+       a una fecha nueva (ej. las roscas del proximo año).
+
+     Al capturar se genera la entrada al almacen con lo realmente surtido.
 ============================================================ -->
 <div class="h-screen p-3">
-<div id="compras-planificadas" class="h-full w-full flex flex-col overflow-hidden bg-white rounded-lg border border-gray-200">
+<div id="compras-planificadas" class="h-full w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200">
 
-    <!-- viewHeader -->
-    <div id="viewHeader" class="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
-        <div class="flex items-center gap-3">
-            <span class="w-9 h-9 rounded-lg bg-blue-600/10 flex items-center justify-center">
-                <i data-lucide="calendar-clock" class="w-5 h-5 text-blue-700"></i>
-            </span>
+    <!-- ===================== PANEL PRINCIPAL ===================== -->
+    <div id="mainPanel" class="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full">
+
+        <!-- viewHeader -->
+        <div id="viewHeader" class="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
             <div>
                 <h1 class="text-lg font-bold text-gray-800">Compras Planificadas</h1>
-                <p class="text-xs text-gray-500">Compras anticipadas semanales y por evento, con solicitudes de tienda y produccion</p>
+                <p class="text-xs text-gray-500">Programa compras por fecha o por semana, imprime la hoja y captura lo surtido</p>
+            </div>
+            <!-- Vista: lista / calendario -->
+            <div class="inline-flex p-0.5 bg-gray-100 rounded-lg" id="segVista">
+                <button data-vista="tabla" class="seg seg-on px-3 py-1.5 text-xs font-semibold rounded-md text-gray-500 flex items-center gap-1.5"><i data-lucide="list" class="w-3.5 h-3.5"></i> Lista</button>
+                <button data-vista="calendario" class="seg px-3 py-1.5 text-xs font-semibold rounded-md text-gray-500 flex items-center gap-1.5"><i data-lucide="calendar-days" class="w-3.5 h-3.5"></i> Calendario</button>
             </div>
         </div>
-        <div class="flex items-center gap-2">
-            <button onclick="openModal('solicitante/nueva-solicitud.html')"
-                    class="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1.5">
-                <i data-lucide="clipboard-plus" class="w-3.5 h-3.5"></i> Nueva solicitud
-            </button>
-            <button onclick="openModal('modals/modal-plan-compra.html')"
-                    class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
-                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo plan
-            </button>
-        </div>
-    </div>
-
-    <!-- Tabs -->
-    <div class="px-3 border-b border-gray-200 flex items-center gap-1 flex-shrink-0 overflow-x-auto">
-        <button class="tab-btn active" data-tab="planes"><i data-lucide="calendar-range" class="w-4 h-4"></i> Planes de compra</button>
-        <button class="tab-btn" data-tab="solicitudes"><i data-lucide="inbox" class="w-4 h-4"></i> Solicitudes <span class="ml-1 px-1.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">9</span></button>
-        <button class="tab-btn" data-tab="consolidado"><i data-lucide="layers" class="w-4 h-4"></i> Consolidado</button>
-    </div>
-
-    <!-- ============================================================
-         TAB 1: PLANES DE COMPRA
-    ============================================================ -->
-    <section id="tab-planes" class="tab-pane flex-1 min-h-0 flex flex-col overflow-hidden">
 
         <!-- filterBar -->
-        <div class="px-3 py-3 border-b border-gray-200 flex flex-wrap items-end gap-3 flex-shrink-0">
-            <div class="min-w-[150px]">
-                <label class="lbl">Sucursal</label>
-                <select class="sel"><option>-- Todas --</option><option>Sucursal Centro</option><option>Sucursal Norte</option></select>
-            </div>
-            <div class="min-w-[150px]">
-                <label class="lbl">Mes</label>
-                <select class="sel"><option>Octubre 2026</option><option>Noviembre 2026</option></select>
-            </div>
-            <div class="flex items-center gap-1.5 pb-0.5">
-                <span class="chip active">Todos</span>
-                <span class="chip"><i data-lucide="repeat" class="w-3 h-3"></i> Semanales</span>
-                <span class="chip"><i data-lucide="party-popper" class="w-3 h-3"></i> Eventos</span>
-            </div>
-        </div>
-
-        <!-- kpis -->
-        <div class="px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3">
-                    <p class="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1">Planes abiertos</p>
-                    <p class="text-2xl font-bold text-gray-800">3</p>
-                    <p class="text-[11px] text-gray-400">2 semanales · 1 evento</p>
+        <div id="filterBar" class="px-3 py-3 border-b border-gray-200 flex-shrink-0">
+            <div class="flex flex-wrap items-end gap-3">
+                <div class="min-w-[150px]">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Mes</label>
+                    <select class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500">
+                        <option>Diciembre 2026</option><option>Enero 2027</option>
+                    </select>
                 </div>
-                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3">
-                    <p class="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1">Proximo corte</p>
-                    <p class="text-2xl font-bold text-amber-500">1d 06h</p>
-                    <p class="text-[11px] text-gray-400">Semana 41 · jue 08 oct, 18:00</p>
-                </div>
-                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3">
-                    <p class="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1">Solicitudes por revisar</p>
-                    <p class="text-2xl font-bold text-blue-600">9</p>
-                    <p class="text-[11px] text-gray-400"><span class="text-sky-700 font-semibold">4 tienda</span> · <span class="text-emerald-700 font-semibold">5 produccion</span></p>
-                </div>
-                <div class="bg-white rounded-lg border border-gray-200 px-4 py-3">
-                    <p class="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1">Comprometido del mes</p>
-                    <p class="text-2xl font-bold text-green-600">$48,320</p>
-                    <div class="bar mt-1.5"><span class="bg-green-500" style="width:64%"></span></div>
-                    <p class="text-[11px] text-gray-400 mt-1">64% de $75,000 presupuestado</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex-1 min-h-0 overflow-auto p-3">
-            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-
-                <!-- Linea de tiempo de planes -->
-                <div class="xl:col-span-2 space-y-3">
-                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-500">Planes del periodo</p>
-
-                    <!-- Plan: evento especial (abierto) -->
-                    <article class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow border-l-4" style="border-left-color:#ec4899">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div class="flex items-start gap-3">
-                                <span class="w-10 h-10 rounded-lg bg-pink-500/10 flex items-center justify-center flex-shrink-0">
-                                    <i data-lucide="party-popper" class="w-5 h-5 text-pink-600"></i>
-                                </span>
-                                <div>
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <h3 class="text-sm font-bold text-gray-800">Boda Hernandez-Lopez</h3>
-                                        <span class="badge tipo-evento">Evento especial</span>
-                                        <span class="badge bg-green-500/15 text-green-700 border border-green-500/30">Abierto</span>
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-0.5">PC-2026-018 · 350 invitados · Salon Jardin · Sucursal Centro</p>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Corte de solicitudes</p>
-                                <p class="text-sm font-bold text-gray-800">mar 13 oct, 12:00</p>
-                                <p class="text-[11px] text-gray-500">Entrega: vie 16 oct · Evento: sab 17 oct</p>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                            <div><p class="text-[10px] uppercase text-gray-400 font-semibold">Tienda</p><p class="text-sm font-bold text-sky-700">2 solicitudes</p></div>
-                            <div><p class="text-[10px] uppercase text-gray-400 font-semibold">Produccion</p><p class="text-sm font-bold text-emerald-700">3 solicitudes</p></div>
-                            <div><p class="text-[10px] uppercase text-gray-400 font-semibold">Insumos distintos</p><p class="text-sm font-bold text-gray-800">42</p></div>
-                            <div>
-                                <p class="text-[10px] uppercase text-gray-400 font-semibold">Estimado vs presupuesto</p>
-                                <p class="text-sm font-bold text-gray-800">$21,480 <span class="text-gray-400 font-medium">/ $28,000</span></p>
-                                <div class="bar mt-1"><span class="bg-pink-500" style="width:77%"></span></div>
-                            </div>
-                        </div>
-                        <div class="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t border-gray-100">
-                            <div class="flex items-center gap-1.5 text-[11px] text-gray-500">
-                                <i data-lucide="users" class="w-3.5 h-3.5"></i> Faltan por solicitar: <span class="font-semibold text-gray-700">Reposteria</span>
-                            </div>
-                            <div class="flex gap-2">
-                                <button class="px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1"><i data-lucide="bell-ring" class="w-3.5 h-3.5"></i> Recordar</button>
-                                <button data-goto="solicitudes" class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center gap-1"><i data-lucide="inbox" class="w-3.5 h-3.5"></i> Ver solicitudes</button>
-                            </div>
-                        </div>
-                    </article>
-
-                    <!-- Plan: semanal (abierto, corte proximo) -->
-                    <article class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow border-l-4" style="border-left-color:#6366f1">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div class="flex items-start gap-3">
-                                <span class="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                                    <i data-lucide="repeat" class="w-5 h-5 text-indigo-600"></i>
-                                </span>
-                                <div>
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <h3 class="text-sm font-bold text-gray-800">Semana 41 · 12 al 18 oct</h3>
-                                        <span class="badge tipo-semanal">Semanal</span>
-                                        <span class="badge bg-amber-500/15 text-amber-700 border border-amber-500/30"><i data-lucide="timer" class="w-3 h-3"></i> Corte en 1d 06h</span>
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-0.5">PC-2026-017 · Recurrente cada jueves · Todas las sucursales</p>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Corte de solicitudes</p>
-                                <p class="text-sm font-bold text-gray-800">jue 08 oct, 18:00</p>
-                                <p class="text-[11px] text-gray-500">Entrega: lun 12 oct</p>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                            <div><p class="text-[10px] uppercase text-gray-400 font-semibold">Tienda</p><p class="text-sm font-bold text-sky-700">2 solicitudes</p></div>
-                            <div><p class="text-[10px] uppercase text-gray-400 font-semibold">Produccion</p><p class="text-sm font-bold text-emerald-700">2 solicitudes</p></div>
-                            <div><p class="text-[10px] uppercase text-gray-400 font-semibold">Insumos distintos</p><p class="text-sm font-bold text-gray-800">31</p></div>
-                            <div>
-                                <p class="text-[10px] uppercase text-gray-400 font-semibold">Estimado vs presupuesto</p>
-                                <p class="text-sm font-bold text-gray-800">$14,060 <span class="text-gray-400 font-medium">/ $15,000</span></p>
-                                <div class="bar mt-1"><span class="bg-amber-500" style="width:94%"></span></div>
-                            </div>
-                        </div>
-                        <div class="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t border-gray-100">
-                            <div class="flex items-center gap-1.5 text-[11px] text-gray-500">
-                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-blue-600"></i> Sugerido desde consumo promedio de 4 semanas
-                            </div>
-                            <div class="flex gap-2">
-                                <button class="px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1"><i data-lucide="lock" class="w-3.5 h-3.5"></i> Cerrar corte</button>
-                                <button data-goto="consolidado" class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center gap-1"><i data-lucide="layers" class="w-3.5 h-3.5"></i> Consolidar</button>
-                            </div>
-                        </div>
-                    </article>
-
-                    <!-- Plan: semanal (ordenado, solo lectura) -->
-                    <article class="border border-gray-200 rounded-lg p-4 bg-gray-50/60 border-l-4" style="border-left-color:#9ca3af">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
-                            <div class="flex items-center gap-3">
-                                <span class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0">
-                                    <i data-lucide="check-check" class="w-5 h-5 text-gray-500"></i>
-                                </span>
-                                <div>
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <h3 class="text-sm font-bold text-gray-600">Semana 40 · 05 al 11 oct</h3>
-                                        <span class="badge tipo-semanal">Semanal</span>
-                                        <span class="badge bg-gray-500/15 text-gray-600 border border-gray-400/30">Ordenado</span>
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-0.5">PC-2026-016 · 7 solicitudes · 3 ordenes de compra (OC-0141 a OC-0143)</p>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-sm font-bold text-gray-700">$13,210</p>
-                                <p class="text-[11px] text-green-600 font-semibold">Recibido 100%</p>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-
-                <!-- Calendario mini + recurrencias -->
-                <aside class="space-y-4">
-                    <div class="border border-gray-200 rounded-lg p-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <p class="text-sm font-bold text-gray-800">Octubre 2026</p>
-                            <div class="flex gap-1">
-                                <button class="w-6 h-6 rounded hover:bg-gray-100 flex items-center justify-center text-gray-500"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
-                                <button class="w-6 h-6 rounded hover:bg-gray-100 flex items-center justify-center text-gray-500"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
-                            </div>
-                        </div>
-                        <div id="miniCal" class="grid grid-cols-7 gap-1 text-center text-[11px]"></div>
-                        <div class="flex flex-wrap gap-3 mt-3 text-[10px] text-gray-500">
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span>Corte</span>
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span>Entrega semanal</span>
-                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-pink-500"></span>Evento</span>
-                        </div>
-                    </div>
-
-                    <div class="border border-gray-200 rounded-lg p-4">
-                        <p class="text-sm font-bold text-gray-800 mb-1">Ciclo semanal</p>
-                        <p class="text-[11px] text-gray-500 mb-3">Se genera un plan nuevo automaticamente cada semana.</p>
-                        <ol class="space-y-2.5 text-xs">
-                            <li class="flex items-start gap-2"><span class="w-5 h-5 rounded-full bg-blue-50 text-blue-700 font-bold text-[10px] flex items-center justify-center flex-shrink-0">1</span><div><p class="font-semibold text-gray-700">Lunes · Apertura</p><p class="text-[11px] text-gray-400">Se abre el plan con sugeridos por consumo</p></div></li>
-                            <li class="flex items-start gap-2"><span class="w-5 h-5 rounded-full bg-blue-50 text-blue-700 font-bold text-[10px] flex items-center justify-center flex-shrink-0">2</span><div><p class="font-semibold text-gray-700">Lun – Jue · Solicitudes</p><p class="text-[11px] text-gray-400">Tienda y produccion capturan lo que necesitan</p></div></li>
-                            <li class="flex items-start gap-2"><span class="w-5 h-5 rounded-full bg-amber-50 text-amber-700 font-bold text-[10px] flex items-center justify-center flex-shrink-0">3</span><div><p class="font-semibold text-gray-700">Jueves 18:00 · Corte</p><p class="text-[11px] text-gray-400">Ya no se aceptan solicitudes nuevas</p></div></li>
-                            <li class="flex items-start gap-2"><span class="w-5 h-5 rounded-full bg-green-50 text-green-700 font-bold text-[10px] flex items-center justify-center flex-shrink-0">4</span><div><p class="font-semibold text-gray-700">Viernes · Ordenes</p><p class="text-[11px] text-gray-400">Consolidado → OC por proveedor</p></div></li>
-                            <li class="flex items-start gap-2"><span class="w-5 h-5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-[10px] flex items-center justify-center flex-shrink-0">5</span><div><p class="font-semibold text-gray-700">Lunes · Recepcion</p><p class="text-[11px] text-gray-400">Entrada al almacen y surtido a areas</p></div></li>
-                        </ol>
-                    </div>
-                </aside>
-            </div>
-        </div>
-    </section>
-
-    <!-- ============================================================
-         TAB 2: SOLICITUDES (bandeja de revision)
-         Tienda y Produccion se separan con un segmentado: nunca se
-         muestran mezcladas porque se aprueban por responsables distintos
-         (Tienda -> encargado de sucursal, Produccion -> jefe de cocina).
-    ============================================================ -->
-    <section id="tab-solicitudes" class="tab-pane hidden flex-1 min-h-0 flex-col md:flex-row overflow-hidden">
-
-        <div class="flex-1 flex flex-col overflow-hidden min-w-0">
-            <!-- filterBar -->
-            <div class="px-3 py-3 border-b border-gray-200 flex flex-wrap items-end gap-3 flex-shrink-0">
-                <!-- Segmentado de tipo -->
-                <div>
-                    <label class="lbl">Tipo de solicitud</label>
-                    <div class="inline-flex p-0.5 bg-gray-100 rounded-lg" id="segTipo">
-                        <button data-tipo="tienda" class="seg px-3 py-1.5 text-xs font-semibold rounded-md bg-white shadow-sm text-sky-700 flex items-center gap-1.5">
-                            <i data-lucide="store" class="w-3.5 h-3.5"></i> Tienda <span class="text-[10px] px-1.5 rounded-full bg-sky-100">4</span>
-                        </button>
-                        <button data-tipo="produccion" class="seg px-3 py-1.5 text-xs font-semibold rounded-md text-gray-500 flex items-center gap-1.5">
-                            <i data-lucide="chef-hat" class="w-3.5 h-3.5"></i> Produccion <span class="text-[10px] px-1.5 rounded-full bg-gray-200">5</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="min-w-[200px]">
-                    <label class="lbl">Plan de compra</label>
-                    <select class="sel">
-                        <option>-- Todos los abiertos --</option>
-                        <option>PC-2026-017 · Semana 41</option>
-                        <option>PC-2026-018 · Boda Hernandez-Lopez</option>
+                <div class="min-w-[150px]">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Sucursal</label>
+                    <select class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500">
+                        <option>Sucursal Centro</option><option>Sucursal Norte</option>
                     </select>
                 </div>
                 <div class="min-w-[140px]">
-                    <label class="lbl">Sucursal</label>
-                    <select class="sel"><option>-- Todas --</option><option>Sucursal Centro</option><option>Sucursal Norte</option></select>
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Estado</label>
+                    <select class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500">
+                        <option>Todos</option><option>Programada</option><option>En surtido</option><option>Capturada</option>
+                    </select>
                 </div>
-                <div class="min-w-[130px]">
-                    <label class="lbl">Estado</label>
-                    <select class="sel"><option>Pendientes</option><option>Aprobadas</option><option>Ajustadas</option><option>Rechazadas</option><option>Todas</option></select>
+                <div class="ml-auto">
+                    <button onclick="openModal('modals/modal-compra-planificada.html')"
+                            class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva compra planificada
+                    </button>
                 </div>
-            </div>
-
-            <!-- Tabla: TIENDA -->
-            <div id="tbl-tienda" class="flex-1 min-h-0 overflow-auto p-3">
-                <table class="w-full text-[13px] border-collapse">
-                    <thead class="sticky top-0 z-10">
-                        <tr class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wider">
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Folio</th>
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Plan</th>
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Solicita</th>
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Categoria</th>
-                            <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Articulos</th>
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Necesario</th>
-                            <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-gray-700">
-                        <tr class="row-active border-b border-gray-100 hover:bg-gray-50">
-                            <td class="px-3 py-2 font-semibold text-gray-800">ST-0231</td>
-                            <td class="px-3 py-2"><span class="badge tipo-semanal">Sem 41</span></td>
-                            <td class="px-3 py-2"><p class="font-medium">Laura Mendez</p><p class="text-[11px] text-gray-400">Piso de venta · Centro</p></td>
-                            <td class="px-3 py-2">Limpieza</td>
-                            <td class="px-3 py-2 text-center">6</td>
-                            <td class="px-3 py-2">lun 12 oct</td>
-                            <td class="px-3 py-2 text-center"><span class="badge bg-yellow-500/15 text-yellow-700 border border-yellow-500/30">Pendiente</span></td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50">
-                            <td class="px-3 py-2 font-semibold text-gray-800">ST-0232</td>
-                            <td class="px-3 py-2"><span class="badge tipo-evento">Boda H-L</span></td>
-                            <td class="px-3 py-2"><p class="font-medium">Jorge Ruiz</p><p class="text-[11px] text-gray-400">Salon · Centro</p></td>
-                            <td class="px-3 py-2">Desechables</td>
-                            <td class="px-3 py-2 text-center">9</td>
-                            <td class="px-3 py-2">vie 16 oct</td>
-                            <td class="px-3 py-2 text-center"><span class="badge bg-yellow-500/15 text-yellow-700 border border-yellow-500/30">Pendiente</span></td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50">
-                            <td class="px-3 py-2 font-semibold text-gray-800">ST-0229</td>
-                            <td class="px-3 py-2"><span class="badge tipo-semanal">Sem 41</span></td>
-                            <td class="px-3 py-2"><p class="font-medium">Ana Torres</p><p class="text-[11px] text-gray-400">Caja · Norte</p></td>
-                            <td class="px-3 py-2">Papeleria</td>
-                            <td class="px-3 py-2 text-center">3</td>
-                            <td class="px-3 py-2">lun 12 oct</td>
-                            <td class="px-3 py-2 text-center"><span class="badge bg-blue-500/15 text-blue-700 border border-blue-500/30">Ajustada</span></td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50">
-                            <td class="px-3 py-2 font-semibold text-gray-800">ST-0233</td>
-                            <td class="px-3 py-2"><span class="badge tipo-evento">Boda H-L</span></td>
-                            <td class="px-3 py-2"><p class="font-medium">Jorge Ruiz</p><p class="text-[11px] text-gray-400">Salon · Centro</p></td>
-                            <td class="px-3 py-2">Limpieza</td>
-                            <td class="px-3 py-2 text-center">4</td>
-                            <td class="px-3 py-2">vie 16 oct</td>
-                            <td class="px-3 py-2 text-center"><span class="badge bg-yellow-500/15 text-yellow-700 border border-yellow-500/30">Pendiente</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Tabla: PRODUCCION -->
-            <div id="tbl-produccion" class="hidden flex-1 min-h-0 overflow-auto p-3">
-                <table class="w-full text-[13px] border-collapse">
-                    <thead class="sticky top-0 z-10">
-                        <tr class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wider">
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Folio</th>
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Plan</th>
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Solicita</th>
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Va a elaborar</th>
-                            <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Insumos</th>
-                            <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Produce el</th>
-                            <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-gray-700">
-                        <tr class="border-b border-gray-100 hover:bg-gray-50">
-                            <td class="px-3 py-2 font-semibold text-gray-800">SP-0118</td>
-                            <td class="px-3 py-2"><span class="badge tipo-evento">Boda H-L</span></td>
-                            <td class="px-3 py-2"><p class="font-medium">Chef Miguel Ortiz</p><p class="text-[11px] text-gray-400">Cocina caliente</p></td>
-                            <td class="px-3 py-2">Lomo en salsa de ciruela ×350, Arroz a la mexicana ×350</td>
-                            <td class="px-3 py-2 text-center">14</td>
-                            <td class="px-3 py-2">vie 16 oct</td>
-                            <td class="px-3 py-2 text-center"><span class="badge bg-yellow-500/15 text-yellow-700 border border-yellow-500/30">Pendiente</span></td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50">
-                            <td class="px-3 py-2 font-semibold text-gray-800">SP-0117</td>
-                            <td class="px-3 py-2"><span class="badge tipo-semanal">Sem 41</span></td>
-                            <td class="px-3 py-2"><p class="font-medium">Sofia Ramos</p><p class="text-[11px] text-gray-400">Panaderia</p></td>
-                            <td class="px-3 py-2">Concha ×600, Pan de muerto ×240</td>
-                            <td class="px-3 py-2 text-center">9</td>
-                            <td class="px-3 py-2">lun 12 oct</td>
-                            <td class="px-3 py-2 text-center"><span class="badge bg-yellow-500/15 text-yellow-700 border border-yellow-500/30">Pendiente</span></td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </div>
 
-        <!-- Panel detalle (solicitud de TIENDA seleccionada) -->
-        <aside id="detailPanel" class="w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden">
-            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-                <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wider">Solicitud de tienda</p>
-                    <p class="text-base font-bold text-gray-800">ST-0231</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="badge tipo-tienda"><i data-lucide="store" class="w-3 h-3"></i> Tienda</span>
-                    <span class="badge bg-yellow-500/15 text-yellow-700 border border-yellow-500/30">Pendiente</span>
-                </div>
-            </div>
-            <div class="px-4 py-3 border-b border-gray-200 space-y-1.5 flex-shrink-0">
-                <div class="flex justify-between text-xs"><span class="text-gray-500">Plan</span><span class="text-gray-700 font-medium">PC-2026-017 · Semana 41</span></div>
-                <div class="flex justify-between text-xs"><span class="text-gray-500">Solicita</span><span class="text-gray-700">Laura Mendez · Piso de venta</span></div>
-                <div class="flex justify-between text-xs"><span class="text-gray-500">Sucursal</span><span class="text-gray-700">Sucursal Centro</span></div>
-                <div class="flex justify-between text-xs"><span class="text-gray-500">Necesario para</span><span class="text-gray-700">lun 12 oct</span></div>
-                <div class="text-xs bg-amber-50 border border-amber-100 rounded-md px-2.5 py-1.5 text-amber-800 mt-2">
-                    <i data-lucide="message-square" class="w-3 h-3 inline"></i> "Esta semana hay inventario fisico, se ocupa mas cloro para pisos."
-                </div>
-            </div>
+        <!-- ===== Vista LISTA ===== -->
+        <div id="tablaView" class="p-3 flex-1 min-h-0 overflow-auto">
+            <table class="w-full text-[13px] border-collapse">
+                <thead class="sticky top-0 z-10">
+                    <tr class="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Folio</th>
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Compra</th>
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Programacion</th>
+                        <th class="text-left font-semibold px-3 py-2 border-b border-gray-200">Fecha</th>
+                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Materiales</th>
+                        <th class="text-center font-semibold px-3 py-2 border-b border-gray-200">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-700">
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="px-3 py-2 font-semibold text-gray-800">CP-0041</td>
+                        <td class="px-3 py-2">Surtido semanal panaderia</td>
+                        <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600"><i data-lucide="repeat" class="w-3 h-3"></i> Cada lunes</span></td>
+                        <td class="px-3 py-2">lun 07 dic</td>
+                        <td class="px-3 py-2 text-center">8</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-green-500/15 text-green-700 border border-green-500/30">Capturada</span></td>
+                    </tr>
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="px-3 py-2 font-semibold text-gray-800">CP-0042</td>
+                        <td class="px-3 py-2">Surtido semanal panaderia</td>
+                        <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600"><i data-lucide="repeat" class="w-3 h-3"></i> Cada lunes</span></td>
+                        <td class="px-3 py-2">lun 14 dic</td>
+                        <td class="px-3 py-2 text-center">8</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-orange-500/15 text-orange-600 border border-orange-500/30">En surtido</span></td>
+                    </tr>
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="px-3 py-2 font-semibold text-gray-800">CP-0043</td>
+                        <td class="px-3 py-2">Surtido semanal panaderia</td>
+                        <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600"><i data-lucide="repeat" class="w-3 h-3"></i> Cada lunes</span></td>
+                        <td class="px-3 py-2">lun 21 dic</td>
+                        <td class="px-3 py-2 text-center">8</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Programada</span></td>
+                    </tr>
+                    <tr class="row-active border-b border-gray-100 hover:bg-gray-50">
+                        <td class="px-3 py-2 font-semibold text-gray-800">CP-0044</td>
+                        <td class="px-3 py-2">Roscas de Reyes</td>
+                        <td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700"><i data-lucide="star" class="w-3 h-3"></i> Fecha especial</span></td>
+                        <td class="px-3 py-2">lun 04 ene</td>
+                        <td class="px-3 py-2 text-center">6</td>
+                        <td class="px-3 py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Programada</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
-            <div class="flex-1 overflow-y-auto px-4 py-3">
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs uppercase tracking-wider text-gray-500">Articulos (6)</p>
-                    <p class="text-[10px] text-gray-400">Pide · Stock · Aprueba</p>
-                </div>
-                <!-- Renglon: con comparativo contra consumo -->
-                <div class="py-2 border-b border-gray-100">
-                    <div class="flex items-center justify-between gap-2">
-                        <div class="min-w-0"><p class="text-xs font-medium text-gray-700 truncate">Cloro 3.75 L</p><p class="text-[10px] text-gray-400">LIM-010 · Prom. semanal: 4</p></div>
-                        <div class="flex items-center gap-3 text-xs">
-                            <span class="font-semibold text-gray-800 w-6 text-right">8</span>
-                            <span class="text-gray-400 w-6 text-right">2</span>
-                            <input class="w-12 px-1.5 py-1 text-right border border-gray-300 rounded text-xs font-semibold" value="6">
-                        </div>
-                    </div>
-                    <p class="text-[10px] text-amber-600 mt-1 flex items-center gap-1"><i data-lucide="trending-up" class="w-3 h-3"></i> 2× sobre el promedio</p>
-                </div>
-                <div class="py-2 border-b border-gray-100 flex items-center justify-between gap-2">
-                    <div class="min-w-0"><p class="text-xs font-medium text-gray-700 truncate">Jabon liquido para manos 1 L</p><p class="text-[10px] text-gray-400">LIM-004 · Prom. semanal: 3</p></div>
-                    <div class="flex items-center gap-3 text-xs"><span class="font-semibold text-gray-800 w-6 text-right">3</span><span class="text-gray-400 w-6 text-right">1</span><input class="w-12 px-1.5 py-1 text-right border border-gray-300 rounded text-xs font-semibold" value="3"></div>
-                </div>
-                <div class="py-2 border-b border-gray-100 flex items-center justify-between gap-2">
-                    <div class="min-w-0"><p class="text-xs font-medium text-gray-700 truncate">Desengrasante multiusos 1 L</p><p class="text-[10px] text-gray-400">LIM-007 · Prom. semanal: 2</p></div>
-                    <div class="flex items-center gap-3 text-xs"><span class="font-semibold text-gray-800 w-6 text-right">2</span><span class="text-gray-400 w-6 text-right">0</span><input class="w-12 px-1.5 py-1 text-right border border-gray-300 rounded text-xs font-semibold" value="2"></div>
-                </div>
-                <div class="py-2 border-b border-gray-100 flex items-center justify-between gap-2">
-                    <div class="min-w-0"><p class="text-xs font-medium text-gray-700 truncate">Bolsa para basura jumbo (paq. 10)</p><p class="text-[10px] text-gray-400">LIM-015 · Prom. semanal: 5</p></div>
-                    <div class="flex items-center gap-3 text-xs"><span class="font-semibold text-gray-800 w-6 text-right">5</span><span class="text-gray-400 w-6 text-right">3</span><input class="w-12 px-1.5 py-1 text-right border border-gray-300 rounded text-xs font-semibold" value="2"></div>
-                </div>
-                <div class="py-2 border-b border-gray-100 flex items-center justify-between gap-2">
-                    <div class="min-w-0"><p class="text-xs font-medium text-gray-700 truncate">Fibra verde (paq. 6)</p><p class="text-[10px] text-gray-400">LIM-021 · Prom. semanal: 1</p></div>
-                    <div class="flex items-center gap-3 text-xs"><span class="font-semibold text-gray-800 w-6 text-right">1</span><span class="text-gray-400 w-6 text-right">1</span><input class="w-12 px-1.5 py-1 text-right border border-gray-300 rounded text-xs font-semibold" value="1"></div>
-                </div>
-                <div class="py-2 flex items-center justify-between gap-2">
-                    <div class="min-w-0"><p class="text-xs font-medium text-gray-700 truncate">Papel higienico jumbo (caja 6)</p><p class="text-[10px] text-gray-400">LIM-030 · Prom. semanal: 2</p></div>
-                    <div class="flex items-center gap-3 text-xs"><span class="font-semibold text-gray-800 w-6 text-right">2</span><span class="text-gray-400 w-6 text-right">0</span><input class="w-12 px-1.5 py-1 text-right border border-gray-300 rounded text-xs font-semibold" value="2"></div>
+        <!-- ===== Vista CALENDARIO ===== -->
+        <div id="calendarioView" class="hidden p-3 flex-1 min-h-0 overflow-auto">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-bold text-gray-800">Diciembre 2026</p>
+                <div class="flex gap-1">
+                    <button class="w-7 h-7 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-500"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                    <button class="w-7 h-7 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-500"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
                 </div>
             </div>
+            <div id="calGrid" class="grid grid-cols-7 border-l border-t border-gray-200 text-[11px]"></div>
+            <p class="text-[11px] text-gray-400 mt-2">Clic en un dia vacio para programar una compra en esa fecha.</p>
+        </div>
+    </div>
 
-            <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0 flex items-center justify-between">
-                <span class="text-sm font-semibold text-gray-700">Estimado</span>
-                <span class="text-lg font-bold text-green-600">$1,186.00</span>
-            </div>
-            <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
-                <button class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-green-600 hover:bg-green-500 flex items-center justify-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5"></i>Aprobar</button>
-                <button class="flex-1 px-3 py-1.5 text-xs font-semibold text-blue-700 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 flex items-center justify-center gap-1.5"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>Aprobar ajustada</button>
-                <button class="px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-rose-600 hover:bg-rose-500 flex items-center justify-center"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
-            </div>
-        </aside>
-    </section>
-
+    <!-- ===================== PANEL DETALLE (aside 420) ===================== -->
     <!-- ============================================================
-         TAB 3: CONSOLIDADO
-         Necesidad neta = Solicitado aprobado - Stock disponible - En transito
-         Se agrupa por proveedor preferido -> un boton genera la OC.
+         ACCIONES POR ESTADO (documentacion para backend):
+           Programada: [Imprimir hoja] [Editar] [Cancelar]     <-- mostrada abajo
+           En surtido: [Capturar surtido] [Reimprimir]
+           Capturada:  [Retomar en otra fecha] [Ver entrada]
     ============================================================ -->
-    <section id="tab-consolidado" class="tab-pane hidden flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div class="px-3 py-3 border-b border-gray-200 flex flex-wrap items-end gap-3 flex-shrink-0">
-            <div class="min-w-[240px]">
-                <label class="lbl">Plan</label>
-                <select class="sel"><option>PC-2026-017 · Semana 41 (corte jue 08 oct)</option><option>PC-2026-018 · Boda Hernandez-Lopez</option></select>
+    <aside id="detailPanel" class="w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden">
+
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wider">CP-0044</p>
+                <p class="text-base font-bold text-gray-800">Roscas de Reyes</p>
             </div>
-            <div class="flex items-center gap-1.5 pb-0.5">
-                <span class="chip active">Todo</span>
-                <span class="chip"><i data-lucide="store" class="w-3 h-3"></i> Tienda</span>
-                <span class="chip"><i data-lucide="chef-hat" class="w-3 h-3"></i> Produccion</span>
-            </div>
-            <div class="ml-auto flex gap-2">
-                <button class="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1.5"><i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Exportar</button>
-                <button class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center gap-1.5"><i data-lucide="send" class="w-3.5 h-3.5"></i> Generar 3 ordenes</button>
+            <span class="px-2 py-0.5 rounded text-xs font-bold bg-yellow-500/15 text-yellow-600 border border-yellow-500/30">Programada</span>
+        </div>
+
+        <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
+            <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28">Programacion</span><span class="text-gray-700 text-right">Fecha especial · lun 04 ene 2027</span></div>
+            <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28">Surte</span><span class="text-gray-700 text-right">Pedro Gomez</span></div>
+            <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28">Almacen destino</span><span class="text-gray-700 text-right">Almacen General</span></div>
+            <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28">Retomada de</span><span class="text-blue-700 font-semibold text-right">CP-0003 · Roscas 2026</span></div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 py-3">
+            <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">Materiales (6)</p>
+            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Harina de trigo 25 kg</span><span class="font-semibold text-gray-800">8 bto</span></div>
+            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Azucar estandar 50 kg</span><span class="font-semibold text-gray-800">2 bto</span></div>
+            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Mantequilla sin sal</span><span class="font-semibold text-gray-800">20 kg</span></div>
+            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Huevo (caja 360)</span><span class="font-semibold text-gray-800">4 cja</span></div>
+            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs"><span class="font-medium text-gray-700">Ate y fruta cristalizada</span><span class="font-semibold text-gray-800">6 kg</span></div>
+            <div class="flex items-center justify-between py-2 text-xs"><span class="font-medium text-gray-700">Muñequitos para rosca (bolsa 100)</span><span class="font-semibold text-gray-800">5 bol</span></div>
+
+            <p class="text-xs uppercase tracking-wider text-gray-500 mt-5 mb-2">Veces anteriores</p>
+            <div class="flex items-center justify-between py-2 border-b border-gray-100 text-xs">
+                <span class="text-gray-700">CP-0003 · 05 ene 2026</span>
+                <span class="text-gray-500">Surtido $9,840.00</span>
             </div>
         </div>
 
-        <div class="flex-1 min-h-0 overflow-auto p-3 space-y-4">
-
-            <!-- Resumen -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div class="rounded-lg border border-gray-200 px-4 py-3"><p class="text-[11px] uppercase font-semibold text-gray-500">Solicitudes aprobadas</p><p class="text-xl font-bold text-gray-800">4 <span class="text-xs font-medium text-gray-400">de 4</span></p></div>
-                <div class="rounded-lg border border-gray-200 px-4 py-3"><p class="text-[11px] uppercase font-semibold text-gray-500">Insumos</p><p class="text-xl font-bold text-gray-800">31</p></div>
-                <div class="rounded-lg border border-gray-200 px-4 py-3"><p class="text-[11px] uppercase font-semibold text-gray-500">Cubierto por stock</p><p class="text-xl font-bold text-green-600">$2,940</p></div>
-                <div class="rounded-lg border border-gray-200 px-4 py-3"><p class="text-[11px] uppercase font-semibold text-gray-500">A comprar</p><p class="text-xl font-bold text-blue-600">$11,120</p></div>
-            </div>
-
-            <!-- Grupo por proveedor -->
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <div class="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="truck" class="w-4 h-4 text-gray-500"></i>
-                        <p class="text-sm font-bold text-gray-800">Abarrotes del Sureste</p>
-                        <span class="text-[11px] text-gray-500">Entrega lun 12 oct · Credito 15 dias</span>
-                    </div>
-                    <p class="text-sm font-bold text-gray-800">$6,840.00</p>
-                </div>
-                <table class="w-full text-[13px] table-fixed">
-                    <colgroup><col class="w-[40%]"><col class="w-[10%]"><col class="w-[12%]"><col class="w-[10%]"><col class="w-[13%]"><col class="w-[15%]"></colgroup>
-                    <thead><tr class="text-gray-500 text-[11px] uppercase tracking-wider">
-                        <th class="text-left font-semibold px-4 py-2">Insumo</th>
-                        <th class="text-center font-semibold px-3 py-2">Origen</th>
-                        <th class="text-right font-semibold px-3 py-2">Solicitado</th>
-                        <th class="text-right font-semibold px-3 py-2">Stock</th>
-                        <th class="text-right font-semibold px-3 py-2">A comprar</th>
-                        <th class="text-right font-semibold px-4 py-2">Importe</th>
-                    </tr></thead>
-                    <tbody class="divide-y divide-gray-100 text-gray-700">
-                        <tr><td class="px-4 py-2"><p class="font-medium">Harina de trigo 25 kg</p><p class="text-[11px] text-gray-400">SP-0117 (Concha, Pan de muerto)</p></td><td class="text-center"><span class="badge tipo-produccion">Prod.</span></td><td class="text-right px-3">6 bto</td><td class="text-right px-3 text-gray-400">1</td><td class="text-right px-3 font-bold">5 bto</td><td class="text-right px-4">$3,250.00</td></tr>
-                        <tr><td class="px-4 py-2"><p class="font-medium">Azucar estandar 50 kg</p><p class="text-[11px] text-gray-400">SP-0117</p></td><td class="text-center"><span class="badge tipo-produccion">Prod.</span></td><td class="text-right px-3">2 bto</td><td class="text-right px-3 text-gray-400">0</td><td class="text-right px-3 font-bold">2 bto</td><td class="text-right px-4">$2,180.00</td></tr>
-                        <tr><td class="px-4 py-2"><p class="font-medium">Mantequilla sin sal 1 kg</p><p class="text-[11px] text-gray-400">SP-0117</p></td><td class="text-center"><span class="badge tipo-produccion">Prod.</span></td><td class="text-right px-3">12 kg</td><td class="text-right px-3 text-gray-400">4</td><td class="text-right px-3 font-bold">8 kg</td><td class="text-right px-4">$1,410.00</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <div class="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="truck" class="w-4 h-4 text-gray-500"></i>
-                        <p class="text-sm font-bold text-gray-800">Limpieza Profesional Maya</p>
-                        <span class="text-[11px] text-gray-500">Entrega lun 12 oct · Contado</span>
-                    </div>
-                    <p class="text-sm font-bold text-gray-800">$1,186.00</p>
-                </div>
-                <table class="w-full text-[13px] table-fixed">
-                    <colgroup><col class="w-[40%]"><col class="w-[10%]"><col class="w-[12%]"><col class="w-[10%]"><col class="w-[13%]"><col class="w-[15%]"></colgroup>
-                    <thead><tr class="text-gray-500 text-[11px] uppercase tracking-wider">
-                        <th class="text-left font-semibold px-4 py-2">Insumo</th>
-                        <th class="text-center font-semibold px-3 py-2">Origen</th>
-                        <th class="text-right font-semibold px-3 py-2">Solicitado</th>
-                        <th class="text-right font-semibold px-3 py-2">Stock</th>
-                        <th class="text-right font-semibold px-3 py-2">A comprar</th>
-                        <th class="text-right font-semibold px-4 py-2">Importe</th>
-                    </tr></thead>
-                    <tbody class="divide-y divide-gray-100 text-gray-700">
-                        <tr><td class="px-4 py-2"><p class="font-medium">Cloro 3.75 L</p><p class="text-[11px] text-gray-400">ST-0231 · ajustado 8 → 6</p></td><td class="text-center"><span class="badge tipo-tienda">Tienda</span></td><td class="text-right px-3">6 pza</td><td class="text-right px-3 text-gray-400">2</td><td class="text-right px-3 font-bold">4 pza</td><td class="text-right px-4">$248.00</td></tr>
-                        <tr><td class="px-4 py-2"><p class="font-medium">Jabon liquido para manos 1 L</p><p class="text-[11px] text-gray-400">ST-0231</p></td><td class="text-center"><span class="badge tipo-tienda">Tienda</span></td><td class="text-right px-3">3 pza</td><td class="text-right px-3 text-gray-400">1</td><td class="text-right px-3 font-bold">2 pza</td><td class="text-right px-4">$136.00</td></tr>
-                        <tr><td class="px-4 py-2 text-[11px] text-gray-400" colspan="6">+ 4 articulos mas</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Sin proveedor -->
-            <div class="border border-dashed border-amber-300 bg-amber-50/50 rounded-lg px-4 py-3 flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-2 text-xs text-amber-800">
-                    <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-                    <span><b>2 insumos sin proveedor preferido</b> (Vainilla natural 1 L, Papel encerado). Asignalos para incluirlos en una orden.</span>
-                </div>
-                <button class="px-3 py-1.5 text-xs font-semibold text-amber-800 border border-amber-300 rounded-md hover:bg-amber-100">Asignar proveedor</button>
-            </div>
+        <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0 flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-700">Ultimo costo</span>
+            <span class="text-lg font-bold text-green-600">$9,840.00</span>
         </div>
-    </section>
+
+        <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
+            <button onclick="openModal('hoja-surtido.html')" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-blue-600 hover:bg-blue-700 flex items-center justify-center gap-1.5">
+                <i data-lucide="printer" class="w-3.5 h-3.5"></i>Imprimir hoja
+            </button>
+            <button onclick="openModal('modals/modal-captura.html')" class="flex-1 px-3 py-1.5 text-xs font-semibold text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 flex items-center justify-center gap-1.5">
+                <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i>Capturar
+            </button>
+            <button onclick="openModal('modals/modal-compra-planificada.html')" class="px-3 py-1.5 text-xs font-semibold text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 flex items-center justify-center" title="Editar">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            </button>
+        </div>
+    </aside>
 
 </div>
 </div>
 
 <script>
-    // Tabs
-    function showTab(name){
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-        document.querySelectorAll('.tab-pane').forEach(p => {
-            const on = p.id === 'tab-' + name;
-            p.classList.toggle('hidden', !on);
-            p.classList.toggle('flex', on);
-        });
-    }
-    document.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => showTab(b.dataset.tab));
-    document.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => showTab(b.dataset.goto));
-
-    // Segmentado Tienda / Produccion
-    document.querySelectorAll('#segTipo .seg').forEach(btn => btn.onclick = () => {
-        const tipo = btn.dataset.tipo;
-        document.querySelectorAll('#segTipo .seg').forEach(b => {
-            const on = b === btn;
-            b.classList.toggle('bg-white', on);
-            b.classList.toggle('shadow-sm', on);
-            b.classList.toggle('text-gray-500', !on);
-            b.classList.toggle('text-sky-700', on && tipo === 'tienda');
-            b.classList.toggle('text-emerald-700', on && tipo === 'produccion');
-        });
-        document.getElementById('tbl-tienda').classList.toggle('hidden', tipo !== 'tienda');
-        document.getElementById('tbl-produccion').classList.toggle('hidden', tipo !== 'produccion');
-        document.getElementById('tbl-produccion').classList.toggle('flex-1', tipo === 'produccion');
+    // Lista / Calendario
+    document.querySelectorAll('#segVista .seg').forEach(btn => btn.onclick = () => {
+        document.querySelectorAll('#segVista .seg').forEach(b => b.classList.toggle('seg-on', b === btn));
+        document.getElementById('tablaView').classList.toggle('hidden', btn.dataset.vista !== 'tabla');
+        document.getElementById('calendarioView').classList.toggle('hidden', btn.dataset.vista !== 'calendario');
     });
 
     // Filas
-    document.querySelectorAll('tbody tr').forEach(r => r.addEventListener('click', () => {
-        r.closest('tbody').querySelectorAll('tr').forEach(x => x.classList.remove('row-active'));
+    document.querySelectorAll('#tablaView tbody tr').forEach(r => r.onclick = () => {
+        document.querySelectorAll('#tablaView tbody tr').forEach(x => x.classList.remove('row-active'));
         r.classList.add('row-active');
-    }));
+    });
 
-    // Mini calendario (octubre 2026 empieza en jueves)
+    // Calendario: diciembre 2026 inicia en martes
     (function(){
-        const cal = document.getElementById('miniCal');
-        const marks = { 8:'amber', 15:'amber', 22:'amber', 29:'amber', 12:'indigo', 19:'indigo', 26:'indigo', 13:'amber', 17:'pink' };
-        ['L','M','M','J','V','S','D'].forEach(d => cal.insertAdjacentHTML('beforeend', `<span class="text-gray-400 font-semibold py-1">${d}</span>`));
-        for (let i = 0; i < 3; i++) cal.insertAdjacentHTML('beforeend', '<span></span>');
+        const grid = document.getElementById('calGrid');
+        const ev = {
+            7:  [['Semanal panaderia', 'bg-green-500/15 text-green-700']],
+            14: [['Semanal panaderia', 'bg-orange-500/15 text-orange-600']],
+            21: [['Semanal panaderia', 'bg-yellow-500/15 text-yellow-700']],
+            28: [['Semanal panaderia', 'bg-yellow-500/15 text-yellow-700']],
+            22: [['Pedido navideño', 'bg-yellow-500/15 text-yellow-700']]
+        };
+        ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'].forEach(d =>
+            grid.insertAdjacentHTML('beforeend', `<div class="px-2 py-1.5 bg-gray-50 border-r border-b border-gray-200 font-semibold text-gray-500 uppercase text-[10px]">${d}</div>`));
+        grid.insertAdjacentHTML('beforeend', '<div class="border-r border-b border-gray-200 bg-gray-50/50"></div>');
         for (let d = 1; d <= 31; d++) {
-            const m = marks[d];
-            const today = d === 7 ? 'bg-blue-600 text-white font-bold' : 'text-gray-700 hover:bg-gray-100';
-            const dot = m ? `<span class="block w-1.5 h-1.5 rounded-full bg-${m}-500 mx-auto mt-0.5"></span>` : '<span class="block h-1.5 mt-0.5"></span>';
-            cal.insertAdjacentHTML('beforeend', `<span class="rounded py-1 cursor-pointer ${today}">${d}${dot}</span>`);
+            const chips = (ev[d] || []).map(([t, c]) => `<div class="mt-1 px-1.5 py-0.5 rounded ${c} font-semibold truncate">${t}</div>`).join('');
+            grid.insertAdjacentHTML('beforeend', `<div class="min-h-[84px] p-1.5 border-r border-b border-gray-200 hover:bg-gray-50 cursor-pointer"><span class="${d === 14 ? 'inline-flex w-5 h-5 rounded-full bg-blue-600 text-white items-center justify-center font-bold' : 'text-gray-600'}">${d}</span>${chips}</div>`);
         }
+        for (let i = 0; i < 3; i++) grid.insertAdjacentHTML('beforeend', '<div class="border-r border-b border-gray-200 bg-gray-50/50"></div>');
     })();
 
     function openModal(file){ window.open(file, '_blank', 'width=1100,height=820'); }

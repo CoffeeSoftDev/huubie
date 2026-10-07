@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoja de Surtido CP-0044 - Huubie Inventarios</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:#e5e7eb; }
+        .hoja { width:216mm; min-height:279mm; padding:14mm 14mm; background:#fff; margin:16px auto; box-shadow:0 4px 24px rgba(0,0,0,.12); }
+        .blank { border-bottom:1px solid #9ca3af; height:22px; }
+        @page { size: letter; margin: 0; }
+        @media print {
+            body { background:#fff; }
+            .no-print { display:none !important; }
+            .hoja { margin:0; box-shadow:none; }
+        }
+    </style>
+</head>
+
+<!-- ============================================================
+     HOJA DE SURTIDO (se imprime en blanco y negro, carta)
+     La persona que surte anota a mano: cantidad surtida, costo y
+     donde compro. Con esa hoja se hace la captura en el sistema.
+============================================================ -->
+<body class="text-gray-900">
+
+<div class="no-print sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+    <p class="text-xs text-gray-500">Vista de impresion · Carta</p>
+    <div class="flex gap-2">
+        <button onclick="window.close()" class="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cerrar</button>
+        <button onclick="window.print()" class="px-3 py-1.5 text-xs font-bold text-white bg-[#C05A40] rounded-md hover:bg-[#A84A33] flex items-center gap-1.5"><i data-lucide="printer" class="w-3.5 h-3.5"></i> Imprimir</button>
+    </div>
+</div>
+
+<div class="hoja">
+
+    <!-- Encabezado -->
+    <div class="flex items-start justify-between border-b-2 border-gray-900 pb-3">
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Hoja de surtido</p>
+            <h1 class="text-xl font-extrabold">Roscas de Reyes</h1>
+            <p class="text-xs text-gray-600">Sucursal Centro · Almacen General</p>
+        </div>
+        <div class="text-right">
+            <p class="text-lg font-extrabold">CP-0044</p>
+            <p class="text-xs text-gray-600">Fecha de compra: <b>lun 04 ene 2027</b></p>
+            <p class="text-xs text-gray-600">Impresa: 14 dic 2026</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-6 mt-3 text-xs">
+        <p><span class="text-gray-500">Surte:</span> <b>Pedro Gomez</b></p>
+        <p><span class="text-gray-500">Programo:</span> <b>Rosa Velazquez</b></p>
+    </div>
+
+    <p class="text-[11px] text-gray-600 mt-3 border border-gray-300 rounded px-2.5 py-1.5"><b>Nota:</b> la mantequilla en la cremeria de siempre.</p>
+
+    <!-- Tabla -->
+    <table class="w-full text-xs mt-4 border-collapse">
+        <thead>
+            <tr class="border-y-2 border-gray-900 text-[10px] uppercase tracking-wider">
+                <th class="text-center py-2 w-8">#</th>
+                <th class="text-left py-2">Producto</th>
+                <th class="text-center py-2 w-20">Pedido</th>
+                <th class="text-center py-2 w-24">Surtido</th>
+                <th class="text-center py-2 w-24">Costo total</th>
+                <th class="text-left py-2 w-32 pl-2">Donde / proveedor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="border-b border-gray-300"><td class="text-center py-3 text-gray-500">1</td><td class="py-3 font-medium">Harina de trigo 25 kg</td><td class="text-center font-bold">8 bto</td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td></tr>
+            <tr class="border-b border-gray-300"><td class="text-center py-3 text-gray-500">2</td><td class="py-3 font-medium">Azucar estandar 50 kg</td><td class="text-center font-bold">2 bto</td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td></tr>
+            <tr class="border-b border-gray-300"><td class="text-center py-3 text-gray-500">3</td><td class="py-3 font-medium">Mantequilla sin sal</td><td class="text-center font-bold">20 kg</td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td></tr>
+            <tr class="border-b border-gray-300"><td class="text-center py-3 text-gray-500">4</td><td class="py-3 font-medium">Huevo (caja 360)</td><td class="text-center font-bold">4 cja</td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td></tr>
+            <tr class="border-b border-gray-300"><td class="text-center py-3 text-gray-500">5</td><td class="py-3 font-medium">Ate y fruta cristalizada</td><td class="text-center font-bold">6 kg</td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td></tr>
+            <tr class="border-b border-gray-300"><td class="text-center py-3 text-gray-500">6</td><td class="py-3 font-medium">Muñequitos para rosca (bolsa 100)</td><td class="text-center font-bold">5 bol</td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td></tr>
+            <!-- Renglones libres para lo que se compre extra -->
+            <tr class="border-b border-gray-300"><td class="text-center py-3 text-gray-300">7</td><td class="py-3 pr-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td></tr>
+            <tr class="border-b border-gray-300"><td class="text-center py-3 text-gray-300">8</td><td class="py-3 pr-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td><td class="px-2"><div class="blank"></div></td></tr>
+        </tbody>
+        <tfoot>
+            <tr class="border-t-2 border-gray-900">
+                <td colspan="4" class="text-right py-3 pr-3 font-bold uppercase text-[11px]">Total gastado</td>
+                <td class="px-2"><div class="blank"></div></td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <p class="text-[10px] text-gray-500 mt-2">Si algo no se consiguio, anota 0 en "Surtido". Engrapa los tickets al reverso de esta hoja.</p>
+
+    <!-- Firmas -->
+    <div class="grid grid-cols-2 gap-12 mt-16 text-xs text-center">
+        <div><div class="border-t border-gray-900 pt-1.5"><b>Pedro Gomez</b><br><span class="text-gray-500">Surtio · fecha y firma</span></div></div>
+        <div><div class="border-t border-gray-900 pt-1.5"><b>Recibe en almacen</b><br><span class="text-gray-500">Nombre, fecha y firma</span></div></div>
+    </div>
+</div>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>

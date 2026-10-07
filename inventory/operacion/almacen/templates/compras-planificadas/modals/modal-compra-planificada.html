@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compra Planificada - Huubie Inventarios</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            }
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:rgba(17,24,40,.45); }
+        .lbl { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; margin-bottom:4px; }
+        .inp, .sel { width:100%; padding:7px 10px; font-size:12px; color:#1f2937; background:#fff; border:1px solid #d1d5db; border-radius:6px; outline:none; }
+        .inp:focus, .sel:focus { border-color:#C8694C; }
+        .opt { border:1px solid #e5e7eb; border-radius:8px; padding:8px 12px; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:#4b5563; }
+        .opt.on { border-color:#C05A40; background:#FBF3EF; color:#A84A33; box-shadow:0 0 0 1px #C05A40; }
+        .day { width:36px; height:30px; border-radius:6px; font-size:11px; font-weight:600; border:1px solid #e5e7eb; color:#4b5563; }
+        .day.on { background:#C05A40; border-color:#C05A40; color:#fff; }
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
+    </style>
+</head>
+
+<!-- ============================================================
+     NUEVA / EDITAR COMPRA PLANIFICADA
+       Programacion:
+         · Fecha especial -> una fecha (roscas, pedido navideño)
+         · Cada semana    -> dia(s) de la semana (ej. lunes) hasta una fecha fin opcional
+       "Copiar de" precarga los materiales de una compra anterior
+       (asi se retoman las roscas del año pasado).
+============================================================ -->
+<body class="min-h-screen flex items-start justify-center p-4 text-gray-800">
+
+<div class="w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col max-h-[95vh] overflow-hidden">
+
+    <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center"><i data-lucide="calendar-plus" class="w-4 h-4 text-blue-700"></i></span>
+            <div>
+                <h2 class="text-sm font-bold text-gray-800">Nueva compra planificada</h2>
+                <p class="text-[11px] text-gray-500">Define que se compra y cuando</p>
+            </div>
+        </div>
+        <button onclick="window.close()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+
+    <div class="overflow-y-auto px-5 py-4 flex-1 space-y-4">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><label class="lbl">Nombre</label><input class="inp" value="Roscas de Reyes"></div>
+            <div>
+                <label class="lbl">Copiar materiales de <span class="normal-case text-gray-400">(opcional)</span></label>
+                <select class="sel"><option>CP-0003 · Roscas de Reyes 2026</option><option>-- Ninguna --</option><option>CP-0041 · Surtido semanal panaderia</option></select>
+            </div>
+        </div>
+
+        <!-- Programacion -->
+        <div>
+            <label class="lbl">¿Cuando?</label>
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <div class="opt on" data-prog="unica"><i data-lucide="star" class="w-4 h-4"></i> Fecha especial</div>
+                <div class="opt" data-prog="semanal"><i data-lucide="repeat" class="w-4 h-4"></i> Cada semana</div>
+            </div>
+            <div id="prog-unica" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div><label class="lbl">Fecha de compra</label><input type="date" class="inp" value="2027-01-04"></div>
+                <div class="flex items-end"><p class="text-[11px] text-gray-500 pb-2">Sugerencia: compra unos dias antes de la fecha de venta (06 ene).</p></div>
+            </div>
+            <div id="prog-semanal" class="hidden space-y-3">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <button class="day on">L</button><button class="day">M</button><button class="day">M</button><button class="day">J</button><button class="day">V</button><button class="day">S</button><button class="day">D</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div><label class="lbl">Desde</label><input type="date" class="inp" value="2026-12-07"></div>
+                    <div><label class="lbl">Hasta <span class="normal-case text-gray-400">(opcional)</span></label><input type="date" class="inp"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><label class="lbl">Quien surte</label><select class="sel"><option>Pedro Gomez</option><option>Laura Mendez</option></select></div>
+            <div><label class="lbl">Almacen destino</label><select class="sel"><option>Almacen General</option><option>Almacen Frio</option></select></div>
+        </div>
+
+        <!-- Materiales -->
+        <div>
+            <label class="lbl">Materiales</label>
+            <div class="relative mb-2">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" class="inp" style="padding-left:2rem" placeholder="Buscar productos por nombre o SKU...">
+            </div>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <table class="w-full text-xs">
+                    <thead><tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2">Producto</th>
+                        <th class="text-center font-semibold px-3 py-2 w-28">Cantidad</th>
+                        <th class="text-center font-semibold px-3 py-2 w-20">Unidad</th>
+                        <th class="w-10"></th>
+                    </tr></thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr><td class="px-3 py-2 font-medium text-gray-700">Harina de trigo 25 kg</td><td class="px-3 py-1.5"><input type="number" class="inp no-spin text-center font-bold" value="8"></td><td class="text-center text-gray-500">bto</td><td class="text-center"><i data-lucide="trash-2" class="w-4 h-4 text-gray-300 hover:text-rose-500 inline cursor-pointer"></i></td></tr>
+                        <tr><td class="px-3 py-2 font-medium text-gray-700">Azucar estandar 50 kg</td><td class="px-3 py-1.5"><input type="number" class="inp no-spin text-center font-bold" value="2"></td><td class="text-center text-gray-500">bto</td><td class="text-center"><i data-lucide="trash-2" class="w-4 h-4 text-gray-300 hover:text-rose-500 inline cursor-pointer"></i></td></tr>
+                        <tr><td class="px-3 py-2 font-medium text-gray-700">Mantequilla sin sal</td><td class="px-3 py-1.5"><input type="number" class="inp no-spin text-center font-bold" value="20"></td><td class="text-center text-gray-500">kg</td><td class="text-center"><i data-lucide="trash-2" class="w-4 h-4 text-gray-300 hover:text-rose-500 inline cursor-pointer"></i></td></tr>
+                        <tr><td class="px-3 py-2 font-medium text-gray-700">Huevo (caja 360)</td><td class="px-3 py-1.5"><input type="number" class="inp no-spin text-center font-bold" value="4"></td><td class="text-center text-gray-500">cja</td><td class="text-center"><i data-lucide="trash-2" class="w-4 h-4 text-gray-300 hover:text-rose-500 inline cursor-pointer"></i></td></tr>
+                        <tr><td class="px-3 py-2 font-medium text-gray-700">Ate y fruta cristalizada</td><td class="px-3 py-1.5"><input type="number" class="inp no-spin text-center font-bold" value="6"></td><td class="text-center text-gray-500">kg</td><td class="text-center"><i data-lucide="trash-2" class="w-4 h-4 text-gray-300 hover:text-rose-500 inline cursor-pointer"></i></td></tr>
+                        <tr><td class="px-3 py-2 font-medium text-gray-700">Muñequitos para rosca (bolsa 100)</td><td class="px-3 py-1.5"><input type="number" class="inp no-spin text-center font-bold" value="5"></td><td class="text-center text-gray-500">bol</td><td class="text-center"><i data-lucide="trash-2" class="w-4 h-4 text-gray-300 hover:text-rose-500 inline cursor-pointer"></i></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <label class="lbl">Nota para quien surte <span class="normal-case text-gray-400">(opcional)</span></label>
+            <textarea rows="2" class="inp resize-none" placeholder="Ej. la mantequilla en la cremeria de siempre"></textarea>
+        </div>
+    </div>
+
+    <div class="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+        <button onclick="window.close()" class="px-3.5 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
+        <button class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
+            <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i> Programar
+        </button>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.opt').forEach(o => o.onclick = () => {
+        document.querySelectorAll('.opt').forEach(x => x.classList.toggle('on', x === o));
+        document.getElementById('prog-unica').classList.toggle('hidden', o.dataset.prog !== 'unica');
+        document.getElementById('prog-semanal').classList.toggle('hidden', o.dataset.prog !== 'semanal');
+    });
+    document.querySelectorAll('.day').forEach(d => d.onclick = () => d.classList.toggle('on'));
+    lucide.createIcons();
+</script>
+</body>
+</html>

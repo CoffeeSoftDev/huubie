@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capturar Surtido - Huubie Inventarios</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            }
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:rgba(17,24,40,.45); }
+        .lbl { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; margin-bottom:4px; }
+        .inp, .sel { width:100%; padding:7px 10px; font-size:12px; color:#1f2937; background:#fff; border:1px solid #d1d5db; border-radius:6px; outline:none; }
+        .inp:focus, .sel:focus { border-color:#C8694C; }
+        .cell { width:100%; padding:4px 8px; font-size:12px; font-weight:700; text-align:center; border:1px solid #d1d5db; border-radius:4px; outline:none; }
+        .cell:focus { border-color:#C05A40; box-shadow:0 0 0 2px rgba(192,90,64,.15); }
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
+    </style>
+</head>
+
+<!-- ============================================================
+     CAPTURAR SURTIDO
+     Se transcribe la hoja impresa: cantidad surtida y costo por renglon.
+     Al confirmar: se genera la ENTRADA al almacen destino y la compra
+     queda "Capturada". Renglones en 0 quedan como no surtidos.
+============================================================ -->
+<body class="min-h-screen flex items-start justify-center p-4 text-gray-800">
+
+<div class="w-full max-w-4xl bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col max-h-[95vh] overflow-hidden">
+
+    <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center"><i data-lucide="clipboard-check" class="w-4 h-4 text-blue-700"></i></span>
+            <div>
+                <h2 class="text-sm font-bold text-gray-800">Capturar surtido</h2>
+                <p class="text-[11px] text-gray-500"><span class="font-semibold text-gray-700">CP-0044</span> · Roscas de Reyes · lun 04 ene 2027</p>
+            </div>
+        </div>
+        <button onclick="window.close()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+
+    <div class="overflow-y-auto px-5 py-4 flex-1">
+
+        <div class="mb-4 flex items-start gap-2.5 rounded-lg border-l-4 border-blue-600 bg-blue-600/5 px-3.5 py-2.5">
+            <i data-lucide="info" class="w-4 h-4 text-blue-700 mt-0.5 flex-shrink-0"></i>
+            <p class="text-[11px] text-gray-600 leading-relaxed">Copia lo anotado en la hoja de surtido. Al confirmar se genera una <span class="font-semibold text-gray-800">entrada al almacen</span> con las cantidades surtidas.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div><label class="lbl">Surtio</label><select class="sel"><option>Pedro Gomez</option><option>Laura Mendez</option></select></div>
+            <div><label class="lbl">Fecha de surtido</label><input type="date" class="inp" value="2027-01-04"></div>
+            <div><label class="lbl">Almacen destino</label><select class="sel"><option>Almacen General</option><option>Almacen Frio</option></select></div>
+        </div>
+
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <table class="w-full text-xs">
+                <thead><tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider">
+                    <th class="text-left font-semibold px-3 py-2">Producto</th>
+                    <th class="text-center font-semibold px-3 py-2 w-20">Pedido</th>
+                    <th class="text-center font-semibold px-3 py-2 w-24">Surtido</th>
+                    <th class="text-center font-semibold px-3 py-2 w-28">Costo total</th>
+                    <th class="text-left font-semibold px-3 py-2 w-44">Proveedor</th>
+                </tr></thead>
+                <tbody class="divide-y divide-gray-100" id="rows">
+                    <tr><td class="px-3 py-2"><div class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-green-600"></i><span class="font-medium text-gray-700">Harina de trigo 25 kg</span></div></td><td class="text-center text-gray-600">8 bto</td><td class="px-3 py-1.5"><input type="number" class="cell no-spin" value="8"></td><td class="px-3 py-1.5"><input class="cell" value="5,200.00"></td><td class="px-3 py-1.5"><input class="inp" value="Abarrotes del Sureste"></td></tr>
+                    <tr><td class="px-3 py-2"><div class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-green-600"></i><span class="font-medium text-gray-700">Azucar estandar 50 kg</span></div></td><td class="text-center text-gray-600">2 bto</td><td class="px-3 py-1.5"><input type="number" class="cell no-spin" value="2"></td><td class="px-3 py-1.5"><input class="cell" value="2,180.00"></td><td class="px-3 py-1.5"><input class="inp" value="Abarrotes del Sureste"></td></tr>
+                    <tr class="bg-orange-500/5"><td class="px-3 py-2"><div class="flex items-center gap-2"><i data-lucide="circle-dashed" class="w-4 h-4 text-orange-400"></i><span class="font-medium text-gray-700">Mantequilla sin sal</span></div></td><td class="text-center text-gray-600">20 kg</td><td class="px-3 py-1.5"><input type="number" class="cell no-spin border-orange-300 text-orange-600" value="15"></td><td class="px-3 py-1.5"><input class="cell" value="2,625.00"></td><td class="px-3 py-1.5"><input class="inp" value="Cremeria La Vaquita"></td></tr>
+                    <tr><td class="px-3 py-2"><div class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-green-600"></i><span class="font-medium text-gray-700">Huevo (caja 360)</span></div></td><td class="text-center text-gray-600">4 cja</td><td class="px-3 py-1.5"><input type="number" class="cell no-spin" value="4"></td><td class="px-3 py-1.5"><input class="cell" value="3,360.00"></td><td class="px-3 py-1.5"><input class="inp" value="Avicola San Juan"></td></tr>
+                    <tr><td class="px-3 py-2"><div class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-green-600"></i><span class="font-medium text-gray-700">Ate y fruta cristalizada</span></div></td><td class="text-center text-gray-600">6 kg</td><td class="px-3 py-1.5"><input type="number" class="cell no-spin" value="6"></td><td class="px-3 py-1.5"><input class="cell" value="690.00"></td><td class="px-3 py-1.5"><input class="inp" value="Mercado"></td></tr>
+                    <tr class="bg-rose-500/5"><td class="px-3 py-2"><div class="flex items-center gap-2"><i data-lucide="x-circle" class="w-4 h-4 text-rose-400"></i><span class="font-medium text-gray-700">Muñequitos para rosca (bolsa 100)</span></div></td><td class="text-center text-gray-600">5 bol</td><td class="px-3 py-1.5"><input type="number" class="cell no-spin border-rose-300 text-rose-600" value="0"></td><td class="px-3 py-1.5"><input class="cell" value="0.00"></td><td class="px-3 py-1.5"><input class="inp" placeholder="No se consiguio"></td></tr>
+                </tbody>
+            </table>
+            <div class="px-3 py-2 border-t border-gray-100">
+                <button class="text-[11px] font-semibold text-blue-700 flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar algo que se compro de mas</button>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <label class="lbl">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
+            <textarea rows="2" class="inp resize-none" placeholder="Faltantes, cambios de precio, etc.">No habia muñequitos, se compran la proxima semana.</textarea>
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center justify-end gap-6 text-xs">
+            <div><span class="text-gray-500">Surtido completo: </span><span class="font-bold text-green-600">4</span></div>
+            <div><span class="text-gray-500">Parcial: </span><span class="font-bold text-orange-500">1</span></div>
+            <div><span class="text-gray-500">No surtido: </span><span class="font-bold text-rose-500">1</span></div>
+            <div class="text-sm"><span class="text-gray-500">Total gastado: </span><span class="font-bold text-gray-800">$14,055.00</span></div>
+        </div>
+    </div>
+
+    <div class="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+        <button onclick="window.close()" class="px-3.5 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
+        <button class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 hover:shadow-lg transition-all flex items-center gap-1.5">
+            <i data-lucide="package-check" class="w-3.5 h-3.5"></i> Confirmar y dar entrada
+        </button>
+    </div>
+</div>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>
