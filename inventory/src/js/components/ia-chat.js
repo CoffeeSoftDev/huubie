@@ -1428,10 +1428,64 @@ Templates.prototype.iaChat = function (options) {
 
 // -- Ícono --
 
-// La cara de CoffeeBot (la de la cabecera del chat) quieta, para usarla de ícono
-// en otro lado, ej. el menú lateral del Catálogo, aunque el chat todavía no exista.
-// `id` hace único su clipPath.
-Templates.prototype.iaIcon = function (id) {
-    IaChat.prototype.ensureStyles();
-    return IaChat.prototype.coffeeBot.call({ opts: { id: id } });
+// La cara de coffeeIA dibujada como un ícono de Lucide: 24×24, solo trazo en
+// currentColor, grosor 2 y puntas redondas. La cabeza de CoffeeBot (IA_COFFEEBOT)
+// es casi un círculo y los ojos miran al frente. Como en los íconos de Lucide con
+// insignia, el contorno se abre abajo a la derecha (arco de 80° a 15°) para que
+// lo que se le monte ahí (el "IA" del botón de la navbar) no choque con la línea. Sin
+// data-lucide: lucide.createIcons no lo toca, y toma el color y el tamaño del
+// lugar donde va, como cualquier ícono de Lucide.
+Templates.prototype.iaIcon = function () {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-coffee-ia" aria-hidden="true">'
+         + '<path d="M13.74 21.85A10 10 0 1 1 21.66 14.59"/>'
+         + '<path d="M9 8v2"/>'
+         + '<path d="M15 8v2"/>'
+         + '</svg>';
+};
+
+// -- Botón de la navbar --
+
+// CoffeeIA en la navbar de inventory, el primero de los botones de la derecha
+// (antes de Tema) y con el aspecto de los demás (nav-theme-toggle de navbar.js): la
+// cara de iaIcon, un poco más grande que los íconos de al lado, y el "IA" en el
+// morado del chat en su esquina de abajo a la derecha (en barra oscura, uno más
+// claro). `onClick` abre o cierra el CoffeeIA de cada módulo. La navbar se pinta
+// sola y asíncrona (navbar.js): si aún no está, se espera su aviso navbarReady.
+Templates.prototype.iaNavButton = function (options) {
+    const o = Object.assign({
+        id:      'iaNavButton',
+        title:   'CoffeeIA',
+        onClick: null
+    }, options || {});
+
+    const mount = () => {
+        const $tema = $('#btnTheme');
+        if (!$tema.length) return false;
+
+        $(`#${o.id}`).remove();
+
+        const $btn = $('<button>', {
+            type: 'button',
+            id: o.id,
+            class: 'nav-theme-toggle',
+            title: o.title,
+            'aria-label': `Abrir ${o.title}`
+        }).append($('<span>', { class: 'relative block' }).append(
+            $(this.iaIcon()).addClass('block w-[21px] h-[21px]'),
+            $('<span>', {
+                class: 'absolute right-[-4px] bottom-[-1px] text-[8.5px] font-extrabold leading-none tracking-[-.02em] pointer-events-none text-[#7C3AED] [.nav-dark_&]:text-[#A78BFA]',
+                text: 'IA'
+            })
+        ));
+
+        $btn.on('click', () => {
+            if (o.onClick) o.onClick();
+        });
+
+        // #btnTheme vive en un div.relative junto con su menú de temas.
+        $tema.parent().before($btn);
+        return true;
+    };
+
+    if (!mount()) $(document).one('navbarReady', mount);
 };

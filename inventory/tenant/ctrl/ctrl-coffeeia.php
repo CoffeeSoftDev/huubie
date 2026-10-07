@@ -62,7 +62,7 @@ class ctrl extends mdl {
         if (!$c) return ['status' => 200, 'row' => [], 'message' => 'Falta correr las migraciones 2026-09-30_coffeeia-config.sql y 2026-10-06_coffeeia-activo.sql'];
 
         $row = [
-            ['Ajuste' => 'Estado',                  'Valor' => renderActive($c['active']),                                 'Para qué sirve' => 'Encendido: el ícono de coffeeIA sale abajo en el menú lateral del Catálogo. Apagado: no sale y el chat no contesta.'],
+            ['Ajuste' => 'Estado',                  'Valor' => renderActive($c['active']),                                 'Para qué sirve' => 'Encendido: el ícono de coffeeIA sale en la navbar de Catálogo, Entradas y Salidas. Apagado: no sale, los formularios de Entradas y Salidas esconden su botón de CoffeeIA y el chat no contesta.'],
             ['Ajuste' => 'Tono',                    'Valor' => renderTone($c['tone']),                                     'Para qué sirve' => 'Cómo redacta lo que te contesta. Se suma a las instrucciones de cada chat.'],
             ['Ajuste' => 'Modelo para razonamiento', 'Valor' => renderChoice($c['model'], self::MODELOS),                  'Para qué sirve' => 'El que entiende lo que pides, lo cruza con el catálogo y contesta.'],
             ['Ajuste' => 'Esfuerzo',                'Valor' => renderChoice($c['effort'], self::ESFUERZOS),                'Para qué sirve' => 'Cuánto piensa antes de contestar. Más esfuerzo, más lento.'],

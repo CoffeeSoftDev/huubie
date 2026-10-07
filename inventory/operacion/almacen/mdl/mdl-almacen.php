@@ -71,18 +71,6 @@ class mdl extends CRUD {
         return $this->_Read($query, []);
     }
 
-    // Administrador > CoffeeIA (fila única y global). Sin la migración
-    // 2026-10-06_coffeeia-activo.sql regresa null.
-    function getCoffeeIAConfigById($array) {
-        $query = "
-            SELECT active
-            FROM fayxzvov_erp.coffeeia_config
-            WHERE id = ?
-        ";
-        $result = $this->_Read($query, $array);
-        return $result[0] ?? null;
-    }
-
     function getCompanyById($array) {
         $query = "
             SELECT name, rfc, ubication

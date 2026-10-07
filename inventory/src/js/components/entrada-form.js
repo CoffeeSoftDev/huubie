@@ -44,8 +44,8 @@ class EntradaForm {
             search:  'w-full pl-8 pr-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
             qtyInp:  'no-spin w-full px-3 py-2 text-sm font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
             cashInp: 'no-spin w-full pl-6 pr-3 py-2 text-sm text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
-            btnCancel: 'px-4 py-2 text-xs font-bold text-red-600 bg-white border-[1px] border-red-400 rounded-md hover:bg-red-50 hover:border-red-500 hover:text-red-700 transition-all flex items-center gap-1.5',
-            btnOk:   'px-4 py-2 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5',
+            btnOut:  'px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all',
+            btnOk:   'px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5',
             btnIco:  'px-2.5 py-1.5 text-[11px] font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all flex items-center gap-1.5',
             badge:   'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold leading-none'
         };
@@ -89,6 +89,8 @@ class EntradaForm {
                 provName:     'Nombre',
                 provContact:  'Contacto',
                 provPhone:    'Telefono',
+                provPhonePh:  'Máximo 10 dígitos',
+                provPhoneMsg: 'El teléfono lleva máximo 10 dígitos',
                 provEmail:    'Correo',
                 provNamePh:   'Nombre del proveedor...',
                 prodCrear:    'Crear producto',
@@ -104,6 +106,8 @@ class EntradaForm {
                 prodGuardar:  'Crear y agregar',
                 iaSubir:      'Subir con IA',
                 fecha:        'Fecha',
+                fechaReq:     'Elige la fecha de la entrada',
+                fechaFutura:  'La fecha no puede ser posterior a hoy',
                 nota:         'Nota (opcional)',
                 comprobante:  'Comprobante',
                 compDrop:     'Arrastra la foto o PDF a la ventana, o haz clic',
@@ -112,6 +116,9 @@ class EntradaForm {
                 buscar:       'Buscar productos',
                 placeholder:  'Buscar productos por nombre o SKU...',
                 searchHint:   'Sin resultados',
+                sugerencia:   'Tal vez quisiste decir:',
+                coincide:     'Coincide en la descripción:',
+                stockMax:     'Supera el máximo',
                 resumenLbl:   'Resumen del lote',
                 productosLbl: 'Productos agregados',
                 unidadesLbl:  'Unidades',
@@ -141,7 +148,7 @@ class EntradaForm {
                 confirmEditOk:'Si, guardar',
                 stockAuto:    'El stock se actualizara automaticamente',
                 guardar:      'Guardar formato',
-                guardarDia:   'Guardar también como formato',
+                guardarDia:   'Guardar como formato',
                 cargar:       'Cargar formato',
                 formatosTit:  'Formatos guardados',
                 sinFormatos:  'No hay formatos guardados',
@@ -227,26 +234,26 @@ class EntradaForm {
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.origen)}</label>
                         ${this.selectWrap(`
-                            <select id="${o.id}_selOrigen" class="${cls.select}">
+                            <select id="${o.id}_selOrigen" class="${cls.select} !pl-10">
                                 ${(o.data.origenes || []).map(it => this.optionTag(it)).join('')}
                             </select>
-                        `)}
+                        `, 'log-in')}
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.sucursal)}</label>
                         ${this.selectWrap(`
-                            <select id="${o.id}_selSucursal" class="${cls.select}">
+                            <select id="${o.id}_selSucursal" class="${cls.select} !pl-10">
                                 ${(o.data.sucursales || []).map(it => this.optionTag(it, o.data.branch_id)).join('')}
                             </select>
-                        `)}
+                        `, 'building-2')}
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.almacen)}</label>
                         ${this.selectWrap(`
-                            <select id="${o.id}_selAlmacen" class="${cls.select}">
+                            <select id="${o.id}_selAlmacen" class="${cls.select} !pl-10">
                                 ${this.almacenOptions(o.data.branch_id, o.data.warehouse_id)}
                             </select>
-                        `)}
+                        `, 'warehouse')}
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.destino)}</label>
@@ -258,7 +265,7 @@ class EntradaForm {
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.fecha)}</label>
-                        <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" class="${cls.input}">
+                        <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" max="${this.hoy()}" class="${cls.input}">
                     </div>
                     <div id="${o.id}_cellProveedor" class="hidden">
                         <div class="flex items-center justify-between mb-1">
@@ -335,7 +342,7 @@ class EntradaForm {
                     <div class="px-4 pt-4 pb-3 flex flex-col gap-3">
                         ${field('name',    o.labels.provName,    'text', o.labels.provNamePh)}
                         ${field('contact', o.labels.provContact, 'text', '')}
-                        ${field('phone',   o.labels.provPhone,   'tel',  '')}
+                        ${field('phone',   o.labels.provPhone,   'tel',  o.labels.provPhonePh)}
                         ${field('email',   o.labels.provEmail,   'email','')}
                     </div>
                     <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50">
@@ -351,18 +358,28 @@ class EntradaForm {
         if (window.lucide) lucide.createIcons();
         $(`#${modalId}_name`).focus();
 
+        // Teléfono: solo dígitos y máximo 10 (lo que se pegue también se limpia).
+        $(`#${modalId}_phone`)
+            .attr({ maxlength: 10, inputmode: 'numeric' })
+            .on('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 10); });
+
         const closeModal = () => $(`#${modalId}`).remove();
         $(`#${modalId}`).on('click', '[data-sup-backdrop]', closeModal);
         $(`#${modalId}_close`).on('click', closeModal);
         $(`#${modalId}_cancel`).on('click', closeModal);
 
         const confirmar = () => {
-            const name = $(`#${modalId}_name`).val().trim();
+            const name  = $(`#${modalId}_name`).val().trim();
+            const phone = $(`#${modalId}_phone`).val().trim();
             if (!name) { $(`#${modalId}_name`).focus(); return; }
+            if (phone && !/^\d{1,10}$/.test(phone)) {
+                this.notify(o.labels.provPhoneMsg);
+                return;
+            }
             const payload = {
                 name:         name,
                 contact_name: $(`#${modalId}_contact`).val().trim(),
-                phone:        $(`#${modalId}_phone`).val().trim(),
+                phone:        phone,
                 email:        $(`#${modalId}_email`).val().trim()
             };
             if (typeof o.onCreateSupplier === 'function') {
@@ -578,54 +595,48 @@ class EntradaForm {
             </div>`;
     }
 
-    // compact.css fuerza height:auto y 1rem (!important) en textarea: el alto va en style.
+    // Mismo pie que la captura de Salidas (salida-form): Nota y comprobante a la
+    // izquierda, Cancelar y Registrar a la derecha. Los formatos van al inicio.
     renderFooter() {
         const o   = this.opts;
         const cls = this.cls;
         return `
-            <div class="flex items-center gap-2 px-[18px] py-2 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                <div class="flex items-center gap-2 relative flex-shrink-0">
-                    <button id="${o.id}_btnSaveFormato" class="${cls.btnIco} h-[44px]" title="${this.esc(o.labels.guardar)}">
-                        <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.guardar)}</span>
-                    </button>
-                    <button id="${o.id}_btnLoadFormato" class="${cls.btnIco} h-[44px]" title="${this.esc(o.labels.cargar)}">
-                        <i data-lucide="folder-open" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.cargar)}</span>
-                        <span id="${o.id}_cntFormatos" class="${cls.badge} bg-blue-50 text-blue-700 border border-blue-200 ml-0.5 hidden">0</span>
-                    </button>
-                    <div id="${o.id}_formatosDropdown" class="hidden absolute bottom-full left-0 mb-2 w-[280px] bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden z-20">
-                        <div class="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5">
-                                <i data-lucide="layers" class="w-3 h-3 text-blue-600"></i>${this.esc(o.labels.formatosTit)}
-                            </p>
-                            <button id="${o.id}_btnCloseFormatos" class="text-gray-400 hover:text-gray-700 transition-colors">
-                                <i data-lucide="x" class="w-3 h-3"></i>
-                            </button>
+            <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 relative flex-shrink-0 mr-1.5">
+                        <button id="${o.id}_btnSaveFormato" type="button" class="${cls.btnIco}" title="${this.esc(o.labels.guardar)}">
+                            <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.guardar)}</span>
+                        </button>
+                        <button id="${o.id}_btnLoadFormato" type="button" class="${cls.btnIco}" title="${this.esc(o.labels.cargar)}">
+                            <i data-lucide="folder-open" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.cargar)}</span>
+                            <span id="${o.id}_cntFormatos" class="${cls.badge} bg-blue-50 text-blue-700 border border-blue-200 ml-0.5 hidden">0</span>
+                        </button>
+                        <div id="${o.id}_formatosDropdown" class="hidden absolute bottom-full left-0 mb-2 w-[280px] bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden z-20">
+                            <div class="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5">
+                                    <i data-lucide="layers" class="w-3 h-3 text-blue-600"></i>${this.esc(o.labels.formatosTit)}
+                                </p>
+                                <button id="${o.id}_btnCloseFormatos" class="text-gray-400 hover:text-gray-700 transition-colors">
+                                    <i data-lucide="x" class="w-3 h-3"></i>
+                                </button>
+                            </div>
+                            <div id="${o.id}_formatosLista" class="max-h-[260px] overflow-y-auto cs-scroll"></div>
                         </div>
-                        <div id="${o.id}_formatosLista" class="max-h-[260px] overflow-y-auto cs-scroll"></div>
                     </div>
-                </div>
-                <div class="relative flex-1 min-w-[160px]">
-                    <span class="absolute left-2.5 top-[13px] text-gray-400 pointer-events-none flex">
-                        <i data-lucide="sticky-note" class="w-3.5 h-3.5"></i>
-                    </span>
-                    <textarea id="${o.id}_inpNota" rows="2" placeholder="${this.esc(o.labels.nota)}..." title="${this.esc(o.labels.nota)}" style="height:44px !important;"
-                        class="block w-full !pl-8 pr-3 py-[4px] leading-[18px] text-gray-800 bg-white border-[1px] border-gray-300 rounded-md outline-none resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400">${this.esc(o.data.nota)}</textarea>
-                </div>
-                <input id="${o.id}_voucherInput" type="file" accept="image/*,application/pdf" class="hidden">
-                <div id="${o.id}_btnVoucher" role="button" tabindex="0" title="${this.esc(o.labels.compDrop)}"
-                    class="h-[44px] w-[170px] flex-shrink-0 px-2.5 flex items-center gap-1.5 rounded-md border-[1px] border-dashed border-gray-300 bg-white text-[11px] font-medium text-gray-600 cursor-pointer hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all">
-                    <i data-lucide="paperclip" class="w-3.5 h-3.5 flex-shrink-0"></i>
-                    <span id="${o.id}_voucherLbl" class="flex-1 min-w-0 truncate">${this.esc(o.labels.comprobante)}</span>
-                    <button id="${o.id}_voucherClear" type="button" class="hidden w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarComp)}">
+                    <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
+                    <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
+                    <input id="${o.id}_voucherInput" type="file" accept="image/*,application/pdf" class="hidden">
+                    <button id="${o.id}_btnVoucher" type="button" class="${cls.btnIco} flex-shrink-0" title="${this.esc(o.labels.compDrop)}">
+                        <i data-lucide="paperclip" class="w-3.5 h-3.5 flex-shrink-0"></i><span id="${o.id}_voucherLbl" class="truncate max-w-[140px]">${this.esc(o.labels.comprobante)}</span>
+                    </button>
+                    <button id="${o.id}_voucherClear" type="button" class="hidden w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarComp)}">
                         <i data-lucide="x" class="w-3 h-3"></i>
                     </button>
                 </div>
                 <div class="flex gap-2 flex-shrink-0">
-                    <button class="${cls.btnCancel} h-[44px]" data-modal-close>
-                        <i data-lucide="x" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.cancelar)}</span>
-                    </button>
-                    <button id="${o.id}_btnRegistrar" class="${cls.btnOk} h-[44px]">
-                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
+                    <button class="${cls.btnOut}" data-modal-close>${this.esc(o.labels.cancelar)}</button>
+                    <button id="${o.id}_btnRegistrar" class="${cls.btnOk}">
+                        <i data-lucide="package-plus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
                     </button>
                 </div>
             </div>`;
@@ -643,6 +654,31 @@ class EntradaForm {
             </div>`;
     }
 
+    // Stock antes -> resultante. Si la entrada lo deja arriba del máximo del producto
+    // (Catálogo > Máximo; 0 o vacío = sin máximo) se pinta en ámbar con el aviso.
+    stockCell(p) {
+        const stock      = Number(p.stock || 0);
+        const nuevo      = this.fmtQty(stock + Number(p.cantidad || 0));
+        const maximo     = this.maxOf(p.id);
+        const pasa       = maximo > 0 && nuevo > maximo;
+        const stockColor = stock === 0 ? 'text-red-500' : stock < 5 ? 'text-orange-500' : 'text-green-600';
+        const aviso      = pasa
+            ? `<span class="block mt-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600">${this.esc(this.opts.labels.stockMax)} (${this.fmtQty(maximo)})</span>`
+            : '';
+        return `
+            <span class="text-[11px] text-gray-500">
+                <strong class="${stockColor}">${this.fmtQty(stock)}</strong>
+                <span class="text-gray-300 mx-0.5">&rarr;</span>
+                <strong class="${pasa ? 'text-amber-600' : 'text-green-600'}">${nuevo}</strong>
+            </span>${aviso}`;
+    }
+
+    // El máximo sale del catálogo: los renglones de un formato o de una edición no lo traen.
+    maxOf(id) {
+        const prod = (this.opts.json || []).find(p => String(p.id) === String(id));
+        return Number((prod && prod.stock_max) || 0);
+    }
+
     renderProductRow(p, i) {
         const cls         = this.cls;
         const cant        = Number(p.cantidad || 0);
@@ -652,8 +688,6 @@ class EntradaForm {
         const subtotal    = (cant * costoNum).toFixed(2);
         const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const baseFmt     = baseNum.toFixed(2);
-        const nuevoStock  = this.fmtQty(Number(p.stock || 0) + cant);
-        const stockColor  = p.stock === 0 ? 'text-red-500' : p.stock < 5 ? 'text-orange-500' : 'text-green-600';
         return `
             <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
                 <td class="px-3 py-2 align-middle w-28">
@@ -668,13 +702,7 @@ class EntradaForm {
                         </div>
                     </div>
                 </td>
-                <td class="px-2 py-2 align-middle text-center w-32">
-                    <span class="text-[11px] text-gray-500">
-                        <strong class="${stockColor}">${p.stock || 0}</strong>
-                        <span class="text-gray-300 mx-0.5">&rarr;</span>
-                        <strong class="text-green-600" data-nuevo-stock>${nuevoStock}</strong>
-                    </span>
-                </td>
+                <td class="px-2 py-2 align-middle text-center w-32" data-stock-cell>${this.stockCell(p)}</td>
                 <td class="px-2 py-2 align-middle w-24">
                     <input type="number" min="1" step="0.01" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
                 </td>
@@ -763,14 +791,19 @@ class EntradaForm {
         ).join('');
     }
 
-    renderDraftLista(items) {
+    // `parecidos` = los items son sugerencias de sugerirCatalogo, no coincidencias.
+    renderDraftLista(items, parecidos = false) {
+        const term = this.draft ? this.draft.term : '';
         if (!items.length) {
-            return `<div class="px-3 py-4 text-center text-[11px] text-gray-500">${this.esc(this.opts.labels.searchHint)}</div>${this.renderCreateProduct(this.draft ? this.draft.term : '')}`;
+            return `<div class="px-3 py-4 text-center text-[11px] text-gray-500">${this.esc(this.opts.labels.searchHint)}</div>${this.renderCreateProduct(term)}`;
         }
-        return `<div class="max-h-[240px] overflow-y-auto cs-scroll ef-scroll">${items.map((p, i) => this.renderSearchResult(p, i)).join('')}</div>`;
+        const lista = `<div class="max-h-[240px] overflow-y-auto cs-scroll ef-scroll">${items.map((p, i) => this.renderSearchResult(p, i, term)).join('')}</div>`;
+        if (!parecidos) return lista;
+        return `<div class="px-3 py-2 bg-amber-50/70 border-b border-gray-200 text-[11px] font-semibold text-amber-700 flex items-center gap-1.5"><i data-lucide="lightbulb" class="w-3 h-3"></i>${this.esc(this.opts.labels.sugerencia)}</div>${lista}${this.renderCreateProduct(term)}`;
     }
 
-    renderSearchResult(p, i) {
+    // `term` = lo buscado, para mostrar qué parte de la descripción coincidió.
+    renderSearchResult(p, i, term) {
         const o          = this.opts;
         const stockColor = p.stock === 0 ? 'text-red-500' : p.stock < 5 ? 'text-orange-500' : 'text-green-600';
         const costoFmt   = Number(p.costo || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -782,6 +815,7 @@ class EntradaForm {
                     <p class="text-[10px] text-gray-500 truncate mt-0.5">
                         <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
                     </p>
+                    ${this.coincidenciaHtml(p, term)}
                 </div>
                 <div class="text-right flex-shrink-0">
                     <p class="text-[10px] text-gray-400 leading-none">${this.esc(o.labels.costoRefLbl)}</p>
@@ -878,7 +912,10 @@ class EntradaForm {
         }
 
         const disponibles = this.productosDisponibles();
-        const items       = this.matchCatalogo(term);
+        const exactos     = this.matchCatalogo(term);
+        // Sin resultados se ofrecen los parecidos en vez de "Sin resultados".
+        const parecidos   = exactos.length ? [] : this.sugerirCatalogo(term);
+        const items       = exactos.length ? exactos : parecidos;
 
         // this.catalogItems debe seguir el MISMO orden en que se pintan los
         // .ef-cat-item: highlightActive() y la navegacion con flechas indexan
@@ -886,7 +923,13 @@ class EntradaForm {
         this.catalogItems = items;
         if (this.activeIdx >= items.length) this.activeIdx = Math.max(0, items.length - 1);
 
-        const head = `
+        const head = parecidos.length ? `
+            <div class="flex items-center justify-between px-3 py-2 bg-amber-50/70 border-b border-gray-200">
+                <span class="text-[11px] font-semibold text-amber-700 flex items-center gap-1.5 truncate">
+                    <i data-lucide="lightbulb" class="w-3 h-3"></i>${this.esc(o.labels.sugerencia)}
+                </span>
+                <span class="text-[10px] text-gray-400 flex-shrink-0 ml-2">${parecidos.length} ${parecidos.length === 1 ? 'parecido' : 'parecidos'}</span>
+            </div>` : `
             <div class="flex items-center justify-between px-3 py-2 bg-blue-50/50 border-b border-gray-200">
                 <span class="text-[11px] font-semibold text-gray-600 flex items-center gap-1.5 truncate">
                     <i data-lucide="search" class="w-3 h-3 text-blue-600"></i>Resultados para "${this.esc(this.searchTerm)}"
@@ -900,8 +943,9 @@ class EntradaForm {
                 <span>Mostrando ${items.length} de ${disponibles.length}</span>
             </div>`;
 
+        // Debajo de los parecidos sigue "Crear producto": puede que de verdad sea nuevo.
         const body = items.length
-            ? `<div class="max-h-[340px] overflow-y-auto cs-scroll ef-scroll">${items.map((p, i) => this.renderSearchResult(p, i)).join('')}</div>`
+            ? `<div class="max-h-[340px] overflow-y-auto cs-scroll ef-scroll">${items.map((p, i) => this.renderSearchResult(p, i, this.searchTerm)).join('')}</div>${parecidos.length ? this.renderCreateProduct(this.searchTerm) : ''}`
             : `<div class="flex flex-col items-center justify-center py-8 text-center px-2">
                     <div class="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center mb-2">
                         <i data-lucide="search-x" class="w-5 h-5 text-gray-400"></i>
@@ -919,12 +963,122 @@ class EntradaForm {
         return (this.opts.json || []).filter(p => !this.lote.some(x => String(x.id) === String(p.id)));
     }
 
+    // Nombre, SKU y sobrenombres (la descripción del Catálogo), sin acentos ni mayúsculas.
     matchCatalogo(term) {
-        const t = String(term || '').trim().toLowerCase();
+        const t = this.normTxt(term);
         if (!t) return [];
-        return this.productosDisponibles().filter(p =>
-            (p.nombre || '').toLowerCase().includes(t) || (p.sku || '').toLowerCase().includes(t)
-        );
+        return this.productosDisponibles().filter(p => this.textoProducto(p).includes(t));
+    }
+
+    textoProducto(p) {
+        return this.normTxt(`${p.nombre || ''} ${p.sku || ''} ${p.descripcion || ''}`);
+    }
+
+    // Sin acentos (la ñ queda n), minúsculas y solo letras y números.
+    normTxt(s) {
+        return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    }
+
+    // "Tal vez quisiste decir": sin coincidencia exacta, los productos con una palabra
+    // (del nombre o de los sobrenombres) escrita casi igual a cada palabra buscada.
+    // Se compara contra el inicio de cada palabra para que sirva mientras se escribe:
+    // "Bimbuñuelos" encuentra "Bimbueñuelos 6pzs". Las 5 más parecidas.
+    sugerirCatalogo(term) {
+        const buscadas = this.normTxt(term).split(' ').filter(w => w.length >= 3);
+        if (!buscadas.length) return [];
+
+        return this.productosDisponibles()
+            .map((p) => {
+                const palabras = this.normTxt(`${p.nombre || ''} ${p.descripcion || ''}`).split(' ').filter(Boolean);
+                let total = 0;
+
+                for (const w of buscadas) {
+                    const mejor = Math.min(...palabras.map(palabra => this.distanciaInicio(w, palabra)));
+                    if (mejor > this.tolerancia(w)) return null;
+                    total += mejor;
+                }
+
+                return { p, total };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.total - b.total)
+            .slice(0, 5)
+            .map(x => x.p);
+    }
+
+    // Letras que se le perdonan a una palabra buscada según su largo.
+    tolerancia(w) {
+        return w.length <= 5 ? 1 : (w.length <= 9 ? 2 : 3);
+    }
+
+    // Distancia contra el inicio de la palabra, para que sirva mientras se escribe.
+    distanciaInicio(w, palabra) {
+        let mejor = Infinity;
+        for (let k = w.length - 1; k <= w.length + 1; k++) {
+            mejor = Math.min(mejor, this.distancia(w, palabra.slice(0, k)));
+        }
+        return mejor;
+    }
+
+    // Si el producto salió por su descripción (los sobrenombres) y no por nombre o SKU:
+    // el pedazo de la descripción que coincide, con esas palabras resaltadas.
+    coincidenciaHtml(p, term) {
+        const t = this.normTxt(term);
+        if (!t || !p.descripcion || this.normTxt(`${p.nombre || ''} ${p.sku || ''}`).includes(t)) return '';
+
+        const palabras = String(p.descripcion).match(/\S+/g) || [];
+        const marcadas = this.palabrasQueCoinciden(palabras, t, p.nombre);
+        if (!marcadas.length) return '';
+
+        const desde = Math.max(0, marcadas[0] - 3);
+        const hasta = Math.min(palabras.length, marcadas[marcadas.length - 1] + 4);
+        const texto = palabras.slice(desde, hasta)
+            .map((w, k) => (marcadas.includes(desde + k) ? `<strong class="font-semibold text-blue-700">${this.esc(w)}</strong>` : this.esc(w)))
+            .join(' ');
+
+        return `
+            <p class="text-[10px] text-gray-400 truncate mt-0.5">
+                ${this.esc(this.opts.labels.coincide)} ${desde > 0 ? '…' : ''}${texto}${hasta < palabras.length ? '…' : ''}
+            </p>`;
+    }
+
+    // Índices de las palabras de la descripción que explican el resultado: las que
+    // contienen lo buscado tal cual o, si salió como parecido, las escritas casi igual.
+    palabrasQueCoinciden(palabras, t, nombre) {
+        const norm = palabras.map(w => this.normTxt(w));
+
+        // Tal cual: dónde cae cada palabra dentro de la descripción ya normalizada.
+        let pos = 0;
+        const rangos = norm.map((w) => {
+            const r = [pos, pos + w.length];
+            if (w) pos += w.length + 1;
+            return r;
+        });
+        const idx = norm.filter(Boolean).join(' ').indexOf(t);
+        if (idx >= 0) {
+            return rangos.map((r, k) => (norm[k] && r[0] < idx + t.length && r[1] > idx ? k : -1)).filter(k => k >= 0);
+        }
+
+        // Parecido: solo cuando el nombre por sí solo no explica la sugerencia.
+        const buscadas  = t.split(' ').filter(w => w.length >= 3);
+        const cerca     = (w, palabra) => palabra.split(' ').some(x => this.distanciaInicio(w, x) <= this.tolerancia(w));
+        const delNombre = this.normTxt(nombre).split(' ').filter(Boolean);
+        if (!buscadas.length || buscadas.every(w => delNombre.some(x => cerca(w, x)))) return [];
+
+        return norm.map((w, k) => (w && buscadas.some(b => cerca(b, w)) ? k : -1)).filter(k => k >= 0);
+    }
+
+    // Cuántas letras hay que cambiar, poner o quitar para pasar de una palabra a otra.
+    distancia(a, b) {
+        let prev = Array.from({ length: b.length + 1 }, (v, j) => j);
+        for (let i = 1; i <= a.length; i++) {
+            const cur = [i];
+            for (let j = 1; j <= b.length; j++) {
+                cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+            }
+            prev = cur;
+        }
+        return prev[b.length];
     }
 
     renderLote() {
@@ -938,7 +1092,6 @@ class EntradaForm {
             $lista.html(this.renderProductsTable()).removeClass('flex items-center justify-center');
         }
         $limpiar.toggleClass('hidden', !this.lote.length);
-        this.syncSaveFormato();
         this.updateTotals();
         this.renderCatalogo();
         if (window.lucide) lucide.createIcons();
@@ -1062,7 +1215,8 @@ class EntradaForm {
         // texto: seleccion manual -> enfoca la cantidad para teclearla.
         let prod = this.catalogItems.length ? (this.catalogItems[this.activeIdx] || this.catalogItems[0]) : null;
         if (!prod && q) {
-            prod = all.find(p => (p.nombre || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
+            const t = this.normTxt(q);
+            prod = t ? all.find(p => this.textoProducto(p).includes(t)) : null;
         }
         this.commitProducto(prod, 1, true);
     }
@@ -1163,14 +1317,16 @@ class EntradaForm {
         if (!this.draft) return;
         this.draft.term = String(value || '');
         if (!this.draft.term.trim()) { this.closeFloat(); return; }
-        const items = this.matchCatalogo(this.draft.term);
+        const exactos   = this.matchCatalogo(this.draft.term);
+        const parecidos = exactos.length ? [] : this.sugerirCatalogo(this.draft.term);
+        const items     = exactos.length ? exactos : parecidos;
         this.openFloat({
             kind:     'draft',
             items:    items,
             active:   0,
             $anchor:  $(`#${this.opts.id}_draftInput`),
             minWidth: 380
-        }, this.renderDraftLista(items));
+        }, this.renderDraftLista(items, parecidos.length > 0));
     }
 
     // Escape limpia lo escrito y, con el renglon ya vacio, lo quita. Arriba sin
@@ -1400,14 +1556,13 @@ class EntradaForm {
         const costoNum    = Number(p.costo || 0);
         const baseNum     = Number(p.costoSinTax || 0);
         const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const nuevoStock  = this.fmtQty(Number(p.stock || 0) + cant);
         const $row = $(`#${o.id}_listaProductos tr[data-idx="${i}"]`);
         // Solo refresca el input que el usuario NO esta editando, para no pisar
         // el cursor mientras teclea en costo c/imp o en costo s/imp.
         if (editedField !== 'costo')       $row.find('[data-field="costo"]').val(costoNum.toFixed(2));
         if (editedField !== 'costoSinTax') $row.find('[data-field="costoSinTax"]').val(baseNum.toFixed(2));
         $row.find('[data-subtotal]').text('$' + subtotalFmt);
-        $row.find('[data-nuevo-stock]').text(nuevoStock);
+        $row.find('[data-stock-cell]').html(this.stockCell(p));
     }
 
     clearLote() {
@@ -1497,7 +1652,7 @@ class EntradaForm {
         this.voucher = voucher;
         $(`#${id}_voucherInput`).val('');
         $(`#${id}_voucherLbl`).text(voucher ? voucher.name : this.opts.labels.comprobante);
-        $(`#${id}_btnVoucher`).toggleClass('!text-green-700 !border-green-300 !border-solid !bg-green-50', !!voucher);
+        $(`#${id}_btnVoucher`).toggleClass('!text-green-700 !border-green-300 !bg-green-50', !!voucher);
         $(`#${id}_voucherClear`).toggleClass('hidden', !voucher);
     }
 
@@ -1533,6 +1688,13 @@ class EntradaForm {
         const warehouseId = $(`#${o.id}_selAlmacen`).val();
         if (!warehouseId) { this.notify(o.labels.sinAlmacenesMsg); return; }
 
+        // El max del calendario no frena una fecha tecleada a mano en todos los navegadores.
+        const fecha = $(`#${o.id}_inpFecha`).val();
+        if (!fecha || fecha > this.hoy()) {
+            this.notify(fecha ? o.labels.fechaFutura : o.labels.fechaReq);
+            return;
+        }
+
         const origenId   = $(`#${o.id}_selOrigen`).val();
         const supplierId = $(`#${o.id}_selProveedor`).val() || '';
         if (this.requiresSupplier(origenId) && !supplierId) {
@@ -1552,7 +1714,7 @@ class EntradaForm {
             warehouseAreaId: $(`#${o.id}_selDestino`).val() || '',
             proveedor:   $(`#${o.id}_selProveedor option:selected`).text(),
             supplierId:  supplierId,
-            fecha:       $(`#${o.id}_inpFecha`).val(),
+            fecha:       fecha,
             nota:        $(`#${o.id}_inpNota`).val(),
             voucher:     this.voucher ? this.voucher.dataUrl : null,
             productos:  this.lote.map(p => ({
@@ -1592,10 +1754,11 @@ class EntradaForm {
             okLabel:    editing ? o.labels.confirmEditOk : o.labels.confirmAddOk,
             okIcon:     'check',
             focusOk:    true,
+            // Casilla simple, sin recuadro de color: con tinte se leía como una alerta.
             detailHtml: dia ? `
-                <label class="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border-[1px] border-blue-200 text-[12px] font-medium text-blue-700 cursor-pointer select-none">
-                    <input id="${chkId}" type="checkbox" checked class="w-3.5 h-3.5 accent-blue-600">
-                    <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>${this.esc(o.labels.guardarDia)} «${this.esc(dia)}»
+                <label class="mt-3 pt-3 border-t border-gray-200 flex items-center justify-center gap-2 text-[12px] text-gray-600 cursor-pointer select-none">
+                    <input id="${chkId}" type="checkbox" class="w-3.5 h-3.5 accent-blue-600">
+                    ${this.esc(o.labels.guardarDia)} «${this.esc(dia)}»
                 </label>` : ''
         });
     }
@@ -1766,7 +1929,6 @@ class EntradaForm {
 
             await this.storeFormato(name, scope, productos);
             this.formatoAplicado = true;
-            this.syncSaveFormato();
             closeSaveModal();
         });
 
@@ -1774,12 +1936,6 @@ class EntradaForm {
             if (e.key === 'Enter')  $(`#${modalId}_confirm`).trigger('click');
             if (e.key === 'Escape') { e.stopPropagation(); closeSaveModal(); }
         });
-    }
-
-    // formatoAplicado: el lote salio de un formato o ya se guardo como uno.
-    syncSaveFormato() {
-        const sugerir = this.lote.length > 0 && !this.formatoAplicado && !this.editing;
-        $(`#${this.opts.id}_btnSaveFormato`).toggleClass('!bg-blue-50 !text-blue-700 !border-blue-300 font-semibold', sugerir);
     }
 
     // silent: guardado ofrecido al registrar; el aviso de la entrada ya cubre el exito.
@@ -1988,12 +2144,7 @@ class EntradaForm {
         wrap.on('focusout', `#${id}_draftInput, input[data-field="tax"]`, () => this.closeFloat());
         $(`#${id}_listaProductos`).on('scroll', () => this.placeFloat());
         wrap.on('click', `#${id}_btnVoucher`,         () => $(`#${id}_voucherInput`).trigger('click'));
-        // Solo la zona: Enter sobre la X de adentro debe quitar, no abrir el selector.
-        wrap.on('keydown', `#${id}_btnVoucher`, (e) => {
-            if (e.target !== e.currentTarget) return;
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $(`#${id}_voucherInput`).trigger('click'); }
-        });
-        wrap.on('click', `#${id}_voucherClear`, (e) => { e.stopPropagation(); this.setVoucher(null); });
+        wrap.on('click', `#${id}_voucherClear`,       () => this.setVoucher(null));
         wrap.on('change', `#${id}_voucherInput`, (e) => {
             const file = e.target.files && e.target.files[0];
             if (file) this.attachVoucher(file);
@@ -2065,7 +2216,9 @@ class EntradaForm {
 
     // -- API publica --
 
+    // El modal se arma una vez: el tope de la fecha se renueva al abrir (pudo pasar la medianoche).
     open() {
+        $(`#${this.opts.id}_inpFecha`).attr('max', this.hoy());
         this.wrap.removeClass('hidden');
         this.refreshFormatos();
         this.syncProveedorVisibility();
@@ -2093,7 +2246,7 @@ class EntradaForm {
         this.refreshDestinos(entrada.warehouse_id);
         $(`#${id}_selDestino`).val(entrada.warehouse_area_id ? String(entrada.warehouse_area_id) : '');
         $(`#${id}_selProveedor`).val(entrada.supplier_id ? String(entrada.supplier_id) : '');
-        $(`#${id}_inpFecha`).val(entrada.fecha || '');
+        $(`#${id}_inpFecha`).val(entrada.fecha || '').attr('max', this.hoy());
         $(`#${id}_inpNota`).val(entrada.nota || '');
 
         this.lote  = (entrada.productos || []).map(p => Object.assign({}, p));
@@ -2122,13 +2275,23 @@ class EntradaForm {
         }
     }
 
+    // `origen` (Tipo de entrada) y `warehouse_id` (Origen) los manda el formulario
+    // previo de "Agregar Entrada".
     setData(newData) {
         Object.assign(this.opts.data, newData || {});
         const id = this.opts.id;
         if (newData && 'fecha' in newData)           $(`#${id}_inpFecha`).val(newData.fecha);
+        if (newData && 'origen' in newData) {
+            $(`#${id}_selOrigen`).val(String(newData.origen));
+            this.syncProveedorVisibility();
+        }
         if (newData && 'branch_id' in newData) {
             $(`#${id}_selSucursal`).val(newData.branch_id);
             this.refreshAlmacenes(newData.branch_id);
+        }
+        if (newData && 'warehouse_id' in newData) {
+            $(`#${id}_selAlmacen`).val(String(newData.warehouse_id));
+            this.refreshDestinos(newData.warehouse_id);
         }
         if (newData && 'nota' in newData)            $(`#${id}_inpNota`).val(newData.nota);
     }
@@ -2139,6 +2302,12 @@ class EntradaForm {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
+    }
+
+    // Hoy en la hora del navegador (AAAA-MM-DD): la fecha de la entrada no pasa de aquí.
+    hoy() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
     prodThumb(p, boxCls, iconCls) {
@@ -2172,9 +2341,17 @@ class EntradaForm {
         return `<option value="${this.esc(item.id || item.valor)}"${sel === (item.id || item.valor) ? ' selected' : ''}>${this.esc(item.valor)}</option>`;
     }
 
-    selectWrap(selectHtml) {
+    // Con icon, un cuadro con el tinte del acento a la izquierda, igual que en
+    // la captura de Salidas (salida-form).
+    selectWrap(selectHtml, icon) {
+        const badge = icon
+            ? `<span class="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <i data-lucide="${this.esc(icon)}" class="w-4 h-4"></i>
+               </span>`
+            : '';
         return `
             <div class="relative">
+                ${badge}
                 ${selectHtml}
                 <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 flex items-center">
                     <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>

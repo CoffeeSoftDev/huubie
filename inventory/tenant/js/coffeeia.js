@@ -84,11 +84,11 @@ class CoffeeIAConfig extends Templates {
                 data: [
                     {
                         id: '1',
-                        valor: 'Encendido · el ícono sale abajo en el menú lateral del Catálogo'
+                        valor: 'Encendido · el ícono sale en la navbar de Catálogo, Entradas y Salidas'
                     },
                     {
                         id: '0',
-                        valor: 'Apagado · no sale el ícono'
+                        valor: 'Apagado · sin ícono ni chat de CoffeeIA en esos módulos'
                     }
                 ],
                 class: 'col-12 mb-3'

@@ -43,6 +43,8 @@ class SalidaForm {
                 sucursal:       'Sucursal',
                 almacen:        'Almacen',
                 fecha:          'Fecha',
+                fechaReq:       'Elige la fecha de la salida',
+                fechaFutura:    'La fecha no puede ser posterior a hoy',
                 nota:           'Observaciones (opcional)',
                 placeholder:    'Buscar productos por nombre o SKU...',
                 searchHint:     'Sin resultados',
@@ -152,7 +154,7 @@ class SalidaForm {
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.fecha)}</label>
-                        <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" class="${cls.input}">
+                        <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" max="${this.hoy()}" class="${cls.input}">
                     </div>
                 </div>
             </div>`;
@@ -1014,6 +1016,13 @@ class SalidaForm {
         const warehouseId = $(`#${o.id}_selAlmacen`).val();
         if (!warehouseId) { this.notify(o.labels.sinAlmacenesMsg); return; }
 
+        // El max del calendario no frena una fecha tecleada a mano en todos los navegadores.
+        const fecha = $(`#${o.id}_inpFecha`).val();
+        if (!fecha || fecha > this.hoy()) {
+            this.notify(fecha ? o.labels.fechaFutura : o.labels.fechaReq);
+            return;
+        }
+
         const totUds   = this.fmtQty(this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0));
         const totCosto = this.lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
         const totProd  = this.lote.length;
@@ -1023,7 +1032,7 @@ class SalidaForm {
             sucursal:    $(`#${o.id}_selSucursal option:selected`).text(),
             warehouseId: warehouseId,
             almacen:     $(`#${o.id}_selAlmacen option:selected`).text(),
-            fecha:       $(`#${o.id}_inpFecha`).val(),
+            fecha:       fecha,
             nota:        $(`#${o.id}_inpNota`).val(),
             items:       this.lote.map(p => ({
                 id:          p.id,
@@ -1142,7 +1151,9 @@ class SalidaForm {
 
     // -- API pública --
 
+    // El modal se arma una vez: el tope de la fecha se renueva al abrir (pudo pasar la medianoche).
     open() {
+        $(`#${this.opts.id}_inpFecha`).attr('max', this.hoy());
         this.wrap.removeClass('hidden');
         if (window.lucide) lucide.createIcons();
         this.reloadStock($(`#${this.opts.id}_selAlmacen`).val());
@@ -1173,6 +1184,12 @@ class SalidaForm {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
+    }
+
+    // Hoy en la hora del navegador (AAAA-MM-DD): la fecha de la salida no pasa de aquí.
+    hoy() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
     prodThumb(p, boxCls, iconCls) {

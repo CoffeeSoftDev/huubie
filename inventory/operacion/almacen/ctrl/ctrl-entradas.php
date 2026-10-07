@@ -37,6 +37,10 @@ class ctrl extends mdl {
                 'price_without_tax' => (float) $p['costo_sin_iva'],
                 'tax'               => (float) $p['iva_compra'],
                 'stock'     => 0,
+                // Sobrenombres (Catálogo > Descripción): el buscador también los consulta.
+                'descripcion' => $p['descripcion'] ?? '',
+                // 0 o vacío = sin máximo; la captura avisa si la entrada lo rebasa.
+                'stock_max' => (float) ($p['stock_max'] ?? 0),
                 'image'     => $p['image'] ?? '',
                 'icon'      => 'package',
                 'bg'        => 'bg-gray-100',
@@ -49,6 +53,7 @@ class ctrl extends mdl {
             'companies_id'     => $this->companiesId,
             'branch_id'        => $this->branchId,
             'user_id'          => $this->userId,
+            'coffeeia'         => IaOllama::activo($this),
             'sucursales'       => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'areas'            => $this->lsAreas([$this->companiesId]),
@@ -113,7 +118,7 @@ class ctrl extends mdl {
                 'Folio'      => [
                     'html' => renderFolioLink($r['folio'], $r['id'])
                 ],
-                'Fecha'      => formatSpanishDate($r['date_inflow']),
+                'Fecha'      => fechaHoraEntrada($r['date_inflow'], $r['created_at'] ?? ''),
                 'Tipo de entrada' => badge($r['origin_name'], $r['origin_color'], 100, $r['origin_bg'] ?? null, $r['origin_icon'] ?? null),
                 'Sucursal'   => $r['branch_name'] ?: '-',
                 'Origen'     => renderOrigen($r['warehouse_name'], $r['area_name'] ?? ''),
@@ -165,9 +170,14 @@ class ctrl extends mdl {
     }
 
     function createSupplier() {
-        $name = trim($_POST['name'] ?? '');
+        $name  = trim($_POST['name'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
         if ($name === '') {
             return ['status' => 400, 'message' => 'El nombre del proveedor es obligatorio'];
+        }
+
+        if ($phone !== '' && !preg_match('/^\d{1,10}$/', $phone)) {
+            return ['status' => 400, 'message' => 'El teléfono lleva máximo 10 dígitos'];
         }
 
         $existing = $this->findSupplierByName([$this->companiesId, $name]);
@@ -184,7 +194,7 @@ class ctrl extends mdl {
         $ok = $this->insertSupplier([
             $name,
             trim($_POST['contact_name'] ?? '') ?: null,
-            trim($_POST['phone'] ?? '') ?: null,
+            $phone ?: null,
             trim($_POST['email'] ?? '') ?: null,
             $this->companiesId
         ]);
@@ -206,6 +216,10 @@ class ctrl extends mdl {
 
         if (empty($productos)) {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
+        }
+
+        if (!empty($payload['date_inflow']) && ($errorFecha = $this->fechaInvalida($payload['date_inflow']))) {
+            return ['status' => 400, 'message' => $errorFecha];
         }
 
         $origin       = $this->getInflowOrigin([(int) $payload['inflow_origin_id']]);
@@ -356,6 +370,39 @@ class ctrl extends mdl {
     // Tamaño máximo del comprobante ya decodificado (4 MB).
     const VOUCHER_MAX = 4194304;
 
+    // Formulario previo de "Agregar Entrada": revisa Tipo de entrada, Sucursal destino,
+    // Origen (almacén de esa sucursal) y Fecha antes de abrir la captura, que abre con
+    // ellos y los vuelve a mandar al registrar.
+    function verifyNuevaEntrada() {
+        $origen     = (int) ($_POST['inflow_origin_id'] ?? 0);
+        $branchId   = (int) ($_POST['branch_id'] ?? 0);
+        $almacen    = (int) ($_POST['warehouse_id'] ?? 0);
+        $fecha      = trim((string) ($_POST['date_inflow'] ?? ''));
+        $sucursales = $this->_userBranchIds();
+
+        if ($origen <= 0) return ['status' => 400, 'message' => 'Elige el tipo de entrada'];
+
+        if ($branchId <= 0 || ($sucursales && !in_array($branchId, $sucursales, true))) {
+            return ['status' => 400, 'message' => 'Elige una de tus sucursales'];
+        }
+
+        $almacenes = array_map('intval', array_column($this->lsWarehouses(['companies_id' => $this->companiesId, 'branch_id' => $branchId]) ?: [], 'id'));
+        if (!in_array($almacen, $almacenes, true)) return ['status' => 400, 'message' => 'Elige un almacén de esa sucursal'];
+
+        $errorFecha = $this->fechaInvalida($fecha);
+        if ($errorFecha) return ['status' => 400, 'message' => $errorFecha];
+
+        return [
+            'status' => 200,
+            'data'   => [
+                'origen'       => $origen,
+                'branch_id'    => $branchId,
+                'warehouse_id' => $almacen,
+                'fecha'        => $fecha
+            ]
+        ];
+    }
+
     function verifyEditPassword() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetEntrada([$id]);
@@ -395,6 +442,9 @@ class ctrl extends mdl {
         }
         if ($header['status'] === 'Cancelada') {
             return ['status' => 400, 'message' => 'No se puede editar una entrada cancelada'];
+        }
+        if (!empty($payload['date_inflow']) && ($errorFecha = $this->fechaInvalida($payload['date_inflow']))) {
+            return ['status' => 400, 'message' => $errorFecha];
         }
         if (empty($productos)) {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
@@ -736,6 +786,8 @@ class ctrl extends mdl {
 
     function askEntradaIA() {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
+
+        if (!IaOllama::activo($this)) return ['status' => 403, 'message' => 'CoffeeIA está apagado. Se enciende en Administrador > CoffeeIA.'];
 
         $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 4000);
         $adjuntos  = json_decode((string) ($_POST['adjuntos'] ?? '[]'), true);
@@ -1102,6 +1154,14 @@ class ctrl extends mdl {
 
     // "Todas" = las sucursales que el usuario puede ver; un dueño ve la empresa
     // completa ([] = sin filtro) y un usuario sin sucursales no ve nada ([0]).
+    // La fecha de una entrada es un día válido y no posterior a hoy. null = está bien.
+    private function fechaInvalida($fecha) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $fecha) || !strtotime($fecha)) return 'Elige una fecha válida';
+        if ($fecha > date('Y-m-d')) return 'La fecha no puede ser posterior a hoy';
+
+        return null;
+    }
+
     private function _userBranchIds() {
         if ((int) ($_SESSION['is_owner'] ?? 0) === 1) return [];
 
@@ -1127,6 +1187,19 @@ class ctrl extends mdl {
 }
 
 // Complements.
+
+// Fecha de la entrada (la que se eligió en la captura) con la hora en que se creó:
+// 06/oct/2026 10:00 am. Meses a mano: strftime depende del locale del servidor.
+function fechaHoraEntrada($fecha, $creado) {
+    $meses = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    $dia   = strtotime((string) $fecha);
+    if (!$dia) return '-';
+
+    $texto = date('d', $dia) . '/' . $meses[(int) date('n', $dia)] . '/' . date('Y', $dia);
+    $hora  = strtotime((string) $creado);
+
+    return $hora ? $texto . ' ' . date('h:i a', $hora) : $texto;
+}
 
 function renderFolioLink($folio, $id) {
     $label = htmlspecialchars($folio, ENT_QUOTES);

@@ -38,7 +38,8 @@ class App extends Templates {
                 categorias:      r.categorias        || [],
                 unidades:        r.unidades          || [],
                 proveedores:     r.proveedores       || [],
-                productos:       r.productos         || []
+                productos:       r.productos         || [],
+                coffeeia:        r.coffeeia !== false
             };
         } else {
             this.dataInit = {
@@ -51,13 +52,17 @@ class App extends Templates {
                 categorias:      [],
                 unidades:        [],
                 proveedores:     [],
-                productos:       []
+                productos:       [],
+                coffeeia:        false
             };
         }
         this.subId      = this.dataInit.branch_id;
         branch_id = this.subId;
 
         this.render();
+
+        // Se enciende o apaga en Administrador > CoffeeIA.
+        if (this.dataInit.coffeeia) entradasView.renderLauncher();
     }
 
     render() {
@@ -114,16 +119,18 @@ class App extends Templates {
         };
 
         // Tirador entre la tabla y el visor: el ancho del visor vive en --entradas-detail-w.
+        // Los dos arrancan ocultos (!hidden le gana a md:block y a flex): la tabla toma
+        // todo el ancho hasta que se abre una entrada (toggleVisor).
         const detailResizer = {
             type:  'div',
             id:    'detailResizer',
-            class: "hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
+            class: "!hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
         };
 
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class: 'w-full md:w-[var(--entradas-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 dark:!border-0 flex flex-col overflow-hidden',
+            class: '!hidden w-full md:w-[var(--entradas-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 border-gray-200 dark:!border-0 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -247,7 +254,7 @@ class App extends Templates {
                 text:      'Agregar Entrada',
                 color_btn: 'primary',
                 class:     'col-12 col-md-6 col-lg-3',
-                onClick:   () => entradasView.openEntradaForm()
+                onClick:   () => entradasView.openNuevaEntrada()
             }
         ];
 
@@ -360,6 +367,8 @@ class App extends Templates {
         $('#viewFooter_info').text(text);
     }
 
+    // El folio y el ojo abren el visor; la X, cancelar/confirmar o un filtro que
+    // esconde la entrada lo vuelven a ocultar.
     selectEntrada(folio, id) {
         this.selectedId = folio;
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
@@ -368,10 +377,16 @@ class App extends Templates {
                 return $(this).text().includes(folio);
             });
             $row.addClass('row-active');
+            this.toggleVisor(true);
             entradas.getEntrada(id);
         } else {
             entradasView.renderDetail(null);
+            this.toggleVisor(false);
         }
+    }
+
+    toggleVisor(show) {
+        $('#detailPanel, #detailResizer').toggleClass('!hidden', !show);
     }
 }
 
@@ -588,7 +603,7 @@ class Entradas extends Templates {
         }).join('');
 
         const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Entrada ${esc(e.folio||'')}</title>
-        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.doc-footer{margin-top:28px;display:flex;justify-content:space-between;font-size:10px;color:#777;border-top:1px solid #ccc;padding-top:10px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
+        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
         </head><body>
         <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
         <div class="sheet">
@@ -597,7 +612,6 @@ class Entradas extends Templates {
             <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="r">Costo unit.</th><th class="r">Importe</th><th class="c">Unidad</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="5" class="c">Sin productos</td></tr>'}</tbody></table>
             <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${productos.length}</span></div><div class="totals-row"><span>Unidades</span><span>${fmtUds(totals.uds)}</span></div><div class="totals-row grand"><span>Costo total</span><span>${fmtMoney(totals.costo)}</span></div></div></div>
             ${e.nota?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;color:#222"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(e.nota)}</div>`:''}
-            <div class="doc-footer"><span>Huubie &middot; Inventarios &middot; Comprobante de entrada</span><span>Generado: ${esc(fmtFecha(new Date().toISOString()))}</span></div>
         </div></body></html>`;
 
         const w = window.open('', '_blank', 'width=900,height=1000');
@@ -776,10 +790,133 @@ class EntradasView extends Templates {
         });
     }
 
-    openEntradaForm() {
+    // -- Nueva entrada --
+
+    // Antes de abrir la captura se eligen Tipo de entrada, Sucursal destino, Origen
+    // (el almacén donde entra el stock) y Fecha. El ctrl los revisa (verifyNuevaEntrada)
+    // y la captura abre con ellos; ahí se pueden seguir cambiando.
+    openNuevaEntrada() {
+        const curSub = $('#branch_id').val() || app.subId;
+        const hoy    = moment().format('YYYY-MM-DD');
+
+        this.createModalForm({
+            id: 'formNuevaEntrada',
+            data: { opc: 'verifyNuevaEntrada' },
+            theme: 'light',
+            coffeesoft: true,
+            prefijo: 'ne_',
+            closeOnError: false,
+            bootbox: {
+                title: 'Nueva entrada',
+                size: 'small',
+                closeButton: true
+            },
+            json: this.jsonNuevaEntrada(curSub, hoy),
+            success: (response) => {
+                if (response && response.status === 200) {
+                    this.openEntradaForm(response.data);
+                } else {
+                    this.alertBox({ type: 'warning', title: (response && response.message) || 'No se pudo abrir la entrada' });
+                }
+            }
+        });
+
+        $('#ne_date_inflow').attr('max', hoy);
+        this.mountNuevaEntradaIconos();
+        this.syncNuevaEntradaTipo();
+    }
+
+    jsonNuevaEntrada(curSub, hoy) {
+        return [
+            {
+                opc: 'select',
+                id: 'inflow_origin_id',
+                lbl: 'Tipo de entrada',
+                class: 'col-12',
+                data: (app.dataInit.origenes || []).filter(o => o.id !== ''),
+                onchange: 'entradasView.syncNuevaEntradaTipo()',
+                required: true
+            },
+            {
+                opc: 'select',
+                id: 'branch_id',
+                lbl: 'Sucursal destino',
+                class: 'col-12',
+                value: curSub,
+                data: (app.dataInit.sucursales || []).filter(s => s.id !== ''),
+                onchange: 'entradasView.syncNuevaEntradaOrigen()',
+                required: true
+            },
+            {
+                opc: 'select',
+                id: 'warehouse_id',
+                lbl: 'Origen',
+                class: 'col-12',
+                data: this.almacenesDe(curSub),
+                required: true
+            },
+            {
+                opc: 'input',
+                type: 'date',
+                id: 'date_inflow',
+                lbl: 'Fecha',
+                class: 'col-12',
+                value: hoy,
+                required: true
+            }
+        ];
+    }
+
+    // Íconos dentro de los selects, como en la captura de Salidas (salida-form).
+    // Debajo de Tipo de entrada va su descripción (syncNuevaEntradaTipo).
+    mountNuevaEntradaIconos() {
+        const iconos = {
+            ne_inflow_origin_id: 'log-in',
+            ne_branch_id:        'building-2',
+            ne_warehouse_id:     'warehouse'
+        };
+
+        $.each(iconos, (id, icon) => {
+            $('#' + id).addClass('!pl-10').before(
+                $('<span>', { class: 'pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center' })
+                    .append($('<i>', { 'data-lucide': icon, class: 'w-4 h-4' }))
+            );
+        });
+
+        $('#ne_inflow_origin_id').closest('.relative').parent().append($('<p>', {
+            id:    'ne_inflow_origin_hint',
+            class: 'mt-1 text-[11px] leading-snug text-gray-500'
+        }));
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Lo que explica el tipo elegido: su descripción de Catálogo > Origen entradas.
+    syncNuevaEntradaTipo() {
+        const id   = String($('#ne_inflow_origin_id').val());
+        const tipo = (app.dataInit.origenes || []).find(o => String(o.id) === id);
+        const desc = (tipo && tipo.description) || '';
+
+        $('#ne_inflow_origin_hint').text(desc).toggleClass('hidden', !desc);
+    }
+
+    // El Origen es un almacén DE la sucursal elegida.
+    syncNuevaEntradaOrigen() {
+        const almacenes = this.almacenesDe($('#ne_branch_id').val());
+        $('#ne_warehouse_id').empty().append(almacenes.map(a => $('<option>', { value: a.id, text: a.valor })));
+    }
+
+    // Almacenes activos de la sucursal, en el mismo orden que el select de la captura.
+    almacenesDe(branchId) {
+        const almacenes = (app.dataInit.almacenes || []).filter(a => String(a.branch_id) === String(branchId));
+        return almacenes.length ? almacenes : [{ id: '', valor: 'Sin almacenes activos' }];
+    }
+
+    // `prefill` = lo que eligió el formulario previo (origen, branch_id, warehouse_id, fecha).
+    openEntradaForm(prefill = null) {
         const curSub = $('#branch_id').val() || app.subId;
         const form   = this.entradaFormInstance();
-        form.setData({ branch_id: curSub, fecha: moment().format('YYYY-MM-DD') });
+        form.setData(Object.assign({ branch_id: curSub, fecha: moment().format('YYYY-MM-DD') }, prefill || {}));
         form.open();
     }
 
@@ -923,7 +1060,8 @@ class EntradasView extends Templates {
                         this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el proveedor' });
                     }
                 },
-                onOpenIA: () => this.openChatIA(),
+                // Con CoffeeIA apagado el formulario no pinta el botón "Subir con IA".
+                onOpenIA: app.dataInit.coffeeia ? () => this.openChatIA() : null,
                 // Misma alta exprés que Solicitudes (ctrl-almacen::addProductoRapido).
                 onCreateProduct: async (data, done) => {
                     const r = await useFetch({
@@ -1033,6 +1171,35 @@ class EntradasView extends Templates {
 
     // -- CoffeeIA (Subir con IA) --
 
+    // CoffeeIA en la navbar (iaNavButton, ia-chat.js), igual que en Catálogo.
+    renderLauncher() {
+        this.iaNavButton({
+            id:      'launcherEntradaIA',
+            onClick: () => this.toggleChatIA()
+        });
+    }
+
+    // El ícono solo abre o cierra el chat. La captura se abre al subir un ticket
+    // (openCapturaIA) y lo que se confirma entra a su lote aunque todavía no esté abierta.
+    toggleChatIA() {
+        if (this.chatIA && this.chatIA.isOpen()) {
+            this.chatIA.close();
+            return;
+        }
+
+        this.openChatIA();
+    }
+
+    capturaAbierta() {
+        return !!(this.entradaFormApi && !this.entradaFormApi.wrap.hasClass('hidden'));
+    }
+
+    // Subir un ticket abre la entrada (con su formulario previo) si no hay una abierta.
+    openCapturaIA() {
+        if (this.capturaAbierta() || $('#formNuevaEntrada').length) return;
+        this.openNuevaEntrada();
+    }
+
     // El mismo chat de Catálogo (iaChat): se adjunta la foto o un Excel, la IA propone
     // qué agregar y qué falta en el catálogo, y lo que se marca entra al lote del modal.
     openChatIA() {
@@ -1054,7 +1221,10 @@ class EntradasView extends Templates {
                         tone:  'bg-amber-100 text-amber-700'
                     }
                 },
-                onAttach:  (file) => this.readArchivoIA(file),
+                onAttach:  (file) => {
+                    this.openCapturaIA();
+                    return this.readArchivoIA(file);
+                },
                 onSend:    (text, adjuntos, historial) => this.askEntradaIA(text, adjuntos, historial),
                 onConfirm: (token, ids) => this.applyEntradaIA(token, ids)
             });
@@ -1134,10 +1304,15 @@ class EntradasView extends Templates {
             }
         }
 
+        // Con la captura cerrada van a su lote igual (cerrar la captura es lo único que
+        // lo vacía): se ven en cuanto se abre la entrada.
+        const abierta   = this.capturaAbierta();
         const agregados = form.addFromIA(items);
         if (!agregados && fallos.length) return { status: 500, message: 'No pude crear: ' + fallos.join(', ') };
 
-        let msg = `Agregué ${agregados} ${agregados === 1 ? 'producto' : 'productos'} a la entrada`;
+        let msg = abierta
+            ? `Agregué ${agregados} ${agregados === 1 ? 'producto' : 'productos'} a la entrada`
+            : `Dejé listos ${agregados} ${agregados === 1 ? 'producto' : 'productos'}: se cargan a la entrada en cuanto la abras`;
         if (creados) msg += `; ${creados} ${creados === 1 ? 'es nuevo' : 'son nuevos'} en el catálogo`;
         if (fallos.length) msg += `. No pude crear: ${fallos.join(', ')}`;
         return { status: 200, message: msg + '.' };

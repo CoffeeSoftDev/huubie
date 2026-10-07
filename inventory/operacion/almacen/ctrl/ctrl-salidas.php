@@ -45,6 +45,7 @@ class ctrl extends mdl {
             'companies_id'    => $this->companiesId,
             'branch_id'       => $this->branchId,
             'user_id'         => $this->userId,
+            'coffeeia'        => IaOllama::activo($this),
             'sucursales'      => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'       => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'motivos_salida'   => $this->lsShrinkageReasons(),
@@ -353,6 +354,8 @@ class ctrl extends mdl {
 
     function askSalidaIA() {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
+
+        if (!IaOllama::activo($this)) return ['status' => 403, 'message' => 'CoffeeIA está apagado. Se enciende en Administrador > CoffeeIA.'];
 
         $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 4000);
         $adjuntos  = json_decode((string) ($_POST['adjuntos'] ?? '[]'), true);

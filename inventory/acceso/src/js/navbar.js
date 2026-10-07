@@ -774,4 +774,8 @@ $(async () => {
         themes:   themeInfo?.themes  || [],
         theme:    themeInfo?.current || Navbar.THEME_FALLBACK.code,
     });
+
+    // La barra nace asíncrona: quien quiera agregarle un botón (el Catálogo pone el
+    // de CoffeeIA a la derecha de Módulos) espera este aviso si llegó antes que ella.
+    document.dispatchEvent(new CustomEvent('navbarReady'));
 });

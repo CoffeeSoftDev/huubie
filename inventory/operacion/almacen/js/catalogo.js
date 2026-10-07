@@ -891,6 +891,7 @@ class InflowOrigin extends Templates {
         });
         this.mountIconField("formInflowAdd");
         wireBadgeSimulator("formInflowAdd", "rounded-full", true);
+        $("#formInflowAdd #description").attr("maxlength", 255);
     }
 
     async editInflow(id) {
@@ -916,6 +917,7 @@ class InflowOrigin extends Templates {
             });
             this.mountIconField("formInflowEdit", request.data ? request.data.icon : "");
             wireBadgeSimulator("formInflowEdit", "rounded-full");
+            $("#formInflowEdit #description").attr("maxlength", 255);
         }
     }
 
@@ -1024,6 +1026,15 @@ class InflowOrigin extends Templates {
                 tipo: "texto",
                 class: "col-12 mb-3",
                 required: true
+            },
+            {
+                opc: "textarea",
+                id: "description",
+                lbl: "Descripción",
+                class: "col-12 mb-3",
+                placeholder: "Para qué se usa este tipo de entrada (se ve al registrar una entrada)",
+                required: false,
+                rows: 2
             },
             {
                 opc: "select",

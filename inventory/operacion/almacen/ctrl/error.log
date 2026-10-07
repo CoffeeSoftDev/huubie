@@ -1,3 +1,99 @@
+[ 2026-10-06 21:58:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:53:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:51:27 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:50:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:50:52 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:50:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:50:35 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
+[ 2026-10-06 21:50:21 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'description' in 'field list'
+
+
 [ 2026-10-06 20:27:41 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: ROSY$
