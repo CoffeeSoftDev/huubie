@@ -1,3 +1,38 @@
+[ 2026-10-06 22:43:26 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT 
+                idPerfil,
+                perfil,
+                perfil_estado,
+                DATE_FORMAT(f_creacion, '%d/%m/%Y') as f_creacion
+            FROM fayxzvov_erp.perfiles
+            WHERE perfil_estado = ?
+            ORDER BY idPerfil DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.perfiles' doesn't exist
+
+
+[ 2026-10-06 22:43:26 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT 
+                idUser,
+                usser,
+                usr_Colaborador,
+                usr_estado,
+                usr_udn,
+                DATE_FORMAT(creacion, '%d/%m/%Y') as creacion,
+                DATE_FORMAT(activacion, '%d/%m/%Y %H:%i') as activacion
+            FROM fayxzvov_erp.usuarios
+            WHERE usr_estado = ?
+            ORDER BY idUser DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.usuarios' doesn't exist
+
+
 [ 2026-10-05 16:52:06 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-56GL0L8$
