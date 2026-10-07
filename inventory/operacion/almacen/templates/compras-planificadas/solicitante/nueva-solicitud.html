@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Solicitud - Compras Planificadas</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            }
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:rgba(17,24,40,.45); }
+        .lbl { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; margin-bottom:4px; }
+        .inp { width:100%; padding:7px 10px; font-size:12px; color:#1f2937; background:#fff; border:1px solid #d1d5db; border-radius:6px; outline:none; }
+        .inp:focus { border-color:#C8694C; }
+        .tipo-card { border:2px solid #e5e7eb; border-radius:10px; padding:12px; cursor:pointer; transition:.15s; text-align:left; }
+        .tipo-card:hover { border-color:#d1d5db; }
+        .tipo-card.on-tienda     { border-color:#0ea5e9; background:#f0f9ff; }
+        .tipo-card.on-produccion { border-color:#10b981; background:#ecfdf5; }
+        .plan-opt { border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; cursor:pointer; }
+        .plan-opt.on { border-color:#C05A40; background:#FBF3EF; box-shadow:0 0 0 1px #C05A40; }
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
+    </style>
+</head>
+
+<!-- ============================================================
+     NUEVA SOLICITUD (empleado)
+
+     Paso 1 · Tipo:  Tienda  |  Produccion   (define catalogo y aprobador)
+     Paso 2 · Plan:  a que compra anticipada se suma (semanal o evento).
+                     Solo se listan planes con corte vigente.
+     Paso 3 · Lista:
+        Tienda     -> busca articulos de categorias de tienda
+                      (limpieza, desechables, papeleria). Captura directa.
+        Produccion -> captura PRODUCTOS A ELABORAR y cantidad; la receta
+                      calcula los ingredientes (source = recipe). Se pueden
+                      agregar extras manuales (source = manual).
+============================================================ -->
+<body class="min-h-screen flex items-center justify-center p-4 text-gray-800">
+
+<div class="w-full max-w-3xl bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col max-h-[94vh] overflow-hidden">
+
+    <!-- Header -->
+    <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-lg bg-blue-600/10 flex items-center justify-center"><i data-lucide="clipboard-plus" class="w-4 h-4 text-blue-700"></i></span>
+            <div>
+                <h2 class="text-sm font-bold text-gray-800">Nueva solicitud de insumos</h2>
+                <p class="text-[11px] text-gray-500">Pide con anticipacion lo que vas a necesitar</p>
+            </div>
+        </div>
+        <button onclick="window.close()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+
+    <div class="overflow-y-auto px-5 py-4 flex-1 space-y-5">
+
+        <!-- Paso 1: tipo -->
+        <div>
+            <p class="lbl">1 · ¿Que tipo de solicitud es?</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button class="tipo-card on-tienda" data-tipo="tienda">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-lg bg-sky-500/15 flex items-center justify-center"><i data-lucide="store" class="w-5 h-5 text-sky-700"></i></span>
+                        <div>
+                            <p class="text-sm font-bold text-gray-800">Tienda</p>
+                            <p class="text-[11px] text-gray-500">Limpieza, desechables, papeleria</p>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-2">Ej. jabon, cloro, bolsas, papel. Aprueba: encargado de sucursal.</p>
+                </button>
+                <button class="tipo-card" data-tipo="produccion">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center"><i data-lucide="chef-hat" class="w-5 h-5 text-emerald-700"></i></span>
+                        <div>
+                            <p class="text-sm font-bold text-gray-800">Produccion</p>
+                            <p class="text-[11px] text-gray-500">Ingredientes para elaborar productos</p>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-2">Indica que vas a producir y se calculan los ingredientes. Aprueba: jefe de produccion.</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- Paso 2: plan -->
+        <div>
+            <p class="lbl">2 · ¿Para que compra?</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2" id="planes">
+                <div class="plan-opt on">
+                    <div class="flex items-center gap-1.5"><i data-lucide="repeat" class="w-3.5 h-3.5 text-indigo-600"></i><p class="text-xs font-bold text-gray-800">Semana 41</p></div>
+                    <p class="text-[10px] text-gray-500 mt-0.5">Entrega lun 12 oct</p>
+                    <p class="text-[10px] text-amber-600 font-semibold mt-0.5">Corte en 1d 06h</p>
+                </div>
+                <div class="plan-opt">
+                    <div class="flex items-center gap-1.5"><i data-lucide="party-popper" class="w-3.5 h-3.5 text-pink-600"></i><p class="text-xs font-bold text-gray-800">Boda Hernandez-Lopez</p></div>
+                    <p class="text-[10px] text-gray-500 mt-0.5">350 pax · Entrega vie 16 oct</p>
+                    <p class="text-[10px] text-gray-500 mt-0.5">Corte mar 13 oct</p>
+                </div>
+                <div class="plan-opt">
+                    <div class="flex items-center gap-1.5"><i data-lucide="zap" class="w-3.5 h-3.5 text-gray-500"></i><p class="text-xs font-bold text-gray-800">Fuera de plan</p></div>
+                    <p class="text-[10px] text-gray-500 mt-0.5">Urgente, requiere justificacion</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                <div><label class="lbl">Area</label>
+                    <select class="inp" id="area">
+                        <option>Piso de venta</option><option>Caja</option><option>Banos</option><option>Bodega</option>
+                    </select>
+                </div>
+                <div><label class="lbl">Lo necesito para</label><input type="date" class="inp" value="2026-10-12"></div>
+            </div>
+        </div>
+
+        <!-- Paso 3A: TIENDA -->
+        <div id="paso-tienda">
+            <div class="flex items-center justify-between mb-1">
+                <p class="lbl mb-0">3 · Articulos de tienda</p>
+                <button class="text-[11px] font-semibold text-blue-700 flex items-center gap-1"><i data-lucide="history" class="w-3.5 h-3.5"></i> Repetir mi ultima solicitud</button>
+            </div>
+            <div class="flex gap-1.5 mb-2 flex-wrap">
+                <span class="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-sky-50 border border-sky-200 text-sky-700">Limpieza</span>
+                <span class="px-2.5 py-1 text-[11px] font-semibold rounded-full border border-gray-200 text-gray-500">Desechables</span>
+                <span class="px-2.5 py-1 text-[11px] font-semibold rounded-full border border-gray-200 text-gray-500">Papeleria</span>
+                <span class="px-2.5 py-1 text-[11px] font-semibold rounded-full border border-gray-200 text-gray-500">Higiene</span>
+            </div>
+            <div class="relative mb-3">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" class="inp" style="padding-left:2rem" placeholder="Buscar jabon, cloro, bolsas...">
+            </div>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <table class="w-full text-xs">
+                    <thead><tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2">Articulo</th>
+                        <th class="text-center font-semibold px-3 py-2">Tengo</th>
+                        <th class="text-center font-semibold px-3 py-2 w-40">Necesito</th>
+                        <th class="w-10"></th>
+                    </tr></thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr>
+                            <td class="px-3 py-2"><p class="font-medium text-gray-700">Cloro 3.75 L</p><p class="text-[10px] text-gray-400">Sueles pedir 4 por semana</p></td>
+                            <td class="text-center text-gray-500">2</td>
+                            <td class="px-3 py-2"><div class="flex items-center justify-center gap-2">
+                                <button class="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600"><i data-lucide="minus" class="w-3.5 h-3.5"></i></button>
+                                <span class="w-8 text-center text-sm font-bold">8</span>
+                                <button class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                            </div></td>
+                            <td class="text-center"><i data-lucide="trash-2" class="w-4 h-4 text-gray-300 hover:text-rose-500 inline cursor-pointer"></i></td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2"><p class="font-medium text-gray-700">Jabon liquido para manos 1 L</p><p class="text-[10px] text-gray-400">Sueles pedir 3 por semana</p></td>
+                            <td class="text-center text-gray-500">1</td>
+                            <td class="px-3 py-2"><div class="flex items-center justify-center gap-2">
+                                <button class="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600"><i data-lucide="minus" class="w-3.5 h-3.5"></i></button>
+                                <span class="w-8 text-center text-sm font-bold">3</span>
+                                <button class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                            </div></td>
+                            <td class="text-center"><i data-lucide="trash-2" class="w-4 h-4 text-gray-300 hover:text-rose-500 inline cursor-pointer"></i></td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2"><p class="font-medium text-gray-700">Bolsa para basura jumbo (paq. 10)</p><p class="text-[10px] text-gray-400">Sueles pedir 5 por semana</p></td>
+                            <td class="text-center text-gray-500">3</td>
+                            <td class="px-3 py-2"><div class="flex items-center justify-center gap-2">
+                                <button class="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center text-gray-600"><i data-lucide="minus" class="w-3.5 h-3.5"></i></button>
+                                <span class="w-8 text-center text-sm font-bold">5</span>
+                                <button class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                            </div></td>
+                            <td class="text-center"><i data-lucide="trash-2" class="w-4 h-4 text-gray-300 hover:text-rose-500 inline cursor-pointer"></i></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Paso 3B: PRODUCCION -->
+        <div id="paso-produccion" class="hidden">
+            <p class="lbl">3 · ¿Que vas a elaborar?</p>
+            <div class="flex gap-2 mb-3">
+                <div class="relative flex-1">
+                    <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" class="inp" style="padding-left:2rem" placeholder="Buscar producto con receta (concha, pastel, salsa...)">
+                </div>
+                <button class="px-3 text-xs font-semibold text-emerald-700 border border-emerald-200 bg-emerald-50 rounded-md flex items-center gap-1"><i data-lucide="calculator" class="w-3.5 h-3.5"></i> Por invitados</button>
+            </div>
+
+            <!-- Productos a elaborar -->
+            <div class="space-y-2 mb-4">
+                <div class="flex items-center justify-between gap-3 border border-gray-200 rounded-lg px-3 py-2">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center flex-shrink-0"><i data-lucide="croissant" class="w-4 h-4 text-emerald-700"></i></span>
+                        <div class="min-w-0"><p class="text-xs font-bold text-gray-800">Concha de vainilla</p><p class="text-[10px] text-gray-400">Receta REC-014 · rinde 60 pzas por lote</p></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="number" class="inp no-spin w-20 text-right font-bold" value="600">
+                        <span class="text-[11px] text-gray-500 w-8">pzas</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-600 whitespace-nowrap">10 lotes</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-3 border border-gray-200 rounded-lg px-3 py-2">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center flex-shrink-0"><i data-lucide="cake" class="w-4 h-4 text-emerald-700"></i></span>
+                        <div class="min-w-0"><p class="text-xs font-bold text-gray-800">Pan de muerto tradicional</p><p class="text-[10px] text-gray-400">Receta REC-031 · rinde 24 pzas por lote</p></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="number" class="inp no-spin w-20 text-right font-bold" value="240">
+                        <span class="text-[11px] text-gray-500 w-8">pzas</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-600 whitespace-nowrap">10 lotes</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Explosion de receta -->
+            <div class="border border-emerald-200 rounded-lg overflow-hidden">
+                <div class="px-3 py-2 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between">
+                    <p class="text-xs font-bold text-emerald-800 flex items-center gap-1.5"><i data-lucide="list-tree" class="w-3.5 h-3.5"></i> Ingredientes calculados</p>
+                    <p class="text-[10px] text-emerald-700">Incluye 5% de merma</p>
+                </div>
+                <table class="w-full text-xs">
+                    <thead><tr class="text-gray-500 text-[10px] uppercase tracking-wider">
+                        <th class="text-left font-semibold px-3 py-2">Ingrediente</th>
+                        <th class="text-right font-semibold px-3 py-2">Receta</th>
+                        <th class="text-right font-semibold px-3 py-2">En almacen</th>
+                        <th class="text-right font-semibold px-3 py-2">Pedir</th>
+                    </tr></thead>
+                    <tbody class="divide-y divide-gray-100 text-gray-700">
+                        <tr><td class="px-3 py-1.5">Harina de trigo</td><td class="text-right px-3">147.0 kg</td><td class="text-right px-3 text-gray-400">25.0 kg</td><td class="text-right px-3 font-bold">5 bto 25 kg</td></tr>
+                        <tr><td class="px-3 py-1.5">Azucar estandar</td><td class="text-right px-3">63.0 kg</td><td class="text-right px-3 text-gray-400">10.0 kg</td><td class="text-right px-3 font-bold">2 bto 50 kg</td></tr>
+                        <tr><td class="px-3 py-1.5">Mantequilla sin sal</td><td class="text-right px-3">31.5 kg</td><td class="text-right px-3 text-gray-400">4.0 kg</td><td class="text-right px-3 font-bold">28 kg</td></tr>
+                        <tr><td class="px-3 py-1.5">Huevo</td><td class="text-right px-3">42.0 kg</td><td class="text-right px-3 text-green-600">45.0 kg</td><td class="text-right px-3 text-green-600 font-semibold">Cubierto</td></tr>
+                        <tr><td class="px-3 py-1.5">Levadura seca</td><td class="text-right px-3">2.1 kg</td><td class="text-right px-3 text-gray-400">0.5 kg</td><td class="text-right px-3 font-bold">4 paq 500 g</td></tr>
+                        <tr><td class="px-3 py-1.5">Agua de azahar</td><td class="text-right px-3">1.2 L</td><td class="text-right px-3 text-gray-400">0</td><td class="text-right px-3 font-bold">2 fco 1 L</td></tr>
+                        <tr class="bg-gray-50"><td class="px-3 py-1.5 text-gray-500 italic" colspan="3">+ Extra manual: papel encerado</td><td class="text-right px-3 font-bold">2 rollos</td></tr>
+                    </tbody>
+                </table>
+                <div class="px-3 py-2 border-t border-gray-100">
+                    <button class="text-[11px] font-semibold text-blue-700 flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar insumo extra</button>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label class="lbl">Notas para quien aprueba</label>
+            <textarea class="inp" rows="2" placeholder="Ej. esta semana hay inventario fisico, se ocupa mas cloro"></textarea>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-5 py-3 border-t border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
+        <p class="text-[11px] text-gray-500" id="resumen">3 articulos · Semana 41 · se envia al encargado de sucursal</p>
+        <div class="flex gap-2">
+            <button class="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Guardar borrador</button>
+            <button class="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center gap-1.5"><i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar solicitud</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const AREAS = {
+        tienda:     ['Piso de venta', 'Caja', 'Banos', 'Bodega'],
+        produccion: ['Panaderia', 'Reposteria', 'Cocina caliente', 'Cocina fria']
+    };
+    const RESUMEN = {
+        tienda:     '3 articulos · Semana 41 · se envia al encargado de sucursal',
+        produccion: '2 productos → 7 insumos · Semana 41 · se envia al jefe de produccion'
+    };
+    document.querySelectorAll('.tipo-card').forEach(card => card.onclick = () => {
+        const tipo = card.dataset.tipo;
+        document.querySelectorAll('.tipo-card').forEach(c => c.classList.remove('on-tienda', 'on-produccion'));
+        card.classList.add('on-' + tipo);
+        document.getElementById('paso-tienda').classList.toggle('hidden', tipo !== 'tienda');
+        document.getElementById('paso-produccion').classList.toggle('hidden', tipo !== 'produccion');
+        document.getElementById('area').innerHTML = AREAS[tipo].map(a => `<option>${a}</option>`).join('');
+        document.getElementById('resumen').textContent = RESUMEN[tipo];
+    });
+    document.querySelectorAll('.plan-opt').forEach(p => p.onclick = () => {
+        document.querySelectorAll('.plan-opt').forEach(x => x.classList.remove('on'));
+        p.classList.add('on');
+    });
+    lucide.createIcons();
+</script>
+</body>
+</html>
