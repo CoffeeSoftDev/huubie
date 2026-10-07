@@ -258,7 +258,7 @@ function reporteFiltros($post) {
     $tipo = $post['tipo'] ?? '';
 
     return [
-        'tipo'            => in_array($tipo, ['diario', 'semanal', 'mensual'], true) ? $tipo : 'diario',
+        'tipo'            => $tipo === 'mensual' ? 'mensual' : 'semanal',
         'branch_id'       => (int) ($post['branch_id']    ?? 0),
         'warehouse_id'    => (int) ($post['warehouse_id'] ?? 0),
         'area_id'         => (int) ($post['area_id']      ?? 0),
@@ -323,11 +323,9 @@ function reporteValor($catalogo, $id) {
     return '#' . $id;
 }
 
-function reporteDia($fecha, $corto = false) {
-    $largos = ['', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO'];
-    $cortos = ['', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    $numero = (int) date('N', strtotime($fecha));
-    return $corto ? $cortos[$numero] : $largos[$numero];
+function reporteDia($fecha) {
+    $dias = ['', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO'];
+    return $dias[(int) date('N', strtotime($fecha))];
 }
 
 function reporteMes($fecha) {
@@ -342,27 +340,13 @@ function reporteLunes($fecha) {
 
 function reporteKey($tipo, $fecha) {
     $fecha = substr($fecha, 0, 10);
-    if ($tipo === 'semanal') return 'semanal:' . reporteLunes($fecha);
     if ($tipo === 'mensual') return 'mensual:' . substr($fecha, 0, 7);
-    return 'diario:' . $fecha;
+    return 'semanal:' . reporteLunes($fecha);
 }
 
-// Periodo canonico que contiene la fecha: el dia, la semana ISO o el mes completo.
+// Periodo canonico que contiene la fecha: la semana ISO o el mes completo.
 function reportePeriodo($tipo, $fecha) {
     $ts = strtotime($fecha);
-
-    if ($tipo === 'semanal') {
-        $fi = reporteLunes($fecha);
-        $ff = date('Y-m-d', strtotime($fi . ' +6 days'));
-
-        return [
-            'key'    => 'semanal:' . $fi,
-            'fi'     => $fi,
-            'ff'     => $ff,
-            'label'  => 'Semana ' . (int) date('W', strtotime($fi)) . ' · ' . date('d/m', strtotime($fi)) . ' – ' . date('d/m/Y', strtotime($ff)),
-            'titulo' => 'Semana del ' . date('d/m/Y', strtotime($fi)) . ' al ' . date('d/m/Y', strtotime($ff))
-        ];
-    }
 
     if ($tipo === 'mensual') {
         $fi = date('Y-m-01', $ts);
@@ -377,14 +361,15 @@ function reportePeriodo($tipo, $fecha) {
         ];
     }
 
-    $dia = date('Y-m-d', $ts);
+    $fi = reporteLunes($fecha);
+    $ff = date('Y-m-d', strtotime($fi . ' +6 days'));
 
     return [
-        'key'    => 'diario:' . $dia,
-        'fi'     => $dia,
-        'ff'     => $dia,
-        'label'  => reporteDia($dia, true) . ' ' . date('d/m/Y', $ts),
-        'titulo' => 'Día ' . date('d/m/Y', $ts)
+        'key'    => 'semanal:' . $fi,
+        'fi'     => $fi,
+        'ff'     => $ff,
+        'label'  => 'Semana ' . (int) date('W', strtotime($fi)) . ' · ' . date('d/m', strtotime($fi)) . ' – ' . date('d/m/Y', strtotime($ff)),
+        'titulo' => 'Semana del ' . date('d/m/Y', strtotime($fi)) . ' al ' . date('d/m/Y', strtotime($ff))
     ];
 }
 
@@ -405,8 +390,8 @@ function reportePeriodos($tipo, $fi, $ff) {
     return $periodos;
 }
 
-// Columnas del reporte: el dia, los 7 dias de la semana o las semanas ISO del
-// mes recortadas al mes.
+// Columnas del reporte: los 7 dias de la semana o las semanas ISO del mes
+// recortadas al mes.
 function reporteColumnas($tipo, $fi, $ff) {
     $columnas = [];
 

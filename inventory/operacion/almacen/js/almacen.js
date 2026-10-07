@@ -1256,7 +1256,6 @@ class AsistenteProductos extends Templates {
         if (!this.chat) {
             this.chat = this.iaChat({
                 id:          `chat${this.PROJECT_NAME}`,
-                dock:        "top-[68px] right-4",
                 title:       "CoffeeIA",
                 subtitle:    "Productos, categorías, unidades, áreas, almacenes y proveedores",
                 placeholder: "Escribe o adjunta un Excel o una foto…",
