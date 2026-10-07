@@ -5,14 +5,10 @@ let branchId;
 
 const VIEW_HEADER_REPORTES = {
     title:    'Reportes de inventario',
-    subtitle: 'Inventario rápido y conteo físico · diario, semanal y mensual'
+    subtitle: 'Inventario rápido y conteo físico · semanal y mensual'
 };
 
 const TIPOS_REPORTE = [
-    {
-        id:    'diario',
-        valor: 'Diario'
-    },
     {
         id:    'semanal',
         valor: 'Semanal'
@@ -230,22 +226,22 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fTipo',
                 lbl:      'Reporte:',
-                class:    'col-6 col-md-4 col-xl-1',
+                class:    'col-6 col-md-3 col-xl-1',
                 onchange: 'app.onChangeType()',
-                value:    'diario',
+                value:    'semanal',
                 data:     TIPOS_REPORTE
             },
             {
                 opc:   'input-calendar',
                 id:    `calendar${this.PROJECT_NAME}`,
                 lbl:   'Periodo:',
-                class: 'col-6 col-md-3 col-xl-2'
+                class: 'col-6 col-md-3 col-xl-1'
             },
             {
                 opc:      'select',
                 id:       'fSucursal',
                 lbl:      'Sucursal:',
-                class:    'col-6 col-md-4 col-xl-2',
+                class:    'col-6 col-md-3 col-xl-1',
                 onchange: 'app.onChangeBranch()',
                 value:    '',
                 data:     withAll(this.dataInit.sucursales, 'Todas las sucursales')
@@ -254,7 +250,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fAlmacen',
                 lbl:      'Almacén:',
-                class:    'col-6 col-md-4 col-xl-2',
+                class:    'col-6 col-md-3 col-xl-1',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     withAll(this.warehousesOf(this.branchId), 'Todos los almacenes')
@@ -263,7 +259,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fArea',
                 lbl:      'Área:',
-                class:    'col-6 col-md-4 col-xl-1',
+                class:    'col-6 col-md-3 col-xl-1',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     withAll(this.dataInit.areas, 'Todas')
@@ -272,7 +268,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fCategoria',
                 lbl:      'Categoría:',
-                class:    'col-6 col-md-4 col-xl-1',
+                class:    'col-6 col-md-3 col-xl-1',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     withAll(this.dataInit.categorias, 'Todas')
@@ -281,7 +277,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fProductos',
                 lbl:      'Productos:',
-                class:    'col-12 col-md-4 col-xl-2',
+                class:    'col-6 col-md-3 col-xl-1',
                 onchange: 'app.onChangeProducts()',
                 value:    '0',
                 data:     [
@@ -299,10 +295,14 @@ class App extends Templates {
 
         this.createfilterBar({
             parent:     'filterBar',
+            id:         `filterBar${this.PROJECT_NAME}`,
             coffeesoft: true,
             theme:      'light',
             data:       filters
         });
+
+        // Los 7 filtros miden lo mismo: en pantalla grande la rejilla pasa de 12 a 7 columnas.
+        $(`#filterBar${this.PROJECT_NAME}`).addClass('xl:grid-cols-7');
 
         // Con una sola sucursal el select queda fijo (sin "Todas" y deshabilitado).
         const sucs = this.dataInit.sucursales || [];
@@ -314,7 +314,7 @@ class App extends Templates {
         }
         this.fillWarehouses();
 
-        const range = this.defaultRange('diario');
+        const range = this.defaultRange('semanal');
 
         dataPicker({
             parent: `calendar${this.PROJECT_NAME}`,
@@ -346,7 +346,7 @@ class App extends Templates {
         const range  = picker ? getDataRangePicker(`calendar${this.PROJECT_NAME}`) : {};
 
         return {
-            tipo:            $('#fTipo').val()       || 'diario',
+            tipo:            $('#fTipo').val()       || 'semanal',
             fi:              range.fi                || '',
             ff:              range.ff                || '',
             branch_id:       $('#fSucursal').val()   || '',
@@ -423,13 +423,6 @@ class App extends Templates {
     }
 
     defaultRange(tipo) {
-        if (tipo === 'semanal') {
-            return {
-                start: moment().startOf('isoWeek').subtract(3, 'weeks'),
-                end:   moment()
-            };
-        }
-
         if (tipo === 'mensual') {
             return {
                 start: moment().subtract(2, 'months').startOf('month'),
@@ -438,7 +431,7 @@ class App extends Templates {
         }
 
         return {
-            start: moment().subtract(6, 'days'),
+            start: moment().startOf('isoWeek').subtract(3, 'weeks'),
             end:   moment()
         };
     }
@@ -854,6 +847,7 @@ class Reportes extends Templates {
             });
             this.paint(ws.getCell(`B${r}`), {
                 bold:   true,
+                h:      'center',
                 v:      'top',
                 wrap:   true,
                 border: borde
@@ -953,7 +947,7 @@ class Reportes extends Templates {
     }
 
     setColumns(ws, tipo, cols) {
-        const ancho   = tipo === 'diario' ? 10 : (tipo === 'mensual' ? 9 : 8);
+        const ancho   = tipo === 'mensual' ? 9 : 8;
         const widths  = [7, 26, 6, 24, ...cols.map(() => ancho), 8];
         const usado   = widths.reduce((t, w) => t + w * 7 + 5, 0);
         const sobra   = Math.max(0, (10.5 * 96 - usado) / 7);
@@ -1165,12 +1159,11 @@ class ReportesView extends Templates {
             id:       'reportList',
             class:    'flex-1 min-h-0 flex flex-col',
             items:    [],
-            tipo:     'diario',
+            tipo:     'semanal',
             selected: null,
             loading:  false,
             grid:     'minmax(0,1fr) 78px 78px 86px',
             titles:   {
-                diario:  'Reportes diarios',
                 semanal: 'Reportes semanales',
                 mensual: 'Reportes mensuales'
             },
@@ -1258,7 +1251,7 @@ class ReportesView extends Templates {
             <div class="px-3 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
                 <div class="flex items-center mb-2" style="gap:8px;">
                     <i data-lucide="calendar-range" class="w-4 h-4" style="color:rgb(var(--brand-600, 192 90 64));"></i>
-                    <span class="text-sm font-bold text-gray-800 flex-1">${esc(opts.titles[opts.tipo] || opts.titles.diario)}</span>
+                    <span class="text-sm font-bold text-gray-800 flex-1">${esc(opts.titles[opts.tipo] || opts.titles.semanal)}</span>
                     <span id="${opts.id}_count" class="text-[11px] text-gray-500">${items.length} periodo${items.length === 1 ? '' : 's'}</span>
                 </div>
                 <div class="relative">
@@ -1409,8 +1402,11 @@ class ReportesView extends Templates {
         $(`#${opts.id}_excel`).on('click', () => opts.onExcel());
     }
 
-    // La hoja imprimible: misma tabla para la vista previa y para el iframe de
-    // impresión, con estilos .rpt-* inyectados una sola vez en el <head>.
+    // La hoja imprimible en páginas de carta horizontal (11 × 8.5 in a 96 dpi). La
+    // tabla completa se arma primero fuera de pantalla para medir anchos y altos: con
+    // eso se reparten los productos por página sin partir ninguno, se fijan los anchos
+    // de columna (iguales en todas las páginas) y, si la tabla es más ancha que la hoja,
+    // se reduce con zoom. La impresión copia estas mismas páginas.
     inventorySheet(options) {
         const defaults = {
             parent: 'root',
@@ -1418,15 +1414,23 @@ class ReportesView extends Templates {
             json:   null,
             mode:   'completo',
             zoom:   100,
+            page:   {
+                width:   1056,
+                height:  816,
+                padding: 24
+            },
             labels: {
                 tituloBase:   'REPORTE DE INVENTARIO RÁPIDO',
                 tituloConteo: ' · CONTEO FÍSICO',
-                sinArea:      'Sin área'
+                sinArea:      'Sin área',
+                continua:     '(continúa)',
+                empty:        'Sin productos para los filtros elegidos.'
             }
         };
 
         const o    = options || {};
         const opts = Object.assign({}, defaults, o);
+        opts.page   = Object.assign({}, defaults.page,   o.page   || {});
         opts.labels = Object.assign({}, defaults.labels, o.labels || {});
 
         this.sheetStyles();
@@ -1478,27 +1482,15 @@ class ReportesView extends Templates {
             return `<tbody class="rpt-product">${band}${rows}</tbody>`;
         };
 
-        let area = null;
-        const bodies = (d.rows || []).map((p) => {
-            const band = p.area_id !== area
-                ? `<tr class="rpt-band"><td colspan="${total}">ÁREA: ${esc(String(p.area || opts.labels.sinArea).toUpperCase())}</td></tr>`
-                : '';
-            area = p.area_id;
-            return productBlock(p, band);
-        }).join('');
+        const areaBand = (p, continua) => `
+            <tr class="rpt-band"><td colspan="${total}">ÁREA: ${esc(String(p.area || opts.labels.sinArea).toUpperCase())}${continua ? ` ${esc(opts.labels.continua)}` : ''}</td></tr>`;
 
         const s = d.resumen || {};
         const summaryItem = (label, value, tone) => `
             <div class="rpt-sum-item"><span class="rpt-sum-label">${esc(label)}</span><span class="rpt-sum-value ${tone || ''}">${value}</span></div>`;
         const dif = s.diferencia == null ? null : Number(s.diferencia);
 
-        const sheet = $('<div>', {
-            id:    opts.id,
-            class: 'rpt-page',
-            style: `zoom:${opts.zoom / 100};`
-        });
-        sheet.html(`
-            <table class="rpt-table">
+        const thead = `
                 <thead>
                     <tr class="rpt-h">
                         <td colspan="${total - derecha}" class="rpt-title">${esc(titulo)}</td>
@@ -1523,9 +1515,9 @@ class ReportesView extends Templates {
                         ${cols.map(c => `<th class="rpt-day"><div>${esc(c.nombre)}</div><div class="rpt-day-sub">${esc(c.corto)}</div></th>`).join('')}
                         <th>TOTAL</th>
                     </tr>
-                </thead>
-                ${bodies || `<tbody><tr><td colspan="${total}" class="rpt-empty">Sin productos para los filtros elegidos.</td></tr></tbody>`}
-            </table>
+                </thead>`;
+
+        const summary = `
             <div class="rpt-summary">
                 ${summaryItem('Productos', fmtNum(s.productos))}
                 ${summaryItem('Entradas', fmtNum(s.entradas))}
@@ -1535,24 +1527,110 @@ class ReportesView extends Templates {
                 ${summaryItem('Desperdicio', fmtNum(s.desperdicio))}
                 ${summaryItem('Diferencia', dif == null ? '—' : `${dif > 0 ? '+' : ''}${fmtNum(dif)}`, dif == null || dif === 0 ? '' : (dif < 0 ? 'rpt-neg' : 'rpt-pos'))}
                 ${summaryItem('Conteos', fmtNum(s.conteos))}`}
-            </div>`);
+            </div>`;
+
+        const productos = d.rows || [];
+        const empty     = `<tbody><tr><td colspan="${total}" class="rpt-empty">${esc(opts.labels.empty)}</td></tr></tbody>`;
+        const anchoUtil = opts.page.width - opts.page.padding * 2;
+        const altoUtil  = opts.page.height - opts.page.padding * 2;
+
+        // Medición: la tabla entera con la misma CSS de la vista previa, fuera de pantalla.
+        const probe = $('<div>', {
+            class: 'rpt-probe',
+            style: `width:${anchoUtil}px;`
+        });
+        probe.html(`
+            <table class="rpt-table" style="width:100%;">
+                ${thead}
+                <tbody>${areaBand(productos[0] || {}, true)}</tbody>
+                ${productos.map((p) => productBlock(p, '')).join('') || empty}
+            </table>
+            ${summary}`);
+        $('body').append(probe);
+
+        const tbodies     = probe.find('tbody');
+        const ancho       = Math.max(anchoUtil, probe.find('table')[0].offsetWidth);
+        const escala      = Math.min(1, anchoUtil / ancho);
+        const columnas    = probe.find('tr.rpt-cols th').map((i, th) => th.getBoundingClientRect().width).get();
+        const altoHead    = probe.find('thead')[0].offsetHeight;
+        const altoBanda   = tbodies[0].offsetHeight;
+        const altos       = productos.map((p, i) => tbodies[i + 1].offsetHeight);
+        const altoResumen = probe.find('.rpt-summary').outerHeight(true);
+        probe.remove();
+
+        // Reparto por página: un producto nunca se parte; la banda del área se repite
+        // arriba de cada página que continúa esa área. El 2% cubre redondeos de bordes.
+        const disponible = (altoUtil / escala) * 0.98 - altoHead;
+        const paginas    = [];
+        let actual = {
+            html:  '',
+            usado: 0
+        };
+        let area = null;
+
+        productos.forEach((p, i) => {
+            const nueva = p.area_id !== area;
+            let banda   = nueva || !actual.html;
+            let alto    = altos[i] + (banda ? altoBanda : 0);
+
+            if (actual.html && actual.usado + alto > disponible) {
+                paginas.push(actual);
+                actual = {
+                    html:  '',
+                    usado: 0
+                };
+                banda = true;
+                alto  = altos[i] + altoBanda;
+            }
+
+            actual.html  += productBlock(p, banda ? areaBand(p, !nueva) : '');
+            actual.usado += alto;
+            area = p.area_id;
+        });
+
+        if (!productos.length) actual.html = empty;
+        if (actual.usado && actual.usado + altoResumen > disponible) {
+            paginas.push(actual);
+            actual = {
+                html:  '',
+                usado: 0
+            };
+        }
+        actual.resumen = true;
+        paginas.push(actual);
+
+        const colgroup = `<colgroup>${columnas.map((w) => `<col style="width:${w.toFixed(2)}px;">`).join('')}</colgroup>`;
+
+        const sheet = $('<div>', {
+            id:    opts.id,
+            class: 'rpt-doc',
+            style: `zoom:${opts.zoom / 100};`
+        });
+        sheet.html(paginas.map((pg, k) => `
+            <div class="rpt-sheet" style="width:${opts.page.width}px;height:${opts.page.height}px;padding:${opts.page.padding}px;">
+                <div class="rpt-sheet-body" style="width:${ancho}px;zoom:${escala.toFixed(4)};">
+                    <table class="rpt-table rpt-fixed" style="width:${ancho}px;">${colgroup}${thead}${pg.html}</table>
+                    ${pg.resumen ? summary : ''}
+                </div>
+                <div class="rpt-sheet-foot" style="left:${opts.page.padding}px;right:${opts.page.padding}px;">
+                    <span>Almacén: ${esc(d.almacen || '-')}</span>
+                    <span>Hoja ${k + 1} de ${paginas.length}</span>
+                    <span>${esc(d.titulo_periodo || '')}</span>
+                </div>
+            </div>`).join(''));
 
         $(`#${opts.parent}`).html(sheet);
     }
 
-    // Imprime la hoja de la vista previa desde un iframe oculto con la misma CSS .rpt-*.
-    // El ancho natural de la hoja se mide DENTRO del iframe (sin compact.css). Si cabe
-    // en la carta horizontal, la tabla se estira al 100%; si es más ancha (semanal =
-    // 12 columnas) se fija a su ancho natural y el zoom la lleva justo al ancho de la
-    // carta. Con width: 100% + zoom < 1 la hoja quedaba angosta: el zoom encoge también el 100%.
+    // Imprime las páginas de la vista previa desde un iframe oculto con la misma CSS
+    // .rpt-*. Las páginas ya vienen armadas a tamaño carta horizontal (inventorySheet),
+    // así que cada .rpt-sheet es una hoja impresa; el zoom de la vista previa se anula.
     printSheet(options) {
         const defaults = {
             sheetId: 'rptSheet',
             styleId: 'rptSheetStyles',
             title:   'Reporte',
-            page:    'letter landscape',
-            margin:  '6mm',
-            width:   1010
+            page:    'letter landscape'
         };
         const opts  = Object.assign({}, defaults, options || {});
         const sheet = document.getElementById(opts.sheetId);
@@ -1568,30 +1646,12 @@ class ReportesView extends Templates {
         const doc = iframe.contentDocument || iframe.contentWindow.document;
         doc.open();
         doc.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(opts.title)}</title><style>${style ? style.textContent : ''}
-            @page { size: ${opts.page}; margin: ${opts.margin}; }
+            @page { size: ${opts.page}; margin: 0; }
             html, body { margin: 0; padding: 0; background: #fff; }
-            .rpt-page { box-shadow: none; padding: 0; margin: 0; width: max-content; min-width: 0; }
         </style></head><body>${sheet.outerHTML}</body></html>`);
         doc.close();
 
         const run = () => {
-            const page  = doc.querySelector('.rpt-page');
-            const table = doc.querySelector('.rpt-table');
-            // El zoom de la vista previa viaja en el outerHTML: se quita antes de medir.
-            if (page) page.style.zoom = '';
-            const ancho = page ? page.scrollWidth : opts.width;
-
-            if (page && table) {
-                if (ancho <= opts.width) {
-                    page.style.width  = '100%';
-                    table.style.width = '100%';
-                } else {
-                    page.style.width  = `${ancho}px`;
-                    table.style.width = '100%';
-                    page.style.zoom   = (opts.width / ancho).toFixed(4);
-                }
-            }
-
             iframe.contentWindow.focus();
             iframe.contentWindow.print();
             setTimeout(() => iframe.remove(), 1000);
@@ -1648,9 +1708,14 @@ class ReportesView extends Templates {
         const style = document.createElement('style');
         style.id = 'rptSheetStyles';
         style.textContent = `
-            .rpt-page { background: #fff; width: max-content; min-width: 640px; margin: 0 auto; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 10px 28px rgba(0,0,0,.08); color: #111827; font-family: Arial, Helvetica, sans-serif; }
+            .rpt-doc, .rpt-doc *, .rpt-probe, .rpt-probe * { box-sizing: border-box; }
+            .rpt-doc { display: flex; flex-direction: column; align-items: center; gap: 16px; width: max-content; margin: 0 auto; }
+            .rpt-sheet { position: relative; flex-shrink: 0; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 10px 28px rgba(0,0,0,.08); color: #111827; font-family: Arial, Helvetica, sans-serif; }
+            .rpt-sheet-foot { position: absolute; bottom: 8px; display: flex; justify-content: space-between; font-family: Arial, Helvetica, sans-serif; font-size: 8px; line-height: 1; color: #6B7280; }
+            .rpt-probe { position: absolute; left: -100000px; top: 0; visibility: hidden; pointer-events: none; }
             .rpt-table { border-collapse: collapse; font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: #111827; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .rpt-table th, .rpt-table td { border: 1px solid #9CA3AF; padding: 0 3px !important; vertical-align: middle; line-height: 1.15; }
+            .rpt-table.rpt-fixed { table-layout: fixed; }
+            .rpt-table th, .rpt-table td { border: 1px solid #9CA3AF; padding: 0 3px !important; font-size: 9px; vertical-align: middle; line-height: 1.15; }
             .rpt-table tr.rpt-h td { border: none; padding: 0 2px !important; }
             .rpt-table .rpt-title { font-size: 14px; font-weight: 700; padding-bottom: 2px; }
             .rpt-table .rpt-company { font-size: 11px; font-weight: 700; }
@@ -1660,7 +1725,7 @@ class ReportesView extends Templates {
             .rpt-table .rpt-day-sub { font-weight: 400; color: #374151; }
             .rpt-table tr.rpt-band td { background: #F3F4F6; font-weight: 700; padding: 0 3px !important; }
             .rpt-table .rpt-sku { text-align: center; vertical-align: top; white-space: nowrap; }
-            .rpt-table .rpt-name { font-weight: 700; vertical-align: top; min-width: 130px; max-width: 220px; }
+            .rpt-table .rpt-name { font-weight: 700; text-align: center; vertical-align: top; min-width: 130px; max-width: 220px; }
             .rpt-table .rpt-unit { text-align: center; vertical-align: top; white-space: nowrap; }
             .rpt-table .rpt-mov { font-size: 8px; white-space: nowrap; }
             .rpt-table .rpt-num { text-align: center; min-width: 40px; }
@@ -1673,18 +1738,15 @@ class ReportesView extends Templates {
             .rpt-table .rpt-neg, .rpt-summary .rpt-neg { color: #DC2626; }
             .rpt-table .rpt-pos, .rpt-summary .rpt-pos { color: #16A34A; }
             .rpt-table .rpt-empty { text-align: center; color: #6B7280; padding: 18px 6px !important; }
-            .rpt-summary { display: flex; flex-wrap: wrap; margin-top: 6px; border: 1px solid #9CA3AF; font-family: Arial, Helvetica, sans-serif; font-size: 9px; }
+            .rpt-summary { display: flex; flex-wrap: wrap; margin-top: 6px; border: 1px solid #9CA3AF; font-family: Arial, Helvetica, sans-serif; font-size: 9px; line-height: 1.2; }
             .rpt-sum-item { flex: 1 1 0; min-width: 80px; padding: 2px 6px; border-right: 1px solid #D1D5DB; display: flex; flex-direction: column; }
             .rpt-sum-item:last-child { border-right: none; }
             .rpt-sum-label { font-size: 8px; text-transform: uppercase; letter-spacing: .04em; color: #6B7280; }
             .rpt-sum-value { font-size: 10px; font-weight: 700; }
             @media print {
-                .rpt-page { box-shadow: none; padding: 0; margin: 0; width: 100%; min-width: 0; }
-                .rpt-table { width: 100%; }
-                .rpt-table thead { display: table-header-group; }
-                .rpt-table tbody.rpt-product { break-inside: avoid; page-break-inside: avoid; }
-                .rpt-table tr { break-inside: avoid; page-break-inside: avoid; }
-                .rpt-summary { break-inside: avoid; page-break-inside: avoid; }
+                .rpt-doc { display: block; zoom: 1 !important; width: auto; margin: 0; }
+                .rpt-sheet { box-shadow: none; margin: 0; height: calc(8.5in - 2px) !important; break-after: page; page-break-after: always; }
+                .rpt-sheet:last-child { break-after: auto; page-break-after: auto; }
             }`;
         document.head.appendChild(style);
     }

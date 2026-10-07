@@ -468,8 +468,8 @@ class IaChat {
         const defaults = {
             parent:      'body',
             id:          'iaChat',
-            // Esquina donde abre el panel (clases Tailwind de posición fija).
-            dock:        'bottom-4 right-4',
+            // Dónde abre el panel (clases Tailwind de posición fija): al centro de la pantalla.
+            dock:        'inset-0 m-auto',
             title:       'Asistente',
             subtitle:    '',
             placeholder: 'Escribe un mensaje…',
@@ -493,7 +493,8 @@ class IaChat {
                 reading:    'Leyendo…',
                 readingImage: 'Transcribiendo la foto…',
                 readingSheet: 'Leyendo el Excel…',
-                thinking:   'Pensando',
+                thinking:   'Pensando…',
+                thinkingMore: 'Sigo dándole vueltas…',
                 applying:   'Aplicando…',
                 preview:    'Vista previa',
                 selectAll:  'Todos',
@@ -525,6 +526,8 @@ class IaChat {
         this.files     = [];
         this.previews  = {};
         this.busy      = false;
+        this.carga     = false;
+        this.frase     = null;
         this.dirty     = false;
         this.expanded  = false;
         this.ticker    = null;
@@ -541,7 +544,9 @@ class IaChat {
     // -- Public API --
 
     // Con la portada a la vista el muñeco levanta la vista, como en erp-pro al abrir.
+    // Cerrado, abre siempre en su lugar (`dock`) aunque antes se haya arrastrado.
     open() {
+        if (!this.isOpen()) this.resetPlace();
         $(`#${this.opts.id}`).removeClass('hidden').addClass('flex');
         this.autosize();
         this.keepInside();
@@ -820,7 +825,7 @@ class IaChat {
         this.avance = { p: 0, desde: 0, hasta: 1, at: Date.now(), t0: Date.now(), fin: 0 };
         this.renderBusy();
 
-        this.ticker = setInterval(() => this.tickBusy(), 80);
+        this.ticker = setInterval(() => this.tickBusy(), this.carga ? 80 : 250);
 
         if (!this.isOpen() && this.pill()) this.pildora.trabaja(this.step.label);
     }
@@ -848,9 +853,9 @@ class IaChat {
     }
 
     // Al terminar bien, la barra se completa (y coffeeIA da su brinco) antes de dar
-    // paso a la respuesta.
+    // paso a la respuesta. Sin archivo no hay barra que completar.
     finishBusy() {
-        if (!this.busy) return Promise.resolve();
+        if (!this.busy || !this.carga) return Promise.resolve();
 
         this.avance.fin = Date.now();
         return new Promise(resolve => setTimeout(resolve, 450));
@@ -860,6 +865,11 @@ class IaChat {
     // barra se acerca a la marca del paso sin alcanzarla (90 % del tramo a lo más) y
     // solo la toca cuando el paso de verdad termina.
     tickBusy() {
+        if (!this.carga) {
+            this.tickPensando();
+            return;
+        }
+
         const o    = this.opts;
         const a    = this.avance;
         const meta = a.desde + (a.hasta - a.desde) * 0.9 * (1 - Math.exp(-(Date.now() - a.at) / 8000));
@@ -896,8 +906,13 @@ class IaChat {
         return 0.06 + 0.72 * s;
     }
 
-    // La burbuja de espera: la barra de avance y la lista de pasos.
+    // La burbuja de espera: con archivo, la barra de avance y la lista de pasos.
     renderBusy() {
+        if (!this.carga) {
+            this.renderPensando();
+            return;
+        }
+
         const o      = this.opts;
         const motor  = !!(window.Bloub && window.Bloub.CASA);
         const espera = `<span id="${o.id}_carga" class="${motor ? 'w-24 h-24 -my-7 -ml-2 [&>svg]:w-full [&>svg]:h-full' : ''} flex items-center flex-shrink-0">${this.cargaHtml()}</span>`;
@@ -927,6 +942,49 @@ class IaChat {
 
         prev.replaceWith(html);
         this.icons();
+        this.scrollBottom();
+    }
+
+    // Sin archivo, la espera de erp-pro (cargaHTML con 'puntos'): los tres puntitos
+    // y al lado la frase de lo que hace. La burbuja nace una vez; los pasos solo
+    // cambian la frase, así los puntos no reinician su compás.
+    renderPensando() {
+        const o = this.opts;
+
+        if (!$(`#${o.id}_typing`).length) {
+            this.frase = null;
+            this.appendNode(`
+                <div id="${o.id}_typing" class="flex">
+                    <div class="bg-[#F1F5F9] rounded-[13px] rounded-bl-[4px] px-3 py-[9px] text-[12.5px] leading-[1.5] max-w-[92%]">
+                        <span id="${o.id}_pensando" class="iac-carga" role="status"><span class="iac-puntos"><span></span><span></span><span></span></span></span>
+                    </div>
+                </div>`);
+        }
+
+        this.tickPensando();
+    }
+
+    // Como en erp-pro: el «Pensando…» genérico sale a los 4 s y cambia a los 15; un
+    // paso real se dice en cuanto llega. El reloj (y los pasos, desde dos) también
+    // espera a los 4 s. La frase se reemplaza solo cuando es otra, para que su
+    // fundido de entrada no se repita en cada tic.
+    tickPensando() {
+        const o     = this.opts;
+        const l     = o.labels;
+        const s     = this.segundos(this.avance.t0);
+        const pasos = this.steps.length + (this.step.inicial ? 0 : 1);
+        const frase = this.step.inicial ? (s < 4 ? '' : (s < 15 ? l.thinking : l.thinkingMore)) : this.step.label;
+        const reloj = s < 4 ? '' : `${pasos >= 2 ? ` · ${pasos} pasos` : ''} · ${s} s`;
+        const caja  = $(`#${o.id}_pensando`);
+
+        if (frase === this.frase) {
+            caja.find('[data-reloj]').text(reloj);
+            return;
+        }
+
+        this.frase = frase;
+        caja.find('.iac-paso').remove();
+        if (frase) caja.append(`<em class="iac-paso">${this.esc(frase)}<span data-reloj>${this.esc(reloj)}</span></em>`);
         this.scrollBottom();
     }
 
@@ -1136,6 +1194,7 @@ class IaChat {
         this.addMessage('user', text, names);
         this.history.push({ role: 'user', content: text + (names.length ? `\n(Adjuntó: ${names.join(', ')})` : '') });
         this.dirty = true;
+        this.carga = files.length > 0;
         this.setBusy(true);
 
         let r = null;
@@ -1508,6 +1567,12 @@ class IaChat {
         this.moved = true;
     }
 
+    // Quita la posición del arrastre: manda otra vez el `dock`.
+    resetPlace() {
+        $(`#${this.opts.id}`).css({ left: '', top: '', right: '', bottom: '' });
+        this.moved = false;
+    }
+
     // Tras cambiar la ventana o el tamaño del panel, lo devuelve adentro si se salió.
     keepInside() {
         if (!this.moved || !this.isOpen()) return;
@@ -1550,8 +1615,8 @@ class IaChat {
     }
 
     // Lo que Tailwind no alcanza: el color del muñeco (el motor pinta con clases),
-    // sus animaciones (las de .ia-mini de erp-pro) y la caja de escribir en la
-    // portada (.ia-hola-caja). Los !important le ganan a las utilidades de Bootstrap
+    // sus animaciones (las de .ia-mini de erp-pro), la caja de escribir en la
+    // portada (.ia-hola-caja) y la espera con puntitos (.ia-pensando-p y .ia-paso). Los !important le ganan a las utilidades de Bootstrap
     // y al font-size que compact.css fuerza en todos los textarea.
     ensureStyles() {
         if (document.getElementById('iaChatStyles')) return;
@@ -1584,7 +1649,18 @@ class IaChat {
             .iac-pil-filo { fill:none; stroke:#D6D6D6; stroke-width:1px; vector-effect:non-scaling-stroke; }
             .iac-pil-ojo { fill:none; stroke:#1E293B; stroke-linecap:round; }
             .iac-pil-punto { fill:#1E293B; }
-            @media (prefers-reduced-motion: reduce) { .iac-pildora, .iac-pildora.is-cerrando { transition:opacity .15s ease; transform:none; } }`;
+            @media (prefers-reduced-motion: reduce) { .iac-pildora, .iac-pildora.is-cerrando { transition:opacity .15s ease; transform:none; } }
+            .iac-carga { display:inline-flex; align-items:center; gap:4px; vertical-align:middle; }
+            .iac-puntos { display:inline-flex; gap:4px; align-items:center; }
+            .iac-puntos > span { width:6px; height:6px; border-radius:9999px; background:#94A3B8; animation:iacBlink 1.3s infinite; }
+            .iac-puntos > span:nth-child(2) { animation-delay:.18s; }
+            .iac-puntos > span:nth-child(3) { animation-delay:.36s; }
+            @keyframes iacBlink { 0%,60%,100% { opacity:.25; } 30% { opacity:1; } }
+            .iac-paso { font-style:italic; font-size:11px; font-weight:600; color:#64748B; animation:iacPaso .28s ease-out; }
+            @keyframes iacPaso { from { opacity:0; transform:translateY(2px); } to { opacity:1; transform:none; } }
+            @supports ((-webkit-background-clip:text) or (background-clip:text)) { .iac-paso { background-image:linear-gradient(100deg,#64748B 30%,#334155 45%,#334155 55%,#64748B 70%); background-size:250% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; animation:iacPaso .28s ease-out, iacBrillo 2.6s linear infinite; } }
+            @keyframes iacBrillo { from { background-position:180% 0; } to { background-position:-80% 0; } }
+            @media (prefers-reduced-motion: reduce) { .iac-paso { animation:none; background-image:none; color:#64748B; -webkit-text-fill-color:#64748B; } }`;
 
         const style = document.createElement('style');
         style.id = 'iaChatStyles';

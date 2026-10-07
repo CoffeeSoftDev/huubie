@@ -491,13 +491,11 @@ class ThemeAssistant extends Templates {
             });
         }
 
-        const dock = !this.chat.moved;
-
         this.chat.toggle();
 
         // En la siguiente tarea: la primera vez Tailwind (CDN) aún no compila el
         // ancho del chat y el panel mide toda la pantalla.
-        if (dock && this.chat.isOpen()) setTimeout(() => this.dock(), 0);
+        if (this.chat.isOpen()) setTimeout(() => this.dock(), 0);
     }
 
     // El botón va arriba del formulario: es lo primero que se ve al abrirlo.
@@ -516,7 +514,7 @@ class ThemeAssistant extends Templates {
         ).on('click', () => this.render());
     }
 
-    // Junto al modal, a su derecha, si cabe; si no, se queda abajo a la derecha.
+    // Junto al modal, a su derecha, si cabe; si no, se queda al centro.
     dock() {
         if (!this.chat || !this.modal) return;
 
