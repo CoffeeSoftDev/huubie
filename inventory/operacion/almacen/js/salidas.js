@@ -54,6 +54,7 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.resizePanel();
         this.filterBar();
         salidasView.renderDetail(null);
         this.populateFilters();
@@ -104,10 +105,17 @@ class App extends Templates {
             ]
         };
 
+        // Tirador entre la tabla y el visor: el ancho del visor vive en --salidas-detail-w.
+        const detailResizer = {
+            type:  'div',
+            id:    'detailResizer',
+            class: "hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
+        };
+
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class: 'w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 dark:!border-0 flex flex-col overflow-hidden',
+            class: 'w-full md:w-[var(--salidas-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 dark:!border-0 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -126,9 +134,65 @@ class App extends Templates {
             data: {
                 id:        this.PROJECT_NAME,
                 class:     'cs-visor flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200 dark:!border-0',
-                container: [mainPanel, detailPanel]
+                container: [mainPanel, detailResizer, detailPanel]
             }
         });
+    }
+
+    // Arrastrar el tirador cambia el ancho del visor y la tabla toma el resto.
+    // Sin ancho guardado, en laptop (< 1600 px) el visor arranca más angosto.
+    resizePanel() {
+        const handle = document.getElementById('detailResizer');
+        const panel  = document.getElementById('detailPanel');
+        if (!handle || !panel) return;
+
+        this.applyPanelWidth(this.savedPanelWidth() || (window.innerWidth < 1600 ? 340 : 420), false);
+        handle.setAttribute('role', 'separator');
+        handle.setAttribute('aria-orientation', 'vertical');
+        handle.setAttribute('aria-label', 'Ancho del detalle de la salida');
+
+        const move = (e) => this.applyPanelWidth(panel.getBoundingClientRect().right - e.clientX, false);
+
+        handle.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+
+            e.preventDefault();
+            handle.setPointerCapture(e.pointerId);
+            handle.classList.add('after:bg-blue-600');
+            document.body.style.cursor     = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            const release = () => {
+                handle.classList.remove('after:bg-blue-600');
+                document.body.style.cursor     = '';
+                document.body.style.userSelect = '';
+                handle.removeEventListener('pointermove', move);
+                this.applyPanelWidth(panel.getBoundingClientRect().width, true);
+            };
+
+            handle.addEventListener('pointermove', move);
+            handle.addEventListener('pointerup', release, { once: true });
+            handle.addEventListener('pointercancel', release, { once: true });
+        });
+    }
+
+    applyPanelWidth(px, save) {
+        const width = Math.round(Math.min(760, Math.max(300, px)));
+        document.documentElement.style.setProperty('--salidas-detail-w', `${width}px`);
+
+        if (!save) return;
+        try {
+            localStorage.setItem('inventory:salidas:detailWidth', width);
+        } catch (e) { }
+    }
+
+    savedPanelWidth() {
+        try {
+            const px = Number(localStorage.getItem('inventory:salidas:detailWidth'));
+            return px > 0 ? px : null;
+        } catch (e) {
+            return null;
+        }
     }
 
     filterBar() {
@@ -215,7 +279,7 @@ class App extends Templates {
                     'Mes anterior':    [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
                 },
                 locale: {
-                    format:           'YYYY-MM-DD',
+                    format:           'DD-MM-YYYY',
                     separator:        '  a  ',
                     applyLabel:       'Aplicar',
                     cancelLabel:      'Cancelar',

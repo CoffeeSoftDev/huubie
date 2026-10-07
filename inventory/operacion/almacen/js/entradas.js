@@ -282,7 +282,7 @@ class App extends Templates {
                     'Mes anterior':    [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
                 },
                 locale: {
-                    format:           'YYYY-MM-DD',
+                    format:           'DD-MM-YYYY',
                     separator:        '  a  ',
                     applyLabel:       'Aplicar',
                     cancelLabel:      'Cancelar',
@@ -305,13 +305,15 @@ class App extends Templates {
         if (sucursales.length) {
             this.populateSelect('branch_id', sucursales);
         }
-        // Arrancamos en "Todas". Si solo tiene una sucursal, el select queda fijo
-        // en ella (sin opcion "Todas" y deshabilitado).
+        // Arrancamos en la sucursal de la navbar, como Salidas; si no está entre las
+        // del usuario, en "Todas". Si solo tiene una, el select queda fijo en ella
+        // (sin opcion "Todas" y deshabilitado).
         if (sucursales.length <= 1) {
             $('#branch_id').find('option[value=""]').remove();
             $('#branch_id').val(this.subId).prop('disabled', true);
         } else {
-            $('#branch_id').val('');
+            const enLista = sucursales.some(s => String(s.id) === String(this.subId));
+            $('#branch_id').val(enLista ? this.subId : '');
         }
     }
 
