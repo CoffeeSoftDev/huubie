@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<!--
+    Propuesta K :: Empresarial
+    Barra superior blanca y una tarjeta ancha en dos columnas: el formulario a
+    la izquierda y, a la derecha, un panel azul petróleo con los módulos que
+    trae el sistema (los mismos de operacion/almacen). Paleta de software de
+    gestión: gris pizarra + teal.
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #rememberedAvatar,
+      #rememberedName, #rememberedEmail, #forgetUserBtn
+-->
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../../../src/img/logos/coffee_icon.png" type="image/x-icon">
+    <title>Coffee Inventory - Propuesta K</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:          #F1F5F9;
+            --card:        #FFFFFF;
+            --ink:         #0F172A;
+            --ink-soft:    #475569;
+            --ink-mute:    #94A3B8;
+            --line:        #E2E8F0;
+            --line-strong: #CBD5E1;
+            --primary:     #0F766E;
+            --primary-h:   #115E59;
+            --primary-tint: rgba(15, 118, 110, 0.14);
+            --teal-1:      #0F766E;
+            --teal-2:      #134E4A;
+            --danger:      #B91C1C;
+            --danger-bg:   #FEF2F2;
+            --danger-line: #FECACA;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .logo {
+            display: block;
+            background: currentColor;
+            -webkit-mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+            mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+        }
+
+        /* -- Barra superior -- */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+            padding: 0 24px;
+            background: var(--card);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .brand .logo { width: 28px; height: 22px; color: var(--primary); }
+
+        .brand small {
+            padding-left: 10px;
+            margin-left: 2px;
+            border-left: 1px solid var(--line);
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--ink-soft);
+        }
+
+        .topbar a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13.5px;
+            color: var(--ink-soft);
+            text-decoration: none;
+        }
+
+        .topbar a:hover { color: var(--primary); }
+        .topbar a svg { width: 16px; height: 16px; }
+
+        main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 16px;
+        }
+
+        /* -- Tarjeta en dos columnas -- */
+        .card {
+            display: grid;
+            grid-template-columns: 1fr;
+            width: 100%;
+            max-width: 960px;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: var(--card);
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 24px 48px -28px rgba(15, 23, 42, 0.25);
+        }
+
+        @media (min-width: 880px) {
+            .card { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); }
+        }
+
+        .form-side { padding: 44px 44px 36px; }
+
+        .form-title {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .form-sub {
+            margin-top: 6px;
+            font-size: 14.5px;
+            color: var(--ink-soft);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 28px;
+        }
+
+        .field { display: grid; gap: 7px; }
+        .field[hidden] { display: none; }
+
+        .field-label { font-size: 13.5px; font-weight: 500; color: #334155; }
+
+        .control { position: relative; }
+
+        .control > svg {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            width: 17px;
+            height: 17px;
+            transform: translateY(-50%);
+            color: var(--ink-mute);
+            pointer-events: none;
+        }
+
+        .field-input {
+            width: 100%;
+            height: 44px;
+            padding: 0 12px 0 40px;
+            font-family: inherit;
+            font-size: 14.5px;
+            color: var(--ink);
+            background: var(--card);
+            border: 1px solid var(--line-strong);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s;
+        }
+
+        .field-input::placeholder { color: var(--ink-mute); }
+        .field-input.has-eye { padding-right: 44px; }
+
+        .field-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-tint);
+        }
+
+        .control:focus-within > svg { color: var(--primary); }
+        .field-input.is-invalid { border-color: var(--danger); }
+
+        .eye-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--ink-mute);
+            cursor: pointer;
+        }
+
+        .eye-btn:hover { color: var(--ink); background: var(--bg); }
+        .eye-btn svg { width: 17px; height: 17px; }
+
+        .caps {
+            display: none;
+            font-size: 12.5px;
+            color: #B45309;
+        }
+
+        .caps.show { display: block; }
+
+        .remembered {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #F8FAFC;
+        }
+
+        .remembered[hidden] { display: none; }
+
+        .remembered-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #FFFFFF;
+        }
+
+        .remembered-avatar svg { width: 18px; height: 18px; }
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        .remembered-info { flex: 1; min-width: 0; }
+
+        .remembered-name,
+        .remembered-email {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remembered-name { font-size: 14px; font-weight: 600; }
+        .remembered-email { font-size: 12.5px; color: var(--ink-soft); }
+
+        .link-btn {
+            flex-shrink: 0;
+            border: none;
+            background: none;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--primary);
+            cursor: pointer;
+        }
+
+        .link-btn:hover { text-decoration: underline; }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .remember {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13.5px;
+            color: var(--ink-soft);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .remember input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+
+        .form-row a {
+            font-size: 13.5px;
+            font-weight: 500;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .form-row a:hover { text-decoration: underline; }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 9px;
+            padding: 11px 12px;
+            border: 1px solid var(--danger-line);
+            border-radius: 8px;
+            background: var(--danger-bg);
+            color: var(--danger);
+            font-size: 13.5px;
+        }
+
+        .login-error.show { display: flex; }
+        .login-error svg { width: 17px; height: 17px; flex-shrink: 0; }
+
+        .btn-continue {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 44px;
+            margin-top: 4px;
+            font-family: inherit;
+            font-size: 14.5px;
+            font-weight: 600;
+            color: #FFFFFF;
+            background: var(--primary);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background .15s;
+        }
+
+        .btn-continue:hover { background: var(--primary-h); }
+        .btn-continue:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--primary-tint); }
+        .btn-continue svg { width: 17px; height: 17px; }
+        .btn-continue .spin { display: none; }
+        .btn-continue.loading { pointer-events: none; opacity: .85; }
+        .btn-continue.loading .spin { display: block; animation: spin .8s linear infinite; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .form-help {
+            margin-top: 22px;
+            font-size: 13px;
+            color: var(--ink-soft);
+        }
+
+        .form-help a { color: var(--primary); font-weight: 500; text-decoration: none; }
+        .form-help a:hover { text-decoration: underline; }
+
+        /* -- Panel de módulos -- */
+        .modules {
+            display: none;
+            position: relative;
+            overflow: hidden;
+            padding: 44px 40px;
+            background: linear-gradient(155deg, var(--teal-1) 0%, var(--teal-2) 100%);
+            color: #F0FDFA;
+        }
+
+        @media (min-width: 880px) {
+            .modules { display: flex; flex-direction: column; }
+        }
+
+        .modules::after {
+            content: '';
+            position: absolute;
+            width: 380px;
+            height: 380px;
+            right: -140px;
+            bottom: -160px;
+            border-radius: 50%;
+            border: 60px solid rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+        }
+
+        .modules-title {
+            font-size: 22px;
+            font-weight: 600;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+            color: #FFFFFF;
+        }
+
+        .modules-sub {
+            margin-top: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: rgba(240, 253, 250, 0.75);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 26px;
+        }
+
+        .tile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            font-size: 13.5px;
+            font-weight: 500;
+        }
+
+        .tile-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .tile-icon svg { width: 16px; height: 16px; }
+
+        .modules-foot {
+            margin-top: auto;
+            padding-top: 26px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            font-size: 12.5px;
+            color: rgba(240, 253, 250, 0.75);
+        }
+
+        .modules-foot span { display: inline-flex; align-items: center; gap: 6px; }
+        .modules-foot svg { width: 14px; height: 14px; }
+
+        .foot {
+            padding: 0 16px 22px;
+            text-align: center;
+            font-size: 12.5px;
+            color: var(--ink-mute);
+        }
+
+        @media (max-width: 480px) {
+            .brand small { display: none; }
+            .form-side { padding: 28px 20px 24px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="brand"><span class="logo"></span>Coffee Inventory<small>Gestión de almacén</small></div>
+        <a href="#"><i data-lucide="headset"></i>Soporte</a>
+    </header>
+
+    <main>
+        <div class="card">
+
+            <section class="form-side">
+
+                <h1 class="form-title">Bienvenido</h1>
+                <p class="form-sub">Inicia sesión para administrar tu inventario.</p>
+
+                <form id="form_login" novalidate class="login-form">
+
+                    <div id="login-error" class="login-error" role="alert">
+                        <i data-lucide="circle-alert"></i>
+                        <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                    </div>
+
+                    <div id="rememberedUser" class="remembered" hidden>
+                        <span id="rememberedAvatar" class="remembered-avatar"><i data-lucide="user"></i></span>
+                        <span class="remembered-info">
+                            <span id="rememberedName" class="remembered-name"></span>
+                            <span id="rememberedEmail" class="remembered-email"></span>
+                        </span>
+                        <button type="button" id="forgetUserBtn" class="link-btn">Cambiar</button>
+                    </div>
+
+                    <div class="field" id="emailField">
+                        <label class="field-label" for="usuario">Correo electrónico</label>
+                        <div class="control">
+                            <i data-lucide="mail"></i>
+                            <input type="email" class="field-input" name="usuario" id="usuario" placeholder="nombre@empresa.com" required autocomplete="username">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="clave">Contraseña</label>
+                        <div class="control">
+                            <i data-lucide="lock"></i>
+                            <input type="password" class="field-input has-eye" name="clave" id="clave" placeholder="Ingresa tu contraseña" required autocomplete="current-password">
+                            <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                        </div>
+                        <span class="caps" id="capsHint">Bloq Mayús está activado</span>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="remember">
+                            <input type="checkbox" id="rememberMe" checked>
+                            <span>Recordarme</span>
+                        </label>
+                        <a href="../../../recuperar.php">¿Olvidaste tu contraseña?</a>
+                    </div>
+
+                    <button type="submit" class="btn-continue" id="btnLogin">
+                        <span>Iniciar sesión</span>
+                        <i data-lucide="loader-circle" class="spin"></i>
+                    </button>
+                </form>
+
+                <p class="form-help">¿No tienes cuenta? <a href="#">Solicita acceso a tu administrador</a></p>
+            </section>
+
+            <aside class="modules" aria-hidden="true">
+                <h2 class="modules-title">Todo tu inventario en un solo lugar</h2>
+                <p class="modules-sub">Controla existencias, movimientos y compras de todas tus sucursales.</p>
+
+                <div class="grid">
+                    <span class="tile"><span class="tile-icon"><i data-lucide="boxes"></i></span>Stock</span>
+                    <span class="tile"><span class="tile-icon"><i data-lucide="arrow-down-to-line"></i></span>Entradas</span>
+                    <span class="tile"><span class="tile-icon"><i data-lucide="arrow-up-from-line"></i></span>Salidas</span>
+                    <span class="tile"><span class="tile-icon"><i data-lucide="arrow-left-right"></i></span>Traspasos</span>
+                    <span class="tile"><span class="tile-icon"><i data-lucide="shopping-cart"></i></span>Compras</span>
+                    <span class="tile"><span class="tile-icon"><i data-lucide="file-chart-column"></i></span>Reportes</span>
+                </div>
+
+                <div class="modules-foot">
+                    <span><i data-lucide="store"></i>Multi-sucursal</span>
+                    <span><i data-lucide="users"></i>Roles y permisos</span>
+                    <span><i data-lucide="shield-check"></i>Conexión cifrada</span>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <p class="foot">&copy; <span class="js-year">2026</span> CoffeeSoft · Coffee Inventory</p>
+
+    <script src="../../../src/plugin/lucide/lucide.min.js"></script>
+    <script>
+        // Demo de la maqueta: el envío y el usuario recordado los maneja acceso/src/js/index.js.
+        const $ = id => document.getElementById(id);
+
+        if (new URLSearchParams(location.search).get('recordado') === '1') {
+            $('usuario').value = 'maria@cafecentral.mx';
+            $('emailField').hidden = true;
+            $('rememberedName').textContent = 'María López';
+            $('rememberedEmail').textContent = 'maria@cafecentral.mx';
+            $('rememberedUser').hidden = false;
+        }
+
+        $('forgetUserBtn').addEventListener('click', () => {
+            $('rememberedUser').hidden = true;
+            $('emailField').hidden = false;
+            $('usuario').value = '';
+            $('usuario').focus();
+        });
+
+        $('btnEye').addEventListener('click', () => {
+            const show = $('clave').type === 'password';
+            $('clave').type = show ? 'text' : 'password';
+            $('btnEye').innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+            lucide.createIcons();
+        });
+
+        $('clave').addEventListener('keyup', e => {
+            $('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        $('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            $('btnLogin').classList.add('loading');
+            setTimeout(() => {
+                $('btnLogin').classList.remove('loading');
+                $('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1000);
+        });
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

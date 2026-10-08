@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<!--
+    Propuesta I :: Industrial
+    Grafito oscuro con acento ámbar, el color de la señalización de almacén.
+    Cuadrícula tenue de fondo, tarjeta con franja ámbar arriba, etiquetas en
+    mayúsculas y botón ámbar con texto oscuro (contraste alto).
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #rememberedAvatar,
+      #rememberedName, #rememberedEmail, #forgetUserBtn
+-->
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../../../src/img/logos/coffee_icon.png" type="image/x-icon">
+    <title>Coffee Inventory - Propuesta I</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:          #0E0F11;
+            --card:        #16181C;
+            --field:       #0E0F11;
+            --ink:         #F4F4F5;
+            --ink-soft:    #A1A1AA;
+            --ink-mute:    #71717A;
+            --line:        #26292F;
+            --line-strong: #33363D;
+            --amber:       #F5A524;
+            --amber-h:     #FFB940;
+            --amber-tint:  rgba(245, 165, 36, 0.18);
+            --on-amber:    #111111;
+            --ok:          #22C55E;
+            --danger:      #F87171;
+            --danger-bg:   rgba(248, 113, 113, 0.08);
+            --danger-line: rgba(248, 113, 113, 0.28);
+            --mono:        'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            background:
+                radial-gradient(800px 500px at 0% 0%, rgba(245, 165, 36, 0.07), transparent 60%),
+                var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+            background-size: 48px 48px;
+            -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+            mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+            pointer-events: none;
+        }
+
+        /* Código de barras decorativo en la esquina. */
+        body::after {
+            content: '';
+            position: fixed;
+            right: 32px;
+            bottom: 64px;
+            width: 180px;
+            height: 70px;
+            background: repeating-linear-gradient(90deg,
+                rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 5px,
+                rgba(255, 255, 255, 0.07) 5px 9px, transparent 9px 11px,
+                rgba(255, 255, 255, 0.07) 11px 12px, transparent 12px 16px);
+            pointer-events: none;
+        }
+
+        .logo {
+            display: block;
+            background: currentColor;
+            -webkit-mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+            mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+        }
+
+        .top {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 28px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .brand .logo { width: 28px; height: 22px; color: var(--amber); }
+
+        .top-right { display: flex; align-items: center; gap: 18px; font-size: 13px; }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--ink-soft);
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--ok);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+        }
+
+        .top a { color: var(--ink-soft); text-decoration: none; }
+        .top a:hover { color: var(--ink); }
+
+        main {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px 40px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 420px;
+            padding: 32px;
+            border: 1px solid var(--line);
+            border-top: 3px solid var(--amber);
+            border-radius: 12px;
+            background: var(--card);
+            box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+        }
+
+        .tag {
+            font-family: var(--mono);
+            font-size: 11.5px;
+            font-weight: 500;
+            letter-spacing: .1em;
+            color: var(--amber);
+        }
+
+        .title {
+            margin-top: 10px;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .sub {
+            margin-top: 6px;
+            font-size: 14px;
+            color: var(--ink-soft);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 26px;
+        }
+
+        .field { display: grid; gap: 8px; }
+        .field[hidden] { display: none; }
+
+        .field-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+
+        .control { position: relative; }
+
+        .control > svg {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            width: 17px;
+            height: 17px;
+            transform: translateY(-50%);
+            color: var(--ink-mute);
+            pointer-events: none;
+        }
+
+        .field-input {
+            width: 100%;
+            height: 46px;
+            padding: 0 14px 0 40px;
+            font-family: inherit;
+            font-size: 14.5px;
+            color: var(--ink);
+            background: var(--field);
+            border: 1px solid var(--line-strong);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s;
+        }
+
+        .field-input::placeholder { color: var(--ink-mute); }
+        .field-input.has-eye { padding-right: 46px; }
+
+        .field-input:focus {
+            border-color: var(--amber);
+            box-shadow: 0 0 0 3px var(--amber-tint);
+        }
+
+        .control:focus-within > svg { color: var(--amber); }
+        .field-input.is-invalid { border-color: var(--danger); }
+
+        .eye-btn {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--ink-mute);
+            cursor: pointer;
+        }
+
+        .eye-btn:hover { color: var(--ink); background: var(--line); }
+        .eye-btn svg { width: 17px; height: 17px; }
+
+        .caps {
+            display: none;
+            font-size: 12.5px;
+            color: var(--amber);
+        }
+
+        .caps.show { display: block; }
+
+        .remembered {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid var(--line-strong);
+            border-radius: 8px;
+            background: var(--field);
+        }
+
+        .remembered[hidden] { display: none; }
+
+        .remembered-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background: #3F3F46;
+            color: #FFFFFF;
+        }
+
+        .remembered-avatar svg { width: 18px; height: 18px; }
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
+
+        .remembered-info { flex: 1; min-width: 0; }
+
+        .remembered-name,
+        .remembered-email {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remembered-name { font-size: 14px; font-weight: 600; }
+        .remembered-email { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+
+        .link-btn {
+            flex-shrink: 0;
+            border: none;
+            background: none;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--amber);
+            cursor: pointer;
+        }
+
+        .link-btn:hover { text-decoration: underline; }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .remember {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--ink-soft);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .remember input { width: 15px; height: 15px; accent-color: var(--amber); cursor: pointer; }
+
+        .form-row a {
+            font-size: 13px;
+            color: var(--ink-soft);
+            text-decoration: none;
+        }
+
+        .form-row a:hover { color: var(--amber); }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 9px;
+            padding: 11px 12px;
+            border: 1px solid var(--danger-line);
+            border-radius: 8px;
+            background: var(--danger-bg);
+            color: var(--danger);
+            font-size: 13px;
+        }
+
+        .login-error.show { display: flex; }
+        .login-error svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .btn-continue {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 46px;
+            margin-top: 2px;
+            font-family: inherit;
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--on-amber);
+            background: var(--amber);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background .15s;
+        }
+
+        .btn-continue:hover { background: var(--amber-h); }
+        .btn-continue:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--amber-tint); }
+        .btn-continue svg { width: 17px; height: 17px; }
+        .btn-continue .spin { display: none; }
+        .btn-continue.loading { pointer-events: none; opacity: .85; }
+        .btn-continue.loading .spin { display: block; animation: spin .8s linear infinite; }
+        .btn-continue.loading .arrow { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px 18px;
+            margin-top: 26px;
+            font-size: 12.5px;
+            color: var(--ink-mute);
+        }
+
+        .chips span { display: inline-flex; align-items: center; gap: 6px; }
+        .chips svg { width: 14px; height: 14px; color: var(--ink-soft); }
+
+        .foot {
+            position: relative;
+            z-index: 1;
+            padding: 0 16px 22px;
+            text-align: center;
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: .06em;
+            color: var(--ink-mute);
+        }
+
+        @media (max-width: 480px) {
+            .top { padding: 16px; }
+            .top-right a { display: none; }
+            .card { padding: 24px 18px; }
+            body::after { display: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="top">
+        <div class="brand"><span class="logo"></span>Coffee Inventory</div>
+        <div class="top-right">
+            <span class="status"><span class="status-dot"></span>OPERATIVO</span>
+            <a href="#">Soporte</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="card">
+
+            <p class="tag">ACCESO · ALMACÉN</p>
+            <h1 class="title">Inicia sesión</h1>
+            <p class="sub">Usa la cuenta que te asignó tu administrador.</p>
+
+            <form id="form_login" novalidate class="login-form">
+
+                <div id="login-error" class="login-error" role="alert">
+                    <i data-lucide="circle-alert"></i>
+                    <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                </div>
+
+                <div id="rememberedUser" class="remembered" hidden>
+                    <span id="rememberedAvatar" class="remembered-avatar"><i data-lucide="user"></i></span>
+                    <span class="remembered-info">
+                        <span id="rememberedName" class="remembered-name"></span>
+                        <span id="rememberedEmail" class="remembered-email"></span>
+                    </span>
+                    <button type="button" id="forgetUserBtn" class="link-btn">Cambiar</button>
+                </div>
+
+                <div class="field" id="emailField">
+                    <label class="field-label" for="usuario">Correo electrónico</label>
+                    <div class="control">
+                        <i data-lucide="mail"></i>
+                        <input type="email" class="field-input" name="usuario" id="usuario" placeholder="nombre@empresa.com" required autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="field-label" for="clave">Contraseña</label>
+                    <div class="control">
+                        <i data-lucide="lock"></i>
+                        <input type="password" class="field-input has-eye" name="clave" id="clave" placeholder="••••••••" required autocomplete="current-password">
+                        <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                    </div>
+                    <span class="caps" id="capsHint">Bloq Mayús está activado</span>
+                </div>
+
+                <div class="form-row">
+                    <label class="remember">
+                        <input type="checkbox" id="rememberMe" checked>
+                        <span>Recordarme</span>
+                    </label>
+                    <a href="../../../recuperar.php">¿Olvidaste tu contraseña?</a>
+                </div>
+
+                <button type="submit" class="btn-continue" id="btnLogin">
+                    <span>Entrar al sistema</span>
+                    <i data-lucide="arrow-right" class="arrow"></i>
+                    <i data-lucide="loader-circle" class="spin"></i>
+                </button>
+            </form>
+        </div>
+
+        <div class="chips">
+            <span><i data-lucide="warehouse"></i>Multi-sucursal</span>
+            <span><i data-lucide="scan-barcode"></i>Trazabilidad</span>
+            <span><i data-lucide="shield-check"></i>Conexión cifrada</span>
+        </div>
+    </main>
+
+    <p class="foot">COFFEE INVENTORY · POWERED BY COFFEESOFT © <span class="js-year">2026</span></p>
+
+    <script src="../../../src/plugin/lucide/lucide.min.js"></script>
+    <script>
+        // Demo de la maqueta: el envío y el usuario recordado los maneja acceso/src/js/index.js.
+        const $ = id => document.getElementById(id);
+
+        if (new URLSearchParams(location.search).get('recordado') === '1') {
+            $('usuario').value = 'maria@cafecentral.mx';
+            $('emailField').hidden = true;
+            $('rememberedName').textContent = 'María López';
+            $('rememberedEmail').textContent = 'maria@cafecentral.mx';
+            $('rememberedUser').hidden = false;
+        }
+
+        $('forgetUserBtn').addEventListener('click', () => {
+            $('rememberedUser').hidden = true;
+            $('emailField').hidden = false;
+            $('usuario').value = '';
+            $('usuario').focus();
+        });
+
+        $('btnEye').addEventListener('click', () => {
+            const show = $('clave').type === 'password';
+            $('clave').type = show ? 'text' : 'password';
+            $('btnEye').innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+            lucide.createIcons();
+        });
+
+        $('clave').addEventListener('keyup', e => {
+            $('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        $('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            $('btnLogin').classList.add('loading');
+            setTimeout(() => {
+                $('btnLogin').classList.remove('loading');
+                $('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1000);
+        });
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

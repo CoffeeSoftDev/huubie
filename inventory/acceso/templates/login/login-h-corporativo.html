@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<!--
+    Propuesta H :: Corporativo
+    Pantalla dividida sobria: a la izquierda un panel azul marino con lo que
+    resuelve el sistema y una estantería dibujada en SVG; a la derecha el
+    formulario con etiquetas arriba, azul de confianza y nota de seguridad.
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #rememberedAvatar,
+      #rememberedName, #rememberedEmail, #forgetUserBtn
+-->
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../../../src/img/logos/coffee_icon.png" type="image/x-icon">
+    <title>Coffee Inventory - Propuesta H</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:          #FFFFFF;
+            --ink:         #0F172A;
+            --ink-soft:    #475569;
+            --ink-mute:    #94A3B8;
+            --line:        #E2E8F0;
+            --line-strong: #CBD5E1;
+            --field:       #FFFFFF;
+            --primary:     #1D4ED8;
+            --primary-h:   #1E40AF;
+            --primary-tint: rgba(29, 78, 216, 0.14);
+            --danger:      #B91C1C;
+            --danger-bg:   #FEF2F2;
+            --danger-line: #FECACA;
+            --navy-1:      #0B1B33;
+            --navy-2:      #0F2747;
+            --navy-3:      #12325C;
+            --navy-ink:    #E2E8F0;
+            --navy-soft:   #94A3B8;
+            --navy-accent: #60A5FA;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: grid;
+            grid-template-columns: 1fr;
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        @media (min-width: 1024px) {
+            body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        }
+
+        .logo {
+            display: block;
+            background: currentColor;
+            -webkit-mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+            mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+        }
+
+        /* -- Panel azul marino -- */
+        .hero {
+            display: none;
+            position: relative;
+            overflow: hidden;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px 56px;
+            background: linear-gradient(160deg, var(--navy-1) 0%, var(--navy-2) 55%, var(--navy-3) 100%);
+            color: var(--navy-ink);
+        }
+
+        @media (min-width: 1024px) {
+            .hero { display: flex; }
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+            background-size: 22px 22px;
+            -webkit-mask-image: linear-gradient(to bottom, #000, transparent 70%);
+            mask-image: linear-gradient(to bottom, #000, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero > * { position: relative; }
+
+        .hero-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #FFFFFF;
+        }
+
+        .hero-brand .logo { width: 30px; height: 23px; }
+
+        .eyebrow {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--navy-accent);
+        }
+
+        .hero-title {
+            margin-top: 12px;
+            max-width: 480px;
+            font-size: 34px;
+            font-weight: 600;
+            line-height: 1.18;
+            letter-spacing: -0.02em;
+            color: #FFFFFF;
+            text-wrap: balance;
+        }
+
+        .features {
+            margin-top: 32px;
+            display: grid;
+            gap: 20px;
+            max-width: 440px;
+            list-style: none;
+        }
+
+        .feature { display: flex; gap: 14px; }
+
+        .feature-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(96, 165, 250, 0.12);
+            border: 1px solid rgba(96, 165, 250, 0.22);
+            color: var(--navy-accent);
+        }
+
+        .feature-icon svg { width: 19px; height: 19px; }
+        .feature strong { display: block; font-size: 14.5px; font-weight: 600; color: #FFFFFF; }
+        .feature span { display: block; margin-top: 3px; font-size: 13.5px; line-height: 1.45; color: var(--navy-soft); }
+
+        /* Estantería de almacén: dibujo de línea, decorativo. */
+        .rack {
+            position: absolute;
+            right: -20px;
+            bottom: 40px;
+            width: 360px;
+            height: auto;
+            opacity: .9;
+            pointer-events: none;
+        }
+
+        .hero-foot {
+            font-size: 12.5px;
+            color: var(--navy-soft);
+        }
+
+        /* -- Formulario -- */
+        .side {
+            display: flex;
+            flex-direction: column;
+            padding: 24px 20px;
+        }
+
+        @media (min-width: 1024px) {
+            .side { padding: 32px 56px; }
+        }
+
+        .side-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13.5px;
+            color: var(--ink-soft);
+        }
+
+        .mobile-brand {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .mobile-brand .logo { width: 28px; height: 22px; color: var(--primary); }
+
+        @media (min-width: 1024px) {
+            .side-top { justify-content: flex-end; }
+            .mobile-brand { display: none; }
+        }
+
+        .side-top a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--ink-soft);
+            text-decoration: none;
+        }
+
+        .side-top a:hover { color: var(--primary); }
+        .side-top svg { width: 16px; height: 16px; }
+
+        .form-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 0;
+        }
+
+        .form-box { width: 100%; max-width: 400px; }
+
+        .form-title {
+            font-size: 26px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .form-sub {
+            margin-top: 6px;
+            font-size: 14.5px;
+            color: var(--ink-soft);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin-top: 30px;
+        }
+
+        .field { display: grid; gap: 7px; }
+        .field[hidden] { display: none; }
+
+        .field-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+        }
+
+        .field-label { font-size: 13.5px; font-weight: 500; color: #334155; }
+
+        .field-row a {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .field-row a:hover { text-decoration: underline; }
+
+        .control { position: relative; }
+
+        .field-input {
+            width: 100%;
+            height: 44px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 14.5px;
+            color: var(--ink);
+            background: var(--field);
+            border: 1px solid var(--line-strong);
+            border-radius: 8px;
+            outline: none;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            transition: border-color .15s, box-shadow .15s;
+        }
+
+        .field-input::placeholder { color: var(--ink-mute); }
+        .field-input.has-eye { padding-right: 44px; }
+
+        .field-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-tint);
+        }
+
+        .field-input.is-invalid { border-color: var(--danger); }
+
+        .eye-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--ink-mute);
+            cursor: pointer;
+        }
+
+        .eye-btn:hover { color: var(--ink); background: #F1F5F9; }
+        .eye-btn svg { width: 17px; height: 17px; }
+
+        .caps {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            color: #B45309;
+        }
+
+        .caps.show { display: flex; }
+        .caps svg { width: 14px; height: 14px; }
+
+        .remembered {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #F8FAFC;
+        }
+
+        .remembered[hidden] { display: none; }
+
+        .remembered-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #FFFFFF;
+        }
+
+        .remembered-avatar svg { width: 18px; height: 18px; }
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        .remembered-info { flex: 1; min-width: 0; }
+
+        .remembered-name,
+        .remembered-email {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remembered-name { font-size: 14px; font-weight: 600; }
+        .remembered-email { font-size: 12.5px; color: var(--ink-soft); }
+
+        .link-btn {
+            flex-shrink: 0;
+            border: none;
+            background: none;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--primary);
+            cursor: pointer;
+        }
+
+        .link-btn:hover { text-decoration: underline; }
+
+        .remember {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 13.5px;
+            color: var(--ink-soft);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .remember input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+
+        .login-error {
+            display: none;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 11px 12px;
+            border: 1px solid var(--danger-line);
+            border-radius: 8px;
+            background: var(--danger-bg);
+            color: var(--danger);
+            font-size: 13.5px;
+        }
+
+        .login-error.show { display: flex; }
+        .login-error svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; }
+
+        .btn-continue {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 44px;
+            font-family: inherit;
+            font-size: 14.5px;
+            font-weight: 600;
+            color: #FFFFFF;
+            background: var(--primary);
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+            cursor: pointer;
+            transition: background .15s;
+        }
+
+        .btn-continue:hover { background: var(--primary-h); }
+        .btn-continue:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--primary-tint); }
+        .btn-continue svg { width: 17px; height: 17px; }
+        .btn-continue .spin { display: none; }
+        .btn-continue.loading { pointer-events: none; opacity: .85; }
+        .btn-continue.loading .spin { display: block; animation: spin .8s linear infinite; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .secure {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--line);
+            font-size: 12.5px;
+            color: var(--ink-mute);
+        }
+
+        .secure svg { width: 15px; height: 15px; color: #16A34A; }
+
+        .side-foot {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 12.5px;
+            color: var(--ink-mute);
+        }
+
+        .side-foot a { color: var(--ink-mute); text-decoration: none; }
+        .side-foot a:hover { color: var(--ink); }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <aside class="hero" aria-hidden="true">
+
+        <div class="hero-brand"><span class="logo"></span>Coffee Inventory</div>
+
+        <div>
+            <p class="eyebrow">Gestión de inventarios</p>
+            <h2 class="hero-title">Control total de tu almacén en todas tus sucursales.</h2>
+
+            <ul class="features">
+                <li class="feature">
+                    <span class="feature-icon"><i data-lucide="boxes"></i></span>
+                    <div><strong>Stock en tiempo real</strong><span>Existencias por sucursal y alertas de mínimos.</span></div>
+                </li>
+                <li class="feature">
+                    <span class="feature-icon"><i data-lucide="arrow-left-right"></i></span>
+                    <div><strong>Movimientos con trazabilidad</strong><span>Entradas, salidas y traspasos con responsable y fecha.</span></div>
+                </li>
+                <li class="feature">
+                    <span class="feature-icon"><i data-lucide="chart-column"></i></span>
+                    <div><strong>Reportes para decidir</strong><span>Consumo, compras y órdenes en un solo lugar.</span></div>
+                </li>
+            </ul>
+        </div>
+
+        <p class="hero-foot">&copy; <span class="js-year">2026</span> CoffeeSoft. Todos los derechos reservados.</p>
+
+        <svg class="rack" viewBox="0 0 360 260" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <g stroke="rgba(148,163,184,0.35)" stroke-width="2">
+                <line x1="20" y1="10" x2="20" y2="250" />
+                <line x1="340" y1="10" x2="340" y2="250" />
+                <line x1="20" y1="90" x2="340" y2="90" />
+                <line x1="20" y1="170" x2="340" y2="170" />
+                <line x1="20" y1="250" x2="340" y2="250" />
+            </g>
+            <g stroke="rgba(96,165,250,0.55)" stroke-width="1.5" fill="rgba(96,165,250,0.10)">
+                <rect x="36" y="38" width="70" height="52" rx="3" />
+                <rect x="112" y="54" width="50" height="36" rx="3" />
+                <rect x="236" y="30" width="88" height="60" rx="3" />
+                <rect x="36" y="128" width="54" height="42" rx="3" />
+                <rect x="96" y="112" width="84" height="58" rx="3" />
+                <rect x="250" y="134" width="74" height="36" rx="3" />
+                <rect x="40" y="200" width="96" height="50" rx="3" />
+                <rect x="190" y="214" width="56" height="36" rx="3" />
+                <rect x="254" y="196" width="70" height="54" rx="3" />
+            </g>
+            <g stroke="rgba(96,165,250,0.35)" stroke-width="1.2">
+                <line x1="71" y1="38" x2="71" y2="52" />
+                <line x1="280" y1="30" x2="280" y2="46" />
+                <line x1="138" y1="112" x2="138" y2="128" />
+                <line x1="88" y1="200" x2="88" y2="216" />
+                <line x1="289" y1="196" x2="289" y2="212" />
+            </g>
+        </svg>
+    </aside>
+
+    <main class="side">
+
+        <div class="side-top">
+            <span class="mobile-brand"><span class="logo"></span>Coffee Inventory</span>
+            <a href="#"><i data-lucide="headset"></i>Soporte</a>
+        </div>
+
+        <div class="form-wrap">
+            <div class="form-box">
+
+                <h1 class="form-title">Iniciar sesión</h1>
+                <p class="form-sub">Ingresa tus credenciales para acceder al sistema.</p>
+
+                <form id="form_login" novalidate class="login-form">
+
+                    <div id="login-error" class="login-error" role="alert">
+                        <i data-lucide="circle-alert"></i>
+                        <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                    </div>
+
+                    <div id="rememberedUser" class="remembered" hidden>
+                        <span id="rememberedAvatar" class="remembered-avatar"><i data-lucide="user"></i></span>
+                        <span class="remembered-info">
+                            <span id="rememberedName" class="remembered-name"></span>
+                            <span id="rememberedEmail" class="remembered-email"></span>
+                        </span>
+                        <button type="button" id="forgetUserBtn" class="link-btn">Cambiar</button>
+                    </div>
+
+                    <div class="field" id="emailField">
+                        <label class="field-label" for="usuario">Correo electrónico</label>
+                        <input type="email" class="field-input" name="usuario" id="usuario" placeholder="nombre@empresa.com" required autocomplete="username">
+                    </div>
+
+                    <div class="field">
+                        <div class="field-row">
+                            <label class="field-label" for="clave">Contraseña</label>
+                            <a href="../../../recuperar.php">¿Olvidaste tu contraseña?</a>
+                        </div>
+                        <div class="control">
+                            <input type="password" class="field-input has-eye" name="clave" id="clave" placeholder="Ingresa tu contraseña" required autocomplete="current-password">
+                            <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                        </div>
+                        <span class="caps" id="capsHint"><i data-lucide="triangle-alert"></i>Bloq Mayús está activado</span>
+                    </div>
+
+                    <label class="remember">
+                        <input type="checkbox" id="rememberMe" checked>
+                        <span>Recordar mi usuario en este equipo</span>
+                    </label>
+
+                    <button type="submit" class="btn-continue" id="btnLogin">
+                        <span>Iniciar sesión</span>
+                        <i data-lucide="loader-circle" class="spin"></i>
+                    </button>
+                </form>
+
+                <p class="secure"><i data-lucide="shield-check"></i>Conexión cifrada · la sesión se cierra tras 8 h sin uso</p>
+            </div>
+        </div>
+
+        <div class="side-foot">
+            <span>Coffee Inventory · Powered by CoffeeSoft</span>
+            <a href="#">¿No tienes cuenta? Contacta a tu administrador</a>
+        </div>
+    </main>
+
+    <script src="../../../src/plugin/lucide/lucide.min.js"></script>
+    <script>
+        // Demo de la maqueta: el envío y el usuario recordado los maneja acceso/src/js/index.js.
+        const $ = id => document.getElementById(id);
+
+        if (new URLSearchParams(location.search).get('recordado') === '1') {
+            $('usuario').value = 'maria@cafecentral.mx';
+            $('emailField').hidden = true;
+            $('rememberedName').textContent = 'María López';
+            $('rememberedEmail').textContent = 'maria@cafecentral.mx';
+            $('rememberedUser').hidden = false;
+        }
+
+        $('forgetUserBtn').addEventListener('click', () => {
+            $('rememberedUser').hidden = true;
+            $('emailField').hidden = false;
+            $('usuario').value = '';
+            $('usuario').focus();
+        });
+
+        $('btnEye').addEventListener('click', () => {
+            const show = $('clave').type === 'password';
+            $('clave').type = show ? 'text' : 'password';
+            $('btnEye').innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+            lucide.createIcons();
+        });
+
+        $('clave').addEventListener('keyup', e => {
+            $('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        $('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            $('btnLogin').classList.add('loading');
+            setTimeout(() => {
+                $('btnLogin').classList.remove('loading');
+                $('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1000);
+        });
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

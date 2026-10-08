@@ -12,13 +12,17 @@ Maquetas estáticas para rediseñar `inventory/index.php`. Abren solas en el nav
 | `login-e-ios.html` | Estilo iPhone: hoja de vidrio, ícono de app, campos agrupados como en Ajustes e interruptor iOS, sobre el halo del login actual. | `index.php` + `src/css/index.css` |
 | `login-f-claude.html` | Estilo Claude: fondo marfil, titular con serifa, tarjeta suave, acento terracota y panel cálido con vista previa. Modo oscuro del sistema. | `index.php` + `src/css/index.css` |
 | `login-g-chatgpt.html` | Estilo ChatGPT: blanco sin tarjeta, campos tipo píldora y entrada en dos pasos (correo → contraseña con "Editar"). Modo oscuro del sistema. | Además `index.js`: el primer "Continuar" sin usuario recordado pasa al paso 2 en vez de enviar (`data-step` en `#form_login`) |
+| `login-h-corporativo.html` | **Profesional.** Azul marino + azul de confianza: panel con funciones clave del sistema y estantería en línea; formulario con etiquetas arriba y nota de seguridad. | `index.php` + `src/css/index.css` |
+| `login-i-industrial.html` | **Profesional.** Grafito + ámbar de señalización de almacén: cuadrícula tenue, tarjeta con franja ámbar, datos en monoespaciada. | `index.php` + `src/css/index.css` |
+| `login-j-tecnico.html` | **Profesional.** Blanco + negro sobre papel de plano, marcas de esquina, fecha y estado en monoespaciada, botón con pista ↵. | `index.php` + `src/css/index.css` (y el reloj, en `index.js`) |
+| `login-k-empresarial.html` | **Profesional.** Gris pizarra + azul petróleo: tarjeta ancha con el formulario y los módulos reales del sistema (Stock, Entradas, Salidas, Traspasos, Compras, Reportes). | `index.php` + `src/css/index.css` |
 
 D y E comparten 5 tonos de fondo (`data-tone` en `<html>`): **Atardecer**, **Aurora**,
 **Cítrico**, **Champán** y **Terracota** (el `#C05A40` de la marca). El selector de tonos es solo de la maqueta (también `?tono=aurora`
 en la URL); en producción se fija uno. `?recordado=1` muestra el estado de usuario recordado
 y, en F y G, `?tema=dark` fuerza el modo oscuro.
 
-A, C, D, E, F y G conservan todos los `id` que usa `acceso/src/js/index.js` (`#form_login`, `#usuario`,
+A y C–K conservan todos los `id` que usa `acceso/src/js/index.js` (`#form_login`, `#usuario`,
 `#clave`, `#btnEye`, `#rememberMe`, `#login-error`, `#login-error-text`, `#emailField`,
 `#rememberedUser`, `#rememberedAvatar`, `#rememberedName`, `#rememberedEmail`,
 `#forgetUserBtn`): se integran cambiando solo HTML y CSS (G suma el paso de correo en `index.js`). B mueve

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<!--
+    Propuesta J :: Técnico
+    Blanco con cuadrícula de plano, panel de bordes finos con marcas en las
+    esquinas, datos en monoespaciada (fecha, estado) y botón negro con la
+    pista de teclado ↵. Sobrio y preciso, al estilo de las herramientas de
+    desarrollo (Linear, Vercel).
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #rememberedAvatar,
+      #rememberedName, #rememberedEmail, #forgetUserBtn
+-->
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../../../src/img/logos/coffee_icon.png" type="image/x-icon">
+    <title>Coffee Inventory - Propuesta J</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:          #FAFAFA;
+            --panel:       #FFFFFF;
+            --ink:         #09090B;
+            --ink-soft:    #52525B;
+            --ink-mute:    #A1A1AA;
+            --line:        #E4E4E7;
+            --line-strong: #D4D4D8;
+            --primary:     #18181B;
+            --primary-h:   #27272A;
+            --ok:          #059669;
+            --danger:      #DC2626;
+            --danger-bg:   #FEF2F2;
+            --mono:        'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Papel de plano: líneas finas cada 24px y más marcadas cada 96px. */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(9, 9, 11, 0.055) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(9, 9, 11, 0.055) 1px, transparent 1px),
+                linear-gradient(rgba(9, 9, 11, 0.028) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(9, 9, 11, 0.028) 1px, transparent 1px);
+            background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+            background-position: center;
+            -webkit-mask-image: radial-gradient(ellipse 70% 70% at center, #000 35%, transparent 85%);
+            mask-image: radial-gradient(ellipse 70% 70% at center, #000 35%, transparent 85%);
+            pointer-events: none;
+        }
+
+        .logo {
+            display: block;
+            background: currentColor;
+            -webkit-mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+            mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+        }
+
+        main {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 16px;
+        }
+
+        .panel {
+            position: relative;
+            width: 100%;
+            max-width: 420px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--panel);
+            box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04), 0 16px 40px -24px rgba(9, 9, 11, 0.18);
+        }
+
+        /* Marcas de esquina, como en un plano. */
+        .corner {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-color: var(--ink);
+            border-style: solid;
+            border-width: 0;
+        }
+
+        .corner.tl { top: -7px; left: -7px; border-top-width: 1.5px; border-left-width: 1.5px; }
+        .corner.tr { top: -7px; right: -7px; border-top-width: 1.5px; border-right-width: 1.5px; }
+        .corner.bl { bottom: -7px; left: -7px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+        .corner.br { bottom: -7px; right: -7px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .brand .logo { width: 24px; height: 18px; }
+
+        .meta {
+            font-family: var(--mono);
+            font-size: 11.5px;
+            color: var(--ink-mute);
+            text-transform: uppercase;
+        }
+
+        .panel-body { padding: 28px 20px 24px; }
+
+        .title {
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .sub {
+            margin-top: 6px;
+            font-size: 14px;
+            color: var(--ink-soft);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .field { display: grid; gap: 7px; }
+        .field[hidden] { display: none; }
+
+        .field-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+        }
+
+        .field-label { font-size: 13px; font-weight: 500; }
+
+        .field-row a {
+            font-size: 12.5px;
+            color: var(--ink-soft);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .field-row a:hover { color: var(--ink); }
+
+        .control { position: relative; }
+
+        .field-input {
+            width: 100%;
+            height: 42px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 14.5px;
+            color: var(--ink);
+            background: var(--panel);
+            border: 1px solid var(--line-strong);
+            border-radius: 6px;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s;
+        }
+
+        .field-input::placeholder { color: var(--ink-mute); }
+        .field-input.has-eye { padding-right: 42px; }
+
+        .field-input:focus {
+            border-color: var(--ink);
+            box-shadow: 0 0 0 1px var(--ink);
+        }
+
+        .field-input.is-invalid,
+        .field-input.is-invalid:focus { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+
+        .eye-btn {
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 4px;
+            background: transparent;
+            color: var(--ink-mute);
+            cursor: pointer;
+        }
+
+        .eye-btn:hover { color: var(--ink); background: #F4F4F5; }
+        .eye-btn svg { width: 16px; height: 16px; }
+
+        .caps {
+            display: none;
+            font-family: var(--mono);
+            font-size: 11.5px;
+            color: #B45309;
+        }
+
+        .caps.show { display: block; }
+
+        .remembered {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px dashed var(--line-strong);
+            border-radius: 6px;
+        }
+
+        .remembered[hidden] { display: none; }
+
+        .remembered-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background: var(--primary);
+            color: #FFFFFF;
+        }
+
+        .remembered-avatar svg { width: 17px; height: 17px; }
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 6px; object-fit: cover; }
+
+        .remembered-info { flex: 1; min-width: 0; }
+
+        .remembered-name,
+        .remembered-email {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remembered-name { font-size: 14px; font-weight: 600; }
+        .remembered-email { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+
+        .link-btn {
+            flex-shrink: 0;
+            border: none;
+            background: none;
+            font-family: inherit;
+            font-size: 12.5px;
+            color: var(--ink-soft);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            cursor: pointer;
+        }
+
+        .link-btn:hover { color: var(--ink); }
+
+        .remember {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--ink-soft);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .remember input { width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-left: 2px solid var(--danger);
+            background: var(--danger-bg);
+            color: var(--danger);
+            font-size: 13px;
+        }
+
+        .login-error.show { display: flex; }
+        .login-error svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+        .btn-continue {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 42px;
+            margin-top: 2px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            color: #FFFFFF;
+            background: var(--primary);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background .15s;
+        }
+
+        .btn-continue:hover { background: var(--primary-h); }
+        .btn-continue:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+        .kbd {
+            position: absolute;
+            right: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 4px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .btn-continue svg { width: 16px; height: 16px; }
+        .btn-continue .spin { display: none; }
+        .btn-continue.loading { pointer-events: none; opacity: .85; }
+        .btn-continue.loading .spin { display: block; animation: spin .8s linear infinite; }
+        .btn-continue.loading .kbd { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .panel-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 20px;
+            border-top: 1px solid var(--line);
+            background: #FCFCFC;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--ink-mute);
+            text-transform: uppercase;
+            border-radius: 0 0 6px 6px;
+        }
+
+        .panel-foot span { display: inline-flex; align-items: center; gap: 6px; }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--ok);
+        }
+
+        .foot {
+            position: relative;
+            z-index: 1;
+            padding: 0 16px 22px;
+            text-align: center;
+            font-size: 12.5px;
+            color: var(--ink-mute);
+        }
+
+        .foot a { color: var(--ink-soft); }
+
+        @media (max-width: 480px) {
+            .panel-head .meta { display: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main>
+        <div class="panel">
+            <span class="corner tl"></span><span class="corner tr"></span>
+            <span class="corner bl"></span><span class="corner br"></span>
+
+            <div class="panel-head">
+                <span class="brand"><span class="logo"></span>Coffee Inventory</span>
+                <span class="meta" id="meta">08 oct 2026 · 09:41</span>
+            </div>
+
+            <div class="panel-body">
+
+                <h1 class="title">Acceso al sistema</h1>
+                <p class="sub">Ingresa con tu correo y contraseña.</p>
+
+                <form id="form_login" novalidate class="login-form">
+
+                    <div id="login-error" class="login-error" role="alert">
+                        <i data-lucide="circle-alert"></i>
+                        <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                    </div>
+
+                    <div id="rememberedUser" class="remembered" hidden>
+                        <span id="rememberedAvatar" class="remembered-avatar"><i data-lucide="user"></i></span>
+                        <span class="remembered-info">
+                            <span id="rememberedName" class="remembered-name"></span>
+                            <span id="rememberedEmail" class="remembered-email"></span>
+                        </span>
+                        <button type="button" id="forgetUserBtn" class="link-btn">Cambiar</button>
+                    </div>
+
+                    <div class="field" id="emailField">
+                        <label class="field-label" for="usuario">Correo electrónico</label>
+                        <input type="email" class="field-input" name="usuario" id="usuario" placeholder="nombre@empresa.com" required autocomplete="username">
+                    </div>
+
+                    <div class="field">
+                        <div class="field-row">
+                            <label class="field-label" for="clave">Contraseña</label>
+                            <a href="../../../recuperar.php">¿La olvidaste?</a>
+                        </div>
+                        <div class="control">
+                            <input type="password" class="field-input has-eye" name="clave" id="clave" required autocomplete="current-password">
+                            <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                        </div>
+                        <span class="caps" id="capsHint">BLOQ MAYÚS ACTIVADO</span>
+                    </div>
+
+                    <label class="remember">
+                        <input type="checkbox" id="rememberMe" checked>
+                        <span>Recordar mi usuario en este equipo</span>
+                    </label>
+
+                    <button type="submit" class="btn-continue" id="btnLogin">
+                        <span>Continuar</span>
+                        <i data-lucide="loader-circle" class="spin"></i>
+                        <span class="kbd" aria-hidden="true">↵</span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="panel-foot">
+                <span><span class="dot"></span>Sistema operativo</span>
+                <span>Cifrado · sesión 8 h</span>
+            </div>
+        </div>
+    </main>
+
+    <p class="foot">¿Sin acceso? Pide una cuenta a tu administrador · Powered by CoffeeSoft &copy; <span class="js-year">2026</span></p>
+
+    <script src="../../../src/plugin/lucide/lucide.min.js"></script>
+    <script>
+        // Demo de la maqueta: el envío y el usuario recordado los maneja acceso/src/js/index.js.
+        const $ = id => document.getElementById(id);
+
+        function tick() {
+            const now = new Date();
+            const date = now.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/\./g, '').replace(/ de /g, ' ');
+            const time = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+            $('meta').textContent = `${date} · ${time}`;
+        }
+
+        tick();
+        setInterval(tick, 15000);
+
+        if (new URLSearchParams(location.search).get('recordado') === '1') {
+            $('usuario').value = 'maria@cafecentral.mx';
+            $('emailField').hidden = true;
+            $('rememberedName').textContent = 'María López';
+            $('rememberedEmail').textContent = 'maria@cafecentral.mx';
+            $('rememberedUser').hidden = false;
+        }
+
+        $('forgetUserBtn').addEventListener('click', () => {
+            $('rememberedUser').hidden = true;
+            $('emailField').hidden = false;
+            $('usuario').value = '';
+            $('usuario').focus();
+        });
+
+        $('btnEye').addEventListener('click', () => {
+            const show = $('clave').type === 'password';
+            $('clave').type = show ? 'text' : 'password';
+            $('btnEye').innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+            lucide.createIcons();
+        });
+
+        $('clave').addEventListener('keyup', e => {
+            $('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        $('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            $('btnLogin').classList.add('loading');
+            setTimeout(() => {
+                $('btnLogin').classList.remove('loading');
+                $('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1000);
+        });
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>
