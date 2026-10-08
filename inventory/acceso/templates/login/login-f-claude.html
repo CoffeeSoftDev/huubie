@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<!--
+    Propuesta F :: estilo Claude
+    Fondo marfil, titular con serifa, tarjeta blanca de bordes suaves y el
+    terracota de inventory como acento. A la derecha, en escritorio, un panel
+    cálido con una frase y una vista previa del almacén. Respeta el modo oscuro
+    del sistema (prefers-color-scheme).
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #rememberedAvatar,
+      #rememberedName, #rememberedEmail, #forgetUserBtn
+-->
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../../../src/img/logos/coffee_icon.png" type="image/x-icon">
+    <title>Coffee Inventory - Propuesta F</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:          #F8F6F1;
+            --card:        #FFFFFF;
+            --ink:         #1F1E1D;
+            --ink-soft:    #6B6862;
+            --ink-mute:    #A29E96;
+            --line:        #E6E2D9;
+            --line-strong: #D8D3C7;
+            --primary:     #1F1E1D;
+            --primary-h:   #3A3835;
+            --on-primary:  #FFFFFF;
+            --accent:      #C05A40;
+            --accent-tint: rgba(192, 90, 64, 0.14);
+            --panel:       #EFE8DC;
+            --panel-ink:   #3D2A22;
+            --danger:      #A23B2A;
+            --danger-bg:   #FBEFEC;
+            --shadow:      0 1px 2px rgba(31, 30, 29, 0.04), 0 12px 32px -16px rgba(31, 30, 29, 0.18);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg:          #262624;
+                --card:        #30302E;
+                --ink:         #F3F1EC;
+                --ink-soft:    #B5B1A8;
+                --ink-mute:    #85827B;
+                --line:        #3E3E3B;
+                --line-strong: #4A4945;
+                --primary:     #F3F1EC;
+                --primary-h:   #FFFFFF;
+                --on-primary:  #1F1E1D;
+                --accent:      #DE8268;
+                --accent-tint: rgba(222, 130, 104, 0.2);
+                --panel:       #2F2A26;
+                --panel-ink:   #F0DCD2;
+                --danger:      #F2A08E;
+                --danger-bg:   rgba(222, 130, 104, 0.12);
+                --shadow:      0 12px 32px -16px rgba(0, 0, 0, 0.5);
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --bg:          #262624;
+            --card:        #30302E;
+            --ink:         #F3F1EC;
+            --ink-soft:    #B5B1A8;
+            --ink-mute:    #85827B;
+            --line:        #3E3E3B;
+            --line-strong: #4A4945;
+            --primary:     #F3F1EC;
+            --primary-h:   #FFFFFF;
+            --on-primary:  #1F1E1D;
+            --accent:      #DE8268;
+            --accent-tint: rgba(222, 130, 104, 0.2);
+            --panel:       #2F2A26;
+            --panel-ink:   #F0DCD2;
+            --danger:      #F2A08E;
+            --danger-bg:   rgba(222, 130, 104, 0.12);
+            --shadow:      0 12px 32px -16px rgba(0, 0, 0, 0.5);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        @media (min-width: 1024px) {
+            body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        }
+
+        .serif { font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif; }
+
+        .logo {
+            display: block;
+            background: currentColor;
+            -webkit-mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+            mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+        }
+
+        /* -- Columna del formulario -- */
+        .side {
+            display: flex;
+            flex-direction: column;
+            padding: 12px 16px;
+        }
+
+        @media (min-width: 1024px) {
+            .side { padding: 20px 40px; }
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .brand .logo { width: 26px; height: 20px; color: var(--accent); }
+
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 0 32px;
+        }
+
+        .headline {
+            max-width: 460px;
+            text-align: center;
+            font-size: 48px;
+            font-weight: 400;
+            line-height: 1.08;
+            letter-spacing: -0.02em;
+            text-wrap: balance;
+        }
+
+        .lede {
+            max-width: 380px;
+            margin-top: 14px;
+            text-align: center;
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--ink-soft);
+        }
+
+        .card {
+            width: 100%;
+            max-width: 400px;
+            margin-top: 32px;
+            padding: 24px;
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            background: var(--card);
+            box-shadow: var(--shadow);
+        }
+
+        .login-form { display: flex; flex-direction: column; gap: 12px; }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
+        }
+
+        .field { position: relative; }
+        .field[hidden] { display: none; }
+
+        .field-input {
+            width: 100%;
+            height: 46px;
+            padding: 0 14px;
+            font-family: inherit;
+            font-size: 15px;
+            color: var(--ink);
+            background: var(--card);
+            border: 1px solid var(--line-strong);
+            border-radius: 10px;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s;
+        }
+
+        .field-input::placeholder { color: var(--ink-mute); }
+        .field-input.has-eye { padding-right: 46px; }
+
+        .field-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-tint);
+        }
+
+        .field-input.is-invalid { border-color: var(--danger); }
+
+        .eye-btn {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--ink-mute);
+            cursor: pointer;
+        }
+
+        .eye-btn:hover { color: var(--ink); background: var(--bg); }
+        .eye-btn svg { width: 17px; height: 17px; }
+
+        /* -- Usuario recordado -- */
+        .remembered {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--bg);
+        }
+
+        .remembered[hidden] { display: none; }
+
+        .remembered-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #FFFFFF;
+        }
+
+        .remembered-avatar svg { width: 18px; height: 18px; }
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        .remembered-info { flex: 1; min-width: 0; }
+
+        .remembered-name,
+        .remembered-email {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remembered-name { font-size: 14px; font-weight: 600; }
+        .remembered-email { font-size: 12.5px; color: var(--ink-soft); }
+
+        .link-btn {
+            flex-shrink: 0;
+            border: none;
+            background: none;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--ink-soft);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            cursor: pointer;
+        }
+
+        .link-btn:hover { color: var(--ink); }
+
+        .caps {
+            display: none;
+            font-size: 12.5px;
+            color: var(--ink-soft);
+        }
+
+        .caps.show { display: block; }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: var(--danger-bg);
+            color: var(--danger);
+            font-size: 13px;
+        }
+
+        .login-error.show { display: flex; }
+        .login-error svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .remember {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--ink-soft);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .remember input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+
+        .btn-continue {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 46px;
+            margin-top: 2px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--on-primary);
+            background: var(--primary);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background .15s, transform .1s;
+        }
+
+        .btn-continue:hover { background: var(--primary-h); }
+        .btn-continue:active { transform: scale(.99); }
+        .btn-continue svg { width: 17px; height: 17px; }
+        .btn-continue .spin { display: none; }
+        .btn-continue.loading { pointer-events: none; opacity: .8; }
+        .btn-continue.loading .spin { display: block; animation: spin .8s linear infinite; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .card-foot {
+            margin-top: 16px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .card-foot a {
+            color: var(--ink-soft);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .card-foot a:hover { color: var(--ink); }
+
+        .legal {
+            max-width: 340px;
+            margin-top: 18px;
+            text-align: center;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--ink-mute);
+        }
+
+        .side-foot {
+            text-align: center;
+            font-size: 12px;
+            color: var(--ink-mute);
+        }
+
+        /* -- Panel cálido (solo escritorio) -- */
+        .showcase {
+            display: none;
+            position: relative;
+            overflow: hidden;
+            border-radius: 28px;
+            background: var(--panel);
+            color: var(--panel-ink);
+            padding: 48px;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        @media (min-width: 1024px) {
+            .showcase { display: flex; }
+        }
+
+        .showcase::before {
+            content: '';
+            position: absolute;
+            width: 520px;
+            height: 520px;
+            right: -140px;
+            top: -160px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--accent-tint) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .showcase > * { position: relative; }
+
+        .quote {
+            max-width: 480px;
+            font-size: 34px;
+            font-weight: 400;
+            line-height: 1.2;
+            letter-spacing: -0.01em;
+            text-wrap: balance;
+        }
+
+        .quote em { font-style: italic; color: var(--accent); }
+
+        .preview {
+            align-self: center;
+            width: 100%;
+            max-width: 440px;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            background: var(--card);
+            color: var(--ink);
+            box-shadow: var(--shadow);
+        }
+
+        .preview-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: var(--ink-soft);
+        }
+
+        .preview-head strong { color: var(--ink); font-weight: 600; }
+
+        .item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            font-size: 14px;
+        }
+
+        .item + .item { border-top: 1px solid var(--line); }
+
+        .item-dot {
+            width: 8px;
+            height: 8px;
+            flex-shrink: 0;
+            border-radius: 50%;
+        }
+
+        .item-name { flex: 1; }
+        .item-qty { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+
+        .bar {
+            width: 84px;
+            height: 6px;
+            border-radius: 999px;
+            background: var(--line);
+            overflow: hidden;
+        }
+
+        .bar span { display: block; height: 100%; border-radius: 999px; }
+
+        .showcase-foot { font-size: 13px; opacity: .7; }
+
+        @media (max-width: 480px) {
+            .headline { font-size: 36px; }
+            .card { padding: 18px; border-radius: 20px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <section class="side">
+
+        <div class="brand"><span class="logo"></span>Coffee Inventory</div>
+
+        <div class="content">
+
+            <h1 class="headline serif">Tu almacén, en orden.</h1>
+            <p class="lede">Stock, entradas y traspasos de todas tus sucursales, en un solo lugar.</p>
+
+            <div class="card">
+                <form id="form_login" novalidate class="login-form">
+
+                    <div id="rememberedUser" class="remembered" hidden>
+                        <span id="rememberedAvatar" class="remembered-avatar"><i data-lucide="user"></i></span>
+                        <span class="remembered-info">
+                            <span id="rememberedName" class="remembered-name"></span>
+                            <span id="rememberedEmail" class="remembered-email"></span>
+                        </span>
+                        <button type="button" id="forgetUserBtn" class="link-btn">Cambiar</button>
+                    </div>
+
+                    <div class="field" id="emailField">
+                        <label class="sr-only" for="usuario">Correo electrónico</label>
+                        <input type="email" class="field-input" name="usuario" id="usuario" placeholder="Correo electrónico" required autocomplete="username">
+                    </div>
+
+                    <div class="field">
+                        <label class="sr-only" for="clave">Contraseña</label>
+                        <input type="password" class="field-input has-eye" name="clave" id="clave" placeholder="Contraseña" required autocomplete="current-password">
+                        <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                    </div>
+
+                    <span class="caps" id="capsHint">Bloq Mayús está activado</span>
+
+                    <div id="login-error" class="login-error" role="alert">
+                        <i data-lucide="circle-alert"></i>
+                        <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                    </div>
+
+                    <label class="remember">
+                        <input type="checkbox" id="rememberMe" checked>
+                        <span>Recordar mi usuario en este equipo</span>
+                    </label>
+
+                    <button type="submit" class="btn-continue" id="btnLogin">
+                        <span>Continuar</span>
+                        <i data-lucide="loader-circle" class="spin"></i>
+                    </button>
+                </form>
+
+                <p class="card-foot"><a href="../../../recuperar.php">¿Olvidaste tu contraseña?</a></p>
+            </div>
+
+            <p class="legal">¿Aún no tienes cuenta? Pide acceso al administrador de tu empresa.</p>
+        </div>
+
+        <p class="side-foot">Powered by CoffeeSoft &copy; <span class="js-year">2026</span></p>
+    </section>
+
+    <aside class="showcase" aria-hidden="true">
+
+        <p class="quote serif">Sabe qué tienes, <em>dónde está</em> y qué falta antes de que se acabe.</p>
+
+        <div class="preview">
+            <div class="preview-head"><strong>Por surtir hoy</strong><span>Sucursal Centro</span></div>
+
+            <div class="item">
+                <span class="item-dot" style="background:#C05A40"></span>
+                <span class="item-name">Café en grano</span>
+                <span class="bar"><span style="width:18%;background:#C05A40"></span></span>
+                <span class="item-qty">3 kg</span>
+            </div>
+            <div class="item">
+                <span class="item-dot" style="background:#D9A441"></span>
+                <span class="item-name">Leche entera</span>
+                <span class="bar"><span style="width:42%;background:#D9A441"></span></span>
+                <span class="item-qty">14 L</span>
+            </div>
+            <div class="item">
+                <span class="item-dot" style="background:#7A9A6B"></span>
+                <span class="item-name">Vasos 12 oz</span>
+                <span class="bar"><span style="width:76%;background:#7A9A6B"></span></span>
+                <span class="item-qty">380 pz</span>
+            </div>
+        </div>
+
+        <p class="showcase-foot">Coffee Inventory · CoffeeSoft</p>
+    </aside>
+
+    <script src="../../../src/plugin/lucide/lucide.min.js"></script>
+    <script>
+        // Demo de la maqueta: el envío y el usuario recordado los maneja acceso/src/js/index.js.
+        const $ = id => document.getElementById(id);
+        const params = new URLSearchParams(location.search);
+
+        if (params.get('tema')) document.documentElement.setAttribute('data-theme', params.get('tema'));
+
+        // Usuario recordado de ejemplo (?recordado=1): lo que haría applyRemembered().
+        if (params.get('recordado') === '1') {
+            $('usuario').value = 'maria@cafecentral.mx';
+            $('emailField').hidden = true;
+            $('rememberedName').textContent = 'María López';
+            $('rememberedEmail').textContent = 'maria@cafecentral.mx';
+            $('rememberedUser').hidden = false;
+        }
+
+        $('forgetUserBtn').addEventListener('click', () => {
+            $('rememberedUser').hidden = true;
+            $('emailField').hidden = false;
+            $('usuario').value = '';
+            $('usuario').focus();
+        });
+
+        $('btnEye').addEventListener('click', () => {
+            const show = $('clave').type === 'password';
+            $('clave').type = show ? 'text' : 'password';
+            $('btnEye').innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+            lucide.createIcons();
+        });
+
+        $('clave').addEventListener('keyup', e => {
+            $('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        $('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            $('btnLogin').classList.add('loading');
+            setTimeout(() => {
+                $('btnLogin').classList.remove('loading');
+                $('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1000);
+        });
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

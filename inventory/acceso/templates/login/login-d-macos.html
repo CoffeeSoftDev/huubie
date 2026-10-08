@@ -6,7 +6,7 @@
     avatar, campos tipo píldora y el botón de flecha dentro de la contraseña.
     Con clave incorrecta el campo tiembla, como en macOS (solo CSS: :has(.is-invalid)).
 
-    Tonos: --t1..--t4 pintan el fondo y --accent el foco. El selector de la barra
+    Tonos: --t1..--t4 pintan el fondo y --accent el foco (Cielo = azul suave). El selector de la barra
     es solo para elegir tono en la maqueta; en producción se fija uno.
 
     Contrato con acceso/src/js/index.js (no renombrar):
@@ -39,6 +39,7 @@
         :root[data-tone="aurora"]    { --t1: #BDF2DF; --t2: #B3E2F8; --t3: #C7C5F8; --t4: #EAC7F3; --accent: #4F46E5; }
         :root[data-tone="citrico"]   { --t1: #FBEB9E; --t2: #D9F2A2; --t3: #A9EAC9; --t4: #A2DDF0; --accent: #0F9F6E; }
         :root[data-tone="champan"]   { --t1: #F6E3C6; --t2: #F3CBC6; --t3: #E5D0EA; --t4: #D3DDF1; --accent: #8B5E3C; }
+        :root[data-tone="cielo"]     { --t1: #DCEEFF; --t2: #C9E2FB; --t3: #D6DDFB; --t4: #E9EEFB; --accent: #2F6FD6; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -519,7 +520,8 @@
             { key: 'atardecer', name: 'Atardecer', a: '#FFA9C6', b: '#A9C6FF' },
             { key: 'aurora',    name: 'Aurora',    a: '#BDF2DF', b: '#C7C5F8' },
             { key: 'citrico',   name: 'Cítrico',   a: '#FBEB9E', b: '#A9EAC9' },
-            { key: 'champan',   name: 'Champán',   a: '#F6E3C6', b: '#E5D0EA' }
+            { key: 'champan',   name: 'Champán',   a: '#F6E3C6', b: '#E5D0EA' },
+            { key: 'cielo',     name: 'Cielo',     a: '#DCEEFF', b: '#C9E2FB' }
         ];
 
         function setTone(key) {
