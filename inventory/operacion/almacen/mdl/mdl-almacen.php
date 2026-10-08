@@ -344,17 +344,25 @@ class mdl extends CRUD {
         ]);
     }
 
-    // Catálogos que toca el asistente IA (categoría, unidad, área, almacén, proveedor)
+    // Catálogos que toca el asistente IA (categoría, unidad, área, almacén, proveedor,
+    // origen de entrada, motivo de salida y estado de traspaso)
+
+    // Orígenes, motivos y estados de traspaso son de todas las empresas: sus tablas
+    // no tienen companies_id ni created_at.
+    const GLOBAL_CATALOGS = ['inflow', 'shrinkage', 'transfer_status'];
 
     // Lista blanca entidad -> tabla: el nombre de la tabla nunca sale de lo que
     // proponga el modelo ni de lo que mande el navegador.
     private function catalogTable($entity) {
         $tables = [
-            'category'  => 'item_category',
-            'unit'      => 'unit',
-            'area'      => 'warehouse_area',
-            'warehouse' => 'warehouse',
-            'supplier'  => 'supplier'
+            'category'        => 'item_category',
+            'unit'            => 'unit',
+            'area'            => 'warehouse_area',
+            'warehouse'       => 'warehouse',
+            'supplier'        => 'supplier',
+            'inflow'          => 'inflow_origin',
+            'shrinkage'       => 'shrinkage_reason',
+            'transfer_status' => 'transfer_status'
         ];
 
         if (!isset($tables[$entity])) throw new Exception('Catálogo no permitido: ' . $entity);
@@ -365,6 +373,11 @@ class mdl extends CRUD {
     // Activos e inactivos: el asistente también reactiva.
     function listCatalog($entity) {
         $table = $this->catalogTable($entity);
+
+        if (in_array($entity, self::GLOBAL_CATALOGS, true)) {
+            return $this->_Read("SELECT * FROM {$table} ORDER BY name ASC", []);
+        }
+
         $query = "
             SELECT *
             FROM {$table}
@@ -409,6 +422,25 @@ class mdl extends CRUD {
         $table  = $this->catalogTable($entity);
         $result = $this->_Read("SELECT MAX(id) AS id FROM {$table}", []);
         return (int) ($result[0]['id'] ?? 0);
+    }
+
+    // Lugar al final de una lista que se ordena a mano (unidades, orígenes, motivos):
+    // de 10 en 10, como el arrastre de su pestaña. Las unidades se ordenan por empresa.
+    function getNextCatalogSort($entity, $companies_id) {
+        $table = $this->catalogTable($entity);
+
+        $result = in_array($entity, self::GLOBAL_CATALOGS, true)
+            ? $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$table}", [])
+            : $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$table} WHERE companies_id = ?", [$companies_id]);
+
+        return (int) ($result[0]['total'] ?? 0) + 10;
+    }
+
+    // El código de orígenes y motivos lo genera el servidor: se revisa contra activos e inactivos.
+    function existsCatalogCode($entity, $code) {
+        $table  = $this->catalogTable($entity);
+        $result = $this->_Read("SELECT COUNT(*) AS total FROM {$table} WHERE code = ?", [$code]);
+        return (int) ($result[0]['total'] ?? 0);
     }
 
     function lsBranches() {

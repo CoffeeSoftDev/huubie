@@ -1057,7 +1057,7 @@ class IaChat {
         const changes = (r.changes && r.changes.length) ? r.changes : (r.after ? [{ label: '', before: r.before, after: r.after }] : []);
         const lines   = changes.map(ch => `
                     <div class="text-[11px] text-gray-500 mt-0.5 break-words">
-                        ${ch.label ? `<span class="text-gray-400">${this.esc(ch.label)}:</span> ` : ''}${this.change(ch.before, ch.after, ch.swatch)}
+                        ${ch.label ? `<span class="text-gray-400">${this.esc(ch.label)}:</span> ` : ''}${this.change(ch.before, ch.after, ch.swatch, ch.icon)}
                     </div>`).join('');
 
         return `
@@ -1697,12 +1697,22 @@ class IaChat {
         return `${(h % 12) || 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
     }
 
-    // Con `swatch` cada valor que sea un hex lleva su muestra de color al lado.
-    change(before, after, swatch) {
+    // Con `swatch` cada valor que sea un hex lleva su muestra de color al lado. Con
+    // `icon` el valor es un ícono de Lucide: se dibuja en vez de escribir su nombre
+    // (en Catálogo el nombre del ícono solo lo ve el Super Admin).
+    change(before, after, swatch, icon) {
         const sw    = v => swatch ? this.swatch(v) : '';
-        const antes = before && before !== '—' ? `${sw(before)}${this.esc(before)} <i data-lucide="arrow-right" class="inline w-3 h-3 mx-0.5 -mt-px"></i> ` : '';
+        const txt   = v => icon ? this.glyph(v) : this.esc(v);
+        const antes = before && before !== '—' ? `${sw(before)}${txt(before)} <i data-lucide="arrow-right" class="inline w-3 h-3 mx-0.5 -mt-px"></i> ` : '';
 
-        return `${antes}<b class="font-semibold text-gray-800">${sw(after)}${this.esc(after)}</b>`;
+        return `${antes}<b class="font-semibold text-gray-800">${sw(after)}${txt(after)}</b>`;
+    }
+
+    // Solo nombres de Lucide (minúsculas, números y guiones): el valor termina en un atributo.
+    glyph(name) {
+        if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(String(name))) return this.esc(name);
+
+        return `<i data-lucide="${name}" class="inline w-3.5 h-3.5 -mt-px"></i>`;
     }
 
     // Solo #RRGGBB: el valor termina dentro de un style.

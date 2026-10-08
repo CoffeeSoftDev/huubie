@@ -1257,7 +1257,7 @@ class AsistenteProductos extends Templates {
             this.chat = this.iaChat({
                 id:          `chat${this.PROJECT_NAME}`,
                 title:       "CoffeeIA",
-                subtitle:    "Productos, categorías, unidades, áreas, almacenes y proveedores",
+                subtitle:    "Productos y todas las pestañas del catálogo",
                 placeholder: "Escribe o adjunta un Excel o una foto…",
                 accept:      ".xlsx,.xls,.csv,.png,.jpg,.jpeg,.webp",
                 welcome:     "Te ayudo con tu catálogo. Nada se guarda sin tu confirmación.",
@@ -1376,6 +1376,11 @@ class AsistenteProductos extends Templates {
         if (toca("area"))      area.lsArea();
         if (toca("warehouse")) warehouse.lsWarehouse();
         if (toca("supplier"))  supplier.lsSupplier();
+
+        // Orígenes, motivos y estados de traspaso no viven en los selects de Productos.
+        if (toca("inflow"))          inflow.lsInflow();
+        if (toca("shrinkage"))       shrinkage.lsShrinkage();
+        if (toca("transfer_status")) transferStatus.lsTransferStatus();
 
         // Con categorías o áreas nuevas el filtro de Productos se vuelve a pintar.
         if (toca("category") || toca("area")) products.render();

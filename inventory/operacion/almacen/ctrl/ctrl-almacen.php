@@ -748,8 +748,9 @@ class ctrl extends mdl {
 
     // -- Asistente IA --
     /*  Chat flotante del catálogo del almacén: altas, cambios, bajas y
-        reactivaciones de productos, categorías, unidades, áreas, almacenes y
-        proveedores, a partir de un mensaje, un Excel o una foto.
+        reactivaciones de productos, categorías, unidades, áreas, almacenes,
+        proveedores, orígenes de entrada, motivos de salida y estados de traspaso
+        (todas las pestañas de Catálogo), a partir de un mensaje, un Excel o una foto.
 
         El modelo solo PROPONE. Aquí se valida cada cambio contra los datos reales
         y la propuesta se guarda en la sesión; lo que se aplica sale de la sesión,
@@ -765,12 +766,34 @@ class ctrl extends mdl {
     // Entidades que toca el asistente y los campos que el modelo puede mandar en
     // "set" (clave => etiqueta de la vista previa). El orden importa: los
     // catálogos se validan y se aplican antes que los productos que los usan.
+    // 'alta' => false: catálogo de sistema, solo se cambia (sus códigos los usa el flujo).
     const IA_ENTIDADES = [
         'category'  => ['tag' => 'Categoría', 'uno' => 'categoría', 'varios' => 'categorías',  'campos' => ['name' => 'Nombre']],
         'unit'      => ['tag' => 'Unidad',    'uno' => 'unidad',    'varios' => 'unidades',    'campos' => ['code' => 'Código', 'name' => 'Nombre']],
         'area'      => ['tag' => 'Área',      'uno' => 'área',      'varios' => 'áreas',       'campos' => ['name' => 'Nombre', 'description' => 'Descripción']],
         'warehouse' => ['tag' => 'Almacén',   'uno' => 'almacén',   'varios' => 'almacenes',   'campos' => ['name' => 'Nombre', 'branch' => 'Sucursal', 'is_default' => 'Por defecto']],
         'supplier'  => ['tag' => 'Proveedor', 'uno' => 'proveedor', 'varios' => 'proveedores', 'campos' => ['name' => 'Nombre', 'contact_name' => 'Contacto', 'phone' => 'Teléfono', 'email' => 'Email']],
+        'inflow'    => ['tag' => 'Origen entrada', 'uno' => 'origen de entrada', 'varios' => 'orígenes de entrada', 'campos' => [
+            'name'              => 'Nombre',
+            'description'       => 'Descripción',
+            'requires_supplier' => 'Pide proveedor',
+            'icon'              => 'Ícono',
+            'color_hex'         => 'Color de texto',
+            'bg_hex'            => 'Color de fondo'
+        ]],
+        'shrinkage' => ['tag' => 'Motivo salida', 'uno' => 'motivo de salida', 'varios' => 'motivos de salida', 'campos' => [
+            'name'      => 'Nombre',
+            'icon'      => 'Ícono',
+            'color_hex' => 'Color de texto',
+            'bg_hex'    => 'Color de fondo'
+        ]],
+        'transfer_status' => ['tag' => 'Estado traspaso', 'uno' => 'estado de traspaso', 'varios' => 'estados de traspaso', 'alta' => false, 'campos' => [
+            'name'      => 'Nombre',
+            'name_out'  => 'Lo ve quien envía',
+            'name_in'   => 'Lo ve quien recibe',
+            'color_hex' => 'Color de texto',
+            'bg_hex'    => 'Color de fondo'
+        ]],
         'product'   => ['tag' => 'Producto',  'uno' => 'producto',  'varios' => 'productos',   'campos' => [
             'name'            => 'Nombre',
             'category'        => 'Categoría',
@@ -789,11 +812,24 @@ class ctrl extends mdl {
 
     // Tope de caracteres por columna de texto de cada catálogo (el de la BD).
     const IA_LARGOS = [
-        'category'  => ['name' => 120],
-        'unit'      => ['code' => 20, 'name' => 80],
-        'area'      => ['name' => 120, 'description' => 255],
-        'warehouse' => ['name' => 120],
-        'supplier'  => ['name' => 160, 'contact_name' => 120, 'phone' => 20, 'email' => 120]
+        'category'        => ['name' => 120],
+        'unit'            => ['code' => 20, 'name' => 80],
+        'area'            => ['name' => 120, 'description' => 255],
+        'warehouse'       => ['name' => 120],
+        'supplier'        => ['name' => 160, 'contact_name' => 120, 'phone' => 20, 'email' => 120],
+        'inflow'          => ['name' => 120, 'description' => 255],
+        'shrinkage'       => ['name' => 120],
+        'transfer_status' => ['name' => 80, 'name_out' => 50, 'name_in' => 50]
+    ];
+
+    // En su pestaña el ícono es obligatorio: un alta sin ícono válido lleva el de la pestaña.
+    const IA_ICONO = ['inflow' => 'log-in', 'shrinkage' => 'log-out'];
+
+    // Lo que deja de pasar al dar de baja (mismo texto que el aviso de su pestaña).
+    const IA_BAJA = [
+        'inflow'          => 'Ya no aparecerá al registrar entradas.',
+        'shrinkage'       => 'Ya no aparecerá al registrar salidas.',
+        'transfer_status' => 'Dejará de mostrarse en Traspasos.'
     ];
 
     // Bloques que vacía el Super Admin, del más chico al más grande. Cada uno
@@ -1024,7 +1060,7 @@ class ctrl extends mdl {
             'branch'  => $this->lsBranches()
         ];
 
-        foreach (['category', 'unit', 'area', 'warehouse', 'supplier'] as $entidad) {
+        foreach (array_diff(array_keys(self::IA_ENTIDADES), ['product']) as $entidad) {
             $ctx[$entidad] = $this->listCatalog($entidad);
         }
 
@@ -1085,6 +1121,19 @@ class ctrl extends mdl {
             $filas['warehouse'][] = [$r['id'], $r['name'], $sucursal[$r['branch_id']] ?? '-', (int) $r['is_default'] === 1 ? 'sí' : 'no', $estado($r)];
         }
 
+        // description de inflow_origin la agrega docs/sql/2026-10-06_origen-entrada-descripcion.sql.
+        foreach ($ctx['inflow'] as $r) {
+            $filas['inflow'][] = [$r['id'], $r['name'], $r['description'] ?? '', (int) $r['requires_supplier'] === 1 ? 'sí' : 'no', $r['icon'], $r['color_hex'], $r['bg_hex'], $estado($r)];
+        }
+
+        foreach ($ctx['shrinkage'] as $r) {
+            $filas['shrinkage'][] = [$r['id'], $r['name'], $r['icon'], $r['color_hex'], $r['bg_hex'], $estado($r)];
+        }
+
+        foreach ($ctx['transfer_status'] as $r) {
+            $filas['transfer_status'][] = [$r['id'], $r['name'], $r['name_out'], $r['name_in'], $r['color_hex'], $r['bg_hex'], $estado($r)];
+        }
+
         foreach (array_slice($ctx['product'], 0, self::IA_MAX_CATALOGO) as $p) {
             $filas['product'][] = [
                 $p['id'],
@@ -1116,6 +1165,10 @@ class ctrl extends mdl {
             '- area: name, description',
             '- warehouse: name, branch (nombre de una SUCURSAL), is_default (true o false)',
             '- supplier: name, contact_name, phone, email',
+            '- inflow (origen de entrada): name, description, requires_supplier (true o false), icon, color_hex, bg_hex',
+            '- shrinkage (motivo de salida): name, icon, color_hex, bg_hex',
+            '- transfer_status (estado de traspaso): name, name_out (texto que ve la sucursal que envía), name_in (texto que ve la que recibe), color_hex, bg_hex. Son fijos del sistema: solo "edit", "deactivate" y "activate", nunca "add".',
+            '- icon: nombre canónico de un ícono de Lucide en kebab-case (truck, shopping-cart, gift, triangle-alert). color_hex es el color del texto y bg_hex el del fondo, los dos en #RRGGBB.',
             'Acciones ("action"): "add" (alta), "edit" (cambio), "deactivate" (baja), "activate" (reactivar).',
             '- En edit, deactivate y activate el "id" es OBLIGATORIO y sale de la lista de esa entidad. En "ref" pon cómo lo nombró la persona.',
             '- En edit manda en "set" SOLO los campos que cambian.',
@@ -1131,7 +1184,8 @@ class ctrl extends mdl {
             '  {"entity": "category", "action": "add", "set": {"name": "Bebidas"}},',
             '  {"entity": "product", "action": "add", "set": {"name": "Agua natural 1 L", "category": "Bebidas", "unit": "Pieza", "price": 18, "tax": 16}},',
             '  {"entity": "product", "action": "edit", "id": 45, "ref": "refresco de cola", "set": {"price": 24.5, "stock_min": 6}},',
-            '  {"entity": "supplier", "action": "deactivate", "id": 9, "ref": "Distribuidora Norte"}',
+            '  {"entity": "supplier", "action": "deactivate", "id": 9, "ref": "Distribuidora Norte"},',
+            '  {"entity": "inflow", "action": "edit", "id": 3, "ref": "compra", "set": {"requires_supplier": true, "color_hex": "#166534", "bg_hex": "#DCFCE7"}}',
             ']}',
             'Si no hay cambios, "changes" va vacío y en "reply" explicas o preguntas lo que falte.',
             '',
@@ -1147,6 +1201,12 @@ class ctrl extends mdl {
             $this->tablaIA('ALMACENES', ['id', 'nombre', 'sucursal', 'por defecto', 'estado'], $filas['warehouse'] ?? []),
             '',
             $this->tablaIA('PROVEEDORES', ['id', 'nombre', 'contacto', 'teléfono', 'email', 'estado'], $filas['supplier'] ?? []),
+            '',
+            $this->tablaIA('ORÍGENES DE ENTRADA', ['id', 'nombre', 'descripción', 'pide proveedor', 'ícono', 'color texto', 'color fondo', 'estado'], $filas['inflow'] ?? []),
+            '',
+            $this->tablaIA('MOTIVOS DE SALIDA', ['id', 'nombre', 'ícono', 'color texto', 'color fondo', 'estado'], $filas['shrinkage'] ?? []),
+            '',
+            $this->tablaIA('ESTADOS DE TRASPASO', ['id', 'nombre', 'lo ve quien envía', 'lo ve quien recibe', 'color texto', 'color fondo', 'estado'], $filas['transfer_status'] ?? []),
             '',
             $this->tablaIA('PRODUCTOS' . $recorte, ['id', 'sku', 'nombre', 'categoría', 'unidad', 'área', 'precio con IVA', 'IVA %', 'último costo', 'mín', 'máx', 'vida útil días', 'estado'], $filas['product'] ?? [])
         ]);
@@ -1238,8 +1298,12 @@ class ctrl extends mdl {
     private function normalizarCambioIA($c) {
         if (!is_array($c)) return null;
 
+        // normalizarIA() vuelve espacio el guion bajo: "transfer_status" llega como "transfer status".
         $entidades = ['producto' => 'product', 'productos' => 'product', 'item' => 'product', 'insumo' => 'product',
-                      'categoria' => 'category', 'unidad' => 'unit', 'almacen' => 'warehouse', 'proveedor' => 'supplier'];
+                      'categoria' => 'category', 'unidad' => 'unit', 'almacen' => 'warehouse', 'proveedor' => 'supplier',
+                      'origen' => 'inflow', 'origen entrada' => 'inflow', 'origen de entrada' => 'inflow', 'inflow origin' => 'inflow',
+                      'motivo' => 'shrinkage', 'motivo salida' => 'shrinkage', 'motivo de salida' => 'shrinkage', 'shrinkage reason' => 'shrinkage',
+                      'transfer status' => 'transfer_status', 'estado traspaso' => 'transfer_status', 'estado de traspaso' => 'transfer_status'];
         $acciones  = ['alta' => 'add', 'agregar' => 'add', 'nuevo' => 'add', 'crear' => 'add', 'create' => 'add',
                       'editar' => 'edit', 'cambiar' => 'edit', 'modificar' => 'edit', 'update' => 'edit', 'price' => 'edit', 'precio' => 'edit',
                       'baja' => 'deactivate', 'desactivar' => 'deactivate', 'eliminar' => 'deactivate', 'borrar' => 'deactivate', 'delete' => 'deactivate',
@@ -1328,6 +1392,12 @@ class ctrl extends mdl {
         $def     = self::IA_ENTIDADES[$entidad];
 
         if ($c['action'] === 'add') {
+            if (($def['alta'] ?? true) === false) {
+                $pedido = $this->textoIA($c['set']['name'] ?? '') ?: $c['ref'];
+
+                return $this->filaIA(['name' => $pedido ?: ucfirst($def['uno']), 'note' => 'Son fijos del sistema: solo se cambian, no se dan de alta.']);
+            }
+
             $campos = $this->camposCatalogoIA($entidad, $c['set'], null, $ctx);
             $nombre = $campos['values']['name'] ?? '';
             $clave  = $this->normalizarIA($nombre);
@@ -1353,6 +1423,12 @@ class ctrl extends mdl {
             if ($entidad === 'warehouse' && !isset($campos['values']['branch_id'])) {
                 $campos['values']['branch_id'] = (int) ($_SESSION['branch_id'] ?? 0);
                 $campos['changes'][]           = ['label' => 'Sucursal', 'before' => '', 'after' => $this->nombreSucursalIA($campos['values']['branch_id'], $ctx) . ' (la tuya)'];
+            }
+
+            if (isset(self::IA_ICONO[$entidad]) && !isset($campos['values']['icon'])) {
+                $campos['values']['icon'] = self::IA_ICONO[$entidad];
+                $campos['changes'][]      = ['label' => 'Ícono', 'before' => '', 'after' => self::IA_ICONO[$entidad], 'icon' => true];
+                $campos['warn'][]         = 'Ícono de la pestaña.';
             }
 
             $nuevos[$entidad][$clave] = $nombre;
@@ -1430,6 +1506,8 @@ class ctrl extends mdl {
 
         if ($entidad === 'warehouse') return (int) $actual['is_default'] === 1 ? 'Es el almacén por defecto de su sucursal.' : '';
 
+        if (isset(self::IA_BAJA[$entidad])) return self::IA_BAJA[$entidad];
+
         $columna = ['category' => 'categoria', 'unit' => 'unidad', 'area' => 'area'][$entidad] ?? null;
 
         if ($columna === null) return '';
@@ -1470,13 +1548,45 @@ class ctrl extends mdl {
                 continue;
             }
 
-            if ($campo === 'is_default') {
+            if ($campo === 'is_default' || $campo === 'requires_supplier') {
                 $si = $this->siNoIA($valor);
 
-                if ($si === null || ($actual !== null && (int) $actual['is_default'] === $si)) continue;
+                if ($si === null || ($actual !== null && (int) $actual[$campo] === $si)) continue;
 
-                $out['values']['is_default'] = $si;
-                $out['changes'][]            = ['label' => $etiqueta, 'before' => $actual ? ((int) $actual['is_default'] === 1 ? 'Sí' : 'No') : '', 'after' => $si === 1 ? 'Sí' : 'No'];
+                $out['values'][$campo] = $si;
+                $out['changes'][]      = ['label' => $etiqueta, 'before' => $actual ? ((int) $actual[$campo] === 1 ? 'Sí' : 'No') : '', 'after' => $si === 1 ? 'Sí' : 'No'];
+                continue;
+            }
+
+            if ($campo === 'color_hex' || $campo === 'bg_hex') {
+                $hex   = $this->colorIA($valor);
+                $antes = $actual !== null ? (string) $this->colorIA($actual[$campo] ?? '') : '';
+
+                if ($hex === null) {
+                    $out['warn'][] = $etiqueta . ': «' . $this->textoIA($valor) . '» no es un color #RRGGBB' . ($actual ? ': no se cambia.' : '.');
+                    continue;
+                }
+
+                if ($hex === $antes) continue;
+
+                $out['values'][$campo] = $hex;
+                $out['changes'][]      = ['label' => $etiqueta, 'before' => $antes, 'after' => $hex, 'swatch' => true];
+                continue;
+            }
+
+            if ($campo === 'icon') {
+                $icono = $this->iconoIA($valor);
+                $antes = $actual !== null ? trim((string) ($actual['icon'] ?? '')) : '';
+
+                if ($icono === null) {
+                    $out['warn'][] = 'El ícono «' . $this->textoIA($valor) . '» no existe en Lucide' . ($actual ? ': no se cambia.' : '.');
+                    continue;
+                }
+
+                if ($icono === $antes) continue;
+
+                $out['values']['icon'] = $icono;
+                $out['changes'][]      = ['label' => $etiqueta, 'before' => $antes, 'after' => $icono, 'icon' => true];
                 continue;
             }
 
@@ -1867,12 +1977,19 @@ class ctrl extends mdl {
 
     private function altaCatalogoIA($c, $companies_id, $branch_id, $now, &$creados) {
         $entidad = $c['entity'];
-        $valores = $c['values'] + ['companies_id' => $companies_id, 'created_at' => $now, 'active' => 1];
+        $global  = in_array($entidad, self::GLOBAL_CATALOGS, true);
+        $valores = $c['values'] + ($global ? [] : ['companies_id' => $companies_id, 'created_at' => $now]) + ['active' => 1];
 
         if ($entidad === 'warehouse') $valores += ['branch_id' => $branch_id, 'is_default' => 0];
 
         // El área vive dentro de un almacén; el asistente no pregunta cuál, usa el de por defecto.
         if ($entidad === 'area') $valores += ['warehouse_id' => $this->getDefaultWarehouseId([$companies_id, $branch_id])];
+
+        // Al final de la lista que se ordena a mano, como el alta de su pestaña. Se calcula
+        // aquí (dentro de la transacción) para que dos altas seguidas no empaten.
+        if (in_array($entidad, ['unit', 'inflow', 'shrinkage'], true)) $valores['sort_order'] = $this->getNextCatalogSort($entidad, $companies_id);
+
+        if ($global) $valores['code'] = $this->codigoIA($entidad, $valores['name']);
 
         if ($this->createCatalog($entidad, $this->sqlIA($valores)) !== true) {
             throw new Exception('No pude dar de alta ' . self::IA_ENTIDADES[$entidad]['uno'] . ' «' . $valores['name'] . '».');
@@ -1882,20 +1999,22 @@ class ctrl extends mdl {
     }
 
     private function editarCatalogoIA($c, $companies_id) {
+        $donde  = $this->dondeIA($c['entity'], $c['id'], $companies_id);
         $update = $this->updateCatalog($c['entity'], [
             'values' => array_keys($c['values']),
-            'where'  => ['id = ?', 'companies_id = ?'],
-            'data'   => array_merge(array_values($c['values']), [$c['id'], $companies_id])
+            'where'  => $donde['where'],
+            'data'   => array_merge(array_values($c['values']), $donde['data'])
         ]);
 
         if ($update !== true) throw new Exception('No pude cambiar ' . self::IA_ENTIDADES[$c['entity']]['uno'] . ' «' . $c['nombre'] . '».');
     }
 
     private function estadoIA($entidad, $c, $companies_id) {
+        $donde = $this->dondeIA($entidad, $c['id'], $companies_id);
         $datos = [
             'values' => ['active'],
-            'where'  => ['id = ?', 'companies_id = ?'],
-            'data'   => [$c['action'] === 'activate' ? 1 : 0, $c['id'], $companies_id]
+            'where'  => $donde['where'],
+            'data'   => array_merge([$c['action'] === 'activate' ? 1 : 0], $donde['data'])
         ];
 
         $update = $entidad === 'product' ? $this->updateMaterial($datos) : $this->updateCatalog($entidad, $datos);
@@ -1980,6 +2099,31 @@ class ctrl extends mdl {
         return [$item, $attr];
     }
 
+    // WHERE de un registro: los catálogos globales no tienen companies_id.
+    private function dondeIA($entidad, $id, $companies_id) {
+        if (in_array($entidad, self::GLOBAL_CATALOGS, true)) return ['where' => ['id = ?'], 'data' => [$id]];
+
+        return ['where' => ['id = ?', 'companies_id = ?'], 'data' => [$id, $companies_id]];
+    }
+
+    // Clave fija a partir del nombre: "Pedido complementario" -> PEDIDO_COMPLEMENTARIO.
+    // Mismo criterio que ctrl-catalogo::codeFromName: mayúsculas sin acentos, máx. 30
+    // (largo de la columna) y _2, _3... si ya existe.
+    private function codigoIA($entidad, $nombre) {
+        $plano = strtr(mb_strtoupper(trim((string) $nombre), 'UTF-8'), ['Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ü' => 'U', 'Ñ' => 'N']);
+        $base  = rtrim(substr(trim(preg_replace('/[^A-Z0-9]+/', '_', $plano), '_'), 0, 30), '_');
+        $base  = $base !== '' ? $base : 'CODIGO';
+        $code  = $base;
+        $n     = 2;
+
+        while ($this->existsCatalogCode($entidad, $code) > 0) {
+            $sufijo = '_' . $n++;
+            $code   = rtrim(substr($base, 0, 30 - strlen($sufijo)), '_') . $sufijo;
+        }
+
+        return $code;
+    }
+
     // INSERT sin util->sql(): ahí un 0 se volvería NULL (gotcha 0 == ''). Los null
     // se omiten para que la BD ponga su DEFAULT.
     private function sqlIA($valores) {
@@ -2062,6 +2206,41 @@ class ctrl extends mdl {
         $s = str_replace(['$', ',', ' ', 'MXN', 'mxn'], '', trim($valor));
 
         return is_numeric($s) ? (float) $s : null;
+    }
+
+    // "#a1b2c3", "A1B2C3" o "#abc" -> "#A1B2C3"; cualquier otra cosa, null.
+    private function colorIA($valor) {
+        $texto = $this->textoIA($valor);
+
+        if (preg_match('/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i', $texto, $m)) $texto = $m[1] . $m[1] . $m[2] . $m[2] . $m[3] . $m[3];
+
+        $hex = ltrim($texto, '#');
+
+        return preg_match('/^[0-9a-f]{6}$/i', $hex) ? '#' . strtoupper($hex) : null;
+    }
+
+    // Nombre canónico de Lucide. Se revisa contra la lista del selector de íconos
+    // (cs-icons.js): un nombre inventado dejaría el badge sin ícono. Sin esa lista
+    // (archivo movido) vale cualquier nombre bien formado.
+    private function iconoIA($valor) {
+        static $lista = null;
+
+        $nombre = preg_replace('/([a-z0-9])([A-Z])/', '$1-$2', $this->textoIA($valor));
+        $nombre = trim(preg_replace('/[\s_]+/', '-', strtolower($nombre)), '-');
+
+        if (strlen($nombre) > 60 || !preg_match('/^[a-z0-9]+(-[a-z0-9]+)*$/', $nombre)) return null;
+
+        if ($lista === null) {
+            $ruta  = __DIR__ . '/../../../src/js/components/cs-icons.js';
+            $js    = is_readable($ruta) ? (string) file_get_contents($ruta) : '';
+            $lista = [];
+
+            if (preg_match('/CS_ICONS\s*=\s*\[(.*?)\];/s', $js, $m) && preg_match_all("/'([a-z0-9-]+)'/", $m[1], $n)) {
+                $lista = array_flip($n[1]);
+            }
+        }
+
+        return empty($lista) || isset($lista[$nombre]) ? $nombre : null;
     }
 
     private function siNoIA($valor) {
