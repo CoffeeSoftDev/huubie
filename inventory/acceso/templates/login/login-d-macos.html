@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<!--
+    Propuesta D :: macOS
+    Pantalla de bloqueo al estilo Mac: fondo de gradiente a pantalla completa,
+    barra de menú translúcida, reloj grande y el acceso abajo al centro con
+    avatar, campos tipo píldora y el botón de flecha dentro de la contraseña.
+    Con clave incorrecta el campo tiembla, como en macOS (solo CSS: :has(.is-invalid)).
+
+    Tonos: --t1..--t4 pintan el fondo y --accent el foco. El selector de la barra
+    es solo para elegir tono en la maqueta; en producción se fija uno.
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #rememberedAvatar,
+      #rememberedName, #rememberedEmail, #forgetUserBtn
+-->
+<html lang="es" data-tone="atardecer">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../../../src/img/logos/coffee_icon.png" type="image/x-icon">
+    <title>Coffee Inventory - Propuesta D</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink:        #1D1D1F;
+            --ink-soft:   rgba(29, 29, 31, 0.66);
+            --ink-mute:   rgba(29, 29, 31, 0.45);
+            --glass:      rgba(255, 255, 255, 0.42);
+            --glass-hi:   rgba(255, 255, 255, 0.62);
+            --glass-line: rgba(255, 255, 255, 0.65);
+            --danger:     #C4314B;
+            --base:       #F5F5F7;
+        }
+
+        /* -- Tonos del fondo -- */
+        :root[data-tone="atardecer"] { --t1: #FFC3A8; --t2: #FFA9C6; --t3: #D2AEFF; --t4: #A9C6FF; --accent: #E0457B; }
+        :root[data-tone="aurora"]    { --t1: #BDF2DF; --t2: #B3E2F8; --t3: #C7C5F8; --t4: #EAC7F3; --accent: #4F46E5; }
+        :root[data-tone="citrico"]   { --t1: #FBEB9E; --t2: #D9F2A2; --t3: #A9EAC9; --t4: #A2DDF0; --accent: #0F9F6E; }
+        :root[data-tone="champan"]   { --t1: #F6E3C6; --t2: #F3CBC6; --t3: #E5D0EA; --t4: #D3DDF1; --accent: #8B5E3C; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            background: var(--base);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        /* -- Fondo: cuatro manchas desenfocadas que se mueven muy despacio -- */
+        /* La base mezcla los cuatro tonos: sin ella el centro queda blanco y lavado. */
+        .wallpaper {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+            background: linear-gradient(135deg, var(--t1) 0%, var(--t2) 35%, var(--t3) 70%, var(--t4) 100%);
+            transition: background .6s;
+        }
+
+        .wallpaper span {
+            position: absolute;
+            width: 62vmax;
+            height: 62vmax;
+            border-radius: 50%;
+            filter: blur(70px);
+            opacity: .9;
+            transition: background .6s;
+            animation: drift 26s ease-in-out infinite alternate;
+        }
+
+        .wallpaper span:nth-child(1) { background: var(--t1); top: -22vmax; left: -16vmax; }
+        .wallpaper span:nth-child(2) { background: var(--t2); top: -18vmax; right: -20vmax; animation-delay: -6s; }
+        .wallpaper span:nth-child(3) { background: var(--t3); bottom: -26vmax; right: -12vmax; animation-delay: -12s; }
+        .wallpaper span:nth-child(4) { background: var(--t4); bottom: -24vmax; left: -18vmax; animation-delay: -18s; }
+
+        @keyframes drift {
+            from { transform: translate(0, 0) scale(1); }
+            to   { transform: translate(4vmax, 3vmax) scale(1.08); }
+        }
+
+        .glass {
+            background: var(--glass);
+            border: 1px solid var(--glass-line);
+            -webkit-backdrop-filter: saturate(180%) blur(24px);
+            backdrop-filter: saturate(180%) blur(24px);
+        }
+
+        .logo {
+            display: block;
+            background: currentColor;
+            -webkit-mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+            mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+        }
+
+        /* -- Barra de menú -- */
+        .menubar {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 30px;
+            padding: 0 14px;
+            font-size: 13px;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.28);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+            -webkit-backdrop-filter: saturate(180%) blur(24px);
+            backdrop-filter: saturate(180%) blur(24px);
+        }
+
+        .menubar-left,
+        .menubar-right { display: flex; align-items: center; gap: 14px; }
+
+        .menubar .logo { width: 17px; height: 13px; }
+        .menubar strong { font-weight: 700; }
+        .menubar svg { width: 15px; height: 15px; }
+
+        .tones { display: flex; align-items: center; gap: 6px; }
+
+        .tone {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            border: 1px solid rgba(29, 29, 31, 0.18);
+            cursor: pointer;
+            transition: transform .15s, box-shadow .15s;
+        }
+
+        .tone:hover { transform: scale(1.15); }
+        .tone.on { box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 3.5px var(--ink); }
+
+        /* -- Escena -- */
+        .scene {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 16px;
+        }
+
+        .clock {
+            margin-top: 9vh;
+            text-align: center;
+            color: rgba(29, 29, 31, 0.82);
+        }
+
+        .clock-date { font-size: 19px; font-weight: 600; }
+
+        .clock-time {
+            font-size: 104px;
+            font-weight: 700;
+            line-height: 1;
+            letter-spacing: -0.035em;
+            font-variant-numeric: tabular-nums;
+            margin-top: 2px;
+        }
+
+        .access {
+            margin-top: auto;
+            margin-bottom: 4vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* -- Identidad: usuario recordado o, si no hay, la app -- */
+        .identity-wrap { margin-bottom: 18px; }
+
+        .identity {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .identity[hidden] { display: none; }
+
+        .remembered-avatar,
+        .app-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 84px;
+            height: 84px;
+            margin-bottom: 12px;
+            box-shadow: 0 12px 30px -12px rgba(29, 29, 31, 0.35);
+        }
+
+        .remembered-avatar {
+            border-radius: 50%;
+            background: #8E8E93;
+            color: #FFFFFF;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .remembered-avatar svg { width: 38px; height: 38px; }
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        .app-icon {
+            border-radius: 22px;
+            background: linear-gradient(145deg, #3A3A3C, #1D1D1F);
+            color: #FFFFFF;
+        }
+
+        .app-icon .logo { width: 44px; height: 34px; }
+
+        .identity-name { font-size: 17px; font-weight: 600; }
+        .identity-sub { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+
+        /* Sin usuario recordado se ve la app; con usuario, su avatar. */
+        #rememberedUser:not([hidden]) ~ .identity-app { display: none; }
+
+        /* -- Formulario de píldoras -- */
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .pill {
+            position: relative;
+            width: 100%;
+            max-width: 290px;
+            border-radius: 999px;
+            transition: box-shadow .15s, background .15s;
+        }
+
+        .pill[hidden] { display: none; }
+
+        .pill:focus-within {
+            background: var(--glass-hi);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+        }
+
+        .pill-input {
+            width: 100%;
+            height: 40px;
+            padding: 0 16px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--ink);
+            background: transparent;
+            border: none;
+            border-radius: 999px;
+            outline: none;
+        }
+
+        .pill-input::placeholder { color: var(--ink-mute); }
+        .pill-pass .pill-input { padding-right: 76px; }
+
+        .pill-actions {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .eye-btn,
+        .go-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .eye-btn { background: transparent; color: var(--ink-mute); }
+        .eye-btn:hover { color: var(--ink); }
+        .eye-btn svg { width: 16px; height: 16px; }
+
+        /* La flecha se enciende cuando ya hay contraseña escrita, como en el Mac. */
+        .go-btn {
+            background: rgba(29, 29, 31, 0.18);
+            color: #FFFFFF;
+            transition: background .15s, transform .1s;
+        }
+
+        .pill-pass:has(.pill-input:not(:placeholder-shown)) .go-btn { background: var(--ink); }
+        .go-btn:active { transform: scale(.94); }
+        .go-btn svg { width: 16px; height: 16px; }
+        .go-btn .spin { display: none; }
+        .go-btn.loading { pointer-events: none; }
+        .go-btn.loading .spin { display: block; animation: spin .8s linear infinite; }
+        .go-btn.loading .arrow { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Clave incorrecta: index.js pone .is-invalid y la píldora tiembla. */
+        .pill:has(.is-invalid) { animation: shake .42s cubic-bezier(.36, .07, .19, .97); }
+
+        @keyframes shake {
+            10%, 90% { transform: translateX(-2px); }
+            20%, 80% { transform: translateX(4px); }
+            30%, 50%, 70% { transform: translateX(-8px); }
+            40%, 60% { transform: translateX(8px); }
+        }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--danger);
+        }
+
+        .login-error.show { display: inline-flex; }
+        .login-error svg { width: 14px; height: 14px; }
+
+        .hint {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+            margin-top: 2px;
+            font-size: 12.5px;
+            color: var(--ink-soft);
+        }
+
+        .hint label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .hint input { width: 13px; height: 13px; accent-color: var(--ink); cursor: pointer; }
+        .hint a { color: var(--ink-soft); text-decoration: none; }
+        .hint a:hover { color: var(--ink); text-decoration: underline; }
+
+        .caps {
+            display: none;
+            font-size: 12px;
+            color: var(--ink-soft);
+        }
+
+        .caps.show { display: block; }
+
+        /* -- Botones redondos de abajo -- */
+        .dock {
+            display: flex;
+            gap: 28px;
+            margin-top: 26px;
+        }
+
+        .dock-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 7px;
+            border: none;
+            background: none;
+            font-family: inherit;
+            font-size: 12px;
+            color: var(--ink-soft);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .dock-btn[hidden] { display: none; }
+
+        .dock-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: var(--ink);
+            transition: background .15s;
+        }
+
+        .dock-btn:hover .dock-icon { background: var(--glass-hi); }
+        .dock-icon svg { width: 17px; height: 17px; }
+
+        /* "Otra cuenta" solo tiene sentido si hay alguien recordado. */
+        body:has(#rememberedUser[hidden]) #forgetUserBtn { display: none; }
+
+        .footer {
+            position: relative;
+            z-index: 1;
+            padding: 0 16px 18px;
+            text-align: center;
+            font-size: 11.5px;
+            color: var(--ink-mute);
+        }
+
+        .footer b { color: var(--ink-soft); }
+
+        @media (max-width: 520px) {
+            .menubar-left span:not(.logo) { display: none; }
+            .menubar-left strong { display: inline; }
+            .menubar .hide-sm { display: none; }
+            .clock { margin-top: 7vh; }
+            .clock-date { font-size: 16px; }
+            .clock-time { font-size: 76px; }
+            .dock { gap: 22px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="wallpaper" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+
+    <header class="menubar">
+        <div class="menubar-left">
+            <span class="logo"></span>
+            <strong>Coffee Inventory</strong>
+        </div>
+        <div class="menubar-right">
+            <div class="tones" id="tones" aria-label="Tono del fondo (maqueta)"></div>
+            <i data-lucide="wifi" class="hide-sm"></i>
+            <span id="menuClock">mié 8 oct 9:41</span>
+        </div>
+    </header>
+
+    <main class="scene">
+
+        <div class="clock" aria-hidden="true">
+            <div class="clock-date" id="clockDate">Miércoles, 8 de octubre</div>
+            <div class="clock-time" id="clockTime">9:41</div>
+        </div>
+
+        <section class="access">
+
+            <div class="identity-wrap">
+                <div id="rememberedUser" class="identity" hidden>
+                    <span id="rememberedAvatar" class="remembered-avatar"><i data-lucide="user"></i></span>
+                    <span id="rememberedName" class="identity-name"></span>
+                    <span id="rememberedEmail" class="identity-sub"></span>
+                </div>
+
+                <div class="identity identity-app">
+                    <span class="app-icon"><span class="logo"></span></span>
+                    <span class="identity-name">Coffee Inventory</span>
+                    <span class="identity-sub">Inicia sesión para continuar</span>
+                </div>
+            </div>
+
+            <form id="form_login" novalidate class="login-form">
+
+                <div class="pill glass" id="emailField">
+                    <input type="email" class="pill-input" name="usuario" id="usuario" placeholder="Correo electrónico" required autocomplete="username">
+                </div>
+
+                <div class="pill pill-pass glass">
+                    <input type="password" class="pill-input" name="clave" id="clave" placeholder="Introduce la contraseña" required autocomplete="current-password">
+                    <div class="pill-actions">
+                        <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                        <button type="submit" class="go-btn" id="btnLogin" aria-label="Iniciar sesión">
+                            <i data-lucide="arrow-right" class="arrow"></i>
+                            <i data-lucide="loader-circle" class="spin"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="login-error" class="login-error glass" role="alert">
+                    <i data-lucide="circle-alert"></i>
+                    <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                </div>
+
+                <span class="caps" id="capsHint">Bloq Mayús está activado</span>
+
+                <div class="hint">
+                    <label><input type="checkbox" id="rememberMe" checked>Recordarme</label>
+                    <a href="../../../recuperar.php">¿Olvidaste tu contraseña?</a>
+                </div>
+            </form>
+
+            <div class="dock">
+                <button type="button" class="dock-btn" id="forgetUserBtn">
+                    <span class="dock-icon glass"><i data-lucide="user-plus"></i></span>
+                    Otra cuenta
+                </button>
+                <a class="dock-btn" href="../../../recuperar.php">
+                    <span class="dock-icon glass"><i data-lucide="key-round"></i></span>
+                    Recuperar
+                </a>
+                <a class="dock-btn" href="#">
+                    <span class="dock-icon glass"><i data-lucide="life-buoy"></i></span>
+                    Ayuda
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <p class="footer">Powered by <b>CoffeeSoft</b> &copy; <span class="js-year">2026</span></p>
+
+    <script src="../../../src/plugin/lucide/lucide.min.js"></script>
+    <script>
+        // Demo de la maqueta: el envío y el usuario recordado los maneja acceso/src/js/index.js.
+        const $ = id => document.getElementById(id);
+        const root = document.documentElement;
+
+        const TONES = [
+            { key: 'atardecer', name: 'Atardecer', a: '#FFA9C6', b: '#A9C6FF' },
+            { key: 'aurora',    name: 'Aurora',    a: '#BDF2DF', b: '#C7C5F8' },
+            { key: 'citrico',   name: 'Cítrico',   a: '#FBEB9E', b: '#A9EAC9' },
+            { key: 'champan',   name: 'Champán',   a: '#F6E3C6', b: '#E5D0EA' }
+        ];
+
+        function setTone(key) {
+            root.setAttribute('data-tone', key);
+            document.querySelectorAll('.tone').forEach(t => t.classList.toggle('on', t.dataset.tone === key));
+        }
+
+        $('tones').innerHTML = TONES.map(t =>
+            `<button type="button" class="tone" data-tone="${t.key}" title="${t.name}" style="background:linear-gradient(135deg, ${t.a}, ${t.b})"></button>`
+        ).join('');
+
+        $('tones').addEventListener('click', e => {
+            const t = e.target.closest('.tone');
+            if (t) setTone(t.dataset.tone);
+        });
+
+        setTone(new URLSearchParams(location.search).get('tono') || 'atardecer');
+
+        function tick() {
+            const now = new Date();
+            const time = now.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: false });
+            const date = now.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+            const day   = now.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '');
+            const month = now.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '');
+            const short = `${day} ${now.getDate()} ${month}`;
+
+            $('clockTime').textContent = time;
+            $('clockDate').textContent = date.charAt(0).toUpperCase() + date.slice(1);
+            $('menuClock').textContent = `${short} ${time}`;
+        }
+
+        tick();
+        setInterval(tick, 15000);
+
+        // Usuario recordado de ejemplo (?recordado=1): lo que haría applyRemembered().
+        if (new URLSearchParams(location.search).get('recordado') === '1') {
+            $('usuario').value = 'maria@cafecentral.mx';
+            $('emailField').hidden = true;
+            $('rememberedAvatar').style.background = '#E0457B';
+            $('rememberedName').textContent = 'María López';
+            $('rememberedEmail').textContent = 'maria@cafecentral.mx';
+            $('rememberedUser').hidden = false;
+        }
+
+        $('forgetUserBtn').addEventListener('click', () => {
+            $('rememberedUser').hidden = true;
+            $('emailField').hidden = false;
+            $('usuario').value = '';
+            $('usuario').focus();
+        });
+
+        $('btnEye').addEventListener('click', () => {
+            const show = $('clave').type === 'password';
+            $('clave').type = show ? 'text' : 'password';
+            $('btnEye').innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+            lucide.createIcons();
+        });
+
+        $('clave').addEventListener('keyup', e => {
+            $('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        document.querySelectorAll('#usuario, #clave').forEach(i => i.addEventListener('input', () => {
+            $('login-error').classList.remove('show');
+            document.querySelectorAll('.is-invalid').forEach(x => x.classList.remove('is-invalid'));
+        }));
+
+        $('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            $('btnLogin').classList.add('loading');
+            setTimeout(() => {
+                $('btnLogin').classList.remove('loading');
+                $('login-error-text').textContent = 'Contraseña incorrecta. Inténtalo de nuevo.';
+                $('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1000);
+        });
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>
