@@ -14,7 +14,7 @@ Maquetas estáticas para rediseñar `inventory/index.php`. Abren solas en el nav
 | `login-g-chatgpt.html` | Estilo ChatGPT: blanco sin tarjeta, campos tipo píldora y entrada en dos pasos (correo → contraseña con "Editar"). Modo oscuro del sistema. | Además `index.js`: el primer "Continuar" sin usuario recordado pasa al paso 2 en vez de enviar (`data-step` en `#form_login`) |
 
 D y E comparten 5 tonos de fondo (`data-tone` en `<html>`): **Atardecer**, **Aurora**,
-**Cítrico**, **Champán** y **Cielo** (azul suave). El selector de tonos es solo de la maqueta (también `?tono=aurora`
+**Cítrico**, **Champán** y **Terracota** (el `#C05A40` de la marca). El selector de tonos es solo de la maqueta (también `?tono=aurora`
 en la URL); en producción se fija uno. `?recordado=1` muestra el estado de usuario recordado
 y, en F y G, `?tema=dark` fuerza el modo oscuro.
 

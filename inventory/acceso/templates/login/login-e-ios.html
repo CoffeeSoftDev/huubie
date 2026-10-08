@@ -40,7 +40,7 @@
         :root[data-tone="atardecer"] { --t1: #FFC3A8; --t2: #FFA9C6; --t3: #D2AEFF; --t4: #A9C6FF; --accent: #E0457B; }
         :root[data-tone="citrico"]   { --t1: #FBEB9E; --t2: #D9F2A2; --t3: #A9EAC9; --t4: #A2DDF0; --accent: #0F9F6E; }
         :root[data-tone="champan"]   { --t1: #F6E3C6; --t2: #F3CBC6; --t3: #E5D0EA; --t4: #D3DDF1; --accent: #8B5E3C; }
-        :root[data-tone="cielo"]     { --t1: #DCEEFF; --t2: #C9E2FB; --t3: #D6DDFB; --t4: #E9EEFB; --accent: #2F6FD6; }
+        :root[data-tone="terracota"] { --t1: #F5DED2; --t2: #EBBBA4; --t3: #E3A68D; --t4: #F1E2D6; --accent: #C05A40; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -510,7 +510,7 @@
             { key: 'atardecer', name: 'Atardecer', a: '#FFA9C6', b: '#A9C6FF' },
             { key: 'citrico',   name: 'Cítrico',   a: '#FBEB9E', b: '#A9EAC9' },
             { key: 'champan',   name: 'Champán',   a: '#F6E3C6', b: '#E5D0EA' },
-            { key: 'cielo',     name: 'Cielo',     a: '#DCEEFF', b: '#C9E2FB' }
+            { key: 'terracota', name: 'Terracota', a: '#F5DED2', b: '#E3A68D' }
         ];
 
         function setTone(key) {
@@ -533,7 +533,7 @@
         if (new URLSearchParams(location.search).get('recordado') === '1') {
             $('usuario').value = 'maria@cafecentral.mx';
             $('emailField').hidden = true;
-            $('rememberedAvatar').style.background = '#4F46E5';
+            $('rememberedAvatar').style.background = 'var(--accent)';
             $('rememberedName').textContent = 'María López';
             $('rememberedEmail').textContent = 'maria@cafecentral.mx';
             $('rememberedUser').hidden = false;
