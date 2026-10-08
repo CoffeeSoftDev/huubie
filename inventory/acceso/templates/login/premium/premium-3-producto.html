@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<!--
+    Premium 3 :: Producto
+    Pantalla dividida al estilo de Linear / Attio / Ramp: a la izquierda el
+    formulario mínimo sobre blanco; a la derecha un panel oscuro con una frase
+    y una vista del producto (ventana de la app con indicadores, gráfica y
+    tabla), recortada y desvanecida hacia abajo. Las cifras de la vista son
+    ilustrativas. En móvil queda solo el formulario.
+
+    Autocontenida: logo e íconos van incrustados como SVG. En producción los
+    íconos siguen siendo <i data-lucide> como hoy.
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #rememberedAvatar,
+      #rememberedName, #rememberedEmail, #forgetUserBtn
+-->
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Inventory · Iniciar sesión</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:      #FFFFFF;
+            --ink:     #0A0A0A;
+            --ink-2:   #5E5E5E;
+            --ink-3:   #9C9C9C;
+            --line:    rgba(10, 10, 10, 0.08);
+            --line-2:  rgba(10, 10, 10, 0.13);
+            --brand:   192, 90, 64;
+            --danger:  #C2281D;
+            --warn:    #A15C07;
+            --night:   #0A0B0D;
+            --ease:    cubic-bezier(.16, 1, .3, 1);
+            --sans:    'Geist', 'Inter', system-ui, -apple-system, sans-serif;
+            --mono:    'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--sans);
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: grid;
+            grid-template-columns: 1fr;
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        @media (min-width: 1100px) {
+            body { grid-template-columns: minmax(440px, 0.85fr) minmax(0, 1.15fr); }
+        }
+
+        .ico { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .reveal {
+            animation: rise .8s var(--ease) both;
+            animation-delay: calc(var(--i, 0) * 60ms + 60ms);
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+            to   { opacity: 1; transform: none; filter: none; }
+        }
+
+        /* ===== Columna del formulario ===== */
+        .side {
+            display: flex;
+            flex-direction: column;
+            padding: 28px 24px;
+        }
+
+        @media (min-width: 1100px) {
+            .side { padding: 32px 56px; }
+        }
+
+        .wordmark {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .wordmark .logo-svg { width: 24px; height: auto; }
+
+        .form-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 0;
+        }
+
+        .form-box { width: 100%; max-width: 360px; }
+
+        .title {
+            font-size: 30px;
+            font-weight: 600;
+            line-height: 1.15;
+            letter-spacing: -0.035em;
+        }
+
+        .sub {
+            margin-top: 10px;
+            font-size: 15px;
+            line-height: 1.5;
+            color: var(--ink-2);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 32px;
+        }
+
+        .field { display: grid; gap: 7px; }
+        .field[hidden] { display: none; }
+
+        .label-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+        }
+
+        .label { font-size: 13px; font-weight: 500; }
+
+        .label-row a {
+            font-size: 13px;
+            color: var(--ink-2);
+            text-decoration: none;
+            transition: color .2s;
+        }
+
+        .label-row a:hover { color: var(--ink); }
+
+        .control { position: relative; }
+
+        .input {
+            width: 100%;
+            height: 42px;
+            padding: 0 13px;
+            font-family: inherit;
+            font-size: 14.5px;
+            color: var(--ink);
+            background: #FFFFFF;
+            border: 1px solid var(--line-2);
+            border-radius: 10px;
+            outline: none;
+            box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05);
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .input::placeholder { color: var(--ink-3); }
+        .input:hover { border-color: rgba(10, 10, 10, 0.2); }
+        .input:focus { border-color: var(--ink); box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.07); }
+        .input.has-eye { padding-right: 42px; }
+        .input.is-invalid { border-color: var(--danger); }
+
+        .eye-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--ink-3);
+            cursor: pointer;
+            transition: color .2s, background .2s;
+        }
+
+        .eye-btn:hover { color: var(--ink); background: rgba(10, 10, 10, 0.05); }
+
+        .remembered {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 9px 9px 9px 10px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #FAFAF9;
+        }
+
+        .remembered[hidden] { display: none; }
+
+        .remembered-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, #3A3A3C, #111111);
+            color: #FFFFFF;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        .remembered-info { flex: 1; min-width: 0; line-height: 1.3; }
+
+        .remembered-name,
+        .remembered-email {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remembered-name { font-size: 14px; font-weight: 500; }
+        .remembered-email { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+
+        .ghost {
+            flex-shrink: 0;
+            height: 30px;
+            padding: 0 11px;
+            border: 1px solid var(--line-2);
+            border-radius: 8px;
+            background: #FFFFFF;
+            font-family: inherit;
+            font-size: 12.5px;
+            color: var(--ink-2);
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05);
+        }
+
+        .ghost:hover { color: var(--ink); }
+
+        .check {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 13.5px;
+            color: var(--ink-2);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .check input {
+            appearance: none;
+            -webkit-appearance: none;
+            display: grid;
+            place-content: center;
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            border: 1px solid rgba(10, 10, 10, 0.22);
+            border-radius: 5px;
+            background: #FFFFFF;
+            box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05);
+            cursor: pointer;
+            transition: background .2s, border-color .2s;
+        }
+
+        .check input::after {
+            content: '';
+            width: 8px;
+            height: 4.5px;
+            margin-top: -2px;
+            border-left: 1.75px solid #FFFFFF;
+            border-bottom: 1.75px solid #FFFFFF;
+            transform: rotate(-45deg) scale(0);
+            transition: transform .2s var(--ease);
+        }
+
+        .check input:checked { background: var(--ink); border-color: var(--ink); }
+        .check input:checked::after { transform: rotate(-45deg) scale(1); }
+        .check input:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.08); }
+
+        .caps {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            color: var(--warn);
+        }
+
+        .caps.show { display: flex; }
+        .caps .ico { width: 14px; height: 14px; }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #FEF3F2;
+            box-shadow: inset 0 0 0 1px rgba(194, 40, 29, 0.14);
+            font-size: 13px;
+            color: var(--danger);
+        }
+
+        .login-error.show { display: flex; animation: rise .4s var(--ease) both; }
+        .login-error .ico { width: 15px; height: 15px; }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 44px;
+            margin-top: 2px;
+            border: 1px solid #0A0A0A;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #2E2E30 0%, #0A0A0A 100%);
+            font-family: inherit;
+            font-size: 14.5px;
+            font-weight: 500;
+            color: #FFFFFF;
+            cursor: pointer;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.16),
+                0 1px 2px rgba(10, 10, 10, 0.2),
+                0 8px 18px -8px rgba(10, 10, 10, 0.45);
+            transition: transform .15s var(--ease), filter .2s;
+        }
+
+        .btn:hover { filter: brightness(1.18); }
+        .btn:active { transform: scale(.985); }
+        .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+        .btn .arrow { transition: transform .25s var(--ease); }
+        .btn:hover .arrow { transform: translateX(3px); }
+        .btn .spin { display: none; animation: spin .8s linear infinite; }
+        .btn.loading { pointer-events: none; }
+        .btn.loading .spin { display: block; }
+        .btn.loading .arrow { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .note {
+            margin-top: 28px;
+            font-size: 13px;
+            color: var(--ink-3);
+        }
+
+        .note b { font-weight: 500; color: var(--ink-2); }
+
+        .side-foot {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--ink-3);
+        }
+
+        .side-foot .secure { display: inline-flex; align-items: center; gap: 6px; }
+        .side-foot .ico { width: 13px; height: 13px; }
+
+        /* ===== Panel del producto ===== */
+        .stage {
+            display: none;
+            position: relative;
+            overflow: hidden;
+            margin: 12px;
+            border-radius: 24px;
+            background: var(--night);
+            color: #F7F8F8;
+            isolation: isolate;
+        }
+
+        @media (min-width: 1100px) {
+            .stage { display: block; }
+        }
+
+        .stage::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background:
+                radial-gradient(ellipse 60% 50% at 85% 0%, rgba(var(--brand), 0.30), transparent 70%),
+                radial-gradient(ellipse 50% 40% at 0% 100%, rgba(99, 102, 241, 0.16), transparent 70%);
+        }
+
+        .stage::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+            background-size: 56px 56px;
+            -webkit-mask-image: linear-gradient(to bottom, #000, transparent 60%);
+            mask-image: linear-gradient(to bottom, #000, transparent 60%);
+        }
+
+        .stage-copy { padding: 64px 64px 0; max-width: 620px; }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 28px;
+            padding: 0 12px 0 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            font-size: 12.5px;
+            color: rgba(247, 248, 248, 0.75);
+        }
+
+        .pill i {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgb(var(--brand));
+            box-shadow: 0 0 10px rgba(var(--brand), 0.9);
+        }
+
+        .stage-title {
+            margin-top: 20px;
+            font-size: 40px;
+            font-weight: 600;
+            line-height: 1.08;
+            letter-spacing: -0.04em;
+            text-wrap: balance;
+        }
+
+        .stage-title span { color: rgba(247, 248, 248, 0.45); }
+
+        /* -- Ventana de la app (ilustración) -- */
+        .window-wrap {
+            position: absolute;
+            left: 64px;
+            right: -40px;
+            top: 290px;
+            -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 96%);
+            mask-image: linear-gradient(to bottom, #000 62%, transparent 96%);
+        }
+
+        .window {
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 14px;
+            background: #111215;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                0 40px 80px -24px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+        }
+
+        .chrome {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            height: 38px;
+            padding: 0 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .chrome i { width: 10px; height: 10px; border-radius: 50%; background: #2E3036; }
+
+        .chrome span {
+            margin-left: 12px;
+            font-size: 12px;
+            color: rgba(247, 248, 248, 0.45);
+        }
+
+        .app { display: grid; grid-template-columns: 56px 1fr; }
+
+        .rail {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 14px 0;
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
+            color: rgba(247, 248, 248, 0.4);
+        }
+
+        .rail span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+        }
+
+        .rail span.on { background: rgba(255, 255, 255, 0.07); color: #F7F8F8; }
+
+        .canvas { padding: 20px 22px 28px; }
+
+        .canvas-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .canvas-head h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+        .canvas-head h3 small { margin-left: 8px; font-size: 12.5px; font-weight: 400; color: rgba(247, 248, 248, 0.45); }
+
+        .seg {
+            display: flex;
+            padding: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.02);
+            font-size: 12px;
+            color: rgba(247, 248, 248, 0.5);
+        }
+
+        .seg span { padding: 4px 10px; border-radius: 6px; }
+        .seg span.on { background: rgba(255, 255, 255, 0.08); color: #F7F8F8; }
+
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .kpi {
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .kpi small { display: block; font-size: 11.5px; color: rgba(247, 248, 248, 0.5); }
+
+        .kpi b {
+            display: block;
+            margin-top: 6px;
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kpi em {
+            display: inline-block;
+            margin-top: 4px;
+            font-family: var(--mono);
+            font-size: 11px;
+            font-style: normal;
+            color: #4ADE80;
+        }
+
+        .kpi em.down { color: #FBBF24; }
+
+        .chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            height: 92px;
+            margin-top: 14px;
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .chart span {
+            flex: 1;
+            border-radius: 4px 4px 2px 2px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .chart span.hot { background: linear-gradient(180deg, rgb(var(--brand)), rgba(var(--brand), 0.5)); }
+
+        .table {
+            margin-top: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 11px;
+            overflow: hidden;
+            font-size: 12.5px;
+        }
+
+        .tr {
+            display: grid;
+            grid-template-columns: 96px minmax(0, 1fr) 84px 92px;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+        }
+
+        .tr + .tr { border-top: 1px solid rgba(255, 255, 255, 0.05); }
+        .tr.th { color: rgba(247, 248, 248, 0.45); background: rgba(255, 255, 255, 0.02); }
+        .tr .sku { font-family: var(--mono); font-size: 11.5px; color: rgba(247, 248, 248, 0.6); }
+        .tr .qty { font-variant-numeric: tabular-nums; }
+
+        .badge {
+            justify-self: start;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11.5px;
+        }
+
+        .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+        .badge.ok   { color: #4ADE80; background: rgba(74, 222, 128, 0.1); }
+        .badge.low  { color: #FBBF24; background: rgba(251, 191, 36, 0.1); }
+        .badge.crit { color: #F87171; background: rgba(248, 113, 113, 0.1); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <section class="side">
+
+        <span class="wordmark reveal" style="--i:0"><svg class="logo-svg" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="1 4.6 30 22.9" shape-rendering="geometricPrecision"> <g transform="translate(1.280,4.824) scale(0.102338)"> <g transform="translate(-3.221179,221.723750) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"> <path d="M1515 2213 c-353 -17 -693 -86 -812 -166 -56 -37 -93 -101 -93 -160 l0 -39 -42 9 c-24 4 -88 8 -143 8 -91 0 -106 -3 -159 -30 -169 -85 -248 -240 -232 -448 11 -133 73 -255 164 -322 111 -82 308 -109 442 -61 36 13 72 26 80 30 12 5 25 -13 55 -75 22 -45 61 -113 87 -150 l47 -69 -69 -20 c-133 -39 -237 -109 -266 -177 -19 -45 -18 -167 2 -209 37 -77 162 -152 344 -207 290 -88 740 -116 1200 -76 324 29 604 114 717 217 56 52 75 104 71 193 -3 68 -7 82 -33 114 -38 47 -138 104 -243 139 l-80 27 55 77 c104 145 172 316 217 545 42 210 59 526 32 591 -42 100 -251 178 -601 225 -242 33 -512 45 -740 34z m720 -222 c213 -29 371 -73 382 -107 5 -14 -77 -50 -159 -69 -443 -102 -1329 -77 -1568 45 -39 20 -41 23 -24 34 59 40 209 77 419 101 193 22 216 23 520 19 208 -2 318 -8 430 -23z m-1151 -381 c192 -32 428 -50 675 -50 333 0 599 28 797 84 l84 24 0 -32 c0 -63 -41 -263 -76 -371 -45 -140 -112 -269 -186 -360 -147 -183 -380 -286 -653 -288 -424 -4 -759 280 -855 722 -15 69 -50 301 -50 332 0 4 35 -4 77 -18 42 -13 127 -33 187 -43z m-542 1 c26 -16 52 -39 58 -50 6 -12 21 -78 34 -148 l24 -128 -26 -22 c-33 -27 -105 -53 -146 -53 -79 1 -182 88 -206 175 -22 77 17 171 93 226 54 39 107 39 169 0z m625 -1087 c153 -95 314 -134 558 -134 239 0 412 41 579 136 l81 45 65 -17 c86 -22 209 -79 216 -99 9 -22 -9 -38 -81 -73 -181 -90 -430 -125 -875 -125 -264 0 -323 3 -440 22 -279 44 -510 138 -468 189 25 29 203 93 282 101 5 1 42 -20 83 -45z"/> <path d="M1720 1373 c-114 -315 -169 -457 -170 -433 -1 55 -13 70 -102 126 -50 32 -86 60 -81 65 5 5 47 35 93 66 l85 58 3 54 c5 91 -1 101 -56 101 -43 0 -60 -9 -205 -105 l-158 -106 3 -76 3 -77 160 -103 c120 -77 168 -103 193 -103 30 0 33 -2 25 -22 -4 -13 -8 -41 -8 -63 l0 -40 81 -3 80 -3 138 371 c95 257 136 380 134 403 l-3 32 -81 3 -81 3 -53 -148z"/> <path d="M1937 1403 c-4 -3 -7 -36 -7 -73 0 -77 2 -79 118 -155 l72 -48 -82 -55 c-46 -30 -89 -61 -95 -70 -17 -20 -17 -134 -1 -150 7 -7 28 -12 47 -12 27 0 66 21 175 92 194 126 186 117 186 200 l0 68 -161 105 c-140 92 -165 105 -203 105 -23 0 -46 -3 -49 -7z"/> </g> </g> </svg>Coffee Inventory</span>
+
+        <div class="form-wrap">
+            <div class="form-box">
+
+                <h1 class="title reveal" style="--i:1">Inicia sesión</h1>
+                <p class="sub reveal" style="--i:2">Bienvenido de vuelta. Ingresa con tu cuenta para continuar.</p>
+
+                <form id="form_login" novalidate class="login-form">
+
+                    <div id="login-error" class="login-error" role="alert">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                        <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                    </div>
+
+                    <div id="rememberedUser" class="remembered reveal" style="--i:3" hidden>
+                        <span id="rememberedAvatar" class="remembered-avatar"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+                        <span class="remembered-info">
+                            <span id="rememberedName" class="remembered-name"></span>
+                            <span id="rememberedEmail" class="remembered-email"></span>
+                        </span>
+                        <button type="button" id="forgetUserBtn" class="ghost">Cambiar</button>
+                    </div>
+
+                    <div class="field reveal" style="--i:3" id="emailField">
+                        <label class="label" for="usuario">Correo electrónico</label>
+                        <input type="email" class="input" name="usuario" id="usuario" placeholder="nombre@empresa.com" required autocomplete="username">
+                    </div>
+
+                    <div class="field reveal" style="--i:4">
+                        <div class="label-row">
+                            <label class="label" for="clave">Contraseña</label>
+                            <a href="../../../../recuperar.php">¿La olvidaste?</a>
+                        </div>
+                        <div class="control">
+                            <input type="password" class="input has-eye" name="clave" id="clave" required autocomplete="current-password">
+                            <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></button>
+                        </div>
+                        <span class="caps" id="capsHint"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Bloq Mayús está activado</span>
+                    </div>
+
+                    <label class="check reveal" style="--i:5">
+                        <input type="checkbox" id="rememberMe" checked>
+                        <span>Recordar mi usuario en este equipo</span>
+                    </label>
+
+                    <button type="submit" class="btn reveal" style="--i:6" id="btnLogin">
+                        <span>Continuar</span>
+                        <span class="arrow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
+                        <span class="spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span>
+                    </button>
+                </form>
+
+                <p class="note reveal" style="--i:7">¿Sin acceso? <b>Pide una cuenta a tu administrador.</b></p>
+            </div>
+        </div>
+
+        <div class="side-foot reveal" style="--i:8">
+            <span>&copy; <span class="js-year">2026</span> CoffeeSoft</span>
+            <span class="secure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>Conexión cifrada</span>
+        </div>
+    </section>
+
+    <aside class="stage" aria-hidden="true">
+
+        <div class="stage-copy">
+            <span class="pill reveal" style="--i:2"><i></i>Coffee Inventory</span>
+            <h2 class="stage-title reveal" style="--i:3">Todo tu almacén, <span>en una sola vista.</span></h2>
+        </div>
+
+        <div class="window-wrap reveal" style="--i:5">
+            <div class="window">
+                <div class="chrome"><i></i><i></i><i></i><span>Inventario · Sucursal Centro</span></div>
+                <div class="app">
+                    <div class="rail">
+                        <span class="on"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/><path d="M12 8 7.26 5.15"/><path d="m12 8 4.74-2.85"/><path d="M12 13.5V8"/></svg></span>
+                        <span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg></span>
+                        <span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></span>
+                        <span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+                        <span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></span>
+                    </div>
+                    <div class="canvas">
+                        <div class="canvas-head">
+                            <h3>Inventario<small>Sucursal Centro</small></h3>
+                            <div class="seg"><span>Hoy</span><span class="on">7 días</span><span>30 días</span></div>
+                        </div>
+
+                        <div class="kpis">
+                            <div class="kpi"><small>Valor de inventario</small><b>$184,320</b><em>▲ 4.2%</em></div>
+                            <div class="kpi"><small>Bajo mínimo</small><b>12</b><em class="down">▲ 3 productos</em></div>
+                            <div class="kpi"><small>Movimientos</small><b>1,286</b><em>▲ 9.8%</em></div>
+                        </div>
+
+                        <div class="chart">
+                            <span style="height:38%"></span><span style="height:52%"></span><span style="height:44%"></span>
+                            <span style="height:61%"></span><span style="height:57%"></span><span style="height:70%"></span>
+                            <span style="height:48%"></span><span style="height:66%"></span><span style="height:74%"></span>
+                            <span style="height:63%"></span><span style="height:81%"></span><span class="hot" style="height:72%"></span>
+                            <span class="hot" style="height:88%"></span><span class="hot" style="height:100%"></span>
+                        </div>
+
+                        <div class="table">
+                            <div class="tr th"><span>SKU</span><span>Producto</span><span>Existencia</span><span>Estado</span></div>
+                            <div class="tr"><span class="sku">CAF-0012</span><span>Café en grano 1 kg</span><span class="qty">24 kg</span><span class="badge ok">En stock</span></div>
+                            <div class="tr"><span class="sku">LAC-0103</span><span>Leche entera</span><span class="qty">14 L</span><span class="badge low">Bajo</span></div>
+                            <div class="tr"><span class="sku">AZU-0007</span><span>Azúcar mascabado</span><span class="qty">3 kg</span><span class="badge crit">Crítico</span></div>
+                            <div class="tr"><span class="sku">VAS-0420</span><span>Vaso 12 oz</span><span class="qty">380 pz</span><span class="badge ok">En stock</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <script>
+        // Demo de la maqueta: el envío y el usuario recordado los maneja acceso/src/js/index.js.
+        const $ = id => document.getElementById(id);
+        const EYE = $('btnEye').innerHTML;
+        const EYE_OFF = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>';
+
+        if (new URLSearchParams(location.search).get('recordado') === '1') {
+            $('usuario').value = 'maria@cafecentral.mx';
+            $('emailField').hidden = true;
+            $('rememberedName').textContent = 'María López';
+            $('rememberedEmail').textContent = 'maria@cafecentral.mx';
+            $('rememberedUser').hidden = false;
+        }
+
+        $('forgetUserBtn').addEventListener('click', () => {
+            $('rememberedUser').hidden = true;
+            $('emailField').hidden = false;
+            $('usuario').value = '';
+            $('usuario').focus();
+        });
+
+        $('btnEye').addEventListener('click', () => {
+            const show = $('clave').type === 'password';
+            $('clave').type = show ? 'text' : 'password';
+            $('btnEye').innerHTML = show ? EYE_OFF : EYE;
+        });
+
+        $('clave').addEventListener('keyup', e => {
+            $('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        document.querySelectorAll('#usuario, #clave').forEach(i => i.addEventListener('input', () => {
+            $('login-error').classList.remove('show');
+            document.querySelectorAll('.is-invalid').forEach(x => x.classList.remove('is-invalid'));
+        }));
+
+        $('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            $('btnLogin').classList.add('loading');
+            setTimeout(() => {
+                $('btnLogin').classList.remove('loading');
+                $('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1100);
+        });
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+    </script>
+</body>
+
+</html>

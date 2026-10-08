@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<!--
+    Premium 1 :: Obsidiana
+    Oscuro y minimalista, en la línea de Linear / Raycast: sin tarjeta, una
+    columna al centro, ícono de app con relieve y un brillo cálido de marca,
+    campos translúcidos, botón claro con relieve y textura de grano en el fondo.
+    Los elementos entran escalonados (fade + blur).
+
+    Autocontenida: logo e íconos van incrustados como SVG. En producción los
+    íconos siguen siendo <i data-lucide> como hoy.
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #rememberedAvatar,
+      #rememberedName, #rememberedEmail, #forgetUserBtn
+-->
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Inventory · Iniciar sesión</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:      #08090A;
+            --ink:     #F7F8F8;
+            --ink-2:   #8A8F98;
+            --ink-3:   #5C6068;
+            --line:    rgba(255, 255, 255, 0.08);
+            --line-2:  rgba(255, 255, 255, 0.14);
+            --field:   rgba(255, 255, 255, 0.03);
+            --brand:   192, 90, 64;
+            --danger:  #F87171;
+            --warn:    #E8B86D;
+            --ease:    cubic-bezier(.16, 1, .3, 1);
+            --sans:    'Geist', 'Inter', system-ui, -apple-system, sans-serif;
+            --mono:    'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { color-scheme: dark; }
+
+        body {
+            font-family: var(--sans);
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            background:
+                radial-gradient(ellipse 70% 45% at 50% -12%, rgba(255, 255, 255, 0.075), transparent 70%),
+                var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+            font-feature-settings: 'ss01', 'cv11';
+        }
+
+        /* Cuadrícula muy tenue que solo se ve arriba, donde cae la luz. */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 72px 72px;
+            background-position: center top;
+            -webkit-mask-image: radial-gradient(ellipse 55% 40% at 50% 0%, #000, transparent);
+            mask-image: radial-gradient(ellipse 55% 40% at 50% 0%, #000, transparent);
+            pointer-events: none;
+        }
+
+        /* Grano: le quita lo plano al negro. */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            opacity: .045;
+            pointer-events: none;
+        }
+
+        .ico { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
+        }
+
+        /* -- Entrada escalonada -- */
+        .reveal {
+            animation: rise .8s var(--ease) both;
+            animation-delay: calc(var(--i, 0) * 70ms + 80ms);
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+            to   { opacity: 1; transform: none; filter: none; }
+        }
+
+        main {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 20px;
+        }
+
+        .auth { width: 100%; max-width: 352px; }
+
+        /* -- Ícono de app -- */
+        .mark {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            margin: 0 auto;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #25262A 0%, #111214 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+                0 0 0 1px rgba(0, 0, 0, 0.6),
+                0 12px 32px -10px rgba(0, 0, 0, 0.9);
+            color: #FFFFFF;
+        }
+
+        .mark::before {
+            content: '';
+            position: absolute;
+            inset: -64px;
+            z-index: -1;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(var(--brand), 0.26) 0%, rgba(var(--brand), 0.08) 38%, rgba(var(--brand), 0) 66%);
+            filter: blur(14px);
+        }
+
+        .logo-svg { width: 30px; height: auto; }
+
+        .title {
+            margin-top: 28px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 1.2;
+            letter-spacing: -0.028em;
+        }
+
+        .sub {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 15px;
+            color: var(--ink-2);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 32px;
+        }
+
+        .field { position: relative; }
+        .field[hidden] { display: none; }
+
+        .input {
+            width: 100%;
+            height: 44px;
+            padding: 0 14px;
+            font-family: inherit;
+            font-size: 14.5px;
+            color: var(--ink);
+            background: var(--field);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            outline: none;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+            transition: border-color .2s, box-shadow .2s, background .2s;
+        }
+
+        .input::placeholder { color: var(--ink-3); }
+        .input:hover { border-color: var(--line-2); }
+
+        .input:focus {
+            border-color: rgba(255, 255, 255, 0.26);
+            background: rgba(255, 255, 255, 0.045);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
+        }
+
+        .input.has-eye { padding-right: 44px; }
+        .input.is-invalid { border-color: rgba(248, 113, 113, 0.55); }
+
+        .eye-btn {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--ink-3);
+            cursor: pointer;
+            transition: color .2s, background .2s;
+        }
+
+        .eye-btn:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+
+        /* -- Usuario recordado -- */
+        .remembered {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 8px 8px 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--field);
+        }
+
+        .remembered[hidden] { display: none; }
+
+        .remembered-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, #3A3B40, #232428);
+            color: #FFFFFF;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        .remembered-info { flex: 1; min-width: 0; line-height: 1.3; }
+
+        .remembered-name,
+        .remembered-email {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remembered-name { font-size: 13.5px; font-weight: 500; }
+        .remembered-email { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+
+        .ghost {
+            flex-shrink: 0;
+            height: 28px;
+            padding: 0 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: transparent;
+            font-family: inherit;
+            font-size: 12.5px;
+            color: var(--ink-2);
+            cursor: pointer;
+            transition: color .2s, border-color .2s;
+        }
+
+        .ghost:hover { color: var(--ink); border-color: var(--line-2); }
+
+        /* -- Fila de opciones -- */
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 4px 0 6px;
+            font-size: 13px;
+        }
+
+        .check {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: var(--ink-2);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .check input {
+            appearance: none;
+            -webkit-appearance: none;
+            display: grid;
+            place-content: center;
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            border: 1px solid var(--line-2);
+            border-radius: 5px;
+            background: var(--field);
+            cursor: pointer;
+            transition: background .2s, border-color .2s;
+        }
+
+        .check input::after {
+            content: '';
+            width: 8px;
+            height: 4.5px;
+            margin-top: -2px;
+            border-left: 1.75px solid var(--bg);
+            border-bottom: 1.75px solid var(--bg);
+            transform: rotate(-45deg) scale(0);
+            transition: transform .2s var(--ease);
+        }
+
+        .check input:checked { background: var(--ink); border-color: var(--ink); }
+        .check input:checked::after { transform: rotate(-45deg) scale(1); }
+        .check input:focus-visible { box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08); outline: none; }
+
+        .link {
+            color: var(--ink-2);
+            text-decoration: none;
+            transition: color .2s;
+        }
+
+        .link:hover { color: var(--ink); }
+
+        .caps {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            color: var(--warn);
+        }
+
+        .caps.show { display: flex; }
+        .caps .ico { width: 14px; height: 14px; }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--danger);
+        }
+
+        .login-error.show { display: flex; animation: rise .4s var(--ease) both; }
+        .login-error .ico { width: 15px; height: 15px; }
+
+        /* -- Botón principal: claro, con relieve -- */
+        .btn {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 44px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #E3E4E7 100%);
+            font-family: inherit;
+            font-size: 14.5px;
+            font-weight: 500;
+            color: #0A0A0B;
+            cursor: pointer;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.14),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+                0 10px 24px -10px rgba(255, 255, 255, 0.28);
+            transition: transform .15s var(--ease), box-shadow .2s, filter .2s;
+        }
+
+        .btn:hover { filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 14px 30px -10px rgba(255, 255, 255, 0.34); }
+        .btn:active { transform: scale(.985); }
+        .btn:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.5); outline-offset: 3px; }
+
+        .btn .arrow { transition: transform .25s var(--ease); }
+        .btn:hover .arrow { transform: translateX(3px); }
+
+        .btn .spin { display: none; animation: spin .8s linear infinite; }
+        .btn.loading { pointer-events: none; }
+        .btn.loading .spin { display: block; }
+        .btn.loading .arrow { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .note {
+            margin-top: 28px;
+            padding-top: 22px;
+            border-top: 1px solid var(--line);
+            text-align: center;
+            font-size: 13px;
+            color: var(--ink-3);
+        }
+
+        .note b { font-weight: 500; color: var(--ink-2); }
+
+        footer {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            padding: 0 20px 26px;
+            font-size: 12px;
+            color: var(--ink-3);
+        }
+
+        footer .sep { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: .02em;
+        }
+
+        .status .ico { width: 13px; height: 13px; color: #4ADE80; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main>
+        <div class="auth">
+
+            <div class="mark reveal" style="--i:0"><svg class="logo-svg" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="1 4.6 30 22.9" shape-rendering="geometricPrecision"> <g transform="translate(1.280,4.824) scale(0.102338)"> <g transform="translate(-3.221179,221.723750) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"> <path d="M1515 2213 c-353 -17 -693 -86 -812 -166 -56 -37 -93 -101 -93 -160 l0 -39 -42 9 c-24 4 -88 8 -143 8 -91 0 -106 -3 -159 -30 -169 -85 -248 -240 -232 -448 11 -133 73 -255 164 -322 111 -82 308 -109 442 -61 36 13 72 26 80 30 12 5 25 -13 55 -75 22 -45 61 -113 87 -150 l47 -69 -69 -20 c-133 -39 -237 -109 -266 -177 -19 -45 -18 -167 2 -209 37 -77 162 -152 344 -207 290 -88 740 -116 1200 -76 324 29 604 114 717 217 56 52 75 104 71 193 -3 68 -7 82 -33 114 -38 47 -138 104 -243 139 l-80 27 55 77 c104 145 172 316 217 545 42 210 59 526 32 591 -42 100 -251 178 -601 225 -242 33 -512 45 -740 34z m720 -222 c213 -29 371 -73 382 -107 5 -14 -77 -50 -159 -69 -443 -102 -1329 -77 -1568 45 -39 20 -41 23 -24 34 59 40 209 77 419 101 193 22 216 23 520 19 208 -2 318 -8 430 -23z m-1151 -381 c192 -32 428 -50 675 -50 333 0 599 28 797 84 l84 24 0 -32 c0 -63 -41 -263 -76 -371 -45 -140 -112 -269 -186 -360 -147 -183 -380 -286 -653 -288 -424 -4 -759 280 -855 722 -15 69 -50 301 -50 332 0 4 35 -4 77 -18 42 -13 127 -33 187 -43z m-542 1 c26 -16 52 -39 58 -50 6 -12 21 -78 34 -148 l24 -128 -26 -22 c-33 -27 -105 -53 -146 -53 -79 1 -182 88 -206 175 -22 77 17 171 93 226 54 39 107 39 169 0z m625 -1087 c153 -95 314 -134 558 -134 239 0 412 41 579 136 l81 45 65 -17 c86 -22 209 -79 216 -99 9 -22 -9 -38 -81 -73 -181 -90 -430 -125 -875 -125 -264 0 -323 3 -440 22 -279 44 -510 138 -468 189 25 29 203 93 282 101 5 1 42 -20 83 -45z"/> <path d="M1720 1373 c-114 -315 -169 -457 -170 -433 -1 55 -13 70 -102 126 -50 32 -86 60 -81 65 5 5 47 35 93 66 l85 58 3 54 c5 91 -1 101 -56 101 -43 0 -60 -9 -205 -105 l-158 -106 3 -76 3 -77 160 -103 c120 -77 168 -103 193 -103 30 0 33 -2 25 -22 -4 -13 -8 -41 -8 -63 l0 -40 81 -3 80 -3 138 371 c95 257 136 380 134 403 l-3 32 -81 3 -81 3 -53 -148z"/> <path d="M1937 1403 c-4 -3 -7 -36 -7 -73 0 -77 2 -79 118 -155 l72 -48 -82 -55 c-46 -30 -89 -61 -95 -70 -17 -20 -17 -134 -1 -150 7 -7 28 -12 47 -12 27 0 66 21 175 92 194 126 186 117 186 200 l0 68 -161 105 c-140 92 -165 105 -203 105 -23 0 -46 -3 -49 -7z"/> </g> </g> </svg></div>
+
+            <h1 class="title reveal" style="--i:1">Bienvenido a Coffee Inventory</h1>
+            <p class="sub reveal" style="--i:2">Inicia sesión para continuar</p>
+
+            <form id="form_login" novalidate class="login-form">
+
+                <div id="rememberedUser" class="remembered reveal" style="--i:3" hidden>
+                    <span id="rememberedAvatar" class="remembered-avatar"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+                    <span class="remembered-info">
+                        <span id="rememberedName" class="remembered-name"></span>
+                        <span id="rememberedEmail" class="remembered-email"></span>
+                    </span>
+                    <button type="button" id="forgetUserBtn" class="ghost">Cambiar</button>
+                </div>
+
+                <div class="field reveal" style="--i:3" id="emailField">
+                    <label class="sr-only" for="usuario">Correo electrónico</label>
+                    <input type="email" class="input" name="usuario" id="usuario" placeholder="Correo electrónico" required autocomplete="username">
+                </div>
+
+                <div class="field reveal" style="--i:4">
+                    <label class="sr-only" for="clave">Contraseña</label>
+                    <input type="password" class="input has-eye" name="clave" id="clave" placeholder="Contraseña" required autocomplete="current-password">
+                    <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></button>
+                </div>
+
+                <span class="caps" id="capsHint"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Bloq Mayús está activado</span>
+
+                <div id="login-error" class="login-error" role="alert">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                    <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                </div>
+
+                <div class="row reveal" style="--i:5">
+                    <label class="check">
+                        <input type="checkbox" id="rememberMe" checked>
+                        <span>Recordarme</span>
+                    </label>
+                    <a class="link" href="../../../../recuperar.php">¿Olvidaste tu contraseña?</a>
+                </div>
+
+                <button type="submit" class="btn reveal" style="--i:6" id="btnLogin">
+                    <span>Continuar</span>
+                    <span class="arrow"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
+                    <span class="spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span>
+                </button>
+            </form>
+
+            <p class="note reveal" style="--i:7">¿Aún no tienes acceso? <b>Pídelo a tu administrador.</b></p>
+        </div>
+    </main>
+
+    <footer class="reveal" style="--i:8">
+        <span class="status"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>Conexión cifrada</span>
+        <span class="sep"></span>
+        <span>&copy; <span class="js-year">2026</span> CoffeeSoft</span>
+    </footer>
+
+    <script>
+        // Demo de la maqueta: el envío y el usuario recordado los maneja acceso/src/js/index.js.
+        const $ = id => document.getElementById(id);
+        const EYE = $('btnEye').innerHTML;
+        const EYE_OFF = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>';
+
+        if (new URLSearchParams(location.search).get('recordado') === '1') {
+            $('usuario').value = 'maria@cafecentral.mx';
+            $('emailField').hidden = true;
+            $('rememberedName').textContent = 'María López';
+            $('rememberedEmail').textContent = 'maria@cafecentral.mx';
+            $('rememberedUser').hidden = false;
+        }
+
+        $('forgetUserBtn').addEventListener('click', () => {
+            $('rememberedUser').hidden = true;
+            $('emailField').hidden = false;
+            $('usuario').value = '';
+            $('usuario').focus();
+        });
+
+        $('btnEye').addEventListener('click', () => {
+            const show = $('clave').type === 'password';
+            $('clave').type = show ? 'text' : 'password';
+            $('btnEye').innerHTML = show ? EYE_OFF : EYE;
+        });
+
+        $('clave').addEventListener('keyup', e => {
+            $('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        document.querySelectorAll('#usuario, #clave').forEach(i => i.addEventListener('input', () => {
+            $('login-error').classList.remove('show');
+            document.querySelectorAll('.is-invalid').forEach(x => x.classList.remove('is-invalid'));
+        }));
+
+        $('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            $('btnLogin').classList.add('loading');
+            setTimeout(() => {
+                $('btnLogin').classList.remove('loading');
+                $('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1100);
+        });
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+    </script>
+</body>
+
+</html>
