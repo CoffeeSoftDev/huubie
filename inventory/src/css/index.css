@@ -1,33 +1,37 @@
 /* ============================================================
    Coffee Inventory · Acceso (login + recuperar contraseña)
-   Tarjeta centrada al estilo erp24/avatars, interior tipo ChatGPT:
-   título grande, campos con etiqueta flotante y botón pastilla.
+   Estilo "Porcelana": fondo hueso con grano, una tarjeta blanca con
+   sombras en capas y borde degradado, ícono de app oscuro, campos con
+   etiqueta arriba y botón negro con relieve. Tipografía Geist.
+   Maqueta de referencia: acceso/templates/login/premium/premium-2-porcelana.html
 
    Clases que controla el JS y NO se renombran:
-     acceso/src/js/index.js     -> .login-error.show, .is-invalid, #btnEye,
-                                   #rememberedUser, #forgetUserBtn
-     acceso/src/js/recuperar.js -> .paso.on, .hide
+     acceso/src/js/index.js     -> .login-error.show, .is-invalid, .loading,
+                                   .caps.show, #btnEye, #rememberedUser,
+                                   #forgetUserBtn
+     acceso/src/js/recuperar.js -> .paso.on, .hide, .aviso-ok, .aviso-error
+     src/js/plugins.js          -> span.text-danger(.hide) dentro del .field
+
+   Las reglas de botones van con dos clases (.login-card .btn-continue): el
+   preflight de Tailwind (CDN) pisa con [type=submit] a una sola clase.
    ============================================================ */
 
-/*  Los neutros son la escala NEUTRAL de shadcn, la misma de CoffeeAgents
-    (agents.css: --background, --border, --muted-foreground, --primary). Sin el
-    tinte cálido que tenían antes: gris puro. El único color sigue siendo el
-    terracota del acento. */
 :root {
-    --acc-bg:          #F5F5F5;
-    --acc-card:        #FFFFFF;
-    --acc-ink:         #0D0D0D;
-    --acc-ink-soft:    #525252;
-    --acc-ink-mute:    #A3A3A3;
-    --acc-line:        #E5E5E5;
-    --acc-line-strong: #D4D4D4;
-    --acc-primary:     #171717;
-    --acc-primary-h:   #262626;
-    --acc-accent:      #C05A40;
-    --acc-accent-tint: rgba(192, 90, 64, 0.12);
-    --acc-danger:      #9D3434;
-    --acc-danger-bg:   #FDF2F2;
-    --acc-danger-line: #F0D3D3;
+    --acc-bg:      #F6F6F4;
+    --acc-card:    #FFFFFF;
+    --acc-ink:     #0A0A0A;
+    --acc-ink-2:   #5E5E5E;
+    --acc-ink-3:   #9C9C9C;
+    --acc-line:    rgba(10, 10, 10, 0.08);
+    --acc-line-2:  rgba(10, 10, 10, 0.13);
+    --acc-soft:    #FAFAF9;
+    --acc-brand:   192, 90, 64;
+    --acc-danger:  #C2281D;
+    --acc-warn:    #A15C07;
+    --acc-ok:      #1F7A3D;
+    --acc-ease:    cubic-bezier(.16, 1, .3, 1);
+    --acc-sans:    'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --acc-mono:    'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 * {
@@ -37,208 +41,263 @@
 }
 
 .login-body {
-    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--acc-sans);
     min-height: 100vh;
     min-height: 100dvh;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    /* El hueco de abajo es para el pie fijo: sin él la tarjeta se le encima
-       cuando la ventana es baja. */
-    padding: 24px 16px;
-    background: var(--acc-bg);
+    flex-direction: column;
+    background:
+        radial-gradient(ellipse 60% 50% at 50% 38%, rgba(var(--acc-brand), 0.07), transparent 70%),
+        radial-gradient(ellipse 80% 60% at 50% -10%, #FFFFFF, transparent 70%),
+        var(--acc-bg);
     color: var(--acc-ink);
     -webkit-font-smoothing: antialiased;
 }
 
-/*  El halo de color del composer de CoffeeAgents (agents.css :: .ai-glow):
-    mismas paradas (durazno -> albaricoque -> rosa -> lavanda), mismo desenfoque
-    y la misma máscara que lo desvanece hacia arriba. Va al pie de la PANTALLA,
-    igual que allá, no detrás de la tarjeta. */
+/* Puntos finos alrededor de la tarjeta, desvanecidos hacia los bordes. */
+.login-body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(rgba(10, 10, 10, 0.09) 1px, transparent 1px);
+    background-size: 20px 20px;
+    -webkit-mask-image: radial-gradient(ellipse 50% 45% at 50% 45%, #000 20%, transparent 80%);
+    mask-image: radial-gradient(ellipse 50% 45% at 50% 45%, #000 20%, transparent 80%);
+    opacity: .55;
+    pointer-events: none;
+}
+
+/* Grano: le quita lo plano al fondo. */
 .login-body::after {
     content: '';
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 240px;
-    z-index: 0;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: .035;
     pointer-events: none;
-    background: linear-gradient(100deg,
-        #f6d4b0 0%, #f4c2a1 32%, #e8b4b8 64%, #d9c2f0 100%);
-    filter: blur(55px);
-    opacity: .6;
-    -webkit-mask-image: linear-gradient(to top, #000 40%, transparent 100%);
-    mask-image: linear-gradient(to top, #000 40%, transparent 100%);
 }
 
+/* -- Entrada escalonada (fade + blur) -- */
+.reveal {
+    animation: acc-rise .8s var(--acc-ease) backwards;
+    animation-delay: calc(var(--i, 0) * 60ms + 60ms);
+}
+
+@keyframes acc-rise {
+    from { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+    to   { opacity: 1; transform: none; filter: none; }
+}
+
+/* El logo de CoffeeSoft pintado con currentColor: el SVG funciona como máscara. */
+.login-logo {
+    display: block;
+    width: 24px;
+    height: 19px;
+    background: currentColor;
+    -webkit-mask: url('../img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+    mask: url('../img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+}
+
+/* -- Barra superior -- */
+.login-top {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    height: 68px;
+    padding: 0 28px;
+}
+
+.login-wordmark {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+a.login-wordmark { color: inherit; text-decoration: none; }
+
+/* -- Escena -- */
 .login-shell {
     position: relative;
     z-index: 1;
-    width: 100%;
-    max-width: 400px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px 40px;
 }
 
 /* -- Tarjeta -- */
 .login-card {
-    background: var(--acc-card);
-    border: 1px solid var(--acc-line);
-    border-radius: 16px;
-    padding: 36px 32px 28px;
-    box-shadow: 0 18px 44px -20px rgba(28, 25, 23, 0.25);
+    width: 100%;
+    max-width: 412px;
+    padding: 32px;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    background:
+        linear-gradient(var(--acc-card), var(--acc-card)) padding-box,
+        linear-gradient(180deg, rgba(10, 10, 10, 0.10), rgba(10, 10, 10, 0.05)) border-box;
+    box-shadow:
+        0 1px 1px rgba(10, 10, 10, 0.03),
+        0 2px 4px -1px rgba(10, 10, 10, 0.03),
+        0 12px 24px -8px rgba(10, 10, 10, 0.06),
+        0 32px 64px -24px rgba(10, 10, 10, 0.14);
 }
 
-.login-brand {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 20px;
-}
-
-/* El logo de CoffeeSoft en negro, el mismo trazo que usa erp24/avatars. */
 .login-mark {
-    display: block;
-    width: 58px;
-    height: 45px;
-    background: url('../img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #2C2C2E 0%, #0A0A0A 100%);
+    color: #FFFFFF;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 0 0 1px rgba(10, 10, 10, 0.9),
+        0 6px 14px -6px rgba(10, 10, 10, 0.5);
 }
 
 .login-title {
-    text-align: center;
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    margin-top: 22px;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.025em;
 }
 
 .login-sub {
-    text-align: center;
-    font-size: 13.5px;
-    color: var(--acc-ink-soft);
     margin-top: 6px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--acc-ink-2);
 }
 
 /* -- Formulario -- */
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     margin-top: 26px;
 }
 
-.field { position: relative; }
+.field { display: grid; gap: 7px; }
+.field[hidden] { display: none; }
+
+.field-label { font-size: 13px; font-weight: 500; }
+
+.label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.label-row a {
+    font-size: 13px;
+    color: var(--acc-ink-2);
+    text-decoration: none;
+    transition: color .2s;
+}
+
+.label-row a:hover { color: var(--acc-ink); }
+
+.control { position: relative; }
 
 .field-input {
     width: 100%;
-    height: 54px;
-    padding: 22px 14px 7px;
-    font-size: 14.5px;
+    height: 42px;
+    padding: 0 13px;
     font-family: inherit;
+    font-size: 14.5px;
     color: var(--acc-ink);
-    background: var(--acc-card);
-    border: 1px solid var(--acc-line-strong);
+    background: #FFFFFF;
+    border: 1px solid var(--acc-line-2);
     border-radius: 10px;
     outline: none;
-    transition: border-color .15s, box-shadow .15s;
+    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05), inset 0 1px 1px rgba(10, 10, 10, 0.02);
+    transition: border-color .2s, box-shadow .2s;
 }
 
-.field-input.has-eye { padding-right: 46px; }
+.field-input::placeholder { color: var(--acc-ink-3); }
+.field-input:hover { border-color: rgba(10, 10, 10, 0.2); }
 
 .field-input:focus {
-    border-color: var(--acc-accent);
-    box-shadow: 0 0 0 3px var(--acc-accent-tint);
+    border-color: var(--acc-ink);
+    box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.07);
 }
 
-/* Etiqueta flotante: arriba y pequeña salvo que el campo esté vacío y sin foco. */
-.field-label {
-    position: absolute;
-    left: 15px;
-    top: 9px;
-    font-size: 11.5px;
-    font-weight: 500;
-    color: var(--acc-ink-mute);
-    pointer-events: none;
-    transition: top .15s, font-size .15s, color .15s;
-}
+.field-input.has-eye { padding-right: 42px; }
+.field-input.is-invalid { border-color: var(--acc-danger); }
+.field-input.is-invalid:focus { box-shadow: 0 0 0 4px rgba(194, 40, 29, 0.1); }
 
-.field-input:placeholder-shown + .field-label {
-    top: 17px;
-    font-size: 14.5px;
-}
-
-.field-input:focus + .field-label {
-    top: 9px;
-    font-size: 11.5px;
-    color: var(--acc-accent);
-}
-
-.field-input.is-invalid {
-    border-color: var(--acc-danger);
-}
-
-.field-input.is-invalid:focus {
-    box-shadow: 0 0 0 3px rgba(157, 52, 52, 0.12);
-}
-
-/* El plugin validation_form inyecta este span dentro del .field */
-.field .text-danger {
+/* El plugin validation_form inyecta este span al final del contenedor del campo. */
+.field .text-danger,
+.control .text-danger {
     display: block;
-    font-size: 11.5px;
+    margin-top: 6px;
+    font-size: 12.5px;
     color: var(--acc-danger);
-    margin-top: 5px;
 }
 
-.field .text-danger.hide { display: none; }
+.field .text-danger.hide,
+.control .text-danger.hide { display: none; }
 
-/* -- Ojo de la contraseña (#btnEye) -- */
-.eye-btn {
+/* -- Ojo de la contraseña (#btnEye) --
+   Anclado arriba y no al 50%: así no se mueve cuando aparece el aviso de requerido. */
+.login-card .eye-btn {
     position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
+    right: 5px;
+    top: 5px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     border: none;
     border-radius: 8px;
     background: transparent;
-    color: var(--acc-ink-mute);
+    color: var(--acc-ink-3);
     cursor: pointer;
-    transition: color .15s, background .15s;
+    transition: color .2s, background .2s;
 }
 
-.eye-btn:hover { color: var(--acc-ink); background: var(--acc-bg); }
-.eye-btn svg { width: 18px; height: 18px; }
+.login-card .eye-btn:hover { color: var(--acc-ink); background: rgba(10, 10, 10, 0.05); }
+.eye-btn svg { width: 16px; height: 16px; }
 
 /* -- Usuario recordado -- */
 .remembered {
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 10px 10px 10px 12px;
-    border: 1px solid var(--acc-line-strong);
-    border-radius: 10px;
-    background: var(--acc-bg);
+    padding: 9px 9px 9px 10px;
+    border: 1px solid var(--acc-line);
+    border-radius: 12px;
+    background: var(--acc-soft);
 }
 
 .remembered[hidden] { display: none; }
 
-/*  El ícono va siempre en blanco, así que el fondo por defecto --el de quien no
-    tiene color elegido-- es un gris que lo sostenga. Con color propio, el
-    style en línea lo pisa. */
+/*  Sin color elegido, un degradado oscuro sostiene el ícono blanco. Con color
+    propio (users.color) el style en línea que pone index.js lo pisa. */
 .remembered-avatar {
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    background: #9CA3AF;
+    background: linear-gradient(180deg, #3A3A3C, #111111);
     color: #FFFFFF;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
-.remembered-avatar svg { width: 19px; height: 19px; }
+.remembered-avatar svg { width: 16px; height: 16px; }
 
 .remembered-avatar img {
     width: 100%;
@@ -250,6 +309,7 @@
 .remembered-info {
     flex: 1;
     min-width: 0;
+    line-height: 1.3;
 }
 
 .remembered-name,
@@ -260,108 +320,181 @@
     white-space: nowrap;
 }
 
-.remembered-name { font-size: 13.5px; font-weight: 600; }
-.remembered-email { font-size: 12px; color: var(--acc-ink-soft); }
+.remembered-name { font-size: 14px; font-weight: 500; }
+.remembered-email { font-family: var(--acc-mono); font-size: 11.5px; color: var(--acc-ink-2); }
 
-.remembered-x {
+.login-card .remembered-x {
     flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: none;
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--acc-line-2);
     border-radius: 8px;
-    background: transparent;
-    color: var(--acc-ink-mute);
+    background: #FFFFFF;
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--acc-ink-2);
     cursor: pointer;
-    transition: color .15s, background .15s;
+    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05);
+    transition: color .2s, border-color .2s;
 }
 
-.remembered-x:hover { color: var(--acc-ink); background: var(--acc-line); }
-.remembered-x svg { width: 15px; height: 15px; }
+.login-card .remembered-x:hover { color: var(--acc-ink); border-color: rgba(10, 10, 10, 0.22); }
 
-/* -- Casilla de recordar -- */
+/* -- Casilla de recordar (propia, sin la del navegador) -- */
 .remember-check {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12.5px;
-    color: var(--acc-ink-soft);
+    gap: 9px;
+    font-size: 13.5px;
+    color: var(--acc-ink-2);
     cursor: pointer;
     user-select: none;
-    margin-top: 2px;
 }
 
 .remember-check input {
-    width: 15px;
-    height: 15px;
-    accent-color: var(--acc-primary);
+    appearance: none;
+    -webkit-appearance: none;
+    display: grid;
+    place-content: center;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border: 1px solid rgba(10, 10, 10, 0.22);
+    border-radius: 5px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05);
     cursor: pointer;
+    transition: background .2s, border-color .2s;
 }
+
+.remember-check input::after {
+    content: '';
+    width: 8px;
+    height: 4.5px;
+    margin-top: -2px;
+    border-left: 1.75px solid #FFFFFF;
+    border-bottom: 1.75px solid #FFFFFF;
+    transform: rotate(-45deg) scale(0);
+    transition: transform .2s var(--acc-ease);
+}
+
+.remember-check input:checked { background: var(--acc-ink); border-color: var(--acc-ink); }
+.remember-check input:checked::after { transform: rotate(-45deg) scale(1); }
+.remember-check input:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.08); }
+
+/* -- Bloq Mayús (.show lo pone index.js) -- */
+.caps {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--acc-warn);
+}
+
+.caps.show { display: flex; }
+.caps svg { width: 14px; height: 14px; }
 
 /* -- Aviso de error (.show lo pone index.js) -- */
 .login-error {
     display: none;
     align-items: center;
-    gap: 9px;
-    padding: 11px 13px;
-    border: 1px solid var(--acc-danger-line);
+    gap: 8px;
+    padding: 10px 12px;
     border-radius: 10px;
-    background: var(--acc-danger-bg);
-    color: var(--acc-danger);
-    font-size: 12.5px;
+    background: #FEF3F2;
+    box-shadow: inset 0 0 0 1px rgba(194, 40, 29, 0.14);
+    font-size: 13px;
     line-height: 1.4;
+    color: var(--acc-danger);
 }
 
-.login-error.show { display: flex; }
-.login-error svg { width: 16px; height: 16px; flex-shrink: 0; }
+.login-error.show { display: flex; animation: acc-rise .4s var(--acc-ease) backwards; }
+.login-error svg { width: 15px; height: 15px; flex-shrink: 0; }
 
-/* -- Botón principal -- */
-.btn-continue {
+/* -- Botón principal: negro con relieve -- */
+.login-card .btn-continue {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     width: 100%;
-    height: 50px;
-    margin-top: 6px;
+    height: 44px;
+    margin-top: 2px;
+    border: 1px solid #0A0A0A;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #2E2E30 0%, #0A0A0A 100%);
     font-family: inherit;
     font-size: 14.5px;
-    font-weight: 600;
+    font-weight: 500;
     color: #FFFFFF;
-    background: var(--acc-primary);
-    border: none;
-    border-radius: 999px;
+    text-decoration: none;
     cursor: pointer;
-    transition: background .15s, transform .1s;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 1px 2px rgba(10, 10, 10, 0.2),
+        0 8px 18px -8px rgba(10, 10, 10, 0.45);
+    transition: transform .15s var(--acc-ease), filter .2s;
 }
 
-.btn-continue:hover { background: var(--acc-primary-h); }
-.btn-continue:active { transform: scale(.99); }
-.btn-continue:disabled { opacity: .6; cursor: not-allowed; }
+.login-card .btn-continue:hover { filter: brightness(1.18); }
+.login-card .btn-continue:active { transform: scale(.985); }
+.login-card .btn-continue:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 3px; }
+.login-card .btn-continue:disabled { opacity: .6; cursor: not-allowed; filter: none; }
 
-/* -- Enlaces y pie -- */
-.login-link {
-    display: block;
-    text-align: center;
-    margin-top: 20px;
+.btn-continue svg { width: 16px; height: 16px; }
+.btn-continue .btn-arrow { transition: transform .25s var(--acc-ease); }
+.btn-continue:hover .btn-arrow { transform: translateX(3px); }
+
+/* Cargando (.loading lo pone index.js): flecha fuera, giro dentro. */
+.btn-continue .btn-spin { display: none; animation: acc-spin .8s linear infinite; }
+.login-card .btn-continue.loading { pointer-events: none; opacity: 1; cursor: progress; }
+.btn-continue.loading .btn-spin { display: block; }
+.btn-continue.loading .btn-arrow { display: none; }
+
+@keyframes acc-spin { to { transform: rotate(360deg); } }
+
+/* -- Pie de la tarjeta -- */
+.card-foot {
+    margin: 26px -32px -32px;
+    padding: 16px 32px;
+    border-top: 1px solid var(--acc-line);
+    border-radius: 0 0 20px 20px;
+    background: var(--acc-soft);
     font-size: 13px;
+    color: var(--acc-ink-2);
+}
+
+.card-foot b { font-weight: 500; color: var(--acc-ink); }
+
+.card-foot a {
     font-weight: 500;
-    color: var(--acc-accent);
+    color: var(--acc-ink);
     text-decoration: none;
 }
 
-.login-link:hover { text-decoration: underline; }
+.card-foot a:hover { text-decoration: underline; }
 
-/* Debajo de la tarjeta, por encima del halo: el gradiente arranca más abajo. */
-.login-footer {
-    text-align: center;
+.login-trust {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
     margin-top: 22px;
-    font-size: 11.5px;
-    color: var(--acc-ink-mute);
+    font-size: 12.5px;
+    color: var(--acc-ink-3);
 }
 
-/* CoffeeSoft en el pie: una sola palabra en negrita, "Coffee" gris y "Soft" naranja. */
-.cs-brand { font-weight: 700; }
-.cs-coffee { color: var(--acc-ink-soft); }
-.cs-soft { color: var(--acc-accent); }
+.login-trust svg { width: 14px; height: 14px; }
+
+.login-footer {
+    position: relative;
+    z-index: 1;
+    padding: 0 16px 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--acc-ink-3);
+}
 
 /* ============================================================
    RECUPERAR CONTRASEÑA
@@ -371,7 +504,7 @@
 .pasos {
     display: flex;
     gap: 6px;
-    margin: 20px 0 4px;
+    margin-top: 20px;
 }
 
 .paso {
@@ -379,69 +512,93 @@
     height: 3px;
     border-radius: 3px;
     background: var(--acc-line);
-    transition: background .25s;
+    transition: background .3s;
 }
 
-.paso.on { background: var(--acc-accent); }
+.paso.on { background: var(--acc-ink); }
 
 .login-form.hide,
 .hide { display: none; }
 
 .paso-texto {
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--acc-ink-soft);
-    margin-bottom: 4px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--acc-ink-2);
 }
 
+.paso-texto span { font-weight: 500; color: var(--acc-ink); }
+
 /* Dígitos grandes: el código se teclea mirando el correo en el teléfono. */
-.field-code {
-    height: 62px;
-    padding: 14px;
+.field-input.field-code {
+    height: 56px;
+    padding: 0 14px;
     text-align: center;
-    font-size: 26px;
-    font-weight: 600;
+    font-family: var(--acc-mono);
+    font-size: 24px;
+    font-weight: 500;
     letter-spacing: .45em;
     text-indent: .45em;
 }
 
-.field-code + .field-label { display: none; }
-
-.btn-ghost {
+.login-card .btn-ghost {
     width: 100%;
-    margin-top: 2px;
+    margin-top: -4px;
     padding: 8px 0;
-    font-family: inherit;
-    font-size: 12.5px;
-    color: var(--acc-ink-soft);
-    background: transparent;
     border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--acc-ink-2);
     cursor: pointer;
+    transition: color .2s;
 }
 
-.btn-ghost:hover { color: var(--acc-ink); text-decoration: underline; }
+.login-card .btn-ghost:hover { color: var(--acc-ink); }
+.login-card .btn-ghost:disabled { opacity: .6; cursor: not-allowed; }
 
 .aviso {
-    padding: 11px 13px;
+    margin-top: 18px;
+    padding: 10px 12px;
     border-radius: 10px;
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.45;
 }
 
+.aviso.hide { display: none; }
+
 .aviso-ok {
-    border: 1px solid #CFE6D4;
-    background: #F2FAF4;
-    color: #256B3A;
+    background: #F0FAF3;
+    box-shadow: inset 0 0 0 1px rgba(31, 122, 61, 0.16);
+    color: var(--acc-ok);
 }
 
 .aviso-error {
-    border: 1px solid var(--acc-danger-line);
-    background: var(--acc-danger-bg);
+    background: #FEF3F2;
+    box-shadow: inset 0 0 0 1px rgba(194, 40, 29, 0.14);
     color: var(--acc-danger);
 }
 
+.login-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 22px;
+    font-size: 13px;
+    color: var(--acc-ink-2);
+    text-decoration: none;
+    transition: color .2s;
+}
+
+.login-back:hover { color: var(--acc-ink); }
+.login-back svg { width: 15px; height: 15px; }
+
 /* -- Responsive -- */
-@media (max-width: 420px) {
-    .login-card { padding: 30px 22px 24px; }
-    .login-title { font-size: 23px; }
+@media (max-width: 480px) {
+    .login-top { padding: 0 18px; }
+    .login-card { padding: 26px 22px; }
+    .card-foot { margin: 22px -22px -26px; padding: 14px 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
 }

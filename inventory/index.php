@@ -20,68 +20,81 @@ if(isset($_COOKIE['IDU'])){
     <title>Coffee Inventory - Iniciar sesión</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="src/js/tailwind-theme.js?v=<?php echo filemtime(__DIR__ . '/src/js/tailwind-theme.js'); ?>"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/plugin/sweetalert2/sweetalert2.min.css">
-    <link rel="stylesheet" href="src/css/index.css">
+    <link rel="stylesheet" href="src/css/index.css?v=<?php echo filemtime(__DIR__ . '/src/css/index.css'); ?>">
 </head>
 
 <body class="login-body">
 
+    <header class="login-top reveal" style="--i:0">
+        <span class="login-wordmark"><span class="login-logo" aria-hidden="true"></span>Coffee Inventory</span>
+    </header>
+
     <main class="login-shell">
 
-        <div class="login-card">
+        <div class="login-card reveal" style="--i:1">
 
-            <div class="login-brand">
-                <span class="login-mark" aria-hidden="true"></span>
-            </div>
+            <span class="login-mark reveal" style="--i:2" aria-hidden="true"><span class="login-logo"></span></span>
 
-            <h1 class="login-title">Inicia sesión</h1>
-            <p class="login-sub">para continuar a Coffee Inventory</p>
+            <h1 class="login-title reveal" style="--i:3">Bienvenido de vuelta</h1>
+            <p class="login-sub reveal" style="--i:4">Inicia sesión en tu cuenta de Coffee Inventory.</p>
 
             <form id="form_login" novalidate class="login-form">
 
                 <div id="login-error" class="login-error" role="alert">
-                    <i data-lucide="alert-circle"></i>
+                    <i data-lucide="circle-alert"></i>
                     <span id="login-error-text">Usuario y/o clave incorrectos.</span>
                 </div>
 
                 <!-- Usuario recordado en ESTE navegador. Sustituye al campo de correo:
                      solo queda escribir la contraseña. Lo pinta applyRemembered(). -->
-                <div id="rememberedUser" class="remembered" hidden>
+                <div id="rememberedUser" class="remembered reveal" style="--i:5" hidden>
                     <span id="rememberedAvatar" class="remembered-avatar"></span>
                     <span class="remembered-info">
                         <span id="rememberedName" class="remembered-name"></span>
                         <span id="rememberedEmail" class="remembered-email"></span>
                     </span>
-                    <button type="button" id="forgetUserBtn" class="remembered-x" aria-label="Usar otra cuenta" title="Usar otra cuenta">
-                        <i data-lucide="x"></i>
-                    </button>
+                    <button type="button" id="forgetUserBtn" class="remembered-x" title="Usar otra cuenta">Cambiar</button>
                 </div>
 
-                <div class="field" id="emailField">
-                    <input type="email" class="field-input" name="usuario" id="usuario" placeholder=" " required autocomplete="username">
+                <div class="field reveal" style="--i:5" id="emailField">
                     <label class="field-label" for="usuario">Correo electrónico</label>
+                    <input type="email" class="field-input" name="usuario" id="usuario" placeholder="nombre@empresa.com" required autocomplete="username">
                 </div>
 
-                <div class="field">
-                    <input type="password" class="field-input has-eye" name="clave" id="clave" placeholder=" " required autocomplete="current-password">
-                    <label class="field-label" for="clave">Contraseña</label>
-                    <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                <div class="field reveal" style="--i:6">
+                    <div class="label-row">
+                        <label class="field-label" for="clave">Contraseña</label>
+                        <a href="recuperar.php">¿La olvidaste?</a>
+                    </div>
+                    <div class="control">
+                        <input type="password" class="field-input has-eye" name="clave" id="clave" required autocomplete="current-password">
+                        <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                    </div>
+                    <span class="caps" id="capsHint"><i data-lucide="triangle-alert"></i>Bloq Mayús está activado</span>
                 </div>
 
-                <label class="remember-check">
+                <label class="remember-check reveal" style="--i:7">
                     <input type="checkbox" id="rememberMe" checked>
                     <span>Recordar mi usuario en este equipo</span>
                 </label>
 
-                <button type="submit" class="btn-continue">Continuar</button>
+                <button type="submit" class="btn-continue reveal" style="--i:8" id="btnLogin">
+                    <span>Continuar</span>
+                    <i data-lucide="arrow-right" class="btn-arrow"></i>
+                    <i data-lucide="loader-circle" class="btn-spin"></i>
+                </button>
             </form>
 
-            <a class="login-link" href="recuperar.php">¿Olvidaste tu contraseña?</a>
+            <div class="card-foot">¿Sin acceso? <b>Pide una cuenta a tu administrador.</b></div>
         </div>
 
-        <p class="login-footer">Powered by <span class="cs-brand"><span class="cs-coffee">Coffee</span><span class="cs-soft">Soft</span></span> &copy; 2025</p>
+        <p class="login-trust reveal" style="--i:9"><i data-lucide="shield-check"></i>Tu sesión se cierra tras 8 h sin uso</p>
     </main>
+
+    <p class="login-footer reveal" style="--i:10">&copy; <?php echo date('Y'); ?> CoffeeSoft</p>
 
     <script src="src/plugin/lucide/lucide.min.js"></script>
     <script src="src/plugin/jquery/jquery-3.7.0.min.js"></script>

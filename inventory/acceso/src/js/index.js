@@ -10,6 +10,7 @@ $(() => {
 
     $('#form_login').validation_form({opc:"login"},(datos)=>{
         hideLoginError();
+        setLoading(true);
         send_ajax(datos,link).then(data=>storage(data));
     });
 
@@ -17,6 +18,10 @@ $(() => {
     $('#forgetUserBtn').on("click",()=>forgetUser());
 
     $('#usuario, #clave').on("input", ()=>hideLoginError());
+    $('#clave').on("keyup", (e)=>toggleCaps(e));
+
+    // send_ajax no resuelve ni rechaza cuando falla la red: sin esto el botón se queda girando.
+    $(document).ajaxError(()=>setLoading(false));
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 });
@@ -106,8 +111,19 @@ function storage(data) {
         // redirige a operacion/almacen/.
         window.location.href = (parseInt(data.is_admin, 10) === 1) ? "modulos/" : "sucursales/";
     } else {
+        setLoading(false);
         showLoginError('Usuario y/o clave incorrectos.');
     }
+}
+
+// Deshabilitado además de girando: así un Enter en el campo no manda el login dos veces.
+function setLoading(estado) {
+    $('#btnLogin').toggleClass('loading', estado).prop('disabled', estado);
+}
+
+function toggleCaps(e) {
+    const ev = e.originalEvent || e;
+    $('#capsHint').toggleClass('show', !!(ev.getModifierState && ev.getModifierState('CapsLock')));
 }
 
 function showLoginError(message) {

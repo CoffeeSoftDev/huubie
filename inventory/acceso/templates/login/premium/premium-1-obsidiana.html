@@ -95,7 +95,7 @@
 
         /* -- Entrada escalonada -- */
         .reveal {
-            animation: rise .8s var(--ease) both;
+            animation: rise .8s var(--ease) backwards;
             animation-delay: calc(var(--i, 0) * 70ms + 80ms);
         }
 
@@ -353,7 +353,7 @@
             color: var(--danger);
         }
 
-        .login-error.show { display: flex; animation: rise .4s var(--ease) both; }
+        .login-error.show { display: flex; animation: rise .4s var(--ease) backwards; }
         .login-error .ico { width: 15px; height: 15px; }
 
         /* -- Botón principal: claro, con relieve -- */

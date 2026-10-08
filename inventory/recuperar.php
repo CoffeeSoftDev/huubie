@@ -26,24 +26,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="src/img/logos/coffee_icon.png" type="image/x-icon">
     <title>Coffee Inventory - Recuperar contraseña</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/plugin/sweetalert2/sweetalert2.min.css">
-    <link rel="stylesheet" href="src/css/index.css">
+    <link rel="stylesheet" href="src/css/index.css?v=<?php echo filemtime(__DIR__ . '/src/css/index.css'); ?>">
 </head>
 
 <body class="login-body">
 
+    <header class="login-top reveal" style="--i:0">
+        <a class="login-wordmark" href="index.php"><span class="login-logo" aria-hidden="true"></span>Coffee Inventory</a>
+    </header>
+
     <main class="login-shell">
 
-        <div class="login-card">
+        <div class="login-card reveal" style="--i:1">
 
-            <div class="login-brand">
-                <span class="login-mark" aria-hidden="true"></span>
-            </div>
+            <span class="login-mark reveal" style="--i:2" aria-hidden="true"><span class="login-logo"></span></span>
 
-            <h1 class="login-title">Recuperar contraseña</h1>
+            <h1 class="login-title reveal" style="--i:3">Recuperar contraseña</h1>
 
-            <div class="pasos" id="pasos">
+            <div class="pasos reveal" style="--i:4" id="pasos">
                 <span class="paso on"></span>
                 <span class="paso"></span>
                 <span class="paso"></span>
@@ -52,15 +55,15 @@
             <div id="aviso" class="aviso hide"></div>
 
             <!-- ============ PASO 1 :: tu correo ============ -->
-            <form id="form-correo" novalidate class="login-form">
+            <form id="form-correo" novalidate class="login-form reveal" style="--i:5">
                 <p class="paso-texto">
                     Escribe el correo con el que entras. Te enviamos un código
                     para que puedas elegir una contraseña nueva.
                 </p>
 
                 <div class="field">
-                    <input type="email" class="field-input" name="correo" id="correo" placeholder=" " required autocomplete="username" autofocus>
                     <label class="field-label" for="correo">Correo electrónico</label>
+                    <input type="email" class="field-input" name="correo" id="correo" placeholder="nombre@empresa.com" required autocomplete="username" autofocus>
                 </div>
 
                 <button type="submit" class="btn-continue" id="btn-enviar">Enviar código</button>
@@ -74,12 +77,12 @@
                 </p>
 
                 <div class="field">
+                    <label class="field-label" for="codigo">Código</label>
                     <!-- one-time-code: el teclado del teléfono ofrece pegarlo
                          en cuanto llega el mensaje. -->
                     <input type="text" class="field-input field-code" name="codigo" id="codigo"
                            inputmode="numeric" autocomplete="one-time-code" maxlength="6"
                            placeholder="••••••" required>
-                    <label class="field-label" for="codigo">Código</label>
                 </div>
 
                 <button type="submit" class="btn-continue" id="btn-codigo">Continuar</button>
@@ -94,31 +97,34 @@
                 </p>
 
                 <div class="field">
-                    <input type="password" class="field-input has-eye" name="nueva" id="nueva" placeholder=" " required autocomplete="new-password">
                     <label class="field-label" for="nueva">Contraseña nueva</label>
-                    <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                    <div class="control">
+                        <input type="password" class="field-input has-eye" name="nueva" id="nueva" required autocomplete="new-password">
+                        <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                    </div>
                 </div>
 
                 <div class="field">
-                    <input type="password" class="field-input" name="confirmar" id="confirmar" placeholder=" " required autocomplete="new-password">
                     <label class="field-label" for="confirmar">Repite la contraseña</label>
+                    <input type="password" class="field-input" name="confirmar" id="confirmar" required autocomplete="new-password">
                 </div>
 
                 <button type="submit" class="btn-continue" id="btn-clave">Guardar contraseña</button>
             </form>
 
             <!-- ============ FINAL ============ -->
-            <div id="paso-listo" class="hide">
-                <a href="index.php" class="btn-continue" style="display:flex;align-items:center;justify-content:center;text-decoration:none;">
-                    Iniciar sesión
+            <div id="paso-listo" class="login-form hide">
+                <a href="index.php" class="btn-continue">
+                    <span>Iniciar sesión</span>
+                    <i data-lucide="arrow-right" class="btn-arrow"></i>
                 </a>
             </div>
 
-            <a class="login-link" href="index.php">&larr; Volver al inicio de sesión</a>
+            <div class="card-foot">¿Ya la recordaste? <a href="index.php">Volver a iniciar sesión</a></div>
         </div>
-
-        <p class="login-footer">Powered by <span class="cs-brand"><span class="cs-coffee">Coffee</span><span class="cs-soft">Soft</span></span> &copy; 2025</p>
     </main>
+
+    <p class="login-footer reveal" style="--i:6">&copy; <?php echo date('Y'); ?> CoffeeSoft</p>
 
     <script src="src/plugin/lucide/lucide.min.js"></script>
     <script src="src/plugin/jquery/jquery-3.7.0.min.js"></script>

@@ -60,7 +60,7 @@
         .ico { width: 16px; height: 16px; flex-shrink: 0; }
 
         .reveal {
-            animation: rise .8s var(--ease) both;
+            animation: rise .8s var(--ease) backwards;
             animation-delay: calc(var(--i, 0) * 60ms + 60ms);
         }
 
@@ -305,7 +305,7 @@
             color: var(--danger);
         }
 
-        .login-error.show { display: flex; animation: rise .4s var(--ease) both; }
+        .login-error.show { display: flex; animation: rise .4s var(--ease) backwards; }
         .login-error .ico { width: 15px; height: 15px; }
 
         .btn {
