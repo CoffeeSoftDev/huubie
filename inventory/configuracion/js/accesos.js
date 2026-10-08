@@ -4,10 +4,11 @@ let statusFilter = [];
 let sucursalesData = [];
 let dataInit = {};
 
+// Tonos de avatar de las cuentas de Google y Microsoft (los mismos de admin/accesos).
 const USER_COLOR_PALETTE = [
-    '#C05A40', '#4A7C8F', '#6B7FAB', '#7A9E5F',
-    '#A06B3C', '#6A5FA8', '#4D8FA8', '#9E5F6B',
-    '#5F9E7A', '#8C6A3C'
+    '#1A73E8', '#038387', '#188038', '#986F0B',
+    '#CA5010', '#D93025', '#E3008C', '#8764B8',
+    '#5C2E91', '#69797E'
 ];
 
 // Notificación: éxito se cierra solo (sin botón => respeta el timer de alert()),

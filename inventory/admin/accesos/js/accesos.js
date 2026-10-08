@@ -5,10 +5,12 @@ let sucursalesData = [];
 let rolesData = [];
 let dataInit = {};
 
+// Tonos de avatar de las cuentas de Google y Microsoft: todos sostienen el
+// ícono blanco con contraste de 4.5:1 o más. Mismos 10 en tenant/js/saas.js.
 const USER_COLOR_PALETTE = [
-    '#F4B8A4', '#A9CBD4', '#B8C4E0', '#B7D9A0',
-    '#E8CBA0', '#C7B8E3', '#A3D0DE', '#E6B4C0',
-    '#A6DDBF', '#E0C68A'
+    '#1A73E8', '#038387', '#188038', '#986F0B',
+    '#CA5010', '#D93025', '#E3008C', '#8764B8',
+    '#5C2E91', '#69797E'
 ];
 
 /*  La foto del colaborador se reduce a 320px y se entrega como dataURL: va a
