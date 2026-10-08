@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<!--
+    Propuesta A :: Split Almacén
+    Pantalla dividida: a la izquierda la marca y lo que hace el producto, a la
+    derecha el formulario. En móvil el panel se oculta y queda solo el formulario.
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #forgetUserBtn
+-->
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../../../src/img/logos/coffee_icon.png" type="image/x-icon">
+    <title>Coffee Inventory - Propuesta A</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --acc-bg:          #F5F5F5;
+            --acc-card:        #FFFFFF;
+            --acc-ink:         #0D0D0D;
+            --acc-ink-soft:    #525252;
+            --acc-ink-mute:    #A3A3A3;
+            --acc-line:        #E5E5E5;
+            --acc-line-strong: #D4D4D4;
+            --acc-primary:     #171717;
+            --acc-primary-h:   #262626;
+            --acc-accent:      #C05A40;
+            --acc-accent-tint: rgba(192, 90, 64, 0.12);
+            --acc-danger:      #9D3434;
+            --acc-danger-bg:   #FDF2F2;
+            --acc-danger-line: #F0D3D3;
+            --acc-warn:        #8A5A00;
+            --acc-warn-bg:     #FFF8E6;
+            --acc-panel:       #141414;
+            --acc-panel-card:  rgba(255, 255, 255, 0.05);
+            --acc-panel-line:  rgba(255, 255, 255, 0.09);
+            --acc-panel-ink:   #FAFAFA;
+            --acc-panel-soft:  #A3A3A3;
+            --acc-ok:          #4ADE80;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: grid;
+            grid-template-columns: 1fr;
+            background: var(--acc-card);
+            color: var(--acc-ink);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        @media (min-width: 960px) {
+            body { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+        }
+
+        .logo {
+            display: block;
+            width: 34px;
+            height: 26px;
+            background: currentColor;
+            -webkit-mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+            mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+        }
+
+        /* -- Panel de marca -- */
+        .brand-panel {
+            display: none;
+            position: relative;
+            overflow: hidden;
+            padding: 40px 48px;
+            background: var(--acc-panel);
+            color: var(--acc-panel-ink);
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        @media (min-width: 960px) {
+            .brand-panel { display: flex; }
+        }
+
+        .brand-panel::before {
+            content: '';
+            position: absolute;
+            width: 560px;
+            height: 560px;
+            right: -180px;
+            bottom: -220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(192, 90, 64, 0.38) 0%, rgba(192, 90, 64, 0) 68%);
+            pointer-events: none;
+        }
+
+        .brand-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+            background-size: 22px 22px;
+            -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 75%);
+            mask-image: linear-gradient(to bottom, #000 0%, transparent 75%);
+            pointer-events: none;
+        }
+
+        .brand-panel > * { position: relative; z-index: 1; }
+
+        .brand-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .brand-head .logo { color: #FFFFFF; }
+
+        .brand-copy h2 {
+            font-size: 40px;
+            line-height: 1.08;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            max-width: 440px;
+        }
+
+        .brand-copy h2 em {
+            font-style: normal;
+            color: #E8957D;
+        }
+
+        .brand-copy p {
+            margin-top: 14px;
+            max-width: 420px;
+            font-size: 15px;
+            line-height: 1.55;
+            color: var(--acc-panel-soft);
+        }
+
+        /* Vista previa del producto: dibujada con CSS, sin datos reales. */
+        .preview {
+            margin-top: 36px;
+            max-width: 460px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .preview-card {
+            border: 1px solid var(--acc-panel-line);
+            background: var(--acc-panel-card);
+            border-radius: 14px;
+            padding: 16px 18px;
+            backdrop-filter: blur(6px);
+        }
+
+        .preview-top {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .preview-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--acc-panel-soft);
+        }
+
+        .preview-value {
+            margin-top: 6px;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .preview-trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--acc-ok);
+        }
+
+        .bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 5px;
+            height: 48px;
+        }
+
+        .bars span {
+            width: 10px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .bars span:last-child { background: var(--acc-accent); }
+
+        .moves { display: grid; gap: 2px; }
+
+        .move {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 0;
+            font-size: 13px;
+        }
+
+        .move + .move { border-top: 1px solid var(--acc-panel-line); }
+
+        .move-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            flex-shrink: 0;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .move-icon svg { width: 15px; height: 15px; }
+        .move-icon.in  { color: #86EFAC; }
+        .move-icon.out { color: #FCA5A5; }
+        .move-icon.tr  { color: #E8957D; }
+
+        .move-name { flex: 1; min-width: 0; }
+        .move-name small { display: block; font-size: 11.5px; color: var(--acc-panel-soft); }
+        .move-qty { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+        .brand-foot {
+            font-size: 12px;
+            color: var(--acc-panel-soft);
+        }
+
+        /* -- Panel del formulario -- */
+        .form-panel {
+            display: flex;
+            flex-direction: column;
+            padding: 28px 20px;
+        }
+
+        @media (min-width: 960px) {
+            .form-panel { padding: 40px 56px; }
+        }
+
+        .form-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--acc-ink-soft);
+        }
+
+        /* En escritorio la marca vive en el panel oscuro: arriba solo queda la ayuda. */
+        .mobile-brand {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--acc-ink);
+        }
+
+        @media (min-width: 960px) {
+            .form-top { justify-content: flex-end; }
+            .mobile-brand { display: none; }
+        }
+
+        .form-top a {
+            color: var(--acc-ink-soft);
+            text-decoration: none;
+        }
+
+        .form-top a:hover { color: var(--acc-ink); }
+
+        .form-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 0;
+        }
+
+        .form-box {
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .form-title {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+
+        .form-sub {
+            margin-top: 6px;
+            font-size: 14px;
+            color: var(--acc-ink-soft);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 28px;
+        }
+
+        .field { display: grid; gap: 7px; }
+        .field[hidden] { display: none; }
+
+        .field-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+        }
+
+        .field-label {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .field-row a {
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--acc-accent);
+            text-decoration: none;
+        }
+
+        .field-row a:hover { text-decoration: underline; }
+
+        .control { position: relative; }
+
+        .control > svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            width: 17px;
+            height: 17px;
+            transform: translateY(-50%);
+            color: var(--acc-ink-mute);
+            pointer-events: none;
+        }
+
+        .field-input {
+            width: 100%;
+            height: 48px;
+            padding: 0 14px 0 42px;
+            font-family: inherit;
+            font-size: 14.5px;
+            color: var(--acc-ink);
+            background: var(--acc-card);
+            border: 1px solid var(--acc-line-strong);
+            border-radius: 10px;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s;
+        }
+
+        .field-input::placeholder { color: var(--acc-ink-mute); }
+        .field-input.has-eye { padding-right: 46px; }
+
+        .field-input:focus {
+            border-color: var(--acc-accent);
+            box-shadow: 0 0 0 3px var(--acc-accent-tint);
+        }
+
+        .control:focus-within > svg { color: var(--acc-accent); }
+
+        .field-input.is-invalid { border-color: var(--acc-danger); }
+
+        .eye-btn {
+            position: absolute;
+            right: 7px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--acc-ink-mute);
+            cursor: pointer;
+        }
+
+        .eye-btn:hover { color: var(--acc-ink); background: var(--acc-bg); }
+        .eye-btn svg { width: 18px; height: 18px; }
+
+        /* Aviso de Bloq Mayús: lo enciende getModifierState('CapsLock'). */
+        .caps {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--acc-warn);
+        }
+
+        .caps.show { display: flex; }
+        .caps svg { width: 14px; height: 14px; }
+
+        /* -- Usuario recordado (lo pinta applyRemembered() de index.js) -- */
+        .remembered {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 10px 10px 12px;
+            border: 1px solid var(--acc-line-strong);
+            border-radius: 10px;
+            background: var(--acc-bg);
+        }
+
+        .remembered[hidden] { display: none; }
+
+        .remembered-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #9CA3AF;
+            color: #FFFFFF;
+        }
+
+        .remembered-avatar svg { width: 19px; height: 19px; }
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        .remembered-info { flex: 1; min-width: 0; }
+
+        .remembered-name,
+        .remembered-email {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remembered-name { font-size: 14px; font-weight: 600; }
+        .remembered-email { font-size: 12.5px; color: var(--acc-ink-soft); }
+
+        .remembered-x {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--acc-ink-mute);
+            cursor: pointer;
+        }
+
+        .remembered-x:hover { color: var(--acc-ink); background: var(--acc-line); }
+        .remembered-x svg { width: 15px; height: 15px; }
+
+        .remember-check {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 13px;
+            color: var(--acc-ink-soft);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .remember-check input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--acc-primary);
+            cursor: pointer;
+        }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 9px;
+            padding: 11px 13px;
+            border: 1px solid var(--acc-danger-line);
+            border-radius: 10px;
+            background: var(--acc-danger-bg);
+            color: var(--acc-danger);
+            font-size: 13px;
+        }
+
+        .login-error.show { display: flex; }
+        .login-error svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .btn-continue {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 50px;
+            margin-top: 4px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            color: #FFFFFF;
+            background: var(--acc-primary);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background .15s, transform .1s;
+        }
+
+        .btn-continue svg { width: 17px; height: 17px; transition: transform .15s; }
+        .btn-continue:hover { background: var(--acc-primary-h); }
+        .btn-continue:hover svg { transform: translateX(3px); }
+        .btn-continue:active { transform: scale(.99); }
+
+        .btn-continue .spin { display: none; }
+        .btn-continue.loading { pointer-events: none; opacity: .85; }
+        .btn-continue.loading .spin { display: block; animation: spin .8s linear infinite; }
+        .btn-continue.loading .arrow { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .form-help {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid var(--acc-line);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12.5px;
+            color: var(--acc-ink-soft);
+        }
+
+        .form-help svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--acc-ink-mute); }
+
+        .form-foot {
+            text-align: center;
+            font-size: 11.5px;
+            color: var(--acc-ink-mute);
+        }
+
+        @media (min-width: 960px) {
+            .form-foot { display: none; }
+        }
+
+        .cs-brand { font-weight: 700; }
+        .cs-coffee { color: var(--acc-ink-soft); }
+        .cs-soft { color: var(--acc-accent); }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <aside class="brand-panel" aria-hidden="true">
+        <div class="brand-head">
+            <span class="logo"></span>
+            Coffee Inventory
+        </div>
+
+        <div class="brand-copy">
+            <h2>Tu almacén, <em>al día</em> en todas tus sucursales.</h2>
+            <p>Stock, entradas, salidas y traspasos en tiempo real. Sabe qué tienes, dónde está y qué falta antes de que se acabe.</p>
+
+            <div class="preview">
+                <div class="preview-card">
+                    <div class="preview-top">
+                        <div>
+                            <div class="preview-label">Valor de inventario</div>
+                            <div class="preview-value">$184,320 <span class="preview-trend">▲ 4.2%</span></div>
+                        </div>
+                        <div class="bars">
+                            <span style="height:40%"></span>
+                            <span style="height:55%"></span>
+                            <span style="height:48%"></span>
+                            <span style="height:70%"></span>
+                            <span style="height:62%"></span>
+                            <span style="height:84%"></span>
+                            <span style="height:100%"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-card moves">
+                    <div class="move">
+                        <span class="move-icon in"><i data-lucide="arrow-down-to-line"></i></span>
+                        <span class="move-name">Entrada · Café en grano<small>Sucursal Centro · hace 4 min</small></span>
+                        <span class="move-qty">+24 kg</span>
+                    </div>
+                    <div class="move">
+                        <span class="move-icon tr"><i data-lucide="arrow-left-right"></i></span>
+                        <span class="move-name">Traspaso · Leche entera<small>Centro → Norte · hace 18 min</small></span>
+                        <span class="move-qty">12 L</span>
+                    </div>
+                    <div class="move">
+                        <span class="move-icon out"><i data-lucide="arrow-up-from-line"></i></span>
+                        <span class="move-name">Salida · Vasos 12 oz<small>Sucursal Norte · hace 32 min</small></span>
+                        <span class="move-qty">−150 pz</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="brand-foot">Powered by CoffeeSoft &copy; <span class="js-year">2026</span></div>
+    </aside>
+
+    <main class="form-panel">
+
+        <div class="form-top">
+            <span class="mobile-brand"><span class="logo"></span>Coffee Inventory</span>
+            <a href="#">¿Necesitas ayuda?</a>
+        </div>
+
+        <div class="form-wrap">
+            <div class="form-box">
+
+                <h1 class="form-title">Bienvenido de nuevo</h1>
+                <p class="form-sub">Ingresa con tu cuenta para continuar.</p>
+
+                <form id="form_login" novalidate class="login-form">
+
+                    <div id="login-error" class="login-error" role="alert">
+                        <i data-lucide="circle-alert"></i>
+                        <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                    </div>
+
+                    <div id="rememberedUser" class="remembered" hidden>
+                        <span id="rememberedAvatar" class="remembered-avatar"><i data-lucide="user"></i></span>
+                        <span class="remembered-info">
+                            <span id="rememberedName" class="remembered-name"></span>
+                            <span id="rememberedEmail" class="remembered-email"></span>
+                        </span>
+                        <button type="button" id="forgetUserBtn" class="remembered-x" aria-label="Usar otra cuenta" title="Usar otra cuenta">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+
+                    <div class="field" id="emailField">
+                        <label class="field-label" for="usuario">Correo electrónico</label>
+                        <div class="control">
+                            <i data-lucide="mail"></i>
+                            <input type="email" class="field-input" name="usuario" id="usuario" placeholder="tu@empresa.com" required autocomplete="username">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-row">
+                            <label class="field-label" for="clave">Contraseña</label>
+                            <a href="../../../recuperar.php">¿La olvidaste?</a>
+                        </div>
+                        <div class="control">
+                            <i data-lucide="lock"></i>
+                            <input type="password" class="field-input has-eye" name="clave" id="clave" placeholder="••••••••" required autocomplete="current-password">
+                            <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                        </div>
+                        <span class="caps" id="capsHint"><i data-lucide="triangle-alert"></i>Bloq Mayús está activado</span>
+                    </div>
+
+                    <label class="remember-check">
+                        <input type="checkbox" id="rememberMe" checked>
+                        <span>Recordar mi usuario en este equipo</span>
+                    </label>
+
+                    <button type="submit" class="btn-continue" id="btnLogin">
+                        <span>Iniciar sesión</span>
+                        <i data-lucide="arrow-right" class="arrow"></i>
+                        <i data-lucide="loader-circle" class="spin"></i>
+                    </button>
+                </form>
+
+                <div class="form-help">
+                    <i data-lucide="shield-check"></i>
+                    <span>¿No tienes cuenta? Pide acceso al administrador de tu empresa.</span>
+                </div>
+            </div>
+        </div>
+
+        <p class="form-foot">Powered by <span class="cs-brand"><span class="cs-coffee">Coffee</span><span class="cs-soft">Soft</span></span> &copy; <span class="js-year">2026</span></p>
+    </main>
+
+    <script src="../../../src/plugin/lucide/lucide.min.js"></script>
+    <script>
+        // Demo de la maqueta: el envío real lo hace acceso/src/js/index.js.
+        lucide.createIcons();
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+
+        const clave = document.getElementById('clave');
+        const eye   = document.getElementById('btnEye');
+
+        eye.addEventListener('click', () => {
+            const show = clave.type === 'password';
+            clave.type = show ? 'text' : 'password';
+            eye.innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+            lucide.createIcons();
+        });
+
+        clave.addEventListener('keyup', e => {
+            document.getElementById('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        document.getElementById('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            const btn = document.getElementById('btnLogin');
+            btn.classList.add('loading');
+            setTimeout(() => {
+                btn.classList.remove('loading');
+                document.getElementById('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1200);
+        });
+    </script>
+</body>
+
+</html>

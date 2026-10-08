@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<!--
+    Propuesta C :: Midnight Terminal
+    Login oscuro con la paleta Huubie (#111928 / #1F2A37, azul #1C64F2, acento
+    #7C3AED), pensado para la tablet o la PC fija del almacén: campos y botón de
+    56px, reloj grande y estado del sistema. Trae modo claro con el mismo
+    contrato de tokens (data-theme), alineado a los schemes de tailwind-theme.js.
+
+    Contrato con acceso/src/js/index.js (no renombrar):
+      #form_login, #usuario, #clave, #btnEye, #rememberMe, #login-error,
+      #login-error-text, #emailField, #rememberedUser, #forgetUserBtn
+-->
+<html lang="es" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../../../src/img/logos/coffee_icon.png" type="image/x-icon">
+    <title>Coffee Inventory - Propuesta C</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root,
+        :root[data-theme="dark"] {
+            --acc-bg:          #0B1220;
+            --acc-bg-2:        #111928;
+            --acc-card:        #1F2A37;
+            --acc-input:       #1A2332;
+            --acc-ink:         #F9FAFB;
+            --acc-ink-soft:    #9CA3AF;
+            --acc-ink-mute:    #6B7280;
+            --acc-line:        rgba(55, 65, 81, 0.6);
+            --acc-line-strong: #374151;
+            --acc-primary:     #1C64F2;
+            --acc-primary-h:   #1A56DB;
+            --acc-accent:      #7C3AED;
+            --acc-accent-tint: rgba(124, 58, 237, 0.25);
+            --acc-danger:      #F98080;
+            --acc-danger-bg:   rgba(240, 82, 82, 0.1);
+            --acc-danger-line: rgba(240, 82, 82, 0.3);
+            --acc-warn:        #FACA15;
+            --acc-ok:          #31C48D;
+            --acc-dot:         rgba(255, 255, 255, 0.05);
+            --acc-glow-1:      rgba(28, 100, 242, 0.22);
+            --acc-glow-2:      rgba(124, 58, 237, 0.18);
+            --acc-shadow:      0 24px 60px -24px rgba(0, 0, 0, 0.6);
+        }
+
+        :root[data-theme="light"] {
+            --acc-bg:          #F3F4F6;
+            --acc-bg-2:        #F9FAFB;
+            --acc-card:        #FFFFFF;
+            --acc-input:       #F9FAFB;
+            --acc-ink:         #111928;
+            --acc-ink-soft:    #4B5563;
+            --acc-ink-mute:    #9CA3AF;
+            --acc-line:        #E5E7EB;
+            --acc-line-strong: #D1D5DB;
+            --acc-accent-tint: rgba(124, 58, 237, 0.15);
+            --acc-danger:      #C81E1E;
+            --acc-danger-bg:   #FDF2F2;
+            --acc-danger-line: #FBD5D5;
+            --acc-warn:        #8E4B10;
+            --acc-ok:          #0E9F6E;
+            --acc-dot:         rgba(17, 25, 40, 0.06);
+            --acc-glow-1:      rgba(28, 100, 242, 0.12);
+            --acc-glow-2:      rgba(124, 58, 237, 0.10);
+            --acc-shadow:      0 24px 60px -28px rgba(17, 25, 40, 0.28);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            background:
+                radial-gradient(900px 520px at 12% -10%, var(--acc-glow-1), transparent 60%),
+                radial-gradient(700px 480px at 100% 110%, var(--acc-glow-2), transparent 60%),
+                var(--acc-bg);
+            color: var(--acc-ink);
+            -webkit-font-smoothing: antialiased;
+            transition: background-color .2s, color .2s;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: radial-gradient(var(--acc-dot) 1px, transparent 1px);
+            background-size: 24px 24px;
+            pointer-events: none;
+        }
+
+        .logo {
+            display: block;
+            width: 30px;
+            height: 23px;
+            background: currentColor;
+            -webkit-mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+            mask: url('../../../src/img/logos/coffeesoft-logo-64.svg') center / contain no-repeat;
+        }
+
+        /* -- Barra superior -- */
+        .topbar {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14.5px;
+            font-weight: 600;
+        }
+
+        .topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 34px;
+            padding: 0 12px;
+            border: 1px solid var(--acc-line);
+            border-radius: 999px;
+            background: var(--acc-card);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--acc-ink-soft);
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--acc-ok);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc-ok) 25%, transparent);
+        }
+
+        .icon-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: 1px solid var(--acc-line);
+            border-radius: 10px;
+            background: var(--acc-card);
+            color: var(--acc-ink-soft);
+            cursor: pointer;
+            transition: color .15s, border-color .15s;
+        }
+
+        .icon-btn:hover { color: var(--acc-ink); border-color: var(--acc-accent); }
+        .icon-btn svg { width: 16px; height: 16px; }
+
+        /* -- Contenido -- */
+        .stage {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 16px 32px;
+        }
+
+        .panel {
+            width: 100%;
+            max-width: 440px;
+        }
+
+        .clock {
+            text-align: center;
+            margin-bottom: 26px;
+        }
+
+        .clock-time {
+            font-size: 56px;
+            font-weight: 700;
+            letter-spacing: -0.04em;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .clock-date {
+            margin-top: 8px;
+            font-size: 14px;
+            color: var(--acc-ink-soft);
+        }
+
+        .login-card {
+            background: var(--acc-card);
+            border: 1px solid var(--acc-line);
+            border-radius: 18px;
+            padding: 28px;
+            box-shadow: var(--acc-shadow);
+            transition: background-color .2s, border-color .2s;
+        }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+
+        .card-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--acc-primary) 16%, transparent);
+            color: #76A9FA;
+        }
+
+        :root[data-theme="light"] .card-icon { color: var(--acc-primary); }
+
+        .card-icon svg { width: 21px; height: 21px; }
+
+        .card-title { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+        .card-sub { font-size: 13px; color: var(--acc-ink-soft); margin-top: 2px; }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .field { display: grid; gap: 8px; }
+        .field[hidden] { display: none; }
+
+        .field-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            color: var(--acc-ink-soft);
+        }
+
+        .control { position: relative; }
+
+        .control > svg {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            width: 18px;
+            height: 18px;
+            transform: translateY(-50%);
+            color: var(--acc-ink-mute);
+            pointer-events: none;
+            transition: color .15s;
+        }
+
+        /* 56px: cómodo con el dedo en la tablet del almacén. */
+        .field-input {
+            width: 100%;
+            height: 56px;
+            padding: 0 16px 0 46px;
+            font-family: inherit;
+            font-size: 15.5px;
+            color: var(--acc-ink);
+            background: var(--acc-input);
+            border: 1px solid var(--acc-line-strong);
+            border-radius: 12px;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s, background-color .2s;
+        }
+
+        .field-input::placeholder { color: var(--acc-ink-mute); }
+        .field-input.has-eye { padding-right: 52px; }
+
+        .field-input:focus {
+            border-color: var(--acc-accent);
+            box-shadow: 0 0 0 4px var(--acc-accent-tint);
+        }
+
+        .control:focus-within > svg { color: var(--acc-accent); }
+        .field-input.is-invalid { border-color: var(--acc-danger); }
+
+        .eye-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--acc-ink-mute);
+            cursor: pointer;
+        }
+
+        .eye-btn:hover { color: var(--acc-ink); background: var(--acc-line); }
+        .eye-btn svg { width: 19px; height: 19px; }
+
+        .caps {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--acc-warn);
+        }
+
+        .caps.show { display: flex; }
+        .caps svg { width: 14px; height: 14px; }
+
+        /* -- Usuario recordado (lo pinta applyRemembered() de index.js) -- */
+        .remembered {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid var(--acc-line-strong);
+            border-radius: 12px;
+            background: var(--acc-input);
+        }
+
+        .remembered[hidden] { display: none; }
+
+        .remembered-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #4B5563;
+            color: #FFFFFF;
+        }
+
+        .remembered-avatar svg { width: 20px; height: 20px; }
+        .remembered-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        .remembered-info { flex: 1; min-width: 0; }
+
+        .remembered-name,
+        .remembered-email {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remembered-name { font-size: 15px; font-weight: 600; }
+        .remembered-email { font-size: 13px; color: var(--acc-ink-soft); }
+
+        .remembered-x {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--acc-ink-mute);
+            cursor: pointer;
+        }
+
+        .remembered-x:hover { color: var(--acc-ink); background: var(--acc-line); }
+        .remembered-x svg { width: 17px; height: 17px; }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        /* Interruptor en lugar de casilla: más fácil de tocar. */
+        .switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--acc-ink-soft);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .switch input { position: absolute; opacity: 0; pointer-events: none; }
+
+        .switch-track {
+            position: relative;
+            width: 38px;
+            height: 22px;
+            flex-shrink: 0;
+            border-radius: 999px;
+            background: var(--acc-line-strong);
+            transition: background .15s;
+        }
+
+        .switch-track::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #FFFFFF;
+            transition: transform .15s;
+        }
+
+        .switch input:checked + .switch-track { background: var(--acc-accent); }
+        .switch input:checked + .switch-track::after { transform: translateX(16px); }
+        .switch input:focus-visible + .switch-track { box-shadow: 0 0 0 3px var(--acc-accent-tint); }
+
+        .form-row a {
+            font-size: 13px;
+            font-weight: 500;
+            color: #76A9FA;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        :root[data-theme="light"] .form-row a { color: var(--acc-primary); }
+        .form-row a:hover { text-decoration: underline; }
+
+        .login-error {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border: 1px solid var(--acc-danger-line);
+            border-radius: 12px;
+            background: var(--acc-danger-bg);
+            color: var(--acc-danger);
+            font-size: 13px;
+        }
+
+        .login-error.show { display: flex; }
+        .login-error svg { width: 17px; height: 17px; flex-shrink: 0; }
+
+        .btn-continue {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            width: 100%;
+            height: 56px;
+            margin-top: 4px;
+            font-family: inherit;
+            font-size: 15.5px;
+            font-weight: 600;
+            color: #FFFFFF;
+            background: var(--acc-primary);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 10px 24px -12px rgba(28, 100, 242, 0.8);
+            transition: background .15s, transform .1s;
+        }
+
+        .btn-continue:hover { background: var(--acc-primary-h); }
+        .btn-continue:active { transform: scale(.99); }
+        .btn-continue svg { width: 18px; height: 18px; }
+        .btn-continue .spin { display: none; }
+        .btn-continue.loading { pointer-events: none; opacity: .85; }
+        .btn-continue.loading .spin { display: block; animation: spin .8s linear infinite; }
+        .btn-continue.loading .icon { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .card-foot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--acc-ink-mute);
+        }
+
+        .card-foot svg { width: 14px; height: 14px; }
+
+        .page-foot {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            padding: 16px 24px 20px;
+            font-size: 11.5px;
+            color: var(--acc-ink-mute);
+        }
+
+        .cs-brand { font-weight: 700; }
+        .cs-coffee { color: var(--acc-ink-soft); }
+        .cs-soft { color: #A78BFA; }
+
+        @media (max-width: 480px) {
+            .topbar { padding: 16px; }
+            .status-text { display: none; }
+            .status { padding: 0 11px; }
+            .clock-time { font-size: 44px; }
+            .login-card { padding: 22px 18px; }
+            .page-foot { justify-content: center; }
+            .page-foot .version { display: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="topbar-brand"><span class="logo"></span>Coffee Inventory</div>
+
+        <div class="topbar-actions">
+            <span class="status"><span class="status-dot"></span><span class="status-text">Sistema en línea</span></span>
+            <button type="button" class="icon-btn" id="btnTheme" aria-label="Cambiar tema" title="Cambiar tema"><i data-lucide="sun"></i></button>
+        </div>
+    </header>
+
+    <main class="stage">
+        <div class="panel">
+
+            <div class="clock" aria-hidden="true">
+                <div class="clock-time" id="clockTime">08:42</div>
+                <div class="clock-date" id="clockDate">miércoles, 7 de octubre</div>
+            </div>
+
+            <div class="login-card">
+
+                <div class="card-head">
+                    <span class="card-icon"><i data-lucide="warehouse"></i></span>
+                    <div>
+                        <h1 class="card-title">Acceso al almacén</h1>
+                        <p class="card-sub">Ingresa con tu cuenta de Coffee Inventory</p>
+                    </div>
+                </div>
+
+                <form id="form_login" novalidate class="login-form">
+
+                    <div id="login-error" class="login-error" role="alert">
+                        <i data-lucide="circle-alert"></i>
+                        <span id="login-error-text">Usuario y/o clave incorrectos.</span>
+                    </div>
+
+                    <div id="rememberedUser" class="remembered" hidden>
+                        <span id="rememberedAvatar" class="remembered-avatar"><i data-lucide="user"></i></span>
+                        <span class="remembered-info">
+                            <span id="rememberedName" class="remembered-name"></span>
+                            <span id="rememberedEmail" class="remembered-email"></span>
+                        </span>
+                        <button type="button" id="forgetUserBtn" class="remembered-x" aria-label="Usar otra cuenta" title="Usar otra cuenta">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+
+                    <div class="field" id="emailField">
+                        <label class="field-label" for="usuario">Correo electrónico</label>
+                        <div class="control">
+                            <i data-lucide="mail"></i>
+                            <input type="email" class="field-input" name="usuario" id="usuario" placeholder="tu@empresa.com" required autocomplete="username">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="clave">Contraseña</label>
+                        <div class="control">
+                            <i data-lucide="lock"></i>
+                            <input type="password" class="field-input has-eye" name="clave" id="clave" placeholder="••••••••" required autocomplete="current-password">
+                            <button type="button" class="eye-btn" id="btnEye" aria-label="Mostrar contraseña"><i data-lucide="eye"></i></button>
+                        </div>
+                        <span class="caps" id="capsHint"><i data-lucide="triangle-alert"></i>Bloq Mayús está activado</span>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="switch">
+                            <input type="checkbox" id="rememberMe" checked>
+                            <span class="switch-track"></span>
+                            <span>Recordarme</span>
+                        </label>
+                        <a href="../../../recuperar.php">¿Olvidaste tu contraseña?</a>
+                    </div>
+
+                    <button type="submit" class="btn-continue" id="btnLogin">
+                        <i data-lucide="log-in" class="icon"></i>
+                        <i data-lucide="loader-circle" class="spin"></i>
+                        <span>Entrar</span>
+                    </button>
+                </form>
+
+                <div class="card-foot"><i data-lucide="shield-check"></i>Conexión cifrada · cierre tras 8 h sin uso</div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="page-foot">
+        <span>Powered by <span class="cs-brand"><span class="cs-coffee">Coffee</span><span class="cs-soft">Soft</span></span> &copy; <span class="js-year">2026</span></span>
+        <span class="version">Coffee Inventory</span>
+    </footer>
+
+    <script src="../../../src/plugin/lucide/lucide.min.js"></script>
+    <script>
+        // Demo de la maqueta: el envío real lo hace acceso/src/js/index.js.
+        const THEME_KEY = 'inventory:login:theme';
+        const $ = id => document.getElementById(id);
+        const root = document.documentElement;
+
+        function applyTheme(theme) {
+            root.setAttribute('data-theme', theme);
+            $('btnTheme').innerHTML = `<i data-lucide="${theme === 'dark' ? 'sun' : 'moon'}"></i>`;
+            lucide.createIcons();
+        }
+
+        let saved = null;
+        try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
+        applyTheme(saved || 'dark');
+
+        $('btnTheme').addEventListener('click', () => {
+            const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+            try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+        });
+
+        function tick() {
+            const now = new Date();
+            $('clockTime').textContent = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+            const date = now.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+            $('clockDate').textContent = date.charAt(0).toUpperCase() + date.slice(1);
+        }
+
+        tick();
+        setInterval(tick, 15000);
+
+        $('btnEye').addEventListener('click', () => {
+            const show = $('clave').type === 'password';
+            $('clave').type = show ? 'text' : 'password';
+            $('btnEye').innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+            lucide.createIcons();
+        });
+
+        $('clave').addEventListener('keyup', e => {
+            $('capsHint').classList.toggle('show', e.getModifierState && e.getModifierState('CapsLock'));
+        });
+
+        $('form_login').addEventListener('submit', e => {
+            e.preventDefault();
+            $('btnLogin').classList.add('loading');
+            setTimeout(() => {
+                $('btnLogin').classList.remove('loading');
+                $('login-error').classList.add('show');
+                document.querySelectorAll('#usuario, #clave').forEach(i => i.classList.add('is-invalid'));
+            }, 1200);
+        });
+
+        document.querySelectorAll('.js-year').forEach(el => el.textContent = new Date().getFullYear());
+    </script>
+</body>
+
+</html>
