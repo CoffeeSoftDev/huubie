@@ -4,6 +4,10 @@ require_once '../../../conf/_Utileria.php';
 
 class mdl extends CRUD {
 
+    // Días que mira el filtro "Con movimientos" del visor de stock; el texto de la opción
+    // (MOVIMIENTOS_STOCK en stock.js) dice el mismo número.
+    const MOVEMENT_DAYS = 30;
+
     public $util;
     public $bd;
     public $bdErp;
@@ -91,7 +95,8 @@ class mdl extends CRUD {
 
         if (!empty($array['movimiento'])) {
             $exists       = "SELECT 1 FROM {$this->bd}inventory_movement mvf
-                             WHERE mvf.item_id = i.id AND mvf.companies_id = ?";
+                             WHERE mvf.item_id = i.id AND mvf.companies_id = ?
+                             AND mvf.occurred_at >= DATE_SUB(CURDATE(), INTERVAL " . self::MOVEMENT_DAYS . " DAY)";
             $existsParams = [$array['companies_id']];
             if (!empty($array['branch_id'])) {
                 $exists        .= ' AND mvf.branch_id = ?';
@@ -204,7 +209,8 @@ class mdl extends CRUD {
 
         if (!empty($array['movimiento'])) {
             $exists       = "SELECT 1 FROM {$this->bd}inventory_movement mvf
-                             WHERE mvf.item_id = i.id AND mvf.companies_id = ?";
+                             WHERE mvf.item_id = i.id AND mvf.companies_id = ?
+                             AND mvf.occurred_at >= DATE_SUB(CURDATE(), INTERVAL " . self::MOVEMENT_DAYS . " DAY)";
             $existsParams = [$array['companies_id']];
             if (!empty($array['branch_id'])) {
                 $exists        .= ' AND mvf.branch_id = ?';

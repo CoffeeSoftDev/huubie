@@ -1153,7 +1153,7 @@ class EntradasView extends Templates {
                 title:       'CoffeeIA',
                 subtitle:    'Productos de la entrada desde una foto o un Excel',
                 placeholder: 'Adjunta la foto del ticket o escribe qué llegó…',
-                accept:      '.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv',
+                accept:      '.png,.jpg,.jpeg,.webp,.xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv',
                 welcome:     'Adjunta la foto de la factura, ticket o remisión. Te digo qué productos agrego a la entrada y cuáles faltan en el catálogo. Nada entra sin tu confirmación.',
                 actions: {
                     add: {

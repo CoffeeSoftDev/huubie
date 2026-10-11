@@ -145,8 +145,8 @@ function statusSwitch($fn, $id, $active) {
 
     return [
         'class'   => 'inline-flex items-center justify-center h-9 pl-1 pr-3 cursor-pointer',
-        'html'    => '<span class="relative inline-flex items-center w-9 h-5 rounded-full transition-colors hover:brightness-110 ' . ($on ? 'bg-gradient-to-r from-blue-700 to-blue-500 shadow-sm' : 'bg-gray-300') . '">'
-                   . '<span class="inline-block w-4 h-4 rounded-full bg-white shadow-md transition-transform ' . ($on ? 'translate-x-[16px]' : 'translate-x-0.5') . '"></span>'
+        'html'    => '<span class="relative inline-flex items-center w-9 h-5 rounded-full transition-colors hover:brightness-110 ' . ($on ? 'bg-gradient-to-r from-blue-700 to-blue-500' : 'bg-gray-300') . '">'
+                   . '<span class="inline-block w-4 h-4 rounded-full bg-white transition-transform ' . ($on ? 'translate-x-[16px]' : 'translate-x-0.5') . '"></span>'
                    . '</span>',
         'title'   => $on ? 'Dar de baja' : 'Activar',
         'onclick' => $fn . '(' . (int) $id . ', ' . ($on ? 1 : 0) . ')'

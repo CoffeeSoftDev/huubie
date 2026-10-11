@@ -1,7 +1,7 @@
 // Chat flotante de CoffeeIA. El aspecto copia el chat coffeeIA de erp-pro
-// (pro/auth/src/js/nav-coffeeia.js): panel de 380×520, cabecera con la cara de
-// CoffeeBot, portada con el muñeco vivo y la caja de escribir en el centro,
-// burbujas con hora y copiar, y caja con el "+".
+// (pro/auth/src/js/nav-coffeeia.js): panel de 380×520, cabecera con el blob Base,
+// portada con el muñeco vivo y la caja de escribir en el centro, burbujas con hora,
+// copiar, volver a preguntar y editar, y caja con el "+".
 // El azul de erp-pro va como blue-* para seguir el acento del tema.
 
 // Los números del muñeco de erp-pro (AV_* en nav-coffeeia.js).
@@ -27,15 +27,93 @@ const IA_BOT = {
     }
 };
 
-// CoffeeBot en reposo (CB_HEAD y CB_IDLE de nav-coffeeia.js): la cara de la cabecera.
-const IA_COFFEEBOT = {
-    head:   'M228.541 114.228C228.541 130.133 225.184 145.994 218.738 160.534C212.674 174.217 203.904 186.669 193.065 196.988C155.933 232.34 99.497 238.596 55.5255 212.24C45.097 205.99 35.6851 198.072 27.7451 188.866C19.1926 178.953 12.3686 167.569 7.65781 155.351C2.60712 142.264 0 128.257 0 114.228C0 98.3219 3.35751 82.4611 9.80315 67.9215C15.8672 54.2382 24.6377 41.7862 35.4767 31.4668C72.6081 -3.88483 129.044 -10.1413 173.016 16.2153C183.444 22.4653 192.856 30.3829 200.796 39.5896C209.349 49.5018 216.173 60.8859 220.883 73.1037C225.934 86.1906 228.541 100.198 228.541 114.228Z',
-    encaje: 'translate(200 180) scale(1.1289) translate(-114.27 -114.23)',
-    cabeza: 'translate(114.27 114.23) rotate(1.64) translate(-114.27 -114.23)',
-    cx:     114.27,
-    cy:     114.23,
-    eyes:   [{"pts":[[-6.26,-20.75],[-3.91,-20.54],[-1.64,-19.92],[0.49,-18.9],[2.35,-17.45],[3.85,-15.64],[5.06,-13.61],[6.11,-11.5],[7.14,-9.37],[8.16,-7.24],[9.17,-5.11],[10.17,-2.97],[11.14,-0.82],[12.09,1.34],[13.01,3.52],[13.9,5.7],[14.75,7.9],[15.37,10.18],[15.48,12.53],[15.02,14.84],[13.97,16.95],[12.42,18.72],[10.48,20.05],[8.28,20.89],[5.94,21.2],[3.6,20.98],[1.36,20.26],[-0.69,19.09],[-2.45,17.51],[-3.84,15.61],[-4.93,13.52],[-5.85,11.35],[-6.75,9.16],[-7.68,6.99],[-8.62,4.83],[-9.59,2.67],[-10.57,0.53],[-11.57,-1.61],[-12.59,-3.74],[-13.69,-5.83],[-14.75,-7.94],[-15.59,-10.14],[-15.9,-12.47],[-15.52,-14.8],[-14.47,-16.9],[-12.87,-18.63],[-10.86,-19.84],[-8.61,-20.54]],"pos":[36.05,-43.69],"s":1.0},{"pts":[[-9.08,-20.13],[-6.97,-19.62],[-4.99,-18.73],[-3.17,-17.56],[-1.49,-16.18],[0.02,-14.62],[1.34,-12.9],[2.51,-11.07],[3.57,-9.18],[4.58,-7.25],[5.57,-5.32],[6.54,-3.37],[7.47,-1.41],[8.36,0.57],[9.23,2.56],[10.05,4.57],[10.84,6.59],[11.58,8.63],[12.28,10.69],[12.78,12.8],[12.94,14.97],[12.71,17.12],[11.89,19.12],[10.26,20.51],[8.14,20.87],[6.02,20.44],[4.07,19.48],[2.34,18.17],[0.84,16.61],[-0.41,14.84],[-1.44,12.92],[-2.29,10.93],[-3.06,8.9],[-3.82,6.86],[-4.62,4.84],[-5.44,2.83],[-6.3,0.84],[-7.2,-1.14],[-8.12,-3.11],[-9.08,-5.06],[-10.07,-6.99],[-11.1,-8.9],[-12.16,-10.8],[-13.15,-12.73],[-13.83,-14.79],[-13.93,-16.95],[-13.07,-18.91],[-11.24,-20.02]],"pos":[85.87,-53.88],"s":1.0}]
+// El coffeeIA de fábrica de erp-pro/avatars: el hielo «Base» (PIELES['#F3F4F6'] en
+// vestidor.js, COLOR_FABRICA en nav-coffeeia.js). No lleva borde: el cuerpo es una base
+// blanca que baja a gris (G), la sombra del canto (S) y el brillo arriba a la derecha (B),
+// apiladas en un <pattern> que el cuerpo toma como relleno. Sobre fondo claro va el tono
+// limpio de erp-pro y sobre oscuro el de Notch Buddy (TONOS en vestidor.js).
+const IA_BASE = {
+    color: '#F3F4F6',
+    tonos: {
+        claro:  { base: ['#FFFFFF', '#DCE2EA'], sombra: 0.08 },
+        oscuro: { base: ['#F7F8FA', '#B5BAC3'], sombra: 0.20 }
+    }
 };
+
+// -- Tema oscuro --
+
+// Con body.dark-mode (InventoryPalette, src/js/tailwind-theme.js) el chat deja sus hex
+// claros y toma las superficies --dk-* de themes.css, así sigue a Huubie, Midnight y Rosé.
+// Las clases de Tailwind del chat llevan el hex clavado, por eso se remapean por su
+// nombre exacto ([class~=]); un hex nuevo en el chat se agrega aquí o se queda claro.
+const IA_DARK = `
+    body.dark-mode .iac-root {
+        color-scheme: dark;
+        --iac-card:       var(--dk-card, #1F2A37);
+        --iac-sunken:     var(--dk-sunken, #1a2332);
+        --iac-chrome:     var(--dk-chrome, #141d2b);
+        --iac-input:      var(--dk-input, #1a2332);
+        --iac-raised:     var(--dk-raised, #333D4C);
+        --iac-line:       var(--dk-line, #374151);
+        --iac-line-hi:    var(--dk-line-hi, #4B5563);
+        --iac-text:       var(--dk-text, #f5f5f5);
+        --iac-soft:       var(--dk-text-soft, #e5e5e5);
+        --iac-muted:      var(--dk-muted, #9CA3AF);
+        --iac-hover:      rgba(255, 255, 255, .08);
+        --iac-brand:      rgb(var(--brand-400, 217 130 106));
+        --iac-brand-soft: rgb(var(--brand-600, 192 90 64) / .16);
+    }
+
+    body.dark-mode .iac-panel { background:var(--iac-card) !important; border-color:var(--iac-line-hi) !important; box-shadow:0 22px 55px rgba(0, 0, 0, .55) !important; }
+    body.dark-mode .iac-pildora { background:var(--iac-card) !important; border-color:var(--iac-line-hi) !important; box-shadow:0 10px 28px rgba(0, 0, 0, .5) !important; }
+    body.dark-mode .iac-pildora .iac-pil-cuerpo { fill:url(#iaChatBaseOscuro); }
+    body.dark-mode .iac-bot .cb-cabeza, body.dark-mode .iac-hola-bot .cb-cabeza { fill:url(#iaChatBaseOscuro); }
+
+    body.dark-mode .iac-root [class~="bg-white"] { background-color:var(--iac-card) !important; }
+    body.dark-mode .iac-root :is([class~="bg-[#F8FAFC]"], [class~="bg-gray-50/60"]) { background-color:var(--iac-sunken) !important; }
+    body.dark-mode .iac-root :is([class~="bg-[#F1F5F9]"], [class~="!bg-[#F1F5F9]"], [class~="bg-gray-100"]) { background-color:var(--iac-raised) !important; }
+    body.dark-mode .iac-root [class~="bg-[#E2E8F0]"] { background-color:var(--iac-line) !important; }
+    body.dark-mode .iac-root :is([class~="bg-red-50"], [class~="bg-[#FEF2F2]"]) { background-color:rgb(239 68 68 / .16) !important; }
+    body.dark-mode .iac-root [class~="bg-blue-50"] { background-color:var(--iac-brand-soft) !important; }
+    body.dark-mode .iac-root [class~="bg-[rgba(248,250,252,.96)]"] { background-color:color-mix(in srgb, var(--iac-card) 94%, transparent) !important; }
+    body.dark-mode .iac-root .iac-foot { background-color:var(--iac-chrome) !important; }
+    body.dark-mode .iac-root .iac-edit-box, body.dark-mode .iac-root [data-suggestion] { background-color:var(--iac-input) !important; }
+    body.dark-mode .iac-root [role="menu"] { background-color:var(--iac-raised) !important; border-color:var(--iac-line-hi) !important; box-shadow:0 12px 28px rgba(0, 0, 0, .5) !important; }
+    body.dark-mode .iac-root [role="menu"] [class~="bg-[#F1F5F9]"] { background-color:var(--iac-line) !important; }
+
+    body.dark-mode .iac-root :is([class~="border-[#E2E8F0]"], [class~="border-[#F1F5F9]"]) { border-color:var(--iac-line) !important; }
+    body.dark-mode .iac-root :is([class~="border-[#CBD5E1]"], [class~="border-[#DBE2EA]"]) { border-color:var(--iac-line-hi) !important; }
+    body.dark-mode .iac-root :is([class~="border-red-200"], [class~="border-[#FECACA]"]) { border-color:rgb(239 68 68 / .35) !important; }
+    body.dark-mode .iac-root [class~="divide-[#F1F5F9]"] > * + * { border-color:var(--iac-line) !important; }
+
+    body.dark-mode .iac-root :is([class~="text-[#0F172A]"], [class~="text-[#0F2C4C]"]) { color:var(--iac-text) !important; }
+    body.dark-mode .iac-root :is([class~="text-[#1E293B]"], [class~="text-[#334155]"], [class~="text-[#475569]"], [class~="text-[#42546B]"], [class~="text-gray-800"]) { color:var(--iac-soft) !important; }
+    body.dark-mode .iac-root :is([class~="text-[#64748B]"], [class~="text-[#8B99AB]"], [class~="text-[#94A3B8]"], [class~="text-gray-400"], [class~="text-gray-500"], [class~="text-gray-600"]) { color:var(--iac-muted) !important; }
+    body.dark-mode .iac-root [class~="text-blue-600"] { color:var(--iac-brand) !important; }
+    body.dark-mode .iac-root :is([class~="text-red-600"], [class~="text-red-700"], [class~="text-[#B91C1C]"]) { color:rgb(252 165 165) !important; }
+    body.dark-mode .iac-root [class~="text-amber-600"] { color:rgb(252 211 77) !important; }
+    body.dark-mode .iac-root :is([class~="text-[#7C3AED]"], [class~="!text-[#7C3AED]"]) { color:#C4B5FD !important; }
+
+    body.dark-mode .iac-root :is([class~="hover:bg-[#F1F5F9]"], [class~="hover:bg-[#F5F3FF]"], [class~="hover:bg-[rgba(15,44,76,.06)]"]):hover { background-color:var(--iac-hover) !important; }
+    body.dark-mode .iac-root [class~="hover:bg-blue-50"]:hover { background-color:var(--iac-brand-soft) !important; }
+    body.dark-mode .iac-root [class~="hover:border-blue-200"]:hover { border-color:rgb(var(--brand-600, 192 90 64) / .45) !important; }
+    body.dark-mode .iac-root [class~="hover:text-[#334155]"]:hover { color:var(--iac-text) !important; }
+    body.dark-mode .iac-root :is([class~="hover:text-blue-600"], [class~="hover:text-[#7C3AED]"]):hover { color:var(--iac-brand) !important; }
+    body.dark-mode .iac-root .group:hover [class~="group-hover:bg-[#EDE9FE]"] { background-color:rgb(124 58 237 / .28) !important; }
+    body.dark-mode .iac-root .group:hover [class~="group-hover:text-[#7C3AED]"] { color:#C4B5FD !important; }
+
+    body.dark-mode .iac-root .iac-wrap { background-color:var(--iac-card) !important; border-color:var(--iac-line-hi) !important; }
+    body.dark-mode .iac-root .iac-portada .iac-wrap { background-color:var(--iac-input) !important; box-shadow:0 8px 24px rgba(0, 0, 0, .35) !important; }
+    body.dark-mode .iac-root .iac-portada .iac-wrap:focus-within { border-color:rgb(var(--brand-600, 192 90 64) / .55) !important; box-shadow:0 0 0 3px rgb(var(--brand-600, 192 90 64) / .16), 0 8px 24px rgba(0, 0, 0, .35) !important; }
+    body.dark-mode .iac-root textarea:is(.iac-input, .iac-edit) { background:transparent !important; border:0 !important; box-shadow:none !important; color:var(--iac-text) !important; }
+    body.dark-mode .iac-root .iac-input::placeholder { color:var(--iac-muted) !important; }
+
+    body.dark-mode .iac-msgs::-webkit-scrollbar-thumb { background-color:var(--iac-line-hi); }
+    body.dark-mode .iac-msgs::-webkit-scrollbar-thumb:hover { background-color:var(--iac-muted); }
+
+    body.dark-mode .iac-paso { color:#9CA3AF; }
+    @supports ((-webkit-background-clip:text) or (background-clip:text)) { body.dark-mode .iac-paso { background-image:linear-gradient(100deg, #9CA3AF 30%, #F3F4F6 45%, #F3F4F6 55%, #9CA3AF 70%); } }
+    @media (prefers-reduced-motion: reduce) { body.dark-mode .iac-paso { background-image:none; color:#9CA3AF; -webkit-text-fill-color:#9CA3AF; } }`;
 
 // -- Muñeco vivo --
 
@@ -175,7 +253,7 @@ class IaBot {
 
     paint(g, t, quieto) {
         this.encaje.innerHTML = window.Bloub.cuadro(
-            { forma: 'gota', gesto: g, accesorio: 'ninguno', anim: 'ninguna', color: '#FFFFFF' },
+            { forma: 'gota', gesto: g, accesorio: 'ninguno', anim: 'ninguna', color: IA_BASE.color },
             t, this.mira,
             { margen: 30, clases: IA_BOT.clases, quieto: quieto, fijo: this.fijo, alcance: IA_BOT.alcance * (1 + this.fijo) }
         );
@@ -297,7 +375,7 @@ class IaPildora {
 
         $(`#${this.id}`).remove();
         $('body').append(`
-            <button type="button" id="${this.id}" style="width:${IA_PIL.ancho}px" class="iac-pildora fixed z-[1040] h-10 flex items-center gap-2 pl-0.5 pr-3.5 bg-white border border-[#E2E8F0] rounded-full shadow-[0_10px_28px_rgba(15,23,42,.14)] text-left" aria-live="polite">
+            <button type="button" id="${this.id}" style="width:${IA_PIL.ancho}px" class="iac-root iac-pildora fixed z-[1040] h-10 flex items-center gap-2 pl-0.5 pr-3.5 bg-white border border-[#E2E8F0] rounded-full shadow-[0_10px_28px_rgba(15,23,42,.14)] text-left" aria-live="polite">
                 <svg viewBox="${IA_PIL.vista}" class="w-10 h-10 flex-shrink-0" aria-hidden="true"></svg>
                 <span class="min-w-0 leading-[1.3]">
                     <b data-pil-big class="block text-[11.5px] font-bold text-[#0F172A] truncate"></b>
@@ -427,10 +505,9 @@ class IaPildora {
         this.svg.innerHTML = this.paint(now / 1000, fase);
     }
 
-    // El motor con la piel de inventory y, encima del cuerpo, el tinte del estado: su
+    // El motor con la piel Base de coffeeIA y, encima del cuerpo, el tinte del estado: su
     // color subiendo desde abajo hasta un cuarto de radio por encima del centro, a
-    // 0,92 × `tint` (Bot.draw de Buddy). El filo va en otra copia del contorno, encima
-    // del tinte, para que no lo tape.
+    // 0,92 × `tint` (Bot.draw de Buddy).
     paint(t, fase) {
         const B = window.Bloub;
         const E = IA_PIL.estados[this.est];
@@ -438,13 +515,13 @@ class IaPildora {
         const g = this.gestos[E.gesto] || (this.gestos[E.gesto] = Object.assign({}, (B.GESTOS[E.gesto] || B.GESTOS.calma).f(0.62) || {}, { gaze: IA_PIL.frente }));
 
         let s = B.cuadro(
-            { forma: 'gota', gesto: g, accesorio: 'ninguno', anim: B.ANIMS[E.anim] ? E.anim : 'ninguna', color: '#FFFFFF' },
+            { forma: 'gota', gesto: g, accesorio: 'ninguno', anim: B.ANIMS[E.anim] ? E.anim : 'ninguna', color: IA_BASE.color },
             t, null,
             { sinZoom: true, pose: IA_PIL.frente, clases: IA_PIL.clases, quieto: this.still, fase: this.still ? null : fase }
         );
 
         s = s.replace(/<path id="b\d+" d="([^"]*)" class="iac-pil-cuerpo"\/>/, (todo, d) =>
-            todo + (a > 0.004 ? `<path d="${d}" fill="url(#${this.id}T)"/>` : '') + `<path d="${d}" class="iac-pil-filo"/>`);
+            todo + (a > 0.004 ? `<path d="${d}" fill="url(#${this.id}T)"/>` : ''));
 
         if (a <= 0.004) return s;
 
@@ -485,9 +562,15 @@ class IaChat {
                 attachHint: 'Excel, CSV o una imagen',
                 send:       'Enviar',
                 expand:     'Ampliar',
-                clear:      'Borrar la conversación',
+                clear:      'Limpiar el chat',
+                clearShort: 'Limpiar',
                 close:      'Cerrar',
                 copy:       'Copiar',
+                regenerate: 'Volver a preguntar',
+                edit:       'Editar este mensaje',
+                editCancel: 'Cancelar',
+                editSave:   'Guardar',
+                editNote:   'Al guardar se borra lo que vino después',
                 drop:       'Suéltalo aquí',
                 notice:     'puede equivocarse. Comprueba los datos importantes antes de decidir con ellos.',
                 reading:    'Leyendo…',
@@ -523,6 +606,8 @@ class IaChat {
 
         this.history   = [];
         this.texts     = [];
+        this.turns     = [];
+        this.editing   = null;
         this.files     = [];
         this.previews  = {};
         this.busy      = false;
@@ -536,6 +621,7 @@ class IaChat {
         this.pildora   = null;
 
         this.ensureStyles();
+        this.ensureSkin();
         this.mount();
         this.bindEvents();
         this.welcome();
@@ -602,6 +688,8 @@ class IaChat {
 
         this.history  = [];
         this.texts    = [];
+        this.turns    = [];
+        this.editing  = null;
         this.files    = [];
         this.previews = {};
         this.dirty    = false;
@@ -628,18 +716,18 @@ class IaChat {
         const parent = o.parent === 'body' ? $('body') : $(`#${o.parent}`);
 
         parent.append(`
-            <div id="${o.id}" class="hidden fixed ${o.dock} z-[1040] w-[380px] max-w-[calc(100vw-16px)] h-[520px] max-h-[72vh] flex-col bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_22px_55px_rgba(15,23,42,.20)] overflow-hidden transition-[width,height] duration-200">
+            <div id="${o.id}" class="iac-root iac-panel hidden fixed ${o.dock} z-[1040] w-[380px] max-w-[calc(100vw-16px)] h-[520px] max-h-[72vh] flex-col bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_22px_55px_rgba(15,23,42,.20)] overflow-hidden transition-[width,height] duration-200">
                 <div data-head class="flex items-center justify-between gap-2 px-[11px] py-[9px] border-b border-[#F1F5F9] flex-shrink-0 cursor-grab touch-none select-none">
                     <div class="flex items-center gap-[9px] min-w-0 flex-1">
-                        <span id="${o.id}_cara" class="iac-mini block w-10 h-10 -my-[6px] -ml-[4px] flex-shrink-0">${this.coffeeBot()}</span>
+                        <span id="${o.id}_cara" class="iac-mini block w-12 h-12 -my-[6px] -ml-[6px] flex-shrink-0">${this.avatar()}</span>
                         <div class="min-w-0 flex-1">
                             <div class="text-[13.5px] font-bold text-[#0F2C4C] truncate">${this.marca(o.title)}</div>
                             <div class="text-[10.5px] text-[#94A3B8] mt-px truncate">${this.esc(o.subtitle)}</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-1.5 flex-shrink-0">
-                        <button type="button" id="${o.id}_clear" title="${this.esc(l.clear)}" disabled class="${tool} disabled:text-[#E2E8F0] disabled:hover:bg-transparent disabled:cursor-not-allowed">
-                            <i data-lucide="eraser" class="w-4 h-4"></i>
+                        <button type="button" id="${o.id}_clear" title="${this.esc(l.clear)}" aria-label="${this.esc(l.clear)}" disabled class="flex items-center gap-1 h-7 pl-1.5 pr-2 rounded-lg text-[11.5px] font-semibold text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#334155] transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed">
+                            <i data-lucide="eraser" class="w-4 h-4"></i>${this.esc(l.clearShort)}
                         </button>
                         <button type="button" id="${o.id}_expand" title="${this.esc(l.expand)}" class="${tool}">
                             <i data-lucide="maximize-2" class="w-4 h-4"></i>
@@ -650,9 +738,9 @@ class IaChat {
                     </div>
                 </div>
 
-                <div id="${o.id}_msgs" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-[14px] flex flex-col gap-[11px] bg-white [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#E2E8F0] hover:[&::-webkit-scrollbar-thumb]:bg-[#CBD5E1]"></div>
+                <div id="${o.id}_msgs" class="iac-msgs flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-[14px] flex flex-col gap-[11px] bg-white [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#E2E8F0] hover:[&::-webkit-scrollbar-thumb]:bg-[#CBD5E1]"></div>
 
-                <div id="${o.id}_foot" class="relative border-t border-[#F1F5F9] bg-[#F8FAFC] px-3 py-[11px] flex-shrink-0">
+                <div id="${o.id}_foot" class="iac-foot relative border-t border-[#F1F5F9] bg-[#F8FAFC] px-3 py-[11px] flex-shrink-0">
                     <div id="${o.id}_composer">
                         <div id="${o.id}_chips" class="hidden flex-wrap gap-[5px] mb-1.5 max-h-[135px] overflow-y-auto"></div>
                         <div class="iac-wrap flex items-end gap-[7px] bg-white border border-[#CBD5E1] rounded-[11px] p-1 transition-shadow focus-within:border-[#7C3AED] focus-within:shadow-[0_0_0_3px_rgba(124,58,237,.13)]">
@@ -778,8 +866,12 @@ class IaChat {
 
     // -- Mensajes --
 
-    addMessage(role, text, fileNames) {
+    // `extra.turn` es la posición de la pregunta en `turns` (lleva el lápiz); `extra.regen`
+    // es el turno al que contesta la respuesta (la última lleva volver a preguntar).
+    addMessage(role, text, fileNames, extra) {
         const esUser = role === 'user';
+        const x      = extra || {};
+        const l      = this.opts.labels;
         const idx    = this.texts.push(String(text || '')) - 1;
         const tone   = esUser
             ? 'bg-blue-600 text-white rounded-[13px] rounded-br-[4px]'
@@ -790,18 +882,18 @@ class IaChat {
         const files = (fileNames || []).map(n => `
             <span class="inline-flex items-center gap-1 text-[10.5px] bg-white/20 rounded-md px-1.5 py-0.5"><i data-lucide="paperclip" class="w-3 h-3"></i>${this.esc(n)}</span>`).join('');
 
-        const copy = text ? `
-            <button type="button" data-copy="${idx}" title="${this.esc(this.opts.labels.copy)}" class="p-[3px] rounded-[5px] leading-none text-[#94A3B8] hover:bg-[rgba(15,44,76,.06)] hover:text-blue-600 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all">
-                <i data-lucide="copy" class="w-3 h-3"></i>
-            </button>` : '';
+        const copy  = text ? this.footButton('data-copy', idx, l.copy, 'copy') : '';
+        const regen = x.regen !== undefined ? this.footButton('data-rg', x.regen, l.regenerate, 'rotate-ccw') : '';
+        const edit  = x.turn !== undefined ? this.footButton('data-ed', x.turn, l.edit, 'pencil') : '';
+        const turn  = x.turn !== undefined ? ` data-turn="${x.turn}"` : '';
 
         this.appendNode(`
-            <div class="flex ${esUser ? 'justify-end' : ''} min-w-0">
+            <div class="flex ${esUser ? 'justify-end' : ''} min-w-0" data-msg="${role}"${turn}>
                 <div class="group flex flex-col ${esUser ? 'items-end' : 'items-start'} min-w-0 max-w-[92%]">
                     <div class="max-w-full ${tone} px-3 py-[9px] text-[12.5px] leading-[1.5] whitespace-pre-wrap break-words">${files ? `<div class="flex flex-wrap gap-1 ${text ? 'mb-[5px]' : ''}">${files}</div>` : ''}${this.esc(text)}</div>
                     <div class="mt-[3px] px-[3px] flex items-center gap-1.5 ${esUser ? 'flex-row-reverse' : ''}">
                         <span class="text-[10px] text-[#94A3B8] tabular-nums tracking-[.02em]">${this.hora()}</span>
-                        ${copy}
+                        ${copy}${regen}${edit}
                     </div>
                 </div>
             </div>`);
@@ -893,9 +985,19 @@ class IaChat {
         }
 
         const u   = a.fin ? 0.78 + 0.17 * Math.min(1, (Date.now() - a.fin) / 450) : this.faseCarga(a.p);
-        const rec = B.receta(Object.assign({}, B.CASA[0], { anim: 'p_carga', fondo: '#F1F5F9' }));
+        const rec = B.receta(Object.assign({}, B.CASA[0], { anim: 'p_carga', fondo: this.fondoBurbuja() }));
 
         return B.svg(rec, (Date.now() - a.t0) / 1000, null, { centrado: true, fase: u * an.per });
+    }
+
+    // El motor pinta el fondo de este dibujo como un rectángulo: tiene que ser el de la
+    // burbuja donde va (el gris claro, o el --dk-raised del tema oscuro).
+    fondoBurbuja() {
+        if (!document.body.classList.contains('dark-mode')) return '#F1F5F9';
+
+        const raised = getComputedStyle(document.body).getPropertyValue('--dk-raised').trim();
+
+        return /^#[0-9a-f]{6}$/i.test(raised) ? raised : '#333D4C';
     }
 
     // En cargaK (forja-blob.js) la barra se llena entre el 6 % y el 78 % de la vuelta
@@ -1038,7 +1140,7 @@ class IaChat {
 
         if (!validos || !token) return;
 
-        this.previews[token] = { uid: uid, state: 'pending' };
+        this.previews[token] = { uid: uid, state: 'pending', turn: this.turns.length - 1 };
 
         const card = $(`#${uid}`);
 
@@ -1130,6 +1232,7 @@ class IaChat {
         pv.armed = false;
 
         pv.state = 'applying';
+        this.syncActions();
         card.find('input, [data-discard]').prop('disabled', true);
         card.find('[data-confirm]').prop('disabled', true).html(`<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>${this.esc(l.applying)}`);
         card.find('[data-status]').removeClass('text-red-600').addClass('text-[#64748B]').text('');
@@ -1145,12 +1248,14 @@ class IaChat {
 
         if (r && r.status === 200) {
             this.closePreview(token, 'applied', r.message);
+            this.syncActions();
             this.addMessage('assistant', r.message || l.applied);
             this.history.push({ role: 'assistant', content: `Se aplicaron los cambios: ${r.message || ''}` });
             return;
         }
 
         pv.state = 'pending';
+        this.syncActions();
         card.find('[data-row][data-valid="1"], [data-all], [data-discard]').prop('disabled', false);
         card.find('[data-confirm]').html(`<i data-lucide="check" class="w-3.5 h-3.5"></i><span data-confirm-text></span>`);
         card.find('[data-status]').removeClass('text-[#64748B]').addClass('text-red-600').text((r && r.message) || l.error);
@@ -1186,21 +1291,35 @@ class IaChat {
         input.val('');
         this.autosize();
         this.menu(false);
-        this.leavePortada();
 
-        const names   = files.map(f => f.name);
+        await this.ask(text, files.map(f => ({ nombre: f.name, texto: f.texto })));
+    }
+
+    // Una pregunta nueva, tecleada o repetida: `turns` guarda lo que hace falta para
+    // volver a mandarla (texto y adjuntos) y dónde empieza su rastro en el historial.
+    async ask(text, adjuntos) {
+        const o = this.opts;
+
+        if (this.busy || typeof o.onSend !== 'function') return;
+
+        const names   = adjuntos.map(a => a.nombre);
         const history = this.history.slice(-8);
+        const turn    = this.turns.push({ text: text, adjuntos: adjuntos, hist: this.history.length, texts: this.texts.length }) - 1;
 
-        this.addMessage('user', text, names);
+        this.cancelEdit();
+        this.leavePortada();
+        $(`#${o.id}_msgs [data-rg]`).remove();
+
+        this.addMessage('user', text, names, { turn: turn });
         this.history.push({ role: 'user', content: text + (names.length ? `\n(Adjuntó: ${names.join(', ')})` : '') });
         this.dirty = true;
-        this.carga = files.length > 0;
+        this.carga = adjuntos.length > 0;
         this.setBusy(true);
 
         let r = null;
 
         try {
-            r = await o.onSend(text, files.map(f => ({ nombre: f.name, texto: f.texto })), history, (label, hasta) => this.progress(label, hasta));
+            r = await o.onSend(text, adjuntos, history, (label, hasta) => this.progress(label, hasta));
         } catch (e) {
             r = null;
         }
@@ -1212,15 +1331,141 @@ class IaChat {
 
         if (!r || r.status !== 200) {
             this.history.pop();
-            this.addMessage('error', (r && r.message) || o.labels.error);
+            this.addMessage('error', (r && r.message) || o.labels.error, null, { regen: turn });
             return;
         }
 
-        this.addMessage('assistant', r.reply || '');
+        this.addMessage('assistant', r.reply || '', null, { regen: turn });
 
         if (r.row && r.row.length) this.addPreview(r);
 
         this.history.push({ role: 'assistant', content: this.historyText(r) });
+    }
+
+    // -- Volver a preguntar y editar --
+
+    // Se corta el hilo ANTES de la pregunta y se manda la misma, con sus adjuntos: la
+    // vieja no se pisa, se sustituye, así el modelo no ve dos respuestas a lo mismo.
+    regenerate(idx) {
+        const turn = this.turns[idx];
+
+        if (!turn || this.busy || this.locked(idx)) return;
+
+        this.cancelEdit();
+        this.rewind(idx);
+        this.ask(turn.text, turn.adjuntos);
+    }
+
+    // La burbuja se vuelve editor y el hilo no se toca hasta guardar: al guardar se va lo
+    // que venía detrás (contestaba la pregunta vieja) y la corregida se manda.
+    edit(idx) {
+        const o    = this.opts;
+        const l    = o.labels;
+        const turn = this.turns[idx];
+        const row  = $(`#${o.id}_msgs [data-turn="${idx}"]`);
+
+        if (!turn || !row.length || this.busy || this.locked(idx)) return;
+
+        this.cancelEdit();
+
+        const cola  = row.nextAll('[data-msg]').length;
+        const files = turn.adjuntos.map(a => `
+            <span class="inline-flex items-center gap-1 text-[10.5px] text-[#475569] bg-[#F1F5F9] rounded-md px-1.5 py-0.5"><i data-lucide="paperclip" class="w-3 h-3"></i>${this.esc(a.nombre)}</span>`).join('');
+
+        this.editing = { idx: idx, html: row.html() };
+
+        row.html(`
+            <div class="flex flex-col items-end min-w-0 w-full max-w-[92%]">
+                <div class="iac-edit-box w-full min-w-[220px] bg-white border border-blue-600 rounded-[13px] rounded-br-[4px] px-2 pt-[7px] pb-2">
+                    ${files ? `<div class="flex flex-wrap gap-1 mb-[5px]">${files}</div>` : ''}
+                    <textarea id="${o.id}_edit" rows="1" class="iac-edit block w-full border-0 outline-none resize-none bg-transparent text-[12.5px] leading-[1.5] text-[#1E293B]"></textarea>
+                    <div class="flex justify-end gap-1.5 mt-1.5">
+                        <button type="button" data-edit-cancel class="px-[11px] py-[5px] text-[11px] font-bold text-[#475569] bg-white border border-[#CBD5E1] rounded-lg hover:bg-[#F1F5F9] transition-colors">${this.esc(l.editCancel)}</button>
+                        <button type="button" data-edit-save class="px-[11px] py-[5px] text-[11px] font-bold text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-500 transition-colors">${this.esc(l.editSave)}</button>
+                    </div>
+                    ${cola ? `<div class="mt-1.5 text-[10.5px] text-[#94A3B8]">${this.esc(l.editNote)}: ${cola} ${cola === 1 ? 'mensaje' : 'mensajes'}.</div>` : ''}
+                </div>
+            </div>`);
+
+        this.icons();
+
+        const box = $(`#${o.id}_edit`);
+
+        box.val(turn.text);
+        this.fit(box[0], 160);
+        box.trigger('focus');
+        box[0].setSelectionRange(box.val().length, box.val().length);
+        row[0].scrollIntoView({ block: 'nearest' });
+
+        box.on('input', () => this.fit(box[0], 160));
+
+        // Escape y Enter se quedan en el editor: ni cierran el chat ni llegan al modal de atrás.
+        box.on('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.saveEdit();
+            } else if (e.key === 'Escape') {
+                e.stopPropagation();
+                this.cancelEdit();
+            }
+        });
+    }
+
+    saveEdit() {
+        const edit = this.editing;
+        const turn = edit ? this.turns[edit.idx] : null;
+        const box  = $(`#${this.opts.id}_edit`);
+
+        if (!turn || !box.length || this.busy) return;
+
+        const text = String(box.val() || '').trim();
+
+        if (!text && !turn.adjuntos.length) return;
+
+        this.editing = null;
+        this.rewind(edit.idx);
+        this.ask(text, turn.adjuntos);
+    }
+
+    cancelEdit() {
+        if (!this.editing) return;
+
+        const edit = this.editing;
+
+        this.editing = null;
+        $(`#${this.opts.id}_msgs [data-turn="${edit.idx}"]`).html(edit.html);
+        this.icons();
+    }
+
+    // Deja el chat como estaba justo antes de esa pregunta: sale su burbuja y todo lo
+    // que vino después, y se recortan el historial, los textos y las vistas previas.
+    rewind(idx) {
+        const turn = this.turns[idx];
+
+        $(`#${this.opts.id}_msgs [data-turn="${idx}"]`).nextAll().addBack().remove();
+
+        this.history.length = Math.min(this.history.length, turn.hist);
+        this.texts.length   = Math.min(this.texts.length, turn.texts);
+        this.turns.length   = idx;
+
+        Object.keys(this.previews).forEach(t => {
+            if (!$(`#${this.previews[t].uid}`).length) delete this.previews[t];
+        });
+    }
+
+    // Lo ya aplicado no se deshace desde el chat: del turno donde se aplicó hacia atrás
+    // no se puede volver a preguntar ni editar, o se perdería de vista lo que cambió.
+    locked(idx) {
+        return Object.values(this.previews).some(p => p.turn >= idx && (p.state === 'applied' || p.state === 'applying'));
+    }
+
+    syncActions() {
+        $(`#${this.opts.id}_msgs [data-rg], #${this.opts.id}_msgs [data-ed]`).each((i, el) => {
+            const idx = Number(el.hasAttribute('data-rg') ? el.getAttribute('data-rg') : el.getAttribute('data-ed'));
+
+            $(el).toggleClass('hidden', this.locked(idx));
+        });
     }
 
     historyText(r) {
@@ -1356,7 +1601,7 @@ class IaChat {
         const ext = String(name).toLowerCase().split('.').pop();
 
         if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) return l.readingImage;
-        if (['xlsx', 'xls', 'csv'].includes(ext)) return l.readingSheet;
+        if (['xlsx', 'xlsm', 'xlsb', 'xls', 'ods', 'csv', 'tsv'].includes(ext)) return l.readingSheet;
 
         return l.reading;
     }
@@ -1434,6 +1679,10 @@ class IaChat {
         });
 
         panel.on('click', '[data-copy]', e => this.copy(e.currentTarget));
+        panel.on('click', '[data-rg]', e => this.regenerate(Number($(e.currentTarget).attr('data-rg'))));
+        panel.on('click', '[data-ed]', e => this.edit(Number($(e.currentTarget).attr('data-ed'))));
+        panel.on('click', '[data-edit-save]', () => this.saveEdit());
+        panel.on('click', '[data-edit-cancel]', () => this.cancelEdit());
         panel.on('click', '[data-remove]', e => this.removeFile(String($(e.currentTarget).data('remove'))));
 
         panel.on('dragenter', e => {
@@ -1493,7 +1742,7 @@ class IaChat {
         $(`#${o.id}_send`).prop('disabled', this.busy || reading || (!hasText && !hasFiles));
     }
 
-    // Sin nada que borrar la goma va apagada: así no se dispara por accidente.
+    // Sin nada que limpiar el botón va apagado: así no se dispara por accidente.
     syncClear() {
         $(`#${this.opts.id}_clear`).prop('disabled', this.busy || !this.dirty);
     }
@@ -1516,6 +1765,14 @@ class IaChat {
 
         el.style.setProperty('height', Math.min(el.scrollHeight, 132) + 'px', 'important');
         el.style.overflowY = el.scrollHeight > 132 ? 'auto' : 'hidden';
+    }
+
+    // Alto de una caja de texto que crece con lo escrito hasta `max` px. Va con !important
+    // por lo mismo que autosize(): compact.css fuerza `textarea { height:auto !important }`.
+    fit(el, max) {
+        el.style.setProperty('height', 'auto', 'important');
+        el.style.setProperty('height', Math.min(el.scrollHeight, max) + 'px', 'important');
+        el.style.overflowY = el.scrollHeight > max ? 'auto' : 'hidden';
     }
 
     // Se mueve agarrándolo por la cabecera, como en erp-pro (engancharCabecera). Los
@@ -1594,24 +1851,43 @@ class IaChat {
         if (msgs) msgs.scrollTop = msgs.scrollHeight;
     }
 
-    // La cara de la cabecera es CoffeeBot, como en erp-pro: a este tamaño sus ojos se
-    // leen mejor que los del blob. El ojo va dentro de un grupo que lo coloca para que
-    // el parpadeo (scaleY por CSS) lo cierre sobre sí mismo.
-    coffeeBot() {
-        const C    = IA_COFFEEBOT;
-        const clip = `${this.opts.id}_cbClip`;
-        const ojos = C.eyes.map(e => `<g transform="translate(${(C.cx + e.pos[0]).toFixed(2)} ${(C.cy + e.pos[1]).toFixed(2)}) scale(${e.s})"><path class="cb-ojo" d="M${e.pts.map(p => p.join(' ')).join('L')}Z"/></g>`).join('');
+    // La cara de la cabecera es el blob Base de erp-pro/avatars, quieto y de frente (en
+    // erp-pro la cabecera dejó a CoffeeBot por el blob el 08/10/2026). Respira por CSS
+    // (.iac-mini); sin el motor sale una chispa.
+    avatar() {
+        if (!(window.Bloub && window.Bloub.cuadro)) {
+            return '<span class="w-full h-full rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><i data-lucide="sparkles" class="w-5 h-5"></i></span>';
+        }
+
+        const cuerpo = window.Bloub.cuadro(
+            { forma: 'gota', gesto: 'calma', accesorio: 'ninguno', anim: 'ninguna', color: IA_BASE.color },
+            0, null,
+            { margen: 30, clases: IA_BOT.clases, quieto: true, pose: IA_BOT.pose }
+        );
 
         return `
             <span class="iac-bot block w-full h-full">
-                <svg viewBox="0 0 400 400" class="block w-full h-full" aria-hidden="true">
-                    <defs><clipPath id="${clip}"><path d="${C.head}"/></clipPath></defs>
-                    <g transform="${C.encaje}"><g transform="${C.cabeza}">
-                        <path class="cb-cabeza" d="${C.head}"/>
-                        <g class="fx-ojos" clip-path="url(#${clip})">${ojos}</g>
-                    </g></g>
-                </svg>
+                <svg viewBox="0 0 400 400" class="block w-full h-full" aria-hidden="true"><g transform="${IA_BOT.encaje}">${cuerpo}</g></svg>
             </span>`;
+    }
+
+    // Los <pattern> de la piel Base (uno por tono), una vez por página en un <svg> sin
+    // tamaño al final del body. No con display:none: ahí dentro los degradados no pintan.
+    ensureSkin() {
+        if (document.getElementById('iaChatPieles')) return;
+
+        const piel = (id, t) => `
+            <linearGradient id="${id}G" x1="0.85" y1="0.075" x2="0.1" y2="0.95"><stop offset="0" stop-color="${t.base[0]}"/><stop offset="1" stop-color="${t.base[1]}"/></linearGradient>
+            <radialGradient id="${id}S" cx="0.5" cy="0.5" r="0.625" fx="0.625" fy="0.34" fr="0.075"><stop offset="0.6" stop-color="#000000" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity="${t.sombra}"/></radialGradient>
+            <radialGradient id="${id}B" cx="0.67" cy="0.27" r="0.21"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+            <pattern id="${id}" width="1" height="1" patternContentUnits="objectBoundingBox">
+                <rect width="1" height="1" fill="url(#${id}G)"/><rect width="1" height="1" fill="url(#${id}S)"/><rect width="1" height="1" fill="url(#${id}B)"/>
+            </pattern>`;
+
+        $('body').append(`
+            <svg id="iaChatPieles" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+                <defs>${piel('iaChatBaseClaro', IA_BASE.tonos.claro)}${piel('iaChatBaseOscuro', IA_BASE.tonos.oscuro)}</defs>
+            </svg>`);
     }
 
     // Lo que Tailwind no alcanza: el color del muñeco (el motor pinta con clases),
@@ -1622,19 +1898,19 @@ class IaChat {
         if (document.getElementById('iaChatStyles')) return;
 
         const css = `
-            .iac-bot .cb-cabeza, .iac-hola-bot .cb-cabeza { fill:#FFFFFF; stroke:#D6D6D6; stroke-width:1px; vector-effect:non-scaling-stroke; }
-            .iac-bot .cb-ojo { fill:#1E293B; }
-            .iac-hola-bot .cb-ojo { fill:none; stroke:#1E293B; stroke-linecap:round; }
+            .iac-bot .cb-cabeza, .iac-hola-bot .cb-cabeza { fill:url(#iaChatBaseClaro); stroke:none; }
+            .iac-bot .cb-ojo, .iac-hola-bot .cb-ojo { fill:none; stroke:#1E293B; stroke-linecap:round; }
             .iac-mini .iac-bot { transform-origin:50% 58%; animation:iacRespira 4.6s ease-in-out infinite; }
-            .iac-mini .cb-ojo { transform-box:fill-box; transform-origin:center; animation:iacPestanea 6.4s ease-in-out infinite; }
             .iac-mini.is-activo { animation:iacFlota 1.1s ease-in-out infinite; }
-            .iac-mini.is-activo .fx-ojos { animation:iacPiensa 1.1s ease-in-out infinite; }
             .iac-con-portada .iac-mini { display:none !important; }
             @keyframes iacRespira { 0%,100% { transform:scale(1) rotate(0deg); } 50% { transform:scale(1.035) rotate(-1.2deg); } }
-            @keyframes iacPestanea { 0%,93%,100% { transform:scaleY(1); } 96% { transform:scaleY(.08); } }
             @keyframes iacFlota { 0%,100% { transform:translateY(0) rotate(-2deg); } 50% { transform:translateY(-5px) rotate(2deg); } }
-            @keyframes iacPiensa { 0%,100% { transform:translate(-16px, 6px); } 50% { transform:translate(16px, 6px); } }
-            @media (prefers-reduced-motion: reduce) { .iac-mini, .iac-mini .iac-bot, .iac-mini .cb-ojo, .iac-mini .fx-ojos { animation:none !important; } }
+            @media (prefers-reduced-motion: reduce) { .iac-mini, .iac-mini .iac-bot { animation:none !important; } }
+            .iac-act { opacity:0; transition:opacity .15s ease, background-color .15s ease, color .15s ease; }
+            .group:hover .iac-act, .iac-act:focus-visible { opacity:1; }
+            @media (hover: none), (pointer: coarse) { .iac-act { opacity:1; } }
+            .iac-edit-box { box-shadow:0 2px 10px rgb(var(--brand-600, 192 90 64) / .12); }
+            .iac-edit { font-size:12.5px !important; overflow-y:hidden; }
             .iac-wrap .iac-input { font-size:12.5px !important; overflow-y:hidden; }
             .iac-moviendo, .iac-moviendo * { cursor:grabbing !important; user-select:none !important; }
             .iac-portada { width:100%; margin-top:26px; text-align:left; position:relative; }
@@ -1645,8 +1921,7 @@ class IaChat {
             .iac-pildora { opacity:0; transform:scale(.3); transform-origin:calc(100% - 26px) -6px; pointer-events:none; transition:opacity .25s ease, transform .52s cubic-bezier(.32,1.22,.42,1); }
             .iac-pildora.is-vista { opacity:1; transform:none; pointer-events:auto; }
             .iac-pildora.is-cerrando { transition:opacity .2s ease, transform .34s cubic-bezier(.45,0,.2,1); }
-            .iac-pil-cuerpo { fill:#FFFFFF; }
-            .iac-pil-filo { fill:none; stroke:#D6D6D6; stroke-width:1px; vector-effect:non-scaling-stroke; }
+            .iac-pil-cuerpo { fill:url(#iaChatBaseClaro); }
             .iac-pil-ojo { fill:none; stroke:#1E293B; stroke-linecap:round; }
             .iac-pil-punto { fill:#1E293B; }
             @media (prefers-reduced-motion: reduce) { .iac-pildora, .iac-pildora.is-cerrando { transition:opacity .15s ease; transform:none; } }
@@ -1664,7 +1939,7 @@ class IaChat {
 
         const style = document.createElement('style');
         style.id = 'iaChatStyles';
-        style.textContent = css;
+        style.textContent = css + IA_DARK;
         document.head.appendChild(style);
     }
 
@@ -1722,6 +1997,16 @@ class IaChat {
         return `<span class="inline-block w-2.5 h-2.5 mr-1 rounded-[3px] border border-black/10 align-[-1px]" style="background:${hex}"></span>`;
     }
 
+    // Los botoncitos bajo cada mensaje (copiar, volver a preguntar, editar): salen al pasar
+    // el ratón por el mensaje (.iac-act). No con opacity-0 de Tailwind: Bootstrap trae
+    // `.opacity-0 { opacity:0 !important }` y el hover nunca los mostraba.
+    footButton(attr, value, title, icon) {
+        return `
+            <button type="button" ${attr}="${value}" title="${this.esc(title)}" aria-label="${this.esc(title)}" class="iac-act p-[3px] rounded-[5px] leading-none text-[#94A3B8] hover:bg-[rgba(15,44,76,.06)] hover:text-blue-600">
+                <i data-lucide="${icon}" class="w-3 h-3"></i>
+            </button>`;
+    }
+
     badge(action, text) {
         return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold leading-none flex-shrink-0 ${action.tone || 'bg-gray-100 text-gray-600'}">${this.esc(text)}</span>`;
     }
@@ -1745,8 +2030,8 @@ Templates.prototype.iaChat = function (options) {
 // -- Ícono --
 
 // La cara de coffeeIA dibujada como un ícono de Lucide: 24×24, solo trazo en
-// currentColor, grosor 2 y puntas redondas. La cabeza de CoffeeBot (IA_COFFEEBOT)
-// es casi un círculo y los ojos miran al frente. Como en los íconos de Lucide con
+// currentColor, grosor 2 y puntas redondas. La cabeza del blob Base es casi un
+// círculo y los ojos miran al frente. Como en los íconos de Lucide con
 // insignia, el contorno se abre abajo a la derecha (arco de 80° a 15°) para que
 // lo que se le monte ahí (el "IA" del botón de la navbar) no choque con la línea. Sin
 // data-lucide: lucide.createIcons no lo toca, y toma el color y el tamaño del

@@ -5,7 +5,7 @@ let branch_id;
 
 const MOVIMIENTOS_STOCK = [
     { id: '',    valor: 'Todos los productos' },
-    { id: 'con', valor: 'Con movimientos'     }
+    { id: 'con', valor: 'Con movimientos (últimos 30 días)' }
 ];
 
 $(async () => {
@@ -101,7 +101,7 @@ class App extends Templates {
                 },
                 {
                     id:     'ajustes',
-                    tab:    'Ajustes'
+                    tab:    'Conteos físicos'
                 }
             ],
             onChange: (tabId) => this.onChangeTab(tabId)
@@ -249,34 +249,34 @@ class App extends Templates {
                 opc:      'select',
                 id:       'branch_id',
                 lbl:      'Sucursal:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-12 col-md-4 col-lg-1',
                 onchange: 'app.onChangeSucursal()',
                 value:    '',
                 data:     [{ id: '', valor: 'Todas las sucursales' }]
             },
             {
                 opc:      'select',
-                id:       'fCategoria',
-                lbl:      'Categoría:',
-                class:    'col-12 col-md-4 col-lg-2',
-                onchange: 'app.onChangeFilters()',
-                value:    '',
-                data:     [{ id: '', valor: 'Todas las categorías' }].concat(this.dataInit.categorias || [])
-            },
-            {
-                opc:      'select',
                 id:       'fArea',
                 lbl:      'Área:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-12 col-md-4 col-lg-1',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     [{ id: '', valor: 'Todas las áreas' }].concat(this.dataInit.areas || [])
             },
             {
                 opc:      'select',
+                id:       'fCategoria',
+                lbl:      'Categoría:',
+                class:    'col-12 col-md-4 col-lg-1',
+                onchange: 'app.onChangeFilters()',
+                value:    '',
+                data:     [{ id: '', valor: 'Todas las categorías' }].concat(this.dataInit.categorias || [])
+            },
+            {
+                opc:      'select',
                 id:       'fMovimiento',
                 lbl:      'Movimientos:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-12 col-md-4 col-lg-1',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     MOVIMIENTOS_STOCK
@@ -286,8 +286,8 @@ class App extends Templates {
                 id:        'btnConteoFisico',
                 text:      'Conteo físico',
                 icon:      'icon-clipboard',
-                className: 'w-100',
-                class:     'col-12 col-md-4 col-lg-2',
+                className: 'w-100 h-[34px]',
+                class:    'col-12 col-md-4 col-lg-1',
                 color_btn: 'primary',
                 onClick:   () => stockCount.addConteo()
             }
@@ -295,10 +295,13 @@ class App extends Templates {
 
         this.createfilterBar({
             parent: 'filterBar',
+            id:     'filterFormStock',
             coffeesoft:true,
             theme:'light',
             data:   filters
         });
+
+        $('#filterFormStock').addClass('lg:grid-cols-5');
     }
 
     populateFilters() {
@@ -402,7 +405,7 @@ class Stock extends Templates {
                 theme:        'light',
                 striped:      true,
                 f_size:       12,
-                center:       [2, 6, 7, 8],
+                center:       [2, 5, 6, 7, 8],
                 emptyMessage: 'No se encontraron productos con los filtros aplicados',
                 emptyIcon:    'icon-cube'
             }
@@ -540,7 +543,7 @@ class StockView extends Templates {
                 { id: 'movimientos',  label: 'Movimientos',   active: false },
                 { id: 'entradas',     label: 'Entradas',      active: false },
                 { id: 'traspasos',    label: 'Traspasos',     active: false },
-                { id: 'ajustes',      label: 'Ajustes',       active: false }
+                { id: 'ajustes',      label: 'Conteos físicos', active: false }
             ],
             onChange: (tab) => console.log('[tabsBar]', tab.id)
         });
@@ -1509,9 +1512,24 @@ class StockCount extends Templates {
         });
 
         $('#mdlConteoTable').on('input', '[data-count]', (e) => this.onCountChange($(e.currentTarget)));
+        $('#mdlConteoTable').on('keydown', '[data-count]', (e) => this.onCountKey(e));
 
         this.renderTabs(data.areas || []);
         this.paintSheet(data);
+    }
+
+    // Enter pasa a la captura del producto de abajo (los renglones contraídos se saltan);
+    // Tab y el resto de teclas siguen como siempre.
+    onCountKey(e) {
+        if (e.key !== 'Enter') return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const $fields = $('#mdlConteoTable [data-count]:enabled:visible');
+        const next    = $fields.eq($fields.index(e.currentTarget) + 1);
+
+        if (next.length) next.trigger('focus').trigger('select');
     }
 
     // "Todas" llega con id vacio; en la pestana va como 'todas' para que su id del DOM no quede en blanco.
@@ -1684,19 +1702,21 @@ class StockCount extends Templates {
     async statusConteo() {
         const s       = this.summary();
         const missing = s.total - s.counted;
-        const ok      = await this.confirm(
+        const res     = await this.confirm(
             '¿Aplicar el ajuste?',
-            `Se ajustarán <b class="text-blue-600">${s.counted} ${s.counted === 1 ? 'producto' : 'productos'}</b>. Cada diferencia se suma al stock actual del almacén y el conteo ya no se podrá editar.${missing ? ` Quedan ${missing} productos sin contar: no se ajustarán.` : ''}`,
-            'Aplicar'
+            `Se ajustarán <b class="text-blue-600">${s.counted} ${s.counted === 1 ? 'producto' : 'productos'}</b>. Cada diferencia se suma al stock actual del almacén y el conteo ya no se podrá editar.${missing ? ` Quedan ${missing} productos sin contar: no se ajustarán.` : ''}<div class="mt-3 pt-3 border-t border-gray-200 text-gray-600">El registro quedó en la pestaña <b>Conteos físicos</b>.</div>`,
+            'Aplicar',
+            { label: 'Nota:', placeholder: 'Motivo del ajuste: por qué se realizó (opcional)' }
         );
-        if (!ok || !(await this.editConteo(true))) return;
+        if (!res.ok || !(await this.editConteo(true))) return;
 
         const r = await useFetch({
             url:  apiStock,
             data: {
                 opc:    'statusConteo',
                 id:     this.id,
-                action: 'aplicar'
+                action: 'aplicar',
+                note:   res.note
             }
         });
 
@@ -1751,7 +1771,7 @@ class StockCount extends Templates {
             type:       'cancel',
             title:      applied ? '¿Cancelar el ajuste?' : '¿Cancelar el conteo?',
             detailHtml: applied
-                ? 'El stock vuelve a como estaba antes de aplicar y el ajuste sale del kárdex.'
+                ? 'El stock vuelve a como estaba antes de aplicar y el ajuste sale del historial de movimientos.'
                 : 'Se descarta lo capturado. El stock no cambia.',
             okLabel:    'Sí, cancelar',
             onOk: async () => {
@@ -1902,16 +1922,18 @@ class StockCount extends Templates {
         if (app.ajustesReady) ajustes.lsAjustes();
     }
 
-    confirm(title, detail, okLabel) {
+    // Con `note` ({ label, placeholder }) la confirmación lleva un cuadro de texto; resuelve
+    // { ok, note }.
+    confirm(title, detail, okLabel, note) {
         return new Promise((resolve) => {
-            this.alertBox({
+            this.alertBox(Object.assign({
                 type:       'confirm',
                 title:      title,
                 detailHtml: detail,
                 okLabel:    okLabel,
-                onOk:       () => resolve(true),
-                onCancel:   () => resolve(false)
-            });
+                onOk:       (value) => resolve({ ok: true, note: value || '' }),
+                onCancel:   () => resolve({ ok: false, note: '' })
+            }, note ? { input: 'textarea', inputLabel: note.label, inputPlaceholder: note.placeholder } : {}));
         });
     }
 }
@@ -1946,7 +1968,7 @@ class Ajustes extends Templates {
                     opc:      'select',
                     id:       'fEstadoAjuste',
                     lbl:      'Estado:',
-                    class:    'col-12 col-md-4 col-lg-3',
+                    class:    'col-12 col-md-4 col-lg-1',
                     onchange: 'ajustes.lsAjustes()',
                     value:    '',
                     required: false,
@@ -1957,13 +1979,15 @@ class Ajustes extends Templates {
                     id:        'btnConteoAjustes',
                     text:      'Conteo físico',
                     icon:      'icon-clipboard',
-                    className: 'w-100',
-                    class:     'col-12 col-md-4 col-lg-2',
+                    className: 'w-100 h-[34px]',
+                    class:     'col-12 col-md-4 col-lg-1',
                     color_btn: 'primary',
                     onClick:   () => stockCount.addConteo()
                 }
             ]
         });
+
+        $(`#filterForm${this.PROJECT_NAME}`).addClass('lg:grid-cols-5');
     }
 
     // -- CRUD --

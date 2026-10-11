@@ -19,7 +19,8 @@ class mdl extends CRUD {
                 ic.id,
                 ic.name as valor,
                 DATE_FORMAT(ic.created_at, '%d/%m/%Y') as date_creation,
-                ic.active
+                ic.active,
+                (SELECT COUNT(*) FROM {$this->bd}item i WHERE i.category_id = ic.id AND i.active = 1) as total_items
             FROM {$this->bd}item_category ic
             WHERE ic.active = ?
             AND ic.companies_id = ".$_SESSION['company_id']."

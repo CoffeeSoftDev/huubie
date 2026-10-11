@@ -155,59 +155,6 @@ class mdl extends CRUD {
         return $this->_Read($query, $params);
     }
 
-    // Formato de conteo: activos e inventariables, agrupados por área (donde se
-    // cuentan) y los que no tienen área al final. La existencia es la del almacén
-    // elegido, o la suma de todos.
-    function listFormatoConteo($filters) {
-        $stockWhere = '';
-        $params     = [];
-
-        if (!empty($filters['warehouse_id'])) {
-            $stockWhere = ' AND warehouse_id = ?';
-            $params[]   = $filters['warehouse_id'];
-        }
-
-        $query = "
-            SELECT
-                i.id,
-                ia.sku,
-                i.name,
-                u.code  AS unidad,
-                ic.name AS categoria,
-                COALESCE(ia.warehouse_area_id, 0) AS area_id,
-                wa.name AS area,
-                COALESCE(st.qty, 0) AS existencia
-            FROM {$this->bd}item i
-            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
-            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
-            LEFT JOIN {$this->bd}unit           u  ON u.id  = ia.unit_id
-            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
-            LEFT JOIN (
-                SELECT item_id, SUM(quantity) AS qty
-                FROM {$this->bd}stock
-                WHERE active = 1{$stockWhere}
-                GROUP BY item_id
-            ) st ON st.item_id = i.id
-            WHERE i.companies_id = ".$_SESSION['company_id']."
-            AND i.active = 1
-            AND COALESCE(ia.is_inventoriable, 1) = 1
-        ";
-
-        if (!empty($filters['category_id'])) {
-            $query .= " AND i.category_id = ?";
-            $params[] = $filters['category_id'];
-        }
-
-        if (!empty($filters['area_id'])) {
-            $query .= " AND ia.warehouse_area_id = ?";
-            $params[] = $filters['area_id'];
-        }
-
-        $query .= " ORDER BY wa.name IS NULL, wa.name ASC, i.name ASC";
-
-        return $this->_Read($query, $params);
-    }
-
     function getMaterialById($id) {
         $query = "
             SELECT

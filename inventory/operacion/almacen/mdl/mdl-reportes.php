@@ -111,9 +111,8 @@ class mdl extends CRUD {
 
     // -- Reporte de inventario --
 
-    // Mismos criterios que listFormatoConteo (mdl-almacen): activos e
-    // inventariables, por area y nombre, sin area al final. La existencia es la
-    // ACTUAL de los almacenes del filtro; el ctrl la reconstruye hacia atras.
+    // Activos e inventariables, por area y nombre, sin area al final. La existencia
+    // es la ACTUAL de los almacenes del filtro; el ctrl la reconstruye hacia atras.
     function listProductosReporte($filters) {
         $ids    = $filters['warehouse_ids'];
         $marks  = $ids ? implode(',', array_fill(0, count($ids), '?')) : 'NULL';

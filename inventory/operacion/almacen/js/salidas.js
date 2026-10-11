@@ -577,7 +577,7 @@ class Salidas extends Templates {
                 title:       'CoffeeIA',
                 subtitle:    'Revisa y captura la salida desde una foto o un Excel',
                 placeholder: 'Adjunta la nota de salida o escribe qué sale…',
-                accept:      '.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv',
+                accept:      '.png,.jpg,.jpeg,.webp,.xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv',
                 welcome:     'Adjunta la foto de la nota, hoja de salida o lista. Te digo qué productos salen, cuáles no están en el catálogo y cuáles no tienen stock suficiente. Nada entra sin tu confirmación.',
                 actions: {
                     add: {

@@ -682,70 +682,6 @@ class ctrl extends mdl {
         ];
     }
 
-    // -- Formato de conteo --
-    // Datos del "Reporte de inventario rápido" de Soft Restaurant para imprimir y
-    // contar a mano. El Excel lo arma el navegador (FormatoConteo en almacen.js).
-    function showFormatoConteo() {
-        $dia   = strtotime($_POST['semana'] ?? '') ?: time();
-        $lunes = strtotime('-' . (date('N', $dia) - 1) . ' days', $dia);
-
-        $filters = [
-            'warehouse_id' => $_POST['warehouse_id'] ?? '',
-            'area_id'      => $_POST['area_id'] ?? '',
-            'category_id'  => $_POST['category_id'] ?? ''
-        ];
-
-        $data = $this->listFormatoConteo($filters);
-
-        if (empty($data)) {
-            return [
-                'status'  => 404,
-                'message' => 'No hay productos activos e inventariables con esos filtros'
-            ];
-        }
-
-        $almacen = 'Todos';
-        foreach ($this->lsWarehouses() as $w) {
-            if ((string) $w['id'] === (string) $filters['warehouse_id']) $almacen = $w['valor'];
-        }
-
-        $filtro = [];
-        if (!empty($filters['area_id']))     $filtro[] = 'Área: ' . $data[0]['area'];
-        if (!empty($filters['category_id'])) $filtro[] = 'Categoría: ' . $data[0]['categoria'];
-
-        $rows = [];
-        foreach ($data as $item) {
-            $rows[] = [
-                'sku'        => $item['sku'] ?? '',
-                'name'       => $item['name'],
-                'unidad'     => $item['unidad'] ?? '',
-                'area_id'    => (int) $item['area_id'],
-                'area'       => $item['area'] ?? 'Sin área',
-                'existencia' => (float) $item['existencia']
-            ];
-        }
-
-        $empresa = $this->getCompanyById([$_SESSION['company_id']]);
-
-        return [
-            'status' => 200,
-            'data'   => [
-                'formato'   => ($_POST['formato'] ?? '') === 'sencillo' ? 'sencillo' : 'completo',
-                'inicial'   => ($_POST['inicial'] ?? '1') === '1',
-                'empresa'   => $empresa['name'] ?? ($_SESSION['company'] ?? ''),
-                'rfc'       => $empresa['rfc'] ?? '',
-                'ubicacion' => $empresa['ubication'] ?? '',
-                'sucursal'  => $_SESSION['branch'] ?? '',
-                'almacen'   => $almacen,
-                'filtro'    => implode('   ·   ', $filtro),
-                'lunes'     => date('Y-m-d', $lunes),
-                'generado'  => date('Y-m-d H:i:s'),
-                'usuario'   => $_SESSION['user'] ?? '',
-                'rows'      => $rows
-            ]
-        ];
-    }
-
     // -- Asistente IA --
     /*  Chat flotante del catálogo del almacén: altas, cambios, bajas y
         reactivaciones de productos, categorías, unidades, áreas, almacenes,
@@ -770,7 +706,7 @@ class ctrl extends mdl {
     const IA_ENTIDADES = [
         'category'  => ['tag' => 'Categoría', 'uno' => 'categoría', 'varios' => 'categorías',  'campos' => ['name' => 'Nombre']],
         'unit'      => ['tag' => 'Unidad',    'uno' => 'unidad',    'varios' => 'unidades',    'campos' => ['code' => 'Código', 'name' => 'Nombre']],
-        'area'      => ['tag' => 'Área',      'uno' => 'área',      'varios' => 'áreas',       'campos' => ['name' => 'Nombre', 'description' => 'Descripción']],
+        'area'      => ['tag' => 'Área',      'uno' => 'área',      'varios' => 'áreas',       'campos' => ['name' => 'Nombre', 'description' => 'Descripción', 'warehouse' => 'Almacén']],
         'warehouse' => ['tag' => 'Almacén',   'uno' => 'almacén',   'varios' => 'almacenes',   'campos' => ['name' => 'Nombre', 'branch' => 'Sucursal', 'is_default' => 'Por defecto']],
         'supplier'  => ['tag' => 'Proveedor', 'uno' => 'proveedor', 'varios' => 'proveedores', 'campos' => ['name' => 'Nombre', 'contact_name' => 'Contacto', 'phone' => 'Teléfono', 'email' => 'Email']],
         'inflow'    => ['tag' => 'Origen entrada', 'uno' => 'origen de entrada', 'varios' => 'orígenes de entrada', 'campos' => [
@@ -890,7 +826,7 @@ class ctrl extends mdl {
         $clase  = IaLector::clase($ext);
 
         if ($clase === null) {
-            return ['status' => 415, 'message' => 'Solo leo Excel (.xlsx o .xls), CSV o imágenes (PNG, JPG o WEBP).'];
+            return ['status' => 415, 'message' => 'Solo leo Excel (.xlsx, .xlsm, .xlsb o .xls), LibreOffice (.ods), CSV/TSV o imágenes (PNG, JPG o WEBP).'];
         }
 
         if (!IaLector::firmaOk($f['tmp_name'], $ext)) {
@@ -1108,12 +1044,13 @@ class ctrl extends mdl {
         $ruta     = __DIR__ . '/../ia/asistente-catalogo.md';
         $reglas   = is_readable($ruta) ? trim(preg_replace('/<!--.*?-->/s', '', (string) file_get_contents($ruta))) : '';
         $sucursal = array_column($ctx['branch'], 'valor', 'id');
+        $almacen  = array_column($ctx['warehouse'], 'name', 'id');
         $estado   = function ($r) { return (int) $r['active'] === 1 ? 'activo' : 'baja'; };
         $filas    = [];
 
         foreach ($ctx['category'] as $r)  $filas['category'][]  = [$r['id'], $r['name'], $estado($r)];
         foreach ($ctx['unit'] as $r)      $filas['unit'][]      = [$r['id'], $r['code'], $r['name'], $estado($r)];
-        foreach ($ctx['area'] as $r)      $filas['area'][]      = [$r['id'], $r['name'], $r['description'], $estado($r)];
+        foreach ($ctx['area'] as $r)      $filas['area'][]      = [$r['id'], $r['name'], $almacen[$r['warehouse_id']] ?? '-', $r['description'], $estado($r)];
         foreach ($ctx['branch'] as $r)    $filas['branch'][]    = [$r['id'], $r['valor']];
         foreach ($ctx['supplier'] as $r)  $filas['supplier'][]  = [$r['id'], $r['name'], $r['contact_name'], $r['phone'], $r['email'], $estado($r)];
 
@@ -1162,7 +1099,7 @@ class ctrl extends mdl {
             '- product: name, category, unit, area, price (venta con IVA), base (venta sin IVA), tax (0, 8 o 16), cost (último costo sin IVA), stock_min, stock_max, shelf_life_days (días), description',
             '- category: name',
             '- unit: code, name',
-            '- area: name, description',
+            '- area: name, description, warehouse (nombre de un ALMACÉN de su lista; si hay dos con el mismo nombre, su id). Un alta sin warehouse va al almacén por defecto.',
             '- warehouse: name, branch (nombre de una SUCURSAL), is_default (true o false)',
             '- supplier: name, contact_name, phone, email',
             '- inflow (origen de entrada): name, description, requires_supplier (true o false), icon, color_hex, bg_hex',
@@ -1194,7 +1131,7 @@ class ctrl extends mdl {
             '',
             $this->tablaIA('UNIDADES', ['id', 'código', 'nombre', 'estado'], $filas['unit'] ?? []),
             '',
-            $this->tablaIA('ÁREAS', ['id', 'nombre', 'descripción', 'estado'], $filas['area'] ?? []),
+            $this->tablaIA('ÁREAS', ['id', 'nombre', 'almacén', 'descripción', 'estado'], $filas['area'] ?? []),
             '',
             $this->tablaIA('SUCURSALES', ['id', 'nombre'], $filas['branch'] ?? []),
             '',
@@ -1425,6 +1362,16 @@ class ctrl extends mdl {
                 $campos['changes'][]           = ['label' => 'Sucursal', 'before' => '', 'after' => $this->nombreSucursalIA($campos['values']['branch_id'], $ctx) . ' (la tuya)'];
             }
 
+            // El área vive dentro de un almacén: sin uno pedido, el de por defecto de la sucursal.
+            if ($entidad === 'area' && !isset($campos['values']['warehouse_id'])) {
+                $porDefecto = $this->getDefaultWarehouseId([$_SESSION['company_id'], $_SESSION['branch_id'] ?? 0]);
+
+                if ($porDefecto !== null) {
+                    $campos['values']['warehouse_id'] = (int) $porDefecto;
+                    $campos['changes'][]              = ['label' => 'Almacén', 'before' => '', 'after' => $this->nombreAlmacenIA($porDefecto, $ctx) . ' (por defecto)'];
+                }
+            }
+
             if (isset(self::IA_ICONO[$entidad]) && !isset($campos['values']['icon'])) {
                 $campos['values']['icon'] = self::IA_ICONO[$entidad];
                 $campos['changes'][]      = ['label' => 'Ícono', 'before' => '', 'after' => self::IA_ICONO[$entidad], 'icon' => true];
@@ -1545,6 +1492,23 @@ class ctrl extends mdl {
 
                 $out['values']['branch_id'] = (int) $sucursal['id'];
                 $out['changes'][]           = ['label' => $etiqueta, 'before' => $actual ? $this->nombreSucursalIA($actual['branch_id'], $ctx) : '', 'after' => $sucursal['valor']];
+                continue;
+            }
+
+            if ($campo === 'warehouse') {
+                $almacenes = $this->buscarAlmacenIA($valor, $ctx);
+
+                if (count($almacenes) !== 1) {
+                    $out['warn'][] = 'El almacén «' . $this->textoIA($valor) . '» ' . (empty($almacenes) ? 'no existe' : 'está repetido') . ': no se cambia.';
+                    continue;
+                }
+
+                $almacen = $almacenes[0];
+
+                if ($actual !== null && (int) $actual['warehouse_id'] === (int) $almacen['id']) continue;
+
+                $out['values']['warehouse_id'] = (int) $almacen['id'];
+                $out['changes'][]              = ['label' => $etiqueta, 'before' => $actual ? $this->nombreAlmacenIA($actual['warehouse_id'], $ctx) : '', 'after' => $almacen['name']];
                 continue;
             }
 
@@ -1855,6 +1819,31 @@ class ctrl extends mdl {
         return 'Sucursal ' . $id;
     }
 
+    // Por id o por nombre. Con nombres repetidos se quedan los activos; si aún hay
+    // varios (un "General" en cada sucursal), el modelo tiene que mandar el id.
+    private function buscarAlmacenIA($valor, $ctx) {
+        $texto  = $this->textoIA($valor);
+        $clave  = $this->normalizarIA($texto);
+        $todos  = [];
+
+        foreach ($ctx['warehouse'] as $w) {
+            if ((string) $w['id'] === $texto) return [$w];
+            if ($clave !== '' && $this->normalizarIA($w['name']) === $clave) $todos[] = $w;
+        }
+
+        $activos = array_values(array_filter($todos, function ($w) { return (int) $w['active'] === 1; }));
+
+        return $activos ?: $todos;
+    }
+
+    private function nombreAlmacenIA($id, $ctx) {
+        foreach ($ctx['warehouse'] as $w) {
+            if ((int) $w['id'] === (int) $id) return $w['name'];
+        }
+
+        return $id ? 'Almacén ' . $id : '-';
+    }
+
     // -- Asistente IA · vaciado (Super Admin) --
 
     private function esSuperAdminIA() {
@@ -1981,9 +1970,6 @@ class ctrl extends mdl {
         $valores = $c['values'] + ($global ? [] : ['companies_id' => $companies_id, 'created_at' => $now]) + ['active' => 1];
 
         if ($entidad === 'warehouse') $valores += ['branch_id' => $branch_id, 'is_default' => 0];
-
-        // El área vive dentro de un almacén; el asistente no pregunta cuál, usa el de por defecto.
-        if ($entidad === 'area') $valores += ['warehouse_id' => $this->getDefaultWarehouseId([$companies_id, $branch_id])];
 
         // Al final de la lista que se ordena a mano, como el alta de su pestaña. Se calcula
         // aquí (dentro de la transacción) para que dos altas seguidas no empaten.

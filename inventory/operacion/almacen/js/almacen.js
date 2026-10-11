@@ -1,5 +1,5 @@
 let api = 'ctrl/ctrl-almacen.php';
-let main, products, asistente, conteo;
+let main, products, asistente;
 let categorias, unidades, areas, proveedores, almacenes, superAdmin, coffeeIA;
 
 // Vida útil: cuántos días vale cada periodo del selector.
@@ -45,7 +45,6 @@ $(async () => {
     products.render();
 
     asistente = new AsistenteProductos(api, "root");
-    conteo    = new FormatoConteo(api, "root");
 
     // Se enciende o apaga en Administrador > CoffeeIA.
     if (coffeeIA) asistente.renderLauncher();
@@ -147,13 +146,6 @@ class Main extends Templates {
                     lucideIcon: "log-out",
                     class: paneClass,
                     onClick: () => shrinkage.lsShrinkage()
-                },
-                {
-                    id: "transfer-status",
-                    tab: "Estados traspaso",
-                    lucideIcon: "arrow-left-right",
-                    class: paneClass,
-                    onClick: () => transferStatus.lsTransferStatus()
                 }
             ]
         });
@@ -239,18 +231,6 @@ class Productos extends Templates {
                     class: "col-12 col-md-2",
                     color_btn: "primary",
                     onClick: () => this.addMaterial()
-                },
-                // CoffeeIA ya no va aquí: es el ícono de la navbar (AsistenteProductos.renderLauncher).
-                // Color fijo, no del tema: el verde de Excel va en hex. El `!` gana al color del preset.
-                {
-                    opc: "button",
-                    id: "btnFormatoConteo",
-                    text: "Formato conteo",
-                    icon: "icon-file-excel",
-                    className: 'w-100 !border-[#217346] !text-[#217346] hover:!bg-[#217346] hover:!text-white focus:!ring-[#217346]',
-                    class: "col-12 col-md-2",
-                    color_btn: "outline",
-                    onClick: () => conteo.render()
                 }
             ]
         });
@@ -327,7 +307,7 @@ class Productos extends Templates {
     }
 
     // Recarga el catálogo global de almacenes tras cambios en la pestaña Almacenes:
-    // el select del formulario "Nueva área" y el Formato de conteo leen `almacenes`.
+    // el select del formulario "Nueva área" lee `almacenes`.
     async reloadAlmacenes() {
         const data = await useFetch({ url: this._link, data: { opc: "init" } });
         almacenes = data.almacenes || [];
@@ -1030,18 +1010,19 @@ if ($.fn.dataTable) {
 }
 
 // Ancho fijo por columna (la tabla va con table-fixed): al paginar, buscar o filtrar
-// las columnas ya no se acomodan al texto de cada página. Insumo (el producto) no
-// lleva ancho: se queda con lo que sobra.
+// las columnas ya no se acomodan al texto de cada página. Insumo (el producto) lleva un
+// porcentaje, no lo que sobra: así el sobrante se reparte igual y no se la come.
 const PRODUCT_WIDTHS = {
-    'categoría':    '140px',
-    'área':         '140px',
-    'último costo': '100px',
-    'stock':        '70px',
-    'mín':          '60px',
-    'máx':          '60px',
-    'vida útil':    '80px',
-    'estado':       '80px',
-    '':             '96px'
+    'insumo':       '26%',
+    'categoría':    '13%',
+    'área':         '13%',
+    'último costo': '10%',
+    'stock':        '7%',
+    'mín':          '6%',
+    'máx':          '6%',
+    'vida útil':    '8%',
+    'estado':       '7%',
+    '':             '8%'
 };
 
 // La columna Estado solo sale con el filtro "Todos": los anchos van por encabezado,
@@ -1259,7 +1240,7 @@ class AsistenteProductos extends Templates {
                 title:       "CoffeeIA",
                 subtitle:    "Productos y todas las pestañas del catálogo",
                 placeholder: "Escribe o adjunta un Excel o una foto…",
-                accept:      ".xlsx,.xls,.csv,.png,.jpg,.jpeg,.webp",
+                accept:      ".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv,.png,.jpg,.jpeg,.webp",
                 welcome:     "Te ayudo con tu catálogo. Nada se guarda sin tu confirmación.",
                 actions: {
                     add: {
@@ -1377,499 +1358,12 @@ class AsistenteProductos extends Templates {
         if (toca("warehouse")) warehouse.lsWarehouse();
         if (toca("supplier"))  supplier.lsSupplier();
 
-        // Orígenes, motivos y estados de traspaso no viven en los selects de Productos.
-        if (toca("inflow"))          inflow.lsInflow();
-        if (toca("shrinkage"))       shrinkage.lsShrinkage();
-        if (toca("transfer_status")) transferStatus.lsTransferStatus();
+        // Orígenes y motivos no viven en los selects de Productos.
+        if (toca("inflow"))    inflow.lsInflow();
+        if (toca("shrinkage")) shrinkage.lsShrinkage();
 
         // Con categorías o áreas nuevas el filtro de Productos se vuelve a pintar.
         if (toca("category") || toca("area")) products.render();
         else if (toca("product"))            products.lsMateriales();
-    }
-}
-
-// -- Formato de conteo --
-// El "Reporte de inventario rápido" de Soft Restaurant (docs/SOFT_*_INVENTARIO.XLS)
-// hecho para imprimir: un bloque por producto, un renglón por movimiento y una
-// columna por día de la semana. Sencillo = 6 movimientos; completo = + físico y diferencia.
-
-class FormatoConteo extends Templates {
-
-    // -- Initial --
-
-    constructor(link, div_modulo) {
-        super(link, div_modulo);
-        this.PROJECT_NAME = "FormatoConteo";
-        this.EXCELJS      = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
-        this.DIAS         = ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO", "DOMINGO"];
-        this.ALTO_TITULOS = [22, 16, 14, 15, 26, 26];
-        this.ALTO_FILA    = 15;
-        this.ALTO_BANDA   = 16;
-        this.GRIS         = "FFF3F4F6";
-        this.GRIS_NA      = "FFD1D5DB";
-        this.AMARILLO     = "FFFEF3C7";
-    }
-
-    // -- Interface --
-
-    render() {
-        this.createModalForm({
-            id: `form${this.PROJECT_NAME}`,
-            data: { opc: "showFormatoConteo" },
-            theme: "light",
-            coffeesoft: true,
-            bootbox: {
-                title: "Formato de conteo",
-                closeButton: true
-            },
-            json: this.jsonFormato(),
-            success: (response) => {
-                if (response && response.status === 200) {
-                    this.downloadFormato(response.data);
-                } else {
-                    this.alertBox({
-                        type: "error",
-                        theme: "light",
-                        title: (response && response.message) || "No se pudo generar el formato",
-                        timer: 2500
-                    });
-                }
-            }
-        });
-    }
-
-    // Área y categoría arrancan con lo que ya está elegido en el filtro de Productos.
-    jsonFormato() {
-        const filtro = (id) => $(`#filterBarProducts #${id}`).val() || "";
-
-        return [
-            {
-                opc: "select",
-                id: "formato",
-                lbl: "Formato",
-                class: "col-12",
-                data: [
-                    { id: "completo", valor: "Completo: movimientos, físico y diferencia" },
-                    { id: "sencillo", valor: "Sencillo: movimientos y teórico" }
-                ]
-            },
-            {
-                opc: "input",
-                id: "semana",
-                type: "date",
-                lbl: "Semana del",
-                class: "col-12 col-md-6",
-                value: this.mondayOf(new Date())
-            },
-            {
-                opc: "select",
-                id: "inicial",
-                lbl: "Existencia inicial",
-                class: "col-12 col-md-6",
-                data: [
-                    { id: "1", valor: "Del sistema" },
-                    { id: "0", valor: "En blanco" }
-                ]
-            },
-            {
-                opc: "select",
-                id: "warehouse_id",
-                lbl: "Almacén",
-                class: "col-12",
-                required: false,
-                data: [{ id: "", valor: "Todos" }, ...almacenes]
-            },
-            {
-                opc: "select",
-                id: "area_id",
-                lbl: "Área",
-                class: "col-12 col-md-6",
-                required: false,
-                value: filtro("area"),
-                data: [{ id: "", valor: "Todas" }, ...areas]
-            },
-            {
-                opc: "select",
-                id: "category_id",
-                lbl: "Categoría",
-                class: "col-12 col-md-6",
-                required: false,
-                value: filtro("categoria"),
-                data: [{ id: "", valor: "Todas" }, ...categorias]
-            }
-        ];
-    }
-
-    async downloadFormato(data) {
-        try {
-            await this.loadExcelJS();
-        } catch (e) {
-            this.alertBox({
-                type: "error",
-                theme: "light",
-                title: "No se pudo cargar el generador de Excel. Revisa la conexión.",
-                timer: 3000
-            });
-            return;
-        }
-
-        const { workbook, hojas } = this.createFormato(data);
-        const buffer = await workbook.xlsx.writeBuffer();
-        const link   = document.createElement("a");
-
-        link.href     = URL.createObjectURL(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-        link.download = `Inventario_rapido_${data.formato}_${this.fmtDate(data.lunes).replace(/\//g, "-")}.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-
-        this.alertBox({
-            type: "success",
-            theme: "light",
-            title: `Formato listo: ${data.rows.length} productos en ${hojas} hojas`,
-            timer: 2000
-        });
-    }
-
-    // -- Excel --
-
-    createFormato(data) {
-        const workbook = new ExcelJS.Workbook();
-        workbook.creator = data.usuario || "CoffeeSoft";
-        workbook.calcProperties.fullCalcOnLoad = true;
-
-        const hojas = this.sheetFormato(workbook, data);
-        this.sheetInstrucciones(workbook, data);
-
-        return { workbook, hojas };
-    }
-
-    // Los saltos de página se ponen a mano: cada área empieza en hoja nueva (para
-    // repartir las hojas por zona) y ningún producto queda partido entre dos hojas.
-    // El área se repite arriba de cada hoja que continúa.
-    sheetFormato(workbook, data) {
-        const ws   = workbook.addWorksheet("Inventario", { views: [{ state: "frozen", ySplit: 6 }] });
-        const dias = this.diasSemana(data.lunes);
-        const movs = this.movimientos(data.formato);
-
-        this.setColumns(ws, dias);
-        this.encabezado(ws, data, dias);
-
-        const escala   = this.escalaImpresion(ws);
-        const altoUtil = ((7.4 * 72) / (escala / 100) - this.ALTO_TITULOS.reduce((a, b) => a + b, 0)) * 0.95;
-        const bloque   = movs.length * this.ALTO_FILA;
-
-        let r = 7, usado = 0, hojas = 1, area = null;
-
-        data.rows.forEach((p) => {
-            let banda = p.area_id !== area;
-
-            if (usado > 0 && (banda || usado + bloque > altoUtil)) {
-                ws.getRow(r - 1).addPageBreak();
-                usado = 0;
-                hojas++;
-                banda = true;
-            }
-
-            if (banda) {
-                this.bandaArea(ws, r, p, p.area_id === area);
-                area = p.area_id;
-                usado += this.ALTO_BANDA;
-                r++;
-            }
-
-            this.bloqueProducto(ws, r, p, movs, dias, data.inicial);
-            usado += bloque;
-            r += movs.length;
-        });
-
-        const pie = (t) => String(t || "").replace(/&/g, "&&");
-
-        ws.pageSetup = {
-            paperSize: 1,
-            orientation: "landscape",
-            scale: escala,
-            fitToPage: false,
-            horizontalCentered: true,
-            printTitlesRow: "1:6",
-            margins: { left: 0.4, right: 0.4, top: 0.55, bottom: 0.55, header: 0.25, footer: 0.25 }
-        };
-        ws.headerFooter.oddFooter = `&L&8Almacén: ${pie(data.almacen)}&C&8Hoja &P de &N&R&8Semana del ${this.fmtDate(data.lunes)}`;
-
-        return hojas;
-    }
-
-    // Leyenda de colores y un producto de ejemplo con lunes y martes capturados.
-    sheetInstrucciones(workbook, data) {
-        const ws       = workbook.addWorksheet("Cómo llenarlo");
-        const dias     = this.diasSemana(data.lunes);
-        const movs     = this.movimientos(data.formato);
-        const completo = data.formato === "completo";
-
-        this.setColumns(ws, dias);
-        this.mergeText(ws, "A1:L1", "CÓMO LLENAR EL FORMATO", { bold: true, size: 12 });
-        ws.getRow(1).height = 22;
-
-        const reglas = [
-            [null, "Blanco: se llena a mano con lo que pasó ese día (entradas, ventas, salidas y desperdicio)."],
-            ...(completo ? [[this.AMARILLO, "Amarillo: físico almacén, lo que se cuenta en el anaquel al cierre del día."]] : []),
-            [this.GRIS, "Gris: se calcula solo al capturarlo en Excel. Teórico = inicial + entradas − ventas − salidas − desperdicio." + (completo ? " Diferencia = físico − teórico." : "")],
-            [this.GRIS_NA, "Gris oscuro: no aplica. El TOTAL suma la semana de los movimientos; una existencia no se suma."],
-            [null, data.inicial
-                ? `Existencia inicial del lunes: la del sistema al ${this.fmtDate(data.generado)} ${data.generado.slice(11, 16)}.`
-                : "Existencia inicial del lunes: en blanco, se anota a mano."],
-            [null, completo
-                ? "Del martes en adelante la existencia inicial es el físico del día anterior (o el teórico si ese día no se contó)."
-                : "Del martes en adelante la existencia inicial es el teórico del día anterior."],
-            [null, "Si un día no hubo movimiento, anota 0: así se calcula el teórico de ese día."],
-            [null, "Firma cada hoja: quién contó, quién revisó y quién autorizó."]
-        ];
-
-        reglas.forEach(([tono, texto], i) => {
-            const r = i + 3;
-            this.paint(ws.getCell(`A${r}`), { fill: tono, border: this.bordes() });
-            this.mergeText(ws, `B${r}:L${r}`, texto, { wrap: true });
-            ws.getRow(r).height = 18;
-        });
-
-        const r0 = reglas.length + 4;
-        this.mergeText(ws, `A${r0}:L${r0}`, "EJEMPLO: lunes y martes capturados", { bold: true });
-        this.filaTitulos(ws, r0 + 1, dias);
-        ws.getRow(r0 + 1).height = 26;
-
-        const fila = this.bloqueProducto(ws, r0 + 2, { sku: "02003", name: "AGUA NATURAL 600 ML", unidad: "PZA", existencia: 54 }, movs, dias, true);
-        const captura = {
-            E: { entradas: 24, ventas: 18, salidas: 0, desperdicio: 1, fisico: 58 },
-            F: { entradas: 0, ventas: 12, salidas: 2, desperdicio: 0, fisico: 44 }
-        };
-
-        Object.keys(captura).forEach((col) => {
-            Object.keys(captura[col]).forEach((key) => {
-                if (fila[key]) ws.getCell(`${col}${fila[key]}`).value = captura[col][key];
-            });
-        });
-
-        ws.pageSetup = {
-            paperSize: 1,
-            orientation: "landscape",
-            fitToPage: true,
-            fitToWidth: 1,
-            fitToHeight: 1,
-            horizontalCentered: true,
-            margins: { left: 0.4, right: 0.4, top: 0.55, bottom: 0.55, header: 0.25, footer: 0.25 }
-        };
-    }
-
-    // Renglones 1-6, los que se repiten en cada hoja impresa: título, empresa,
-    // filtros, firmas y encabezados de columna (mismo orden que el reporte de Soft).
-    encabezado(ws, data, dias) {
-        const titulo = "REPORTE DE INVENTARIO RÁPIDO" + (data.formato === "completo" ? " · CONTEO FÍSICO" : "");
-        const empresa = [data.rfc ? `RFC: ${data.rfc}` : "", data.ubicacion].filter(Boolean).join("   ·   ");
-        const filtros = [
-            `Sucursal: ${data.sucursal || "-"}`,
-            `Almacén: ${data.almacen}`,
-            `Semana del ${this.fmtDate(data.lunes)} al ${this.fmtDate(dias[6].iso)}`,
-            data.filtro
-        ].filter(Boolean).join("   ·   ");
-        const linea = "_______________________________";
-
-        this.mergeText(ws, "A1:H1", titulo, { bold: true, size: 14 });
-        this.mergeText(ws, "I1:L1", `Fecha: ${this.fmtDate(data.generado)}`, { h: "right" });
-        this.mergeText(ws, "A2:H2", data.empresa, { bold: true, size: 11 });
-        this.mergeText(ws, "I2:L2", `Hora: ${data.generado.slice(11, 16)}`, { h: "right" });
-        this.mergeText(ws, "A3:H3", empresa, { color: "FF4B5563" });
-        this.mergeText(ws, "I3:L3", `Imprimió: ${data.usuario || "-"}`, { h: "right", color: "FF4B5563" });
-        this.mergeText(ws, "A4:L4", filtros);
-        this.mergeText(ws, "A5:L5", `Contó: ${linea}      Revisó: ${linea}      Autorizó: ${linea}`, { v: "bottom" });
-        this.filaTitulos(ws, 6, dias);
-
-        this.ALTO_TITULOS.forEach((h, i) => ws.getRow(i + 1).height = h);
-    }
-
-    filaTitulos(ws, r, dias) {
-        const titulos = ["CLAVE", "DESCRIPCIÓN", "UNIDAD", "MOVIMIENTO", ...dias.map((d) => `${d.nombre}\n${d.corto}`), "TOTAL"];
-
-        titulos.forEach((t, i) => {
-            const cell = ws.getRow(r).getCell(i + 1);
-            cell.value = t;
-            this.paint(cell, { bold: true, size: 8, fill: "FFE5E7EB", h: "center", wrap: true, border: this.bordes() });
-        });
-    }
-
-    bandaArea(ws, r, p, continua) {
-        ws.mergeCells(`A${r}:L${r}`);
-        ws.getCell(`A${r}`).value = `ÁREA: ${String(p.area).toUpperCase()}${continua ? "   (continúa)" : ""}`;
-
-        for (let c = 1; c <= 12; c++) {
-            this.paint(ws.getRow(r).getCell(c), { bold: true, fill: this.GRIS, border: this.bordes() });
-        }
-
-        ws.getRow(r).height = this.ALTO_BANDA;
-    }
-
-    // Clave, descripción y unidad van combinadas a lo alto del bloque. Devuelve el
-    // renglón de cada movimiento para que el ejemplo pueda llenarlo.
-    bloqueProducto(ws, r0, p, movs, dias, conInicial) {
-        const fila = {};
-        movs.forEach((m, i) => fila[m.key] = r0 + i);
-        const fin = r0 + movs.length - 1;
-
-        ["A", "B", "C"].forEach((c) => ws.mergeCells(`${c}${r0}:${c}${fin}`));
-        ws.getCell(`A${r0}`).value = p.sku || "";
-        ws.getCell(`B${r0}`).value = p.name;
-        ws.getCell(`C${r0}`).value = p.unidad || "";
-
-        movs.forEach((m, i) => {
-            const r     = r0 + i;
-            const borde = this.bordes(r === fin);
-            const tono  = m.tipo === "calculo" ? this.GRIS : (m.tipo === "fisico" ? this.AMARILLO : null);
-            const suma  = m.tipo === "captura" || m.key === "diferencia";
-
-            ws.getRow(r).height = this.ALTO_FILA;
-
-            this.paint(ws.getCell(`A${r}`), { h: "center", v: "top", border: borde });
-            this.paint(ws.getCell(`B${r}`), { bold: true, v: "top", wrap: true, border: borde });
-            this.paint(ws.getCell(`C${r}`), { h: "center", v: "top", border: borde });
-
-            const label = ws.getCell(`D${r}`);
-            label.value = m.label;
-            this.paint(label, { size: 8, bold: m.tipo === "calculo" || m.tipo === "fisico", fill: tono, border: borde });
-
-            dias.forEach((d, j) => {
-                const cell = ws.getCell(`${d.col}${r}`);
-                cell.value = this.formulaDia(m.key, d.col, j > 0 ? dias[j - 1].col : null, fila, p, conInicial);
-                this.paint(cell, { h: "center", bold: m.tipo === "fisico", fill: tono, border: borde });
-            });
-
-            const total = ws.getCell(`L${r}`);
-            total.value = suma ? { formula: `IF(COUNT(E${r}:K${r})=0,"",SUM(E${r}:K${r}))` } : null;
-            this.paint(total, { h: "center", bold: true, fill: suma ? tono : this.GRIS_NA, border: borde });
-        });
-
-        return fila;
-    }
-
-    // Las fórmulas devuelven "" mientras no haya captura, para que la hoja impresa
-    // salga en blanco. El teórico solo corre cuando hay al menos un movimiento del día.
-    formulaDia(key, col, prev, fila, p, conInicial) {
-        const f = (formula) => ({ formula });
-
-        switch (key) {
-            case "inicial":
-                if (!prev) return conInicial ? Math.round(Number(p.existencia) * 1000) / 1000 : null;
-                return fila.fisico
-                    ? f(`IF(${prev}${fila.fisico}<>"",${prev}${fila.fisico},${prev}${fila.teorico})`)
-                    : f(`${prev}${fila.teorico}`);
-
-            case "teorico":
-                return f(`IF(COUNT(${col}${fila.entradas}:${col}${fila.desperdicio})=0,"",N(${col}${fila.inicial})+N(${col}${fila.entradas})-N(${col}${fila.ventas})-N(${col}${fila.salidas})-N(${col}${fila.desperdicio}))`);
-
-            case "diferencia":
-                return f(`IF(OR(${col}${fila.fisico}="",${col}${fila.teorico}=""),"",${col}${fila.fisico}-${col}${fila.teorico})`);
-
-            default:
-                return null;
-        }
-    }
-
-    // -- Complements --
-
-    movimientos(formato) {
-        const base = [
-            { key: "inicial",     label: "Existencia inicial",      tipo: "existencia" },
-            { key: "entradas",    label: "Entradas de almacén",     tipo: "captura" },
-            { key: "ventas",      label: "Ventas",                  tipo: "captura" },
-            { key: "salidas",     label: "Salidas de almacén",      tipo: "captura" },
-            { key: "desperdicio", label: "Salidas por desperdicio", tipo: "captura" },
-            { key: "teorico",     label: "Teórico almacén",         tipo: "calculo" }
-        ];
-
-        if (formato === "sencillo") return base;
-
-        return [
-            ...base,
-            { key: "fisico",     label: "Físico almacén",     tipo: "fisico" },
-            { key: "diferencia", label: "Diferencia almacén", tipo: "calculo" }
-        ];
-    }
-
-    diasSemana(lunes) {
-        const [y, m, d] = lunes.split("-").map(Number);
-
-        return this.DIAS.map((nombre, i) => {
-            const iso = this.isoDate(new Date(y, m - 1, d + i));
-            return { nombre, iso, corto: `${iso.slice(8, 10)}/${iso.slice(5, 7)}`, col: String.fromCharCode(69 + i) };
-        });
-    }
-
-    setColumns(ws, dias) {
-        ws.columns = [
-            { width: 8 },
-            { width: 30 },
-            { width: 7 },
-            { width: 19 },
-            ...dias.map(() => ({ width: 9.5 })),
-            { width: 9 }
-        ];
-    }
-
-    // Escala para que las 12 columnas quepan a lo ancho de una carta horizontal
-    // (10.2" útiles). Ancho de columna en px ≈ caracteres × 7 + 5.
-    escalaImpresion(ws) {
-        const anchoPx = ws.columns.reduce((total, c) => total + Math.round(c.width * 7 + 5), 0);
-        return Math.min(100, Math.floor((10.2 * 96) / anchoPx * 100) - 1);
-    }
-
-    bordes(cierre = false) {
-        const thin = { style: "thin", color: { argb: "FF9CA3AF" } };
-        return {
-            top: thin,
-            left: thin,
-            right: thin,
-            bottom: cierre ? { style: "medium", color: { argb: "FF374151" } } : thin
-        };
-    }
-
-    // Estilo completo por celda: un objeto nuevo en cada una, porque ExcelJS
-    // comparte el estilo entre las celdas de un rango combinado.
-    paint(cell, { bold = false, size = 9, color = "FF111827", fill = null, h = "left", v = "middle", wrap = false, border = null } = {}) {
-        cell.style = {
-            font: { name: "Arial", size, bold, color: { argb: color } },
-            alignment: { horizontal: h, vertical: v, wrapText: wrap },
-            border: border || {},
-            fill: fill ? { type: "pattern", pattern: "solid", fgColor: { argb: fill } } : { type: "pattern", pattern: "none" }
-        };
-    }
-
-    mergeText(ws, range, value, style = {}) {
-        ws.mergeCells(range);
-        const cell = ws.getCell(range.split(":")[0]);
-        cell.value = value;
-        this.paint(cell, { v: "middle", ...style });
-    }
-
-    loadExcelJS() {
-        if (window.ExcelJS) return Promise.resolve();
-
-        return new Promise((resolve, reject) => {
-            const script   = document.createElement("script");
-            script.src     = this.EXCELJS;
-            script.onload  = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-    }
-
-    mondayOf(date) {
-        return this.isoDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() - ((date.getDay() + 6) % 7)));
-    }
-
-    isoDate(d) {
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    }
-
-    fmtDate(iso) {
-        return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
     }
 }

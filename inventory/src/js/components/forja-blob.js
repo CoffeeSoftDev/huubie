@@ -1,4 +1,4 @@
-/*  COPIA de erp-pro (ERP24/avatars/src/js/forja-blob.js), traída el 30/09/2026
+/*  COPIA de erp-pro (ERP24/avatars/src/js/forja-blob.js), traída el 10/10/2026
     para el muñeco de coffeeIA del chat de inventory (ia-chat.js). La fuente es
     la de erp-pro: si allá cambia, se vuelve a copiar entera, no se edita aquí. */
 
@@ -115,7 +115,9 @@
         separa un sombrero clavado al craneo de un sombrero que va encima: en
         el asentir, el negar y el salto, la cabeza sale primero y el sombrero
         despues. Mas de ~0.14 s y deja de ser inercia para ser un sombrero
-        mal puesto.
+        mal puesto. Un disfraz que va pegado a la cara no lo lleva
+        (`sinRetardo` en ACCESORIOS, la Catrina): ahi el retraso se lee como
+        que se despega.
 
         HUNDE. Cuanto se mete bajo la piel el borde de apoyo del accesorio
         --el ala del sombrero, la base de la corona--, en unidades del
@@ -227,10 +229,16 @@
         un poco lo que se va hacia atras.
 
         Cuando el eje vertical apunta casi a la camara su proyeccion es
-        ruido, asi que se cae a la direccion radial, que ahi si es estable. */
-    function orienta(A, esc, E, modo) {
+        ruido, asi que se cae a la direccion radial, que ahi si es estable.
+
+        `escorzo` (el coseno de la latitud de la pieza, o 0) es la excepcion
+        para lo que es ancho y va pegado a la cara --el murcielago de Jack--:
+        SI se acorta, a lo ancho al voltear y a lo alto al mirar arriba o
+        abajo, con los ejes del ancla. Sin el, al voltear 50 grados las alas
+        se salian enteras por el costado. Vale 1 de frente. */
+    function orienta(A, esc, E, modo, escorzo) {
         var s = esc * (0.86 + 0.14 * clamp(A.z, -1, 1));
-        var c1, c2;
+        var c1, c2, ka = 1, kb = 1;
 
         if (modo === 'cara') {
             /*  Alineado con la cara: unas gafas tienen que ir con los ojos,
@@ -238,8 +246,12 @@
                 su giro es exactamente el roll de la cabeza. */
             var rx = E.r[0], ry = E.r[1], m = Math.hypot(rx, ry);
             if (m < 0.05) { rx = 1; ry = 0; } else { rx /= m; ry /= m; }
-            c1 = [rx, ry];
-            c2 = [-ry, rx];
+            if (escorzo) {
+                ka = clamp(Math.hypot(A.ax, A.ay), 0.05, 1);
+                kb = clamp(Math.hypot(A.bx, A.by) / escorzo, 0.05, 1.35);
+            }
+            c1 = [rx * ka, ry * ka];
+            c2 = [-ry * kb, rx * kb];
         } else {
             /*  Radial: lo que sale de la cabeza --gorro, antena, halo--
                 apunta hacia afuera del centro. */
@@ -257,6 +269,9 @@
                + (c2[0] * s).toFixed(4) + ',' + (c2[1] * s).toFixed(4) + ','
                + tx.toFixed(2) + ',' + ty.toFixed(2) + ')',
             tx: tx, ty: ty, rot: rot, esc: s,
+            /*  Con escorzo, la escala de cada eje: el SVG animado la necesita
+                aparte, porque anima translate, rotate y scale sueltos. */
+            escX: s * ka, escY: s * kb,
             /*  Los dos ejes sueltos, para quien necesite saber donde cae un
                 punto del cuadrado local sin volver a parsear la matriz: lo
                 usa el encuadre para medir cuanto ocupa el accesorio. */
@@ -495,14 +510,191 @@
         return tono(cuerpo, a.juego);
     }
 
-    /*  Una flor de temporada (cempasuchil o rosa) para la Catrina. */
-    function florTemporada(x, y, col, centro) {
+    /*  ── LA CATRINA: CALAVERITA DE FLORES (02/10/2026) ─────────────────
+
+        Sustituye al sombrero negro con tres florecitas, que a 44 px se leia
+        como un sombrero oscuro y no como catrina. Se eligio entre dos
+        propuestas (pro/tests/_propuestas/vestidor-catrina.html, opcion B).
+
+        Es UN accesorio en piezas, como los cascos: una corona de siete
+        flores sobre la cabeza y la cara pintada. Sin boca ni nariz --el
+        muñeco nunca las ha tenido-- y sin aro oscuro pegado al ojo: las dos
+        cosas se probaron y se quitaron a pedido.
+
+        LA PINTURA:
+          - va en modo 'cara' y anclada EN el ojo (lon SPLIT y radio R, que
+            sobre la piel de 0.94 R es dist 1/0.94): asi sigue a la mirada.
+          - NO proyecta sombra: con `s` (la llamada de la sombra de contacto)
+            devuelve vacio. La corona si la proyecta.
+          - las cuencas son anillos de petalos con hueco: el ojo, que se
+            pinta debajo, se sigue viendo y parpadeando por dentro.
+
+        EL COLOR DEL ACCESORIO PINTA LOS PETALOS, la florecita de la frente y
+        los corazones. Con el de fabrica (CAT.rosa) los petalos salen de cinco
+        colores; con uno elegido, de ese color y su tono claro alternados. Se
+        distingue comparando `c` con el de fabrica, porque el motor solo pasa
+        el color ya resuelto; ninguno de los doce del vestidor es CAT.rosa.
+
+        VA FIJA AL MUÑECO (03/10/2026): con una animacion parecia despegarse.
+        Toda la Catrina va sin ACC_RETARDO (`sinRetardo`), y la pintura
+        (`pintura` en catCara) va ademas con el mismo marco que los ojos --la
+        vuelta de Mareado y Terminado incluida--, dentro de su grupo y
+        recortada a la silueta como ellos: ya no llega tarde a los ojos ni
+        asoma por el borde con el gesto Curioso. */
+    var CAT = {
+        rosa: '#E0338B', naranja: '#F28C28', turquesa: '#1FB5A0', amarillo: '#F5B82E', morado: '#7C4DDB',
+        cempa: '#F59E0B', cempaOsc: '#E2700C', cempaLuz: '#FCD34D', cempaCentro: '#B4530A',
+        rojo: '#D62F4B', rojoOsc: '#8E1730', rosaFlor: '#EC6FA6', rosaFlorOsc: '#B83275', hoja: '#3F8F3A'
+    };
+    /*  Los petalos van por indice SIMETRICO (el de la derecha y el de la
+        izquierda de cada cuenca valen lo mismo): cada cuenca sale en espejo. */
+    var CAT_PETALOS = [CAT.rosa, CAT.naranja, CAT.turquesa, CAT.amarillo, CAT.morado, CAT.rosa];
+
+    function catN(n) { return String(Math.round(n * 10) / 10); }
+
+    /*  n cosas sobre una elipse, empezando arriba. */
+    function catVuelta(n, rx, ry, cada) {
         var o = '';
-        for (var i = 0; i < 6; i++) {
-            var a = i / 6 * Math.PI * 2;
-            o += '<circle cx="' + (x + 4.5 * Math.cos(a)).toFixed(1) + '" cy="' + (y + 4.5 * Math.sin(a)).toFixed(1) + '" r="3.8" fill="' + col + '"/>';
+        for (var i = 0; i < n; i++) {
+            var a = -Math.PI / 2 + i / n * Math.PI * 2;
+            o += cada(Math.cos(a) * rx, Math.sin(a) * ry, a * 180 / Math.PI, Math.min(i, n - i));
         }
-        return o + '<circle cx="' + x + '" cy="' + y + '" r="2.6" fill="' + centro + '"/>';
+        return o;
+    }
+
+    /*  La cuenca: diez petalos alrededor del ojo, que mide 18.6 x 41.2. */
+    function catCuenca(c, c2, c3, s) {
+        if (s) return '';
+        var original = c === CAT.rosa;
+        return catVuelta(10, 22, 31, function (x, y, g, k) {
+            return '<ellipse cx="' + catN(x) + '" cy="' + catN(y) + '" rx="5.6" ry="7.8" fill="'
+                 + (original ? CAT_PETALOS[k] : k % 2 ? c3 : c)
+                 + '" transform="rotate(' + catN(g - 90) + ' ' + catN(x) + ' ' + catN(y) + ')"/>';
+        });
+    }
+
+    function catFrente(c, c2, c3, s) {
+        if (s) return '';
+        return catVuelta(5, 5.6, 5.6, function (x, y) {
+                   return '<circle cx="' + catN(x) + '" cy="' + catN(y) + '" r="4.5" fill="' + c + '"/>';
+               })
+             + '<circle r="3.3" fill="' + CAT.amarillo + '"/>'
+             + '<circle cx="-15.5" cy="2" r="2.1" fill="' + c2 + '"/><circle cx="15.5" cy="2" r="2.1" fill="' + c2 + '"/>';
+    }
+
+    function catCorazon(c, c2, c3, s) {
+        if (s) return '';
+        return '<path d="M0 5.5C-1.5 3.6 -6.5 1 -6.5 -2.4C-6.5 -5 -4.4 -6.4 -2.6 -6.4C-1.4 -6.4 -0.4 -5.6 0 -4.6'
+             + 'C0.4 -5.6 1.4 -6.4 2.6 -6.4C4.4 -6.4 6.5 -5 6.5 -2.4C6.5 1 1.5 3.6 0 5.5Z" fill="' + c + '"/>';
+    }
+
+    /*  Las flores de la corona. Colores fijos, y por eso `s || color`: en la
+        sombra salen enteras de su color, como la de todos.
+
+        Dos hojas a lo largo del eje x local --en una pieza radial, la
+        tangente de la cabeza--: detras de cada flor forman la guirnalda. */
+    function catHojas(L, s) {
+        var d = 'M0 0C' + catN(L * .3) + ' ' + catN(-L * .3) + ' ' + catN(L * .75) + ' ' + catN(-L * .28) + ' ' + L + ' 0C'
+              + catN(L * .75) + ' ' + catN(L * .28) + ' ' + catN(L * .3) + ' ' + catN(L * .3) + ' 0 0Z';
+        return '<path d="' + d + '" fill="' + (s || CAT.hoja) + '"/><path d="' + d + '" fill="' + (s || CAT.hoja) + '" transform="scale(-1 1)"/>';
+    }
+    /*  Cempasuchil: tres coronas de bolitas, de la mas oscura a la mas clara. */
+    function catCempa(R, s) {
+        var o = '', i, a;
+        for (i = 0; i < 14; i++) { a = i / 14 * Math.PI * 2;       o += '<circle cx="' + catN(Math.cos(a) * R * .66) + '" cy="' + catN(Math.sin(a) * R * .66) + '" r="' + catN(R * .36) + '" fill="' + (s || CAT.cempaOsc) + '"/>'; }
+        for (i = 0; i < 11; i++) { a = i / 11 * Math.PI * 2 + .3; o += '<circle cx="' + catN(Math.cos(a) * R * .4) + '" cy="' + catN(Math.sin(a) * R * .4) + '" r="' + catN(R * .33) + '" fill="' + (s || CAT.cempa) + '"/>'; }
+        for (i = 0; i < 7; i++)  { a = i / 7 * Math.PI * 2;        o += '<circle cx="' + catN(Math.cos(a) * R * .17) + '" cy="' + catN(Math.sin(a) * R * .17) + '" r="' + catN(R * .25) + '" fill="' + (s || CAT.cempaLuz) + '"/>'; }
+        return o + '<circle r="' + catN(R * .12) + '" fill="' + (s || CAT.cempaCentro) + '"/>';
+    }
+    /*  Rosa: un circulo y una espiral mas oscura. */
+    function catRosa(R, base, osc, s) {
+        return '<circle r="' + catN(R) + '" fill="' + (s || base) + '"/>'
+             + '<path transform="scale(' + catN(R) + ')" d="M.12 -.08C.42 -.32 .6 .18 .22 .36C-.22 .56 -.66 .16 -.52 -.26C-.38 -.68 .3 -.78 .66 -.44"'
+             + ' fill="none" stroke="' + (s || osc) + '" stroke-width=".17" stroke-linecap="round"/>';
+    }
+    /*  Florecita morada de cinco petalos: las puntas de la corona. */
+    function catFlorecita(R, s) {
+        return catVuelta(5, R * .55, R * .55, function (x, y) {
+                   return '<circle cx="' + catN(x) + '" cy="' + catN(y) + '" r="' + catN(R * .5) + '" fill="' + (s || CAT.morado) + '"/>';
+               })
+             + '<circle r="' + catN(R * .32) + '" fill="' + (s || CAT.amarillo) + '"/>';
+    }
+
+    /*  Una pieza de pintura (pegada a la cara) y una flor de la corona
+        (pegada a la piel por arriba, `sigue: 1` porque va sujeta a la cabeza,
+        como los cascos). */
+    function catCara(lon, lat, f, caja, dist) {
+        return { modo: 'cara', lon: lon, lat: lat, esc: 1, sigue: 1, dist: dist, caja: caja, f: f, pintura: 1 };
+    }
+    function catFlor(lon, lat, R, dib) {
+        return { lon: lon, lat: lat, esc: 1, sigue: 1, dist: 0.98, caja: [-R * 1.9, -R * 1.2, R * 1.9, R * 1.2], f: dib };
+    }
+
+    /*  EL TRAJE DE JACK (07/10/2026). Su cuadrado tiene el origen en el
+        ancla del cuello (lat -48: de frente, 70 unidades bajo el centro del
+        cuerpo, que mide 94 de radio) y se pinta al 72 % (ver `jack`); lo que
+        se sale lo recorta la silueta. Va pegado a la cara (ver conCara): al
+        voltear se corre con ella, por eso el saco sigue hasta ±220, para que
+        no se le vea la orilla.
+
+        Calcado de la imagen que mando el usuario (07/10/2026): saco gris
+        carbon con rayas blancas gruesas, el pecho blanco en V entre las
+        solapas, solapas anchas con rayas en diagonal y contorno negro. Antes
+        hubo un saco negro cerrado y una franja con V chica: «el traje no esta
+        bien, debe verse igual». Y 10 unidades mas arriba, «un poco mas abajo
+        para que se note el rostro». Las rayas van recortadas por su propio
+        clipPath (con UID: en la forja hay muchos muñecos en la misma
+        pagina). El murcielago va aparte, en murcielagoJack.
+
+        Y hacia abajo llega hasta 300, no hasta 70 (08/10/2026, «cuando mueves
+        a coffee hacia arriba se ve su pancita, el traje debe cubrirlo por
+        completo»): al mirar arriba el cuello sube casi hasta la frente y con
+        70 la orilla de abajo quedaba a media panza. 300 al 72 % son 216: del
+        cuello en lo mas alto hasta el fondo del cuerpo, aun ladeado. La
+        silueta recorta lo que sobra, asi que de frente se ve igual. */
+    function trajeJack(c, c2, c3, s) {
+        var id = 'jk' + (++UID), blanco = s || '#FFFFFF', negro = s || '#0B0B0C';
+        var linea = ' stroke="' + negro + '" stroke-width="2.4" stroke-linejoin="round"';
+        var saco = 'M-220 -36L-112 -24C-80 -20 -48 -10 -20 4H20C48 -10 80 -20 112 -24L220 -36V300H-220Z';
+        var hombro = 'M-220 -36L-112 -24C-80 -20 -48 -10 -20 4';
+        var pecho = 'M-26 4H26L2 58H-2Z';
+        var solapa = 'M-26 4L-2 58H-30L-64 10L-54 -4Z';
+        var rayasSol = 'M-35 2L-10 58M-44 0L-19 58M-53 2L-28 58';
+        var rayas = '';
+        for (var x = -214; x <= 214; x += 10) rayas += 'M' + x + ' -40V300';
+        var raya = ' fill="none" stroke="' + blanco + '" stroke-width="2" opacity=".85"';
+        return '<clipPath id="' + id + 's"><path d="' + saco + '"/></clipPath>'
+             + '<clipPath id="' + id + 'l"><path d="' + solapa + '"/><path d="' + solapa + '" transform="scale(-1 1)"/></clipPath>'
+             + '<path d="' + saco + '" fill="' + c + '"/>'
+             + '<path d="' + rayas + '"' + raya + ' clip-path="url(#' + id + 's)"/>'
+             + '<path d="' + solapa + '" fill="' + c + '"/><path d="' + solapa + '" fill="' + c + '" transform="scale(-1 1)"/>'
+             + '<g clip-path="url(#' + id + 'l)"><path d="' + rayasSol + '"' + raya + '/><path d="' + rayasSol + '"' + raya + ' transform="scale(-1 1)"/></g>'
+             + '<path d="' + solapa + '" fill="none"' + linea + '/><path d="' + solapa + '" fill="none"' + linea + ' transform="scale(-1 1)"/>'
+             + '<path d="' + hombro + '" fill="none"' + linea + '/><path d="' + hombro + '" fill="none"' + linea + ' transform="scale(-1 1)"/>'
+             + '<path d="' + pecho + '" fill="' + blanco + '"' + linea + '/>';
+    }
+
+    /*  EL MURCIELAGO DE JACK, el corbatin: enorme, mas ancho que los hombros
+        (las alas se salen del cuerpo, por eso no es `ropa`), cada ala con
+        cuatro puntas largas, nervios en el tono claro, cabeza con orejas y
+        dos ojos blancos rasgados, como en la imagen. Centrado en el ancla del
+        cuello, la misma del traje y al mismo 72 %: de frente, la punta de
+        arriba de cada ala queda a 20 unidades del ojo de coffeeIA. */
+    function murcielagoJack(c, c2, c3, s) {
+        var blanco = s || '#FFFFFF', negro = s || '#0B0B0C';
+        var linea = ' stroke="' + negro + '" stroke-width="2.4" stroke-linejoin="round"';
+        var ala = 'M8 -6C24 -16 40 -26 62 -34L52 -20C66 -26 80 -30 100 -30L86 -18C98 -18 110 -14 124 -8L106 -2C112 2 118 8 122 16L98 10C80 12 60 8 40 10C26 11 14 8 8 6Z';
+        var huesos = 'M12 -2L56 -29M14 0L94 -27M14 2L117 -8M14 4L112 11';
+        var hueso = ' fill="none" stroke="' + c2 + '" stroke-width="2" stroke-linecap="round"';
+        var cabeza = 'M-11 -4L-10 -16L-4 -9H4L10 -16L11 -4C11 6 6 11 0 12C-6 11 -11 6 -11 -4Z';
+        var ojo = 'M-8.5 -3L-2.5 0.5L-4.5 3Z';
+        /*  Las alas suben 10° hacia los lados, como en la imagen. */
+        var unaAla = '<path d="' + ala + '" fill="' + c + '"' + linea + '/><path d="' + huesos + '"' + hueso + '/>';
+        return '<g transform="scale(.88)">'
+             + '<g transform="rotate(-10)">' + unaAla + '</g><g transform="scale(-1 1) rotate(-10)">' + unaAla + '</g>'
+             + '<path d="' + cabeza + '" fill="' + c + '"' + linea + '/>'
+             + '<path d="' + ojo + '" fill="' + blanco + '"/><path d="' + ojo + '" fill="' + blanco + '" transform="scale(-1 1)"/>'
+             + '</g>';
     }
     /*  Digitos de trazo (8 x 12, origen arriba a la izquierda) para la placa
         de New Year. Dibujados y no escritos: un <text> depende de la fuente
@@ -543,16 +735,60 @@
                  + '<path d="M-53 4C-53 -4 -40 -9 0 -9C40 -9 53 -4 53 4C53 13 40 18 0 18C-40 18 -53 13 -53 4Z" fill="' + c + '"/>';
         }},
 
-        mago: { nom: 'Mago', col: '#5FB8E8', lon: 0, lat: 58, esc: 1.5, apoyo: 16, caja: [-53, -82, 53, 16], f: function (c, c2) {
-            return '<path d="M-23 4C-19 -38 -6 -68 15 -82C29 -58 33 -25 29 4Z" fill="' + c + '"/>'
-                 + '<path d="M9 -44L13 -34L23 -30L13 -26L9 -16L5 -26L-5 -30L5 -34Z" fill="' + c2 + '"/>'
-                 + '<path d="M-53 2C-53 -6 -40 -11 0 -11C40 -11 53 -6 53 2C53 11 40 16 0 16C-40 16 -53 11 -53 2Z" fill="' + c + '"/>';
+        /*  EL GORRO DE MAGO (rehecho el 09/10/2026, «mejora el gorrito de
+            mago»). Antes era un cono liso con una estrella del mismo tono y el
+            ala encima de todo. Ahora:
+              - el ala va DEBAJO y el cono se sienta en ella con su sombra
+                (c2): se lee como un gorro puesto y no como dos piezas pegadas.
+              - la punta se dobla hacia fuera y cuelga una estrellita, el gorro
+                de mago de los cuentos.
+              - una cinta (c2) sobre el ala y, en el cono, una estrella y una
+                luna doradas con un destello.
+              - volumen: el lado derecho del cono y el borde de abajo del ala
+                en c2, y un filo de luz (c3) arriba del ala.
+            El dorado es fijo, asi que va con `s ||` como los de temporada: la
+            sombra sale entera de su color. El color de fabrica no cambia
+            --tambien lo lleva gente en el ERP--; el que lo tiñe, tiñe cono,
+            cinta y ala. */
+        mago: { nom: 'Mago', col: '#5FB8E8', lon: 0, lat: 58, esc: 1.5, apoyo: 16, caja: [-53, -88, 53, 16], f: function (c, c2, c3, s) {
+            var oro = s || '#F5C542';
+            return '<path d="M-53 2C-53 -6 -40 -11 0 -11C40 -11 53 -6 53 2C53 11 40 16 0 16C-40 16 -53 11 -53 2Z" fill="' + c + '"/>'
+                 + '<path d="M-53 2C-49 10 -30 16 0 16C30 16 49 10 53 2C47 8 30 12 0 12C-30 12 -47 8 -53 2Z" fill="' + c2 + '" opacity=".7"/>'
+                 + '<path d="M-44 -6C-30 -10 -14 -11 0 -11" fill="none" stroke="' + c3 + '" stroke-width="2.2" stroke-linecap="round" opacity=".7"/>'
+                 + '<ellipse cx="1" cy="4" rx="28" ry="6.5" fill="' + c2 + '" opacity=".55"/>'
+                 + '<path d="M-24 2C-22 -26 -14 -50 -2 -66C6 -77 19 -84 36 -80C25 -75 18 -65 16 -50C14 -32 21 -12 26 2C26 6 12 8 1 8C-10 8 -24 6 -24 2Z" fill="' + c + '"/>'
+                 + '<path d="M16 -50C14 -32 21 -12 26 2C26 4.5 21 6.5 16 7.3C12 -12 9 -32 16 -50Z" fill="' + c2 + '" opacity=".45"/>'
+                 + '<path d="M-24 -9C-10 -5 12 -5 25 -10L26 1C12 6 -10 6 -24 2Z" fill="' + c2 + '"/>'
+                 + '<g transform="translate(-1 -33)">' + estrella5(oro, 0.9) + '</g>'
+                 + '<path transform="translate(11 -21) scale(.55)" d="M3 -13A13 13 0 1 0 13 5A10 10 0 0 1 3 -13Z" fill="' + oro + '"/>'
+                 + '<path d="M-12 -52C-11.5 -49.6 -11 -49.1 -8.6 -48.6C-11 -48.1 -11.5 -47.6 -12 -45.2C-12.5 -47.6 -13 -48.1 -15.4 -48.6C-13 -49.1 -12.5 -49.6 -12 -52Z" fill="' + oro + '"/>'
+                 + '<g transform="translate(36 -80)">' + estrella5(oro, 0.55) + '</g>';
         }},
 
         gorra: { nom: 'Gorra', col: '#DC2626', lon: 6, lat: 52, esc: 1.35, apoyo: 8, caja: [-31, -46, 58, 20], f: function (c, c2) {
             return '<path d="M-31 8C-31 -22 -18 -40 2 -40C22 -40 33 -22 33 8Z" fill="' + c + '"/>'
                  + '<circle cx="2" cy="-40" r="6" fill="' + c2 + '"/>'
                  + '<path d="M18 0C44 0 58 6 58 13C58 19 48 21 36 19C22 17 18 9 18 0Z" fill="' + c2 + '"/>';
+        }},
+
+        /*  EL CASCO DE OBRA (10/10/2026, «un casco de ingeniero»). Se posa
+            como el bombin: el ala abajo y la cupula sentada en ella con su
+            sombra (c2), como el gorro de mago. Lo que dice "casco" y no
+            "bombin" es la CRESTA del centro --en la luz, c3, y asomando dos
+            unidades sobre la cupula para que se lea en la silueta-- y las dos
+            nervaduras de los lados. Solo c, c2 y c3: la sombra de contacto lo
+            pinta entero de un color. Amarillo de obra de fabrica, el mismo
+            «Amarillo» de la paleta del vestidor. */
+        casco_obra: { nom: 'Casco', col: '#F2B72B', lon: 0, lat: 56, esc: 1.4, apoyo: 11, caja: [-50, -47, 50, 14], f: function (c, c2, c3) {
+            return '<path d="M-50 4C-50 -3 -36 -7 0 -7C36 -7 50 -3 50 4C50 10 36 14 0 14C-36 14 -50 10 -50 4Z" fill="' + c + '"/>'
+                 + '<path d="M-50 4C-46 10 -32 14 0 14C32 14 46 10 50 4C44 9 30 11 0 11C-30 11 -44 9 -50 4Z" fill="' + c2 + '" opacity=".7"/>'
+                 + '<ellipse cx="0" cy="2" rx="34" ry="5" fill="' + c2 + '" opacity=".55"/>'
+                 + '<path d="M-35 2C-37 -24 -21 -44 0 -44C21 -44 37 -24 35 2C35 5 18 7 0 7C-18 7 -35 5 -35 2Z" fill="' + c + '"/>'
+                 + '<path d="M20 -38C31 -28 37 -14 35 2C35 4 30 5.5 24 6.3C27 -10 26 -26 20 -38Z" fill="' + c2 + '" opacity=".4"/>'
+                 + '<path d="M-20 5C-23 -12 -19 -28 -10 -40M20 5C23 -12 19 -28 10 -40" fill="none" stroke="' + c2 + '" stroke-width="2.4" stroke-linecap="round" opacity=".45"/>'
+                 + '<path d="M-7 6C-8 -14 -6 -36 0 -47C6 -36 8 -14 7 6C5 6.6 2 7 0 7C-2 7 -5 6.6 -7 6Z" fill="' + c3 + '"/>'
+                 + '<path d="M7 6C8 -14 6 -36 0 -47" fill="none" stroke="' + c2 + '" stroke-width="1.6" stroke-linecap="round" opacity=".5"/>'
+                 + '<path d="M-28 -16C-26 -28 -19 -36 -13 -39" fill="none" stroke="' + c3 + '" stroke-width="3" stroke-linecap="round" opacity=".8"/>';
         }},
 
         boina: { nom: 'Boina', lon: -6, lat: 56, esc: 1.3, apoyo: 17, caja: [-40, -45, 44, 17], f: function (c, c2) {
@@ -765,7 +1001,10 @@
 
             Lazadas con su pliegue interior (c2), un doblez a lo largo, el
             brillo del satén (c3), nudo envuelto y puntas cortadas en V. */
-        monito: { nom: 'Moñito', juego: 0.4, lon: -30, lat: 55, esc: 1.05, sigue: 1, caja: [-45, -23, 45, 34], f: monoDePelo },
+        /*  Rosa de fabrica desde el 07/10/2026 («moñito (rosa)»), el «Rosa»
+            de los circulos del vestidor; hasta entonces era «a juego» con el
+            cuerpo (`juego: 0.4`, ver colorAcc). Se sigue pudiendo teñir. */
+        monito: { nom: 'Moñito', col: '#E052B0', lon: -30, lat: 55, esc: 1.05, sigue: 1, caja: [-45, -23, 45, 34], f: monoDePelo },
 
         /*  El pincel flota al costado IZQUIERDO con la punta arriba, un poco
             inclinado hacia afuera. El COLOR del accesorio es el de la pintura
@@ -785,6 +1024,32 @@
                  + '</g>';
         }},
 
+        /*  LA VARITA MAGICA (09/10/2026, pedida para Coffee Magic). Flota al
+            costado DERECHO con la estrella arriba, inclinada hacia fuera: es
+            el pincel en espejo (lon 72, rotate(-90) rotate(22), donde estuvo
+            el pincel antes de pasarse a la izquierda). Con `flota` sube y baja
+            un poco, como si la estuviera agitando; quieta no se mueve.
+
+            El COLOR del accesorio es el de la estrella y los destellos (dorado
+            de fabrica, se puede teñir); su contorno va en c2 y el brillo en
+            c3. El palito es negro con la punta blanca, la varita de mago de
+            siempre, y por eso lleva colores fijos con `s ||`, como los de
+            temporada: asi la sombra sale entera de su color. */
+        varita: { nom: 'Varita', col: '#FBBF24', lon: 72, lat: -4, esc: 1.5, dist: 1.26, flota: 2, caja: [-60, -42, 46, 24], f: function (c, c2, c3, s) {
+            var destello = 'M0 -6C0.6 -1.6 1.6 -0.6 6 0C1.6 0.6 0.6 1.6 0 6C-0.6 1.6 -1.6 0.6 -6 0C-1.6 -0.6 -0.6 -1.6 0 -6Z';
+            return '<g transform="rotate(-90) rotate(22)">'
+                 +   '<rect x="-3.5" y="-20" width="7" height="66" rx="3.5" fill="' + (s || '#2B2633') + '"/>'
+                 +   '<rect x="-3.5" y="36" width="7" height="10" rx="3.5" fill="' + (s || '#F4F1EA') + '"/>'
+                 +   '<path d="M-1 -14V32" stroke="' + c3 + '" stroke-width="1.6" stroke-linecap="round" opacity=".35"/>'
+                 +   '<path transform="translate(0 -34) scale(1.9)" d="M0 -9L2.6 -3.2L9 -2.8L4.1 1.4L5.6 7.6L0 4.2L-5.6 7.6L-4.1 1.4L-9 -2.8L-2.6 -3.2Z"'
+                 +     ' fill="' + c + '" stroke="' + c2 + '" stroke-width="1.5" stroke-linejoin="round"/>'
+                 +   '<ellipse cx="-4" cy="-41" rx="3.6" ry="2" fill="' + c3 + '" opacity=".8" transform="rotate(-30 -4 -41)"/>'
+                 +   '<path transform="translate(-19 -50) scale(.9)" d="' + destello + '" fill="' + c + '"/>'
+                 +   '<path transform="translate(17 -55) scale(.65)" d="' + destello + '" fill="' + c + '"/>'
+                 +   '<circle cx="21" cy="-30" r="2.2" fill="' + c + '"/>'
+                 + '</g>';
+        }},
+
         /*  LAPTOP (29/09/2026): la del Modo programador, pero como ACCESORIO.
             Se pidio una variante del Modo programador que se ponga en el
             vestidor en vez de elegirse como animacion, para poder llevarla
@@ -800,6 +1065,17 @@
             `caja` solo reserva su sitio para el encuadre. */
         laptop: { nom: 'Laptop', col: '#CDD3DB', lon: 0, lat: -50, esc: 0.92, modo: 'cara', caja: [-68, -34, 68, 38],
                   f: function () { return ''; } },
+        /*  OFICINA (07/10/2026, «en accesorio deja la otra variante de modo
+            oficina pero fija»): lo que `laptop` es al Modo programador, esto lo
+            es al Modo oficina (ANIMS.programa). La laptop de perfil a su
+            derecha, abierta todo el tiempo, sin sacarla ni guardarla, y el
+            muñeco de lado y corrido a la izquierda, tecleando (ver
+            trabajoLadoFijo). Tampoco se dibuja aqui: la pinta ladoDe(). Con
+            otra animacion hace la suya, corrido, y la laptop sigue escribiendo.
+            No se tiñe: lleva los colores de la de la animacion. Su sitio en el
+            encuadre lo pone LADO_CAJA, no esta `caja`, que solo es la de rigor. */
+        laptop_lado: { nom: 'Oficina', lon: 0, lat: -50, esc: 0.92, modo: 'cara', caja: [-20, -20, 20, 20],
+                       f: function () { return ''; } },
         /*  ── DE TEMPORADA (26/09/2026) ─────────────────────────────────────
 
             Dos por fecha: Dia de Muertos, Halloween, Navidad, Año Nuevo y
@@ -814,14 +1090,23 @@
             color fijo se escribe `s || '#FFFFFF'`. Asi la sombra sale entera
             de su color, como la de todos. El color que elige la persona sigue
             siendo `c`: la parte principal (la copa, el cono, el globo). */
-        catrina: { nom: 'Catrina', temporada: 'Día de Muertos', col: '#2B2B33', lon: 0, lat: 54, esc: 1.35, apoyo: 16,
-                   caja: [-60, -44, 60, 18], f: function (c, c2, c3, s) {
-            return '<path d="M-24 -4C-26 -30 -14 -42 0 -42C14 -42 26 -30 24 -4Z" fill="' + c + '"/>'
-                 + '<path d="M-24 -11H24V-3H-24Z" fill="' + (s || '#7C5AC4') + '"/>'
-                 + '<path d="M-60 6C-60 -2 -34 -8 0 -8C34 -8 60 -2 60 6C60 14 34 18 0 18C-34 18 -60 14 -60 6Z" fill="' + c + '"/>'
-                 + florTemporada(-16, -14, s || '#F59E0B', s || '#B45309') + florTemporada(-3, -18, s || '#F59E0B', s || '#B45309')
-                 + florTemporada(10, -14, s || '#E86A9A', s || '#9D174D');
-        }},
+        /*  La Catrina es la calaverita de flores: ver catCuenca y compañia,
+            arriba. Las flores se pintan de fuera hacia dentro: el
+            cempasuchil del centro, encima. */
+        catrina: { nom: 'Catrina', temporada: 'Día de Muertos', col: CAT.rosa, sinRetardo: 1, partes: [
+            catCara( SPLIT, 0, catCuenca, [-30, -39, 30, 39], 1 / 0.94),
+            catCara(-SPLIT, 0, catCuenca, [-30, -39, 30, 39], 1 / 0.94),
+            catCara(0, 33, catFrente, [-18, -11, 18, 11]),
+            catCara( 47, -22, catCorazon, [-7, -7, 7, 6]),
+            catCara(-47, -22, catCorazon, [-7, -7, 7, 6]),
+            catFlor(-68, 30, 8,    function (c, c2, c3, s) { return catHojas(15, s) + catFlorecita(8, s); }),
+            catFlor( 68, 30, 8,    function (c, c2, c3, s) { return catHojas(15, s) + catFlorecita(8, s); }),
+            catFlor(-48, 47, 14,   function (c, c2, c3, s) { return catHojas(25, s) + catCempa(14, s); }),
+            catFlor( 48, 47, 14,   function (c, c2, c3, s) { return catHojas(25, s) + catCempa(14, s); }),
+            catFlor(-24, 61, 12.5, function (c, c2, c3, s) { return catHojas(22, s) + catRosa(12.5, CAT.rojo, CAT.rojoOsc, s); }),
+            catFlor( 24, 61, 12.5, function (c, c2, c3, s) { return catHojas(22, s) + catRosa(12.5, CAT.rosaFlor, CAT.rosaFlorOsc, s); }),
+            catFlor(  0, 70, 19,   function (c, c2, c3, s) { return catHojas(32, s) + catCempa(19, s); })
+        ]},
         cempasuchil: { nom: 'Cempasúchil', temporada: 'Día de Muertos', col: '#F59E0B', lon: -34, lat: 44, esc: 1.3,
                        caja: [-36, -36, 36, 40], f: function (c, c2, c3, s) {
             var o = '<path d="M-6 22C-18 26 -26 34 -26 38C-18 38 -8 32 -4 24ZM6 22C18 26 26 34 26 38C18 38 8 32 4 24Z" fill="' + (s || '#4D7C0F') + '"/>';
@@ -839,13 +1124,70 @@
                  + '<path d="M-13 -6L-7 -12L-2 -6ZM2 -6L7 -12L13 -6Z" fill="' + cara + '"/>'
                  + '<path d="M-14 4L-9 9L-4 5L0 9L4 5L9 9L14 4L9 13L4 10L0 13L-4 10L-9 13Z" fill="' + cara + '"/>';
         }},
-        bruja: { nom: 'Sombrero de bruja', temporada: 'Halloween', col: '#2D2A3E', lon: 4, lat: 58, esc: 1.45, apoyo: 14,
-                 caja: [-56, -80, 56, 16], f: function (c, c2, c3, s) {
-            return '<path d="M-24 4C-20 -30 -8 -58 8 -72C14 -78 24 -80 30 -74C20 -72 14 -64 12 -54C18 -30 22 -12 24 4Z" fill="' + c + '"/>'
-                 + '<path d="M-23 -7H23L24 2H-24Z" fill="' + (s || '#7C5AC4') + '"/>'
-                 + '<rect x="-6" y="-8" width="12" height="11" rx="1.5" fill="none" stroke="' + (s || '#F2C94C') + '" stroke-width="2.4"/>'
-                 + '<path d="M-56 2C-56 -6 -40 -11 0 -11C40 -11 56 -6 56 2C56 11 40 16 0 16C-40 16 -56 11 -56 2Z" fill="' + c + '"/>';
+        /*  EL FANTASMITA (02/10/2026): sustituye al sombrero de bruja, a
+            pedido. Un fantasma de sabana sentado en la cabeza, que sube y baja
+            solo (`flota`, como el globo) y se queda un pelo atras al girar:
+            flotando, ese retardo se lee como peso y no como fallo.
+
+            CONSERVA EL CODE 'bruja' a proposito: es el que esta en
+            ia_accessories, en ACC_MOTOR (ctrl-fantasma.php) y en
+            usuarios.ia_accessory de quien ya lo llevara. Con un code nuevo,
+            esa gente arrancaria pelona sin explicacion.
+
+            `c` es la sabana (se tiñe); el contorno va en `c2` para que el
+            fantasma blanco no se funda con un coffeeIA blanco. Ojos de capsula
+            con brillo, como los de coffeeIA, y sin boca: misma familia.
+
+            YA NO VA SENTADO EN LA CABEZA (05/10/2026): «el fantasma debe ir
+            abajo no arriba», y de las tres posiciones se eligio «abajo a un
+            lado». Flota junto a la base, del lado derecho, como acompañante:
+            pieza de cara para que salga derecho --una radial ahi saldria
+            girada--, fuera del cuerpo (dist 1.48) y sin `apoyo`, que es lo que
+            lo sentaba. Mismo tamaño que tenia arriba. Antes: lon 6, lat 60,
+            apoyo 4. */
+        bruja: { nom: 'Fantasmita', temporada: 'Halloween', col: '#F5F3FF', modo: 'cara', lon: 78, lat: -40, dist: 1.48, esc: 1.65, flota: 3,
+                 caja: [-28, -50, 28, 6], f: function (c, c2, c3, s) {
+            var sabana = 'M-20 -2V-26C-20 -40 -11 -48 0 -48C11 -48 20 -40 20 -26V-2Q15 6 10 -2Q5 6 0 -2Q-5 6 -10 -2Q-15 6 -20 -2Z';
+            return '<ellipse cx="-21" cy="-20" rx="6.5" ry="4" transform="rotate(-35 -21 -20)" fill="' + c + '" stroke="' + c2 + '" stroke-width="2"/>'
+                 + '<ellipse cx="21" cy="-20" rx="6.5" ry="4" transform="rotate(35 21 -20)" fill="' + c + '" stroke="' + c2 + '" stroke-width="2"/>'
+                 + '<path d="' + sabana + '" fill="' + c + '" stroke="' + c2 + '" stroke-width="2" stroke-linejoin="round"/>'
+                 + '<path d="M11 -44C18 -38 19.5 -30 19.5 -24V-3Q15 4 10.5 -2C14 -14 15 -30 11 -44Z" fill="' + c2 + '" opacity=".35"/>'
+                 + '<rect x="-10" y="-36" width="6" height="11" rx="3" fill="' + (s || '#1E293B') + '"/>'
+                 + '<rect x="4" y="-36" width="6" height="11" rx="3" fill="' + (s || '#1E293B') + '"/>'
+                 + '<circle cx="-7" cy="-33" r="1.3" fill="' + (s || '#FFFFFF') + '"/><circle cx="7" cy="-33" r="1.3" fill="' + (s || '#FFFFFF') + '"/>'
+                 + '<ellipse cx="-12" cy="-21" rx="3" ry="1.8" fill="' + (s || '#F9A8D4') + '"/><ellipse cx="12" cy="-21" rx="3" ry="1.8" fill="' + (s || '#F9A8D4') + '"/>';
         }},
+        /*  JACK (07/10/2026): el disfraz de Jack Skellington («El extraño
+            mundo de Jack»), pedido para Halloween. La calavera blanca ya la
+            pone coffeeIA; aqui va su ropa: el saco de rayas con el pecho en V
+            y el murcielago del cuello (ver trajeJack y murcielagoJack). La boca
+            cosida y las cuencas negras no van (la cara de coffeeIA solo lleva
+            ojos).
+
+            El traje es ROPA (ver `ropa` en piezas()): va sobre el cuerpo,
+            recortado a su silueta. Ocupa la parte de abajo: mas arriba le
+            quitaba la cara, y con el corbatin pegado al ojo, en chico se leia
+            como bigote. Primero fue solo el corbatin, y «no tiene el traje
+            de Jack».
+
+            Las dos piezas van en la MISMA ancla, el cuello (lat -48), y
+            pegadas a la cara (ver conCara): se mueven con ella como si fueran
+            parte del cuerpo. Con el marco del cuerpo se quedaban quietas al
+            mirar y se veian despegadas.
+
+            EL TAMAÑO: al 72 % de lo dibujado («el corbatin esta demasiado
+            grande y el traje tambien, debe ser como jack»): asi el murcielago
+            mide un poco mas que el cuerpo de ancho y apenas asoma por los
+            costados, como el de la imagen sobre los hombros de Jack, y el saco
+            queda en la parte de abajo. `esc` 0.755 es ese 0.72 mas el 4.8% que
+            el ancla encoge por estar inclinada (orienta). */
+        jack: { nom: 'Jack', temporada: 'Halloween', col: '#33363B', sinRetardo: 1, partes: [
+            { modo: 'cara', lon: 0, lat: -48, esc: 0.755, ropa: 1, caja: [-130, -30, 130, 33], f: trajeJack },
+            { modo: 'cara', lon: 0, lat: -48, esc: 0.755, pegado: 1, escorzo: 1, sombra: false, caja: [-110, -40, 110, 12], f: murcielagoJack }
+        ]},
+        /*  Sally (la compañera de Jack: pelo rojo con raya en medio y vestido
+            de retazos, como ropa) se hizo el 08/10/2026 y se quito ese mismo
+            dia a pedido, de la notificacion y del vestidor. */
         navidad: { nom: 'Gorro navideño', temporada: 'Navidad', col: '#DC2626', lon: -4, lat: 56, esc: 1.35, apoyo: 14,
                    caja: [-42, -56, 62, 16], f: function (c, c2, c3, s) {
             var b = s || '#FFFFFF';
@@ -1040,8 +1382,39 @@
         return h.sort(function (a, b) { return a - b; });
     })();
 
+    /*  Los hitos de Saludar (ver LAS MANITAS DE SALUDAR): sus fronteras y, por
+        cada cuarto de vaiven de la mano, un punto, para que el SVG animado
+        pase por cada pico. En vueltas de 3 s. */
+    var SAL_PER = 3, SAL_SALE = 0.28, SAL_BAJA = 1.45, SAL_ABAJO = 1.6, SAL_RECOGE = 1.55, SAL_FIN = 1.79, SAL_W = 13;
+    var HITOS_SALUDAR = (function () {
+        var h = [0, SAL_SALE, SAL_BAJA, SAL_RECOGE, SAL_ABAJO, SAL_FIN].map(function (t) { return t / SAL_PER; });
+        for (var t = 0; t <= SAL_ABAJO; t += Math.PI / (2 * SAL_W)) h.push(t / SAL_PER);
+        return h.sort(function (a, b) { return a - b; });
+    })();
+
+    /*  El guion del Hechizo (ver EL HECHIZO, mas abajo). HZ_L es lo que va
+        de la mano a la estrella; HZ_ZAS el instante del estallido; HZ_RASTRO
+        cuando nace cada chispa del rastro de los rizos, que vive HZ_VIDA.
+        Los hitos, por lo mismo que HITOS_PROGRAMA: cada nacer y morir de una
+        chispa y cada cuarto de rizo, o el SVG exportado se los salta. */
+    var HZ_L = 72, HZ_ESC = 1.15, HZ_ZAS = 0.50, HZ_VUELTAS = 2, HZ_VIDA = 0.09;
+    var HZ_RASTRO = [0.24, 0.275, 0.31, 0.345, 0.38, 0.415];
+    var HZ_MAGIA = ['#F5C542', '#F472B6', '#A78BFA', '#38BDF8'];
+    var HZ_HITOS = hitosDe([0.06, 0.09, 0.12, 0.17, 0.22, 0.44, 0.46, 0.48, HZ_ZAS, 0.52, 0.54, 0.56, 0.60, 0.64, 0.68,
+                            0.70, 0.72, 0.76, 0.80, 0.82, 0.84, 0.88]
+                           .concat(HZ_RASTRO)
+                           .concat(HZ_RASTRO.map(function (b) { return b + HZ_VIDA / 2; }))
+                           .concat(HZ_RASTRO.map(function (b) { return b + HZ_VIDA; })),
+                           [[0.22, 0.44, HZ_VUELTAS * 4]]);
+
     var ANIMS = {
         ninguna: { nom: 'Quieto', per: 1, fase: 0, f: null },
+
+        /*  Saludar (08/10/2026, «revisa notch-buddy y agrega la animacion de
+            saludar»): el greet() de Notch Buddy, solo las manitas --los ojos
+            y las mejillas no cambian, como la bienvenida de avatars--. Ver
+            LAS MANITAS DE SALUDAR, mas abajo. */
+        saludar: { nom: 'Saludar', per: 3, fase: 0.2, f: saludarCuerpo, utileria: saludarUtil, hitos: HITOS_SALUDAR },
 
         /*  Asiente: la cabeza cae y vuelve. El balanceo lateral, al doble de
             frecuencia, es lo que evita que parezca un piston. */
@@ -1170,6 +1543,13 @@
         programa: { nom: 'Modo oficina', per: 6, fase: 0.42, lado: true, especial: true,
                     hitos: HITOS_LADO, f: programaLadoCuerpo },
 
+        /*  HECHIZO (09/10/2026): toma la varita, dibuja dos rizos y ¡zas!,
+            estalla un puño de estrellas. `varita` le dice al motor que la
+            trae ella: con el accesorio Varita puesto no pinta la flotante
+            (ver EL HECHIZO, mas abajo). La miniatura, recien estallado. */
+        hechizo: { nom: 'Hechizo', per: 6, fase: 0.55, especial: true, varita: true,
+                   hitos: HZ_HITOS, f: hechizoCuerpo, utileria: hechizoUtil },
+
         /* ── LOS DE TRABAJO: ver LOS MOVIMIENTOS DE TRABAJO, mas abajo. Van
            en el grupo 'trabajo' para que el vestidor los junte aparte. */
         llevame:    { nom: 'Llévame', per: 6, fase: 0.66, grupo: 'trabajo', lado: true, app: true,
@@ -1228,6 +1608,7 @@
         p_permiso:  { nom: 'Pide permiso',   per: 1.5, fase: 0.2,  grupo: 'proceso', f: pPermiso,  utileria: pPermisoUtil },
         p_pregunta: { nom: 'Pregunta',       per: 1.5, fase: 0.5,  grupo: 'proceso', f: pPregunta, utileria: pPreguntaUtil },
         p_listo:    { nom: 'Terminado',      per: 1.5, fase: 0.85, grupo: 'proceso', f: pListo,    utileria: pListoUtil },
+        p_feliz:    { nom: 'Feliz',          per: 1.2, fase: 0.3,  grupo: 'proceso', f: pFeliz,    utileria: pFelizUtil },
         p_error:    { nom: 'Error',          per: 1.5, fase: 0.22, grupo: 'proceso', f: pError,    utileria: pErrorUtil },
         p_limite:   { nom: 'Límite',         per: 1.5, fase: 0.5,  grupo: 'proceso', f: pLimite,   utileria: pLimiteUtil },
         p_aprueba:  { nom: 'Aprobar',        per: 1,   fase: 0.5,  grupo: 'proceso', f: pAprueba,  utileria: pApruebaUtil },
@@ -1389,6 +1770,21 @@
         return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
     }
 
+    /*  EL OJO DE KIRBY (30/09/2026): oscuro --el azul noche de coffeeIA--
+        con un brillo blanco arriba (ver brilloDe). En un cuerpo oscuro ese ojo
+        no se veria. Hasta el 07/10/2026 pasaba al color del cuerpo aclarado
+        (gris) con el mismo brillo; con el Negro de la casa se pidio «en negro
+        los ojos son claros sin el brillo»: el claro del Negro de Notch Buddy
+        (#EEF0F4, su «Negro, con ojos claros») y SIN brillo (ver P.brillos).
+        El 30/09 se probo un ojo blanco con pupila y chispa y se quito a
+        pedido: este es liso. Lo usa tambien nav-coffeeia.js para su --ia-ojo,
+        y vestidor.js para cambiarselo a Espacio por el suyo. */
+    var OJO_KIRBY = '#1E293B', OJO_CLARO = '#EEF0F4';
+    function cuerpoOscuro(color) { return luz(color) < 0.3; }
+    function ojoKirby(color) {
+        return cuerpoOscuro(color) ? OJO_CLARO : OJO_KIRBY;
+    }
+
     /* ------------------------------------------------------------- parpadeo
        Los instantes salen de una semilla fija, no de Math.random: así el
        ritmo es siempre el mismo y, sobre todo, reproducible al exportar.
@@ -1452,6 +1848,11 @@
                 del ERP, 29/09/2026). Manda sobre el de fabrica sin tocar el
                 catalogo, que es compartido por todos los muñecos de la pagina. */
             accCol:    /^#[0-9a-f]{6}$/i.test(r.accCol || '') ? r.accCol : null,
+            /*  EL OJO DE KIRBY: ojo oscuro con un brillo blanco arriba. Lo
+                estreno el rosa Kirby del vestidor y desde el 30/09/2026 es el
+                de fabrica de todos (ver ojoKirby). `brillo: false` devuelve
+                el ojo de antes, el hueco del color del fondo. */
+            brillo:    r.brillo !== false,
             vivo:      r.vivo !== false
         };
     }
@@ -1500,6 +1901,9 @@
             barra y la laptop, que no encoge con el, lo tapaba entero. Ver
             `laptop` en ACCESORIOS. */
         var conLaptop = r.accesorio === 'laptop' && !(an && (an.laptop || an.lado || an.sinLaptop));
+        /*  Y el accesorio Oficina, la de perfil del Modo oficina, con la misma
+            regla. Ver `laptop_lado` en ACCESORIOS. */
+        var conLado = r.accesorio === 'laptop_lado' && !(an && (an.laptop || an.lado || an.sinLaptop));
 
         /*  CON UNA ANIMACION EN MARCHA NO SIGUE AL CURSOR. La animacion ya
             mueve la cabeza a su manera --asiente, bebe, busca-- y la mirada
@@ -1517,8 +1921,14 @@
                 de los ojos (corazon, estrella, espiral, feliz), `guino`
                 cierra solo el segundo, `ojoEsc` los agranda y `giro` hace
                 girar la espiral. */
+            /*  `accEsc` (08/10/2026): cuanto encoge EL ACCESORIO con el cuerpo.
+                Por regla el accesorio no se deforma con el cuerpo --solo se
+                mueve su apoyo, ver mueveCon--, y en un salto eso esta bien;
+                pero cuando una animacion encoge al muñeco entero (Cargando,
+                p_carga, al 23.5 %) el sombrero se quedaba de su tamaño y se
+                veia gigante. La animacion que encoge lo pide aqui. */
             var mv0 = { yaw: 0, pitch: 0, roll: 0, dx: 0, dy: 0, sx: 1, sy: 1, cierra: 0,
-                        vuelta: 0, ojos: null, guino: 0, ojoEsc: 1, giro: 0 };
+                        vuelta: 0, ojos: null, guino: 0, ojoEsc: 1, giro: 0, accEsc: 1 };
             if (!anima) {
                 /*  Quieto con la Laptop puesta: teclea como en el Modo
                     programador, mirando la pantalla. */
@@ -1526,11 +1936,19 @@
                     var mvL = programadorCuerpo(((tq / 6) % 1 + 1) % 1);
                     for (var kl in mv0) if (mvL[kl] != null) mv0[kl] = mvL[kl];
                 }
+                /*  Quieto con la Oficina: de lado, corrido y tecleando. */
+                if (conLado) {
+                    var mvO = cuerpoLado(trabajoLadoFijo(((tq / LADO_ACC.per) % 1 + 1) % 1));
+                    for (var ko in mv0) if (mvO[ko] != null) mv0[ko] = mvO[ko];
+                }
                 return mv0;
             }
             var u = ((tq / an.per) % 1 + 1) % 1;
             var mv = an.f(u) || {};
             for (var ki in mv0) if (mv[ki] != null) mv0[ki] = mv[ki];
+            /*  Con la Oficina y otra animacion, la hace corrido a la izquierda:
+                la laptop de perfil se queda donde esta y no se le encima. */
+            if (conLado) mv0.dx += LADO_CORRE;
             return mv0;
         }
 
@@ -1635,10 +2053,14 @@
         }
         function mueve(A) { return mueveCon(A, def); }
 
-        /*  Los ojos son del color del FONDO: se leen como huecos recortados
-            en el cuerpo, y de ahí viene el carácter. Si el cuerpo y el fondo
+        /*  Con el ojo de Kirby --el de fabrica-- el ojo es oscuro y no
+            depende del fondo: ver ojoKirby.
+
+            Sin el (`brillo: false`) los ojos son del color del FONDO: se
+            leen como huecos recortados en el cuerpo. Si el cuerpo y el fondo
             se parecen demasiado, se cae a una sombra del propio cuerpo. */
-        var colOjo = Math.abs(luz(r.color) - luz(r.fondo)) < 0.22 ? tono(r.color, 0.55) : r.fondo;
+        var colOjo = r.brillo ? ojoKirby(r.color)
+                   : Math.abs(luz(r.color) - luz(r.fondo)) < 0.22 ? tono(r.color, 0.55) : r.fondo;
 
         /*  Y si el cuerpo casi no se distingue del fondo, se le pone un aro
             fino de su propio tono: sin el, un blob blanco sobre fondo claro
@@ -1703,6 +2125,14 @@
             } else {
                 P.ojos.push(capsula(A1, w * oe, h * oe, abierto, inc),
                             capsula(A2, o2.w * oe, o2.h * oe, abierto * (1 - 0.95 * mov.guino), -inc));
+                /*  El brillo solo lo tiene la capsula, que es el ojo de Kirby.
+                    Siempre DOS, aunque no se vean: el SVG animado no puede
+                    añadir ni quitar elementos a mitad de ciclo. En un cuerpo
+                    oscuro, ninguno: su ojo claro va sin brillo (ojoKirby). */
+                if (r.brillo && !o.soloCaja && !cuerpoOscuro(r.color)) {
+                    P.brillos = [brilloDe(A1, w * oe, h * oe, abierto, inc),
+                                 brilloDe(A2, o2.w * oe, o2.h * oe, abierto * (1 - 0.95 * mov.guino), -inc)];
+                }
             }
         }
 
@@ -1723,6 +2153,9 @@
             asoma por el borde. Ver `cascos` en ACCESORIOS. */
         var acc = ACCESORIOS[r.accesorio];
         var partes = acc && (acc.partes || (acc.f ? [acc] : null));
+        /*  La varita del accesorio se esconde mientras corre una animacion que
+            saca la suya (el Hechizo): la toma la manita y saldrian dos. */
+        if (r.accesorio === 'varita' && anima && an.varita) partes = null;
 
         if (partes) {
             /*  ── LA CABEZA DEL ACCESORIO ─────────────────────────
@@ -1741,8 +2174,9 @@
                 Todo lo que cuelga de este gaze --el ancla, los ejes con los
                 que se orienta y la deformacion del salto-- sale del mismo
                 instante, asi que el accesorio se mueve como una pieza. */
-            var ta   = tf - ACC_RETARDO;
-            var dvA  = dvDe(quieto ? tt : tt - ACC_RETARDO);
+            var retardo = acc.sinRetardo ? 0 : ACC_RETARDO;
+            var ta   = tf - retardo;
+            var dvA  = dvDe(quieto ? tt : tt - retardo);
             var movA = movDe(ta);
 
             var defA = { sx: movA.sx, sy: movA.sy, dx: movA.dx,
@@ -1780,7 +2214,15 @@
                                  - m.y * (alcance * 0.72)), -topeP, topeP),
                     roll:  base.roll + dvA.roll + movA.roll + m.x * 6
                 };
-                var EA = ejes(gazeA);
+                /*  La pintura no va puesta encima: va EN la cara, con el
+                    mismo marco que los ojos (ver catCara). La ropa y lo que
+                    se declare `pegado` (el traje y el murcielago de Jack),
+                    tambien: «debe estar pegado a coffee para que se mueva
+                    junto con el» (07/10/2026). Con el marco de los ojos sigue
+                    la mirada, los giros de la animacion y la vuelta de
+                    Mareado y Terminado. */
+                var conCara = pz.pintura || pz.ropa || pz.pegado;
+                var EA = conCara ? E : ejes(gazeA);
 
                 /*  El accesorio se ancla a la PIEL, no a la esfera: ver
                     ancla(). Los ojos no la reciben a proposito -- van casi de
@@ -1819,10 +2261,13 @@
                     cuadrado local al lienzo, y esa escala depende de cuanto
                     se va hacia atras el ancla: de ahi el ancla de tanteo, que
                     solo se mira por su z. */
+                /*  `escP`: la escala de la pieza, encogida con el cuerpo cuando la
+                    animacion lo pide (`accEsc`, ver movDe). */
+                var escP = (pz.esc || 1) * (movA.accEsc || 1);
                 var extra = 0;
                 if (pz.apoyo != null) {
                     var z0 = ancla(EA, pz.lon, pz.lat, 1).z;
-                    extra = pz.apoyo * (pz.esc || 1) * (0.86 + 0.14 * clamp(z0, -1, 1))
+                    extra = pz.apoyo * escP * (0.86 + 0.14 * clamp(z0, -1, 1))
                           - HUNDE;
                 }
 
@@ -1856,15 +2301,26 @@
                     }
                 }
 
-                var Aa = mueveCon(A0, defA);
+                var Aa = mueveCon(A0, conCara ? def : defA);
 
                 P.acc.push({
-                    t: orienta(Aa, pz.esc || 1, EA, modo),
+                    t: orienta(Aa, escP, EA, modo, pz.escorzo ? Math.cos(rad(pz.lat || 0)) : 0),
                     svg: o.soloCaja ? '' : pz.f(cAcc, tono(cAcc, 0.22), tono(cAcc, -0.3), null),
-                    sombra: (!o.soloCaja && delante && o.sombra !== false)
+                    /*  La ropa no se hace sombra: va pegada a la piel. Ni la
+                        pieza que lo pide (`sombra: false`, el murcielago de
+                        Jack: su sombra entera pesaba mas que el). */
+                    sombra: (!o.soloCaja && delante && o.sombra !== false && !pz.ropa && pz.sombra !== false)
                             ? pz.f(som, som, som, som) : null,
                     delante: delante,
-                    caja: pz.caja
+                    caja: pz.caja,
+                    /*  Se pinta dentro del grupo de los ojos, recortada a la
+                        silueta como ellos: ver pintaPiezas y animado. */
+                    recorte: !!pz.pintura,
+                    /*  `ropa` (el traje de Jack): sobre el cuerpo y debajo de
+                        la cara, recortada a la silueta, y con el marco de
+                        los ojos (ver conCara). Hubo un dia con el marco del
+                        cuerpo, quieto al mirar, y se veia despegado. */
+                    ropa: !!pz.ropa
                 });
             });
         }
@@ -1884,10 +2340,22 @@
         else if (conLaptop && !o.soloCaja) {
             P.laptop = laptopDe(tf, LAPTOP_ACC, r);
             P.laptop.tapa = r.accCol || colorAcc('laptop', r.color, r.acento);
+
+            /*  Cuerpo oscuro (negro, azul): los </> y { } salen en gris. El
+                color del cuerpo oscurecido se perdia encima de el (30/09/2026). */
+            if (luz(r.color) < 0.35) P.laptop.glifos.forEach(function (g) { g.col = LAPTOP.letras; });
+
+            /*  `sinCodigo` (05/10/2026): sin los </> y { } que salen de la
+                pantalla. En el ERP solo los ven los programadores (perfil
+                root); los demas ven la laptop y el tecleo. Se apagan y no se
+                quitan: las rayitas de las teclas toman su color del primero. */
+            if (o.sinCodigo) P.laptop.glifos.forEach(function (g) { g.op = 0; });
         }
 
-        /*  Y la de perfil del programador. */
+        /*  Y la de perfil del programador; o la del accesorio Oficina, abierta
+            siempre. */
         if (anima && an.lado && !o.soloCaja) P.lado = ladoDe(tf, an, r);
+        else if (conLado && !o.soloCaja) P.lado = ladoDe(tf, LADO_ACC, r);
 
         /*  Y la utileria de los movimientos de trabajo. */
         if (anima && an.utileria && !o.soloCaja) P.util = an.utileria(((tf / an.per) % 1 + 1) % 1, r, mov);
@@ -1896,11 +2364,24 @@
             quepa. Ver `extremos` y `encuadre`. */
         P.caja = extremos(radios, esc, def, P.acc);
 
+        /*  La laptop de la Oficina no es una pieza con caja: se suma la suya,
+            o el encuadre centrado la dejaria fuera del cuadro. */
+        if (conLado) P.caja = [Math.min(P.caja[0], LADO_CAJA[0]), Math.min(P.caja[1], LADO_CAJA[1]),
+                               Math.max(P.caja[2], LADO_CAJA[2]), Math.max(P.caja[3], LADO_CAJA[3])];
+
         /*  `encaje` lleva el zoom Y el desplazamiento; `zoom` es el numero
             suelto de siempre, que es lo que consulta el muñeco de la app para
             compensar cuanto encogio el motor (ver nav-coffeeia.js). Se dejan
             los dos para no obligar a nadie a cambiar por un encuadre nuevo. */
-        P.encaje = o.sinZoom ? { z: 1, dx: 0, dy: 0 } : encuadre(r, o);
+        /*  `encajeAnim` (02/10/2026) mide el encuadre como si la animacion
+            fuera OTRA. Lo pide el lanzador del ERP para los procesos de
+            ventana (asomarse, abrir, cerrar...): son una vuelta suelta encima
+            de lo de siempre, y con su propio encuadre el muñeco encogia
+            mientras duraban --asomarse sube 95 unidades desde abajo--. Con el
+            de siempre no cambia de tamaño, y lo que se sale del cuadro se
+            corta, que en asomarse es justo el borde por el que se asoma. */
+        P.encaje = o.sinZoom ? { z: 1, dx: 0, dy: 0 }
+                 : encuadre(o.encajeAnim !== undefined ? conAnim(r, o.encajeAnim) : r, o);
         P.zoom   = P.encaje.z;
 
         return P;
@@ -1996,6 +2477,14 @@
         var c = {}, kk;
         for (kk in r) c[kk] = r[kk];
         c.gesto = gesto;
+        return c;
+    }
+
+    /*  Y con OTRA animacion: la usa `encajeAnim` (ver piezas). */
+    function conAnim(r, anim) {
+        var c = {}, kk;
+        for (kk in r) c[kk] = r[kk];
+        c.anim = ANIMS[anim] ? anim : 'ninguna';
         return c;
     }
 
@@ -2135,6 +2624,42 @@
             w: rr * 2,
             op: 1
         };
+    }
+
+    /*  El brillo de un ojo capsula (30/09/2026): un ovalo en su parte de
+        arriba, medido con las mismas cuentas que la capsula. `cy` va en
+        negativo porque en el marco local el eje vertical apunta hacia
+        abajo.
+
+        `n` y `e` son los dos ejes del marco YA TORCIDOS por `incl`, igual
+        que el trazo de la capsula: en Enfado y Triste el brillo se va con
+        el ojo en vez de quedarse derecho.
+
+        `op` dice cuanto se ve: entero con el ojo de pie (alto >= 1.2
+        veces el ancho) y nada con el ojo tumbado. Asi se apaga solo en el
+        parpadeo, en el ojo cerrado del guiño, en el entornado de Duda y en
+        Sueño, y se enciende poco a poco en vez de saltar. */
+    function brilloDe(A, w, h, abierto, incl) {
+        var hw = Math.max(w * R, 0.01) / 2;
+        var hh = Math.max(h * R * abierto, 0.01) / 2;
+        var rr = Math.min(hw, hh), len = Math.max(hh - rr, 0);
+        var c = 1, s = 0;
+        if (incl) { c = Math.cos(rad(incl)); s = Math.sin(rad(incl)); }
+
+        return {
+            x: CX + A.x, y: CY + A.y,
+            n: { x: A.ax * c - A.bx * s, y: A.ay * c - A.by * s },
+            e: { x: A.bx * c + A.ax * s, y: A.by * c + A.ay * s },
+            rx: rr * 0.42, ry: rr * 0.6, cy: -(len + rr * 0.05),
+            op: A.z <= 0.02 ? 0 : 0.95 * Math.max(0, Math.min(1, (hh / hw - 1) / 0.2))
+        };
+    }
+
+    /*  El marco del brillo como matriz SVG: gira con la cabeza, se tuerce
+        con el ojo y se acorta de canto. */
+    function marcoDe(b) {
+        return 'matrix(' + b.n.x.toFixed(4) + ',' + b.n.y.toFixed(4) + ',' + b.e.x.toFixed(4) + ','
+             + b.e.y.toFixed(4) + ',' + b.x.toFixed(2) + ',' + b.y.toFixed(2) + ')';
     }
 
     /*  ── LOS OJOS CON FORMA (29/09/2026) ─────────────────────────────
@@ -2527,7 +3052,7 @@
         encima del borde, que es justo como se ve a alguien mirando su
         pantalla. Colores propios, como las tazas: una laptop es
         de aluminio sea cual sea el muñeco. */
-    var LAPTOP = { tapa: '#CDD3DB', borde: '#A3ADBA', bisagra: '#939DAB', logo: '#F7F9FB' };
+    var LAPTOP = { tapa: '#CDD3DB', borde: '#A3ADBA', bisagra: '#939DAB', logo: '#F7F9FB', letras: '#A3A3A3' };
     var BISAGRA = '<rect x="-71" y="95" width="142" height="9" rx="4.5" fill="' + LAPTOP.bisagra + '"/>';
     var TAPA_W = 132, TAPA_H = 60;
 
@@ -2632,18 +3157,38 @@
         se corre 40 a la izquierda para dejarle sitio a la laptop. Cabecea poco en
         cada tecla: lo que teclea se ve en la pantalla. En la pausa
         vuelve la cara hacia ti a medias, que es mirar de reojo. */
-    function programaLadoCuerpo(u) {
-        var k = trabajoLado(u);
+    function programaLadoCuerpo(u) { return cuerpoLado(trabajoLado(u)); }
+    /*  El mismo cuerpo para la animacion y para el accesorio Oficina: solo
+        cambia el guion que lo mueve (trabajoLado o trabajoLadoFijo). */
+    function cuerpoLado(k) {
         return {
             yaw:   52 * k.gira - 30 * k.piensa,
             pitch: -5 * k.gira * (1 - k.piensa) + 4 * k.piensa - 1.2 * k.golpe,
             roll:  -2 * k.gira + 3 * k.piensa,
-            dx:    -40 * k.gira,
+            dx:    LADO_CORRE * k.gira,
             dy:     1.2 * k.golpe,
             sx:     1 + 0.01 * k.golpe,
             sy:     1 - 0.012 * k.golpe
         };
     }
+
+    /*  EL GUION DEL ACCESORIO OFICINA (07/10/2026): el Modo oficina sin sacar
+        ni guardar la laptop. Abierta toda la vuelta, con las dos rafagas del
+        Modo programador (RAFAGAS_FIJO, en tecleoFijo) y la mirada de reojo en
+        la pausa; la pantalla se llena media por rafaga y se borra al volver a
+        empezar. `guionLado` es lo que ladoDe() usa en vez de trabajoLado. */
+    function trabajoLadoFijo(u) {
+        var t = tecleoFijo(u);
+        var escrito = u < 0.02 ? 0 : u < 0.44 ? 0.5 * (u - 0.02) / 0.42
+                    : u < 0.54 ? 0.5 : u < 0.96 ? 0.5 + 0.5 * (u - 0.54) / 0.42 : 1;
+        return { saca: 1, gira: 1, abre: 1, golpe: t.golpe, lado: t.lado, piensa: t.piensa, escrito: escrito };
+    }
+    var LADO_ACC   = { per: 6, guionLado: trabajoLadoFijo };
+    /*  Cuanto se corre el cuerpo para dejarle sitio a la laptop, y lo que
+        ocupa la laptop en el lienzo (de F1 a T2 y el grosor de abajo, con 2
+        de holgura): ver LADO, mas abajo. */
+    var LADO_CORRE = -40;
+    var LADO_CAJA  = [CX + 4, CY + 6, CX + 136, CY + 125];
 
     /*  LA LAPTOP DE PERFIL, en tres cuartos, a la derecha del muñeco. Todo en
         coordenadas desde el centro del cuerpo, con el cuerpo ya corrido 40 a
@@ -2703,7 +3248,7 @@
 
     function ladoDe(t, an, r) {
         var u = ((t / an.per) % 1 + 1) % 1;
-        var k = trabajoLado(u);
+        var k = (an.guionLado || trabajoLado)(u);
         var T1 = mezcla([LADO.F1[0], LADO.F1[1] - 4], LADO.T1, k.abre);
         var T2 = mezcla([LADO.F2[0], LADO.F2[1] - 4], LADO.T2, k.abre);
         /*  Un punto de la tapa: s a lo ancho, h desde la bisagra (0) hasta
@@ -3326,6 +3871,159 @@
                          a * Math.max(0, Math.sin(Math.PI * 2 * (u * 2 - e[2]))));
         });
     }
+    /* ── LAS MANITAS DE SALUDAR (08/10/2026) ──────────────────────────────
+
+       El greet() de Notch Buddy (src/js/notch-buddy.js), con sus medidas en
+       radios del cuerpo: le salen dos manitas del color del cuerpo a los
+       lados, abajo (1,25 radios afuera y 0,42 abajo del centro, de 0,2 radios),
+       con rebote en 0,28 s; la derecha se levanta y se agita (13 rad/s)
+       hasta los 1,5 s, baja, y a los 1,55 s se recogen las dos (0,24 s). El
+       resto de la vuelta de 3 s, quieto.
+
+       SOLO LAS MANITAS: los ojos y las mejillas no cambian, ni el cuerpo se
+       mueve, como pidio el usuario para la bienvenida de avatars el
+       05/10/2026. Es la excepcion a «sin manos» de LOS MOVIMIENTOS DE
+       TRABAJO: aqui la mano ES el gesto. Llevan `data-piel` en su dibujo:
+       pintaPiezas les pone la piel del cuerpo (ver pielDeUtil). */
+    function saludarCuerpo() { return {}; }
+    function saludarUtil(u, r, mov) {
+        var t = u * SAL_PER, R = 94;
+        var m = t < SAL_SALE ? rebote(t / SAL_SALE) : t < SAL_RECOGE ? 1
+              : t < SAL_FIN ? 1 - suave((t - SAL_RECOGE) / (SAL_FIN - SAL_RECOGE)) : 0;
+        var alza = t < SAL_BAJA ? 1 : t < SAL_ABAJO ? 1 - suave((t - SAL_BAJA) / (SAL_ABAJO - SAL_BAJA)) : 0;
+        var sx = mov.sx || 1, sy = mov.sy || 1;
+        var cx = CX + (mov.dx || 0), cy = CY + R - R * sy + (mov.dy || 0);
+        /*  Alla el cuerpo es casi un cuadrado redondeado y a 1,25 radios la mano
+            queda a un pelo de el; este es redondo y ahi quedaba suelta. Asi que
+            la mano va pegada al CONTORNO a su altura, con el mismo huequito
+            de alla (0,05 radios), tambien la que se levanta. */
+        return [-1, 1].map(function (sd) {
+            var hy = cy + R * sy * 0.42, mueve = 0;
+            if (sd === 1) {
+                hy -= alza * (R * 0.38 + Math.sin(t * SAL_W) * R * 0.16);
+                mueve = alza * Math.cos(t * SAL_W) * R * 0.06;
+            }
+            var k = clamp((hy - cy) / (R * sy), -1, 1);
+            var hx = cx + sd * (R * sx * Math.sqrt(1 - k * k) + R * 0.25) + mueve;
+            return pieza(MANITA, hx, hy, 0, Math.max(0, m), m > 0.01 ? 1 : 0);
+        });
+    }
+    /*  `data-piel="1"` y no `data-piel` a secas (09/10/2026): sin valor es
+        HTML valido pero XML no, y el SVG animado que se guarda como archivo
+        del agente (vestidor, forja) salia sin pintar --«Specification
+        mandates value for attribute»-- en cuanto llevaba Saludar. */
+    var MANITA = '<circle r="18.8" data-piel="1"/>';
+
+    /* ── EL HECHIZO (09/10/2026) ──────────────────────────────────────────
+
+       «Agrega una animacion con la varita»: le sale una manita, toma la
+       varita, la alza, dibuja dos rizos en el aire dejando un rastro de
+       chispas y ¡zas!: un destello y ocho estrellas sobre su cabeza. Da un
+       saltito con los ojos felices, la baja y la suelta.
+
+       LA VARITA ESTA SIEMPRE A LA VISTA. En reposo flota a su derecha, donde
+       la deja el accesorio, y ahi la vuelve a dejar. Por eso el motor no pinta
+       el accesorio Varita mientras corre esta (`varita` en ANIMS): saldrian
+       dos. La estrella lleva el color de la varita si el muñeco la trae
+       teñida; si no, el dorado de fabrica. La manita es la de Saludar, con la
+       piel del cuerpo, y es la excepcion a «sin manos» por la misma razon:
+       aqui la mano ES el gesto.
+
+       Un solo guion (hechizoK) para el cuerpo y la utileria, como el sorbo
+       del cafe. La mano va pegada al contorno a su altura, como en Saludar,
+       asi que hzMano necesita el `mov` del cuerpo; las chispas se colocan con
+       la mano de su instante y sin `mov` (hzPunta): el cuerpo apenas se mueve
+       en los rizos, y asi el rastro no viaja con el.
+
+       TODO DENTRO DEL LIENZO: el encuadre no mide la utileria. Arriba la
+       mano apenas pasa del centro y el ¡zas! apunta POR ENCIMA DE LA CABEZA
+       (-30°): la punta queda en ~(234, 71) y el estallido, ovalado de 52 x 44,
+       cabe sin tocar el borde de 320. Apuntando hacia fuera, la primera
+       version tenia que hacerlo tan chico que no se leia. */
+    function hechizoK(u) {
+        return {
+            mano:  u < 0.06 ? 0 : u < 0.12 ? rebote((u - 0.06) / 0.06) : u < 0.80 ? 1 : 1 - tramo(u, 0.80, 0.88),
+            alza:  entra(u, 0.12, 0.22, 0.70, 0.82),
+            zas:   u < 0.44 ? 0 : u < 0.70 ? rebote((u - 0.44) / (HZ_ZAS - 0.44)) : 1 - tramo(u, 0.70, 0.80),
+            rizo:  u >= 0.22 && u < 0.44 ? (u - 0.22) / 0.22 : -1,
+            feliz: u >= HZ_ZAS && u < 0.76,
+            salto: u >= 0.48 && u < 0.60 ? Math.sin((u - 0.48) / 0.12 * Math.PI) : 0
+        };
+    }
+    /*  La mano (donde se agarra la varita) y el giro de la varita: 12° en
+        reposo, con la estrella hacia fuera; arriba, -18° hacia la cabeza, y
+        el ¡zas! la lleva a -30°, por encima de ella. En los rizos la mano da
+        vueltas de radio 9 que empiezan y acaban en su sitio, y la varita
+        cabecea con ellas. */
+    function hzMano(u, mov) {
+        var k = hechizoK(u), R = 94, m = mov || {};
+        var sx = m.sx || 1, sy = m.sy || 1;
+        var cx = CX + (m.dx || 0), cy = CY + R - R * sy + (m.dy || 0);
+        var env = k.rizo >= 0 ? Math.sin(Math.PI * k.rizo) : 0;
+        var th = k.rizo >= 0 ? Math.PI * 2 * HZ_VUELTAS * k.rizo : 0;
+        var hy = cy + R * sy * (0.30 - 0.42 * k.alza) - 6 * k.zas - 9 * env * (1 - Math.cos(th))
+               + 2 * Math.sin(Math.PI * 6 * u) * (1 - k.mano);
+        var q = clamp((hy - cy) / (R * sy), -1, 1);
+        return {
+            x: cx + R * sx * Math.sqrt(1 - q * q) + R * 0.25 + 9 * env * Math.sin(th),
+            y: hy,
+            ang: 12 - 30 * k.alza - 12 * k.zas + 16 * env * Math.sin(th + 0.9),
+            k: k
+        };
+    }
+    function hzPunta(u) {
+        var g = hzMano(u, null);
+        return sobre(g.x, g.y, g.ang, HZ_ESC, 0, -HZ_L);
+    }
+    /*  La varita con la mano en el origen: el palito sigue por debajo y asoma
+        la punta blanca bajo el puño. Es la del accesorio, mas larga. */
+    function hzVarita(c) {
+        var c2 = tono(c, 0.22), c3 = tono(c, -0.3), y = -HZ_L;
+        return '<rect x="-3.4" y="-62" width="6.8" height="86" rx="3.4" fill="#2B2633"/>'
+             + '<rect x="-3.4" y="14" width="6.8" height="10" rx="3.4" fill="#F4F1EA"/>'
+             + '<path d="M-1 -56V8" stroke="' + c3 + '" stroke-width="1.6" stroke-linecap="round" opacity=".35"/>'
+             + '<path transform="translate(0 ' + y + ') scale(1.7)" d="M0 -9L2.6 -3.2L9 -2.8L4.1 1.4L5.6 7.6L0 4.2L-5.6 7.6L-4.1 1.4L-9 -2.8L-2.6 -3.2Z"'
+             +   ' fill="' + c + '" stroke="' + c2 + '" stroke-width="1.4" stroke-linejoin="round"/>'
+             + '<ellipse cx="-4" cy="' + (y - 7) + '" rx="3.4" ry="1.9" fill="' + c3 + '" opacity=".8" transform="rotate(-30 -4 ' + (y - 7) + ')"/>';
+    }
+    function hechizoCuerpo(u) {
+        var k = hechizoK(u);
+        var env = k.rizo >= 0 ? Math.sin(Math.PI * k.rizo) : 0;
+        var th = k.rizo >= 0 ? Math.PI * 2 * HZ_VUELTAS * k.rizo : 0;
+        return {
+            yaw: 14 * k.alza, pitch: 10 * k.alza + 4 * k.salto,
+            roll: -4 * k.alza + 3 * env * Math.sin(th),
+            dy: -10 * k.salto, sy: 1 + 0.05 * k.salto, sx: 1 - 0.035 * k.salto,
+            ojos: k.feliz ? 'feliz' : null
+        };
+    }
+    /*  Las piezas, siempre las mismas 17: la varita, la mano, el destello,
+        las seis chispas del rastro y las ocho estrellas del estallido. */
+    function hechizoUtil(u, r, mov) {
+        var g = hzMano(u, mov), k = g.k;
+        var c = (r && r.accesorio === 'varita' && r.accCol) || ACCESORIOS.varita.col;
+        var z = hzPunta(HZ_ZAS), tg = (u - HZ_ZAS) / 0.12, tb = (u - HZ_ZAS) / 0.22;
+        var vb = tb >= 0 && tb <= 1, e = 1 - Math.pow(1 - clamp(tb, 0, 1), 2), i;
+        var v = [
+            pieza(hzVarita(c), g.x, g.y, g.ang, HZ_ESC, 1),
+            pieza(MANITA, g.x, g.y, 0, 0.82 * Math.max(0, k.mano), k.mano > 0.01 ? 1 : 0),
+            pieza('<circle r="14" fill="#FDE68A"/>', z[0], z[1], 0, 0.5 + 2.1 * clamp(tg, 0, 1),
+                  tg >= 0 && tg <= 1 ? 0.65 * (1 - tg) : 0)
+        ];
+        HZ_RASTRO.forEach(function (b, n) {
+            var p = hzPunta(b), t = (u - b) / HZ_VIDA, tc = clamp(t, 0, 1);
+            v.push(pieza(estrella4(HZ_MAGIA[n % 4]), p[0], p[1] - 12 * tc, 90 * tc, 1.8 - 0.9 * tc,
+                         t >= 0 && t <= 1 ? Math.min(1, t * 5) * (1 - tramo(t, 0.5, 1)) : 0));
+        });
+        for (i = 0; i < 8; i++) {
+            var a = rad(i * 45 + 22.5);
+            v.push(pieza(estrella4(HZ_MAGIA[i % 4]), z[0] + Math.cos(a) * (8 + 44 * e), z[1] + Math.sin(a) * (8 + 36 * e),
+                         160 * clamp(tb, 0, 1), 2.2 - 1.0 * clamp(tb, 0, 1),
+                         vb ? Math.min(1, tb * 10) * (1 - tramo(tb, 0.55, 1)) : 0));
+        }
+        return v;
+    }
+
     function pAviso(u) {
         return { pitch: -4 * Math.sin(Math.PI * clamp((u - 0.05) / 0.3, 0, 1)) };
     }
@@ -3389,6 +4087,24 @@
         var p = insigniaSobre(mov);
         v.push(pieza(puntoB(PC.listo), p.x, p.y, 0, 1, entra(u, 0.66, 0.72, 0.95, 1)));
         return v;
+    }
+    /*  FELIZ (08/10/2026, «en Terminado hay una animacion de felicidad al
+        finalizar la vuelta, quiero que la agregues a trabajo como una nueva»):
+        el final de Terminado sin la vuelta ni la palomita. Ojos felices, dos
+        brincos chicos y la misma corona de estrellas saliendo del cuerpo. La
+        usa el vestidor al elegir algo de temporada: la vuelta entera tapaba
+        el disfraz que se estaba probando. */
+    function pFeliz(u) {
+        var b = Math.abs(Math.sin(Math.PI * 2 * clamp((u - 0.04) / 0.6, 0, 1)));
+        return { dy: -12 * b, sy: 1 + 0.04 * b, sx: 1 - 0.02 * b, ojos: u > 0.04 && u < 0.92 ? 'feliz' : null };
+    }
+    function pFelizUtil(u, r, mov) {
+        var t = clamp((u - 0.06) / 0.6, 0, 1), vive = u >= 0.06 && u < 0.7;
+        return BRILLO_ANG.map(function (g, i) {
+            var a = rad(g - 90), d = 70 + 50 * t;
+            return pieza(estrella4(i % 2 ? PC.listo : ERP.ambar), CX + mov.dx + Math.cos(a) * d, CY + mov.dy + Math.sin(a) * d, 90 * t, 1.5 - 0.6 * t,
+                         vive ? Math.min(1, t * 6) * (1 - tramo(t, 0.6, 1)) : 0);
+        });
     }
     function pError(u) {
         return { dx: 9 * ondaEn(u, 0, 0.45, 6) * (1 - tramo(u, 0.15, 0.45)), cierra: 0.75 * entra(u, 0.02, 0.08, 0.86, 0.97),
@@ -3490,7 +4206,7 @@
     }
     function pCarga(u) {
         var k = cargaK(u), paso = Math.abs(Math.sin(Math.PI * 8 * k.p)) * (1 - k.fin);
-        return { sx: CARGA.esc, sy: CARGA.esc, ojoEsc: CARGA.esc,
+        return { sx: CARGA.esc, sy: CARGA.esc, ojoEsc: CARGA.esc, accEsc: CARGA.esc,
                  dx: k.x - CX, dy: -9 * Math.sin(Math.PI * k.fin) - 3 * paso };
     }
     function pCargaUtil(u, r, mov) {
@@ -3857,6 +4573,17 @@
         Con `o.clases` el cuerpo y la cara salen con class y sin fill, y el
         fondo no se pinta. Es lo que permite que la app y la forja compartan
         motor sin que ninguna de las dos ceda: mismo dibujo, distinta piel. */
+    /*  La utileria con la piel del cuerpo (`data-piel` en su dibujo: las
+        manitas de Saludar). Con clases, la del cuerpo --el color lo pone el
+        CSS de la app, igual que al cuerpo--; sin ellas, su relleno y su borde.
+        La marca se queda: quien pinta las pieles (vestConPiel en el ERP,
+        conPiel en avatars) la busca para vestirlas igual que al cuerpo. */
+    function pielDeUtil(svg, P, cl) {
+        if (svg.indexOf('data-piel') < 0) return svg;
+        return svg.replace(/data-piel="1"/g, cl ? 'data-piel="1" class="' + cl.cuerpo + '"'
+                                                : 'data-piel="1" fill="' + P.color + '"' + (P.borde ? ' stroke="' + P.borde + '" stroke-width="2"' : ''));
+    }
+
     function pintaPiezas(P) {
         var cl = P.clases || null;
         var s = cl ? '' : '<rect width="' + V + '" height="' + V + '" fill="' + P.fondo + '"/>';
@@ -3873,7 +4600,9 @@
         function accTanda(delante) {
             var s2 = '';
             P.acc.forEach(function (A) {
-                if (A.delante !== delante) return;
+                /*  La pintura de delante no: va con la cara, mas abajo. La
+                    ropa tampoco: va pegada al cuerpo. */
+                if (A.delante !== delante || (delante && A.recorte) || A.ropa) return;
                 s2 += A.t ? '<g transform="' + A.t.mtx + '">' + A.svg + '</g>' : A.svg;
             });
             return s2 ? '<g' + (cl && cl.grupoAcc ? ' class="' + cl.grupoAcc + '"' : '')
@@ -3888,7 +4617,7 @@
             P.util.forEach(function (it) {
                 if (!it.detras || it.op <= 0.01) return;
                 s += '<g transform="translate(' + it.x.toFixed(1) + ' ' + it.y.toFixed(1) + ') rotate(' + it.rot.toFixed(1)
-                   + ') scale(' + it.s.toFixed(3) + ')" opacity="' + it.op.toFixed(2) + '">' + it.svg + '</g>';
+                   + ') scale(' + it.s.toFixed(3) + ')" opacity="' + it.op.toFixed(2) + '">' + pielDeUtil(it.svg, P, cl) + '</g>';
             });
         }
 
@@ -3917,6 +4646,15 @@
            + '<clipPath id="r' + idC + '"><use href="#' + idC + '"/></clipPath>';
 
         var recorte = ' clip-path="url(#r' + idC + ')"';
+
+        /*  La ropa, pegada al cuerpo: recortada a la silueta, encima de la
+            piel y debajo de la sombra y de la cara. Cuando la vuelta de
+            Mareado se la lleva por detras, no se ve, como la pintura. */
+        var ropa = '';
+        P.acc.forEach(function (A) {
+            if (A.ropa && A.t && A.delante) ropa += '<g transform="' + A.t.mtx + '">' + A.svg + '</g>';
+        });
+        if (ropa) s += '<g' + recorte + '>' + ropa + '</g>';
 
         /*  La sombra va sobre el cuerpo y debajo de la cara: recortada, solo
             se ve la parte que cae encima del blob. */
@@ -3948,6 +4686,24 @@
                   + (cl ? ' class="' + cl.ojo + '"' : ' stroke="' + P.colOjo + '" fill="none"')
                   + ' stroke-width="' + o.w.toFixed(2)
                   + '" stroke-linecap="round" opacity="' + o.op + '"/>' + cierra;
+        });
+
+        /*  El brillo, encima del ojo. Con `clases` puede llevar la suya
+            (`brillo`); si no la trae, va en blanco, que es el de Kirby. */
+        (P.brillos || []).forEach(function (b) {
+            if (b.op <= 0.01) return;
+            cara += '<ellipse cy="' + b.cy.toFixed(2) + '" rx="' + b.rx.toFixed(2) + '" ry="' + b.ry.toFixed(2) + '"'
+                  + ' transform="' + marcoDe(b) + '"'
+                  + (cl && cl.brillo ? ' class="' + cl.brillo + '"' : ' fill="#FFFFFF"')
+                  + ' opacity="' + b.op.toFixed(2) + '"/>';
+        });
+
+        /*  La pintura de la cara (la Catrina) encima de los ojos y DENTRO de
+            su grupo: con su recorte y su clase, se mueve con ellos y no se
+            sale de la silueta. */
+        P.acc.forEach(function (A) {
+            if (!A.recorte || !A.delante) return;
+            cara += A.t ? '<g transform="' + A.t.mtx + '">' + A.svg + '</g>' : A.svg;
         });
 
         if (cara) s += '<g' + (cl && cl.grupoOjos ? ' class="' + cl.grupoOjos + '"' : '')
@@ -4039,7 +4795,7 @@
             P.util.forEach(function (it) {
                 if (it.detras || it.op <= 0.01) return;
                 s += '<g transform="translate(' + it.x.toFixed(1) + ' ' + it.y.toFixed(1) + ') rotate(' + it.rot.toFixed(1)
-                   + ') scale(' + it.s.toFixed(3) + ')" opacity="' + it.op.toFixed(2) + '">' + it.svg + '</g>';
+                   + ') scale(' + it.s.toFixed(3) + ')" opacity="' + it.op.toFixed(2) + '">' + pielDeUtil(it.svg, P, cl) + '</g>';
             });
         }
 
@@ -4147,7 +4903,7 @@
             parpado = parpadoCiclo;                    // sólo para este muestreo
             var P = piezas(rec, t, null, {
                 ciclo: true, margen: o.margen, centrado: o.centrado,
-                pose: o.pose
+                pose: o.pose, sinCodigo: o.sinCodigo
             });
             parpado = guarda;
             return P;
@@ -4187,7 +4943,7 @@
         function pegado(sacaT, dentro) {
             return '<g>' + animaT('translate', col(function (P) { var t = sacaT(P); return t.tx.toFixed(2) + ' ' + t.ty.toFixed(2); }))
                  +   '<g>' + animaT('rotate', col(function (P) { return sacaT(P).rot.toFixed(2); }))
-                 +     '<g>' + animaT('scale', col(function (P) { return sacaT(P).esc.toFixed(4); }))
+                 +     '<g>' + animaT('scale', col(function (P) { var t = sacaT(P); return t.escX === t.escY ? t.esc.toFixed(4) : t.escX.toFixed(4) + ' ' + t.escY.toFixed(4); }))
                  +       dentro
                  +     '</g></g></g>';
         }
@@ -4202,6 +4958,10 @@
             P0.acc.forEach(function (A0, i) {
                 if (A0.delante !== delante) return;
                 if (sombra && !A0.sombra) return;
+                /*  La pintura de delante va con la cara, y la ropa pegada al
+                    cuerpo, como en pantalla. */
+                if (delante && !sombra && A0.recorte) return;
+                if (A0.ropa) return;
 
                 /*  El arco de esfera no tiene matriz que animar: lo que
                     cambia cuadro a cuadro es su propio trazo, asi que se
@@ -4238,6 +4998,13 @@
         s += '<clipPath id="' + idR + '"><use href="#' + idCuerpo + '"/></clipPath>';
         var recorte = ' clip-path="url(#' + idR + ')"';
 
+        /*  La ropa, como en pantalla: ver pintaPiezas. */
+        var ropa = '';
+        P0.acc.forEach(function (A0, i) {
+            if (A0.ropa && A0.t && A0.delante) ropa += pegado(function (P) { return P.acc[i].t; }, A0.svg);
+        });
+        if (ropa) s += '<g' + recorte + '>' + ropa + '</g>';
+
         var somAcc = accTanda(true, true);
 
         if (somAcc) {
@@ -4265,6 +5032,43 @@
                       + anima('opacity', col(function (P) { return String(P.ojos[i].op); }))
                       + '</path>';
             cara += o0.t ? pegado(function (P) { return P.ojos[i].t; }, trazo) : trazo;
+        });
+
+        /*  El brillo de Kirby. SMIL no sabe animar una matriz, asi que aqui
+            va en coordenadas de pantalla: centro, radios acortados por el
+            escorzo y un giro alrededor del centro. Lo unico que pierde
+            frente a la pantalla es el sesgo del borde de la esfera, que de
+            frente no se ve. Un cuadro sin brillo --una animacion que cambia
+            los ojos por corazones-- repite el ultimo que hubo, apagado. */
+        [0, 1].forEach(function (i) {
+            var ult = null;
+            cuadros.some(function (P) { return (ult = P.brillos && P.brillos[i]); });
+            if (!ult) return;
+
+            var bs = cuadros.map(function (P) {
+                var b = P.brillos && P.brillos[i];
+                if (b) { ult = b; return b; }
+                return { x: ult.x, y: ult.y, n: ult.n, e: ult.e, rx: ult.rx, ry: ult.ry, cy: ult.cy, op: 0 };
+            });
+            var cx = bs.map(function (b) { return (b.x + b.e.x * b.cy).toFixed(2); });
+            var cy = bs.map(function (b) { return (b.y + b.e.y * b.cy).toFixed(2); });
+
+            cara += '<ellipse fill="#FFFFFF">'
+                  + anima('cx', cx) + anima('cy', cy)
+                  + anima('rx', bs.map(function (b) { return (b.rx * Math.hypot(b.n.x, b.n.y)).toFixed(2); }))
+                  + anima('ry', bs.map(function (b) { return (b.ry * Math.hypot(b.e.x, b.e.y)).toFixed(2); }))
+                  + anima('opacity', bs.map(function (b) { return b.op.toFixed(2); }))
+                  + animaT('rotate', bs.map(function (b, k) {
+                        return (Math.atan2(b.e.y, b.e.x) * 180 / Math.PI - 90).toFixed(2) + ' ' + cx[k] + ' ' + cy[k];
+                    }))
+                  + '</ellipse>';
+        });
+
+        /*  La pintura de la cara, dentro del grupo de los ojos y con su
+            recorte: ver pintaPiezas. */
+        P0.acc.forEach(function (A0, i) {
+            if (!A0.recorte || !A0.delante || !A0.t) return;
+            cara += pegado(function (P) { return P.acc[i].t; }, A0.svg);
         });
 
         if (cara) s += '<g' + recorte + '>' + cara + '</g>';
@@ -4389,7 +5193,7 @@
                    +   '<g>' + animaT('translate', col(function (P) { var it = P.util[i]; return it.x.toFixed(1) + ' ' + it.y.toFixed(1); }))
                    +     '<g>' + animaT('rotate', col(function (P) { return P.util[i].rot.toFixed(1); }))
                    +       '<g>' + animaT('scale', col(function (P) { return P.util[i].s.toFixed(3); }))
-                   +         it0.svg
+                   +         pielDeUtil(it0.svg, P0, null)
                    +   '</g></g></g></g>';
             });
             return s2;
@@ -4430,6 +5234,7 @@
         azar: azar,
         tono: tono,
         luz: luz,
+        ojoKirby: ojoKirby,
         /*  La pose de reposo. La expone porque quien interpola gestos por su
             cuenta --el guion del chat-- necesita el MISMO punto de partida:
             con su propia copia, el muñeco de la app miraria de frente y el de

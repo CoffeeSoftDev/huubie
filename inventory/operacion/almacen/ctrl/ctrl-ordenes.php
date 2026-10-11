@@ -490,7 +490,7 @@ class ctrl extends mdl {
     }
 
     function receiveOrden() {
-        $_POST += ['warehouse_id' => 0, 'items' => '{}', 'note' => ''];
+        $_POST += ['warehouse_id' => 0, 'items' => '{}', 'note' => '', 'costs' => '{}'];
 
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
@@ -518,6 +518,10 @@ class ctrl extends mdl {
         $detalle = $this->qGetOrdenDetail([$id]);
         if (empty($detalle)) return ['status' => 400, 'message' => 'La orden no tiene renglones'];
 
+        // Costo con IVA corregido con el precio de la factura, por renglon de la orden.
+        $costs = json_decode($_POST['costs'], true);
+        if (!is_array($costs)) $costs = [];
+
         // Valida y clampea cada cantidad al pendiente real del renglon.
         $toReceive = [];
         foreach ($detalle as $renglon) {
@@ -529,6 +533,16 @@ class ctrl extends mdl {
 
             $qtyNow = max(0, min((float) $items[$detailId], $pending));
             if ($qtyNow <= 0) continue;
+
+            // Lo recibido (entrada y último costo del producto) toma el costo de la factura;
+            // la orden conserva el costo con que se pidió.
+            if (isset($costs[$detailId]) && is_numeric($costs[$detailId]) && (float) $costs[$detailId] >= 0) {
+                $tax  = $renglon['tax'] !== null ? (float) $renglon['tax'] : 0.0;
+                $cost = (float) $costs[$detailId];
+
+                $renglon['cost']              = $cost;
+                $renglon['price_without_tax'] = $tax > 0 ? $cost / (1 + $tax / 100) : $cost;
+            }
 
             $toReceive[] = array_merge($renglon, ['qty_now' => $qtyNow]);
         }
@@ -677,6 +691,7 @@ class ctrl extends mdl {
     private function fechaInvalida($fecha) {
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $fecha) || !strtotime($fecha)) return 'Elige una fecha válida';
         if ($fecha > date('Y-m-d')) return 'La fecha no puede ser posterior a hoy';
+        if ($fecha < date('Y-m-d', strtotime('-1 month'))) return 'La fecha no puede ser de hace más de un mes';
 
         return null;
     }

@@ -37,6 +37,7 @@ class ctrl extends mdl {
             $rows[] = [
                 'id'              => $item['id'],
                 'Categoría'       => $item['valor'],
+                'Productos'       => (int) $item['total_items'],
                 'Estado'          => renderStatus($item['active']),
                 'a'               => $a
             ];

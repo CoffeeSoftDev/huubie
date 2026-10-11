@@ -38,7 +38,6 @@ class Catalogo extends Templates {
         inflow.filterBarInflow();
         shrinkage.filterBarShrinkage();
         supplier.filterBarSupplier();
-        transferStatus.filterBarTransferStatus();
 
         category.lsCategory();
     }
@@ -88,14 +87,15 @@ class Category extends Templates {
             idFilterBar: "filterbar-category",
             data: { opc: "lsCategory" },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: true, fn_datatable: "catalogDataTable", pag: 15 },
             attr: {
                 id: "tbCategory",
                 theme: "light",
+                class: "w-full text-sm table-fixed min-w-[640px]",
                 striped: true,
                 title: "Categorías de productos",
                 subtitle: "Clasificación de los productos del almacén",
-                center: [2]
+                center: [2, 3]
             }
         });
     }
@@ -261,10 +261,11 @@ class Area extends Templates {
             idFilterBar: "filterbar-area",
             data: { opc: "lsArea" },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: true, fn_datatable: "catalogDataTable", pag: 15 },
             attr: {
                 id: "tbArea",
                 theme: "light",
+                class: "w-full text-sm table-fixed min-w-[640px]",
                 striped: true,
                 title: "Áreas del almacén",
                 subtitle: "Espacios físicos del almacén",
@@ -464,10 +465,11 @@ class Unit extends Templates {
             idFilterBar: "filterbar-unit",
             data: { opc: "lsUnit" },
             coffeesoft: true,
-            conf: { datatable: false },
+            conf: { datatable: true, fn_datatable: "catalogStaticTable" },
             attr: {
                 id: "tbUnit",
                 theme: "light",
+                class: "w-full text-sm table-fixed min-w-[640px]",
                 striped: true,
                 title: "Unidades de medida",
                 subtitle: "Unidades para capturar insumos (pza, kg, lt)",
@@ -661,10 +663,11 @@ class Warehouse extends Templates {
             idFilterBar: "filterbar-warehouse",
             data: { opc: "lsWarehouse" },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: true, fn_datatable: "catalogDataTable", pag: 15 },
             attr: {
                 id: "tbWarehouse",
                 theme: "light",
+                class: "w-full text-sm table-fixed min-w-[640px]",
                 striped: true,
                 title: "Almacenes",
                 subtitle: "Almacenes físicos de la sucursal",
@@ -859,10 +862,11 @@ class InflowOrigin extends Templates {
             idFilterBar: "filterbar-inflow",
             data: { opc: "lsInflow" },
             coffeesoft: true,
-            conf: { datatable: false },
+            conf: { datatable: true, fn_datatable: "catalogStaticTable" },
             attr: {
                 id: "tbInflow",
                 theme: "light",
+                class: "w-full text-sm table-fixed min-w-[760px]",
                 striped: true,
                 title: "Orígenes de entrada",
                 subtitle: "Clasificación del origen de las entradas al almacén",
@@ -1110,10 +1114,11 @@ class ShrinkageReason extends Templates {
             idFilterBar: "filterbar-shrinkage",
             data: { opc: "lsShrinkage" },
             coffeesoft: true,
-            conf: { datatable: false },
+            conf: { datatable: true, fn_datatable: "catalogStaticTable" },
             attr: {
                 id: "tbShrinkage",
                 theme: "light",
+                class: "w-full text-sm table-fixed min-w-[640px]",
                 striped: true,
                 title: "Motivos de salida",
                 subtitle: "Razones de salida del almacén",
@@ -1310,10 +1315,11 @@ class Supplier extends Templates {
             idFilterBar: "filterbar-supplier",
             data: { opc: "lsSupplier" },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: true, fn_datatable: "catalogDataTable", pag: 15 },
             attr: {
                 id: "tbSupplier",
                 theme: "light",
+                class: "w-full text-sm table-fixed min-w-[1040px]",
                 striped: true,
                 title: "Proveedores",
                 subtitle: "Maestro de proveedores de la empresa",
@@ -1501,10 +1507,11 @@ class TransferStatus extends Templates {
             idFilterBar: "filterbar-transfer-status",
             data: { opc: "lsTransferStatus" },
             coffeesoft: true,
-            conf: { datatable: false },
+            conf: { datatable: true, fn_datatable: "catalogStaticTable" },
             attr: {
                 id: "tbTransferStatus",
                 theme: "light",
+                class: "w-full text-sm table-fixed min-w-[760px]",
                 striped: true,
                 title: "Estados de traspaso",
                 subtitle: "Texto que ve la sucursal que envía y la que recibe",
@@ -1642,6 +1649,82 @@ class TransferStatus extends Templates {
 }
 
 // -- Helpers --
+
+// Ancho por columna (las tablas van con table-fixed y al 100% de la tarjeta): todas en
+// porcentaje y sumando ~100, así el sobrante se reparte siempre igual y la primera columna
+// no se come el espacio. Se pone en cuanto la tabla se pinta, antes de
+// que DataTables arranque, para que no haya salto. Las claves son el encabezado en
+// minúsculas; `asa` es la columna sin título del orden manual y `acciones` la del engrane.
+// Una columna que no esté aquí mide 200px. border-box porque DataTables pone content-box
+// en sus th.
+const CATALOG_WIDTHS = {
+    "asa":                "4%",
+    "acciones":           "13%",
+    "estado":             "13%",
+    "activo":             "13%",
+    "productos":          "13%",
+    "código":             "20%",
+    "por defecto":        "14%",
+    "requiere proveedor": "20%",
+    "teléfono":           "14%",
+    "email":              "22%",
+    "categoría":          "61%",
+    "área":               "37%",
+    "almacén":            "33%",
+    "sucursal":           "33%",
+    "proveedor":          "20%",
+    "contacto":           "18%",
+    "unidad":             "50%",
+    "origen":             "30%",
+    "motivo":             "50%",
+    "lo ve quien envía":  "26%",
+    "lo ve quien recibe": "26%"
+};
+
+function catalogColumns(table) {
+    $(table).find("thead th").each((_, th) => {
+        const title = $(th).find(".icon-gear").length ? "acciones" : $(th).text().trim().toLowerCase();
+        const width = CATALOG_WIDTHS[title === "" ? "asa" : title] || "200px";
+
+        $(th).css({ width: width, boxSizing: "border-box" });
+    });
+}
+
+// Las tablas de orden manual no llevan DataTables: se cuelgan de su gancho (fn_datatable)
+// solo para ponerle los anchos en el mismo instante en que se pinta, sin un cuadro intermedio.
+function catalogStaticTable(table) {
+    catalogColumns(table);
+}
+
+// DataTable de los catálogos: como simple_data_table, pero con autoWidth apagado; con él
+// DataTables recalcula el ancho de cada columna según el texto de la carga.
+function catalogDataTable(table, no) {
+    catalogColumns(table);
+
+    $(table).DataTable({
+        pageLength: no,
+        destroy: true,
+        searching: true,
+        lengthChange: false,
+        order: [],
+        info: true,
+        autoWidth: false,
+        language: {
+            search: "Buscar:",
+            info: "Mostrando del (_START_ al _END_) de un total de _TOTAL_ registros",
+            infoEmpty: "Mostrando del 0 al 0 de un total de 0 registros",
+            loadingRecords: "Por favor espere - cargando...",
+            paginate: {
+                first: "Primero",
+                last: "Último",
+                next: "Siguiente",
+                previous: "Anterior"
+            }
+        }
+    });
+
+    getPageDataTable(table);
+}
 
 // Bandera `superadmin` del init (ctrl-almacen y ctrl-catalogo usan la misma consulta de
 // rol). La carga el orquestador almacen.js; sin él, el catálogo se ve como usuario normal.

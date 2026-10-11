@@ -11,6 +11,9 @@ class OrdenForm extends EntradaForm {
             id:     o.id || 'ordenFormModal',
             labels: Object.assign({}, OrdenForm.LABELS, o.labels || {})
         }));
+
+        // El costo se puede editar, pero su caja va en gris: es una cifra estimada.
+        this.cls.cashInp = this.cls.cashInp.replace('bg-white', 'bg-gray-100');
     }
 
     static get LABELS() {
@@ -25,6 +28,7 @@ class OrdenForm extends EntradaForm {
             fecha:         'Fecha de solicitud',
             fechaReq:      'Elige la fecha de la solicitud',
             fechaFutura:   'La fecha no puede ser posterior a hoy',
+            fechaVieja:    'La fecha no puede ser de hace más de un mes',
             nota:          'Comentario para quien revise la solicitud',
             productosLbl:  'Materiales a solicitar',
             emptyTitle:    'Aun no has agregado materiales',
@@ -36,6 +40,8 @@ class OrdenForm extends EntradaForm {
             confirmAddOk:  'Si, crear',
             confirmDraft:  'Deseas guardar la orden como borrador?',
             confirmDraftOk:'Si, guardar',
+            confirmSalir:  '¿Guardar la orden como borrador o salir de la captura?',
+            salir:         'Salir sin guardar',
             titleEdit:     'Editar orden',
             guardarEdit:   'Guardar cambios',
             confirmEdit:   'Deseas guardar los cambios de la orden?',
@@ -70,7 +76,7 @@ class OrdenForm extends EntradaForm {
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.fecha)}</label>
-                        <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" max="${this.hoy()}" class="${cls.input}">
+                        <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" min="${this.haceUnMes()}" max="${this.hoy()}" class="${cls.input}">
                     </div>
                     <div id="${o.id}_cellProveedor">
                         <div class="flex items-center justify-between mb-1">
@@ -100,10 +106,7 @@ class OrdenForm extends EntradaForm {
         const cls = this.cls;
         return `
             <div class="flex gap-2 flex-shrink-0">
-                <button class="${cls.btnOut}" data-modal-close>${this.esc(o.labels.cancelar)}</button>
-                <button id="${o.id}_btnBorrador" type="button" class="${cls.btnIco}">
-                    <i data-lucide="save" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.borrador)}</span>
-                </button>
+                <button class="${cls.btnOut} !text-red-600 hover:!text-red-700" data-modal-close>${this.esc(o.labels.cancelar)}</button>
                 <button id="${o.id}_btnRegistrar" class="${cls.btnOk}">
                     <i data-lucide="send" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
                 </button>
@@ -145,29 +148,78 @@ class OrdenForm extends EntradaForm {
         this.wrap.off('dragenter dragleave drop');
         this.wrap.on('drop', (e) => e.preventDefault());
 
-        this.wrap.on('click', `#${id}_btnBorrador`, () => this.doRegistrar(false));
+        // Cancelar y Escape no cierran a ciegas: con materiales capturados preguntan si se
+        // guarda como borrador o se sale (requestClose).
+        this.wrap.off('click', '[data-modal-close]').on('click', '[data-modal-close]', () => this.requestClose());
     }
 
     // -- Guardar --
 
+    // La fecha de una orden nueva no puede ser de hace más de un mes; al editar una orden
+    // vieja se respeta la suya.
     setMode(orden) {
         super.setMode(orden);
-        $(`#${this.opts.id}_btnBorrador`).toggleClass('hidden', !!orden);
+
+        const $fecha = $(`#${this.opts.id}_inpFecha`);
+
+        if (orden) $fecha.removeAttr('min');
+        else       $fecha.attr('min', this.haceUnMes());
+    }
+
+    haceUnMes() {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // Con materiales y orden nueva: guardar como borrador o salir. Editando, o sin
+    // materiales, se queda el comportamiento de siempre.
+    requestClose() {
+        if (!this.lote.length || this.editing) { super.requestClose(); return; }
+
+        const o = this.opts;
+
+        this.confirmBox(o.labels.confirmSalir, () => this.saveDraft(), {
+            type:        'confirm',
+            okLabel:     o.labels.borrador,
+            cancelLabel: o.labels.salir,
+            onCancel:    () => this.closeModal()
+        });
+    }
+
+    saveDraft() {
+        const payload = this.buildPayload(false);
+
+        if (!payload) return;
+
+        this.opts.onAdd(payload);
+        this.closeModal();
     }
 
     // submit = true envía a revisión (Solicitada); false la deja en Borrador.
     // Al editar no cambia el estado.
     doRegistrar(submit = true) {
-        if (!this.lote.length) { this.notify('Agrega al menos un material a la orden'); return; }
+        const payload = this.buildPayload(submit);
+
+        if (payload) this.confirmRegistrar(payload);
+    }
+
+    // Revisa lo capturado y arma lo que se manda; null (con aviso) si algo falta.
+    buildPayload(submit) {
+        if (!this.lote.length) { this.notify('Agrega al menos un material a la orden'); return null; }
         const o = this.opts;
 
         const fecha = $(`#${o.id}_inpFecha`).val();
         if (!fecha || fecha > this.hoy()) {
             this.notify(fecha ? o.labels.fechaFutura : o.labels.fechaReq);
-            return;
+            return null;
+        }
+        if (!this.editing && fecha < this.haceUnMes()) {
+            this.notify(o.labels.fechaVieja);
+            return null;
         }
 
-        const payload = {
+        return {
             id:                    this.editing ? this.editing.id : null,
             submit:                !this.editing && submit,
             destination_branch_id: $(`#${o.id}_selSucursal`).val()  || '',
@@ -184,7 +236,6 @@ class OrdenForm extends EntradaForm {
                 unit_id:           p.unit_id || null
             }))
         };
-        this.confirmRegistrar(payload);
     }
 
     confirmRegistrar(payload) {

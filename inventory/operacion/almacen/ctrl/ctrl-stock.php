@@ -312,7 +312,7 @@ class ctrl extends mdl {
         if (!$this->_conteoPerms($header)['apply']) return ['status' => 403, 'message' => 'Solo quien abrió el conteo puede aplicarlo mientras es borrador'];
         if ((int) $header['total_counted'] === 0) return ['status' => 400, 'message' => 'Captura al menos un producto antes de aplicar'];
 
-        return $this->_aplicarConteo($header);
+        return $this->_aplicarConteo($header, trim((string) ($_POST['note'] ?? '')));
     }
 
     // Al acertar queda una autorización en sesión para ESE conteo durante
@@ -673,6 +673,7 @@ class ctrl extends mdl {
             : '';
 
         $click = $id ? ' onclick="app.selectProduct(' . $id . ')" title="Clic para ver detalle"' : '';
+        $click_link = $id ? ' onclick="app.selectProduct(' . $id . ')" title="Ver movimientos del producto"' : '';
         $hover = $id ? ' cursor-pointer transition duration-150 hover:ring-2 hover:ring-blue-400/60 hover:scale-105' : '';
 
         $meta = [];
@@ -690,7 +691,9 @@ class ctrl extends mdl {
                     ' . $imgTag . '
                 </div>
                 <div class="flex flex-col leading-tight">
-                    <span class="text-sm text-gray-800">' . $label . '</span>
+                    ' . ($id
+                        ? '<a href="javascript:void(0)"' . $click_link . ' class="text-sm text-gray-800 hover:text-blue-600 hover:underline cursor-pointer">' . $label . '</a>'
+                        : '<span class="text-sm text-gray-800">' . $label . '</span>') . '
                     ' . $metaTag . '
                 </div>
             </div>';
@@ -736,7 +739,7 @@ class ctrl extends mdl {
             $limite = $this->_cancelVigente($header)
                 ? ' Se puede cancelar hasta el ' . date('d/m/Y H:i', $this->_cancelLimite($header)) . '.'
                 : '';
-            return ['tone' => 'emerald', 'text' => "Aplicado por {$quien} el {$fecha}. Las diferencias ya están en el stock y en el kárdex.{$limite}"];
+            return ['tone' => 'emerald', 'text' => "Aplicado por {$quien} el {$fecha}. Las diferencias ya están en el stock y en el historial de movimientos.{$limite}"];
         }
         if ($header['status'] === 'Cancelado') {
             $text = $header['authorized_at'] ? 'Ajuste cancelado. El stock volvió a como estaba.' : 'Conteo cancelado. No movió el stock.';
@@ -830,13 +833,13 @@ class ctrl extends mdl {
 
     // Se suma la diferencia al stock de ESE momento, no se escribe lo contado:
     // asi no se pierde una salida registrada mientras se contaba.
-    private function _aplicarConteo($header) {
+    private function _aplicarConteo($header, $note = '') {
         $id        = (int) $header['id'];
         $warehouse = (int) $header['warehouse_id'];
         $items     = $this->listConteoDetail([$warehouse, $id]);
 
         try {
-            return $this->transaction(function () use ($id, $warehouse, $items, $header) {
+            return $this->transaction(function () use ($id, $warehouse, $items, $header, $note) {
                 foreach ($items as $it) {
                     if ($it['physical_quantity'] === null) continue;
 
@@ -857,11 +860,11 @@ class ctrl extends mdl {
                 }
 
                 $this->updateConteo([
-                    'values' => ['status', 'authorized_user_id', 'authorized_at = NOW()'],
+                    'values' => ['status', 'note', 'authorized_user_id', 'authorized_at = NOW()'],
                     'where'  => ['id'],
-                    'data'   => ['Aplicado', $this->userId, $id]
+                    'data'   => ['Aplicado', $note !== '' ? mb_substr($note, 0, 255) : null, $this->userId, $id]
                 ]);
-                $this->createConteoHistory(['Aplicado', 'Ajuste aplicado', $this->userId, $id]);
+                $this->createConteoHistory(['Aplicado', $note !== '' ? mb_substr('Ajuste aplicado: ' . $note, 0, 255) : 'Ajuste aplicado', $this->userId, $id]);
 
                 return ['status' => 200, 'message' => "Ajuste {$header['folio']} aplicado correctamente"];
             });

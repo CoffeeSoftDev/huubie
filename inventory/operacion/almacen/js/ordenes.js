@@ -143,7 +143,7 @@ class App extends Templates {
                 opc:         'input',
                 id:          'fRango',
                 lbl:         'Rango:',
-                class:       'col-12 col-md-4 col-lg-3',
+                class:       'col-12 col-md-4 col-lg-1',
                 readonly:    true,
                 placeholder: 'Selecciona un rango',
                 value:       '',
@@ -153,7 +153,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'branch_id',
                 lbl:      'Sucursal:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-12 col-md-4 col-lg-1',
                 onchange: 'app.onChangeFilters()',
                 data:     [{ id: '', valor: '-- Todas --' }]
             },
@@ -161,7 +161,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fEstado',
                 lbl:      'Estado:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-12 col-md-4 col-lg-1',
                 onchange: 'app.onChangeFilters()',
                 value:    'Activas',
                 data:     estados
@@ -170,7 +170,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fProveedor',
                 lbl:      'Proveedor:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-12 col-md-4 col-lg-1',
                 onchange: 'app.onChangeFilters()',
                 data:     [{ id: '', valor: '-- Todos --' }]
             },
@@ -179,22 +179,33 @@ class App extends Templates {
                 id:        'btnNuevaOrden',
                 text:      'Nueva orden',
                 color_btn: 'invernal',
-                class:     'col-12 col-md-6 col-lg-3',
+                className: 'w-100 h-[34px]',
+                class:     'col-12 col-md-4 col-lg-1',
                 onClick:   () => ordenesView.openNuevaOrden()
             }
         ];
 
         this.createfilterBar({
             parent:     'filterBar',
+            id:         'filterFormOrdenes',
             coffeesoft: true,
             theme:      'light',
             data:       filters
         });
 
+        $('#filterFormOrdenes').addClass('lg:grid-cols-5');
+
         this.initRangePicker();
     }
 
     initRangePicker() {
+        $('#fRango').addClass('!pl-10').wrap('<div class="relative"></div>').before(
+            $('<span>', { class: 'pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center' })
+                .append($('<i>', { 'data-lucide': 'calendar', class: 'w-4 h-4' }))
+        );
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
         this.rangeFi = moment().subtract(6, 'days').format('YYYY-MM-DD');
         this.rangeFf = moment().format('YYYY-MM-DD');
 
@@ -996,7 +1007,7 @@ class OrdenesView extends Templates {
             }
         });
 
-        $('#no_date_order').attr('max', hoy);
+        $('#no_date_order').attr({ min: moment().subtract(1, 'month').format('YYYY-MM-DD'), max: hoy });
         this.mountNuevaOrdenIconos();
     }
 
@@ -1017,6 +1028,7 @@ class OrdenesView extends Templates {
                 id: 'warehouse_id',
                 lbl: 'Almacén',
                 class: 'col-12',
+                value: this.almacenDefault(curSub),
                 data: this.almacenesDe(curSub),
                 required: false
             },
@@ -1052,7 +1064,16 @@ class OrdenesView extends Templates {
     // El Almacén es uno DE la sucursal elegida, o ninguno.
     syncNuevaOrdenAlmacen() {
         const almacenes = this.almacenesDe($('#no_branch_id').val());
-        $('#no_warehouse_id').empty().append(almacenes.map(a => $('<option>', { value: a.id, text: a.valor })));
+        $('#no_warehouse_id').empty().append(almacenes.map(a => $('<option>', { value: a.id, text: a.valor })))
+            .val(this.almacenDefault($('#no_branch_id').val()));
+    }
+
+    // El almacén que se elige solo: el predeterminado de la sucursal o, si no hay, el primero.
+    almacenDefault(branchId) {
+        const almacenes = (app.dataInit.almacenes || []).filter(a => String(a.branch_id) === String(branchId));
+        const elegido   = almacenes.find(a => String(a.is_default) === '1') || almacenes[0];
+
+        return elegido ? elegido.id : '';
     }
 
     almacenesDe(branchId) {
@@ -1294,6 +1315,11 @@ class OrdenesView extends Templates {
                             class="rcv-qty no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white rounded outline-none ${completo ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed' : 'border focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15'} border-gray-300">
                     </td>
                     <td class="px-3 py-2 text-center text-xs font-bold por-recibir" style="color:${pendiente > 0 ? '#F97316' : '#3FC189'}">${fmtNum(pendiente)}</td>
+                    <td class="px-3 py-2 text-center">
+                        <input type="number" data-cost-id="${p.detailId}" value="${p.cost != null ? Number(p.cost).toFixed(2) : ''}"
+                            min="0" step="0.01" placeholder="0.00" ${completo ? 'disabled' : ''}
+                            class="rcv-cost no-spin w-full px-2 py-1 text-xs text-right text-gray-800 rounded outline-none ${completo ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed' : 'bg-white border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15'}">
+                    </td>
                 </tr>`;
         }).join('');
 
@@ -1368,6 +1394,7 @@ class OrdenesView extends Templates {
                                     <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Ya recibido</th>
                                     <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Recibe ahora</th>
                                     <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Por recibir</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-32" title="Corrígelo con el precio de la factura">Costo c/imp. factura</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
@@ -1453,6 +1480,12 @@ class OrdenesView extends Templates {
 
             const note = $(`#${modalId}_note`).val() || '';
 
+            const costs = {};
+            $modal.find('.rcv-cost:enabled').each(function () {
+                const val = parseFloat($(this).val());
+                if (!isNaN(val) && val >= 0) costs[$(this).attr('data-cost-id')] = val;
+            });
+
             const r = await useFetch({
                 url:  apiOrdenes,
                 data: {
@@ -1460,7 +1493,8 @@ class OrdenesView extends Templates {
                     id:           orden.id,
                     warehouse_id: warehouseId,
                     note:         note,
-                    items:        JSON.stringify(items)
+                    items:        JSON.stringify(items),
+                    costs:        JSON.stringify(costs)
                 }
             });
 
