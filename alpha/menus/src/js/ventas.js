@@ -29,6 +29,7 @@ class Ventas extends Templates {
             header: {
                 title:    `¡${greet}, ${data['user'] || 'Usuario'}! 👋`,
                 subtitle: 'Nos da gusto verte de vuelta. ¿Por donde quieres empezar hoy?',
+                search:   { placeholder: 'Buscar módulo...' },
             },
             cards: cards,
         }).init();

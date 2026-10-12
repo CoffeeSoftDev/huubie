@@ -102,6 +102,27 @@
             scrollbar-width: none !important;
         }
 
+        /* Detalle del pedido: barra delgada y tenue para que se note cuando el contenido
+           no cabe y hay que desplazarse. Anula el ocultado global de arriba solo en el
+           contenedor del modal, que es lo unico que se desplaza. */
+        #orderDetailsContainer {
+            scrollbar-width: thin !important;
+            scrollbar-color: rgba(148, 163, 184, .3) transparent;
+        }
+
+        #orderDetailsContainer::-webkit-scrollbar {
+            width: 6px !important;
+        }
+
+        #orderDetailsContainer::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, .3);
+            border-radius: 999px;
+        }
+
+        #orderDetailsContainer::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, .5);
+        }
+
         /* El plugin de formularios inyecta un <label> vacio en los campos sin etiqueta
            (tarjeta del monto restante, botones), que abria un hueco bajo las pestañas
            del modal de pagos y sobre los botones del de edicion. */
@@ -110,21 +131,33 @@
             display: none;
         }
 
-        /* Gestion de Pagos usa el modal propio del framework (createCoffeeModalForm),
-           que monta su overlay en z-index 100000: SweetAlert vive en 1060 y alertBox en
-           10001, asi que la confirmacion del cobro quedaba por debajo y no se veia. */
-        .swal2-container {
-            z-index: 100010 !important;
+        /* Capas sobre el modal propio del framework (createCoffeeModalForm), que monta
+           su overlay en z-index 100000: el detalle del pedido y Gestion de Pagos. Desde
+           el detalle se abren modales de bootstrap (descuento, editar entrega, imprimir)
+           que viven en 1050-1055 y quedaban debajo; mientras haya overlay suben encima.
+           alertBox (10001) y SweetAlert (1060) van por encima de todo. */
+        body:has(.cf-overlay) .modal-backdrop {
+            z-index: 100015 !important;
+        }
+
+        body:has(.cf-overlay) .modal {
+            z-index: 100020 !important;
         }
 
         .z-\[10001\] {
-            z-index: 100005 !important;
+            z-index: 100025 !important;
         }
 
-        /* Ese modal se dibuja al 75%; los dialogos que abre encima salen a tamano
-           completo y quedarian mas grandes que el propio modal. */
-        body:has(.cf-overlay) .swal2-popup,
-        body:has(.cf-overlay) [id^="alertBox_"] .tf-alert-card {
+        .swal2-container {
+            z-index: 100030 !important;
+        }
+
+        /* Gestion de Pagos se dibuja al 75%; los dialogos que abre encima salen a tamano
+           completo y quedarian mas grandes que el propio modal. Se ata a su id
+           (#modalAdvance) y no a .cf-overlay porque el detalle del pedido tambien usa el
+           modal propio y va a tamano normal. */
+        body:has(#modalAdvance) .swal2-popup,
+        body:has(#modalAdvance) [id^="alertBox_"] .tf-alert-card {
             zoom: 0.75;
         }
 

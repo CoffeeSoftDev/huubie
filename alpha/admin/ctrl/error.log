@@ -1,0 +1,7 @@
+[ 2026-10-12 09:52:44 ]
+[ UNIX_USR ] :: SomxDev
+[ WINDOWS_USR ] :: SomxDev
+[ INFO ] ::  UPDATE wa_plantillas SET body = ?,active = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xF0\x9F\x8E\x82 *...' for column 'body' at row 1
+
+

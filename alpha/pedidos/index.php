@@ -115,15 +115,31 @@
             scrollbar-width: none !important;
         }
 
-        /* Filter bar: alinear inputs (con label) y botones (sin label) por su base
-           y colapsar el <label> vacio que el plugin inyecta en los botones, que
-           dejaba un hueco superior sobre ellos. */
-        #filterBarPedidos .row {
-            align-items: flex-end;
+        /* Detalle del pedido: barra delgada y tenue para que se note cuando el contenido
+           no cabe y hay que desplazarse. Anula el ocultado global de arriba solo en el
+           contenedor del modal, que es lo unico que se desplaza. */
+        #orderDetailsContainer {
+            scrollbar-width: thin !important;
+            scrollbar-color: rgba(148, 163, 184, .3) transparent;
         }
 
-        #filterBarPedidos label:empty {
-            display: none;
+        #orderDetailsContainer::-webkit-scrollbar {
+            width: 6px !important;
+        }
+
+        #orderDetailsContainer::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, .3);
+            border-radius: 999px;
+        }
+
+        #orderDetailsContainer::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, .5);
+        }
+
+        /* Filter bar (coffeeForm): alinear inputs y botones por su base aunque un
+           label ocupe dos lineas. */
+        #filterBarPedidos .grid {
+            align-items: end;
         }
 
         /* Mismo <label> vacio del plugin: en Gestión de Pagos sobre la tarjeta del monto
@@ -312,9 +328,6 @@
     <script src="<?=PATH_PEDIDOS?>src/js/order-reports.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/dashboard-pedidos.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/pedidos-cierre.js?t=<?php echo time(); ?>"></script>
-
-    <!-- TEMPORAL: timer que fuerza reinicio de sesión una vez (retirar cuando ya no se necesite) -->
-    <script src="<?=PATH_PEDIDOS?>src/js/session-reset-timer.js?t=<?php echo time(); ?>"></script>
 
 </body>
 </html>

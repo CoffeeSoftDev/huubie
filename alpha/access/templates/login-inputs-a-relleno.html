@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login · Inputs A</title>
+    <!-- Propuesta A para los inputs del login de alpha/index.php.
+         Solo cambian los inputs: fondo, columnas, logo y boton quedan como hoy. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../../src/plugins/fontello/css/fontello.css">
+    <link rel="stylesheet" href="../../src/plugins/sweetalert2/sweetalert2.min.css">
+    <script src="../../src/plugins/sweetalert2/sweetalert2.all.min.js"></script>
+
+    <style>
+        /* -- Propuesta A: relleno de hoy + foco, icono, error y Bloq Mayus -- */
+        .hbA-wrap  { position: relative; }
+        .hbA-input {
+            width: 100%; height: 56px; padding: 0 16px 0 44px;
+            font-size: 15px; color: #fff;
+            background: #374151; border: 1px solid transparent; border-radius: 6px;
+            outline: none; transition: border-color .15s, box-shadow .15s, opacity .15s;
+        }
+        .hbA-input.has-btn       { padding-right: 56px; }
+        .hbA-input::placeholder  { color: #9CA3AF; }
+        .hbA-input:hover         { border-color: #6B7280; }
+        .hbA-input:focus,
+        .hbA-wrap.is-focus .hbA-input { border-color: #1C64F2; box-shadow: 0 0 0 4px rgba(28,100,242,.28); }
+
+        .hbA-icon {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: #9CA3AF; pointer-events: none; transition: color .15s;
+        }
+        .hbA-input:not(:placeholder-shown) ~ .hbA-icon { color: #E5E7EB; }
+        .hbA-input:focus ~ .hbA-icon,
+        .hbA-wrap.is-focus .hbA-icon                  { color: #76A9FA; }
+
+        .hbA-eye {
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+            width: 40px; height: 40px; border-radius: 6px;
+            display: grid; place-items: center; color: #9CA3AF;
+            transition: color .15s, background-color .15s;
+        }
+        .hbA-eye:hover         { color: #fff; background: rgba(255,255,255,.06); }
+        .hbA-eye:focus-visible { outline: none; box-shadow: 0 0 0 2px #76A9FA; color: #fff; }
+
+        /* Error: se marca el input (aria-invalid) y el mensaje va debajo */
+        .hbA-input[aria-invalid="true"]                  { border-color: #F05252; }
+        .hbA-input[aria-invalid="true"]:focus            { box-shadow: 0 0 0 4px rgba(240,82,82,.25); }
+        .hbA-input[aria-invalid="true"] ~ .hbA-icon      { color: #F98080; }
+        .is-invalid .hbA-card                            { border-color: #F05252; }
+
+        .hbA-msg      { display: flex; align-items: center; gap: 6px; min-height: 20px; margin-top: 6px; font-size: 13px; line-height: 18px; }
+        .hbA-msg.is-err  { color: #F98080; }
+        .hbA-msg.is-caps { color: #FBBF24; }
+
+        /* Usuario recordado: misma caja que el input */
+        .hbA-card {
+            height: 56px; padding: 0 8px 0 12px;
+            display: flex; align-items: center; gap: 12px;
+            background: #374151; border: 1px solid transparent; border-radius: 6px;
+        }
+        .hbA-x {
+            margin-left: auto; width: 40px; height: 40px; border-radius: 6px;
+            display: grid; place-items: center; color: #9CA3AF;
+        }
+        .hbA-x:hover         { color: #fff; background: rgba(255,255,255,.06); }
+        .hbA-x:focus-visible { outline: none; box-shadow: 0 0 0 2px #76A9FA; color: #fff; }
+        .hbA-card.hidden     { display: none; }
+
+        /* Enviando: solo lectura mientras responde el servidor */
+        .is-loading .hbA-input { opacity: .6; cursor: wait; }
+        .hb-spin { animation: hbspin .8s linear infinite; }
+        @keyframes hbspin { to { transform: rotate(360deg); } }
+
+        /* -- Barra de la maqueta (no forma parte del login) -- */
+        .demo-seg button[aria-pressed="true"] { background: #1C64F2; color: #fff; }
+    </style>
+</head>
+
+<body class="bg-[#111928] text-white">
+
+    <!-- Barra de la maqueta -->
+    <div class="fixed top-3 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+        <div class="pointer-events-auto flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl bg-black/60 backdrop-blur px-4 py-2 text-xs text-gray-300 ring-1 ring-white/10">
+            <span class="font-semibold text-white">Propuesta A · Relleno con foco</span>
+            <div class="demo-seg flex rounded-lg bg-white/5 p-0.5">
+                <button type="button" data-mode="before" aria-pressed="false" class="px-3 py-1 rounded-md">Antes</button>
+                <button type="button" data-mode="after"  aria-pressed="true"  class="px-3 py-1 rounded-md">Después</button>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="demoRemember" class="accent-[#1C64F2]"> Usuario recordado
+            </label>
+            <span class="text-gray-400">Clave <code class="text-white">huubie</code> simula éxito</span>
+        </div>
+    </div>
+
+    <!-- Login (replica de alpha/index.php) -->
+    <section class="min-h-screen flex items-center justify-center pt-24 pb-10 md:py-0">
+        <div class="w-full flex flex-wrap items-center justify-center px-4">
+            <div class="w-full md:w-1/2 flex flex-col items-center justify-center mb-6 md:mb-0">
+                <div class="w-full md:w-4/5 bg-[#1F2A37] p-4 flex items-center justify-between text-white rounded-md">
+                    <h2 class="text-xl md:text-2xl font-semibold">Bienvenido de regreso</h2>
+                    <img src="../../src/img/logo/huubie.svg" alt="Huubie" class="w-20 h-15 object-cover">
+                </div>
+
+                <!-- ANTES: el formulario tal cual esta hoy -->
+                <form id="formBefore" class="hidden w-full md:w-4/5 mt-4 text-white rounded-lg">
+                    <div class="flex flex-col md:flex-row justify-between gap-x-4">
+                        <div class="flex flex-col w-full md:w-1/2">
+                            <label for="userOld" class="text-sm font-medium">Usuario</label>
+                            <input type="text" id="userOld" autocomplete="username"
+                                class="mt-1.5 h-14 px-4 text-[15px] bg-[#374151] rounded-md outline-none text-white" required>
+                            <div id="rememberedOld" class="hidden mt-1.5 h-14 pl-3 pr-4 bg-[#374151] rounded-md flex items-center gap-x-3">
+                                <span class="w-10 h-10 rounded-full flex items-center justify-center bg-purple-600 shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                </span>
+                                <span class="flex flex-col min-w-0 leading-tight">
+                                    <span class="text-[15px] font-medium truncate">Cajero Demo</span>
+                                    <span class="text-xs text-gray-400 truncate">cajero.demo</span>
+                                </span>
+                                <button type="button" data-role="forget" title="Usar otra cuenta" class="ml-auto text-gray-400 hover:text-white">
+                                    <i class="icon-cancel"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col w-full md:w-1/2 mt-4 md:mt-0">
+                            <label for="keyOld" class="text-sm font-medium">Contraseña</label>
+                            <div class="relative mt-1.5">
+                                <input type="password" id="keyOld"
+                                    class="w-full h-14 px-4 pr-12 text-[15px] bg-[#374151] rounded-md outline-none text-white" required>
+                                <button type="button" id="toggleOld"
+                                    class="absolute inset-y-0 right-4 flex items-center text-lg text-gray-400 hover:text-white">
+                                    <i class="icon-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end mt-4 text-sm">
+                        <a href="#" class="text-blue-400 hover:underline">¿Olvidaste la contraseña?</a>
+                    </div>
+                    <button type="submit"
+                        class="w-full mt-4 h-14 text-base bg-[#1C64F2] hover:bg-[#0E9E6E] rounded-lg font-semibold transition-colors">
+                        Iniciar sesión
+                    </button>
+                </form>
+
+                <!-- DESPUES: propuesta A -->
+                <form id="formAfter" class="w-full md:w-4/5 mt-4 text-white" novalidate>
+                    <div class="flex flex-col md:flex-row justify-between gap-x-4">
+
+                        <!-- Usuario -->
+                        <div id="grpUser" class="hbA-group flex flex-col w-full md:w-1/2">
+                            <label for="user" class="text-sm font-medium">Usuario</label>
+                            <div class="hbA-wrap mt-1.5" data-role="input">
+                                <input type="text" id="user" name="user" class="hbA-input" placeholder="ej. mlopez"
+                                    autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"
+                                    enterkeyhint="next" aria-describedby="userMsg" required>
+                                <span class="hbA-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                </span>
+                            </div>
+
+                            <!-- Usuario recordado: misma caja, la X tiene area de 40px y foco visible -->
+                            <div class="hbA-card hidden mt-1.5" data-role="card">
+                                <span class="w-10 h-10 rounded-full flex items-center justify-center bg-purple-600 shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                </span>
+                                <span class="flex flex-col min-w-0 leading-tight">
+                                    <span class="text-[15px] font-medium truncate">Cajero Demo</span>
+                                    <span class="text-xs text-gray-400 truncate">cajero.demo</span>
+                                </span>
+                                <button type="button" class="hbA-x" data-role="forget" aria-label="Usar otra cuenta" title="Usar otra cuenta">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                </button>
+                            </div>
+                            <p id="userMsg" class="hbA-msg" aria-live="polite"></p>
+                        </div>
+
+                        <!-- Contrasena -->
+                        <div id="grpKey" class="hbA-group flex flex-col w-full md:w-1/2 mt-2 md:mt-0">
+                            <label for="key" class="text-sm font-medium">Contraseña</label>
+                            <div class="hbA-wrap mt-1.5">
+                                <input type="password" id="key" name="key" class="hbA-input has-btn" placeholder="••••••••"
+                                    autocomplete="current-password" enterkeyhint="go" aria-describedby="keyMsg" required>
+                                <span class="hbA-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                </span>
+                                <button type="button" class="hbA-eye" data-role="eye" aria-label="Mostrar contraseña" aria-pressed="false">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+                                </button>
+                            </div>
+                            <p id="keyMsg" class="hbA-msg" aria-live="polite"></p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end mt-2 text-sm">
+                        <a href="#" class="text-blue-400 hover:underline">¿Olvidaste la contraseña?</a>
+                    </div>
+
+                    <button type="submit" data-role="submit"
+                        class="w-full mt-4 h-14 text-base bg-[#1C64F2] hover:bg-[#0E9E6E] rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-80 disabled:cursor-wait">
+                        Iniciar sesión
+                    </button>
+                </form>
+            </div>
+
+            <div class="hidden md:flex w-1/2 items-center justify-center">
+                <img src="../../src/img/logo/huubie.svg" alt="Huubie" class="w-[50%] object-cover">
+            </div>
+        </div>
+    </section>
+
+    <!-- Estados y comparativa -->
+    <section class="max-w-6xl mx-auto px-4 pb-16">
+        <h2 class="text-lg font-semibold">Estados del input</h2>
+        <p class="text-sm text-gray-400 mt-1">Fondo #374151 igual que hoy. Todo lo nuevo aparece al interactuar.</p>
+        <div id="states" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-5"></div>
+
+        <h2 class="text-lg font-semibold mt-12">Qué cambia</h2>
+        <div class="mt-4 overflow-x-auto rounded-lg border border-gray-700">
+            <table class="w-full text-sm">
+                <thead class="bg-[#141d2b] text-xs uppercase tracking-wider text-gray-400">
+                    <tr><th class="text-left px-4 py-3">Punto</th><th class="text-left px-4 py-3">Antes</th><th class="text-left px-4 py-3">Después</th></tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700 text-gray-300">
+                    <tr><td class="px-4 py-3 text-white">Foco</td><td class="px-4 py-3"><code>outline-none</code> sin reemplazo: no se ve dónde está el cursor con Tab</td><td class="px-4 py-3">Borde y anillo azul #1C64F2, el color del botón</td></tr>
+                    <tr><td class="px-4 py-3 text-white">Campo vacío</td><td class="px-4 py-3">Globo blanco del navegador (por <code>required</code>)</td><td class="px-4 py-3">Borde rojo + mensaje bajo el campo</td></tr>
+                    <tr><td class="px-4 py-3 text-white">Clave incorrecta</td><td class="px-4 py-3">SweetAlert de 1.2 s; los campos no se marcan</td><td class="px-4 py-3">Ambos campos en rojo, mensaje fijo, contraseña limpia y con foco</td></tr>
+                    <tr><td class="px-4 py-3 text-white">Bloq Mayús</td><td class="px-4 py-3">Sin aviso</td><td class="px-4 py-3">Aviso ámbar bajo la contraseña</td></tr>
+                    <tr><td class="px-4 py-3 text-white">Ojo</td><td class="px-4 py-3">Sin <code>aria-label</code>; se estira si se agrega algo debajo</td><td class="px-4 py-3">Botón de 40px, <code>aria-pressed</code>, anclado al input</td></tr>
+                    <tr><td class="px-4 py-3 text-white">Teclado móvil</td><td class="px-4 py-3">Pone mayúscula inicial y corrige el usuario</td><td class="px-4 py-3"><code>autocapitalize="none"</code>, <code>spellcheck="false"</code>, <code>enterkeyhint</code></td></tr>
+                    <tr><td class="px-4 py-3 text-white">Gestor de contraseñas</td><td class="px-4 py-3">Contraseña sin <code>autocomplete</code></td><td class="px-4 py-3"><code>autocomplete="current-password"</code></td></tr>
+                    <tr><td class="px-4 py-3 text-white">Enviando</td><td class="px-4 py-3">Se puede pulsar dos veces</td><td class="px-4 py-3">Inputs solo lectura + botón «Entrando…»</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <script>
+        // -- Iconos (Lucide) --
+        const svg = (paths, size) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+        const ICON = {
+            alert:  svg('<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>', 15),
+            caps:   svg('<path d="M9 18v-6H5l7-7 7 7h-4v6H9z"/>', 15),
+            eye:    svg('<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>', 20),
+            eyeOff: svg('<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>', 20),
+            spin:   svg('<path d="M21 12a9 9 0 1 1-6.219-8.56"/>', 18).replace('<svg', '<svg class="hb-spin"'),
+        };
+
+        const form    = document.getElementById('formAfter');
+        const grpUser = document.getElementById('grpUser');
+        const grpKey  = document.getElementById('grpKey');
+        const user    = document.getElementById('user');
+        const key     = document.getElementById('key');
+        const submit  = form.querySelector('[data-role=submit]');
+        let remembered = false;
+        let serverError = false;
+
+
+        // -- Estados del campo --
+
+        function fieldMsg(group, type, text) {
+            const p = group.querySelector('.hbA-msg');
+            p.className = 'hbA-msg' + (type ? ' is-' + type : '');
+            p.innerHTML = text ? (type === 'caps' ? ICON.caps : ICON.alert) + `<span>${text}</span>` : '';
+        }
+
+        function markInvalid(group, on, text = '') {
+            group.querySelector('input').setAttribute('aria-invalid', on ? 'true' : 'false');
+            group.classList.toggle('is-invalid', on);
+            fieldMsg(group, on && text ? 'err' : '', on ? text : '');
+        }
+
+        function capsCheck(e) {
+            if (!e.getModifierState || grpKey.classList.contains('is-invalid')) return;
+            const on = e.getModifierState('CapsLock');
+            fieldMsg(grpKey, on ? 'caps' : '', on ? 'Bloq Mayús está activado' : '');
+        }
+
+        function toggleEye(btn) {
+            const input = btn.parentElement.querySelector('input');
+            const show  = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.setAttribute('aria-pressed', show);
+            btn.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+            btn.innerHTML = show ? ICON.eyeOff : ICON.eye;
+        }
+
+        function setLoading(on) {
+            user.readOnly = key.readOnly = on;
+            form.classList.toggle('is-loading', on);
+            submit.disabled = on;
+            submit.innerHTML = on ? ICON.spin + 'Entrando…' : 'Iniciar sesión';
+        }
+
+
+        // -- Usuario recordado (antes y despues) --
+
+        function applyRemembered(on) {
+            remembered = on;
+            document.getElementById('demoRemember').checked = on;
+
+            grpUser.querySelector('[data-role=input]').classList.toggle('hidden', on);
+            grpUser.querySelector('[data-role=card]').classList.toggle('hidden', !on);
+            user.value = on ? 'cajero.demo' : '';
+            markInvalid(grpUser, false);
+
+            document.getElementById('userOld').classList.toggle('hidden', on);
+            document.getElementById('rememberedOld').classList.toggle('hidden', !on);
+            document.getElementById('userOld').value = on ? 'cajero.demo' : '';
+        }
+
+
+        // -- Envio simulado --
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            serverError = false;
+            markInvalid(grpUser, false);
+            markInvalid(grpKey, false);
+
+            let first = null;
+            if (!user.value.trim()) { markInvalid(grpUser, true, 'Escribe tu usuario');    first = user; }
+            if (!key.value)         { markInvalid(grpKey,  true, 'Escribe tu contraseña'); first = first || key; }
+            if (first) { first.focus(); return; }
+
+            setLoading(true);
+            setTimeout(() => {
+                setLoading(false);
+                if (key.value === 'huubie') {
+                    Swal.fire({ icon: 'success', title: 'Acceso correcto', text: 'Aquí redirigiría a /alpha/menu/', timer: 1400, showConfirmButton: false });
+                    return;
+                }
+                serverError = true;
+                markInvalid(grpUser, true);
+                markInvalid(grpKey, true, 'Usuario y/o contraseña incorrecta.');
+                key.value = '';
+                key.focus();
+            }, 900);
+        });
+
+        [user, key].forEach((input) => input.addEventListener('input', () => {
+            if (serverError) { serverError = false; markInvalid(grpUser, false); markInvalid(grpKey, false); }
+            else markInvalid(input.closest('.hbA-group'), false);
+        }));
+
+        key.addEventListener('keydown', capsCheck);
+        key.addEventListener('keyup', capsCheck);
+        key.addEventListener('blur', () => { if (!grpKey.classList.contains('is-invalid')) fieldMsg(grpKey, '', ''); });
+
+        document.addEventListener('click', (e) => {
+            const eye = e.target.closest('[data-role=eye]');
+            if (eye) toggleEye(eye);
+            if (e.target.closest('[data-role=forget]')) { applyRemembered(false); user.focus(); }
+        });
+
+
+        // -- Antes: comportamiento actual --
+
+        document.getElementById('toggleOld').addEventListener('click', () => {
+            const input = document.getElementById('keyOld');
+            input.type = input.type === 'password' ? 'text' : 'password';
+            document.querySelector('#toggleOld i').classList.toggle('icon-eye');
+            document.querySelector('#toggleOld i').classList.toggle('icon-eye-off');
+        });
+
+        document.getElementById('formBefore').addEventListener('submit', (e) => {
+            e.preventDefault();
+            Swal.fire({ icon: 'error', title: 'Usuario y/o contraseña incorrecta.', timer: 1200, showConfirmButton: false });
+        });
+
+
+        // -- Barra de la maqueta --
+
+        document.querySelectorAll('[data-mode]').forEach((btn) => btn.addEventListener('click', () => {
+            const after = btn.dataset.mode === 'after';
+            document.getElementById('formAfter').classList.toggle('hidden', !after);
+            document.getElementById('formBefore').classList.toggle('hidden', after);
+            document.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', b === btn));
+        }));
+
+        document.getElementById('demoRemember').addEventListener('change', (e) => applyRemembered(e.target.checked));
+
+
+        // -- Muestrario de estados (clona los campos reales) --
+
+        const STATES = [
+            { t: 'Reposo',            n: 'Icono y ejemplo de formato.',                g: grpUser },
+            { t: 'Foco',              n: 'Borde y anillo azul, como el botón.',        g: grpUser, focus: true },
+            { t: 'Con valor',         n: 'El icono se aclara.',                        g: grpUser, value: 'cajero.demo' },
+            { t: 'Vacío al enviar',   n: 'Mensaje propio, sin globo del navegador.',   g: grpUser, error: 'Escribe tu usuario' },
+            { t: 'Bloq Mayús',        n: 'Aviso ámbar mientras escribe.',              g: grpKey,  value: 'secreto', focus: true, caps: true },
+            { t: 'Clave incorrecta',  n: 'Se queda hasta que vuelva a escribir.',      g: grpKey,  error: 'Usuario y/o contraseña incorrecta.' },
+            { t: 'Enviando',          n: 'Solo lectura mientras responde.',            g: grpKey,  value: 'secreto', loading: true },
+            { t: 'Usuario recordado', n: 'Misma caja; la X con foco visible.',         g: grpUser, card: true },
+        ];
+
+        const box = document.getElementById('states');
+        STATES.forEach((s) => {
+            const cell = document.createElement('div');
+            cell.className = 'rounded-lg bg-[#1F2A37] p-4';
+            cell.innerHTML = `<p class="text-sm font-semibold">${s.t}</p><p class="text-xs text-gray-400 mb-3">${s.n}</p>`;
+
+            const g = s.g.cloneNode(true);
+            g.className = 'hbA-group flex flex-col w-full';
+            g.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+            g.querySelector('label').removeAttribute('for');
+            const input = g.querySelector('input');
+            input.removeAttribute('aria-describedby');
+            input.tabIndex = -1;
+            input.value = s.value || '';
+            g.querySelector('[data-role=input]')?.classList.remove('hidden');
+            g.querySelector('[data-role=card]')?.classList.add('hidden');
+
+            if (s.card)    { g.querySelector('[data-role=input]').classList.add('hidden'); g.querySelector('[data-role=card]').classList.remove('hidden'); }
+            if (s.focus)   g.querySelector('.hbA-wrap').classList.add('is-focus');
+            if (s.error)   markInvalid(g, true, s.error);
+            if (s.caps)    fieldMsg(g, 'caps', 'Bloq Mayús está activado');
+            if (s.loading) { input.readOnly = true; g.classList.add('is-loading'); }
+
+            cell.appendChild(g);
+            box.appendChild(cell);
+        });
+
+        user.focus();
+    </script>
+</body>
+</html>

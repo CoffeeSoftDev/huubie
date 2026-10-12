@@ -28,7 +28,7 @@ const CF_CSS = {
     btnDanger: 'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnWarning: 'tw-btn w-full rounded-lg bg-[#FFC107] px-4 py-2 text-sm font-semibold text-[#003360] hover:bg-[#FFC107]/80 active:bg-[#FFC107]/80 focus:outline-none focus:ring-2 focus:ring-[#FFC107] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnOutline: 'tw-btn w-full rounded-lg border border-[#003360] bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-[#003360] dark:text-gray-200 hover:bg-[#003360] hover:text-white active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnSecondary: 'tw-btn w-full rounded-lg bg-gray-500 dark:bg-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600 dark:hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnSecondary: 'tw-btn w-full rounded-lg bg-[#7152EC] px-4 py-2 text-sm font-semibold text-white hover:bg-[#51309B] active:bg-[#51309B] focus:outline-none focus:ring-2 focus:ring-[#7152EC] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnLight: 'tw-btn w-full rounded-lg bg-gray-100 dark:bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 dark:hover:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDark: 'tw-btn w-full rounded-lg bg-gray-800 dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 dark:hover:bg-black active:bg-black focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnLink: 'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',
@@ -1868,6 +1868,7 @@ class Components extends Complements {
         let defaults = {
             id: 'idFilterBar',
             parent: 'filterBar',
+            coffeesoft: false,
             json: [
                 {
                     opc: "input-calendar",
@@ -1889,6 +1890,22 @@ class Components extends Complements {
 
         //  Combinar objetos
         let opts = Object.assign(defaults, options);
+
+        // Ruta CoffeeForm (coffeesoft:true): render Tailwind + theme light/dark, igual que
+        // createForm. Apagada por defecto para no cambiar los filterBar legacy de alpha.
+        if (opts.coffeesoft) {
+            this.coffeeForm({
+                parent: opts.parent,
+                id: opts.id,
+                showRequired: false,
+                json: opts.data,
+                theme: opts.theme || 'light',
+                card: opts.card === true,
+                prefijo: opts.prefijo || '',
+            });
+            return;
+        }
+
         $(`#${opts.parent}`).content_json_form({ data: opts.data, type: '', id: opts.id });
 
 
@@ -3094,6 +3111,7 @@ class Components extends Complements {
             id: "infoCardKPI",
             class: "",
             theme: "light", // light | dark
+            size: "md",     // md | sm (compacto)
             json: [],
             data: {
                 value: "0",
@@ -3114,25 +3132,31 @@ class Components extends Complements {
         const titleColor = isDark ? "text-gray-300" : "text-gray-600";
         const descColor = isDark ? "text-gray-400" : "text-gray-500";
 
+        const sizes = {
+            md: { box: "p-4", title: "text-sm", value: "text-2xl", desc: "text-xs mt-1", gap: "gap-4" },
+            sm: { box: "!rounded-lg px-[12px] py-[8px]", title: "text-[11px] m-0", value: "text-base leading-tight m-0", desc: "text-[10px] m-0", gap: "gap-[8px]" }
+        };
+        const size = sizes[opts.size] || sizes.md;
+
         const renderCard = (card, i = "") => {
             const box = $("<div>", {
                 id: `${opts.id}_${i}`,
-                class: `${cardBase} p-4`
+                class: `${cardBase} ${size.box}`
             });
 
             const title = $("<p>", {
-                class: `text-sm ${titleColor}`,
+                class: `${size.title} ${titleColor}`,
                 text: card.title
             });
 
             const value = $("<p>", {
                 id: card.id || "",
-                class: `text-2xl font-bold ${card.data?.color || "text-white"}`,
+                class: `${size.value} font-bold ${card.data?.color || "text-white"}`,
                 text: card.data?.value
             });
 
             const description = $("<p>", {
-                class: `text-xs mt-1 ${card.data?.color || descColor}`,
+                class: `${size.desc} ${card.data?.color || descColor}`,
                 text: card.data?.description
             });
 
@@ -3142,7 +3166,7 @@ class Components extends Complements {
 
         const container = $("<div>", {
             id: opts.id,
-            class: `grid grid-cols-2 md:grid-cols-4 gap-4 ${opts.class}`
+            class: `grid grid-cols-2 md:grid-cols-4 ${size.gap} ${opts.class}`
         });
 
         if (opts.json.length > 0) {
@@ -5122,6 +5146,407 @@ class Templates extends Components {
         });
 
         paint();
+    }
+
+    createToast(options) {
+        const defaults = {
+            id:    'cfToast_' + Date.now(),
+            theme: 'dark',
+            type:  'success',
+            title: '',
+            text:  '',
+            timer: 3000
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const tones = {
+            success: { icon: 'circle-check',   color: '#10B981' },
+            error:   { icon: 'circle-x',       color: '#EF4444' },
+            warning: { icon: 'alert-triangle', color: '#F59E0B' },
+            info:    { icon: 'info',           color: '#7C3AED' }
+        };
+
+        const tone = tones[opts.type] || tones.info;
+        const skin = opts.theme === 'light'
+            ? { card: 'bg-white text-gray-800', soft: 'text-gray-500' }
+            : { card: 'bg-[#1F2A37] text-gray-100', soft: 'text-gray-400' };
+
+        // Una sola pila por pagina: los avisos seguidos se apilan en vez de encimarse.
+        let stack = $('#cfToastStack');
+        if (!stack.length) {
+            stack = $('<div>', {
+                id:    'cfToastStack',
+                class: 'fixed bottom-[16px] right-[16px] flex flex-col items-end gap-[6px] pointer-events-none',
+                css:   { zIndex: 100050 }
+            });
+            $('body').append(stack);
+        }
+
+        const toast = $('<div>', {
+            id:    opts.id,
+            role:  'status',
+            class: `cf-toast pointer-events-auto flex items-start gap-[8px] min-w-[200px] max-w-[320px] rounded-lg border-[1px] px-[12px] py-[8px] shadow-xl shadow-black/30 cursor-pointer transition-all duration-300 opacity-0 translate-y-2 ${skin.card}`,
+            css:   { borderColor: tone.color }
+        });
+
+        const icon = $('<span>', {
+            class: 'shrink-0 mt-[1px]',
+            css:   { color: tone.color },
+            html:  typeof lucideIcon === 'function' ? lucideIcon(tone.icon, 'w-4 h-4') : ''
+        });
+
+        const body = $('<div>', { class: 'flex flex-col min-w-0 leading-snug' });
+        if (opts.title) body.append($('<span>', { class: 'text-xs font-semibold', text: opts.title }));
+        if (opts.text) body.append($('<span>', { class: `text-xs ${opts.title ? skin.soft : ''}`, text: opts.text }));
+
+        toast.append(icon, body);
+        stack.append(toast);
+
+        setTimeout(() => toast.removeClass('opacity-0 translate-y-2'), 20);
+
+        const dismiss = () => {
+            toast.addClass('opacity-0 translate-y-2');
+            setTimeout(() => toast.remove(), 300);
+        };
+
+        toast.on('click', dismiss);
+        if (opts.timer > 0) setTimeout(dismiss, opts.timer);
+    }
+
+    selectCards(options) {
+        const defaults = {
+            parent:   'root',
+            id:       'selectCards',
+            class:    'grid grid-cols-1 md:grid-cols-2 gap-[10px]',
+            theme:    'dark',
+            selected: null,
+            json:     [],
+            onSelect: () => {}
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const skin = opts.theme === 'light'
+            ? { card: 'bg-white', line: '#E5E7EB', title: 'text-gray-900', soft: 'text-gray-500', text: 'text-gray-600' }
+            : { card: 'bg-[#283341]', line: '#475569', title: 'text-white', soft: 'text-gray-400', text: 'text-gray-300' };
+
+        const dots = { green: '#10B981', red: '#EF4444', amber: '#F59E0B', violet: '#A78BFA', gray: '#6B7280' };
+        const check = typeof lucideIcon === 'function' ? lucideIcon('check', 'w-2.5 h-2.5 text-white') : '';
+
+        const container = $('<div>', { id: opts.id, class: opts.class });
+
+        const paint = () => {
+            container.children('[data-card]').each(function () {
+                const card = $(this);
+                const item = card.data('item');
+                const on   = String(item.id) === String(opts.selected);
+
+                card.css({
+                    borderColor: on ? item.color : skin.line,
+                    boxShadow:   on ? `0 0 0 3px ${item.color}26` : 'none'
+                });
+
+                card.find('[data-check]')
+                    .css({ background: on ? item.color : 'transparent', borderColor: on ? item.color : skin.line })
+                    .html(on ? check : '');
+            });
+        };
+
+        const buildCard = (item) => {
+            const card = $('<div>', {
+                'data-card': item.id,
+                class: `${skin.card} border-2 rounded-lg p-[12px] cursor-pointer transition-all duration-200 flex flex-col`,
+                click: () => {
+                    opts.selected = item.id;
+                    paint();
+                    opts.onSelect(item.id, item);
+                }
+            }).data('item', item);
+
+            const head = $('<div>', { class: 'flex items-start gap-[10px] mb-[8px]' });
+
+            const logo = $('<div>', {
+                class: 'w-8 h-8 rounded-lg grid place-items-center text-[11px] font-extrabold shrink-0',
+                css:   { background: `${item.color}1F`, color: item.color },
+                text:  item.logo
+            });
+
+            const titleRow = $('<div>', { class: 'flex items-center gap-[6px] flex-wrap' })
+                .append($('<span>', { class: `text-sm font-bold ${skin.title}`, text: item.title }));
+
+            if (item.badge) {
+                const tone = dots[item.badge.tone] || dots.green;
+                titleRow.append($('<span>', {
+                    class: 'px-[8px] py-[1px] rounded-full text-[10px] font-semibold',
+                    css:   { background: `${tone}1F`, color: tone },
+                    text:  item.badge.text
+                }));
+            }
+
+            const info = $('<div>', { class: 'flex-1 min-w-0' })
+                .append(titleRow)
+                .append($('<p>', { class: `text-[11px] ${skin.soft} m-0`, text: item.subtitle || '' }));
+
+            const mark = $('<span>', {
+                'data-check': true,
+                class: 'w-4 h-4 rounded-full border-2 grid place-items-center shrink-0'
+            });
+
+            head.append(logo, info, mark);
+
+            // Las caracteristicas las define el modulo (no el usuario): admiten <code>.
+            const features = $('<ul>', { class: `flex flex-col gap-[3px] text-[11px] ${skin.text} m-0 p-0 list-none flex-1` });
+            (item.features || []).forEach(feature => {
+                features.append($('<li>', { html: `<span style="color:${item.color}">✓</span> ${feature}` }));
+            });
+
+            card.append(head, features);
+
+            if (item.status) {
+                const tone = dots[item.status.tone] || dots.gray;
+                const foot = $('<div>', {
+                    class: 'mt-[8px] pt-[8px] border-t-[1px] flex items-center justify-between gap-[8px]',
+                    css:   { borderColor: skin.line }
+                });
+
+                foot.append(
+                    $('<span>', { class: `text-[11px] ${skin.soft}`, text: item.status.label || 'Estado:' }),
+                    $('<span>', { class: 'text-[11px] font-semibold flex items-center gap-[5px]', css: { color: tone } })
+                        .append($('<span>', { class: 'inline-block w-1.5 h-1.5 rounded-full', css: { background: tone, boxShadow: `0 0 5px ${tone}` } }))
+                        .append($('<span>', { text: item.status.text }))
+                );
+
+                card.append(foot);
+            }
+
+            return card;
+        };
+
+        opts.json.forEach(item => container.append(buildCard(item)));
+
+        $(`#${opts.parent}`).html(container);
+        paint();
+    }
+
+    listCard(options) {
+        const defaults = {
+            parent:    'root',
+            id:        'listCard',
+            class:     '',
+            theme:     'dark',
+            icon:      'list',
+            color:     '#A78BFA',
+            title:     '',
+            subtitle:  '',
+            label:     'Registros',
+            addText:   'Agregar',
+            emptyText: 'Sin registros todavía',
+            note:      '',
+            footnote:  '',
+            toggle:    null,
+            json:      [],
+            onToggle:  () => {},
+            onAdd:     () => {},
+            onEdit:    () => {},
+            onDelete:  () => {}
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const skin = opts.theme === 'light'
+            ? { card: 'bg-white', row: 'bg-gray-50', line: '#E5E7EB', title: 'text-gray-900', soft: 'text-gray-500', off: '#D1D5DB', btn: 'text-gray-500 hover:text-gray-900' }
+            : { card: 'bg-[#283341]', row: 'bg-[#334155]', line: '#475569', title: 'text-white', soft: 'text-gray-400', off: '#4B5563', btn: 'text-gray-300 hover:text-white' };
+
+        const badges = {
+            success: { bg: '#10B9811F', color: '#34D399' },
+            danger:  { bg: '#EF44441F', color: '#F87171' },
+            warning: { bg: '#F59E0B1F', color: '#FBBF24' }
+        };
+
+        const icon = (name, cls) => typeof lucideIcon === 'function' ? lucideIcon(name, cls) : '';
+
+        const card = $('<div>', {
+            id:    opts.id,
+            class: `${skin.card} border-[1px] rounded-lg p-[12px] flex flex-col h-full ${opts.class}`,
+            css:   { borderColor: skin.line }
+        });
+
+        // -- Encabezado con interruptor --
+        const head = $('<div>', { class: 'flex items-start justify-between gap-[8px]' });
+
+        const heading = $('<div>', { class: 'flex items-center gap-[8px] min-w-0' })
+            .append($('<div>', {
+                class: 'w-7 h-7 rounded-lg grid place-items-center shrink-0',
+                css:   { background: `${opts.color}1F`, color: opts.color },
+                html:  icon(opts.icon, 'w-4 h-4')
+            }))
+            .append($('<div>', { class: 'min-w-0' })
+                .append($('<p>', { class: `text-[13px] font-bold ${skin.title} m-0 leading-tight truncate`, text: opts.title }))
+                .append($('<p>', { class: `text-[11px] ${skin.soft} m-0 truncate`, text: opts.subtitle })));
+
+        head.append(heading);
+
+        const list = $('<div>', { class: 'flex flex-col gap-[6px] transition-opacity' });
+
+        if (opts.toggle) {
+            let on = !!opts.toggle.checked;
+
+            const knob   = $('<span>', { class: 'absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform duration-200' });
+            // `title` va por attr(): en las props de jQuery lo intercepta $.fn.title (popover).
+            const toggle = $('<button>', {
+                type:  'button',
+                role:  'switch',
+                class: 'relative w-[32px] h-[18px] rounded-full shrink-0 transition-colors duration-200'
+            }).attr('title', opts.toggle.title || '').append(knob);
+
+            const paintToggle = () => {
+                toggle.attr('aria-checked', on).css('background', on ? '#10B981' : skin.off);
+                knob.css('transform', on ? 'translateX(14px)' : 'none');
+                list.toggleClass('opacity-50', !on);
+            };
+
+            toggle.on('click', () => {
+                on = !on;
+                paintToggle();
+                opts.onToggle(on);
+            });
+
+            head.append(toggle);
+            paintToggle();
+        }
+
+        // -- Lista --
+        const bar = $('<div>', { class: 'flex items-center justify-between gap-[8px]' })
+            .append($('<span>', { class: `text-[10px] font-semibold uppercase tracking-wider ${skin.soft}`, text: opts.label }))
+            .append($('<button>', {
+                type:  'button',
+                class: 'text-[11px] font-semibold flex items-center gap-[3px] text-[#A78BFA] hover:text-white',
+                html:  icon('plus', 'w-3 h-3') + `<span>${opts.addText}</span>`,
+                click: () => opts.onAdd()
+            }));
+
+        list.append(bar);
+
+        if (!opts.json.length) {
+            list.append($('<div>', {
+                class: `flex items-center justify-center gap-[6px] py-[10px] rounded-lg border-[1px] border-dashed ${skin.soft}`,
+                css:   { borderColor: skin.line }
+            })
+                .append($('<span>', { html: icon('users', 'w-4 h-4') }))
+                .append($('<span>', { class: 'text-[11px] font-semibold', text: opts.emptyText })));
+        }
+
+        opts.json.forEach(item => {
+            const badge = item.badge ? (badges[item.badge.type] || badges.success) : null;
+
+            const row = $('<div>', {
+                class: `${skin.row} flex items-center gap-[8px] px-[8px] py-[6px] rounded-lg border-[1px] transition-colors hover:!border-[#7C3AED]`,
+                css:   { borderColor: skin.line }
+            });
+
+            row.append($('<div>', {
+                class: 'w-7 h-7 rounded-full grid place-items-center text-xs font-bold shrink-0',
+                css:   { background: `${opts.color}1F`, color: opts.color },
+                text:  item.initials || ''
+            }));
+
+            row.append($('<div>', { class: 'flex-1 min-w-0 leading-tight' })
+                .append($('<p>', { class: `text-xs font-semibold ${skin.title} m-0 truncate`, text: item.title }))
+                .append($('<p>', { class: `text-[11px] ${skin.soft} m-0 truncate`, text: item.subtitle || '' })));
+
+            if (badge) {
+                row.append($('<span>', {
+                    class: 'px-[6px] py-[1px] rounded-full text-[10px] font-semibold shrink-0',
+                    css:   { background: badge.bg, color: badge.color },
+                    text:  item.badge.text
+                }));
+            }
+
+            row.append($('<button>', {
+                type:  'button',
+                class: `p-[4px] rounded-md shrink-0 ${skin.btn}`,
+                html:  icon('pencil', 'w-3.5 h-3.5'),
+                click: () => opts.onEdit(item.id, item)
+            }).attr('title', 'Editar'));
+
+            row.append($('<button>', {
+                type:  'button',
+                class: 'p-[4px] rounded-md shrink-0 text-[#F87171] hover:text-[#EF4444]',
+                html:  icon('trash-2', 'w-3.5 h-3.5'),
+                click: () => opts.onDelete(item.id, item)
+            }).attr('title', 'Eliminar'));
+
+            list.append(row);
+        });
+
+        if (opts.note) {
+            list.append($('<div>', {
+                class: `flex items-start gap-[5px] px-[8px] py-[6px] rounded-lg text-[11px] ${skin.soft} border-[1px]`,
+                css:   { background: `${opts.color}0F`, borderColor: `${opts.color}26` }
+            })
+                .append($('<span>', { class: 'shrink-0 mt-[1px]', css: { color: opts.color }, html: icon('info', 'w-3 h-3') }))
+                .append($('<span>', { text: opts.note })));
+        }
+
+        if (opts.footnote) {
+            list.append($('<p>', { class: `text-center text-[10px] ${skin.soft} m-0`, text: opts.footnote }));
+        }
+
+        card.append(head, $('<div>', { class: 'h-px my-[10px]', css: { background: skin.line } }), list);
+
+        $(`#${opts.parent}`).html(card);
+    }
+
+    chatPreview(options) {
+        const defaults = {
+            parent: 'root',
+            id:     'chatPreview',
+            name:   'Contacto',
+            status: 'en línea',
+            text:   '',
+            time:   ''
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        // Formato de WhatsApp: *negrita*, _cursiva_, ~tachado~. Se escapa antes de
+        // marcar, porque el texto lo escribe el usuario.
+        const format = (text) => String(text || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/\*([^*\n]+)\*/g, '<b>$1</b>')
+            .replace(/(^|\s)_([^_\n]+)_/g, '$1<i>$2</i>')
+            .replace(/~([^~\n]+)~/g, '<s>$1</s>');
+
+        const time = opts.time || new Date().toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' });
+
+        const phone = $('<div>', {
+            id:    opts.id,
+            class: 'bg-[#0B141A] rounded-[14px] p-[10px] max-w-[280px] mx-auto w-full'
+        });
+
+        const head = $('<div>', { class: 'flex items-center gap-[6px] pb-[8px] mb-[8px] border-b-[1px] border-[#1F2C33]' })
+            .append($('<div>', {
+                class: 'w-6 h-6 rounded-full grid place-items-center bg-[#25D366] text-white shrink-0',
+                html:  typeof lucideIcon === 'function' ? lucideIcon('message-circle', 'w-3.5 h-3.5') : ''
+            }))
+            .append($('<div>', { class: 'min-w-0 leading-tight' })
+                .append($('<p>', { class: 'text-xs font-semibold text-white m-0 truncate', text: opts.name }))
+                .append($('<p>', { class: 'text-[10px] text-[#8696A0] m-0', text: opts.status })));
+
+        const bubble = $('<div>', {
+            class: 'bg-[#005C4B] text-white rounded-lg rounded-br-none px-[10px] py-[7px] text-[12px] leading-snug whitespace-pre-line break-words max-w-[240px] ml-auto',
+            html:  format(opts.text)
+        });
+
+        const stamp = $('<div>', { class: 'text-[10px] text-[#8696A0] text-right mt-[4px]', text: `${time} ✓✓` });
+
+        phone.append(head, bubble, stamp);
+        $(`#${opts.parent}`).html(phone);
+
+        return {
+            update: (text) => bubble.html(format(text))
+        };
     }
 
 }

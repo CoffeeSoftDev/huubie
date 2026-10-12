@@ -91,7 +91,9 @@ class ctrlCalendario extends MCalendarioPedidos{
                 'folio'    => formatFolio($key['subsidiaries_id'], $key['id']),
                 // Palomeo de Produccion: fecha y hora en que se marco como elaborado.
                 'produced'   => $key['produced_at'] ? 1 : 0,
-                'producedAt' => $key['produced_at'] ?? ''
+                'producedAt' => $key['produced_at'] ?? '',
+                // Foto del pedido que se muestra en la vista Dia.
+                'photo'      => $key['photo'] ?? ''
             ];
         }
         return $event;

@@ -416,8 +416,11 @@ class App extends Templates {
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                // Semana en cuadricula de dias (dayGridWeek): sin la columna de horas.
+                // Dia es la galeria propia (galleryDayPlugin).
+                right: 'dayGridMonth,dayGridWeek,galeriaDia'
             },
+            plugins: [this.galleryDayPlugin()],
             // El bundle global no trae el locale 'es': las fechas salen en español (Intl)
             // pero los botones de vista y el de hoy se quedaban en ingles.
             buttonText: {
@@ -430,7 +433,6 @@ class App extends Templates {
             contentHeight: 'auto',
             dayMaxEvents: 3,
             moreLinkClick: 'popover',
-            eventMaxStack: 3,
             events: data,
             // Las coincidencias del buscador van primero en su dia: con dayMaxEvents
             // quedarian escondidas dentro del "+N".
@@ -481,6 +483,18 @@ class App extends Templates {
             const nearest = matches.reduce((a, b) => Math.abs(b.start - ref) < Math.abs(a.start - ref) ? b : a);
             this.calendar.gotoDate(nearest.start);
         }
+
+        // Lleva la pantalla a la tarjeta encontrada: en el mes o en la galeria del dia
+        // puede quedar fuera de la vista. Espera a que se deje de escribir (y a que
+        // FullCalendar termine de pintar) para no saltar con cada letra.
+        clearTimeout(this._searchScroll);
+
+        if (!matches.length) return;
+
+        this._searchScroll = setTimeout(() => {
+            const el = document.querySelector('#calendarFull .search-match');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 400);
     }
 
     searchClassNames(event) {
@@ -566,6 +580,164 @@ class App extends Templates {
         else if (this.seesProduced && arg.event.extendedProps.produced == 1) this.addProducedMark(containerEl, badgeEl, arg.event);
 
         return { domNodes: [containerEl] };
+    }
+
+    // -- Vista Dia: galeria --
+
+    // Vista Dia propia: los pedidos del dia agrupados por hora de entrega, en tarjetas
+    // con la foto grande arriba (variacion 2 de
+    // coffee/templates/calendario-dia-variaciones.html). Va como vista de FullCalendar
+    // para conservar Hoy, las flechas, el titulo y los filtros.
+    galleryDayPlugin() {
+        this._galleryPlugin = this._galleryPlugin || FullCalendar.createPlugin({
+            name: 'galeriaDia',
+            views: {
+                galeriaDia: {
+                    duration: { days: 1 },
+                    buttonText: 'Día',
+                    content: (props) => ({ domNodes: [this.renderGalleryDay(props)] })
+                }
+            }
+        });
+
+        return this._galleryPlugin;
+    }
+
+    // Se vuelve a dibujar cada vez que cambian los eventos (filtros, buscador,
+    // palomita), porque FullCalendar llama a content con las props nuevas. La hora
+    // llega en extendedProps.hour como "02:52 PM".
+    renderGalleryDay(props) {
+        const minutos = (hora) => {
+            const m = moment(hora, 'hh:mm A');
+            return m.isValid() ? m.hours() * 60 + m.minutes() : 0;
+        };
+
+        const pedidos = FullCalendar.sliceEvents(props, true)
+            .map(seg => ({
+                id:    seg.def.publicId,
+                title: seg.def.title,
+                color: seg.ui.backgroundColor,
+                ...seg.def.extendedProps
+            }))
+            .sort((a, b) => minutos(a.hour) - minutos(b.hour) || a.title.localeCompare(b.title));
+
+        const wrap = document.createElement('div');
+        wrap.className = 'p-[16px]';
+
+        if (!pedidos.length) {
+            wrap.innerHTML = '<p class="text-center text-gray-400 text-sm py-[40px]">Sin pedidos este día.</p>';
+            return wrap;
+        }
+
+        const grupos = {};
+        pedidos.forEach(p => (grupos[p.hour] = grupos[p.hour] || []).push(p));
+
+        Object.entries(grupos).forEach(([hora, lista]) => {
+            const grupo = document.createElement('div');
+            grupo.className = 'mb-[20px] last:mb-0';
+            grupo.innerHTML = `
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                    ${hora} <span class="text-gray-600 normal-case font-normal">· ${lista.length} ${lista.length === 1 ? 'pedido' : 'pedidos'}</span>
+                </p>`;
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-[10px]';
+            lista.forEach(p => grid.appendChild(this.galleryCard(p)));
+
+            grupo.appendChild(grid);
+            wrap.appendChild(grupo);
+        });
+
+        return wrap;
+    }
+
+    // Tarjeta de la galeria: foto arriba con la hora y el color del estado; abajo
+    // cliente, folio, tipo de entrega y estado de entrega. Sin borde. Clic = detalle.
+    galleryCard(p) {
+        const emoji    = p.delivery == 'Para Producir' ? '🎂' : (p.type == 'Envío a Domicilio' ? '🚚' : '🏠');
+        const estados  = { 'Entregado': 'bg-green-100 text-green-700', 'Para Producir': 'bg-purple-100 text-purple-700' };
+        const atenuado = this.isProduction && p.produced == 1 ? ' opacity-60' : '';
+        const busqueda = p.searchMatch === 1 ? ' search-match' : (p.searchMatch === 0 ? ' search-dim' : '');
+
+        const card = document.createElement('div');
+        card.className = `cal-gallery-card rounded-lg overflow-hidden bg-[#29374A] cursor-pointer${busqueda}`;
+        card.title = `${p.title} · ${p.folio || ''} · ${p.type} · ${p.hour} · ${p.delivery}`;
+        card.addEventListener('click', () => this.showOrder(p.id));
+
+        const fotoEl = document.createElement('div');
+        fotoEl.className = 'relative h-24';
+        fotoEl.appendChild(this.eventPhoto(p, atenuado));
+        fotoEl.insertAdjacentHTML('beforeend', `
+            <span class="absolute top-1 left-1 bg-black/60 text-[9px] font-semibold px-1 py-px rounded">${p.hour}</span>
+            <span class="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full" style="background:${p.color}"></span>`);
+
+        const palomita = this.galleryProduction(p);
+        if (palomita) fotoEl.appendChild(palomita);
+
+        const body = document.createElement('div');
+        body.className = 'p-[6px]' + atenuado;
+        body.innerHTML = `
+            <p class="text-[12px] font-semibold truncate">${p.title}</p>
+            <p class="text-[10px] text-gray-400 truncate">${p.folio || ''} · ${emoji} ${p.type}</p>
+            <span class="inline-block mt-1 ${estados[p.delivery] || 'bg-orange-100 text-orange-700'} px-1.5 rounded-full text-[9px] font-medium">${p.delivery}</span>`;
+
+        card.append(fotoEl, body);
+        return card;
+    }
+
+    // Foto del pedido (photo de getCalendar) a todo lo ancho de la tarjeta. Sin foto,
+    // o si no carga ni en produccion (fileUrlFallback), queda el pastel.
+    eventPhoto(p, clases = '') {
+        const box = document.createElement('div');
+        box.className = 'w-full h-full bg-black/20 flex items-center justify-center text-white/80' + clases;
+        box.innerHTML = lucideIcon('cake', 'w-8 h-8');
+
+        if (!p.photo) return box;
+
+        const img = document.createElement('img');
+        img.src = fileUrl(p.photo);
+        img.alt = p.title;
+        img.className = 'w-full h-full object-cover';
+        img.onerror = () => {
+            if (!img.dataset.fileFallback) return fileUrlFallback(img);
+            box.innerHTML = lucideIcon('cake', 'w-8 h-8');
+        };
+
+        box.innerHTML = '';
+        box.appendChild(img);
+        return box;
+    }
+
+    // Palomeo en la galeria, igual que en el mes: Produccion tiene la casilla (vacia o
+    // llena) en la esquina de la foto; admin y supervisores ven solo el ok de lo ya
+    // producido. La casilla no abre el pedido.
+    galleryProduction(p) {
+        const producido = p.produced == 1;
+
+        if (!this.isProduction && !(this.seesProduced && producido)) return null;
+
+        const el = document.createElement(this.isProduction ? 'button' : 'span');
+        el.className = 'absolute right-1 bottom-1 w-5 h-5 rounded-full flex items-center justify-center ' + (producido
+            ? 'bg-gray-300 shadow'
+            : 'border-[2.5px] border-gray-300 bg-black/25 text-transparent hover:text-gray-300/70 transition-colors');
+        if (producido) el.style.color = p.baseColor || p.color;
+        el.innerHTML = lucideIcon('check', 'w-3 h-3');
+
+        if (!this.isProduction) {
+            el.title = `Producción ya elaboró este pedido (${p.producedAt}).`;
+            return el;
+        }
+
+        el.type  = 'button';
+        el.title = producido
+            ? `Producido el ${p.producedAt}. Da clic para desmarcarlo.`
+            : 'Da clic aquí cuando termines de producir este pedido.';
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleProduced(this.calendar.getEventById(p.id));
+        });
+
+        return el;
     }
 
     // -- Palomeo de Produccion --
@@ -708,14 +880,25 @@ class App extends Templates {
                         margin-bottom: 2px !important;
                     }
 
-                    .fc-event.search-match {
+                    .fc-event.search-match,
+                    .cal-gallery-card.search-match {
                         outline: 2px solid #A78BFA;
                         outline-offset: -2px;
                         box-shadow: 0 0 12px rgba(124, 58, 237, 0.7);
                     }
 
-                    .fc-event.search-dim {
+                    .fc-event.search-dim,
+                    .cal-gallery-card.search-dim {
                         opacity: 0.25;
+                    }
+
+                    /* Vista Dia (galeria): la tarjeta se aclara al pasar el mouse. */
+                    .cal-gallery-card {
+                        transition: filter .15s;
+                    }
+
+                    .cal-gallery-card:hover {
+                        filter: brightness(1.08);
                     }
                     
                     .fc-more-link {
@@ -757,40 +940,89 @@ class App extends Templates {
 
     // Show Order.
 
+    // Mismo modal, diseño y logica que el detalle del listado de pedidos (app.js):
+    // encabezado con tipo de entrega, sucursal y estado; footer con la nota de consulta
+    // y "Cerrar". Las acciones del panel que abren modales de bootstrap (descuento,
+    // editar entrega, imprimir) suben por encima de este overlay con el CSS de index.php.
     async showOrder(orderId) {
         const response = await useFetch({
             url: this._pedidosLink,
             data: { opc: 'getOrderDetails', id: orderId }
         });
 
+        if (!response?.data?.order) {
+            alert({
+                icon: 'error',
+                title: 'No se pudo abrir el pedido',
+                text: response?.message ?? 'El servidor no devolvió una respuesta válida. Revisa la consola del navegador.',
+                btn1: true,
+                btn1Text: 'Ok'
+            });
 
+            return;
+        }
 
-        const tipo = response.data.order.delivery_type;
-        const badgeTipo = this.getBadgeDeliveryType(tipo);
-        const subsidiarieName = response.data.order.subsidiarie_name || '';
+        const orderData      = response.data.order || {};
+        const products       = response.data.products || [];
+        const paymentMethods = response.data.paymentMethods || [];
+        const payments       = response.data.payments || [];
 
-        const modal = bootbox.dialog({
-            title: `
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                        ${lucideIcon('cake', 'w-4 h-4 text-white')}
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-semibold text-white">Detalles del Pedido</h2>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span id="orderDeliveryBadge">${badgeTipo}</span>
-                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200 inline-flex items-center gap-1">
-                                ${lucideIcon('house', 'w-3.5 h-3.5')}${subsidiarieName}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            `,
-            message: '<div id="orderDetailsContainer" class="max-h-[70vh] overflow-y-auto"></div>',
-            size: 'lg',
-            closeButton: true,
-            className: 'order-details-enhanced-modal'
+        // createCoffeeModalForm no trae modo solo lectura, asi que el detalle va como
+        // bloque 'html' y del footer se quita Confirmar mas abajo. Se guarda en
+        // detailModal para cerrarlo desde las acciones del panel (handleDeliveryClick).
+        const modal = createCoffeeModalForm({
+            id: 'modalOrderDetails',
+            title: `Pedido #${orderData.folio}`,
+            iconSvg: lucideIcon('cake', 'w-5 h-5'),
+            iconBg: 'bg-blue-500',
+            theme: 'dark',
+            width: 900,
+            cancelText: 'Cerrar',
+            cancelBg: 'bg-[#2C3A4C] hover:bg-[#36475D] text-white',
+            json: [
+                {
+                    opc: 'html',
+                    html: '<div id="orderDetailsContainer" class="max-h-[70vh] overflow-y-auto"></div>'
+                }
+            ]
         });
+
+        this.detailModal = modal;
+
+        // Encabezado y footer a todo el ancho de la tarjeta, separados del cuerpo por
+        // una linea. El componente no trae esas opciones, se ajustan sus clases. Los
+        // espaciados van como valores arbitrarios (px-[20px]) porque bootstrap.min.css
+        // pisa px-5, p-4 y similares con !important.
+        const $card   = modal.el.find('.cf-card');
+        const $header = $card.children().first();
+
+        $card.removeClass('p-4').addClass('overflow-hidden');
+        $header.removeClass('items-center mb-3').addClass('items-start px-[20px] py-[16px] border-b border-white/10');
+        $header.children().first().removeClass('w-9 h-9 rounded-lg').addClass('w-11 h-11 rounded-xl');
+        $header.find('.cf-close').removeClass('p-1 -mr-1').addClass('w-8 h-8 rounded-lg border border-gray-600');
+
+        // Tipo de entrega, sucursal y estado de entrega como subtitulo del encabezado: el
+        // componente no admite subtitulo por opciones. Los badges conservan su id porque
+        // refreshOrderDetails() los repinta.
+        $header.find('span').first().removeClass('text-base truncate').addClass('text-lg block')
+            .wrap('<div class="flex-1 min-w-0"></div>').after(`
+            <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                <span id="orderDeliveryBadge">${this.getBadgeDeliveryType(orderData.delivery_type)}</span>
+                <span class="inline-flex items-center gap-1 text-xs text-gray-400">
+                    ${lucideIcon('house', 'w-3.5 h-3.5')} ${orderData.subsidiarie_name || ''}
+                </span>
+                <span id="orderStatusBadge">${this.statusDelivery(orderData.is_delivered)}</span>
+            </div>`);
+
+        // El detalle es de consulta: sin Confirmar. El boton de cancelar queda como
+        // "Cerrar", a la derecha del footer, con la nota de consulta a la izquierda.
+        modal.el.find('.cf-confirm').remove();
+        modal.el.find('.cf-cancel').removeClass('flex-1').addClass('px-6').parent()
+            .removeClass('mt-4').addClass('items-center justify-between px-[20px] py-[12px] border-t border-white/10')
+            .prepend(`
+                <p class="text-xs text-gray-400 flex items-center gap-1.5">
+                    ${lucideIcon('info', 'w-3.5 h-3.5')} Pedido de consulta — sin edición de productos
+                </p>`);
 
         this.layoutManager = {
             isMobile: () => window.innerWidth < 768,
@@ -799,93 +1031,45 @@ class App extends Templates {
 
             applyLayout: function () {
                 const container = $('#orderDetailsContainer');
-                container.removeClass('flex flex-col flex-row space-y-4   p-3');
+                container.removeClass('flex flex-col flex-row space-y-4 p-[16px] p-[20px]');
 
                 if (this.isMobile()) {
-                    container.addClass('flex flex-col space-y-4 p-3');
+                    container.addClass('flex flex-col space-y-4 p-[16px]');
                 } else if (this.isTablet()) {
-                    container.addClass('flex flex-col lg:flex-row p-3');
+                    container.addClass('flex flex-col lg:flex-row p-[20px]');
                 } else {
-                    container.addClass('flex flex-row  p-3');
+                    container.addClass('flex flex-row p-[20px]');
                 }
             }
         };
 
-        setTimeout(() => {
-            this.layoutManager.applyLayout();
-            const orderData = response.data.order || {};
-            const products = response.data.products || [];
-            const paymentMethods = response.data.paymentMethods || [];
-            const payments = response.data.payments || [];
+        this.layoutManager.applyLayout();
 
-            const container = $('#orderDetailsContainer');
-            container.html(`
-                <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
-                    <div class="lg:sticky lg:top-4">
-                        ${this.orderActions(orderData, orderId)}
-                        ${this.detailsCard(orderData, paymentMethods, payments)}
-                    </div>
+        $('#orderDetailsContainer').html(`
+            <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-2">
+                <div class="lg:sticky lg:top-0">
+                    ${this.orderActions(orderData, orderId)}
+                    ${this.detailsCard(orderData, paymentMethods, payments)}
                 </div>
+            </div>
 
-                <div id="productDisplayArea" class="w-full lg:w-2/3 lg:pl-3">
-                    ${this.listProducts(products)}
-                </div>
-            `);
-
-            $(window).on('resize.orderDetails', () => {
-                // this.layoutManager.applyLayout();
-            });
-        }, 100);
-
-        modal.on('hidden.bs.modal', () => {
-            $(window).off('resize.orderDetails');
-        });
-
-        $("<style>").text(`
-            .order-details-enhanced-modal .modal-dialog {
-                max-width: 900px !important;
-                width: 85vw !important;
-            }
-            .order-details-enhanced-modal .modal-body {
-                padding: 0 !important;
-                max-height: 70vh !important;
-                overflow-y: auto !important;
-            }
-            .order-details-enhanced-modal .modal-content {
-                max-height: 85vh !important;
-            }
-
-            @media (max-width: 768px) {
-                .order-details-enhanced-modal .modal-dialog {
-                    width: 95vw !important;
-                    margin: 10px auto !important;
-                }
-                .order-details-enhanced-modal .modal-body {
-                    max-height: 65vh !important;
-                }
-            }
-
-            @media (max-width: 480px) {
-                .order-details-enhanced-modal .modal-dialog {
-                    width: 98vw !important;
-                    margin: 5px auto !important;
-                }
-                .order-details-enhanced-modal .modal-body {
-                    max-height: 60vh !important;
-                }
-            }
-        `).appendTo("head");
+            <div id="productDisplayArea" class="w-full lg:w-2/3 lg:pl-2">
+                ${this.listProducts(products)}
+            </div>
+        `);
 
         return modal;
     }
 
+    // Pildora con contorno del encabezado del detalle. border-[1px] y no `border`: el
+    // .border de bootstrap lleva !important y pintaria el contorno gris.
     getBadgeDeliveryType(tipo) {
         if (tipo == 0 || tipo === '0') {
-            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-flex items-center gap-1 w-24 justify-center">${lucideIcon('house', 'w-3.5 h-3.5')} Local</span>`;
+            return `<span class="px-2.5 py-0.5 rounded-full border-[1px] border-blue-500/50 bg-blue-500/10 text-blue-300 text-xs font-semibold inline-flex items-center gap-1">${lucideIcon('store', 'w-3.5 h-3.5')} Local</span>`;
         } else if (tipo == 1 || tipo === '1') {
-            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-flex items-center gap-1 w-28 justify-center">${lucideIcon('truck', 'w-3.5 h-3.5')} Domicilio</span>`;
+            return `<span class="px-2.5 py-0.5 rounded-full border-[1px] border-amber-500/50 bg-amber-500/10 text-amber-300 text-xs font-semibold inline-flex items-center gap-1">${lucideIcon('truck', 'w-3.5 h-3.5')} A domicilio</span>`;
         }
-        return '<span class="px-3 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-700 inline-block w-24 text-center">Sin especificar</span>';
+        return '<span class="px-2.5 py-0.5 rounded-full border-[1px] border-gray-500/50 bg-gray-500/10 text-gray-300 text-xs font-semibold inline-flex items-center">Sin especificar</span>';
     }
 
     detailsCard(orderData, paymentMethods = [], payments = []) {
@@ -899,8 +1083,8 @@ class App extends Templates {
 
     // Acciones del pedido en el panel de detalles. Se pintan igual al abrir el modal y
     // al refrescarlo despues de un cambio, por eso viven en un solo lugar. Editar los
-    // datos de entrega no esta aqui: es el icono del titulo de la tarjeta que los
-    // muestra (editDeliveryIcon).
+    // datos de entrega no esta aqui: es el boton al pie de la tarjeta que los muestra
+    // (editDeliveryButton).
     orderActions(orderData, orderId) {
         const cerrado    = orderData.status == '3' || orderData.status == '4';
         const operable   = !cerrado && orderData.is_delivered != '2';
@@ -994,7 +1178,7 @@ class App extends Templates {
 
                 if (response.status == 200) {
                     // Cierra el modal de detalles del pedido
-                    $('.order-details-enhanced-modal').modal('hide');
+                    this.detailModal?.close();
                      alert({
                         icon: 'success',
                         title: 'Estado actualizado',
@@ -1018,11 +1202,11 @@ class App extends Templates {
         });
     }
 
-    // Editar los datos de entrega vive junto al titulo de la tarjeta que los muestra,
-    // no en la barra de acciones. Un pedido liquidado (3) lo corrigen admin y
-    // supervisores, y ahi la edicion pide contraseña; el resto de los pedidos, cualquiera
-    // que opere el calendario. El cancelado (4) no se edita.
-    editDeliveryIcon(orderData) {
+    // Editar los datos de entrega va al pie de la tarjeta que los muestra, no en la
+    // barra de acciones. Un pedido liquidado (3) lo corrigen admin y supervisores, y
+    // ahi la edicion pide contraseña; el resto de los pedidos, cualquiera que opere el
+    // calendario. El cancelado (4) no se edita.
+    editDeliveryButton(orderData) {
         const liquidado  = orderData.status == '3';
         const autorizado = this.isAdmin || this.isSupervisor;
         const editable   = !this.isProduction && orderData.status != '4' && (!liquidado || autorizado);
@@ -1032,84 +1216,67 @@ class App extends Templates {
         return `
             <button onclick="app.editOrderDelivery(${orderData.id})"
                 title="${liquidado ? 'Editar datos de entrega (requiere contraseña)' : 'Editar datos de entrega'}"
-                class="ml-auto flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
-                ${lucideIcon('pencil', 'w-4 h-4')}
+                class="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-600 text-xs font-semibold text-gray-200 hover:text-white hover:bg-white/10 transition-colors">
+                ${lucideIcon('pencil', 'w-3.5 h-3.5')}
+                Editar entrega
             </button>`;
     }
 
+    // Fecha y hora de entrega van en una sola fila. getOrderID ya las manda con formato
+    // de pantalla (12/10/2026 y 04:00 PM). El estado de entrega se muestra en el
+    // encabezado del modal. Capturó y Produjo solo los consultan admin (1), SuperAdmin
+    // (5) y supervisores (6, 7): seesProduced.
     infoOrder(orderData) {
+        const entrega = [orderData.date_order, orderData.time_order].filter(Boolean).join(' · ');
+
+        const fila = (icono, label, valor) => `
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon(icono, 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-300 text-sm">${label}</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${valor || 'N/A'}</span>
+                    </div>`;
+
         return `
-            <div class="bg-[#2C3E50] rounded-lg p-3">
-                <h3 class="text-white font-semibold text-base mb-2 flex items-center">
+            <div class="bg-[#29374A] rounded-xl p-[16px]">
+                <h3 class="text-white font-semibold text-base mb-3 flex items-center">
                     ${lucideIcon('info', 'w-4 h-4 text-blue-400 mr-2')}
-                    Información del Pedido
-                    ${this.editDeliveryIcon(orderData)}
+                    Información del pedido
                 </h3>
 
-                <div class="space-y-1.5">
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('file-text', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Folio:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.folio || 'N/A'}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('user', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Cliente:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.name || 'N/A'}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('history', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Creado:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${this.formatDateTime(orderData.date_creation) || 'N/A'}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('user-pen', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Creado por:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.created_by_name || 'Sin registro'}</span>
-                    </div>
-
+                <div class="space-y-2.5">
+                    ${fila('file-text', 'Folio:', orderData.folio)}
+                    ${fila('user', 'Cliente:', orderData.name)}
+                    ${fila('clock', 'Creado:', this.formatDateTime(orderData.date_creation))}
+                    ${this.seesProduced ? fila('user-pen', 'Capturó:', orderData.created_by_name || 'Sin registro') : ''}
                     ${this.seesProduced ? this.producedByRow(orderData) : ''}
-
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('calendar', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Fecha de entrega:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('clock', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Hora:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.time_order || 'N/A'}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('truck', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Estado de entrega:</span>
-                        <span class="ml-auto">${this.statusDelivery(orderData.is_delivered)}</span>
-                    </div>
-
+                    ${fila('calendar', 'Entrega:', entrega)}
                 </div>
+
+                ${this.editDeliveryButton(orderData)}
             </div>
         `;
     }
 
-    // Quien palomeo el pedido en Produccion y cuando. Solo lo consultan admin y
-    // supervisores (seesProduced). "Sin registro" = la palomita existe pero el
-    // usuario ya no esta en usr_users.
+    // Quien palomeo el pedido en Produccion y cuando: 09/OCT/2026 10:15pm. produced_at
+    // llega de getOrderID como 09/10/2026 10:15 PM. "Sin registro" = la palomita existe
+    // pero el usuario ya no esta en usr_users.
     producedByRow(orderData) {
+        const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+        const fecha = moment(orderData.produced_at, 'DD/MM/YYYY hh:mm A', true);
+
         const value = orderData.produced_at
             ? `<span class="block text-white font-semibold text-sm">${orderData.produced_by_name || 'Sin registro'}</span>
-               <span class="block text-gray-400 text-[11px]">${orderData.produced_at}</span>`
-            : `<span class="block text-gray-400 font-semibold text-sm">Sin producir</span>`;
+               <span class="block text-gray-400 text-[11px]">${fecha.isValid()
+                    ? `${fecha.format('DD')}/${meses[fecha.month()]}/${fecha.format('YYYY')} ${fecha.format('hh:mma')}`
+                    : orderData.produced_at}</span>`
+            : `<span class="block text-gray-400 font-semibold text-sm">Aún sin producir</span>`;
 
         return `
-            <div class="flex items-center gap-2">
-                ${lucideIcon('cake', 'w-4 h-4 text-gray-400 shrink-0')}
-                <span class="text-gray-400 text-xs">Producido por:</span>
-                <span class="ml-auto text-right leading-tight">${value}</span>
-            </div>`;
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('cake', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-300 text-sm">Produjo:</span>
+                        <span class="ml-auto text-right leading-tight">${value}</span>
+                    </div>`;
     }
 
     // border-1 no existe en Tailwind (la utilidad es `border`), por eso las etiquetas
@@ -1126,7 +1293,7 @@ class App extends Templates {
         const estado = estados[is_delivered]
             || { tono: 'bg-red-500/10 border-red-500/50 text-red-300', icono: 'circle-x', texto: 'No entregado' };
 
-        return `<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full border-[1px] ${estado.tono} inline-flex items-center gap-1 whitespace-nowrap leading-none">
+        return `<span class="px-2.5 py-0.5 text-xs font-semibold rounded-full border-[1px] ${estado.tono} inline-flex items-center gap-1 whitespace-nowrap">
                     ${lucideIcon(estado.icono, 'w-3 h-3')} ${estado.texto}
                 </span>`;
     }
@@ -1141,6 +1308,20 @@ class App extends Templates {
         const hh = String(d.getHours()).padStart(2, '0');
         const mi = String(d.getMinutes()).padStart(2, '0');
         return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+    }
+
+    // Fecha de los abonos en el resumen de pago: 12/sep/2026 19:22 pm. El resto del
+    // detalle (Creado) sigue con formatDateTime.
+    formatPayDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(String(dateStr).replace(' ', 'T'));
+        if (isNaN(d.getTime())) return dateStr;
+        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        const ampm = d.getHours() < 12 ? 'am' : 'pm';
+        return `${dd}/${meses[d.getMonth()]}/${d.getFullYear()} ${hh}:${mi} ${ampm}`;
     }
 
     paymentMethodStyle(method) {
@@ -1158,94 +1339,116 @@ class App extends Templates {
         const balance = parseFloat(orderData.balance || 0);
         const infoDiscount = orderData.info_discount || '';
 
+        // Total a cobrar y avance del pago para la barra: Pagado N% · Faltan $X.
+        const total   = totalPay - discount;
+        const avance  = total > 0 ? Math.min(100, Math.round(totalPaid / total * 100)) : 0;
+        const faltan  = Math.max(balance, 0);
+
+        // Eliminar abono: el mismo boton del historial de pagos (listPayment). Solo el
+        // admin (1) borra pagos y aqui siempre confirma con contraseña (ultimo
+        // argumento de deletePay). Con el pedido liquidado lleva candado, como en el
+        // historial.
+        const requiereClave = balance <= 0.009 ? 1 : 0;
+        const deleteBtn = (p) => this.rolId == 1 ? `
+                                <button type="button" onclick="app.deletePay(${p.id}, ${orderData.id}, ${requiereClave}, ${parseFloat(p.pay || 0)}, true)"
+                                    title="Eliminar pago (requiere contraseña)"
+                                    class="${requiereClave ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'} p-1 shrink-0">
+                                    ${lucideIcon(requiereClave ? 'lock' : 'trash-2', 'w-3.5 h-3.5')}
+                                </button>` : '';
+
         // Historial detallado: cada abono con su fecha y metodo, sin agrupar.
         // Si no llega el historial, se cae al resumen agrupado por metodo.
         const methodsHtml = (Array.isArray(payments) && payments.length > 0) ? `
-                    <div class="space-y-1">
-                        <span class="text-gray-400 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-1">
-                            ${lucideIcon('history', 'w-3.5 h-3.5 text-gray-400')}
+                    <div class="border-l-2 border-gray-600 pl-3">
+                        <span class="text-gray-400 text-[11px] font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-1">
+                            ${lucideIcon('clock', 'w-3.5 h-3.5')}
                             Abonos (${payments.length})
                         </span>
-                        <div>
-                            ${payments.map((p, idx) => {
+                        <div class="divide-y divide-gray-600/60">
+                            ${payments.map(p => {
                                 const st = this.paymentMethodStyle(p.method_pay);
-                                const isLast = idx === payments.length - 1;
                                 return `
-                            <div class="flex gap-2.5">
-                                <div class="flex flex-col items-center w-3 shrink-0">
-                                    <span class="w-3 h-3 mt-1 rounded-full ${st.bg} border-2 border-[#2C3E50] flex items-center justify-center shrink-0">
-                                        <span class="w-1.5 h-1.5 rounded-full ${st.dot}"></span>
+                            <div class="flex items-center justify-between gap-2 py-2">
+                                <div class="flex flex-col min-w-0">
+                                    <span class="text-white text-xs font-semibold flex items-center gap-1.5">
+                                        ${lucideIcon(st.icon, 'w-3.5 h-3.5 ' + st.text)}
+                                        ${p.method_pay || 'Sin método'}
                                     </span>
-                                    ${!isLast ? `<span class="w-px grow bg-gray-600/70 my-1"></span>` : ''}
+                                    <span class="text-gray-500 text-[11px]">${this.formatPayDate(p.date_pay)}</span>
                                 </div>
-                                <div class="flex-1 flex items-center justify-between gap-2 ${!isLast ? 'pb-3' : ''}">
-                                    <div class="flex flex-col min-w-0">
-                                        <span class="text-white text-xs font-medium flex items-center gap-1.5">
-                                            ${lucideIcon(st.icon, 'w-3.5 h-3.5 ' + st.text)}
-                                            ${p.method_pay || 'Sin método'}
-                                        </span>
-                                        <span class="text-gray-500 text-[11px]">${this.formatDateTime(p.date_pay)}</span>
-                                    </div>
-                                    <span class="text-green-400 font-bold text-sm whitespace-nowrap">$${parseFloat(p.pay || 0).toFixed(2)}</span>
-                                </div>
+                                <span class="flex items-center gap-1 ml-auto">
+                                    <span class="text-green-400 font-bold text-sm whitespace-nowrap">${formatPrice(p.pay)}</span>
+                                    ${deleteBtn(p)}
+                                </span>
                             </div>
                             `;
                             }).join('')}
                         </div>
                     </div>
         ` : (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
-                    <div class="pl-2 space-y-1 border-l-2 border-gray-600">
+                    <div class="pl-3 space-y-1 border-l-2 border-gray-600">
                         ${paymentMethods.map(m => `
                         <div class="flex items-center justify-between">
-                            <span class="text-gray-500 text-xs flex items-center gap-1.5">
+                            <span class="text-gray-400 text-xs flex items-center gap-1.5">
                                 ${lucideIcon('credit-card', 'w-3.5 h-3.5')}
                                 ${m.method_pay || 'Sin método'}:
                             </span>
-                            <span class="text-gray-300 text-xs">$${parseFloat(m.pay || 0).toFixed(2)}</span>
+                            <span class="text-gray-300 text-xs">${formatPrice(m.pay)}</span>
                         </div>
                         `).join('')}
                     </div>
         ` : '';
 
         const discountHtml = discount > 0 ? `
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-400 text-sm">Descuento:</span>
-                        <span class="text-yellow-400 font-bold text-sm">-$${discount.toFixed(2)}</span>
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300 text-sm">Descuento:</span>
+                            <span class="text-amber-400 font-bold text-sm">−${formatPrice(discount)}</span>
+                        </div>
+                        ${infoDiscount ? `<span class="block text-gray-500 text-[11px] italic mt-0.5">${infoDiscount}</span>` : ''}
                     </div>
-                    ${infoDiscount ? `
-                    <div class="flex items-center justify-start">
-                        <span class="text-gray-500 text-xs italic">${infoDiscount}</span>
-                    </div>
-                    ` : ''}
         ` : '';
 
         return `
-            <div class="bg-[#2C3E50] rounded-lg p-3">
-                <h3 class="text-white font-semibold text-base mb-2 flex items-center">
+            <div class="bg-[#29374A] rounded-xl p-[16px]">
+                <h3 class="text-white font-semibold text-base mb-3 flex items-center">
                     ${lucideIcon('dollar-sign', 'w-4 h-4 text-green-400 mr-2')}
                     Resumen de pago
                 </h3>
 
-                <div class="space-y-2">
+                <div class="space-y-2.5">
                     <div class="flex items-center justify-between">
-                        <span class="text-gray-400 text-sm">Subtotal:</span>
-                        <span class="text-white font-bold text-sm">$${totalPay.toFixed(2)}</span>
+                        <span class="text-gray-300 text-sm">Subtotal:</span>
+                        <span class="text-white font-bold text-sm">${formatPrice(totalPay)}</span>
                     </div>
 
                     ${discountHtml}
 
                     <div class="flex items-center justify-between">
-                        <span class="text-gray-400 text-sm">Pagado:</span>
-                        <span class="text-green-400 font-bold text-sm">$${totalPaid.toFixed(2)}</span>
+                        <span class="text-gray-300 text-sm">Total:</span>
+                        <span class="text-white font-bold text-base">${formatPrice(total)}</span>
+                    </div>
+
+                    <div>
+                        <div class="h-1.5 rounded-full bg-gray-700 overflow-hidden">
+                            <div class="h-full rounded-full bg-emerald-400" style="width:${avance}%"></div>
+                        </div>
+                        <div class="flex items-center justify-between mt-1.5 text-[11px]">
+                            <span class="text-emerald-400 font-semibold">Pagado: ${avance}%</span>
+                            <span class="text-gray-400">Faltan ${formatPrice(faltan)}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-300 text-sm">Pagado:</span>
+                        <span class="text-green-400 font-bold text-sm">${formatPrice(totalPaid)}</span>
                     </div>
 
                     ${methodsHtml}
 
-                    <div class="border-t border-gray-600 my-1.5"></div>
-
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-400 text-sm">Saldo:</span>
-                        <span class="text-red-400 font-bold text-sm">$${balance.toFixed(2)}</span>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-gray-300 text-sm">Saldo:</span>
+                        <span class="text-red-400 font-bold text-sm">${formatPrice(balance)}</span>
                     </div>
                 </div>
             </div>
@@ -1268,31 +1471,23 @@ class App extends Templates {
 
         const totalItems = products.reduce((acc, item) => acc + parseInt(item.quantity || 1), 0);
 
+        // Sin scroll propio: la lista crece y lo que se desplaza es el contenedor del
+        // modal (#orderDetailsContainer), con una sola barra.
         return `
-            <div class="flex flex-col h-full">
-                <div class="bg-[#283341] rounded-lg p-3 mb-3">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-white font-semibold text-lg flex items-center">
-                            ${lucideIcon('shopping-basket', 'w-5 h-5 mr-2 text-blue-400')}
-                            Productos del Pedido
-                        </h3>
-                        <span class="text-gray-300 font-medium"> ${totalItems} productos</span>
-                    </div>
+            <div class="flex flex-col">
+                <div class="bg-[#29374A] rounded-xl px-[16px] py-[12px] mb-3 flex items-center justify-between">
+                    <h3 class="text-white font-semibold text-base flex items-center">
+                        ${lucideIcon('shopping-bag', 'w-4 h-4 mr-2 text-blue-400')}
+                        Productos del pedido
+                    </h3>
+                    <span class="text-gray-400 text-sm">${totalItems} productos</span>
                 </div>
-                <div id="productsContainer" class="space-y-4 overflow-y-auto flex-1">
-            ${products.map(product => {
-
-            console.log('recorrido de product: ', product);
-
-
-            if (product.is_custom || (product.customer_products && product.customer_products.length > 0)) {
-
-                return this.cardCustom(product);
-
-            } else {
-                return this.cardNormal(product);
-            }
-        }).join('')}
+                <div id="productsContainer" class="space-y-3">
+                    ${products.map(product =>
+                        product.is_custom || (product.customer_products && product.customer_products.length > 0)
+                            ? this.cardCustom(product)
+                            : this.cardNormal(product)
+                    ).join('')}
                 </div>
             </div>
         `;
@@ -1304,126 +1499,148 @@ class App extends Templates {
         const hasDetails = product.order_details && product.order_details.trim() !== '';
 
         return `
-            <div class="bg-[#2C3E50] rounded-lg p-3 relative">
-                <div class="absolute top-5 right-6 text-right">
-                    <span class="text-gray-400 text-sm">Cantidad: <span class="text-white font-bold text-sm">${product.quantity || 1}</span></span>
+            <div class="bg-[#29374A] rounded-xl p-[16px] flex items-start gap-[16px]">
+                <div class="w-14 h-14 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
+                    ${this.renderProductImage(product)}
                 </div>
 
-                <div class="flex items-start gap-6 pr-32">
-                    <div class="w-28 h-28 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
-                        ${this.renderProductImage(product)}
-                    </div>
+                <div class="flex-1 min-w-0">
+                    <h4 class="text-white font-bold text-sm uppercase">${product.name || 'Producto sin nombre'}</h4>
+                    <p class="text-blue-400 text-xs mt-0.5">${formatPrice(product.price)} c/u</p>
 
-                    <div class="flex-1">
-                        <h4 class="text-white font-bold text-lg mb-2 uppercase">${product.name || 'Producto sin nombre'}</h4>
-                        <p class="text-blue-400 font-semibold text-xs mb-4">$${parseFloat(product.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} c/u</p>
-
-                        ${(hasDedication || hasDetails) ? `
-                        <div class="flex gap-12">
-                            ${hasDedication ? `
-                            <div class="flex-1">
-                                <span class="text-gray-400 text-sm font-medium">Dedicatoria:</span>
-                                <p class="text-white text-xs">${product.dedication}</p>
-                            </div>
-                            ` : ''}
-                            ${hasDetails ? `
-                            <div class="flex-1">
-                                <span class="text-gray-400 text-sm font-medium">Observaciones:</span>
-                                <p class="text-white text-xs">${product.order_details}</p>
-                            </div>
-                            ` : ''}
-                        </div>
-                        ` : ''}
-                    </div>
+                    ${hasDedication ? `
+                    <p class="text-gray-400 text-xs mt-3">Dedicatoria:</p>
+                    <p class="text-white text-xs font-semibold">${product.dedication}</p>
+                    ` : ''}
+                    ${hasDetails ? `
+                    <p class="text-gray-400 text-xs mt-2">Observaciones:</p>
+                    <p class="text-white text-xs font-semibold">${product.order_details}</p>
+                    ` : ''}
                 </div>
 
-                <div class="absolute bottom-5 right-6 text-right">
-                    <span class="text-gray-400 text-sm block mb-1">Total:</span>
-                    <p class="text-white font-bold text-lg">$${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <div class="self-stretch flex flex-col items-end justify-between gap-3 text-right shrink-0">
+                    <span class="text-gray-400 text-sm">Cantidad: <span class="text-white font-bold">${product.quantity || 1}</span></span>
+                    <div>
+                        <span class="text-gray-400 text-xs block">Importe</span>
+                        <p class="text-white font-bold text-lg">${formatPrice(total)}</p>
+                    </div>
                 </div>
             </div>
         `;
     }
 
     cardCustom(product) {
-
-        console.log('🧩 cardCustom: ', product);
-
-        const hasDedication = product.dedication && product.dedication.trim() !== '';
-        const hasDetails = product.order_details && product.order_details.trim() !== '';
-        const hasImages = product.images && Array.isArray(product.images) && product.images.length > 0;
+        const hasDedication    = product.dedication && product.dedication.trim()       !== '';
+        const hasDetails       = product.order_details && product.order_details.trim() !== '';
         const hasCustomization = product.customer_products && product.customer_products.length > 0;
 
-        const customizationTotal = product.customer_products ?
-            product.customer_products.reduce((sum, item) => sum + parseFloat(item.custom_price || 0), 0) : 0;
-
-        const finalTotal = (parseFloat(product.price || 0) + customizationTotal) * parseInt(product.quantity || 1);
-
+        // price es order_custom.price_real: el precio que se cobra y que ya incluye la
+        // personalizacion. El total de la linea es ese precio por la cantidad, igual que
+        // lo suma updateTotalOrder() en total_pay.
+        const total = parseFloat(product.price || 0) * parseInt(product.quantity || 1);
 
         return `
-        <div class="bg-[#2C3E50] rounded-lg p-3 relative">
-            <div class=" mb-6">
-                <h4 class="text-white font-bold text-sm uppercase">${product.name || 'Pastel Personalizado'}</h4>
-                <span class="inline-flex items-center px-3 py-2 mt-2 rounded-2xl text-[10px] font-bold bg-purple-200 text-purple-500 lowercase">
-                    Personalizado
-                </span>
-            </div>
-
-            <div class="absolute top-5 right-6">
-                <span class="text-gray-400 text-sm">Cantidad: <span class="text-white font-bold">${product.quantity || 1}</span></span>
-            </div>
-
-            ${hasImages ? `
-            <div class="flex gap-3 pb-4 border-b border-gray-700">
-                ${product.images.slice(0, 3).map(img => {
-            const fullUrl = fileUrl(img.path);
-            return `
-                        <div class="w-28 h-28 rounded-lg overflow-hidden bg-gray-700 cursor-pointer hover:opacity-80 transition-opacity"
-                             onclick="app.previewImage('${fullUrl}', '${(img.original_name || 'Imagen').replace(/'/g, "\\'")}')">
-                            <img src="${fullUrl}"
-                                 alt="${img.original_name || 'Imagen'}"
-                                 onerror="fileUrlFallback(this)"
-                                 class="object-cover w-full h-full pointer-events-none">
-                        </div>
-                    `;
-        }).join('')}
-            </div>
-            ` : ''}
-
-            <div class="mb-3">
-                <span class="text-gray-400 text-sm">Porción: <span class="text-white font-bold text-sm">${product.portion_qty || 1}</span></span>
-            </div>
-
-            ${(hasDedication || hasDetails) ? `
-            <div class="flex gap-12 mb-6 ">
-                ${hasDedication ? `
-                <div class="flex-1">
-                    <span class="text-gray-400 text-sm font-medium">Dedicatoria:</span>
-                    <p class="text-white text-base text-justify">${product.dedication}</p>
+        <div class="bg-[#29374A] rounded-xl p-[16px]">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div class="flex items-center gap-2 min-w-0">
+                    <h4 class="text-white font-bold text-sm uppercase truncate">${product.name || 'Pastel Personalizado'}</h4>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-500/20 text-purple-300 shrink-0">Personalizado</span>
                 </div>
-                ` : ''}
-                ${hasDetails ? `
-                <div class="flex-1">
-                    <span class="text-gray-400 text-sm font-medium">Observaciones:</span>
-                    <p class="text-white text-base text-justify">${product.order_details}</p>
-                </div>
-                ` : ''}
+                <span class="text-gray-400 text-sm shrink-0">Cantidad: <span class="text-white font-bold">${product.quantity || 1}</span></span>
             </div>
-            ` : ''}
+
+            <div class="flex flex-col sm:flex-row gap-[16px]">
+                <div class="sm:w-[190px] shrink-0">${this.customGallery(product)}</div>
+
+                <div class="flex-1 min-w-0 space-y-3">
+                    <div>
+                        <p class="text-gray-400 text-xs">Porción:</p>
+                        <p class="text-white text-sm font-semibold">${product.portion_qty || 1} personas</p>
+                    </div>
+                    ${hasDedication ? `
+                    <div>
+                        <p class="text-gray-400 text-xs">Dedicatoria:</p>
+                        <p class="text-white text-sm font-semibold">${product.dedication}</p>
+                    </div>
+                    ` : ''}
+                    ${hasDetails ? `
+                    <div>
+                        <p class="text-gray-400 text-xs">Observaciones:</p>
+                        <p class="text-white text-sm font-semibold">${product.order_details}</p>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
 
             ${hasCustomization ? `
-            <div class="border-t border-gray-600 pt-4 mb-6 pr-32">
-                <h5 class="text-purple-300 font-bold text-sm mb-2 uppercase">Personalización:</h5>
+            <div class="border-t border-gray-600/60 mt-[16px] pt-[16px]">
+                <h5 class="text-purple-300 font-bold text-xs uppercase tracking-wide mb-3">Personalización</h5>
                 ${this.renderPersonalizationGrid(product.customer_products)}
             </div>
             ` : ''}
 
-            <div class="absolute bottom-5 right-6 text-right">
-                <span class="text-gray-400 text-sm block mb-1 ">Total:</span>
-                <p class="text-green-300 font-bold text-lg ">${formatPrice(product.price)}</p>
+            <div class="text-right mt-3">
+                <span class="text-gray-400 text-xs block">Importe</span>
+                <p class="text-emerald-400 font-bold text-lg">${formatPrice(total)}</p>
             </div>
         </div>
     `;
+    }
+
+    // Fotos de referencia del pastel personalizado: la grande con su contador y las
+    // miniaturas numeradas. Clic en una miniatura la pasa a la grande (selectCustomImage)
+    // y clic en la grande la amplia. La vista previa lee el src de la <img> y no la
+    // ruta original: si la foto solo existe en produccion, fileUrlFallback() ya la cambio.
+    customGallery(product) {
+        const images = Array.isArray(product.images) ? product.images : [];
+
+        if (!images.length) {
+            return `
+                <div class="w-40 h-40 rounded-lg bg-[#D8B4E2] flex items-center justify-center">
+                    ${lucideIcon('cake', 'w-10 h-10 text-white')}
+                </div>`;
+        }
+
+        const total = images.length;
+        const first = images[0];
+
+        const thumbs = total > 1 ? `
+            <div class="flex flex-wrap gap-1.5 mt-2">
+                ${images.map((img, i) => `
+                <button type="button" onclick="app.selectCustomImage(this, ${product.id})"
+                    class="relative w-6 h-6 rounded overflow-hidden bg-gray-700 ${i === 0 ? 'ring-2 ring-blue-500' : ''}">
+                    <img src="${fileUrl(img.path)}" alt="${img.original_name || 'Imagen'}"
+                         onerror="app.productImageError(this)"
+                         class="object-cover w-full h-full pointer-events-none">
+                    <span class="absolute bottom-0 right-0 px-0.5 rounded-tl bg-black/70 text-[8px] font-bold leading-tight text-white">${i + 1}</span>
+                </button>`).join('')}
+            </div>` : '';
+
+        return `
+            <div class="relative w-40 h-40 rounded-lg overflow-hidden bg-gray-700 cursor-pointer"
+                 onclick="app.previewImage(this.querySelector('img').src, this.querySelector('img').alt)">
+                <img id="customMain${product.id}" src="${fileUrl(first.path)}" alt="${first.original_name || 'Imagen'}"
+                     onerror="app.productImageError(this)"
+                     class="object-cover w-full h-full pointer-events-none">
+                <span id="customCount${product.id}" class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-[11px] font-semibold text-white">1 / ${total}</span>
+                <span class="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-md bg-black/60 flex items-center justify-center text-white">${lucideIcon('zoom-in', 'w-4 h-4')}</span>
+            </div>
+            ${thumbs}
+            <p class="text-gray-500 text-[11px] mt-2">${total} ${total === 1 ? 'foto' : 'fotos'} de referencia · clic para ampliar</p>
+        `;
+    }
+
+    // La miniatura elegida pasa a la foto grande y se marca con el anillo azul.
+    selectCustomImage(thumb, packageId) {
+        const $thumb = $(thumb);
+        const $img   = $thumb.find('img');
+
+        if ($img.length) {
+            $(`#customMain${packageId}`).attr({ src: $img.attr('src'), alt: $img.attr('alt') });
+        }
+
+        $(`#customCount${packageId}`).text(`${$thumb.index() + 1} / ${$thumb.parent().children().length}`);
+        $thumb.addClass('ring-2 ring-blue-500').siblings().removeClass('ring-2 ring-blue-500');
     }
 
     renderProductImage(product) {
@@ -1431,68 +1648,66 @@ class App extends Templates {
 
         if (hasImage) {
             const imageUrl = fileUrl(product.image);
+            // La vista previa toma this.src y no imageUrl: si fileUrlFallback() cambio
+            // la ruta porque la original fallo, se amplia la que si cargo.
             return `
                 <img src="${imageUrl}" alt="${product.name}"
-                     class="object-cover w-full h-full"
-                     onerror="if (!this.dataset.fileFallback) { fileUrlFallback(this); } else { this.style.display='none'; this.nextElementSibling.style.display='flex'; }">
-                <div class="w-full h-full items-center justify-center hidden">
-                    <i class="icon-birthday text-white text-4xl"></i>
-                </div>
+                     class="object-cover w-full h-full cursor-pointer hover:opacity-80 transition-opacity"
+                     onclick="app.previewImage(this.src, this.alt)"
+                     onerror="app.productImageError(this)">
             `;
         } else {
             return `
                 <div class="w-full h-full flex items-center justify-center">
-                    <i class="icon-birthday text-white text-4xl"></i>
+                    ${lucideIcon('cake', 'w-6 h-6 text-white')}
                 </div>
             `;
         }
     }
 
-    renderPersonalizationGrid(customizations) {
+    // Foto de producto que no carga. Las fotos viejas solo viven en el servidor de
+    // produccion: primero se reintenta ahi (fileUrlFallback) y, si tampoco esta, se
+    // pone el icono de pastel en su lugar. El recuadro deja de abrir la vista previa
+    // porque ya no hay foto que ampliar.
+    productImageError(img) {
+        if (!img.dataset.fileFallback) return fileUrlFallback(img);
 
+        const $box = $(img).parent();
+
+        $box.removeAttr('onclick').removeClass('cursor-pointer hover:opacity-80 transition-opacity');
+        $box.addClass('flex items-center justify-center');
+        $(img).replaceWith(lucideIcon('cake', 'w-1/2 h-1/2 text-white'));
+    }
+
+    // Modificadores agrupados por categoria (Relleno, Cobertura...), en dos columnas.
+    // Cada opcion lleva su precio de modificador, o "Incluida" si no tiene costo.
+    renderPersonalizationGrid(customizations) {
         const grouped = {};
+
         customizations.forEach(item => {
-            const category = `${item.modifier_name || ''}:` || '';
-            if (!grouped[category]) {
-                grouped[category] = [];
-            }
+            const category = `${item.modifier_name || ''}:`;
+            if (!grouped[category]) grouped[category] = [];
             grouped[category].push(item);
         });
 
-        const entries = Object.entries(grouped);
-        const half = Math.ceil(entries.length / 2);
-        const leftColumn = entries.slice(0, half);
-        const rightColumn = entries.slice(half);
-        // <span class="text-white text-sm">$${parseFloat(item.custom_price || 0).toFixed(2)}</span>
+        const precio = (item) => {
+            const price = parseFloat(item.custom_price || 0);
+            const qty   = parseInt(item.custom_quantity || 1);
+            if (price <= 0) return 'Incluida';
+            return `${qty > 1 ? qty + ' × ' : ''}+${formatPrice(price)}`;
+        };
 
-        //  ${
-        //     item.custom_price && parseFloat(item.custom_price) > 0 ?
-        //     `<span class="text-white text-sm">$${parseFloat(item.custom_price).toFixed(2)}</span>` :
-        //     ''
-        // }
         return `
-            <div class="grid grid-cols-2 gap-8">
-                <div class="space-y-4">
-                    ${leftColumn.map(([category, items]) => `
-                        <div class="flex flex-col">
-                            <span class="text-purple-300 font-bold text-sm tracking-wide uppercase">${category}</span>
-                            ${items.map(item => `
-                                <span class="text-white font-medium text-sm">${item.name || 'N/A'}</span>
-                            `).join('')}
-                        </div>
-                    `).join('')}
-                </div>
-
-                <div class="space-y-4">
-                    ${rightColumn.map(([category, items]) => `
-                        <div class="flex flex-col">
-                            <span class="text-purple-300 font-bold text-sm tracking-wide uppercase">${category}</span>
-                            ${items.map(item => `
-                                <span class="text-white font-medium text-sm">${item.name || 'N/A'}</span>
-                            `).join('')}
-                        </div>
-                    `).join('')}
-                </div>
+            <div class="grid grid-cols-2 gap-x-6 gap-y-3">
+                ${Object.entries(grouped).map(([category, items]) => `
+                    <div class="flex flex-col">
+                        <span class="text-purple-300 font-bold text-[11px] tracking-wide uppercase">${category}</span>
+                        ${items.map(item => `
+                            <span class="text-white font-semibold text-sm">${item.name || 'N/A'}</span>
+                            <span class="text-gray-400 text-[11px]">${precio(item)}</span>
+                        `).join('')}
+                    </div>
+                `).join('')}
             </div>
         `;
     }
@@ -1526,8 +1741,9 @@ class App extends Templates {
             ${this.orderActions(orderData, orderId)}
             ${this.detailsCard(orderData, paymentMethods, payments)}
         `);
-        // El tipo de entrega se muestra en el encabezado del modal, fuera del panel.
+        // El tipo y el estado de entrega se muestran en el encabezado, fuera del panel.
         $('#orderDeliveryBadge').html(this.getBadgeDeliveryType(orderData.delivery_type));
+        $('#orderStatusBadge').html(this.statusDelivery(orderData.is_delivered));
     }
 
     // Edicion acotada desde el calendario: solo los datos de entrega (fecha, hora,
@@ -1698,7 +1914,7 @@ class App extends Templates {
             type:        'cancel',
             icon:        'lock',
             title:       'Pedido liquidado',
-            detailHtml:  'Ingresa tu contraseña para editar los datos de entrega.',
+            detailHtml:  'Este pedido ya se liquidó (está pagado completo). Cambiar sus datos de entrega requiere autorización: ingresa tu contraseña para continuar.',
             input:       'password',
             inputLabel:  'Contraseña',
             inputPlaceholder: '••••••••',
@@ -2655,18 +2871,21 @@ class App extends Templates {
         this.applyCobroShiftLock();
     }
 
-    deletePay(id, idFolio, requiereClave = 0) {
-        const row = event.target.closest("tr");
-        const raw = row.cells[2].textContent;
-        const clean = raw.replace(/[^\d.-]/g, "");
-        const amount = parseFloat(clean);
+    // Desde el historial el monto se lee de su fila de la tabla. El resumen de pago del
+    // detalle lo manda en amount porque sus abonos no son filas <tr>, y pide la
+    // contraseña siempre (pedirClave), este o no liquidado el pedido.
+    deletePay(id, idFolio, requiereClave = 0, amount = null, pedirClave = false) {
+        if (amount === null) {
+            const row = event.target.closest("tr");
+            amount = parseFloat(row.cells[2].textContent.replace(/[^\d.-]/g, ""));
+        }
 
         this._switchToPedidos();
 
         // Pedido liquidado: el controlador exige la contraseña del usuario en
         // sesión, así que se confirma con ella en vez del sí/no de siempre.
-        if (requiereClave == 1) {
-            this.deletePayWithKey(id, idFolio, amount);
+        if (requiereClave == 1 || pedirClave) {
+            this.deletePayWithKey(id, idFolio, amount, requiereClave == 1);
             return;
         }
 
@@ -2690,15 +2909,16 @@ class App extends Templates {
         });
     }
 
-    // Borrado autorizado: el saldo del pedido ya es cero, por lo que eliminar un
-    // abono reabre un pedido cerrado. Este modal solo recolecta la contraseña;
-    // quien la valida es deletePay() del controlador.
-    deletePayWithKey(id, idFolio, amount) {
+    // Borrado autorizado. Liquidado: el saldo del pedido ya es cero, por lo que
+    // eliminar un abono reabre un pedido cerrado. Sin liquidar: confirmacion con
+    // contraseña desde el resumen de pago del detalle. Este modal solo recolecta la
+    // contraseña; quien la valida es deletePay() del controlador.
+    deletePayWithKey(id, idFolio, amount, liquidado = true) {
         this.alertBox({
             theme:       'dark',
             type:        'cancel',
             icon:        'lock',
-            title:       'Pedido liquidado',
+            title:       liquidado ? 'Pedido liquidado' : 'Eliminar pago',
             detailHtml:  `Ingresa tu contraseña para eliminar el pago de <b class="text-gray-200">${formatPrice(amount)}</b>.`,
             input:       'password',
             inputLabel:  'Contraseña',
@@ -2725,7 +2945,7 @@ class App extends Templates {
                         title:      'No se eliminó el pago',
                         detailHtml: res.message || 'Contraseña incorrecta.',
                         okLabel:    'Reintentar',
-                        onOk:       () => this.deletePayWithKey(id, idFolio, amount)
+                        onOk:       () => this.deletePayWithKey(id, idFolio, amount, liquidado)
                     });
                     return;
                 }
@@ -2735,17 +2955,23 @@ class App extends Templates {
         });
     }
 
-    // Refresco comun tras eliminar un pago (con o sin contraseña).
+    // Refresco comun tras eliminar un pago (con o sin contraseña). Si se borro desde
+    // el resumen de pago del detalle, Gestion de Pagos (#modalAdvance) no esta
+    // abierto: solo se repinta el detalle y el link vuelve al calendario.
     afterDeletePay(res, idFolio) {
         const data = res.initHistoryPay;
 
-        this.renderResumenPagos(data.details);
-        this.lsPay(idFolio);
+        if ($('#modalAdvance').length) {
+            this.renderResumenPagos(data.details);
+            this.lsPay(idFolio);
 
-        const order = data.order;
-        this.totalPay = order.total_pay;
-        this.totalPaid = order.total_paid;
-        this.addPayment(order, idFolio);
+            const order = data.order;
+            this.totalPay = order.total_pay;
+            this.totalPaid = order.total_paid;
+            this.addPayment(order, idFolio);
+        } else {
+            this._restoreLink();
+        }
 
         // Refrescar detalles del pedido en el modal
         this.refreshOrderDetails(idFolio);

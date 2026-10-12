@@ -120,8 +120,12 @@ class OrderCustomController extends OrderCustom {
                 $this->createProductInOrderCustom($this->util->sql($productos));
             }
 
-            // Actualizar el total de la orden
-            $this->updateTotalOrder($orderPackageId);
+            // Actualizar el total de la orden. Se recalcula el pedido de la linea
+            // (pedidos_id): con el id de la linea se recalculaba otro pedido y el editado
+            // se quedaba con el total viejo.
+            if (!empty($orderPackage['pedidos_id'])) {
+                $this->updateTotalOrder($orderPackage['pedidos_id']);
+            }
             
             $status  = 200;
             $message = 'Pedido personalizado actualizado correctamente';

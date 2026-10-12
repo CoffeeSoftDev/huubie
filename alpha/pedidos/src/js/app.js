@@ -128,7 +128,7 @@ class App extends Templates {
                 opc: "input-calendar",
                 class: "col-12 col-md-3 col-lg-2",
                 id: "calendar",
-                lbl: "Consultar fecha: ",
+                lbl: "Buscar por fecha de captura:",
             },
             {
                 opc: "select",
@@ -159,29 +159,26 @@ class App extends Templates {
                 opc: 'button',
                 id: 'btnNuevoPedido',
                 class: 'col-6 col-md-3 col-lg-2',
-                text: 'Nuevo Pedido',
-                icon: 'icon-plus',
-                className: 'btn-primary w-100',
+                text: `${lucideIcon('plus')} Nuevo Pedido`,
+                className: 'flex items-center justify-center gap-2',
                 onClick: () => this.showTypePedido()
             },
             {
                 opc: "button",
                 id: "btnDailyClose",
-                text: "Cierre del día",
+                text: `${lucideIcon('receipt')} Cierre del día`,
                 class: "col-6 col-md-3 col-lg-2",
-                className: 'w-100',
+                className: 'flex items-center justify-center gap-2',
                 color_btn: 'success',
-                icon: "icon-receipt",
                 onClick: () => this.printDailyClose()
             },
             {
                 opc: "button",
-                className: "w-100",
+                className: 'flex items-center justify-center gap-2',
                 class: "col-12 col-md-3 col-lg-2",
                 color_btn: "secondary",
                 id: "btnCalendario",
-                text: "Calendario",
-                icon: "icon-calendar",
+                text: `${lucideIcon('calendar')} Calendario`,
                 onClick: () => {
                     if (!this.requireOpenShift()) return;
                     window.location.href = '../pedidos/calendario/index.php'
@@ -192,15 +189,37 @@ class App extends Templates {
 
         this.createfilterBar({
             parent: `filterBar${this.PROJECT_NAME}`,
+            coffeesoft: true,
+            theme: 'dark',
             data: filterBar
         });
+
+        // El icono del campo de fecha lo pone coffeeForm con Fontello; se cambia por Lucide.
+        $('#calendar').next().html(lucideIcon('calendar'));
 
         // El #subsidiaries_id lo provee la navbar (admin), ya preseleccionado
         // con la sucursal del usuario; aqui no se inicializa.
 
+        const ranges = {
+            "Hoy": [moment(), moment()],
+            "Ayer": [moment().subtract(1, "days"), moment().subtract(1, "days")],
+            "Semana actual": [moment().startOf("week"), moment().endOf("week")],
+            "Mes actual": [moment().startOf("month"), moment().endOf("month")],
+            "Mes anterior": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")],
+        };
+
+        // Un rango con nombre ("Hoy", "Mes actual") se recalcula al abrir, asi "Hoy" sigue
+        // siendo hoy al dia siguiente. El personalizado se respeta mientras no haya pasado;
+        // si ya termino, se vuelve a "Mes actual".
         const savedRange = JSON.parse(localStorage.getItem('pedidos3_calendar_range') || 'null');
-        const startDate = savedRange ? moment(savedRange.fi) : moment().startOf("month");
-        const endDate = savedRange ? moment(savedRange.ff) : moment().endOf("month");
+        let [startDate, endDate] = ranges["Mes actual"];
+
+        if (savedRange && ranges[savedRange.label]) {
+            [startDate, endDate] = ranges[savedRange.label];
+        } else if (savedRange && !moment(savedRange.ff).isBefore(moment(), 'day')) {
+            startDate = moment(savedRange.fi);
+            endDate   = moment(savedRange.ff);
+        }
 
         dataPicker({
             parent: "calendar",
@@ -208,16 +227,11 @@ class App extends Templates {
                 startDate: startDate,
                 endDate: endDate,
                 showDropdowns: true,
-                ranges: {
-                    "Hoy": [moment(), moment()],
-                    "Ayer": [moment().subtract(1, "days"), moment().subtract(1, "days")],
-                    "Semana actual": [moment().startOf("week"), moment().endOf("week")],
-                    "Mes actual": [moment().startOf("month"), moment().endOf("month")],
-                    "Mes anterior": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")],
-                },
+                ranges: ranges,
             },
             onSelect: (start, end) => {
                 localStorage.setItem('pedidos3_calendar_range', JSON.stringify({
+                    label: $('#calendar').data('daterangepicker').chosenLabel,
                     fi: start.format('YYYY-MM-DD'),
                     ff: end.format('YYYY-MM-DD')
                 }));
@@ -262,7 +276,7 @@ class App extends Templates {
         }).append(
 
             $("<label>", {
-                html: '<i class=" icon-location-8"></i> ' + opts.label,
+                html: lucideIcon('map-pin', 'w-4 h-4 mr-1.5') + opts.label,
                 class: "text-xs font-medium text-gray-600 text-left flex-1",
                 css: { 'font-size': '1rem', 'align-items': 'center', 'display': 'flex' }
             }),
@@ -393,8 +407,7 @@ class App extends Templates {
 
         if (dailyClosure.is_closed) {
             btn.prop('disabled', true)
-               .removeClass('btn-primary')
-               .addClass('btn-secondary opacity-50 cursor-not-allowed')
+               .addClass('opacity-50 cursor-not-allowed')
                .attr('title', 'Ya se realizó el cierre del día');
 
             if ($('#dailyClosureAlert').length === 0) {
@@ -410,8 +423,7 @@ class App extends Templates {
             }
         } else if (!openShift.has_open_shift) {
             btn.prop('disabled', true)
-               .removeClass('btn-primary')
-               .addClass('btn-secondary opacity-50 cursor-not-allowed')
+               .addClass('opacity-50 cursor-not-allowed')
                .attr('title', 'Debes abrir un turno de caja');
 
             if ($('#shiftAlert').length === 0) {
@@ -430,8 +442,7 @@ class App extends Templates {
         } else if (openShift.has_open_shift && openShift.opened_at && !moment(openShift.opened_at).isSame(moment(), 'day')) {
             const shiftDate = moment(openShift.opened_at).locale('es').format('DD/MMM/YYYY');
             btn.prop('disabled', true)
-               .removeClass('btn-primary')
-               .addClass('btn-secondary opacity-50 cursor-not-allowed')
+               .addClass('opacity-50 cursor-not-allowed')
                .attr('title', 'Existe un turno abierto de otro día');
 
             if ($('#shiftOldAlert').length === 0) {
@@ -455,8 +466,7 @@ class App extends Templates {
     enableNewOrderButton() {
         $('#btnNuevoPedido')
             .prop('disabled', false)
-            .removeClass('btn-secondary opacity-50 cursor-not-allowed')
-            .addClass('btn-primary')
+            .removeClass('opacity-50 cursor-not-allowed')
             .attr('title', '');
 
         $('#dailyClosureAlert').remove();
@@ -552,12 +562,14 @@ class App extends Templates {
                     lbl: "",
                     class: "col-12",
                     placeholder: "Buscar folio, cliente o teléfono",
-                    icon: "icon-search",
                     required: false,
                     onkeyup: "app.searchOrders()"
                 }
             ]
         });
+
+        // El plugin deja el hueco del icono (input-group-text); se llena con Lucide.
+        $('#search').siblings('.input-group-text').html(lucideIcon('search', 'w-3.5 h-3.5'));
 
         $('#search').attr('autocomplete', 'off').closest('.input-group').append(
             $('<span>', {
@@ -570,7 +582,7 @@ class App extends Templates {
                 class: 'search-clear hidden',
                 title: 'Limpiar búsqueda',
                 'aria-label': 'Limpiar búsqueda',
-                html: '<i class="icon-cancel"></i>',
+                html: lucideIcon('x', 'w-3 h-3 mx-auto'),
                 click: () => this.clearOrderSearch()
             })
         );
@@ -636,6 +648,11 @@ class App extends Templates {
             data: { opc: "addOrder" },
             json: this.jsonOrder(),
 
+            // Boton apagado mientras se guarda: un doble clic creaba dos pedidos en el
+            // mismo segundo y uno quedaba como cotizacion vacia. Con el boton disabled
+            // tampoco aplica el envio con Enter.
+            beforeSend: () => $("#btnGuardarPedido").prop("disabled", true),
+
             success: (response) => {
                 if (response.status == 200) {
 
@@ -683,6 +700,8 @@ class App extends Templates {
 
 
                 } else {
+                    $("#btnGuardarPedido").prop("disabled", false);
+
                     alert({
                         icon: "error",
                         text: response.message,
@@ -2401,16 +2420,19 @@ class App extends Templates {
         this.applyCobroShiftLock();
     }
 
-    deletePay(id, idFolio, requiereClave = 0) {
-        const row = event.target.closest("tr");
-        const raw = row.cells[2].textContent;
-        const clean = raw.replace(/[^\d.-]/g, "");
-        const amount = parseFloat(clean);
+    // Desde el historial el monto se lee de su fila de la tabla. El resumen de pago del
+    // detalle lo manda en amount porque sus abonos no son filas <tr>, y pide la
+    // contraseña siempre (pedirClave), este o no liquidado el pedido.
+    deletePay(id, idFolio, requiereClave = 0, amount = null, pedirClave = false) {
+        if (amount === null) {
+            const row = event.target.closest("tr");
+            amount = parseFloat(row.cells[2].textContent.replace(/[^\d.-]/g, ""));
+        }
 
         // Pedido liquidado: el controlador exige la contraseña del usuario en
         // sesión, así que se confirma con ella en vez del sí/no de siempre.
-        if (requiereClave == 1) {
-            this.deletePayWithKey(id, idFolio, amount);
+        if (requiereClave == 1 || pedirClave) {
+            this.deletePayWithKey(id, idFolio, amount, requiereClave == 1);
             return;
         }
 
@@ -2433,15 +2455,16 @@ class App extends Templates {
         });
     }
 
-    // Borrado autorizado: el saldo del pedido ya es cero, por lo que eliminar un
-    // abono reabre un pedido cerrado. Este modal solo recolecta la contraseña;
-    // quien la valida es deletePay() del controlador.
-    deletePayWithKey(id, idFolio, amount) {
+    // Borrado autorizado. Liquidado: el saldo del pedido ya es cero, por lo que
+    // eliminar un abono reabre un pedido cerrado. Sin liquidar: confirmacion con
+    // contraseña desde el resumen de pago del detalle. Este modal solo recolecta la
+    // contraseña; quien la valida es deletePay() del controlador.
+    deletePayWithKey(id, idFolio, amount, liquidado = true) {
         this.alertBox({
             theme:       'dark',
             type:        'cancel',
             icon:        'lock',
-            title:       'Pedido liquidado',
+            title:       liquidado ? 'Pedido liquidado' : 'Eliminar pago',
             detailHtml:  `Ingresa tu contraseña para eliminar el pago de <b class="text-gray-200">${formatPrice(amount)}</b>.`,
             input:       'password',
             inputLabel:  'Contraseña',
@@ -2466,7 +2489,7 @@ class App extends Templates {
                         title:      'No se eliminó el pago',
                         detailHtml: res.message || 'Contraseña incorrecta.',
                         okLabel:    'Reintentar',
-                        onOk:       () => this.deletePayWithKey(id, idFolio, amount)
+                        onOk:       () => this.deletePayWithKey(id, idFolio, amount, liquidado)
                     });
                     return;
                 }
@@ -2477,20 +2500,27 @@ class App extends Templates {
     }
 
     // Refresco comun tras eliminar un pago (con o sin contraseña): resumen, lista,
-    // tabla de pedidos y formulario de cobro con el saldo nuevo.
+    // tabla de pedidos y formulario de cobro con el saldo nuevo. Si se borro desde el
+    // resumen de pago del detalle, Gestion de Pagos (#modalAdvance) no esta abierto y
+    // lo que se repinta es el detalle.
     afterDeletePay(res, idFolio) {
         const data = res.initHistoryPay;
 
-        this.renderResumenPagos(data.details);
-        this.lsPay(idFolio);
+        if ($('#orderInfoPanel').length) this.refreshOrderDetails(idFolio);
+
+        if ($('#modalAdvance').length) {
+            this.renderResumenPagos(data.details);
+            this.lsPay(idFolio);
+
+            const order = data.order;
+            this.totalPay = order.total_pay;
+            this.totalPaid = order.total_paid;
+
+            // Recargar el formulario para reflejar el nuevo estado
+            this.addPayment(order, idFolio);
+        }
+
         this.ls();
-
-        const order = data.order;
-        this.totalPay = order.total_pay;
-        this.totalPaid = order.total_paid;
-
-        // Recargar el formulario para reflejar el nuevo estado
-        this.addPayment(order, idFolio);
 
         alert({
             icon: "success",
@@ -2811,14 +2841,16 @@ class App extends Templates {
         const subsidiarieName = response.data.order.subsidiarie_name || '';
 
         // createCoffeeModalForm no trae modo solo lectura, asi que el detalle va como
-        // bloque 'html' y el footer de botones se quita mas abajo.
+        // bloque 'html' y del footer se quita Confirmar mas abajo.
         const modal = createCoffeeModalForm({
             id: 'modalOrderDetails',
-            title: 'Detalles del Pedido',
+            title: `Pedido #${response.data.order.folio}`,
             iconSvg: lucideIcon('cake', 'w-5 h-5'),
-            iconBg: 'bg-blue-600',
+            iconBg: 'bg-blue-500',
             theme: 'dark',
             width: 900,
+            cancelText: 'Cerrar',
+            cancelBg: 'bg-[#2C3A4C] hover:bg-[#36475D] text-white',
             json: [
                 {
                     opc: 'html',
@@ -2827,23 +2859,40 @@ class App extends Templates {
             ]
         });
 
-        // Tipo de entrega y sucursal como subtitulo del encabezado, igual que en
-        // historyPay: el componente no admite subtitulo por opciones. El badge conserva
-        // el id orderDeliveryBadge porque refreshOrderDetails() lo repinta.
-        const $header = modal.el.find('.cf-card').children().first();
+        // Encabezado y footer a todo el ancho de la tarjeta, separados del cuerpo por
+        // una linea. El componente no trae esas opciones, se ajustan sus clases. Los
+        // espaciados van como valores arbitrarios (px-[20px]) porque bootstrap.min.css
+        // pisa px-5, p-4 y similares con !important.
+        const $card   = modal.el.find('.cf-card');
+        const $header = $card.children().first();
 
-        $header.removeClass('items-center').addClass('items-start');
-        $header.find('span').first().wrap('<div class="flex-1 min-w-0"></div>').after(`
-            <div class="flex items-center gap-2 mt-1">
+        $card.removeClass('p-4').addClass('overflow-hidden');
+        $header.removeClass('items-center mb-3').addClass('items-start px-[20px] py-[16px] border-b border-white/10');
+        $header.children().first().removeClass('w-9 h-9 rounded-lg').addClass('w-11 h-11 rounded-xl');
+        $header.find('.cf-close').removeClass('p-1 -mr-1').addClass('w-8 h-8 rounded-lg border border-gray-600');
+
+        // Tipo de entrega, sucursal y estado de entrega como subtitulo del encabezado: el
+        // componente no admite subtitulo por opciones. Los badges conservan su id porque
+        // refreshOrderDetails() los repinta.
+        $header.find('span').first().removeClass('text-base truncate').addClass('text-lg block')
+            .wrap('<div class="flex-1 min-w-0"></div>').after(`
+            <div class="flex flex-wrap items-center gap-2 mt-1.5">
                 <span id="orderDeliveryBadge">${badgeTipo}</span>
-                <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200 inline-flex items-center gap-1">
-                    ${lucideIcon('house', 'w-3.5 h-3.5')}${subsidiarieName}
+                <span class="inline-flex items-center gap-1 text-xs text-gray-400">
+                    ${lucideIcon('house', 'w-3.5 h-3.5')} ${subsidiarieName}
                 </span>
+                <span id="orderStatusBadge">${this.statusDelivery(response.data.order.is_delivered)}</span>
             </div>`);
 
-        // El detalle es de consulta: sin Cancelar ni Confirmar. Se cierra con la X,
-        // Escape o clic fuera.
-        modal.el.find('.cf-confirm').parent().remove();
+        // El detalle es de consulta: sin Confirmar. El boton de cancelar queda como
+        // "Cerrar", a la derecha del footer, con la nota de consulta a la izquierda.
+        modal.el.find('.cf-confirm').remove();
+        modal.el.find('.cf-cancel').removeClass('flex-1').addClass('px-6').parent()
+            .removeClass('mt-4').addClass('items-center justify-between px-[20px] py-[12px] border-t border-white/10')
+            .prepend(`
+                <p class="text-xs text-gray-400 flex items-center gap-1.5">
+                    ${lucideIcon('info', 'w-3.5 h-3.5')} Pedido de consulta — sin edición de productos
+                </p>`);
 
         this.layoutManager = {
             isMobile: () => window.innerWidth < 768,
@@ -2852,14 +2901,14 @@ class App extends Templates {
 
             applyLayout: function () {
                 const container = $('#orderDetailsContainer');
-                container.removeClass('flex flex-col flex-row space-y-4   p-3');
+                container.removeClass('flex flex-col flex-row space-y-4 p-[16px] p-[20px]');
 
                 if (this.isMobile()) {
-                    container.addClass('flex flex-col space-y-4 p-3');
+                    container.addClass('flex flex-col space-y-4 p-[16px]');
                 } else if (this.isTablet()) {
-                    container.addClass('flex flex-col lg:flex-row p-3');
+                    container.addClass('flex flex-col lg:flex-row p-[20px]');
                 } else {
-                    container.addClass('flex flex-row  p-3');
+                    container.addClass('flex flex-row p-[20px]');
                 }
             }
         };
@@ -2872,13 +2921,13 @@ class App extends Templates {
         const payments = response.data.payments || [];
 
         $('#orderDetailsContainer').html(`
-            <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
-                <div class="lg:sticky lg:top-4">
+            <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-2">
+                <div class="lg:sticky lg:top-0">
                     ${this.detailsCard(orderData, paymentMethods, payments)}
                 </div>
             </div>
 
-            <div id="productDisplayArea" class="w-full lg:w-2/3 lg:pl-3">
+            <div id="productDisplayArea" class="w-full lg:w-2/3 lg:pl-2">
                 ${this.listProducts(products)}
             </div>
         `);
@@ -2901,8 +2950,9 @@ class App extends Templates {
         const payments       = response.data.payments || [];
 
         $('#orderInfoPanel .lg\\:sticky').html(this.detailsCard(orderData, paymentMethods, payments));
-        // El tipo de entrega se muestra en el encabezado del modal, fuera del panel.
+        // El tipo y el estado de entrega se muestran en el encabezado, fuera del panel.
         $('#orderDeliveryBadge').html(this.getBadgeDeliveryType(orderData.delivery_type));
+        $('#orderStatusBadge').html(this.statusDelivery(orderData.is_delivered));
     }
 
     // Edicion acotada desde el detalle del pedido: solo los datos de entrega (fecha,
@@ -3090,7 +3140,7 @@ class App extends Templates {
             type:        'cancel',
             icon:        'lock',
             title:       'Pedido liquidado',
-            detailHtml:  'Ingresa tu contraseña para editar los datos de entrega.',
+            detailHtml:  'Este pedido ya se liquidó (está pagado completo). Cambiar sus datos de entrega requiere autorización: ingresa tu contraseña para continuar.',
             input:       'password',
             inputLabel:  'Contraseña',
             inputPlaceholder: '••••••••',
@@ -3160,13 +3210,15 @@ class App extends Templates {
             <span class="flex flex-col gap-2 mt-3 text-left">${filas}</span>`;
     }
 
+    // Pildora con contorno del encabezado del detalle. border-[1px] y no `border`: el
+    // .border de bootstrap lleva !important y pintaria el contorno gris.
     getBadgeDeliveryType(tipo) {
         if (tipo == 0 || tipo === '0') {
-            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 inline-flex items-center gap-1 w-24 justify-center">${lucideIcon('house', 'w-3.5 h-3.5')} Local</span>`;
+            return `<span class="px-2.5 py-0.5 rounded-full border-[1px] border-blue-500/50 bg-blue-500/10 text-blue-300 text-xs font-semibold inline-flex items-center gap-1">${lucideIcon('store', 'w-3.5 h-3.5')} Local</span>`;
         } else if (tipo == 1 || tipo === '1') {
-            return `<span class="px-3 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700 inline-flex items-center gap-1 w-28 justify-center">${lucideIcon('truck', 'w-3.5 h-3.5')} Domicilio</span>`;
+            return `<span class="px-2.5 py-0.5 rounded-full border-[1px] border-amber-500/50 bg-amber-500/10 text-amber-300 text-xs font-semibold inline-flex items-center gap-1">${lucideIcon('truck', 'w-3.5 h-3.5')} A domicilio</span>`;
         }
-        return '<span class="px-3 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-700 inline-block w-24 text-center">Sin especificar</span>';
+        return '<span class="px-2.5 py-0.5 rounded-full border-[1px] border-gray-500/50 bg-gray-500/10 text-gray-300 text-xs font-semibold inline-flex items-center">Sin especificar</span>';
     }
 
     detailsCard(orderData, paymentMethods = [], payments = []) {
@@ -3178,11 +3230,11 @@ class App extends Templates {
         `;
     }
 
-    // Editar los datos de entrega vive junto al titulo de la tarjeta que los muestra.
+    // Editar los datos de entrega va al pie de la tarjeta que los muestra.
     // Un pedido liquidado (3) lo corrigen admin (1) y supervisores (6, 7), y ahi la
     // edicion pide contraseña; el resto de los pedidos, cualquiera que opere la lista.
     // El cancelado (4) no se edita.
-    editDeliveryIcon(orderData) {
+    editDeliveryButton(orderData) {
         const liquidado  = orderData.status == '3';
         const autorizado = rol == 1 || rol == 6 || rol == 7;
         const editable   = orderData.status != '4' && (!liquidado || autorizado);
@@ -3192,58 +3244,68 @@ class App extends Templates {
         return `
             <button onclick="app.editOrderDelivery(${orderData.id})"
                 title="${liquidado ? 'Editar datos de entrega (requiere contraseña)' : 'Editar datos de entrega'}"
-                class="ml-auto flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
-                ${lucideIcon('pencil', 'w-4 h-4')}
+                class="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-600 text-xs font-semibold text-gray-200 hover:text-white hover:bg-white/10 transition-colors">
+                ${lucideIcon('pencil', 'w-3.5 h-3.5')}
+                Editar entrega
             </button>`;
     }
 
+    // Fecha y hora de entrega van en una sola fila. getOrderID ya las manda con formato
+    // de pantalla (12/10/2026 y 04:00 PM). El estado de entrega se muestra en el
+    // encabezado del modal. Capturó y Produjo solo los consultan admin (1), SuperAdmin
+    // (5) y supervisores (6, 7), como en el detalle del calendario.
     infoOrder(orderData) {
+        const entrega    = [orderData.date_order, orderData.time_order].filter(Boolean).join(' · ');
+        const supervisa  = [1, 5, 6, 7].includes(Number(rol));
+
+        const fila = (icono, label, valor) => `
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon(icono, 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-300 text-sm">${label}</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${valor || 'N/A'}</span>
+                    </div>`;
+
         return `
-            <div class="bg-[#2C3E50] rounded-lg p-3">
-                <h3 class="text-white font-semibold text-base mb-2 flex items-center">
+            <div class="bg-[#29374A] rounded-xl p-[16px]">
+                <h3 class="text-white font-semibold text-base mb-3 flex items-center">
                     ${lucideIcon('info', 'w-4 h-4 text-blue-400 mr-2')}
-                    Información del Pedido
-                    ${this.editDeliveryIcon(orderData)}
+                    Información del pedido
                 </h3>
 
-                <div class="space-y-1.5">
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('file-text', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Folio:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.folio || 'N/A'}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('user', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Cliente:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.name || 'N/A'}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('history', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Creado:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${this.formatDateTime(orderData.date_creation) || 'N/A'}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('calendar', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Fecha de entrega:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('clock', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Hora:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.time_order || 'N/A'}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        ${lucideIcon('truck', 'w-4 h-4 text-gray-400 shrink-0')}
-                        <span class="text-gray-400 text-xs">Estado de entrega:</span>
-                        <span class="ml-auto">${this.statusDelivery(orderData.is_delivered)}</span>
-                    </div>
+                <div class="space-y-2.5">
+                    ${fila('file-text', 'Folio:', orderData.folio)}
+                    ${fila('user', 'Cliente:', orderData.name)}
+                    ${fila('clock', 'Creado:', this.formatDateTime(orderData.date_creation))}
+                    ${supervisa ? fila('user-pen', 'Capturó:', orderData.created_by_name || 'Sin registro') : ''}
+                    ${supervisa ? this.producedByRow(orderData) : ''}
+                    ${fila('calendar', 'Entrega:', entrega)}
                 </div>
+
+                ${this.editDeliveryButton(orderData)}
             </div>
         `;
+    }
+
+    // Quien palomeo el pedido en Produccion y cuando: 09/OCT/2026 10:15pm. produced_at
+    // llega de getOrderID como 09/10/2026 10:15 PM. "Sin registro" = la palomita existe
+    // pero el usuario ya no esta en usr_users.
+    producedByRow(orderData) {
+        const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+        const fecha = moment(orderData.produced_at, 'DD/MM/YYYY hh:mm A', true);
+
+        const value = orderData.produced_at
+            ? `<span class="block text-white font-semibold text-sm">${orderData.produced_by_name || 'Sin registro'}</span>
+               <span class="block text-gray-400 text-[11px]">${fecha.isValid()
+                    ? `${fecha.format('DD')}/${meses[fecha.month()]}/${fecha.format('YYYY')} ${fecha.format('hh:mma')}`
+                    : orderData.produced_at}</span>`
+            : `<span class="block text-gray-400 font-semibold text-sm">Aún sin producir</span>`;
+
+        return `
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('cake', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-300 text-sm">Produjo:</span>
+                        <span class="ml-auto text-right leading-tight">${value}</span>
+                    </div>`;
     }
 
     // border-1 no existe en Tailwind (la utilidad es `border`), por eso las etiquetas
@@ -3260,7 +3322,7 @@ class App extends Templates {
         const estado = estados[is_delivered]
             || { tono: 'bg-red-500/10 border-red-500/50 text-red-300', icono: 'circle-x', texto: 'No entregado' };
 
-        return `<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full border-[1px] ${estado.tono} inline-flex items-center gap-1 whitespace-nowrap leading-none">
+        return `<span class="px-2.5 py-0.5 text-xs font-semibold rounded-full border-[1px] ${estado.tono} inline-flex items-center gap-1 whitespace-nowrap">
                     ${lucideIcon(estado.icono, 'w-3 h-3')} ${estado.texto}
                 </span>`;
     }
@@ -3306,38 +3368,57 @@ class App extends Templates {
         const balance = parseFloat(orderData.balance || 0);
         const infoDiscount = orderData.info_discount || '';
 
+        // Total a cobrar y avance del pago para la barra: Pagado N% · Faltan $X.
+        const total   = totalPay - discount;
+        const avance  = total > 0 ? Math.min(100, Math.round(totalPaid / total * 100)) : 0;
+        const faltan  = Math.max(balance, 0);
+
+        // Eliminar abono: el mismo boton del historial de pagos (listPayment). Solo el
+        // admin (1) borra pagos y aqui siempre confirma con contraseña (ultimo
+        // argumento de deletePay). Con el pedido liquidado lleva candado, como en el
+        // historial.
+        const requiereClave = balance <= 0.009 ? 1 : 0;
+        const deleteBtn = (p) => rol == 1 ? `
+                                <button type="button" onclick="app.deletePay(${p.id}, ${orderData.id}, ${requiereClave}, ${parseFloat(p.pay || 0)}, true)"
+                                    title="Eliminar pago (requiere contraseña)"
+                                    class="${requiereClave ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'} p-1 shrink-0">
+                                    ${lucideIcon(requiereClave ? 'lock' : 'trash-2', 'w-3.5 h-3.5')}
+                                </button>` : '';
+
         // Historial detallado: cada abono con su fecha y metodo, sin agrupar.
         // Si no llega el historial, se cae al resumen agrupado por metodo.
         const methodsHtml = (Array.isArray(payments) && payments.length > 0) ? `
-                    <div class="space-y-1">
-                        <span class="text-gray-400 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-1">
-                            ${lucideIcon('history', 'w-3.5 h-3.5 text-gray-400')}
+                    <div class="border-l-2 border-gray-600 pl-3">
+                        <span class="text-gray-400 text-[11px] font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-1">
+                            ${lucideIcon('clock', 'w-3.5 h-3.5')}
                             Abonos (${payments.length})
                         </span>
-                        <div>
-                            ${payments.map((p, idx) => {
+                        <div class="divide-y divide-gray-600/60">
+                            ${payments.map(p => {
                                 const st = this.paymentMethodStyle(p.method_pay);
-                                const isLast = idx === payments.length - 1;
                                 return `
-                            <div class="flex items-center justify-between gap-2 ${!isLast ? 'pb-3' : ''}">
+                            <div class="flex items-center justify-between gap-2 py-2">
                                 <div class="flex flex-col min-w-0">
-                                    <span class="text-white text-xs font-medium flex items-center gap-1.5">
+                                    <span class="text-white text-xs font-semibold flex items-center gap-1.5">
                                         ${lucideIcon(st.icon, 'w-3.5 h-3.5 ' + st.text)}
                                         ${p.method_pay || 'Sin método'}
                                     </span>
                                     <span class="text-gray-500 text-[11px]">${this.formatPayDate(p.date_pay)}</span>
                                 </div>
-                                <span class="text-green-400 font-bold text-sm whitespace-nowrap">${formatPrice(p.pay)}</span>
+                                <span class="flex items-center gap-1 ml-auto">
+                                    <span class="text-green-400 font-bold text-sm whitespace-nowrap">${formatPrice(p.pay)}</span>
+                                    ${deleteBtn(p)}
+                                </span>
                             </div>
                             `;
                             }).join('')}
                         </div>
                     </div>
         ` : (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
-                    <div class="pl-2 space-y-1 border-l-2 border-gray-600">
+                    <div class="pl-3 space-y-1 border-l-2 border-gray-600">
                         ${paymentMethods.map(m => `
                         <div class="flex items-center justify-between">
-                            <span class="text-gray-500 text-xs flex items-center gap-1.5">
+                            <span class="text-gray-400 text-xs flex items-center gap-1.5">
                                 ${lucideIcon('credit-card', 'w-3.5 h-3.5')}
                                 ${m.method_pay || 'Sin método'}:
                             </span>
@@ -3348,43 +3429,54 @@ class App extends Templates {
         ` : '';
 
         const discountHtml = discount > 0 ? `
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-400 text-sm">Descuento:</span>
-                        <span class="text-yellow-400 font-bold text-sm">-${formatPrice(discount)}</span>
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300 text-sm">Descuento:</span>
+                            <span class="text-amber-400 font-bold text-sm">−${formatPrice(discount)}</span>
+                        </div>
+                        ${infoDiscount ? `<span class="block text-gray-500 text-[11px] italic mt-0.5">${infoDiscount}</span>` : ''}
                     </div>
-                    ${infoDiscount ? `
-                    <div class="flex items-center justify-start">
-                        <span class="text-gray-500 text-xs italic">${infoDiscount}</span>
-                    </div>
-                    ` : ''}
         ` : '';
 
         return `
-            <div class="bg-[#2C3E50] rounded-lg p-3">
-                <h3 class="text-white font-semibold text-base mb-2 flex items-center">
+            <div class="bg-[#29374A] rounded-xl p-[16px]">
+                <h3 class="text-white font-semibold text-base mb-3 flex items-center">
                     ${lucideIcon('dollar-sign', 'w-4 h-4 text-green-400 mr-2')}
                     Resumen de pago
                 </h3>
 
-                <div class="space-y-2">
+                <div class="space-y-2.5">
                     <div class="flex items-center justify-between">
-                        <span class="text-gray-400 text-sm">Subtotal:</span>
+                        <span class="text-gray-300 text-sm">Subtotal:</span>
                         <span class="text-white font-bold text-sm">${formatPrice(totalPay)}</span>
                     </div>
 
                     ${discountHtml}
 
                     <div class="flex items-center justify-between">
-                        <span class="text-gray-400 text-sm">Pagado:</span>
+                        <span class="text-gray-300 text-sm">Total:</span>
+                        <span class="text-white font-bold text-base">${formatPrice(total)}</span>
+                    </div>
+
+                    <div>
+                        <div class="h-1.5 rounded-full bg-gray-700 overflow-hidden">
+                            <div class="h-full rounded-full bg-emerald-400" style="width:${avance}%"></div>
+                        </div>
+                        <div class="flex items-center justify-between mt-1.5 text-[11px]">
+                            <span class="text-emerald-400 font-semibold">Pagado: ${avance}%</span>
+                            <span class="text-gray-400">Faltan ${formatPrice(faltan)}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-300 text-sm">Pagado:</span>
                         <span class="text-green-400 font-bold text-sm">${formatPrice(totalPaid)}</span>
                     </div>
 
                     ${methodsHtml}
 
-                    <div class="border-t border-gray-600 my-1.5"></div>
-
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-400 text-sm">Saldo:</span>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-gray-300 text-sm">Saldo:</span>
                         <span class="text-red-400 font-bold text-sm">${formatPrice(balance)}</span>
                     </div>
                 </div>
@@ -3408,31 +3500,23 @@ class App extends Templates {
 
         const totalItems = products.reduce((acc, item) => acc + parseInt(item.quantity || 1), 0);
 
+        // Sin scroll propio: la lista crece y lo que se desplaza es el contenedor del
+        // modal (#orderDetailsContainer), con una sola barra.
         return `
-            <div class="flex flex-col h-full">
-                <div class="bg-[#283341] rounded-lg p-3 mb-3">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-white font-semibold text-lg flex items-center">
-                            ${lucideIcon('shopping-basket', 'w-5 h-5 mr-2 text-blue-400')}
-                            Productos del Pedido
-                        </h3>
-                        <span class="text-gray-300 font-medium"> ${totalItems} productos</span>
-                    </div>
+            <div class="flex flex-col">
+                <div class="bg-[#29374A] rounded-xl px-[16px] py-[12px] mb-3 flex items-center justify-between">
+                    <h3 class="text-white font-semibold text-base flex items-center">
+                        ${lucideIcon('shopping-bag', 'w-4 h-4 mr-2 text-blue-400')}
+                        Productos del pedido
+                    </h3>
+                    <span class="text-gray-400 text-sm">${totalItems} productos</span>
                 </div>
-                <div id="productsContainer" class="space-y-4 overflow-y-auto flex-1">
-            ${products.map(product => {
-
-                console.log('recorrido de product: ',product);
-
-
-            if (product.is_custom || (product.customer_products && product.customer_products.length > 0)) {
-
-                return this.cardCustom(product);
-
-            } else {
-                return this.cardNormal(product);
-            }
-        }).join('')}
+                <div id="productsContainer" class="space-y-3">
+                    ${products.map(product =>
+                        product.is_custom || (product.customer_products && product.customer_products.length > 0)
+                            ? this.cardCustom(product)
+                            : this.cardNormal(product)
+                    ).join('')}
                 </div>
             </div>
         `;
@@ -3444,129 +3528,148 @@ class App extends Templates {
         const hasDetails = product.order_details && product.order_details.trim() !== '';
 
         return `
-            <div class="bg-[#2C3E50] rounded-lg p-3 relative">
-                <div class="absolute top-5 right-6 text-right">
-                    <span class="text-gray-400 text-sm">Cantidad: <span class="text-white font-bold text-sm">${product.quantity || 1}</span></span>
+            <div class="bg-[#29374A] rounded-xl p-[16px] flex items-start gap-[16px]">
+                <div class="w-14 h-14 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
+                    ${this.renderProductImage(product)}
                 </div>
 
-                <div class="flex items-start gap-6 pr-32">
-                    <div class="w-28 h-28 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
-                        ${this.renderProductImage(product)}
-                    </div>
+                <div class="flex-1 min-w-0">
+                    <h4 class="text-white font-bold text-sm uppercase">${product.name || 'Producto sin nombre'}</h4>
+                    <p class="text-blue-400 text-xs mt-0.5">${formatPrice(product.price)} c/u</p>
 
-                    <div class="flex-1">
-                        <h4 class="text-white font-bold text-lg mb-2 uppercase">${product.name || 'Producto sin nombre'}</h4>
-                        <p class="text-blue-400 font-semibold text-xs mb-4">$${parseFloat(product.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} c/u</p>
-
-                        ${(hasDedication || hasDetails) ? `
-                        <div class="flex gap-12">
-                            ${hasDedication ? `
-                            <div class="flex-1">
-                                <span class="text-gray-400 text-sm font-medium">Dedicatoria:</span>
-                                <p class="text-white text-xs">${product.dedication}</p>
-                            </div>
-                            ` : ''}
-                            ${hasDetails ? `
-                            <div class="flex-1">
-                                <span class="text-gray-400 text-sm font-medium">Observaciones:</span>
-                                <p class="text-white text-xs">${product.order_details}</p>
-                            </div>
-                            ` : ''}
-                        </div>
-                        ` : ''}
-                    </div>
+                    ${hasDedication ? `
+                    <p class="text-gray-400 text-xs mt-3">Dedicatoria:</p>
+                    <p class="text-white text-xs font-semibold">${product.dedication}</p>
+                    ` : ''}
+                    ${hasDetails ? `
+                    <p class="text-gray-400 text-xs mt-2">Observaciones:</p>
+                    <p class="text-white text-xs font-semibold">${product.order_details}</p>
+                    ` : ''}
                 </div>
 
-                <div class="absolute bottom-5 right-6 text-right">
-                    <span class="text-gray-400 text-sm block mb-1">Total:</span>
-                    <p class="text-white font-bold text-lg">$${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <div class="self-stretch flex flex-col items-end justify-between gap-3 text-right shrink-0">
+                    <span class="text-gray-400 text-sm">Cantidad: <span class="text-white font-bold">${product.quantity || 1}</span></span>
+                    <div>
+                        <span class="text-gray-400 text-xs block">Importe</span>
+                        <p class="text-white font-bold text-lg">${formatPrice(total)}</p>
+                    </div>
                 </div>
             </div>
         `;
     }
 
     cardCustom(product) {
-
-        console.log('🧩 cardCustom: ',product);
-
         const hasDedication    = product.dedication && product.dedication.trim()       !== '';
         const hasDetails       = product.order_details && product.order_details.trim() !== '';
-        const hasImages        = product.images && Array.isArray(product.images) && product.images.length > 0;
         const hasCustomization = product.customer_products && product.customer_products.length > 0;
 
-        const customizationTotal = product.customer_products ?
-            product.customer_products.reduce((sum, item) => sum + parseFloat(item.custom_price || 0), 0) : 0;
-
-        const finalTotal = (parseFloat(product.price || 0) + customizationTotal) * parseInt(product.quantity || 1);
-
+        // price es order_custom.price_real: el precio que se cobra y que ya incluye la
+        // personalizacion. El total de la linea es ese precio por la cantidad, igual que
+        // lo suma updateTotalOrder() en total_pay.
+        const total = parseFloat(product.price || 0) * parseInt(product.quantity || 1);
 
         return `
-        <div class="bg-[#2C3E50] rounded-lg p-3 relative">
-            <div class=" mb-6">
-                <h4 class="text-white font-bold text-sm uppercase">${product.name || 'Pastel Personalizado'}</h4>
-                <span class="inline-flex items-center px-3 py-2 mt-2 rounded-2xl text-[10px] font-bold bg-purple-200 text-purple-500 lowercase">
-                    Personalizado
-                </span>
-            </div>
-
-            <div class="absolute top-5 right-6">
-                <span class="text-gray-400 text-sm">Cantidad: <span class="text-white font-bold">${product.quantity || 1}</span></span>
-            </div>
-
-            ${hasImages ? `
-            <div class="flex gap-3 pb-4 border-b border-gray-700">
-                ${product.images.slice(0, 3).map(img => {
-            const fullUrl = fileUrl(img.path);
-            // La vista previa lee el src de la <img> y no fullUrl: si la foto solo
-            // existe en produccion, fileUrlFallback() ya cambio la ruta y fullUrl (la
-            // local) abriria una imagen rota.
-            return `
-                        <div class="w-28 h-28 rounded-lg overflow-hidden bg-gray-700 cursor-pointer hover:opacity-80 transition-opacity"
-                             onclick="app.previewImage(this.querySelector('img').src, this.querySelector('img').alt)">
-                            <img src="${fullUrl}"
-                                 alt="${img.original_name || 'Imagen'}"
-                                 onerror="app.productImageError(this)"
-                                 class="object-cover w-full h-full pointer-events-none">
-                        </div>
-                    `;
-        }).join('')}
-            </div>
-            ` : ''}
-
-            <div class="mb-3">
-                <span class="text-gray-400 text-sm">Porción: <span class="text-white font-bold text-sm">${product.portion_qty || 1}</span></span>
-            </div>
-
-            ${(hasDedication || hasDetails) ? `
-            <div class="flex gap-12 mb-6 ">
-                ${hasDedication ? `
-                <div class="flex-1">
-                    <span class="text-gray-400 text-sm font-medium">Dedicatoria:</span>
-                    <p class="text-white text-base text-justify">${product.dedication}</p>
+        <div class="bg-[#29374A] rounded-xl p-[16px]">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div class="flex items-center gap-2 min-w-0">
+                    <h4 class="text-white font-bold text-sm uppercase truncate">${product.name || 'Pastel Personalizado'}</h4>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-500/20 text-purple-300 shrink-0">Personalizado</span>
                 </div>
-                ` : ''}
-                ${hasDetails ? `
-                <div class="flex-1">
-                    <span class="text-gray-400 text-sm font-medium">Observaciones:</span>
-                    <p class="text-white text-base text-justify">${product.order_details}</p>
-                </div>
-                ` : ''}
+                <span class="text-gray-400 text-sm shrink-0">Cantidad: <span class="text-white font-bold">${product.quantity || 1}</span></span>
             </div>
-            ` : ''}
+
+            <div class="flex flex-col sm:flex-row gap-[16px]">
+                <div class="sm:w-[190px] shrink-0">${this.customGallery(product)}</div>
+
+                <div class="flex-1 min-w-0 space-y-3">
+                    <div>
+                        <p class="text-gray-400 text-xs">Porción:</p>
+                        <p class="text-white text-sm font-semibold">${product.portion_qty || 1} personas</p>
+                    </div>
+                    ${hasDedication ? `
+                    <div>
+                        <p class="text-gray-400 text-xs">Dedicatoria:</p>
+                        <p class="text-white text-sm font-semibold">${product.dedication}</p>
+                    </div>
+                    ` : ''}
+                    ${hasDetails ? `
+                    <div>
+                        <p class="text-gray-400 text-xs">Observaciones:</p>
+                        <p class="text-white text-sm font-semibold">${product.order_details}</p>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
 
             ${hasCustomization ? `
-            <div class="border-t border-gray-600 pt-4 mb-6 pr-32">
-                <h5 class="text-purple-300 font-bold text-sm mb-2 uppercase">Personalización:</h5>
+            <div class="border-t border-gray-600/60 mt-[16px] pt-[16px]">
+                <h5 class="text-purple-300 font-bold text-xs uppercase tracking-wide mb-3">Personalización</h5>
                 ${this.renderPersonalizationGrid(product.customer_products)}
             </div>
             ` : ''}
 
-            <div class="absolute bottom-5 right-6 text-right">
-                <span class="text-gray-400 text-sm block mb-1 ">Total:</span>
-                <p class="text-green-300 font-bold text-lg ">${formatPrice(product.price)}</p>
+            <div class="text-right mt-3">
+                <span class="text-gray-400 text-xs block">Importe</span>
+                <p class="text-emerald-400 font-bold text-lg">${formatPrice(total)}</p>
             </div>
         </div>
     `;
+    }
+
+    // Fotos de referencia del pastel personalizado: la grande con su contador y las
+    // miniaturas numeradas. Clic en una miniatura la pasa a la grande (selectCustomImage)
+    // y clic en la grande la amplia. La vista previa lee el src de la <img> y no la
+    // ruta original: si la foto solo existe en produccion, fileUrlFallback() ya la cambio.
+    customGallery(product) {
+        const images = Array.isArray(product.images) ? product.images : [];
+
+        if (!images.length) {
+            return `
+                <div class="w-40 h-40 rounded-lg bg-[#D8B4E2] flex items-center justify-center">
+                    ${lucideIcon('cake', 'w-10 h-10 text-white')}
+                </div>`;
+        }
+
+        const total = images.length;
+        const first = images[0];
+
+        const thumbs = total > 1 ? `
+            <div class="flex flex-wrap gap-1.5 mt-2">
+                ${images.map((img, i) => `
+                <button type="button" onclick="app.selectCustomImage(this, ${product.id})"
+                    class="relative w-6 h-6 rounded overflow-hidden bg-gray-700 ${i === 0 ? 'ring-2 ring-blue-500' : ''}">
+                    <img src="${fileUrl(img.path)}" alt="${img.original_name || 'Imagen'}"
+                         onerror="app.productImageError(this)"
+                         class="object-cover w-full h-full pointer-events-none">
+                    <span class="absolute bottom-0 right-0 px-0.5 rounded-tl bg-black/70 text-[8px] font-bold leading-tight text-white">${i + 1}</span>
+                </button>`).join('')}
+            </div>` : '';
+
+        return `
+            <div class="relative w-40 h-40 rounded-lg overflow-hidden bg-gray-700 cursor-pointer"
+                 onclick="app.previewImage(this.querySelector('img').src, this.querySelector('img').alt)">
+                <img id="customMain${product.id}" src="${fileUrl(first.path)}" alt="${first.original_name || 'Imagen'}"
+                     onerror="app.productImageError(this)"
+                     class="object-cover w-full h-full pointer-events-none">
+                <span id="customCount${product.id}" class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-[11px] font-semibold text-white">1 / ${total}</span>
+                <span class="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-md bg-black/60 flex items-center justify-center text-white">${lucideIcon('zoom-in', 'w-4 h-4')}</span>
+            </div>
+            ${thumbs}
+            <p class="text-gray-500 text-[11px] mt-2">${total} ${total === 1 ? 'foto' : 'fotos'} de referencia · clic para ampliar</p>
+        `;
+    }
+
+    // La miniatura elegida pasa a la foto grande y se marca con el anillo azul.
+    selectCustomImage(thumb, packageId) {
+        const $thumb = $(thumb);
+        const $img   = $thumb.find('img');
+
+        if ($img.length) {
+            $(`#customMain${packageId}`).attr({ src: $img.attr('src'), alt: $img.attr('alt') });
+        }
+
+        $(`#customCount${packageId}`).text(`${$thumb.index() + 1} / ${$thumb.parent().children().length}`);
+        $thumb.addClass('ring-2 ring-blue-500').siblings().removeClass('ring-2 ring-blue-500');
     }
 
     renderProductImage(product) {
@@ -3585,7 +3688,7 @@ class App extends Templates {
         } else {
             return `
                 <div class="w-full h-full flex items-center justify-center">
-                    <i class="icon-birthday text-white text-4xl"></i>
+                    ${lucideIcon('cake', 'w-6 h-6 text-white')}
                 </div>
             `;
         }
@@ -3602,54 +3705,38 @@ class App extends Templates {
 
         $box.removeAttr('onclick').removeClass('cursor-pointer hover:opacity-80 transition-opacity');
         $box.addClass('flex items-center justify-center');
-        $(img).replaceWith('<i class="icon-birthday text-white text-4xl"></i>');
+        $(img).replaceWith(lucideIcon('cake', 'w-1/2 h-1/2 text-white'));
     }
 
+    // Modificadores agrupados por categoria (Relleno, Cobertura...), en dos columnas.
+    // Cada opcion lleva su precio de modificador, o "Incluida" si no tiene costo.
     renderPersonalizationGrid(customizations) {
-
         const grouped = {};
+
         customizations.forEach(item => {
-            const category = `${item.modifier_name || ''}:` || '';
-            if (!grouped[category]) {
-                grouped[category] = [];
-            }
+            const category = `${item.modifier_name || ''}:`;
+            if (!grouped[category]) grouped[category] = [];
             grouped[category].push(item);
         });
 
-        const entries = Object.entries(grouped);
-        const half = Math.ceil(entries.length / 2);
-        const leftColumn = entries.slice(0, half);
-        const rightColumn = entries.slice(half);
-        // <span class="text-white text-sm">$${parseFloat(item.custom_price || 0).toFixed(2)}</span>
+        const precio = (item) => {
+            const price = parseFloat(item.custom_price || 0);
+            const qty   = parseInt(item.custom_quantity || 1);
+            if (price <= 0) return 'Incluida';
+            return `${qty > 1 ? qty + ' × ' : ''}+${formatPrice(price)}`;
+        };
 
-        //  ${
-        //     item.custom_price && parseFloat(item.custom_price) > 0 ?
-        //     `<span class="text-white text-sm">$${parseFloat(item.custom_price).toFixed(2)}</span>` :
-        //     ''
-        // }
         return `
-            <div class="grid grid-cols-2 gap-8">
-                <div class="space-y-4">
-                    ${leftColumn.map(([category, items]) => `
-                        <div class="flex flex-col">
-                            <span class="text-purple-300 font-bold text-sm tracking-wide uppercase">${category}</span>
-                            ${items.map(item => `
-                                <span class="text-white font-medium text-sm">${item.name || 'N/A'}</span>
-                            `).join('')}
-                        </div>
-                    `).join('')}
-                </div>
-
-                <div class="space-y-4">
-                    ${rightColumn.map(([category, items]) => `
-                        <div class="flex flex-col">
-                            <span class="text-purple-300 font-bold text-sm tracking-wide uppercase">${category}</span>
-                            ${items.map(item => `
-                                <span class="text-white font-medium text-sm">${item.name || 'N/A'}</span>
-                            `).join('')}
-                        </div>
-                    `).join('')}
-                </div>
+            <div class="grid grid-cols-2 gap-x-6 gap-y-3">
+                ${Object.entries(grouped).map(([category, items]) => `
+                    <div class="flex flex-col">
+                        <span class="text-purple-300 font-bold text-[11px] tracking-wide uppercase">${category}</span>
+                        ${items.map(item => `
+                            <span class="text-white font-semibold text-sm">${item.name || 'N/A'}</span>
+                            <span class="text-gray-400 text-[11px]">${precio(item)}</span>
+                        `).join('')}
+                    </div>
+                `).join('')}
             </div>
         `;
     }

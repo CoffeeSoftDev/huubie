@@ -59,7 +59,7 @@
     <script src="<?=PATH_BASE?>access/src/js/session.js"></script>
     <!-- Admin es una vista global: la navbar no muestra el selector de sucursal. -->
     <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>
-    <script src="<?=PATH_MENU?>src/js/navbar.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_PEDIDOS?>src/js/navbar.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js?t=<?php echo time(); ?>"></script>
 
 
@@ -85,6 +85,7 @@
 
     <!-- Init -->
     <script src="<?=PATH_ADMIN?>src/js/permisos.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_ADMIN?>src/js/whatsapp.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_ADMIN?>src/js/app.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

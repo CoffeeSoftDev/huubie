@@ -1,0 +1,67 @@
+/* Inputs del login: relleno #374151 de siempre + foco, icono, error y Bloq Mayus.
+   Maqueta de referencia: access/templates/login-inputs-a-relleno.html */
+
+.login-field { position: relative; }
+
+.login-input {
+    width: 100%; height: 48px; padding: 0 14px 0 40px;
+    font-size: 14px; color: #fff;
+    background: #374151; border: 1px solid transparent; border-radius: 6px;
+    outline: none; transition: border-color .15s, box-shadow .15s, opacity .15s;
+}
+.login-input.has-btn      { padding-right: 48px; }
+.login-input::placeholder { color: #9CA3AF; }
+.login-input:hover        { border-color: #6B7280; }
+.login-input:focus        { border-color: #1C64F2; box-shadow: 0 0 0 4px rgba(28,100,242,.28); }
+
+/* Icono a la izquierda: gris, claro con valor, azul con foco */
+.login-icon {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px;
+    color: #9CA3AF; pointer-events: none; transition: color .15s;
+}
+.login-input:not(:placeholder-shown) ~ .login-icon { color: #E5E7EB; }
+.login-input:focus ~ .login-icon                  { color: #76A9FA; }
+
+/* Botones dentro del campo (ojo y X de la tarjeta): area de 36px y foco visible */
+.login-eye,
+.login-forget {
+    width: 36px; height: 36px; border-radius: 6px;
+    display: grid; place-items: center; color: #9CA3AF;
+    transition: color .15s, background-color .15s;
+}
+.login-eye    { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
+.login-eye svg { width: 18px; height: 18px; }
+.login-forget { margin-left: auto; flex: none; }
+.login-eye:hover,
+.login-forget:hover         { color: #fff; background: rgba(255,255,255,.06); }
+.login-eye:focus-visible,
+.login-forget:focus-visible { outline: none; box-shadow: 0 0 0 2px #76A9FA; color: #fff; }
+
+/* El ojo trae los dos iconos; aria-pressed decide cual se ve */
+.login-eye .eye-off                      { display: none; }
+.login-eye[aria-pressed="true"] .eye-on  { display: none; }
+.login-eye[aria-pressed="true"] .eye-off { display: block; }
+
+/* Usuario recordado: misma caja que el input */
+.login-card { border: 1px solid transparent; }
+
+/* Error: borde rojo en el campo (o en la tarjeta) */
+.login-input[aria-invalid="true"]             { border-color: #F05252; }
+.login-input[aria-invalid="true"]:focus       { box-shadow: 0 0 0 4px rgba(240,82,82,.25); }
+.login-input[aria-invalid="true"] ~ .login-icon { color: #F98080; }
+.is-invalid .login-card                       { border-color: #F05252; }
+
+/* Mensaje bajo el campo: rojo (error) o ambar (Bloq Mayus). Reserva su alto para no mover el form */
+.login-msg         { display: flex; align-items: center; gap: 6px; min-height: 20px; margin-top: 6px; font-size: 13px; line-height: 18px; }
+.login-msg svg     { display: none; flex: none; }
+.login-msg.is-err  { color: #F98080; }
+.login-msg.is-caps { color: #FBBF24; }
+.login-msg.is-err  .msg-err,
+.login-msg.is-caps .msg-caps { display: block; }
+
+/* Enviando: inputs en solo lectura y spinner en el boton */
+.is-loading .login-input { opacity: .6; cursor: wait; }
+.login-spin              { display: none; animation: loginSpin .8s linear infinite; }
+.is-loading .login-spin  { display: block; }
+@keyframes loginSpin { to { transform: rotate(360deg); } }

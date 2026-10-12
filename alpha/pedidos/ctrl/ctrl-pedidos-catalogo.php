@@ -563,6 +563,21 @@ class ctrl extends MPedidos{
         return null;
     }
 
+    // Doble clic en "Aceptar" del cobro: la segunda peticion trae el mismo pago segundos
+    // despues y se guardaba dos veces (pedido 1417: dos abonos de $350 en el mismo
+    // segundo, quedo como Pagado). Mismo candado que ctrl-pedidos.php::addPayment.
+    private function duplicatePaymentGuard($orderId, $pay) {
+        $metodo = ($_POST['method_pay_id'] ?? '') === '' ? null : $_POST['method_pay_id'];
+        $desde  = date('Y-m-d H:i:s', time() - 10);
+
+        if (!$this->getRecentPayment([$orderId, $pay, $metodo, $desde])) return null;
+
+        return [
+            'status'  => 409,
+            'message' => 'Este pago ya se registró hace unos segundos y no se duplicó. Si es otro pago por el mismo importe, espera unos segundos y vuelve a registrarlo.'
+        ];
+    }
+
     // payment.
     function addPayment() {
 
@@ -580,6 +595,9 @@ class ctrl extends MPedidos{
         if ($pay > 0) {
             $guard = $this->cobroShiftGuard($id);
             if ($guard) return $guard;
+
+            $duplicado = $this->duplicatePaymentGuard($id, $pay);
+            if ($duplicado) return $duplicado;
         }
 
         // Estado previo del pedido para la bitacora (antes -> despues).

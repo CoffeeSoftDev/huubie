@@ -1,6 +1,7 @@
 let api = "/alpha/admin/ctrl/ctrl-admin.php";
 let apiPermisos = "/alpha/admin/ctrl/ctrl-permisos.php";
-let app, usuarios, sucursales, company, clausulas, permisos;
+let apiWhatsApp = "/alpha/admin/ctrl/ctrl-wa-config.php";
+let app, usuarios, sucursales, company, clausulas, permisos, whatsapp;
 let rol, sucursal, nameCompany, idCompany;
 
 $(function () {
@@ -16,6 +17,7 @@ $(function () {
         company = new Company(api, "root");
         clausulas = new Clausulas(api, "root");
         permisos = new Permisos(apiPermisos, "root");
+        whatsapp = new WhatsApp(apiWhatsApp, "root");
 
         app.render();
 
@@ -68,7 +70,7 @@ class App extends Templates {
                     {
                         type:  'p',
                         class: 'text-gray-400 px-4 pb-3',
-                        text:  'Administra los datos de la empresa, los usuarios y sucursales de la aplicación.'
+                        text:  'Administra los datos de la empresa, los usuarios, las sucursales y los avisos automáticos de WhatsApp.'
                     },
                     {
                         type:  'div',
@@ -123,6 +125,13 @@ class App extends Templates {
                     lucideIcon: "shield",
                     iconColor: "text-white",
                     onClick: () => permisos.render()
+                },
+                {
+                    id: "tab-whatsapp",
+                    tab: "WhatsApp",
+                    lucideIcon: "message-circle",
+                    iconColor: "text-white",
+                    onClick: () => whatsapp.render()
                 }
             ]
         });

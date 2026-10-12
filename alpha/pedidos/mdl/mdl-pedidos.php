@@ -985,6 +985,22 @@ class MPedidos extends CRUD {
         return isset($res[0]['total_paid']) ? (float)$res[0]['total_paid'] : 0.0;
     }
 
+    // Pago igual (pedido, importe y metodo) registrado desde la fecha dada. Lo usa el
+    // candado contra el doble clic en los botones de cobro.
+    public function getRecentPayment($array) {
+        $query = "
+            SELECT op.id
+            FROM {$this->bd}order_payments op
+            WHERE op.order_id = ?
+              AND ABS(op.pay - ?) < 0.005
+              AND op.method_pay_id <=> ?
+              AND op.date_pay >= ?
+            LIMIT 1
+        ";
+        $res = $this->_Read($query, $array);
+        return is_array($res) && !empty($res) ? $res[0] : null;
+    }
+
 
     function deletePayment($array){
 

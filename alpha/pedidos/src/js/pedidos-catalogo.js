@@ -2372,6 +2372,13 @@ class CatalogProduct extends Pos {
         const $btn             = $("#btnSuccess");
         const originalHandlers = $._data($btn[0], "events")?.click?.map(e => e.handler) || [];
 
+        // El boton se apaga al enviar: el modal sigue abierto hasta que responde el
+        // servidor, y un segundo clic ahi registraba el abono dos veces (pedido 1417).
+        const enviar = () => {
+            $btn.prop("disabled", true);
+            originalHandlers.forEach(fn => fn());
+        };
+
         $btn.off("click");
         $btn.on("click", () => {
             const abonoActivo = $("#toggleAnticipo").is(":checked");
@@ -2407,10 +2414,10 @@ class CatalogProduct extends Pos {
                 }).then((result) => {
                     if (result.isConfirmed) {
                         $("#hdn_target_status").val(1);
-                        originalHandlers.forEach(fn => fn());
+                        enviar();
                     } else if (result.isDenied) {
                         $("#hdn_target_status").val(2);
-                        originalHandlers.forEach(fn => fn());
+                        enviar();
                     }
                 });
 
@@ -2426,7 +2433,7 @@ class CatalogProduct extends Pos {
                     btnPendiente.style.color           = "#F2C215";
                 }
             } else {
-                originalHandlers.forEach(fn => fn());
+                enviar();
             }
         });
 

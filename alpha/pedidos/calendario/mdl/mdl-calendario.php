@@ -56,7 +56,27 @@ class MCalendarioPedidos extends CRUD {
             DATE_FORMAT( order.date_order,'%Y-%m-%d' ) AS date_order,
             DATE_FORMAT(order.time_order, '%h:%i %p') AS time_order,
             status_process.id AS idStatus,
-            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            -- Foto del pedido para la vista Dia: la primera foto de referencia (pastel
+            -- personalizado) o, si no hay, la imagen del primer producto que tenga.
+            COALESCE(
+                (
+                    SELECT oi.path
+                    FROM {$this->bd}order_images oi
+                    INNER JOIN {$this->bd}order_package opk ON opk.id = oi.package_id
+                    WHERE opk.pedidos_id = order.id
+                    ORDER BY oi.id ASC
+                    LIMIT 1
+                ),
+                (
+                    SELECT op.image
+                    FROM {$this->bd}order_package opk
+                    INNER JOIN {$this->bd}order_products op ON op.id = opk.product_id
+                    WHERE opk.pedidos_id = order.id AND op.image <> ''
+                    ORDER BY opk.id ASC
+                    LIMIT 1
+                )
+            ) AS photo
         FROM
             {$this->bd}order
         INNER JOIN {$this->bd}order_clients ON client_id = order_clients.id

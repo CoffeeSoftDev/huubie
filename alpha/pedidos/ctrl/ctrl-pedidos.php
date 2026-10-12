@@ -211,7 +211,7 @@ class Pedidos extends MPedidos{
                         <p class='line-through text-gray-500 text-[10px]'>".evaluar($total) ."</p>
                         <p class='text-gray-500 text-[10px]'><i class='icon-tag'></i> Descuento: " . evaluar($discount) . "</p>
                     </div>"
-                : number_format($total, 2);
+                : evaluar($total);
 
 
             $Folio   = formatSucursal($order['subsidiaries_id'], $order['id']);
@@ -251,9 +251,14 @@ class Pedidos extends MPedidos{
                     'onclick' => $verPedido
                 ],
 
+                // El nombre va como link para que se note que abre el detalle: mismo gris
+                // del texto, solo se subraya al pasar el mouse (hover:text-gray-300 frena
+                // el azul que bootstrap le da a a:hover). No lleva onclick propio: el clic
+                // sube a la celda, que ya llama a showOrder, y asi el modal no se abre dos
+                // veces.
                 'Cliente' => [
                     'html' => "
-                        <p class='text-gray-300 flex items-center'>{$order['name_client']}{$badgePastel}</p>
+                        <p class='flex items-center'><a href='javascript:void(0)' title='Ver detalle del pedido' class='text-gray-300 hover:text-gray-300 no-underline hover:underline'>{$order['name_client']}</a>{$badgePastel}</p>
                         <p class='text-gray-500'><i class='icon-phone'></i> {$order['phone']}</p>
                     ",
                     'class'   => 'text-left px-3 py-2 truncate cursor-pointer',
@@ -293,7 +298,7 @@ class Pedidos extends MPedidos{
                     'class' => 'text-center'
                 ],
 
-                'Tipo' => [
+                'Entrega' => [
                     'html' => renderDeliveryType($order['delivery_type']),
                     'class' => 'text-center'
                 ],
@@ -429,14 +434,21 @@ class Pedidos extends MPedidos{
 
         if ($insert) {
 
-            $folio  = $this->getMaxOrder();
+            // Id del INSERT de esta peticion. MAX(id) devolvia el ultimo pedido de
+            // cualquier usuario, y con dos altas en el mismo segundo los productos
+            // caian en el segundo pedido y el primero quedaba como cotizacion vacia.
+            $folio = $this->lastInsertId();
+
+            // Quien capturo el pedido tambien queda en el Historial del pedido (usr_users_id);
+            // created_by solo se ve en el detalle para supervision.
+            $this->logOrderHistory($folio, 'Pedido creado como cotización', 'event', 'Pedido creado');
 
             return [
                 'status'  => 200,
                 'message' => 'Pedido registrado correctamente.',
                 'sub' =>  $subsidiaries_id,
                 'data'    => $insert,
-                 'id'      => $folio['id'],
+                 'id'      => $folio,
                  'client'  => $client
             ];
         }
@@ -445,8 +457,6 @@ class Pedidos extends MPedidos{
 
             'status'  => 500,
             'message' => 'Error al registrar el pedido.',
-            'data'    => $folio['id'],
-           
         ];
     }
 
@@ -979,6 +989,9 @@ class Pedidos extends MPedidos{
             $guard = $this->cobroShiftGuard($sucursalCobro);
             if ($guard) return $guard;
 
+            $duplicado = $this->duplicatePaymentGuard($id, $pay);
+            if ($duplicado) return $duplicado;
+
             $values_pay = [
                 'pay'             => $pay,
                 'date_pay'        => date('Y-m-d H:i:s'),
@@ -1050,6 +1063,20 @@ class Pedidos extends MPedidos{
         return null;
     }
 
+    // Doble clic en cobrar: la segunda peticion trae el mismo pago segundos despues y
+    // se guardaba dos veces (pedidos 115 y 520). Un pago por otro metodo si pasa.
+    private function duplicatePaymentGuard($orderId, $pay) {
+        $metodo = ($_POST['method_pay_id'] ?? '') === '' ? null : $_POST['method_pay_id'];
+        $desde  = date('Y-m-d H:i:s', time() - 10);
+
+        if (!$this->getRecentPayment([$orderId, $pay, $metodo, $desde])) return null;
+
+        return [
+            'status'  => 409,
+            'message' => 'Este pago ya se registró hace unos segundos y no se duplicó. Si es otro pago por el mismo importe, espera unos segundos y vuelve a registrarlo.'
+        ];
+    }
+
     function initHistoryPay(){
         $SUB      = $_SESSION['SUB'] ?? 4;
         $sucursal = $this->getSucursalByID([$SUB]);
@@ -1102,14 +1129,18 @@ class Pedidos extends MPedidos{
 
         $requiereClave = $this->isOrderPaidInFull($_POST['id']);
 
-        if ($requiereClave) {
+        // El resumen de pago del detalle confirma siempre con contraseña: si llega, se
+        // valida aunque el pedido no este liquidado.
+        if ($requiereClave || isset($_POST['password'])) {
             $password = $_POST['password'] ?? '';
             $user     = $this->getUserKeyById([$_SESSION['USR'] ?? ($_SESSION['ID'] ?? 0)]);
 
             if ($password === '' || empty($user) || $user['key'] !== md5($password)) {
                 return [
                     'status'  => 401,
-                    'message' => 'Contraseña incorrecta. El pedido está liquidado y eliminar un abono requiere autorización.'
+                    'message' => $requiereClave
+                        ? 'Contraseña incorrecta. El pedido está liquidado y eliminar un abono requiere autorización.'
+                        : 'Contraseña incorrecta.'
                 ];
             }
         }
