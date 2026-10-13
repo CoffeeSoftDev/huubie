@@ -163,25 +163,31 @@ class mdl extends CRUD {
     }
 
     // -----------------------------------------------------------------------
-    // Listado / KPIs de ordenes
+    // Listado de ordenes
     // -----------------------------------------------------------------------
 
     // Las compras (folio CP-) comparten la tabla pero se gestionan en Compras.
+    // vista 'pedidos': lo que pide la sucursal. 'entregas': lo que le piden a la
+    // sucursal (ya enviado: el borrador solo lo ve quien lo arma).
     function qOrdenes($array) {
         $where = "po.active = 1 AND po.companies_id = ? AND po.folio NOT LIKE 'CP-%'";
         $data  = [$array['companies_id']];
 
-        if (!empty($array['branch_id'])) {
+        if (($array['vista'] ?? '') === 'entregas') {
+            $where .= " AND po.status <> 'Borrador'";
+            if (!empty($array['branch_id'])) {
+                $where .= ' AND po.destination_branch_id = ?';
+                $data[] = $array['branch_id'];
+            } else {
+                $where .= ' AND po.destination_branch_id IS NOT NULL';
+            }
+        } elseif (!empty($array['branch_id'])) {
             $where .= ' AND po.branch_id = ?';
             $data[] = $array['branch_id'];
         }
-        if (!empty($array['supplier_id'])) {
-            $where .= ' AND po.supplier_id = ?';
-            $data[] = $array['supplier_id'];
-        }
         if (!empty($array['status'])) {
             if ($array['status'] === 'Activas') {
-                $where .= " AND po.status <> 'Cancelada'";
+                $where .= " AND po.status NOT IN ('Cancelada', 'Rechazada')";
             } else {
                 $where .= ' AND po.status = ?';
                 $data[] = $array['status'];
@@ -196,10 +202,6 @@ class mdl extends CRUD {
             $where .= ' AND (po.folio LIKE ? OR po.note LIKE ?)';
             $data[] = '%' . $array['q'] . '%';
             $data[] = '%' . $array['q'] . '%';
-        }
-        if (!empty($array['mine'])) {
-            $where .= ' AND po.user_id = ?';
-            $data[] = $array['mine'];
         }
 
         $query = "
@@ -218,6 +220,8 @@ class mdl extends CRUD {
                 w.name         AS warehouse_name,
                 po.branch_id,
                 s.name         AS branch_name,
+                po.destination_branch_id,
+                ds.name        AS destination_branch_name,
                 po.supplier_id,
                 sp.name        AS supplier_name,
                 po.user_id,
@@ -229,6 +233,7 @@ class mdl extends CRUD {
             FROM {$this->bd}purchase_order po
             LEFT JOIN {$this->bd}warehouse        w  ON w.id  = po.warehouse_id
             LEFT JOIN {$this->bdErp}branches      s  ON s.id  = po.branch_id
+            LEFT JOIN {$this->bdErp}branches      ds ON ds.id = po.destination_branch_id
             LEFT JOIN {$this->bd}supplier         sp ON sp.id = po.supplier_id
             LEFT JOIN {$this->bdErp}users         u  ON u.id  = po.user_id
             LEFT JOIN {$this->bdErp}users         au ON au.id = po.approved_user_id
@@ -237,65 +242,6 @@ class mdl extends CRUD {
         ";
         $r = $this->_Read($query, $data);
         return is_array($r) ? $r : [];
-    }
-
-    function getOrdenKpis($array) {
-        $where = "po.active = 1 AND po.companies_id = ? AND po.folio NOT LIKE 'CP-%'";
-        $data  = [$array['companies_id']];
-
-        if (!empty($array['branch_id'])) {
-            $where .= ' AND po.branch_id = ?';
-            $data[] = $array['branch_id'];
-        }
-        if (!empty($array['supplier_id'])) {
-            $where .= ' AND po.supplier_id = ?';
-            $data[] = $array['supplier_id'];
-        }
-        if (!empty($array['status'])) {
-            if ($array['status'] === 'Activas') {
-                $where .= " AND po.status <> 'Cancelada'";
-            } else {
-                $where .= ' AND po.status = ?';
-                $data[] = $array['status'];
-            }
-        }
-        if (!empty($array['fi']) && !empty($array['ff'])) {
-            $where .= ' AND DATE(po.date_order) BETWEEN ? AND ?';
-            $data[] = $array['fi'];
-            $data[] = $array['ff'];
-        }
-        if (!empty($array['q'])) {
-            $where .= ' AND (po.folio LIKE ? OR po.note LIKE ?)';
-            $data[] = '%' . $array['q'] . '%';
-            $data[] = '%' . $array['q'] . '%';
-        }
-        if (!empty($array['mine'])) {
-            $where .= ' AND po.user_id = ?';
-            $data[] = $array['mine'];
-        }
-
-        $query = "
-            SELECT
-                COUNT(po.id)                                AS total_ordenes,
-                SUM(po.status = 'Solicitada')               AS total_solicitadas,
-                SUM(po.status = 'Aprobada')                 AS total_aprobadas,
-                SUM(po.status = 'Parcial')                  AS total_parciales,
-                SUM(po.status = 'Recibida')                 AS total_recibidas,
-                SUM(po.status = 'Cancelada')                AS total_canceladas,
-                IFNULL(SUM(po.total_cost), 0)               AS total_costo
-            FROM {$this->bd}purchase_order po
-            WHERE {$where}
-        ";
-        $r = $this->_Read($query, $data);
-        return !empty($r) ? $r[0] : [
-            'total_ordenes'     => 0,
-            'total_solicitadas' => 0,
-            'total_aprobadas'   => 0,
-            'total_parciales'   => 0,
-            'total_recibidas'   => 0,
-            'total_canceladas'  => 0,
-            'total_costo'       => 0
-        ];
     }
 
     // -----------------------------------------------------------------------
@@ -311,7 +257,8 @@ class mdl extends CRUD {
                 ds.name        AS destination_branch_name,
                 sp.name        AS supplier_name,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))   AS user_name,
-                TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name
+                TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
+                TRIM(CONCAT(COALESCE(cu.name, ''), ' ', COALESCE(cu.last_name, ''))) AS expected_date_user_name
             FROM {$this->bd}purchase_order po
             LEFT JOIN {$this->bd}warehouse        w  ON w.id  = po.warehouse_id
             LEFT JOIN {$this->bdErp}branches      s  ON s.id  = po.branch_id
@@ -319,6 +266,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}supplier         sp ON sp.id = po.supplier_id
             LEFT JOIN {$this->bdErp}users         u  ON u.id  = po.user_id
             LEFT JOIN {$this->bdErp}users         au ON au.id = po.approved_user_id
+            LEFT JOIN {$this->bdErp}users         cu ON cu.id = po.expected_date_user_id
             WHERE po.id = ?
             LIMIT 1
         ";
@@ -340,6 +288,7 @@ class mdl extends CRUD {
                 d.tax,
                 d.cost,
                 d.subtotal,
+                d.note,
                 i.name  AS product_name,
                 ia.sku,
                 i.image,
@@ -376,8 +325,8 @@ class mdl extends CRUD {
             INSERT INTO {$this->bd}detail_purchase_order
                 (purchase_order_id, item_id, unit_id,
                  quantity_ordered, quantity_received,
-                 price_without_tax, tax, cost, subtotal)
-            VALUES (?,?,?,?,0,?,?,?,?)
+                 price_without_tax, tax, cost, subtotal, note)
+            VALUES (?,?,?,?,0,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
     }
@@ -398,7 +347,17 @@ class mdl extends CRUD {
     function updateOrdenStatusApprove($array) {
         $query = "
             UPDATE {$this->bd}purchase_order
-            SET status = ?, approved_user_id = ?, approved_at = NOW(), updated_at = NOW()
+            SET status = ?, approved_user_id = ?, approval_note = ?, approved_at = NOW(), updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Fecha compromiso del reabasto: cuándo se espera registrar la compra, quién la puso y cuándo.
+    function updateOrdenCompromiso($array) {
+        $query = "
+            UPDATE {$this->bd}purchase_order
+            SET expected_date = ?, expected_date_user_id = ?, expected_date_at = NOW(), updated_at = NOW()
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);
@@ -443,6 +402,16 @@ class mdl extends CRUD {
             UPDATE {$this->bd}detail_purchase_order
             SET active = 0
             WHERE purchase_order_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Un renglón que el almacenista no aprobó sale del pedido.
+    function softDeleteDetailRow($array) {
+        $query = "
+            UPDATE {$this->bd}detail_purchase_order
+            SET active = 0
+            WHERE id = ? AND purchase_order_id = ?
         ";
         return $this->_CUD($query, $array);
     }

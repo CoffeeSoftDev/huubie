@@ -1,6 +1,4 @@
-let apiOrdenes  = 'ctrl/ctrl-ordenes.php';
-let apiEntradas = 'ctrl/ctrl-entradas.php';
-let apiAlmacen  = 'ctrl/ctrl-almacen.php';
+let apiOrdenes = 'ctrl/ctrl-ordenes.php';
 let app, ordenes, ordenesView;
 
 $(async () => {
@@ -21,6 +19,7 @@ class App extends Templates {
         this.PROJECT_NAME = 'ordenes';
         this.subId        = null;
         this.selectedId   = null;
+        this.vista        = 'pedidos';
     }
 
     async init() {
@@ -30,9 +29,9 @@ class App extends Templates {
                 companies_id:  r.companies_id  || '',
                 branch_id:     r.branch_id     || '',
                 user_id:       r.user_id       || '',
+                is_admin:      Number(r.is_admin || 0),
                 sucursales:    r.sucursales    || [],
                 almacenes:     r.almacenes     || [],
-                proveedores:   r.proveedores   || [],
                 categorias:    r.categorias    || [],
                 unidades:      r.unidades      || [],
                 productos:     r.productos     || [],
@@ -43,9 +42,9 @@ class App extends Templates {
                 companies_id:  '',
                 branch_id:     '',
                 user_id:       '',
+                is_admin:      0,
                 sucursales:    [],
                 almacenes:     [],
-                proveedores:   [],
                 categorias:    [],
                 unidades:      [],
                 productos:     [],
@@ -53,21 +52,24 @@ class App extends Templates {
             };
         }
         this.subId = this.dataInit.branch_id;
+        // El admin aprueba y surte: arranca en lo que le piden.
+        this.vista = this.dataInit.is_admin ? 'entregas' : 'pedidos';
         this.render();
     }
 
     render() {
         this.layout();
-        this.visorResize({ key: 'ordenes', label: 'Ancho del detalle de la orden' });
+        this.visorResize({ key: 'ordenes', label: 'Ancho del detalle del pedido' });
         this.filterBar();
         ordenesView.renderHeader({
-            title:    'Ordenes de Compra',
-            subtitle: 'Solicitudes de materiales, aprobacion y recepcion por sucursal'
+            title:    'Pedidos',
+            subtitle: 'Solicitudes de materiales, aprobación y recepción por sucursal'
         });
+        this.renderTabs();
         ordenesView.renderDetail(null);
         this.populateFilters();
+        this.syncVista();
         ordenes.lsOrdenes();
-        ordenes.lsKpis();
     }
 
     layout() {
@@ -77,16 +79,12 @@ class App extends Templates {
             class: 'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
             children: [
                 {
-                    id:    'viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                    id:    'headerRow',
+                    class: 'px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'filterBar',
                     class: 'px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0'
-                },
-                {
-                    id:    'kpisRow',
-                    class: 'px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
@@ -95,19 +93,19 @@ class App extends Templates {
             ]
         };
 
-        // Tirador entre la tabla y el visor (visorResize). Los dos arrancan ocultos
-        // (!hidden le gana a md:block y a flex): la tabla toma todo el ancho hasta
-        // que se abre una orden (toggleVisor).
+        // Tirador entre la tabla y el visor (visorResize). El visor está abierto desde el
+        // inicio (sin pedido muestra "Selecciona un pedido"): así la tabla no cambia de
+        // ancho al abrir uno.
         const detailResizer = {
             type:  'div',
             id:    'detailResizer',
-            class: "!hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
+            class: "hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
         };
 
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: '!hidden w-full md:w-[var(--ordenes-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 border-gray-200 flex flex-col overflow-hidden',
+            class: 'w-full md:w-[var(--ordenes-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -129,10 +127,57 @@ class App extends Templates {
                 container: [mainPanel, detailResizer, detailPanel]
             }
         });
+
+        this.createLayout({
+            parent: 'headerRow',
+            design: false,
+            data: {
+                id:        'headerRowWrap',
+                class:     'flex items-center justify-between gap-3',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'viewHeader',
+                        class: 'flex-1 min-w-0'
+                    },
+                    {
+                        type:  'div',
+                        id:    'tabsRow',
+                        class: 'flex-shrink-0'
+                    }
+                ]
+            }
+        });
     }
 
-    toggleVisor(show) {
-        $('#detailPanel, #detailResizer').toggleClass('!hidden', !show);
+    // -- Tabs --
+
+    // Mis pedidos = lo que pide mi sucursal; Mis entregas = lo que me piden a mí.
+    renderTabs() {
+        this.tabLayout({
+            parent:          'tabsRow',
+            id:              'tabsOrdenes',
+            type:            'button',
+            theme:           'light',
+            renderContainer: false,
+            json: [
+                { id: 'pedidos',  tab: 'Mis pedidos',  active: this.vista === 'pedidos'  },
+                { id: 'entregas', tab: 'Mis entregas', active: this.vista === 'entregas' }
+            ],
+            onChange: (tabId) => this.onChangeTab(tabId)
+        });
+    }
+
+    onChangeTab(tabId) {
+        this.vista = tabId;
+        this.selectOrden(null);
+        this.syncVista();
+        ordenes.lsOrdenes();
+    }
+
+    // "Nuevo pedido" solo en Mis pedidos: en entregas se aprueba y surte.
+    syncVista() {
+        $('#btnNuevaOrden').parent().toggleClass('hidden', this.vista !== 'pedidos');
     }
 
     filterBar() {
@@ -167,17 +212,9 @@ class App extends Templates {
                 data:     estados
             },
             {
-                opc:      'select',
-                id:       'fProveedor',
-                lbl:      'Proveedor:',
-                class:    'col-12 col-md-4 col-lg-1',
-                onchange: 'app.onChangeFilters()',
-                data:     [{ id: '', valor: '-- Todos --' }]
-            },
-            {
                 opc:       'button',
                 id:        'btnNuevaOrden',
-                text:      'Nueva orden',
+                text:      'Nuevo pedido',
                 color_btn: 'invernal',
                 className: 'w-100 h-[34px]',
                 class:     'col-12 col-md-4 col-lg-1',
@@ -193,7 +230,7 @@ class App extends Templates {
             data:       filters
         });
 
-        $('#filterFormOrdenes').addClass('lg:grid-cols-5');
+        $('#filterFormOrdenes').addClass('lg:grid-cols-4');
 
         this.initRangePicker();
     }
@@ -220,7 +257,7 @@ class App extends Templates {
                 ranges: {
                     'Hoy':            [moment(), moment()],
                     'Ayer':           [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-                    'Ultimos 7 dias': [moment().subtract(6, 'days'), moment()],
+                    'Últimos 7 días': [moment().subtract(6, 'days'), moment()],
                     'Semana actual':  [moment().startOf('isoWeek'), moment().endOf('isoWeek')],
                     'Mes actual':     [moment().startOf('month'), moment().endOf('month')],
                     'Mes anterior':   [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
@@ -245,14 +282,10 @@ class App extends Templates {
     }
 
     populateFilters() {
-        const sucursales  = this.dataInit.sucursales  || [];
-        const proveedores = this.dataInit.proveedores || [];
+        const sucursales = this.dataInit.sucursales || [];
 
         if (sucursales.length) {
             this.populateSelect('branch_id', sucursales);
-        }
-        if (proveedores.length) {
-            this.populateSelect('fProveedor', proveedores);
         }
         if (sucursales.length <= 1) {
             $('#branch_id').find('option[value=""]').remove();
@@ -260,7 +293,6 @@ class App extends Templates {
         } else {
             $('#branch_id').val(this.subId);
         }
-        $('#fProveedor').val('');
     }
 
     populateSelect(id, data) {
@@ -276,8 +308,8 @@ class App extends Templates {
     getFilters() {
         const $branch = $('#branch_id');
         return {
+            vista:       this.vista,
             branch_id:   $branch.length ? ($branch.val() || '') : (this.subId || ''),
-            supplier_id: $('#fProveedor').val() || '',
             status:      $('#fEstado').val()    || '',
             fi:          this.rangeFi           || '',
             ff:          this.rangeFf           || '',
@@ -286,20 +318,10 @@ class App extends Templates {
     }
 
     async onChangeFilters() {
-        ordenes.lsOrdenes();
-        await ordenes.lsKpis();
+        await ordenes.lsOrdenes();
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
             this.selectOrden(null);
         }
-    }
-
-    // Click en una KPI card -> filtra la tabla por ese estado. Toggle: si el estado ya
-    // está aplicado, vuelve al filtro por defecto (Activas, sin Cancelada).
-    filterByKpi(kpi) {
-        const st      = (kpi && kpi.status) || '';
-        const current = $('#fEstado').val() || '';
-        $('#fEstado').val(current === st ? 'Activas' : st);
-        this.onChangeFilters();
     }
 
     isVisibleAfterFilters(folio) {
@@ -328,7 +350,7 @@ class App extends Templates {
 }
 
 // ============================================================
-// Ordenes — datos, tabla, KPIs, impresión
+// Ordenes — datos, tabla, impresión
 // ============================================================
 
 class Ordenes extends Templates {
@@ -343,8 +365,8 @@ class Ordenes extends Templates {
         const r = await useFetch({
             url:  apiOrdenes,
             data: Object.assign({ opc: 'lsOrdenes' }, {
+                vista:       f.vista,
                 branch_id:   f.branch_id,
-                supplier_id: f.supplier_id,
                 status:      f.status,
                 fi:          f.fi,
                 ff:          f.ff,
@@ -358,14 +380,14 @@ class Ordenes extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        'light',
-            center:       [2, 5, 6],
+            center:       [1, 2, 4, 5],
             right:        [],
             actionsAlign: 'left',
             extends:      true,
             scrollable:   false,
             striped:      true,
-            f_size:       13,
-            emptyMessage: 'No se encontraron ordenes con los filtros aplicados',
+            f_size:       12,
+            emptyMessage: 'No se encontraron pedidos con los filtros aplicados',
             emptyIcon:    'clipboard-list',
             data:         data
         });
@@ -376,35 +398,7 @@ class Ordenes extends Templates {
         if (total > 0 && typeof simple_data_table === 'function') {
             simple_data_table(`#tb${this.PROJECT_NAME}`, 10);
         }
-        app.updateFooterInfo(`Mostrando ${total} orden${total !== 1 ? 'es' : ''}`);
-    }
-
-    async lsKpis() {
-        const f = app.getFilters();
-        const r = await useFetch({
-            url:  apiOrdenes,
-            data: {
-                opc:         'showOrdenes',
-                branch_id:   f.branch_id,
-                supplier_id: f.supplier_id,
-                // El estado NO se envía a los KPIs: cuentan por estado, así que deben
-                // reflejar el total real (si se filtrara, los demás caerían a 0 y dejarían
-                // de servir como navegación). El filtro de estado solo aplica a la tabla.
-                fi:          f.fi,
-                ff:          f.ff,
-                q:           f.q
-            }
-        });
-
-        const c = (r && r.status === 200) ? r.counts : {};
-
-        const kpis = [
-            { id: 'kpiSolicitadas', label: 'Solicitadas',   value: parseInt(c.total_solicitadas || 0, 10), tone: 'warning', status: 'Solicitada' },
-            { id: 'kpiAprobadas',   label: 'Aprobadas',     value: parseInt(c.total_aprobadas   || 0, 10), tone: 'default', status: 'Aprobada'   },
-            { id: 'kpiParciales',   label: 'En recepcion',  value: parseInt(c.total_parciales   || 0, 10), tone: 'warning', status: 'Parcial'    },
-            { id: 'kpiRecibidas',   label: 'Recibidas',     value: parseInt(c.total_recibidas   || 0, 10), tone: 'success', status: 'Recibida'   }
-        ];
-        ordenesView.renderInfoCards(kpis);
+        app.updateFooterInfo(`Mostrando ${total} ${total !== 1 ? 'pedidos' : 'pedido'}`);
     }
 
     async getOrden(id) {
@@ -431,12 +425,16 @@ class Ordenes extends Templates {
             warehouse_id:     h.warehouse_id,
             warehouse_name:   h.warehouse_name || '',
             date_order:       h.date_order    || '',
+            created_at:       h.created_at    || '',
             expected_date:    h.expected_date || '',
             note:             h.note          || '',
             user_name:        h.user_name     || '',
             approved_user_name: h.approved_user_name || '',
             approved_at:      h.approved_at   || '',
+            approval_note:    h.approval_note || '',
             reject_reason:    h.reject_reason || '',
+            expected_date_user_name: h.expected_date_user_name || '',
+            expected_date_at: h.expected_date_at || '',
             total_products:   parseInt(h.total_products || 0, 10),
             total_units:      Number(h.total_units  || 0),
             total_cost:       Number(h.total_cost   || 0),
@@ -453,7 +451,8 @@ class Ordenes extends Templates {
                 price_without_tax: d.price_without_tax != null ? Number(d.price_without_tax) : null,
                 tax:               d.tax  != null ? Number(d.tax)  : 0,
                 cost:              d.cost != null ? Number(d.cost) : null,
-                subtotal:          Number(d.subtotal || 0)
+                subtotal:          Number(d.subtotal || 0),
+                nota:              d.note || ''
             }))
         };
     }
@@ -463,7 +462,7 @@ class Ordenes extends Templates {
         if (!o || typeof o !== 'object') {
             const r = await useFetch({ url: apiOrdenes, data: { opc: 'printOrden', id: arg } });
             if (!(r && r.status === 200)) {
-                this.alertBox({ type: 'error', title: 'No se pudo cargar la orden para imprimir' });
+                this.alertBox({ type: 'error', title: 'No se pudo cargar el pedido para imprimir' });
                 return;
             }
             o = this.mapOrdenDetail(r.header || {}, r.detail || []);
@@ -479,7 +478,7 @@ class Ordenes extends Templates {
         const esc      = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const fmtNum   = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
-        const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+        const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const fmtFecha = (raw) => {
             if (!raw) return '-';
@@ -574,7 +573,7 @@ class Ordenes extends Templates {
     _renderOrdenDoc(o) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+        const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const fmtFecha = (raw) => {
             if (!raw) return '-';
@@ -609,14 +608,14 @@ class Ordenes extends Templates {
             </tr>`;
         }).join('');
 
-        const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden ${esc(o.folio||'')}</title>
+        const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Pedido ${esc(o.folio||'')}</title>
         <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800}.folio{font-size:20px;font-weight:800;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px;margin-left:4px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.doc-footer{margin-top:28px;display:flex;justify-content:space-between;font-size:10px;color:#777;border-top:1px solid #ccc;padding-top:10px}.reject-box{margin-bottom:18px;border-left:3px solid #E02424;background:#FEF2F2;padding:10px 14px;font-size:12px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
         </head><body>
         <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
         <div class="sheet">
             <div class="doc-header">
                 <div>
-                    <div class="doc-title">Orden de Compra</div>
+                    <div class="doc-title">Pedido</div>
                     <div style="font-size:12px;color:#555;margin-top:3px">${esc(o.branch_name||'')}${o.warehouse_name?' &middot; '+esc(o.warehouse_name):''}</div>
                 </div>
                 <div>
@@ -656,7 +655,7 @@ class Ordenes extends Templates {
             </div>
             ${o.note?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(o.note)}</div>`:''}
             <div class="doc-footer">
-                <span>Huubie &middot; Inventarios &middot; Orden de Compra</span>
+                <span>Huubie &middot; Inventarios &middot; Pedido</span>
                 <span>Generado: ${esc(fmtFecha(new Date().toISOString().slice(0,10)))}</span>
             </div>
         </div></body></html>`;
@@ -687,8 +686,8 @@ class OrdenesView extends Templates {
     // Panel de detalle (aside derecho)
     // ----------------------------------------------------------
 
-    // Ver abre el visor; la X, un cambio de estado que cierra la orden o un error
-    // al cargarla lo ocultan.
+    // El visor siempre está abierto: Ver pinta el pedido; la X, un cambio de estado que
+    // cierra el pedido o un error al cargarlo regresan a "Selecciona un pedido".
     renderDetail(orden) {
         this.ordenDetailPanel({
             parent:  'detailPanel',
@@ -700,9 +699,9 @@ class OrdenesView extends Templates {
             onApprove:       (o) => this.doApproveOrden(o),
             onReject:        (o) => this.doRejectOrden(o),
             onRecibir:       (o) => (String(o && o.folio || '').startsWith('REAB-') ? this.openRecepcionModal(o) : this.openSurtidoModal(o)),
-            onCancel:        (o) => this.doCancelOrden(o)
+            onCancel:        (o) => this.doCancelOrden(o),
+            onCompromiso:    (o) => this.editCompromiso(o)
         });
-        app.toggleVisor(!!orden);
     }
 
     // ----------------------------------------------------------
@@ -713,9 +712,9 @@ class OrdenesView extends Templates {
         if (!o || !o.id) return;
         this.alertBox({
             type:        'confirm',
-            title:       `Enviar orden ${o.folio}`,
-            detailHtml:  'La orden pasara a estado Solicitada y quedara pendiente de aprobacion.',
-            okLabel:     'Si, enviar',
+            title:       `Enviar pedido ${o.folio}`,
+            detailHtml:  'El pedido pasará a estado Solicitada y quedará pendiente de aprobación.',
+            okLabel:     'Sí, enviar',
             cancelLabel: 'No',
             onOk: async () => {
                 const r = await useFetch({ url: this._link, data: { opc: 'submitOrden', id: o.id } }).catch(() => null);
@@ -723,7 +722,7 @@ class OrdenesView extends Templates {
                     this.alertBox({ type: 'success', title: r.message || 'Solicitud enviada', timer: 1600 });
                     this._refreshAfterAction(o.folio, o.id);
                 } else {
-                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo enviar la orden' });
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo enviar el pedido' });
                 }
             }
         });
@@ -734,22 +733,72 @@ class OrdenesView extends Templates {
         this.openAprobacionModal(o);
     }
 
-    // Visor de decisión al aprobar: muestra lo pedido vs el stock disponible de un
-    // almacén (informativo, no bloquea). Aprobar solo cambia el estado; el descuento
-    // de inventario ocurre después, al surtir.
+    // AAAA-MM-DD -> 13/OCT/2026.
+    fechaCorta(raw) {
+        const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+        const m     = String(raw || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? `${m[3]}/${meses[Number(m[2]) - 1]}/${m[1]}` : '';
+    }
+
+    // AAAA-MM-DD HH:MM:SS -> 13/OCT/2026 01:07 PM.
+    fechaHoraCorta(raw) {
+        const m = String(raw || '').match(/^\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/);
+        if (!m) return this.fechaCorta(raw);
+        const h = Number(m[1]);
+        return `${this.fechaCorta(raw)} ${String(h % 12 || 12).padStart(2, '0')}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`;
+    }
+
+    // Día del pedido con la hora en que se capturó (12/SEP/2025 10:00 AM), igual que la
+    // columna Fecha de la tabla (fechaHoraPedido del ctrl).
+    fechaHoraPedido(fecha, creado) {
+        const dia  = this.fechaCorta(fecha);
+        const hora = this.fechaHoraCorta(creado).split(' ').slice(1).join(' ');
+        return dia ? `${dia}${hora ? ' ' + hora : ''}` : '-';
+    }
+
+    // Editar compromiso del reabasto: arranca en la fecha que ya tiene o, si no, en hoy.
+    editCompromiso(o) {
+        if (!o || !o.id) return;
+        const hoy = moment().format('YYYY-MM-DD');
+
+        this.alertBox({
+            type:           'confirm',
+            title:          'Editar compromiso',
+            detailHtml:     `Reabasto <strong>${o.folio}</strong>: ¿cuándo se espera registrar la compra?`,
+            input:          'date',
+            inputLabel:     'Fecha de compromiso',
+            inputValue:     String(o.expected_date || '').slice(0, 10) || hoy,
+            inputValidator: (v) => !v ? 'Elige una fecha' : (v < hoy ? 'La fecha no puede ser anterior a hoy' : null),
+            okLabel:        'Guardar',
+            cancelLabel:    'Cancelar',
+            onOk: async (fecha) => {
+                const r = await useFetch({ url: apiOrdenes, data: { opc: 'updateCompromiso', id: o.id, expected_date: fecha } }).catch(() => null);
+                if (r && r.status === 200) {
+                    this.alertBox({ type: 'success', title: r.message || 'Fecha compromiso guardada', timer: 1600 });
+                    ordenes.getOrden(o.id);
+                } else {
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar la fecha compromiso' });
+                }
+            }
+        });
+    }
+
+    // Aprobar = surtir: lo marcado se descuenta del almacén de la sucursal que surte con la
+    // cantidad de "A entregar" (arranca en lo pedido y se puede bajar). Lo no marcado sale
+    // del pedido. Un producto sin stock suficiente se puede marcar, con aviso: se surte
+    // igual y el faltante va a reabasto (openFaltanteModal pide la fecha compromiso).
     openAprobacionModal(orden) {
         if (!orden || !orden.id) return;
 
-        const self      = this;
-        const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmtNum    = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
-        const almacenes = app.dataInit.almacenes || [];
-        const productos = orden.productos || [];
-
-        const warehouseFixed = !!(orden.warehouse_id);
-        const optsAlm = `<option value="">-- Selecciona almacén --</option>` + almacenes.map(a =>
-            `<option value="${a.id}"${String(orden.warehouse_id) === String(a.id) ? ' selected' : ''}>${esc(a.valor)}</option>`
-        ).join('');
+        const self       = this;
+        const esc        = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmtNum     = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
+        const productos  = orden.productos || [];
+        const pendiente  = (p) => Math.max(0, p.quantity_ordered - p.quantity_received);
+        const elegidos   = new Set(productos.map(p => String(p.detailId)));
+        const cantidades = {};
+        productos.forEach(p => { cantidades[String(p.detailId)] = pendiente(p); });
+        const almacen    = this.almacenQueSurte(orden);
 
         const modalId = 'modalAprobacion';
         $(`#${modalId}`).remove();
@@ -767,7 +816,7 @@ class OrdenesView extends Templates {
         const $modal = $(`
             <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/40"></div>
-                <div class="relative z-10 w-full max-w-[640px] max-h-[90vh] bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+                <div class="relative z-10 w-full max-w-[960px] h-[90vh] bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
 
                     <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
                         <div class="flex items-center gap-3">
@@ -784,23 +833,27 @@ class OrdenesView extends Templates {
                         </button>
                     </div>
 
-                    <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
-                        <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid #3FC189;background:rgba(63,193,137,.06)">
-                            <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#15803D"></i>
-                            <p class="text-[11px] text-gray-600 leading-relaxed">
-                                Aprobar <span class="font-semibold text-gray-800">no descuenta inventario</span>: solo confirma la solicitud. El stock se descuenta después, al surtir. Revisa la disponibilidad para decidir.
-                            </p>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacén a consultar</label>
-                            ${warehouseFixed
-                                ? `<p class="px-2.5 py-1.5 text-xs text-gray-700 bg-white border border-gray-200 rounded-md">${esc(orden.warehouse_name)}</p>
-                                   <input type="hidden" id="${modalId}_warehouse_id" value="${orden.warehouse_id}">`
-                                : `<div class="relative">
-                                       <select id="${modalId}_warehouse_id" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 cursor-pointer appearance-none pr-8">${optsAlm}</select>
-                                       <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                   </div>`
-                            }
+                    <div class="px-5 py-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Solicitado por</p>
+                                <p class="text-xs font-semibold text-gray-800 truncate">${esc(orden.user_name || '-')}</p>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Sucursal que pide</p>
+                                <p class="text-xs font-semibold text-gray-800 truncate">${esc(orden.branch_name || '-')}</p>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Fecha de solicitud</p>
+                                <p class="text-xs font-semibold text-gray-800">${esc(this.fechaCorta(orden.date_order) || '-')}</p>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Almacén del que se surte</p>
+                                ${almacen
+                                    ? `<p class="text-xs font-semibold text-gray-800 truncate">${esc(almacen.valor)}</p>`
+                                    : `<p class="text-xs font-semibold text-red-600">Sin almacén en esa sucursal</p>`}
+                                <input type="hidden" id="${modalId}_warehouse_id" value="${almacen ? almacen.id : ''}">
+                            </div>
                         </div>
                     </div>
 
@@ -808,9 +861,11 @@ class OrdenesView extends Templates {
                         <table class="w-full border-collapse">
                             <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                                 <tr>
+                                    <th class="w-9 pl-3 py-2"><input type="checkbox" id="${modalId}_todos" checked class="w-3.5 h-3.5 align-middle accent-blue-600 cursor-pointer" title="Marcar o desmarcar todos"></th>
                                     <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
                                     <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Pedido</th>
                                     <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Disp.</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">A entregar</th>
                                     <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Estado</th>
                                 </tr>
                             </thead>
@@ -818,8 +873,14 @@ class OrdenesView extends Templates {
                         </table>
                     </div>
 
-                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50">
-                        <p id="${modalId}_resumen" class="text-[11px] text-gray-500">Selecciona un almacén para ver la disponibilidad.</p>
+                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-3 bg-gray-50">
+                        <p id="${modalId}_resumen" class="text-[11px] text-gray-500 mb-2.5">Selecciona un almacén para ver la disponibilidad.</p>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
+                        <input type="text" id="${modalId}_note" maxlength="255" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 placeholder:text-gray-400" placeholder="Observaciones de la aprobación...">
+                        <p class="mt-1.5 flex items-start gap-1.5 text-[10px] leading-snug text-gray-500">
+                            <i data-lucide="info" class="w-3 h-3 mt-px flex-shrink-0" style="color:#15803D"></i>
+                            <span>Al aprobar se descuenta del almacén lo marcado con su cantidad "A entregar". Lo no marcado se quita del pedido y lo que no alcance queda en reabasto.</span>
+                        </p>
                     </div>
 
                     <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
@@ -829,7 +890,7 @@ class OrdenesView extends Templates {
                                 <i data-lucide="x" class="w-3.5 h-3.5"></i><span>Rechazar</span>
                             </button>
                             <button id="${modalId}_aprobar" class="px-3 py-1.5 text-xs font-bold text-white rounded-md hover:shadow-lg transition-all flex items-center gap-1.5" style="background:#3FC189">
-                                <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Aprobar</span>
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Aprobar y surtir</span>
                             </button>
                         </div>
                     </div>
@@ -840,38 +901,58 @@ class OrdenesView extends Templates {
         $('body').append($modal);
         if (window.lucide) lucide.createIcons();
 
+        const dispDe = (p) => stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
+
+        // Lo de abajo cuenta solo los productos marcados, con su cantidad a entregar.
         const updateResumen = () => {
-            const $r = $(`#${modalId}_resumen`);
-            if (!stockLoaded) { $r.html('Selecciona un almacén para ver la disponibilidad.'); return; }
-            let ok = 0;
-            productos.forEach(p => {
-                const ped = Math.max(0, p.quantity_ordered - p.quantity_received);
-                const d   = stockMap[String(p.product_id)] || 0;
-                if (ped > 0 && d >= ped) ok++;
-            });
-            const total = productos.length;
-            const cls   = ok === total ? '#15803D' : (ok === 0 ? '#B91C1C' : '#C2410C');
-            $r.html(`Puedes cubrir <strong style="color:${cls}">${ok}</strong> de <strong>${total}</strong> materiales con el stock de este almacén.`);
+            const $r       = $(`#${modalId}_resumen`);
+            const marcados = productos.filter(p => elegidos.has(String(p.detailId)));
+            const total    = marcados.length;
+            $(`#${modalId}_todos`).prop('checked', total === productos.length).prop('indeterminate', total > 0 && total < productos.length);
+            if (!stockLoaded) { $r.html(`<strong>${total}</strong> de <strong>${productos.length}</strong> productos marcados. Selecciona un almacén para ver la disponibilidad.`); return; }
+            const ok  = marcados.filter(p => dispDe(p) >= cantidades[String(p.detailId)]).length;
+            const cls = ok === total ? '#15803D' : (ok === 0 ? '#B91C1C' : '#C2410C');
+            $r.html(`Puedes cubrir <strong style="color:${cls}">${ok}</strong> de <strong>${total}</strong> materiales marcados con el stock de este almacén.`);
         };
 
         const renderRows = () => {
             $(`#${modalId}_tbody`).html(productos.map(p => {
-                const ped     = Math.max(0, p.quantity_ordered - p.quantity_received);
-                const disp    = stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
+                const did     = String(p.detailId);
+                const qty     = cantidades[did];
+                const disp    = dispDe(p);
                 const dispTxt = disp === null ? '—' : fmtNum(disp);
-                const color   = disp === null ? '#9CA3AF' : (disp >= ped ? '#15803D' : (disp > 0 ? '#C2410C' : '#B91C1C'));
+                const color   = disp === null ? '#9CA3AF' : (disp >= qty ? '#15803D' : (disp > 0 ? '#C2410C' : '#B91C1C'));
+                const marcado = elegidos.has(did);
                 return `
-                    <tr>
+                    <tr class="${marcado ? '' : 'opacity-50'}" data-row="${did}">
+                        <td class="w-9 pl-3 py-2"><input type="checkbox" data-elegir="${did}" ${marcado ? 'checked' : ''} class="w-3.5 h-3.5 align-middle accent-blue-600 cursor-pointer"></td>
                         <td class="px-3 py-2">
                             <p class="font-medium text-gray-700 text-xs">${esc(p.nombre)}</p>
                             ${p.sku ? `<p class="text-[10px] text-gray-400">${esc(p.sku)}</p>` : ''}
                         </td>
-                        <td class="px-3 py-2 text-center text-xs text-gray-600">${fmtNum(p.quantity_ordered)}</td>
+                        <td class="px-3 py-2 text-center text-xs text-gray-600">${fmtNum(pendiente(p))}</td>
                         <td class="px-3 py-2 text-center text-xs font-bold" style="color:${color}">${dispTxt}</td>
-                        <td class="px-3 py-2 text-center">${estadoCell(disp, ped)}</td>
+                        <td class="px-3 py-2">
+                            <input type="number" data-cantidad="${did}" value="${qty}" min="0" max="${pendiente(p)}" step="0.01"
+                                class="no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-600 outline-none">
+                        </td>
+                        <td class="px-3 py-2 text-center" data-estado>${estadoCell(disp, qty)}</td>
                     </tr>`;
             }).join(''));
             if (window.lucide) lucide.createIcons();
+        };
+
+        // Marcar un producto que no alcanza se permite, pero se avisa.
+        const avisarSinStock = (p) => {
+            const disp = dispDe(p);
+            const qty  = cantidades[String(p.detailId)];
+            if (disp === null || disp >= qty) return;
+            this.alertBox({
+                type:  'warning',
+                title: `Sin stock suficiente de ${esc(p.nombre)}`,
+                detailHtml: `Hay <strong>${fmtNum(disp)}</strong> y vas a entregar <strong>${fmtNum(qty)}</strong>. Se surte igual y lo que falte (<strong>${fmtNum(qty - disp)}</strong>) queda en reabasto.`,
+                timer: 3500
+            });
         };
 
         const loadStock = (warehouseId) => {
@@ -888,36 +969,119 @@ class OrdenesView extends Templates {
         $(`#${modalId}_close`).on('click', closeModal);
         $(`#${modalId}_cerrar`).on('click', closeModal);
         $modal.on('click', (ev) => { if ($(ev.target).is(`#${modalId}`)) closeModal(); });
-        $(`#${modalId}_warehouse_id`).on('change', function () { loadStock($(this).val()); });
 
         $(`#${modalId}_rechazar`).on('click', () => { closeModal(); self.doRejectOrden(orden); });
 
-        $(`#${modalId}_aprobar`).on('click', async () => {
-            const $btn = $(`#${modalId}_aprobar`).prop('disabled', true).addClass('opacity-60 pointer-events-none');
-            const r = await useFetch({ url: apiOrdenes, data: { opc: 'approveOrden', id: orden.id } }).catch(() => null);
-            if (r && r.status === 200) {
-                closeModal();
-                self._refreshAfterAction(orden.folio, orden.id);
-                const rDetalle = await useFetch({ url: apiOrdenes, data: { opc: 'getOrden', id: orden.id } }).catch(() => null);
-                if (rDetalle && rDetalle.status === 200) {
-                    const ordenActualizada = ordenes.mapOrdenDetail(rDetalle.header || {}, rDetalle.detail || []);
-                    self.openSurtidoModal(ordenActualizada);
-                }
-            } else {
-                $btn.prop('disabled', false).removeClass('opacity-60 pointer-events-none');
-                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo aprobar la orden' });
-            }
+        $(`#${modalId}_tbody`).on('change', '[data-elegir]', function () {
+            const did = String($(this).attr('data-elegir'));
+            if (this.checked) elegidos.add(did); else elegidos.delete(did);
+            $(this).closest('tr').toggleClass('opacity-50', !this.checked);
+            updateResumen();
+            if (this.checked) avisarSinStock(productos.find(p => String(p.detailId) === did));
+        });
+        $(`#${modalId}_todos`).on('change', function () {
+            productos.forEach(p => this.checked ? elegidos.add(String(p.detailId)) : elegidos.delete(String(p.detailId)));
+            renderRows();
+            updateResumen();
         });
 
-        if (warehouseFixed) loadStock(orden.warehouse_id);
-        else                { renderRows(); updateResumen(); }
+        // "A entregar" va de 0 a lo pedido; recalcula el estado del renglón y el resumen.
+        $(`#${modalId}_tbody`).on('input', '[data-cantidad]', function () {
+            const did = String($(this).attr('data-cantidad'));
+            const p   = productos.find(x => String(x.detailId) === did);
+            let qty   = parseFloat($(this).val());
+            if (isNaN(qty) || qty < 0) qty = 0;
+            if (qty > pendiente(p)) { qty = pendiente(p); $(this).val(qty); }
+            cantidades[did] = qty;
+            $(this).closest('tr').find('[data-estado]').html(estadoCell(dispDe(p), qty));
+            if (window.lucide) lucide.createIcons();
+            updateResumen();
+        });
+
+        // `compromiso` = fecha del reabasto si hubo faltante. Regresa true si se guardó.
+        const aprobar = async (compromiso) => {
+            const items = {};
+            elegidos.forEach(did => { items[did] = cantidades[did]; });
+            const $btn = $(`#${modalId}_aprobar`).prop('disabled', true).addClass('opacity-60 pointer-events-none');
+            const r = await useFetch({
+                url:  apiOrdenes,
+                data: {
+                    opc:           'approveOrden',
+                    id:            orden.id,
+                    items:         JSON.stringify(items),
+                    note:          $(`#${modalId}_note`).val() || '',
+                    warehouse_id:  $(`#${modalId}_warehouse_id`).val() || '',
+                    expected_date: compromiso || ''
+                }
+            }).catch(() => null);
+            if (r && r.status === 200) {
+                closeModal();
+                this.alertBox({ type: 'success', title: r.message || 'Pedido aprobado', timer: 2600 });
+                self._refreshAfterAction(orden.folio, orden.id);
+                return true;
+            }
+            $btn.prop('disabled', false).removeClass('opacity-60 pointer-events-none');
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo aprobar el pedido' });
+            return false;
+        };
+
+        $(`#${modalId}_aprobar`).on('click', () => {
+            if (!almacen) {
+                this.alertBox({ type: 'warning', title: 'La sucursal que surte no tiene almacén', timer: 2200 });
+                return;
+            }
+            const marcados = productos.filter(p => elegidos.has(String(p.detailId)));
+            if (!marcados.length) {
+                this.alertBox({ type: 'warning', title: 'Selecciona al menos un producto para aprobar', timer: 1800 });
+                return;
+            }
+            if (marcados.some(p => !(cantidades[String(p.detailId)] > 0))) {
+                this.alertBox({ type: 'warning', title: 'Indica cuánto vas a entregar de cada producto marcado', timer: 2000 });
+                return;
+            }
+
+            // Con faltante, el resumen con la fecha compromiso hace de confirmación.
+            const filas = marcados.map(p => {
+                const qty  = cantidades[String(p.detailId)];
+                const disp = dispDe(p) || 0;
+                return { nombre: p.nombre, sku: p.sku, sup: qty, disp: disp, rep: Math.max(0, qty - disp) };
+            });
+            if (filas.some(f => f.rep > 0)) {
+                this.openFaltanteModal(orden, filas, aprobar, { okLabel: 'Aprobar y surtir' });
+                return;
+            }
+
+            const quitados = productos.length - marcados.length;
+            this.alertBox({
+                type:        'confirm',
+                title:       `¿Deseas aprobar la solicitud ${orden.folio}?`,
+                detailHtml:  `Se descontarán del almacén <strong>${marcados.length}</strong> de <strong>${productos.length}</strong> productos.`
+                           + (quitados ? ` ${quitados === 1 ? 'El que no marcaste se quita' : 'Los que no marcaste se quitan'} del pedido.` : ''),
+                okLabel:     'Sí, aprobar',
+                cancelLabel: 'No',
+                onOk:        () => aprobar('')
+            });
+        });
+
+        if (almacen) loadStock(almacen.id);
+        else         { renderRows(); updateResumen(); }
+    }
+
+    // Almacén del que se surte (ya no se elige): el que traiga el pedido o, si no, el
+    // predeterminado de la sucursal que surte (el primero si ninguno está marcado).
+    almacenQueSurte(orden) {
+        if (orden.warehouse_id) return { id: orden.warehouse_id, valor: orden.warehouse_name || '' };
+
+        const sucursal  = orden.destination_branch_id || orden.branch_id;
+        const almacenes = (app.dataInit.almacenes || []).filter(a => String(a.branch_id) === String(sucursal));
+        return almacenes.find(a => String(a.is_default) === '1') || almacenes[0] || null;
     }
 
     doRejectOrden(o) {
         if (!o || !o.id) return;
         this.alertBox({
             type:             'cancel',
-            title:            `Rechazar orden ${o.folio}`,
+            title:            `Rechazar pedido ${o.folio}`,
             okLabel:          'Rechazar',
             cancelLabel:      'Cancelar',
             input:            'textarea',
@@ -931,12 +1095,11 @@ class OrdenesView extends Templates {
                     data: { opc: 'rejectOrden', id: o.id, reason: reason }
                 }).then(r => {
                     if (r && r.status === 200) {
-                        this.alertBox({ type: 'success', title: r.message || 'Orden rechazada', timer: 1600 });
+                        this.alertBox({ type: 'success', title: r.message || 'Pedido rechazado', timer: 1600 });
                         app.selectOrden(null);
                         ordenes.lsOrdenes();
-                        ordenes.lsKpis();
                     } else {
-                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo rechazar la orden' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo rechazar el pedido' });
                     }
                 });
             }
@@ -947,19 +1110,18 @@ class OrdenesView extends Templates {
         if (!o || !o.id) return;
         this.alertBox({
             type:        'cancel',
-            title:       `Cancelar orden ${o.folio}`,
-            detailHtml:  'La orden quedara cancelada. Las recepciones parciales previas no se revierten.',
-            okLabel:     'Si, cancelar',
+            title:       `Cancelar pedido ${o.folio}`,
+            detailHtml:  'El pedido quedará cancelado. Las recepciones parciales previas no se revierten.',
+            okLabel:     'Sí, cancelar',
             cancelLabel: 'No',
             onOk: async () => {
                 const r = await useFetch({ url: this._link, data: { opc: 'cancelOrden', id: o.id } }).catch(() => null);
                 if (r && r.status === 200) {
-                    this.alertBox({ type: 'success', title: r.message || 'Orden cancelada', timer: 1600 });
+                    this.alertBox({ type: 'success', title: r.message || 'Pedido cancelado', timer: 1600 });
                     app.selectOrden(null);
                     ordenes.lsOrdenes();
-                    ordenes.lsKpis();
                 } else {
-                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar la orden' });
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar el pedido' });
                 }
             }
         });
@@ -967,7 +1129,6 @@ class OrdenesView extends Templates {
 
     _refreshAfterAction(folio, id) {
         ordenes.lsOrdenes();
-        ordenes.lsKpis();
         if (folio && id) {
             setTimeout(() => app.selectOrden(folio, id), 300);
         } else {
@@ -979,9 +1140,10 @@ class OrdenesView extends Templates {
     // Modal de nueva orden / edición (formato de Entradas: orden-form.js)
     // ----------------------------------------------------------
 
-    // Igual que Entradas: antes de la captura se eligen Sucursal destino (arranca en la
-    // de la sesión), Almacén y Fecha. El ctrl los revisa (verifyNuevaOrden) y la captura
-    // abre con ellos; ahí se pueden seguir cambiando.
+    // Igual que Entradas: antes de la captura se eligen Solicitar a (arranca en la
+    // de la sesión) y la fecha en que se necesitan los insumos. El almacén no: lo elige
+    // quien surte al aprobar. El ctrl los revisa (verifyNuevaOrden) y la captura abre con
+    // ellos; ahí se pueden seguir cambiando.
     openNuevaOrden() {
         const hoy = moment().format('YYYY-MM-DD');
 
@@ -993,7 +1155,7 @@ class OrdenesView extends Templates {
             prefijo: 'no_',
             closeOnError: false,
             bootbox: {
-                title: 'Nueva orden de compra',
+                title: 'Nuevo pedido',
                 size: 'small',
                 closeButton: true
             },
@@ -1002,13 +1164,14 @@ class OrdenesView extends Templates {
                 if (response && response.status === 200) {
                     this.openOrdenForm(null, response.data);
                 } else {
-                    this.alertBox({ type: 'warning', title: (response && response.message) || 'No se pudo abrir la orden' });
+                    this.alertBox({ type: 'warning', title: (response && response.message) || 'No se pudo abrir el pedido' });
                 }
             }
         });
 
-        $('#no_date_order').attr({ min: moment().subtract(1, 'month').format('YYYY-MM-DD'), max: hoy });
+        $('#no_date_order').attr('min', moment().subtract(1, 'month').format('YYYY-MM-DD'));
         this.mountNuevaOrdenIconos();
+        this.syncNuevaOrdenAviso();
     }
 
     jsonNuevaOrden(curSub, hoy) {
@@ -1016,27 +1179,18 @@ class OrdenesView extends Templates {
             {
                 opc: 'select',
                 id: 'branch_id',
-                lbl: 'Sucursal destino',
+                lbl: 'Solicitar a',
                 class: 'col-12',
                 value: curSub,
                 data: (app.dataInit.sucursales || []).filter(s => s.id !== ''),
-                onchange: 'ordenesView.syncNuevaOrdenAlmacen()',
+                onchange: 'ordenesView.syncNuevaOrdenAviso()',
                 required: true
-            },
-            {
-                opc: 'select',
-                id: 'warehouse_id',
-                lbl: 'Almacén',
-                class: 'col-12',
-                value: this.almacenDefault(curSub),
-                data: this.almacenesDe(curSub),
-                required: false
             },
             {
                 opc: 'input',
                 type: 'date',
                 id: 'date_order',
-                lbl: 'Fecha de solicitud',
+                lbl: OrdenForm.LABELS.fecha,
                 class: 'col-12',
                 value: hoy,
                 required: true
@@ -1044,44 +1198,39 @@ class OrdenesView extends Templates {
         ];
     }
 
-    // Íconos dentro de los selects, como en el formulario previo de Entradas.
+    // Ícono dentro del select, como en el formulario previo de Entradas.
+    // Debajo de Solicitar a va el aviso de sucursal propia (syncNuevaOrdenAviso).
     mountNuevaOrdenIconos() {
-        const iconos = {
-            no_branch_id:    'building-2',
-            no_warehouse_id: 'warehouse'
-        };
+        $('#no_branch_id').addClass('!pl-10').before(
+            $('<span>', { class: 'pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center' })
+                .append($('<i>', { 'data-lucide': 'building-2', class: 'w-4 h-4' }))
+        );
 
-        $.each(iconos, (id, icon) => {
-            $('#' + id).addClass('!pl-10').before(
-                $('<span>', { class: 'pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center' })
-                    .append($('<i>', { 'data-lucide': icon, class: 'w-4 h-4' }))
-            );
-        });
+        // Tarjeta informativa como la de Tipo de entrada en Entradas, en tono de aviso.
+        $('#no_branch_id').closest('.relative').parent().append(
+            $('<div>', {
+                id:    'no_branch_id_hint',
+                class: 'hidden mt-1.5 flex items-start gap-2 rounded-md border border-red-100 bg-red-50 px-2.5 py-2 text-[11px] leading-snug font-semibold text-red-700'
+            }).append(
+                $('<i>', { 'data-lucide': 'alert-circle', class: 'w-3.5 h-3.5 mt-px flex-shrink-0 text-red-600' }),
+                $('<span>', { text: OrdenForm.LABELS.mismaSucursal })
+            )
+        );
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    // El Almacén es uno DE la sucursal elegida, o ninguno.
-    syncNuevaOrdenAlmacen() {
-        const almacenes = this.almacenesDe($('#no_branch_id').val());
-        $('#no_warehouse_id').empty().append(almacenes.map(a => $('<option>', { value: a.id, text: a.valor })))
-            .val(this.almacenDefault($('#no_branch_id').val()));
+    syncNuevaOrdenAviso() {
+        const misma = String($('#no_branch_id').val()) === String(this.sucursalSolicitante());
+        $('#no_branch_id_hint').toggleClass('hidden', !misma);
     }
 
-    // El almacén que se elige solo: el predeterminado de la sucursal o, si no hay, el primero.
-    almacenDefault(branchId) {
-        const almacenes = (app.dataInit.almacenes || []).filter(a => String(a.branch_id) === String(branchId));
-        const elegido   = almacenes.find(a => String(a.is_default) === '1') || almacenes[0];
-
-        return elegido ? elegido.id : '';
+    // Quien pide: la sucursal del filtro o, con "Todas", la de la sesión.
+    sucursalSolicitante() {
+        return $('#branch_id').val() || app.subId;
     }
 
-    almacenesDe(branchId) {
-        const almacenes = (app.dataInit.almacenes || []).filter(a => String(a.branch_id) === String(branchId));
-        return [{ id: '', valor: 'Sin definir' }].concat(almacenes);
-    }
-
-    // `prefill` = lo que eligió el formulario previo (branch_id, warehouse_id, fecha).
+    // `prefill` = lo que eligió el formulario previo (branch_id, fecha).
     openOrdenForm(orden, prefill = null) {
         const form = this.ordenFormInstance();
 
@@ -1092,7 +1241,7 @@ class OrdenesView extends Templates {
 
         this.ordenEditando = null;
         form.setMode(null);
-        form.setData(Object.assign({ branch_id: app.subId, warehouse_id: '', fecha: moment().format('YYYY-MM-DD'), nota: '' }, prefill || {}));
+        form.setData(Object.assign({ branch_id: app.subId, fecha: moment().format('YYYY-MM-DD'), nota: '' }, prefill || {}));
         form.open();
     }
 
@@ -1105,9 +1254,8 @@ class OrdenesView extends Templates {
         form.openEdit({
             id:           orden.id,
             folio:        orden.folio,
+            status:       orden.status,
             branch_id:    orden.destination_branch_id || '',
-            warehouse_id: orden.warehouse_id || '',
-            supplier_id:  orden.supplier_id,
             fecha:        String(orden.date_order || '').slice(0, 10),
             nota:         orden.note || '',
             productos: (orden.productos || []).map(p => {
@@ -1119,9 +1267,10 @@ class OrdenesView extends Templates {
                     id:        String(p.product_id),
                     nombre:    p.nombre,
                     sku:       p.sku || '',
-                    categoria: prod.categoria || 'Sin categoria',
+                    categoria: prod.categoria || 'Sin categoría',
                     unit_id:   p.unit_id,
                     cantidad:  p.quantity_ordered,
+                    nota:      p.nota,
                     stock:     0,
                     image:     p.image || '',
                     icon:      'package',
@@ -1138,101 +1287,16 @@ class OrdenesView extends Templates {
                 parent: 'body',
                 id:     'ordenFormModal',
                 json:   app.dataInit.productos || [],
+                // Sin almacén, formatos ni alta de productos: solo se piden los del catálogo.
                 data: {
-                    sucursales:  (app.dataInit.sucursales  || []).filter(s => s.id !== ''),
-                    almacenes:   app.dataInit.almacenes   || [],
-                    categorias:  app.dataInit.categorias  || [],
-                    unidades:    app.dataInit.unidades    || [],
-                    proveedores: (app.dataInit.proveedores || []).filter(p => p.id !== ''),
-                    fecha:       moment().format('YYYY-MM-DD')
-                },
-                onWarehouseChange: async (warehouseId, done) => {
-                    if (!warehouseId) { done({}); return; }
-                    const r = await useFetch({
-                        url:  apiOrdenes,
-                        data: { opc: 'stockByWarehouse', warehouse_id: warehouseId }
-                    });
-                    done((r && r.status === 200) ? (r.stock || {}) : {});
-                },
-                onCreateSupplier: async (data, done) => {
-                    const r = await useFetch({
-                        url:  apiOrdenes,
-                        data: Object.assign({ opc: 'createSupplier' }, data)
-                    });
-                    if (r && r.status === 200 && r.id) {
-                        this.alertBox({ type: 'success', title: r.message || 'Proveedor creado', timer: 1600 });
-                        done({ id: r.id, valor: r.valor });
-                    } else {
-                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el proveedor' });
-                    }
-                },
-                // Misma alta exprés que Entradas (ctrl-almacen::addProductoRapido).
-                onCreateProduct: async (data, done) => {
-                    const r = await useFetch({
-                        url:  apiAlmacen,
-                        data: Object.assign({ opc: 'addProductoRapido' }, data)
-                    }).catch(() => null);
-
-                    if (!(r && r.status === 200 && r.id)) {
-                        done(null, (r && r.message) || 'No se pudo crear el producto');
-                        return;
-                    }
-
-                    done(this.productoNuevo(r, data));
+                    sucursales: (app.dataInit.sucursales || []).filter(s => s.id !== ''),
+                    fecha:      moment().format('YYYY-MM-DD')
                 },
                 onAdd:    (payload) => this.saveOrdenForm(payload),
-                onUpdate: (payload) => this.saveOrdenForm(payload),
-                // Los formatos son los mismos de Entradas (ctrl-entradas): uno sirve en las dos capturas.
-                onLoadFormatos: async () => {
-                    const r = await useFetch({ url: apiEntradas, data: { opc: 'lsFormatos' } });
-                    return (r && r.status === 200) ? (r.formatos || []) : [];
-                },
-                onSaveFormato: async (data) => {
-                    const r = await useFetch({
-                        url:  apiEntradas,
-                        data: {
-                            opc:       'saveFormato',
-                            name:      data.name,
-                            scope:     data.scope,
-                            productos: JSON.stringify((data.productos || []).map(p => ({ id: p.id, cantidad: p.cantidad })))
-                        }
-                    });
-                    if (r && r.status === 200) {
-                        if (!data.silent) this.alertBox({ type: 'success', title: r.message || 'Formato guardado', timer: 1600 });
-                    } else {
-                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el formato' });
-                    }
-                },
-                onDeleteFormato: async (id) => {
-                    const r = await useFetch({ url: apiEntradas, data: { opc: 'deleteFormato', id: id } });
-                    if (r && r.status === 200) {
-                        this.alertBox({ type: 'success', title: r.message || 'Formato eliminado', timer: 1600 });
-                    } else {
-                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo eliminar el formato' });
-                    }
-                }
+                onUpdate: (payload) => this.saveOrdenForm(payload)
             });
         }
         return this.ordenFormApi;
-    }
-
-    // Renglón de catálogo (mismo shape que init) para un producto recién dado de alta.
-    productoNuevo(r, data) {
-        const cat = (app.dataInit.categorias || []).find(c => String(c.id) === String(data.category_id));
-        return {
-            id:                String(r.id),
-            nombre:            data.name,
-            sku:               r.sku || '',
-            categoria:         cat ? cat.valor : 'Sin categoria',
-            costo:             data.costo,
-            price_without_tax: data.cost_unit,
-            tax:               data.cost_tax,
-            stock:             0,
-            image:             '',
-            icon:              'package',
-            bg:                'bg-gray-100',
-            color:             'text-gray-500'
-        };
     }
 
     // La sucursal que pide (branch_id) es la del filtro; al editar se conserva la de la orden.
@@ -1240,7 +1304,7 @@ class OrdenesView extends Templates {
         const orden  = this.ordenEditando;
         const isEdit = !!payload.id;
         const data   = Object.assign({}, payload, {
-            branch_id: (isEdit && orden ? orden.branch_id : ($('#branch_id').val() || app.subId)) || ''
+            branch_id: (isEdit && orden ? orden.branch_id : this.sucursalSolicitante()) || ''
         });
 
         const r = await useFetch({
@@ -1251,15 +1315,42 @@ class OrdenesView extends Templates {
         }).catch(() => null);
 
         if (r && r.status === 200) {
-            this.alertBox({ type: 'success', title: r.message || (isEdit ? 'Orden actualizada' : 'Orden creada'), timer: 1600 });
+            if (!isEdit && payload.submit) this.avisoPedidoEnviado(r, payload);
+            else this.alertBox({ type: 'success', title: r.message || (isEdit ? 'Pedido actualizado' : 'Pedido creado'), timer: 1600 });
             ordenes.lsOrdenes();
-            ordenes.lsKpis();
             if (isEdit && orden && orden.folio) {
                 setTimeout(() => app.selectOrden(orden.folio, orden.id), 300);
             }
         } else {
-            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar la orden' });
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el pedido' });
         }
+    }
+
+    // Pedido enviado: folio, a quién se le pidió, para cuándo y qué lleva. Se queda
+    // abierto hasta que se cierra para que dé tiempo de leerlo.
+    avisoPedidoEnviado(r, payload) {
+        const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmtMoney  = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtNum    = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
+        const productos = payload.productos || [];
+        const sucursal  = (app.dataInit.sucursales || []).find(s => String(s.id) === String(payload.destination_branch_id));
+        const unidades  = productos.reduce((s, p) => s + Number(p.quantity || 0), 0);
+        const total     = productos.reduce((s, p) => s + Number(p.quantity || 0) * Number(p.cost || 0), 0);
+        // span y no div: alertBox mete el detalle dentro de un <p>.
+        const renglon   = (k, v) => `<span class="flex justify-between gap-3 py-1 border-b border-gray-100 last:border-b-0"><span class="text-gray-500">${k}</span><span class="font-semibold text-gray-800 text-right">${v}</span></span>`;
+
+        this.alertBox({
+            type:       'success',
+            title:      `Pedido ${esc(r.folio || '')} enviado`,
+            detailHtml: `
+                <span class="block mt-2 mb-1 text-left text-[12px]">
+                    ${renglon('Solicitado a', esc(sucursal ? sucursal.valor : '-'))}
+                    ${renglon('Lo necesitas para', esc(this.fechaCorta(payload.date_order) || '-'))}
+                    ${renglon('Materiales', `${productos.length} &middot; ${fmtNum(unidades)} uds`)}
+                    ${renglon('Costo estimado', fmtMoney(total))}
+                </span>
+                <span class="block text-[11px] text-gray-400">Queda en espera de que lo revisen y aprueben.</span>`
+        });
     }
 
     // ----------------------------------------------------------
@@ -1335,7 +1426,7 @@ class OrdenesView extends Templates {
                                 <i data-lucide="package-check" class="w-5 h-5 text-white"></i>
                             </div>
                             <div>
-                                <h3 class="text-sm font-bold text-gray-800">Recepcion de materiales</h3>
+                                <h3 class="text-sm font-bold text-gray-800">Recepción de materiales</h3>
                                 <p class="text-[11px] text-gray-500">Orden <span class="font-semibold text-gray-700">${esc(orden.folio)}</span> &middot; ${orden.status_badge}</p>
                             </div>
                         </div>
@@ -1349,20 +1440,20 @@ class OrdenesView extends Templates {
                         <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid rgb(var(--brand-600, 192 90 64));background:rgb(var(--brand-600, 192 90 64) /.05)">
                             <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:rgb(var(--brand-600, 192 90 64))"></i>
                             <p class="text-[11px] text-gray-600 leading-relaxed">
-                                Al confirmar, se generara una <span class="font-semibold text-gray-800">entrada al inventario</span> con las cantidades indicadas en
-                                <span class="font-semibold text-gray-800">"Recibe ahora"</span> y se afectara el stock del almacen destino.
-                                Si no recibes todo, la orden quedara en estado <span class="font-semibold" style="color:#F97316">Parcial</span>.
+                                Al confirmar, se generará una <span class="font-semibold text-gray-800">entrada al inventario</span> con las cantidades indicadas en
+                                <span class="font-semibold text-gray-800">"Recibe ahora"</span> y se afectará el stock del almacén destino.
+                                Si no recibes todo, la orden quedará en estado <span class="font-semibold" style="color:#F97316">Parcial</span>.
                             </p>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacen destino${warehouseFixed ? '' : ' *'}</label>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacén destino${warehouseFixed ? '' : ' *'}</label>
                                 ${warehouseFixed
                                     ? `<p class="px-2.5 py-1.5 text-xs text-gray-700 bg-white border border-gray-200 rounded-md">${esc(orden.warehouse_name)}</p>
                                        <input type="hidden" id="${modalId}_warehouse_id" value="${orden.warehouse_id}">`
                                     : `<div class="relative">
                                            <select id="${modalId}_warehouse_id" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8">
-                                               <option value="">-- Selecciona almacen --</option>
+                                               <option value="">-- Selecciona almacén --</option>
                                                ${optsAlm}
                                            </select>
                                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
@@ -1370,8 +1461,8 @@ class OrdenesView extends Templates {
                                 }
                             </div>
                             <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota de recepcion <span class="text-gray-400 normal-case">(opcional)</span></label>
-                                <input type="text" id="${modalId}_note" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400" placeholder="Observaciones: faltantes, danos, etc.">
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota de recepción <span class="text-gray-400 normal-case">(opcional)</span></label>
+                                <input type="text" id="${modalId}_note" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400" placeholder="Observaciones: faltantes, daños, etc.">
                             </div>
                         </div>
                     </div>
@@ -1415,7 +1506,7 @@ class OrdenesView extends Templates {
                     <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                         <button id="${modalId}_btnCancelar" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all">Cancelar</button>
                         <button id="${modalId}_btnConfirmar" class="px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5">
-                            <i data-lucide="package-check" class="w-3.5 h-3.5"></i><span>Confirmar recepcion</span>
+                            <i data-lucide="package-check" class="w-3.5 h-3.5"></i><span>Confirmar recepción</span>
                         </button>
                     </div>
                 </div>
@@ -1502,7 +1593,6 @@ class OrdenesView extends Templates {
                 this.alertBox({ type: 'success', title: r.message || 'Recepción registrada', timer: 2200 });
                 closeModal();
                 ordenes.lsOrdenes();
-                ordenes.lsKpis();
                 app.selectOrden(null);
             } else {
                 this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la recepción' });
@@ -1523,7 +1613,7 @@ class OrdenesView extends Templates {
         const productos = orden.productos || [];
 
         const warehouseFixed = !!(orden.warehouse_id);
-        const optsAlm = `<option value="">-- Selecciona almacen --</option>` + almacenes.map(a =>
+        const optsAlm = `<option value="">-- Selecciona almacén --</option>` + almacenes.map(a =>
             `<option value="${a.id}"${String(orden.warehouse_id) === String(a.id) ? ' selected' : ''}>${esc(a.valor)}</option>`
         ).join('');
 
@@ -1557,13 +1647,13 @@ class OrdenesView extends Templates {
                         <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid rgb(var(--brand-600, 192 90 64));background:rgb(var(--brand-600, 192 90 64) /.05)">
                             <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:rgb(var(--brand-600, 192 90 64))"></i>
                             <p class="text-[11px] text-gray-600 leading-relaxed">
-                                Al confirmar se genera una <span class="font-semibold text-gray-800">salida</span> que descuenta el stock del almacen origen.
-                                Si surtes mas de lo disponible, el faltante queda como una <span class="font-semibold text-gray-800">orden de compra de reabasto</span> pendiente, que deberas recibir cuando registres la compra.
+                                Al confirmar se genera una <span class="font-semibold text-gray-800">salida</span> que descuenta el stock del almacén origen.
+                                Si surtes más de lo disponible, el faltante queda como una <span class="font-semibold text-gray-800">orden de compra de reabasto</span> pendiente, que deberás recibir cuando registres la compra.
                             </p>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacen origen${warehouseFixed ? '' : ' *'}</label>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacén origen${warehouseFixed ? '' : ' *'}</label>
                                 ${warehouseFixed
                                     ? `<p class="px-2.5 py-1.5 text-xs text-gray-700 bg-white border border-gray-200 rounded-md">${esc(orden.warehouse_name)}</p>
                                        <input type="hidden" id="${modalId}_warehouse_id" value="${orden.warehouse_id}">`
@@ -1696,46 +1786,179 @@ class OrdenesView extends Templates {
         if (warehouseFixed) loadStock(orden.warehouse_id);
         else                renderRows();
 
-        $(`#${modalId}_btnConfirmar`).on('click', async () => {
+        // `compromiso` = fecha en que se espera registrar la compra del reabasto.
+        const enviarSurtido = async (warehouseId, items, replenish, compromiso) => {
+            const r = await useFetch({
+                url:  apiOrdenes,
+                data: {
+                    opc:           'fulfillOrden',
+                    id:            orden.id,
+                    warehouse_id:  warehouseId,
+                    note:          $(`#${modalId}_note`).val() || '',
+                    items:         JSON.stringify(items),
+                    replenish:     JSON.stringify(replenish),
+                    expected_date: compromiso || ''
+                }
+            }).catch(() => null);
+            if (r && r.status === 200) {
+                this.alertBox({ type: 'success', title: r.message || 'Surtido registrado', timer: 2200 });
+                closeModal();
+                ordenes.lsOrdenes();
+                app.selectOrden(null);
+                return true;
+            }
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo surtir' });
+            return false;
+        };
+
+        // Sin faltante se surte directo; con faltante primero se confirma el resumen.
+        $(`#${modalId}_btnConfirmar`).on('click', () => {
             const warehouseId = $(`#${modalId}_warehouse_id`).val() || '';
             if (!warehouseId) {
                 this.alertBox({ type: 'warning', title: 'Selecciona el almacén de origen', timer: 1800 });
                 return;
             }
-            const items = {}, replenish = {};
+            const items = {}, replenish = {}, filas = [];
             $modal.find(`#${modalId}_tbody tr`).each(function () {
                 const $tr = $(this);
                 const did = $tr.attr('data-detail-id');
+                const pid = String($tr.attr('data-product-id'));
                 const sup = parseFloat($tr.find('.sur-qty').val());
                 const rep = parseFloat($tr.find('.sur-rep').val());
                 if (!isNaN(sup) && sup > 0) items[did]     = sup;
                 if (!isNaN(rep) && rep > 0) replenish[did] = rep;
+                if (!isNaN(sup) && sup > 0) {
+                    const p = productos.find(x => String(x.detailId) === String(did)) || {};
+                    filas.push({ nombre: p.nombre, sku: p.sku, sup: sup, rep: isNaN(rep) ? 0 : rep, disp: stockLoaded ? (stockMap[pid] || 0) : 0 });
+                }
             });
             if (!Object.keys(items).length) {
                 this.alertBox({ type: 'warning', title: 'Indica al menos una cantidad a surtir', timer: 1800 });
                 return;
             }
-            const note = $(`#${modalId}_note`).val() || '';
-            const r = await useFetch({
-                url:  apiOrdenes,
-                data: {
-                    opc:          'fulfillOrden',
-                    id:           orden.id,
-                    warehouse_id: warehouseId,
-                    note:         note,
-                    items:        JSON.stringify(items),
-                    replenish:    JSON.stringify(replenish)
-                }
-            });
-            if (r && r.status === 200) {
-                this.alertBox({ type: 'success', title: r.message || 'Surtido registrado', timer: 2200 });
-                closeModal();
-                ordenes.lsOrdenes();
-                ordenes.lsKpis();
-                app.selectOrden(null);
-            } else {
-                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo surtir' });
+            if (!Object.keys(replenish).length) {
+                enviarSurtido(warehouseId, items, replenish, '');
+                return;
             }
+            this.openFaltanteModal(orden, filas, (compromiso) => enviarSurtido(warehouseId, items, replenish, compromiso));
+        });
+    }
+
+    // Confirmar surtido con faltante: resumen con los totales, aviso de la orden de
+    // reabasto, estado por producto y la fecha compromiso de la compra (opcional, no
+    // anterior a hoy). `onConfirm(compromiso)` regresa true si el surtido se guardó.
+    // `opts.okLabel` = texto del botón (al aprobar dice "Aprobar y surtir").
+    openFaltanteModal(orden, filas, onConfirm, opts = {}) {
+        const esc     = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmtNum  = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
+        const hoy     = moment().format('YYYY-MM-DD');
+        const modalId = 'modalFaltante';
+        $(`#${modalId}`).remove();
+
+        const totSup = filas.reduce((s, f) => s + f.sup, 0);
+        const totRep = filas.reduce((s, f) => s + f.rep, 0);
+
+        const estado = (f) => {
+            if (f.rep <= 0)  return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,.15);color:#15803D"><i data-lucide="check" class="w-3 h-3"></i>Completo</span>`;
+            if (f.disp > 0)  return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(249,115,22,.15);color:#C2410C"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Parcial</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,.15);color:#B91C1C"><i data-lucide="x" class="w-3 h-3"></i>Sin stock</span>`;
+        };
+
+        const totalCard = (label, value, color) => `
+            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${label}</p>
+                <p class="text-base font-bold" style="color:${color}">${value}</p>
+            </div>`;
+
+        const $modal = $(`
+            <div id="${modalId}" class="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/40"></div>
+                <div class="relative z-10 w-full max-w-[640px] max-h-[90vh] bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+
+                    <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style="background:#F97316">
+                                <i data-lucide="package-search" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800">Confirmar surtido con faltante</h3>
+                                <p class="text-[11px] text-gray-500">Solicitud <span class="font-semibold text-gray-700">${esc(orden.folio)}</span></p>
+                            </div>
+                        </div>
+                        <button id="${modalId}_close" class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
+                        <div class="grid grid-cols-3 gap-3 mb-3">
+                            ${totalCard('Productos', filas.length, '#1F2937')}
+                            ${totalCard('A surtir', fmtNum(totSup) + ' uds', 'rgb(var(--brand-600, 192 90 64))')}
+                            ${totalCard('Reabasto', fmtNum(totRep) + ' uds', '#C2410C')}
+                        </div>
+                        <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid #F97316;background:rgba(249,115,22,.07)">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#C2410C"></i>
+                            <p class="text-[11px] text-gray-700 leading-relaxed font-semibold">Se generará orden de reabasto por lo que faltó.</p>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Fecha compromiso <span class="text-gray-400 normal-case">(cuándo se espera registrar la compra)</span></label>
+                            <input type="date" id="${modalId}_fecha" min="${hoy}" class="w-full md:w-56 px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex-1 min-h-0 overflow-y-auto cs-scroll">
+                        <table class="w-full border-collapse">
+                            <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">A surtir</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Disp.</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Reabasto</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                ${filas.map(f => `
+                                    <tr>
+                                        <td class="px-3 py-2">
+                                            <p class="font-medium text-gray-700 text-xs">${esc(f.nombre)}</p>
+                                            ${f.sku ? `<p class="text-[10px] text-gray-400">${esc(f.sku)}</p>` : ''}
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs text-gray-700 font-semibold">${fmtNum(f.sup)}</td>
+                                        <td class="px-3 py-2 text-center text-xs text-gray-600">${fmtNum(f.disp)}</td>
+                                        <td class="px-3 py-2 text-center text-xs font-bold" style="color:${f.rep > 0 ? '#C2410C' : '#9CA3AF'}">${f.rep > 0 ? fmtNum(f.rep) : '—'}</td>
+                                        <td class="px-3 py-2 text-center">${estado(f)}</td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                        <button id="${modalId}_regresar" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Regresar</button>
+                        <button id="${modalId}_confirmar" class="px-3 py-1.5 text-xs font-bold text-white rounded-md hover:shadow-lg transition-all flex items-center gap-1.5" style="background:rgb(var(--brand-600, 192 90 64))">
+                            <i data-lucide="truck" class="w-3.5 h-3.5"></i><span>${esc(opts.okLabel || 'Confirmar surtido')}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        $('body').append($modal);
+        if (window.lucide) lucide.createIcons();
+
+        const close = () => $(`#${modalId}`).remove();
+        $(`#${modalId}_close, #${modalId}_regresar`).on('click', close);
+        $modal.on('click', (ev) => { if ($(ev.target).is(`#${modalId}`)) close(); });
+
+        $(`#${modalId}_confirmar`).on('click', async () => {
+            const compromiso = $(`#${modalId}_fecha`).val() || '';
+            if (compromiso && compromiso < hoy) {
+                this.alertBox({ type: 'warning', title: 'La fecha compromiso no puede ser anterior a hoy', timer: 1800 });
+                return;
+            }
+            const $btn = $(`#${modalId}_confirmar`).prop('disabled', true).addClass('opacity-60 pointer-events-none');
+            if (await onConfirm(compromiso)) close();
+            else $btn.prop('disabled', false).removeClass('opacity-60 pointer-events-none');
         });
     }
 
@@ -1749,9 +1972,9 @@ class OrdenesView extends Templates {
             id:      'ordenDetailPanel',
             json:    null,
             labels: {
-                emptyTitle:  'Selecciona una orden',
-                emptyHint:   'Haz click en cualquier fila para ver el detalle aqui.',
-                subtitleLbl: 'Detalle de orden'
+                emptyTitle:  'Selecciona un pedido',
+                emptyHint:   'Haz clic en cualquier fila para ver el detalle aquí.',
+                subtitleLbl: 'Detalle del pedido'
             },
             onClose:   () => {},
             onPrint:   () => {},
@@ -1760,7 +1983,8 @@ class OrdenesView extends Templates {
             onApprove: () => {},
             onReject:  () => {},
             onRecibir: () => {},
-            onCancel:  () => {}
+            onCancel:  () => {},
+            onCompromiso: () => {}
         };
 
         const o    = options || {};
@@ -1810,34 +2034,47 @@ class OrdenesView extends Templates {
                            <div class="flex items-center flex-shrink-0">
                                <div class="flex flex-col items-center">
                                    <div class="w-2.5 h-2.5 rounded-full border-2 flex-shrink-0" style="background:${current ? 'rgb(var(--brand-600, 192 90 64))' : (done ? 'rgb(var(--brand-600, 192 90 64))' : '#fff')};border-color:${dotColor}"></div>
-                                   <p class="text-[9px] font-semibold mt-0.5 whitespace-nowrap" style="color:${labelColor}">${esc(s === 'Recibida' ? 'Surtida' : s)}</p>
+                                   <p class="text-[9px] font-semibold mt-0.5 whitespace-nowrap" style="color:${labelColor}">${esc(s)}</p>
                                </div>
                                ${i < steps.length - 1 ? `<div class="h-0.5 w-6 flex-shrink-0 mb-3" style="background:${lineColor}"></div>` : ''}
                            </div>`;
                    }).join('')}
                </div>`;
 
-        // Materiales
+        // Materiales: misma tabla compacta que el detalle de Entradas (Producto, Precio,
+        // Cant, Importe, Unidad). Lo recibido y la nota de solicitud van bajo el nombre.
         const productosHtml = (e.productos || []).map(p => {
-            const recibido  = p.quantity_received;
-            const ordenado  = p.quantity_ordered;
-            const hasCost   = p.cost != null;
-            const subHtml   = hasCost ? `<div class="text-xs text-gray-500 ml-1">${fmtMoney(p.cost)}</div>` : `<div class="text-xs text-gray-400 ml-1 italic">$—</div>`;
-            const recvBadge = recibido > 0
-                ? `<span class="text-[10px] font-bold ml-1" style="color:#3FC189">(${fmtNum(recibido)} rec.)</span>`
-                : '';
+            const recibido = p.quantity_received;
+            const hasCost  = p.cost != null;
             return `
-                <div class="flex items-center justify-between py-2 border-b border-gray-100 gap-2">
-                    <div class="flex-1 min-w-0">
-                        <p class="text-xs font-medium text-gray-700 truncate">${esc(p.nombre)}${recvBadge}</p>
-                        ${p.sku ? `<p class="text-[10px] text-gray-400">${esc(p.sku)}</p>` : ''}
-                    </div>
-                    <div class="text-right flex-shrink-0 flex items-center gap-2">
-                        <div class="text-xs font-semibold text-gray-800">${fmtNum(ordenado)}</div>
-                        ${subHtml}
-                    </div>
-                </div>`;
+                <tr class="border-b border-gray-100 last:border-b-0 align-top">
+                    <td class="!py-1 !pl-2 !pr-2">
+                        <p class="text-[11px] font-medium text-gray-700 leading-tight">${esc(p.nombre)}${p.sku ? ` <span class="text-[10px] font-normal text-gray-400">${esc(p.sku)}</span>` : ''}</p>
+                        ${recibido > 0 ? `<p class="text-[10px] font-bold" style="color:#3FC189">${fmtNum(recibido)} recibido</p>` : ''}
+                        ${p.nota ? `<p class="text-[10px] text-gray-500 italic flex items-start gap-1 mt-0.5"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}
+                    </td>
+                    <td class="!py-1 !px-1 text-right text-[11px] text-gray-500 whitespace-nowrap">${hasCost ? fmtMoney(p.cost) : '—'}</td>
+                    <td class="!py-1 !px-1 text-center text-[11px] font-semibold text-gray-800">${fmtNum(p.quantity_ordered)}</td>
+                    <td class="!py-1 !px-1 text-right text-[11px] font-semibold text-gray-700 whitespace-nowrap">${hasCost ? fmtMoney(p.quantity_ordered * p.cost) : '—'}</td>
+                    <td class="!py-1 !pl-1 !pr-2 text-center text-[11px] text-gray-500">${esc(p.unidad || '-')}</td>
+                </tr>`;
         }).join('');
+
+        const productosTablaHtml = `
+            <div class="rounded-lg overflow-hidden border border-gray-200">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50 border-b border-gray-200">
+                            <th class="text-left font-semibold text-[10px] !py-1.5 !pl-2 !pr-2">Producto</th>
+                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Precio</th>
+                            <th class="text-center font-semibold text-[10px] !py-1.5 !px-1">Cant</th>
+                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Importe</th>
+                            <th class="text-center font-semibold text-[10px] !py-1.5 !pl-1 !pr-2">Unidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>${productosHtml}</tbody>
+                </table>
+            </div>`;
 
         // Totales
         const totUds   = (e.productos || []).reduce((s, p) => s + p.quantity_ordered, 0);
@@ -1846,6 +2083,10 @@ class OrdenesView extends Templates {
         // Barra de acciones por estado
         const btnCls = (color, text, icon, id) =>
             `<button id="${opts.id}_${id}" class="flex-1 px-2 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1" style="background:${color}">
+                <i data-lucide="${icon}" class="w-3 h-3"></i>${text}
+             </button>`;
+        const btnSec = (text, icon, id) =>
+            `<button id="${opts.id}_${id}" class="flex-1 px-2 py-1.5 text-[11px] font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg flex items-center justify-center gap-1">
                 <i data-lucide="${icon}" class="w-3 h-3"></i>${text}
              </button>`;
 
@@ -1891,6 +2132,7 @@ class OrdenesView extends Templates {
                 // OC de reabasto: se recibe la compra para reponer el almacen (no se surte).
                 actionsHtml = `
                     ${btnCls('#3FC189', 'Recibir',  'package-check', 'recibir')}
+                    ${btnSec('Editar compromiso', 'calendar-clock', 'compromiso')}
                     ${btnCls('#F97316', 'Cancelar', 'ban',           'cancel')}`;
             } else if (sinRestriccion) {
                 actionsHtml = `
@@ -1906,11 +2148,60 @@ class OrdenesView extends Templates {
             // Una solicitud Parcial es un surtido CERRADO: no se continúa; lo que faltó
             // se pide con una nueva solicitud. El estado solo indica "surtido incompleto".
             if (esReabasto) {
-                actionsHtml = btnCls('#3FC189', 'Continuar recepción', 'package-check', 'recibir');
+                actionsHtml = `
+                    ${btnCls('#3FC189', 'Continuar recepción', 'package-check', 'recibir')}
+                    ${btnSec('Editar compromiso', 'calendar-clock', 'compromiso')}`;
             }
         } else {
             actionsHtml = '';
         }
+
+        // Reabasto (REAB-): fecha compromiso de la compra (quién la capturó y cuándo) y la
+        // tabla de lo pedido, recibido y pendiente.
+        const compromisoHtml = esReabasto
+            ? `<div class="mx-4 my-2 rounded-lg px-3 py-2.5 flex-shrink-0 border border-gray-200 bg-gray-50">
+                   <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-0.5">Fecha de compromiso</p>
+                   ${e.expected_date
+                       ? `<p class="text-sm font-bold text-gray-800">${esc(this.fechaCorta(e.expected_date))}</p>`
+                       : `<p class="text-sm font-bold text-red-600">Sin fecha de compromiso</p>`}
+                   ${e.expected_date_user_name
+                       ? `<p class="text-[11px] text-gray-500 mt-0.5">Capturó ${esc(e.expected_date_user_name)} &middot; ${esc(this.fechaHoraCorta(e.expected_date_at))}</p>`
+                       : ''}
+               </div>`
+            : '';
+
+        const reabastoHtml = `
+            <div class="rounded-lg overflow-x-auto border border-gray-200">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50 border-b border-gray-200">
+                            <th class="text-left font-semibold text-[10px] !py-1.5 !pl-2 !pr-2">Producto</th>
+                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Pedido</th>
+                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Recibido</th>
+                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Pendiente</th>
+                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Costo unit.</th>
+                            <th class="text-right font-semibold text-[10px] !py-1.5 !pl-1 !pr-2">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(e.productos || []).map(p => {
+                            const pend    = Math.max(0, p.quantity_ordered - p.quantity_received);
+                            const hasCost = p.cost != null;
+                            return `
+                                <tr class="border-b border-gray-100 last:border-b-0 align-top">
+                                    <td class="!py-1 !pl-2 !pr-2">
+                                        <p class="text-[11px] font-medium text-gray-700 leading-tight">${esc(p.nombre)}${p.sku ? ` <span class="text-[10px] font-normal text-gray-400">${esc(p.sku)}</span>` : ''}</p>
+                                    </td>
+                                    <td class="!py-1 !px-1 text-right text-[11px] text-gray-700">${fmtNum(p.quantity_ordered)}</td>
+                                    <td class="!py-1 !px-1 text-right text-[11px]" style="color:${p.quantity_received > 0 ? '#3FC189' : '#9CA3AF'}">${p.quantity_received > 0 ? fmtNum(p.quantity_received) : '—'}</td>
+                                    <td class="!py-1 !px-1 text-right text-[11px] font-semibold" style="color:${pend > 0 ? '#F97316' : '#9CA3AF'}">${pend > 0 ? fmtNum(pend) : '—'}</td>
+                                    <td class="!py-1 !px-1 text-right text-[11px] text-gray-500 whitespace-nowrap">${hasCost ? fmtMoney(p.cost) : '—'}</td>
+                                    <td class="!py-1 !pl-1 !pr-2 text-right text-[11px] font-semibold text-gray-700 whitespace-nowrap">${hasCost ? fmtMoney(p.quantity_ordered * p.cost) : '—'}</td>
+                                </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>`;
 
         // Bloque de motivo de rechazo
         const rejectHtml = (status === 'Rechazada' && e.reject_reason)
@@ -1945,28 +2236,21 @@ class OrdenesView extends Templates {
 
                 ${rejectHtml}
 
+                ${compromisoHtml}
+
                 <!-- Datos de cabecera -->
                 <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
-                    <div class="flex items-center justify-between gap-2 text-xs">
-                        <span class="text-gray-500 w-28 flex-shrink-0">Proveedor</span>
-                        ${e.supplier_name
-                            ? `<span class="text-gray-700 text-right">${esc(e.supplier_name)}</span>`
-                            : `<span class="text-gray-400 italic text-right">— sin asignar</span>`}
-                    </div>
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Sucursal solicitante</span><span class="text-gray-700 text-right">${esc(e.branch_name || '-')}</span></div>
                     ${e.destination_branch_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Sucursal destino</span><span class="text-gray-700 text-right">${esc(e.destination_branch_name)}</span></div>` : ''}
-                    ${e.warehouse_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Almacen destino</span><span class="text-gray-700 text-right">${esc(e.warehouse_name)}</span></div>` : ''}
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Solicitado por</span><span class="text-gray-700 text-right">${esc(e.user_name || '-')}</span></div>
-                    ${e.approved_user_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Aprobado por</span><span class="text-gray-700 text-right">${esc(e.approved_user_name)}</span></div>` : ''}
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha solicitud</span><span class="text-gray-700 text-right">${esc(e.date_order || '-')}</span></div>
-                    ${e.expected_date ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha esperada</span><span class="text-gray-700 text-right">${esc(e.expected_date)}</span></div>` : ''}
-                    ${e.note ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Nota</span><span class="text-gray-700 text-right">${esc(e.note)}</span></div>` : ''}
+                    ${e.warehouse_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Almacén destino</span><span class="text-gray-700 text-right">${esc(e.warehouse_name)}</span></div>` : ''}
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha solicitud</span><span class="text-gray-700 text-right">${esc(this.fechaHoraPedido(e.date_order, e.created_at))}</span></div>
+                    ${e.expected_date && !esReabasto ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha esperada</span><span class="text-gray-700 text-right">${esc(e.expected_date)}</span></div>` : ''}
                 </div>
 
                 <!-- Lista de materiales -->
-                <div class="flex-1 overflow-y-auto px-4 py-3">
-                    <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">Materiales (${(e.productos || []).length})</p>
-                    ${productosHtml}
+                <div class="flex-1 overflow-y-auto px-4 py-2">
+                    <p class="text-xs uppercase tracking-wider text-gray-500 mb-1">${esReabasto ? 'Materiales a reabastecer' : 'Materiales'} (${(e.productos || []).length})</p>
+                    ${esReabasto ? reabastoHtml : productosTablaHtml}
                 </div>
 
                 <!-- Totales -->
@@ -1977,8 +2261,16 @@ class OrdenesView extends Templates {
                     </div>
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-semibold text-gray-700">Total general</span>
-                        <span class="text-lg font-bold" style="color:#3FC189">${fmtMoney(totCosto)}</span>
+                        <span class="text-lg font-bold text-gray-800">${fmtMoney(totCosto)}</span>
                     </div>
+                </div>
+
+                <!-- Quién y nota, al final de los productos (como en Entradas) -->
+                <div class="px-4 py-2.5 border-t border-gray-200 flex-shrink-0 space-y-1.5">
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Solicitado por</span><span class="text-gray-700 text-right">${esc(e.user_name || '-')}</span></div>
+                    ${e.approved_user_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Aprobado por</span><span class="text-gray-700 text-right">${esc(e.approved_user_name)}</span></div>` : ''}
+                    ${e.approval_note ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Nota de aprobación</span><span class="text-gray-700 text-right">${esc(e.approval_note)}</span></div>` : ''}
+                    <div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Nota</span><span class="${e.note ? 'text-gray-700' : 'text-gray-400'} text-right">${esc(e.note || 'Sin nota')}</span></div>
                 </div>
 
                 ${actionsHtml ? `
@@ -2007,22 +2299,12 @@ class OrdenesView extends Templates {
         $parent.find(`#${opts.id}_reject`).on('click',   () => opts.onReject(e));
         $parent.find(`#${opts.id}_recibir`).on('click',  () => opts.onRecibir(e));
         $parent.find(`#${opts.id}_cancel`).on('click',   () => opts.onCancel(e));
+        $parent.find(`#${opts.id}_compromiso`).on('click', () => opts.onCompromiso(e));
     }
 
     // ----------------------------------------------------------
-    // KPIs y header
+    // Header
     // ----------------------------------------------------------
-
-    renderInfoCards(rows) {
-        const current = $('#fEstado').val() || '';
-        const match   = rows.find(k => String(k.status || '') === String(current));
-        this.kpisRow({
-            parent:   'kpisRow',
-            json:     rows,
-            activeId: match ? match.id : null,
-            onClick:  (kpi) => app.filterByKpi(kpi)
-        });
-    }
 
     renderHeader(data) {
         this.viewHeader({

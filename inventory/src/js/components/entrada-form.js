@@ -598,36 +598,54 @@ class EntradaForm {
     // Mismo pie que la captura de Salidas (salida-form): Nota y comprobante a la
     // izquierda, Cancelar y Registrar a la derecha. Los formatos van al inicio.
     renderFooter() {
-        const o   = this.opts;
-        const cls = this.cls;
         return `
             <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                 <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5 relative flex-shrink-0 mr-1.5">
-                        <button id="${o.id}_btnSaveFormato" type="button" class="${cls.btnIco}" title="${this.esc(o.labels.guardar)}">
-                            <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.guardar)}</span>
-                        </button>
-                        <button id="${o.id}_btnLoadFormato" type="button" class="${cls.btnIco}" title="${this.esc(o.labels.cargar)}">
-                            <i data-lucide="folder-open" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.cargar)}</span>
-                            <span id="${o.id}_cntFormatos" class="${cls.badge} bg-blue-50 text-blue-700 border border-blue-200 ml-0.5 hidden">0</span>
-                        </button>
-                        <div id="${o.id}_formatosDropdown" class="hidden absolute bottom-full left-0 mb-2 w-[280px] bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden z-20">
-                            <div class="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5">
-                                    <i data-lucide="layers" class="w-3 h-3 text-blue-600"></i>${this.esc(o.labels.formatosTit)}
-                                </p>
-                                <button id="${o.id}_btnCloseFormatos" class="text-gray-400 hover:text-gray-700 transition-colors">
-                                    <i data-lucide="x" class="w-3 h-3"></i>
-                                </button>
-                            </div>
-                            <div id="${o.id}_formatosLista" class="max-h-[260px] overflow-y-auto cs-scroll"></div>
-                        </div>
-                    </div>
-                    <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
-                    <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
+                    ${this.renderFormatosControls()}
+                    ${this.renderNotaInput()}
                     ${this.renderVoucher()}
                 </div>
                 ${this.renderFooterActions()}
+            </div>`;
+    }
+
+    renderNotaInput() {
+        const o   = this.opts;
+        const cls = this.cls;
+        return `
+            <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
+            <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">`;
+    }
+
+    renderFormatosControls() {
+        const o   = this.opts;
+        const cls = this.cls;
+        return `
+            <div class="flex items-center gap-1.5 relative flex-shrink-0 mr-1.5">
+                <button id="${o.id}_btnSaveFormato" type="button" class="${cls.btnIco}" title="${this.esc(o.labels.guardar)}">
+                    <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.guardar)}</span>
+                </button>
+                <button id="${o.id}_btnLoadFormato" type="button" class="${cls.btnIco}" title="${this.esc(o.labels.cargar)}">
+                    <i data-lucide="folder-open" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.cargar)}</span>
+                    <span id="${o.id}_cntFormatos" class="${cls.badge} bg-blue-50 text-blue-700 border border-blue-200 ml-0.5 hidden">0</span>
+                </button>
+                <div id="${o.id}_formatosDropdown" class="hidden absolute bottom-full left-0 mb-2 w-[280px] bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden z-20">
+                    ${this.renderFormatosHead()}
+                    <div id="${o.id}_formatosLista" class="max-h-[260px] overflow-y-auto cs-scroll"></div>
+                </div>
+            </div>`;
+    }
+
+    renderFormatosHead() {
+        const o = this.opts;
+        return `
+            <div class="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600 flex items-center gap-1.5">
+                    <i data-lucide="layers" class="w-3 h-3 text-blue-600"></i>${this.esc(o.labels.formatosTit)}
+                </p>
+                <button id="${o.id}_btnCloseFormatos" class="text-gray-400 hover:text-gray-700 transition-colors">
+                    <i data-lucide="x" class="w-3 h-3"></i>
+                </button>
             </div>`;
     }
 
@@ -745,8 +763,8 @@ class EntradaForm {
                         </button>
                     </div>
                 </td>
-                <td class="px-5 py-2 align-middle text-right w-28">
-                    <span class="text-green-700 font-bold text-xs" data-subtotal>$${subtotalFmt}</span>
+                <td class="px-5 py-2 align-middle text-right w-28 whitespace-nowrap">
+                    <span class="text-green-700 font-bold text-xs" data-subtotal>$${subtotalFmt}</span>${this.renderSubtotalExtra(p, i)}
                 </td>
                 <td class="px-2 py-2 align-middle text-center w-10">
                     <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-remove="${i}" title="Eliminar">
@@ -754,6 +772,11 @@ class EntradaForm {
                     </button>
                 </td>
             </tr>`;
+    }
+
+    // Al final del subtotal; lo usa la captura de pedidos (orden-form) para la nota.
+    renderSubtotalExtra() {
+        return '';
     }
 
     renderProductsTable() {
@@ -2223,7 +2246,7 @@ class EntradaForm {
             if (e.key !== 'Escape' || this.wrap.hasClass('hidden') || this.hasOverlay()) return;
             if (this.float) { this.closeFloat(); return; }
             const $dd = $(`#${id}_formatosDropdown`);
-            if (!$dd.hasClass('hidden')) { $dd.addClass('hidden'); return; }
+            if ($dd.length && !$dd.hasClass('hidden')) { $dd.addClass('hidden'); return; }
             this.requestClose();
         });
     }

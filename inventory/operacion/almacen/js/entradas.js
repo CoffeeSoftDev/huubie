@@ -812,7 +812,7 @@ class EntradasView extends Templates {
     }
 
     // Íconos dentro de los selects, como en la captura de Salidas (salida-form).
-    // Debajo de Tipo de entrada va su descripción (syncNuevaEntradaTipo).
+    // Debajo de Tipo de entrada va su descripción en una tarjeta informativa (syncNuevaEntradaTipo).
     mountNuevaEntradaIconos() {
         const iconos = {
             ne_inflow_origin_id: 'log-in',
@@ -827,10 +827,15 @@ class EntradasView extends Templates {
             );
         });
 
-        $('#ne_inflow_origin_id').closest('.relative').parent().append($('<p>', {
-            id:    'ne_inflow_origin_hint',
-            class: 'mt-1 text-[11px] leading-snug text-gray-500'
-        }));
+        $('#ne_inflow_origin_id').closest('.relative').parent().append(
+            $('<div>', {
+                id:    'ne_inflow_origin_hint',
+                class: 'mt-1.5 flex items-start gap-2 rounded-md border border-blue-100 bg-blue-50/60 px-2.5 py-2 text-[11px] leading-snug text-gray-600'
+            }).append(
+                $('<i>', { 'data-lucide': 'info', class: 'w-3.5 h-3.5 mt-px flex-shrink-0 text-blue-600' }),
+                $('<span>', { id: 'ne_inflow_origin_hint_text' })
+            )
+        );
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -841,7 +846,8 @@ class EntradasView extends Templates {
         const tipo = (app.dataInit.origenes || []).find(o => String(o.id) === id);
         const desc = (tipo && tipo.description) || '';
 
-        $('#ne_inflow_origin_hint').text(desc).toggleClass('hidden', !desc);
+        $('#ne_inflow_origin_hint_text').text(desc);
+        $('#ne_inflow_origin_hint').toggleClass('hidden', !desc);
     }
 
     // El Origen es un almacén DE la sucursal elegida.
