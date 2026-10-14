@@ -13,7 +13,7 @@ class MCierre extends CRUD {
 
     function getSubsidiaryName($array) {
         $query = "
-            SELECT s.name as sucursal, c.social_name as company
+            SELECT s.name as sucursal, c.social_name as company, s.companies_id
             FROM fayxzvov_alpha.subsidiaries s
             INNER JOIN fayxzvov_admin.companies c ON s.companies_id = c.id
             WHERE s.id = ?

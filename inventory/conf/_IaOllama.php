@@ -5,8 +5,10 @@
     (coffee/app/credentials/.env), junto con su cacert.pem. Se queda en el
     servidor y nunca viaja al navegador.
 
-    Hace tres cosas:
+    Hace cuatro cosas:
     - chatJson(): pregunta y exige la respuesta en JSON (format: "json").
+    - chatRonda(): una vuelta de un chat con herramientas (tools de Ollama);
+      el bucle lo lleva quien llama (CoffeeIA de Pedidos).
     - transcribirImagen(): pasa una foto a texto con un modelo que ve. El de
       texto no admite imagenes, asi que la foto se transcribe antes y lo que
       sigue ya es texto. Mismo camino que coffeeIA de erp-pro (mirarImagen).
@@ -98,22 +100,12 @@ class IaOllama {
 
     // Devuelve ['ok', 'data', 'error']. 'data' es el objeto JSON ya decodificado.
     function chatJson($mensajes) {
-        // El tono va justo despues de las instrucciones del chat: las matiza, no
-        // las reemplaza, y no toca el formato JSON que cada chat exige.
-        if ($this->tono !== '') {
-            array_splice($mensajes, 1, 0, [[
-                'role'    => 'system',
-                'content' => 'Tono de tus respuestas: ' . $this->tono . "\n"
-                           . 'Aplica solo a cómo redactas el texto que lee la persona. No cambia el formato JSON ni las reglas anteriores.'
-            ]]);
-        }
-
         $cuerpo = [
             'model'    => $this->modelo,
             'stream'   => false,
             'format'   => 'json',
             'options'  => ['temperature' => 0.1],
-            'messages' => $mensajes
+            'messages' => $this->conTono($mensajes)
         ];
 
         if ($this->esfuerzo !== '') $cuerpo['think'] = $this->esfuerzo === 'off' ? false : $this->esfuerzo;
@@ -133,6 +125,62 @@ class IaOllama {
         }
 
         return ['ok' => true, 'data' => $data, 'error' => ''];
+    }
+
+    // Una vuelta de un chat con herramientas; el bucle (ejecutar lo que pida y volver a
+    // preguntar) lo lleva quien llama. Texto libre, sin format json. Devuelve
+    // ['ok', 'content', 'tool_calls', 'error'].
+    function chatRonda($mensajes, $tools = []) {
+        // Ollama rechaza (400) unos argumentos vacíos que vuelven como [] en vez de {}.
+        foreach ($mensajes as &$m) {
+            foreach ($m['tool_calls'] ?? [] as $i => $tc) {
+                if (($tc['function']['arguments'] ?? null) === []) $m['tool_calls'][$i]['function']['arguments'] = (object) [];
+            }
+        }
+        unset($m);
+
+        $cuerpo = [
+            'model'    => $this->modelo,
+            'stream'   => false,
+            'options'  => ['temperature' => 0.2],
+            'messages' => $this->conTono($mensajes)
+        ];
+
+        if ($tools) $cuerpo['tools'] = $tools;
+        if ($this->esfuerzo !== '') $cuerpo['think'] = $this->esfuerzo === 'off' ? false : $this->esfuerzo;
+
+        $r = $this->llamar($cuerpo);
+
+        if ($r['error'] !== '') {
+            $error = $tools && stripos($r['detalle'] ?? '', 'does not support tools') !== false
+                ? 'El modelo configurado en Administrador > CoffeeIA no sabe usar herramientas. Elige otro.'
+                : $r['error'];
+
+            return ['ok' => false, 'content' => '', 'tool_calls' => [], 'error' => $error];
+        }
+
+        $m = json_decode($r['cuerpo'], true)['message'] ?? [];
+
+        return [
+            'ok'         => true,
+            'content'    => trim((string) ($m['content'] ?? '')),
+            'tool_calls' => is_array($m['tool_calls'] ?? null) ? $m['tool_calls'] : [],
+            'error'      => ''
+        ];
+    }
+
+    // El tono va justo despues de las instrucciones del chat: las matiza, no las
+    // reemplaza, y no toca el formato que cada chat exige.
+    private function conTono($mensajes) {
+        if ($this->tono === '') return $mensajes;
+
+        array_splice($mensajes, 1, 0, [[
+            'role'    => 'system',
+            'content' => 'Tono de tus respuestas: ' . $this->tono . "\n"
+                       . 'Aplica solo a cómo redactas el texto que lee la persona. No cambia el formato de la respuesta ni las reglas anteriores.'
+        ]]);
+
+        return $mensajes;
     }
 
     // Transcribe, no interpreta: la interpretacion es del modelo de texto, que
@@ -210,7 +258,7 @@ class IaOllama {
                  : ($http === 404 ? 'El modelo de IA configurado no existe. Avisa a sistemas.'
                  : 'El servicio de IA respondió con un error (' . $http . ').');
 
-            return ['cuerpo' => '', 'error' => $msg];
+            return ['cuerpo' => '', 'error' => $msg, 'detalle' => (string) $raw];
         }
 
         return ['cuerpo' => (string) $raw, 'error' => ''];

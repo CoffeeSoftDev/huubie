@@ -1,5 +1,5 @@
 let apiOrdenes = 'ctrl/ctrl-ordenes.php';
-let app, ordenes, ordenesView;
+let app, ordenes, ordenesView, asistentePedidos;
 
 $(async () => {
     ordenesView = new OrdenesView(apiOrdenes, 'root');
@@ -30,12 +30,14 @@ class App extends Templates {
                 branch_id:     r.branch_id     || '',
                 user_id:       r.user_id       || '',
                 is_admin:      Number(r.is_admin || 0),
+                coffeeia:      !!r.coffeeia,
                 sucursales:    r.sucursales    || [],
                 almacenes:     r.almacenes     || [],
                 categorias:    r.categorias    || [],
                 unidades:      r.unidades      || [],
                 productos:     r.productos     || [],
-                estados_orden: r.estados_orden || []
+                estados_orden: r.estados_orden || [],
+                estados_entrega: r.estados_entrega || []
             };
         } else {
             this.dataInit = {
@@ -48,13 +50,19 @@ class App extends Templates {
                 categorias:    [],
                 unidades:      [],
                 productos:     [],
-                estados_orden: []
+                estados_orden: [],
+                estados_entrega: []
             };
         }
         this.subId = this.dataInit.branch_id;
         // El admin aprueba y surte: arranca en lo que le piden.
         this.vista = this.dataInit.is_admin ? 'entregas' : 'pedidos';
         this.render();
+
+        if (this.dataInit.coffeeia) {
+            asistentePedidos = new AsistentePedidos(apiOrdenes, 'root');
+            asistentePedidos.renderLauncher();
+        }
     }
 
     render() {
@@ -85,6 +93,10 @@ class App extends Templates {
                 {
                     id:    'filterBar',
                     class: 'px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                },
+                {
+                    id:    'legendRow',
+                    class: 'hidden px-3 py-1.5 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
@@ -176,8 +188,79 @@ class App extends Templates {
     }
 
     // "Nuevo pedido" solo en Mis pedidos: en entregas se aprueba y surte.
+    // Mis entregas usa los estados agrupados (Por surtir, Aprobada, Rechazada y Cancelada).
     syncVista() {
-        $('#btnNuevaOrden').parent().toggleClass('hidden', this.vista !== 'pedidos');
+        const entregas = this.vista === 'entregas';
+        const estados  = entregas ? this.dataInit.estados_entrega : this.dataInit.estados_orden;
+
+        $('#btnNuevaOrden').parent().toggleClass('hidden', entregas);
+        $('#fEstado').empty().append((estados || []).map(e => $('<option>', { value: e.id, text: e.valor })));
+        $('#fEstado').val(entregas ? 'PorAtender' : 'Activas');
+
+        this.renderLegends(entregas);
+    }
+
+    // Solo en Mis entregas: qué significa el punto verde (bajo el título) y la línea de
+    // colores de estado (bajo los filtros).
+    renderLegends(entregas) {
+        $('#leyendaPunto').remove();
+        $('#legendRow').empty().toggleClass('hidden', !entregas);
+        if (!entregas) return;
+
+        $('#viewHeader').find('h1').first().parent().append(
+            $('<p>', { id: 'leyendaPunto', class: 'mt-0.5 flex items-center gap-1.5 text-[10px] text-gray-400' })
+                .append($('<span>', { class: 'inline-block w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse' }))
+                .append($('<span>', { text: 'Punto verde: pedido Solicitada, nuevo por surtir' }))
+        );
+
+        const leyenda = [
+            {
+                color: '#D97706',
+                text:  'Por surtir: te toca revisarlo'
+            },
+            {
+                color: '#16A34A',
+                text:  'Surtido: ya salió del almacén'
+            },
+            {
+                color: '#EA580C',
+                text:  'Surtido a medias: faltó algo'
+            },
+            {
+                color: '#DC2626',
+                text:  'Rechazado o cancelado'
+            }
+        ];
+
+        this.createLayout({
+            parent: 'legendRow',
+            design: false,
+            data: {
+                id:        'legendBar',
+                class:     'flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-500',
+                container: [
+                    {
+                        type:  'span',
+                        class: 'font-semibold text-gray-600',
+                        text:  'Cómo va cada pedido:'
+                    }
+                ].concat(leyenda.map(e => ({
+                    type:     'div',
+                    class:    'flex items-center gap-1.5',
+                    children: [
+                        {
+                            type:  'span',
+                            class: 'inline-block w-1.5 h-1.5 rounded-full flex-shrink-0',
+                            style: `background:${e.color}`
+                        },
+                        {
+                            type: 'span',
+                            text: e.text
+                        }
+                    ]
+                })))
+            }
+        });
     }
 
     filterBar() {
@@ -243,14 +326,15 @@ class App extends Templates {
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
 
-        this.rangeFi = moment().subtract(6, 'days').format('YYYY-MM-DD');
+        // Pedidos y entregas consultan los últimos 30 días.
+        this.rangeFi = moment().subtract(29, 'days').format('YYYY-MM-DD');
         this.rangeFf = moment().format('YYYY-MM-DD');
 
         dataPicker({
             parent: 'fRango',
             type:   'all',
             rangepicker: {
-                startDate:           moment().subtract(6, 'days'),
+                startDate:           moment().subtract(29, 'days'),
                 endDate:             moment(),
                 showDropdowns:       true,
                 alwaysShowCalendars: true,
@@ -262,8 +346,9 @@ class App extends Templates {
                     'Mes actual':     [moment().startOf('month'), moment().endOf('month')],
                     'Mes anterior':   [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
                 },
+                // Mismo formato que Entradas y Salidas; la consulta usa rangeFi / rangeFf.
                 locale: {
-                    format:           'YYYY-MM-DD',
+                    format:           'DD-MM-YYYY',
                     separator:        '  a  ',
                     applyLabel:       'Aplicar',
                     cancelLabel:      'Cancelar',
@@ -380,7 +465,7 @@ class Ordenes extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        'light',
-            center:       [1, 2, 4, 5],
+            center:       [1, 2, 3, 5, 6],
             right:        [],
             actionsAlign: 'left',
             extends:      true,
@@ -398,6 +483,9 @@ class Ordenes extends Templates {
         if (total > 0 && typeof simple_data_table === 'function') {
             simple_data_table(`#tb${this.PROJECT_NAME}`, 10);
         }
+
+        // createCoffeeTable3 capitaliza cada palabra del encabezado ("Fecha De Pedido").
+        $(`#tb${this.PROJECT_NAME} thead th`).removeClass('capitalize');
         app.updateFooterInfo(`Mostrando ${total} ${total !== 1 ? 'pedidos' : 'pedido'}`);
     }
 
@@ -428,6 +516,7 @@ class Ordenes extends Templates {
             created_at:       h.created_at    || '',
             expected_date:    h.expected_date || '',
             note:             h.note          || '',
+            user_id:          h.user_id       || '',
             user_name:        h.user_name     || '',
             approved_user_name: h.approved_user_name || '',
             approved_at:      h.approved_at   || '',
@@ -740,6 +829,26 @@ class OrdenesView extends Templates {
         return m ? `${m[3]}/${meses[Number(m[2]) - 1]}/${m[1]}` : '';
     }
 
+    // date_order = "Lo necesita para": "Hoy · 14/OCT/2026" (today = true, en rojo) si es hoy;
+    // si no, 17/OCT/2026.
+    needDateLabel(raw) {
+        const dia = String(raw || '').slice(0, 10);
+        if (!dia) return { text: '-', today: false };
+
+        const today = dia === moment().format('YYYY-MM-DD');
+        return { text: today ? `Hoy · ${this.fechaCorta(dia)}` : this.fechaCorta(dia), today };
+    }
+
+    // AAAA-MM-DD -> Viernes 17 de oct 2026.
+    fechaLarga(raw) {
+        const dias  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        const m     = String(raw || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return '';
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        return `${dias[d.getDay()]} ${Number(m[3])} de ${meses[Number(m[2]) - 1]} ${m[1]}`;
+    }
+
     // AAAA-MM-DD HH:MM:SS -> 13/OCT/2026 01:07 PM.
     fechaHoraCorta(raw) {
         const m = String(raw || '').match(/^\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/);
@@ -748,12 +857,11 @@ class OrdenesView extends Templates {
         return `${this.fechaCorta(raw)} ${String(h % 12 || 12).padStart(2, '0')}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`;
     }
 
-    // Día del pedido con la hora en que se capturó (12/SEP/2025 10:00 AM), igual que la
-    // columna Fecha de la tabla (fechaHoraPedido del ctrl).
+    // Cuándo se hizo el pedido (created_at: 12/SEP/2025 10:00 AM), igual que la columna
+    // Fecha de pedido de la tabla (fechaHoraPedido del ctrl). `fecha` (date_order, para
+    // cuándo se necesitan los insumos) solo si falta created_at.
     fechaHoraPedido(fecha, creado) {
-        const dia  = this.fechaCorta(fecha);
-        const hora = this.fechaHoraCorta(creado).split(' ').slice(1).join(' ');
-        return dia ? `${dia}${hora ? ' ' + hora : ''}` : '-';
+        return this.fechaHoraCorta(creado) || this.fechaCorta(fecha) || '-';
     }
 
     // Editar compromiso del reabasto: arranca en la fecha que ya tiene o, si no, en hoy.
@@ -783,10 +891,11 @@ class OrdenesView extends Templates {
         });
     }
 
-    // Aprobar = surtir: lo marcado se descuenta del almacén de la sucursal que surte con la
-    // cantidad de "A entregar" (arranca en lo pedido y se puede bajar). Lo no marcado sale
-    // del pedido. Un producto sin stock suficiente se puede marcar, con aviso: se surte
-    // igual y el faltante va a reabasto (openFaltanteModal pide la fecha compromiso).
+    // Aprobar = surtir: arranca sin marcar; lo marcado se descuenta del almacén de la
+    // sucursal que surte con la cantidad de "A entregar" (arranca en lo pedido y se puede
+    // bajar). Lo no marcado sale del pedido. Un producto sin stock suficiente se puede
+    // marcar y surtir igual. Con faltante se pregunta si se genera una orden de producción
+    // pendiente (openFaltanteModal pide la fecha) o solo se surte, dejando el stock en negativo.
     openAprobacionModal(orden) {
         if (!orden || !orden.id) return;
 
@@ -795,7 +904,7 @@ class OrdenesView extends Templates {
         const fmtNum     = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
         const productos  = orden.productos || [];
         const pendiente  = (p) => Math.max(0, p.quantity_ordered - p.quantity_received);
-        const elegidos   = new Set(productos.map(p => String(p.detailId)));
+        const elegidos   = new Set();
         const cantidades = {};
         productos.forEach(p => { cantidades[String(p.detailId)] = pendiente(p); });
         const almacen    = this.almacenQueSurte(orden);
@@ -806,11 +915,13 @@ class OrdenesView extends Templates {
         let stockMap    = {};
         let stockLoaded = false;
 
-        const estadoCell = (disp, ped) => {
+        const necesita = this.needDateLabel(orden.date_order);
+
+        const alcanzaCell = (disp, ped) => {
             if (disp === null) return `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400">—</span>`;
-            if (disp >= ped)   return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,.15);color:#15803D"><i data-lucide="check" class="w-3 h-3"></i>Disponible</span>`;
-            if (disp > 0)      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(249,115,22,.15);color:#C2410C"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Parcial</span>`;
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,.15);color:#B91C1C"><i data-lucide="x" class="w-3 h-3"></i>Sin stock</span>`;
+            if (disp >= ped)   return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,.15);color:#15803D"><i data-lucide="check" class="w-3 h-3"></i>Sí</span>`;
+            if (disp > 0)      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(249,115,22,.15);color:#C2410C"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Solo ${fmtNum(disp)} de ${fmtNum(ped)}</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,.15);color:#B91C1C"><i data-lucide="x" class="w-3 h-3"></i>No hay</span>`;
         };
 
         const $modal = $(`
@@ -845,41 +956,31 @@ class OrdenesView extends Templates {
                             </div>
                             <div class="min-w-0">
                                 <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Fecha de solicitud</p>
-                                <p class="text-xs font-semibold text-gray-800">${esc(this.fechaCorta(orden.date_order) || '-')}</p>
+                                <p class="text-xs font-semibold text-gray-800">${esc(this.fechaCorta(orden.created_at || orden.date_order) || '-')}</p>
                             </div>
                             <div class="min-w-0">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Almacén del que se surte</p>
-                                ${almacen
-                                    ? `<p class="text-xs font-semibold text-gray-800 truncate">${esc(almacen.valor)}</p>`
-                                    : `<p class="text-xs font-semibold text-red-600">Sin almacén en esa sucursal</p>`}
-                                <input type="hidden" id="${modalId}_warehouse_id" value="${almacen ? almacen.id : ''}">
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Lo necesita para</p>
+                                <p class="text-xs font-semibold ${necesita.today ? 'text-red-600' : 'text-gray-800'}">${esc(necesita.text)}</p>
                             </div>
                         </div>
+                        <input type="hidden" id="${modalId}_warehouse_id" value="${almacen ? almacen.id : ''}">
                     </div>
 
-                    <div class="flex-1 min-h-0 overflow-y-auto cs-scroll">
-                        <table class="w-full border-collapse">
-                            <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th class="w-9 pl-3 py-2"><input type="checkbox" id="${modalId}_todos" checked class="w-3.5 h-3.5 align-middle accent-blue-600 cursor-pointer" title="Marcar o desmarcar todos"></th>
-                                    <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
-                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Pedido</th>
-                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Disp.</th>
-                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">A entregar</th>
-                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody id="${modalId}_tbody" class="divide-y divide-gray-100"></tbody>
-                        </table>
-                    </div>
+                    <div id="${modalId}_table" class="flex-1 min-h-0 overflow-auto px-[20px] pt-2"></div>
+
+                    ${orden.note ? `
+                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 flex items-start gap-2">
+                        <i data-lucide="message-square" class="w-3.5 h-3.5 mt-px flex-shrink-0 text-gray-400"></i>
+                        <p class="text-[11px] leading-snug text-gray-600"><span class="font-semibold text-gray-700">Nota de quien pidió:</span> ${esc(orden.note)}</p>
+                    </div>` : ''}
 
                     <div class="flex-shrink-0 border-t border-gray-200 px-5 py-3 bg-gray-50">
-                        <p id="${modalId}_resumen" class="text-[11px] text-gray-500 mb-2.5">Selecciona un almacén para ver la disponibilidad.</p>
+                        <p id="${modalId}_resumen" class="text-[11px] text-gray-500 mb-2.5">Cargando disponibilidad...</p>
                         <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
                         <input type="text" id="${modalId}_note" maxlength="255" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 placeholder:text-gray-400" placeholder="Observaciones de la aprobación...">
                         <p class="mt-1.5 flex items-start gap-1.5 text-[10px] leading-snug text-gray-500">
                             <i data-lucide="info" class="w-3 h-3 mt-px flex-shrink-0" style="color:#15803D"></i>
-                            <span>Al aprobar se descuenta del almacén lo marcado con su cantidad "A entregar". Lo no marcado se quita del pedido y lo que no alcance queda en reabasto.</span>
+                            <span>Marca lo que vas a entregar. Al aprobar se descuenta del almacén con su cantidad "A entregar" y lo no marcado se quita del pedido.</span>
                         </p>
                     </div>
 
@@ -903,56 +1004,76 @@ class OrdenesView extends Templates {
 
         const dispDe = (p) => stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
 
-        // Lo de abajo cuenta solo los productos marcados, con su cantidad a entregar.
+        // Lo de abajo cuenta solo los productos marcados, con su cantidad a entregar; el
+        // botón de aprobar lleva cuántos van marcados.
         const updateResumen = () => {
             const $r       = $(`#${modalId}_resumen`);
             const marcados = productos.filter(p => elegidos.has(String(p.detailId)));
             const total    = marcados.length;
-            $(`#${modalId}_todos`).prop('checked', total === productos.length).prop('indeterminate', total > 0 && total < productos.length);
-            if (!stockLoaded) { $r.html(`<strong>${total}</strong> de <strong>${productos.length}</strong> productos marcados. Selecciona un almacén para ver la disponibilidad.`); return; }
-            const ok  = marcados.filter(p => dispDe(p) >= cantidades[String(p.detailId)]).length;
-            const cls = ok === total ? '#15803D' : (ok === 0 ? '#B91C1C' : '#C2410C');
-            $r.html(`Puedes cubrir <strong style="color:${cls}">${ok}</strong> de <strong>${total}</strong> materiales marcados con el stock de este almacén.`);
+            $(`#${modalId}_todos`).prop('checked', total > 0 && total === productos.length).prop('indeterminate', total > 0 && total < productos.length);
+            $(`#${modalId}_aprobar span`).text(total ? `Aprobar y surtir (${total})` : 'Aprobar y surtir');
+            if (!total)       { $r.html(`Marca los productos que vas a entregar (<strong>0</strong> de <strong>${productos.length}</strong>).`); return; }
+            if (!stockLoaded) { $r.html(`<strong>${total}</strong> de <strong>${productos.length}</strong> productos marcados. Cargando disponibilidad...`); return; }
+            const conFalta = marcados.filter(p => dispDe(p) < cantidades[String(p.detailId)]).length;
+            $r.html(`<strong>${total}</strong> de <strong>${productos.length}</strong> productos marcados: `
+                  + `<strong style="color:#15803D">${total - conFalta}</strong> con stock completo`
+                  + (conFalta ? ` y <strong style="color:#C2410C">${conFalta}</strong> con faltante.` : '.'));
         };
 
+        const tableId = `tb${modalId}`;
+
+        // Lo marcado se resalta; lo no marcado deja "A entregar" bloqueado.
         const renderRows = () => {
-            $(`#${modalId}_tbody`).html(productos.map(p => {
+            const row = productos.map(p => {
                 const did     = String(p.detailId);
                 const qty     = cantidades[did];
                 const disp    = dispDe(p);
                 const dispTxt = disp === null ? '—' : fmtNum(disp);
                 const color   = disp === null ? '#9CA3AF' : (disp >= qty ? '#15803D' : (disp > 0 ? '#C2410C' : '#B91C1C'));
                 const marcado = elegidos.has(did);
-                return `
-                    <tr class="${marcado ? '' : 'opacity-50'}" data-row="${did}">
-                        <td class="w-9 pl-3 py-2"><input type="checkbox" data-elegir="${did}" ${marcado ? 'checked' : ''} class="w-3.5 h-3.5 align-middle accent-blue-600 cursor-pointer"></td>
-                        <td class="px-3 py-2">
-                            <p class="font-medium text-gray-700 text-xs">${esc(p.nombre)}</p>
-                            ${p.sku ? `<p class="text-[10px] text-gray-400">${esc(p.sku)}</p>` : ''}
-                        </td>
-                        <td class="px-3 py-2 text-center text-xs text-gray-600">${fmtNum(pendiente(p))}</td>
-                        <td class="px-3 py-2 text-center text-xs font-bold" style="color:${color}">${dispTxt}</td>
-                        <td class="px-3 py-2">
-                            <input type="number" data-cantidad="${did}" value="${qty}" min="0" max="${pendiente(p)}" step="0.01"
-                                class="no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-600 outline-none">
-                        </td>
-                        <td class="px-3 py-2 text-center" data-estado>${estadoCell(disp, qty)}</td>
-                    </tr>`;
-            }).join(''));
-            if (window.lucide) lucide.createIcons();
-        };
-
-        // Marcar un producto que no alcanza se permite, pero se avisa.
-        const avisarSinStock = (p) => {
-            const disp = dispDe(p);
-            const qty  = cantidades[String(p.detailId)];
-            if (disp === null || disp >= qty) return;
-            this.alertBox({
-                type:  'warning',
-                title: `Sin stock suficiente de ${esc(p.nombre)}`,
-                detailHtml: `Hay <strong>${fmtNum(disp)}</strong> y vas a entregar <strong>${fmtNum(qty)}</strong>. Se surte igual y lo que falte (<strong>${fmtNum(qty - disp)}</strong>) queda en reabasto.`,
-                timer: 3500
+                const unidad  = p.unidad ? ` <span class="text-[10px] font-normal uppercase text-gray-400">${esc(p.unidad)}</span>` : '';
+                return {
+                    id:       did,
+                    elegir:   `<input type="checkbox" data-elegir="${did}" ${marcado ? 'checked' : ''} class="w-3.5 h-3.5 align-middle accent-blue-600 cursor-pointer">`,
+                    producto: `<p class="font-medium text-[11px] truncate ${marcado ? 'text-gray-800' : 'text-gray-600'}">${esc(p.nombre)}</p>${p.sku ? `<p class="text-[10px] text-gray-400 truncate">${esc(p.sku)}</p>` : ''}${p.nota ? `<p class="text-[10px] text-gray-500 italic leading-tight flex items-start gap-1 mt-0.5"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}`,
+                    pedido:   `<span class="text-gray-600">${fmtNum(pendiente(p))}</span>${unidad}`,
+                    disp:     `<span class="font-bold" style="color:${color}">${dispTxt}</span>${disp === null ? '' : unidad}`,
+                    entregar: `<input type="number" data-cantidad="${did}" value="${qty}" min="0" max="${pendiente(p)}" step="0.01" ${marcado ? '' : 'disabled'}
+                                class="no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border-[1px] border-gray-300 rounded focus:border-blue-600 outline-none disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed">`,
+                    alcanza:  `<span data-alcanza>${alcanzaCell(disp, qty)}</span>`
+                };
             });
+
+            self.createCoffeeTable3({
+                parent:       `${modalId}_table`,
+                id:           tableId,
+                theme:        'light',
+                f_size:       11,
+                class:        'w-full table-fixed text-[11px]',
+                color_th:     'sticky top-0 z-10 bg-white border-b border-gray-200',
+                border_table: '',
+                border_row:   'border-b border-gray-100',
+                center:       [1, 3, 4, 5, 6],
+                emptyMessage: 'Este pedido no tiene productos',
+                emptyIcon:    'icon-cube',
+                data: {
+                    thead: [
+                        `<input type="checkbox" id="${modalId}_todos" class="w-3.5 h-3.5 align-middle accent-blue-600 cursor-pointer" title="Marcar o desmarcar todos">`,
+                        'Producto', 'Pedido', 'Disp.', 'A entregar', '¿Alcanza?'
+                    ],
+                    row
+                }
+            });
+
+            // Anchos fijos: las columnas no se mueven al marcar ni al capturar.
+            const widths = ['6%', '34%', '14%', '14%', '14%', '18%'];
+            $(`#${tableId} thead th`).each((i, th) => $(th).css('width', widths[i] || ''));
+            $(`#${tableId} tbody tr`).each(function () {
+                const marcado = $(this).find('[data-elegir]').prop('checked');
+                $(this).addClass('cursor-pointer').attr('data-row', '1');
+                if (marcado) $(this).find('td').css('background', 'rgba(63,193,137,.08)');
+            });
+            if (window.lucide) lucide.createIcons();
         };
 
         const loadStock = (warehouseId) => {
@@ -972,34 +1093,39 @@ class OrdenesView extends Templates {
 
         $(`#${modalId}_rechazar`).on('click', () => { closeModal(); self.doRejectOrden(orden); });
 
-        $(`#${modalId}_tbody`).on('change', '[data-elegir]', function () {
+        $modal.on('change', '[data-elegir]', function () {
             const did = String($(this).attr('data-elegir'));
             if (this.checked) elegidos.add(did); else elegidos.delete(did);
-            $(this).closest('tr').toggleClass('opacity-50', !this.checked);
+            renderRows();
             updateResumen();
-            if (this.checked) avisarSinStock(productos.find(p => String(p.detailId) === did));
         });
-        $(`#${modalId}_todos`).on('change', function () {
+        // Clic en cualquier parte del renglón marca o desmarca (menos en sus campos).
+        $modal.on('click', 'tbody tr[data-row]', function (ev) {
+            if ($(ev.target).is('input')) return;
+            $(this).find('[data-elegir]').prop('checked', (i, v) => !v).trigger('change');
+        });
+        $modal.on('change', `#${modalId}_todos`, function () {
             productos.forEach(p => this.checked ? elegidos.add(String(p.detailId)) : elegidos.delete(String(p.detailId)));
             renderRows();
             updateResumen();
         });
 
-        // "A entregar" va de 0 a lo pedido; recalcula el estado del renglón y el resumen.
-        $(`#${modalId}_tbody`).on('input', '[data-cantidad]', function () {
+        // "A entregar" va de 0 a lo pedido; recalcula el "¿Alcanza?" del renglón y el resumen.
+        $modal.on('input', '[data-cantidad]', function () {
             const did = String($(this).attr('data-cantidad'));
             const p   = productos.find(x => String(x.detailId) === did);
             let qty   = parseFloat($(this).val());
             if (isNaN(qty) || qty < 0) qty = 0;
             if (qty > pendiente(p)) { qty = pendiente(p); $(this).val(qty); }
             cantidades[did] = qty;
-            $(this).closest('tr').find('[data-estado]').html(estadoCell(dispDe(p), qty));
+            $(this).closest('tr').find('[data-alcanza]').html(alcanzaCell(dispDe(p), qty));
             if (window.lucide) lucide.createIcons();
             updateResumen();
         });
 
-        // `compromiso` = fecha del reabasto si hubo faltante. Regresa true si se guardó.
-        const aprobar = async (compromiso) => {
+        // `compromiso` = fecha de la orden pendiente si hubo faltante; `reabasto` = false surte
+        // todo lo marcado sin generar orden (el stock puede quedar en negativo). Regresa true si se guardó.
+        const aprobar = async (compromiso, reabasto = true) => {
             const items = {};
             elegidos.forEach(did => { items[did] = cantidades[did]; });
             const $btn = $(`#${modalId}_aprobar`).prop('disabled', true).addClass('opacity-60 pointer-events-none');
@@ -1011,7 +1137,8 @@ class OrdenesView extends Templates {
                     items:         JSON.stringify(items),
                     note:          $(`#${modalId}_note`).val() || '',
                     warehouse_id:  $(`#${modalId}_warehouse_id`).val() || '',
-                    expected_date: compromiso || ''
+                    expected_date: compromiso || '',
+                    reabasto:      reabasto ? 1 : 0
                 }
             }).catch(() => null);
             if (r && r.status === 200) {
@@ -1040,26 +1167,53 @@ class OrdenesView extends Templates {
                 return;
             }
 
-            // Con faltante, el resumen con la fecha compromiso hace de confirmación.
+            // Aviso final: cuánto se surte con el stock y cuánto queda pendiente.
             const filas = marcados.map(p => {
                 const qty  = cantidades[String(p.detailId)];
                 const disp = dispDe(p) || 0;
-                return { nombre: p.nombre, sku: p.sku, sup: qty, disp: disp, rep: Math.max(0, qty - disp) };
+                return { nombre: p.nombre, sku: p.sku, sup: qty, disp: disp, rep: Math.max(0, qty - Math.max(0, disp)) };
             });
-            if (filas.some(f => f.rep > 0)) {
-                this.openFaltanteModal(orden, filas, aprobar, { okLabel: 'Aprobar y surtir' });
+            const pendientes = filas.filter(f => f.rep > 0);
+            const quitados   = productos.length - marcados.length;
+            const quitadosTx = quitados ? ` ${quitados === 1 ? 'El que no marcaste se quita' : `Los ${quitados} que no marcaste se quitan`} del pedido.` : '';
+            const prods      = (n) => `<strong>${n}</strong> ${n === 1 ? 'producto' : 'productos'}`;
+
+            if (!pendientes.length) {
+                this.alertBox({
+                    type:        'confirm',
+                    title:       `¿Aprobar y surtir la solicitud ${orden.folio}?`,
+                    detailHtml:  `Se van a surtir ${prods(marcados.length)} y no quedan pendientes.${quitadosTx}`,
+                    okLabel:     'Sí, aprobar y surtir',
+                    cancelLabel: 'Regresar',
+                    onOk:        () => aprobar('')
+                });
                 return;
             }
 
-            const quitados = productos.length - marcados.length;
+            // Generar orden = se surte todo lo marcado y el faltante va a una orden pendiente
+            // (REAB-, con fecha compromiso). Solo surtir = se surte todo lo marcado sin orden;
+            // lo que no alcanza deja el stock en negativo, con su propia confirmación.
             this.alertBox({
                 type:        'confirm',
-                title:       `¿Deseas aprobar la solicitud ${orden.folio}?`,
-                detailHtml:  `Se descontarán del almacén <strong>${marcados.length}</strong> de <strong>${productos.length}</strong> productos.`
-                           + (quitados ? ` ${quitados === 1 ? 'El que no marcaste se quita' : 'Los que no marcaste se quitan'} del pedido.` : ''),
-                okLabel:     'Sí, aprobar',
-                cancelLabel: 'No',
-                onOk:        () => aprobar('')
+                title:       '¿Generar una orden de producción pendiente?',
+                detailHtml:  `${prods(pendientes.length)} ${pendientes.length === 1 ? 'no tiene' : 'no tienen'} stock suficiente. Puedes generar una orden pendiente por el faltante o solo surtir los productos.${quitadosTx}`,
+                okLabel:     'Generar orden pendiente',
+                cancelLabel: 'Solo surtir',
+                width:       'w-[440px]',
+                onOk:        () => this.openFaltanteModal(orden, filas, (compromiso) => aprobar(compromiso, true), {
+                    title:   'Confirmar aprobación con orden pendiente',
+                    okLabel: 'Aprobar y surtir'
+                }),
+                onCancel:    () => {
+                    this.alertBox({
+                        type:        'confirm',
+                        title:       '¿Solo surtir los productos?',
+                        detailHtml:  `Se van a surtir ${prods(filas.length)} sin generar orden pendiente. El stock de ${prods(pendientes.length)} quedará en negativo hasta que se ajuste con una captura.`,
+                        okLabel:     'Sí, solo surtir',
+                        cancelLabel: 'Regresar',
+                        onOk:        () => aprobar('', false)
+                    });
+                }
             });
         });
 
@@ -1145,8 +1299,6 @@ class OrdenesView extends Templates {
     // quien surte al aprobar. El ctrl los revisa (verifyNuevaOrden) y la captura abre con
     // ellos; ahí se pueden seguir cambiando.
     openNuevaOrden() {
-        const hoy = moment().format('YYYY-MM-DD');
-
         this.createModalForm({
             id: 'formNuevaOrden',
             data: { opc: 'verifyNuevaOrden' },
@@ -1159,7 +1311,7 @@ class OrdenesView extends Templates {
                 size: 'small',
                 closeButton: true
             },
-            json: this.jsonNuevaOrden(app.subId, hoy),
+            json: this.jsonNuevaOrden(app.subId),
             success: (response) => {
                 if (response && response.status === 200) {
                     this.openOrdenForm(null, response.data);
@@ -1174,7 +1326,8 @@ class OrdenesView extends Templates {
         this.syncNuevaOrdenAviso();
     }
 
-    jsonNuevaOrden(curSub, hoy) {
+    // La fecha arranca vacía: hay que elegirla (required) para poder iniciar.
+    jsonNuevaOrden(curSub) {
         return [
             {
                 opc: 'select',
@@ -1192,7 +1345,7 @@ class OrdenesView extends Templates {
                 id: 'date_order',
                 lbl: OrdenForm.LABELS.fecha,
                 class: 'col-12',
-                value: hoy,
+                value: '',
                 required: true
             }
         ];
@@ -1231,10 +1384,12 @@ class OrdenesView extends Templates {
     }
 
     // `prefill` = lo que eligió el formulario previo (branch_id, fecha).
-    openOrdenForm(orden, prefill = null) {
+    // Editar un pedido Solicitada pide la contraseña; en Borrador se edita directo.
+    async openOrdenForm(orden, prefill = null) {
         const form = this.ordenFormInstance();
 
         if (orden && orden.id) {
+            if (orden.status === 'Solicitada' && !(await this.askEditPassword(orden.id))) return;
             this.openEditOrden(form, orden);
             return;
         }
@@ -1243,6 +1398,38 @@ class OrdenesView extends Templates {
         form.setMode(null);
         form.setData(Object.assign({ branch_id: app.subId, fecha: moment().format('YYYY-MM-DD'), nota: '' }, prefill || {}));
         form.open();
+    }
+
+    // Resuelve true si la contraseña es correcta; con una equivocada vuelve a preguntar
+    // y con Cancelar resuelve false.
+    askEditPassword(id, retry) {
+        return new Promise((resolve) => {
+            this.alertBox({
+                type:             'confirm',
+                icon:             'lock',
+                title:            'Confirma tu contraseña',
+                detailHtml:       retry ? 'Contraseña incorrecta. Intenta de nuevo.' : 'Para editar un pedido ya solicitado escribe tu contraseña.',
+                input:            'password',
+                inputPlaceholder: 'Tu contraseña',
+                inputRequired:    true,
+                inputError:       'Escribe tu contraseña',
+                okLabel:          'Continuar',
+                cancelLabel:      'Cancelar',
+                onOk: async (password) => {
+                    const r = await useFetch({
+                        url:  apiOrdenes,
+                        data: { opc: 'verifyEditPassword', id: id, password: password }
+                    }).catch(() => null);
+
+                    if (r && r.status === 200) { resolve(true); return; }
+                    if (r && r.status === 401) { resolve(await this.askEditPassword(id, true)); return; }
+
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo verificar la contraseña' });
+                    resolve(false);
+                },
+                onCancel: () => resolve(false)
+            });
+        });
     }
 
     // Editar = el mismo modal del alta con los datos de la orden. Un renglón sin costo
@@ -1320,6 +1507,9 @@ class OrdenesView extends Templates {
             ordenes.lsOrdenes();
             if (isEdit && orden && orden.folio) {
                 setTimeout(() => app.selectOrden(orden.folio, orden.id), 300);
+            } else if (!isEdit && r.folio && r.id) {
+                // Pedido recién creado: se abre su detalle.
+                setTimeout(() => app.selectOrden(r.folio, r.id), 300);
             }
         } else {
             this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el pedido' });
@@ -1844,10 +2034,11 @@ class OrdenesView extends Templates {
         });
     }
 
-    // Confirmar surtido con faltante: resumen con los totales, aviso de la orden de
-    // reabasto, estado por producto y la fecha compromiso de la compra (opcional, no
+    // Confirmar surtido con faltante: resumen con los totales, aviso de la compra de
+    // reabasto, estado por producto y la fecha compromiso de la compra (obligatoria, no
     // anterior a hoy). `onConfirm(compromiso)` regresa true si el surtido se guardó.
-    // `opts.okLabel` = texto del botón (al aprobar dice "Aprobar y surtir").
+    // `opts.title` / `opts.okLabel` = título y botón (al aprobar: "Confirmar aprobación
+    // con faltante" y "Aprobar y surtir").
     openFaltanteModal(orden, filas, onConfirm, opts = {}) {
         const esc     = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtNum  = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
@@ -1855,13 +2046,14 @@ class OrdenesView extends Templates {
         const modalId = 'modalFaltante';
         $(`#${modalId}`).remove();
 
-        const totSup = filas.reduce((s, f) => s + f.sup, 0);
-        const totRep = filas.reduce((s, f) => s + f.rep, 0);
+        const prods  = (n) => `${n} ${n === 1 ? 'producto' : 'productos'}`;
+        const nSup   = filas.filter(f => f.sup > 0).length;
+        const nRep   = filas.filter(f => f.rep > 0).length;
 
-        const estado = (f) => {
-            if (f.rep <= 0)  return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,.15);color:#15803D"><i data-lucide="check" class="w-3 h-3"></i>Completo</span>`;
-            if (f.disp > 0)  return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(249,115,22,.15);color:#C2410C"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Parcial</span>`;
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,.15);color:#B91C1C"><i data-lucide="x" class="w-3 h-3"></i>Sin stock</span>`;
+        const alcanza = (f) => {
+            if (f.rep <= 0)  return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,.15);color:#15803D"><i data-lucide="check" class="w-3 h-3"></i>Sí</span>`;
+            if (f.disp > 0)  return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(249,115,22,.15);color:#C2410C"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Solo ${fmtNum(f.disp)} de ${fmtNum(f.sup)}</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,.15);color:#B91C1C"><i data-lucide="x" class="w-3 h-3"></i>No hay</span>`;
         };
 
         const totalCard = (label, value, color) => `
@@ -1881,7 +2073,7 @@ class OrdenesView extends Templates {
                                 <i data-lucide="package-search" class="w-5 h-5 text-white"></i>
                             </div>
                             <div>
-                                <h3 class="text-sm font-bold text-gray-800">Confirmar surtido con faltante</h3>
+                                <h3 class="text-sm font-bold text-gray-800">${esc(opts.title || 'Confirmar surtido con faltante')}</h3>
                                 <p class="text-[11px] text-gray-500">Solicitud <span class="font-semibold text-gray-700">${esc(orden.folio)}</span></p>
                             </div>
                         </div>
@@ -1893,15 +2085,15 @@ class OrdenesView extends Templates {
                     <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
                         <div class="grid grid-cols-3 gap-3 mb-3">
                             ${totalCard('Productos', filas.length, '#1F2937')}
-                            ${totalCard('A surtir', fmtNum(totSup) + ' uds', 'rgb(var(--brand-600, 192 90 64))')}
-                            ${totalCard('Reabasto', fmtNum(totRep) + ' uds', '#C2410C')}
+                            ${totalCard('A surtir', prods(nSup), 'rgb(var(--brand-600, 192 90 64))')}
+                            ${totalCard('Reabasto', prods(nRep), '#C2410C')}
                         </div>
                         <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid #F97316;background:rgba(249,115,22,.07)">
                             <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#C2410C"></i>
-                            <p class="text-[11px] text-gray-700 leading-relaxed font-semibold">Se generará orden de reabasto por lo que faltó.</p>
+                            <p class="text-[11px] text-gray-700 leading-relaxed font-semibold">Se genera una compra REAB- a recibir cuando registres la compra.</p>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Fecha compromiso <span class="text-gray-400 normal-case">(cuándo se espera registrar la compra)</span></label>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Fecha compromiso <span class="text-red-500">*</span> <span class="text-gray-400 normal-case">(cuándo se espera registrar la compra)</span></label>
                             <input type="date" id="${modalId}_fecha" min="${hoy}" class="w-full md:w-56 px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500">
                         </div>
                     </div>
@@ -1914,7 +2106,7 @@ class OrdenesView extends Templates {
                                     <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">A surtir</th>
                                     <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Disp.</th>
                                     <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Reabasto</th>
-                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Estado</th>
+                                    <th class="text-center px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-36">¿Alcanza?</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
@@ -1927,7 +2119,7 @@ class OrdenesView extends Templates {
                                         <td class="px-3 py-2 text-center text-xs text-gray-700 font-semibold">${fmtNum(f.sup)}</td>
                                         <td class="px-3 py-2 text-center text-xs text-gray-600">${fmtNum(f.disp)}</td>
                                         <td class="px-3 py-2 text-center text-xs font-bold" style="color:${f.rep > 0 ? '#C2410C' : '#9CA3AF'}">${f.rep > 0 ? fmtNum(f.rep) : '—'}</td>
-                                        <td class="px-3 py-2 text-center">${estado(f)}</td>
+                                        <td class="px-3 py-2 text-center">${alcanza(f)}</td>
                                     </tr>`).join('')}
                             </tbody>
                         </table>
@@ -1948,11 +2140,17 @@ class OrdenesView extends Templates {
 
         const close = () => $(`#${modalId}`).remove();
         $(`#${modalId}_close, #${modalId}_regresar`).on('click', close);
+        $(`#${modalId}_fecha`).on('change', function () { $(this).removeClass('!border-red-400'); });
         $modal.on('click', (ev) => { if ($(ev.target).is(`#${modalId}`)) close(); });
 
         $(`#${modalId}_confirmar`).on('click', async () => {
             const compromiso = $(`#${modalId}_fecha`).val() || '';
-            if (compromiso && compromiso < hoy) {
+            if (!compromiso) {
+                this.alertBox({ type: 'warning', title: 'Elige la fecha compromiso', timer: 1800 });
+                $(`#${modalId}_fecha`).addClass('!border-red-400').trigger('focus');
+                return;
+            }
+            if (compromiso < hoy) {
                 this.alertBox({ type: 'warning', title: 'La fecha compromiso no puede ser anterior a hoy', timer: 1800 });
                 return;
             }
@@ -2013,11 +2211,13 @@ class OrdenesView extends Templates {
         const e      = opts.json;
         const status = e.status || '';
 
-        // Timeline stepper
-        const steps = ['Borrador', 'Solicitada', 'Aprobada', 'Parcial', 'Recibida'];
+        // Timeline stepper en tres pasos: Borrador = Armado, Solicitada = Enviado y
+        // Aprobada, Parcial o Recibida = Surtido. Rechazada y Cancelada llevan su etiqueta roja.
+        const steps = ['Armado', 'Enviado', 'Surtido'];
+        const stepOf = { Borrador: 0, Solicitada: 1, Aprobada: 2, Parcial: 2, Recibida: 2 };
         const specialStatuses = ['Rechazada', 'Cancelada'];
         const isSpecial = specialStatuses.includes(status);
-        const activeIdx = isSpecial ? -1 : steps.indexOf(status);
+        const activeIdx = isSpecial || !(status in stepOf) ? -1 : stepOf[status];
 
         const stepperHtml = isSpecial
             ? `<div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-gray-200 flex-shrink-0">
@@ -2107,25 +2307,36 @@ class OrdenesView extends Templates {
         // Las OC de reabasto (REAB-) son compras a recibir, no surtidos: se reciben para
         // reponer el almacen y cuadrar el deficit dejado por un surtido sin stock.
         const esReabasto   = String(e.folio || '').startsWith('REAB-');
+        // Quien surte (Mis entregas) no edita el pedido: Editar solo se pinta en Mis pedidos.
+        const enEntregas   = app.vista === 'entregas';
+        // Quien hizo el pedido no lo aprueba ni lo surte (el ctrl también lo valida).
+        const esCreador    = !esReabasto && String(e.user_id || '') !== '' && String(e.user_id) === String((app.dataInit && app.dataInit.user_id) || '');
 
         let actionsHtml = '';
         if (status === 'Borrador') {
             // El borrador solo lo gestiona su sucursal de origen.
             if (esOrigen || sinRestriccion) {
                 actionsHtml = `
-                    ${btnCls('rgb(var(--brand-600, 192 90 64))', 'Editar',   'pencil', 'edit')}
+                    ${enEntregas ? '' : btnCls('rgb(var(--brand-600, 192 90 64))', 'Editar',   'pencil', 'edit')}
                     ${btnCls('rgb(var(--brand-600, 192 90 64))', 'Enviar',   'send',   'submit')}
                     ${btnCls('#F97316', 'Cancelar', 'ban',    'cancel')}`;
             }
         } else if (status === 'Solicitada') {
+            // Quien pidió (Mis pedidos) puede editar su solicitud mientras no se apruebe.
+            const editar = (!enEntregas && (esOrigen || (sinRestriccion && app.vista === 'pedidos')))
+                ? btnCls('rgb(var(--brand-600, 192 90 64))', 'Editar', 'pencil', 'edit')
+                : '';
             if (esDestino || sinRestriccion) {
                 // Solo la sucursal de destino (o gestor sin restriccion) aprueba o rechaza.
                 actionsHtml = `
-                    ${btnCls('#3FC189', 'Aprobar',  'check', 'approve')}
+                    ${editar}
+                    ${esCreador ? '' : btnCls('#3FC189', 'Aprobar y surtir', 'check', 'approve')}
                     ${btnCls('#E02424', 'Rechazar', 'x',     'reject')}`;
             } else if (esOrigen) {
-                // La sucursal de origen solo puede cancelar su solicitud.
-                actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
+                // La sucursal de origen edita o cancela su solicitud.
+                actionsHtml = `
+                    ${editar}
+                    ${btnCls('#F97316', 'Cancelar', 'ban', 'cancel')}`;
             }
         } else if (status === 'Aprobada') {
             if (esReabasto) {
@@ -2136,10 +2347,10 @@ class OrdenesView extends Templates {
                     ${btnCls('#F97316', 'Cancelar', 'ban',           'cancel')}`;
             } else if (sinRestriccion) {
                 actionsHtml = `
-                    ${btnCls('rgb(var(--brand-600, 192 90 64))', 'Surtir',   'truck', 'recibir')}
+                    ${esCreador ? '' : btnCls('rgb(var(--brand-600, 192 90 64))', 'Surtir',   'truck', 'recibir')}
                     ${btnCls('#F97316', 'Cancelar', 'ban',   'cancel')}`;
             } else if (esDestino) {
-                actionsHtml = btnCls('rgb(var(--brand-600, 192 90 64))', 'Surtir', 'truck', 'recibir');
+                actionsHtml = esCreador ? '' : btnCls('rgb(var(--brand-600, 192 90 64))', 'Surtir', 'truck', 'recibir');
             } else if (esOrigen) {
                 actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
             }
@@ -2211,6 +2422,8 @@ class OrdenesView extends Templates {
                </div>`
             : '';
 
+        const necesita = this.needDateLabel(e.date_order);
+
         $parent.html(`
             <div class="flex-1 flex flex-col overflow-hidden">
 
@@ -2240,10 +2453,11 @@ class OrdenesView extends Templates {
 
                 <!-- Datos de cabecera -->
                 <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Sucursal solicitante</span><span class="text-gray-700 text-right">${esc(e.branch_name || '-')}</span></div>
-                    ${e.destination_branch_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Sucursal destino</span><span class="text-gray-700 text-right">${esc(e.destination_branch_name)}</span></div>` : ''}
-                    ${e.warehouse_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Almacén destino</span><span class="text-gray-700 text-right">${esc(e.warehouse_name)}</span></div>` : ''}
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha solicitud</span><span class="text-gray-700 text-right">${esc(this.fechaHoraPedido(e.date_order, e.created_at))}</span></div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Pide</span><span class="text-gray-700 text-right">${esc(e.branch_name || '-')}</span></div>
+                    ${e.destination_branch_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Surte</span><span class="text-gray-700 text-right">${esc(e.destination_branch_name)}</span></div>` : ''}
+                    ${e.warehouse_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">${esReabasto ? 'Almacén destino' : 'Sale del almacén'}</span><span class="text-gray-700 text-right">${esc(e.warehouse_name)}</span></div>` : ''}
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha solicitud</span><span class="text-gray-700 text-right">${esc(this.fechaLarga(e.created_at || e.date_order) || '-')}</span></div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Lo necesita para</span><span class="${necesita.today ? 'text-red-600 font-semibold' : 'text-gray-700'} text-right">${esc((necesita.today ? 'Hoy · ' : '') + (this.fechaLarga(e.date_order) || '-'))}</span></div>
                     ${e.expected_date && !esReabasto ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha esperada</span><span class="text-gray-700 text-right">${esc(e.expected_date)}</span></div>` : ''}
                 </div>
 
@@ -2344,5 +2558,145 @@ class OrdenesView extends Templates {
 
         $(`#${opts.parent}`).html(wrap);
         if (window.lucide) lucide.createIcons();
+    }
+}
+
+// -- CoffeeIA --
+
+class AsistentePedidos extends Templates {
+
+    // -- Initial --
+
+    constructor(link, div_modulo) {
+        super(link, div_modulo);
+        this.PROJECT_NAME = 'AsistentePedidos';
+        this.chat         = null;
+    }
+
+    // -- Interface --
+
+    // CoffeeIA en la navbar (iaNavButton, ia-chat.js): abre y cierra el chat.
+    renderLauncher() {
+        this.iaNavButton({
+            id:      `launcher${this.PROJECT_NAME}`,
+            onClick: () => this.render()
+        });
+    }
+
+    render() {
+        if (!this.chat) {
+            this.chat = this.iaChat({
+                id:          `chat${this.PROJECT_NAME}`,
+                title:       'CoffeeIA',
+                subtitle:    'Revisa y elimina pedidos y solicitudes',
+                placeholder: 'Pregúntame por tus pedidos o dime cuáles eliminar…',
+                attach:      false,
+                welcome:     'Reviso tus pedidos de verdad: te digo qué hay, qué trae cada uno y cuáles se ven duplicados o de prueba. Si me pides eliminar, te armo la vista previa; nada se elimina sin tu contraseña.',
+                suggestions: [
+                    '¿Cuántos pedidos tengo por estado?',
+                    '¿Hay pedidos duplicados o de prueba?',
+                    'Elimina los pedidos cancelados y rechazados'
+                ],
+                actions: {
+                    delete: {
+                        label: 'Eliminar',
+                        tone:  'bg-red-100 text-red-700'
+                    }
+                },
+                onSend:    (text, adjuntos, historial, progress) => this.askPedidoIA(text, historial, progress),
+                onConfirm: (token, ids) => this.applyPedidoIA(token, ids)
+            });
+        }
+
+        this.chat.toggle();
+    }
+
+    // -- CRUD --
+
+    // Una petición por vuelta: mientras el servidor devuelva `turno`, CoffeeIA sigue
+    // trabajando (usó herramientas) y cada paso se enseña en la burbuja de espera.
+    async askPedidoIA(text, historial, progress) {
+        let data = {
+            opc:       'askPedidoIA',
+            mensaje:   text,
+            historial: JSON.stringify(historial)
+        };
+
+        for (let vuelta = 0; vuelta < 12; vuelta++) {
+            const response = await useFetch({ url: this._link, data: data });
+
+            if (!response || !response.turno) {
+                return response || {
+                    status:  500,
+                    message: 'CoffeeIA no respondió. Inténtalo otra vez.'
+                };
+            }
+
+            (response.pasos || []).forEach((paso) => progress(paso));
+            data = { opc: 'askPedidoIA', turno: response.turno };
+        }
+
+        return {
+            status:  500,
+            message: 'CoffeeIA dio demasiadas vueltas sin contestar. Pregúntale de otra forma.'
+        };
+    }
+
+    // Pide la contraseña de quien está en sesión, como al cancelar una salida. Con una
+    // equivocada vuelve a preguntar; Cancelar deja la vista previa como estaba.
+    applyPedidoIA(token, ids, retry) {
+        const pedidos = ids.length === 1 ? 'el pedido marcado' : `los ${ids.length} pedidos marcados`;
+
+        return new Promise((resolve) => {
+            this.alertBox({
+                type:             'confirm',
+                icon:             'lock',
+                title:            'Confirma tu contraseña',
+                detailHtml:       retry ? 'Contraseña incorrecta. Intenta de nuevo.' : `Para eliminar ${pedidos} escribe tu contraseña.`,
+                input:            'password',
+                inputPlaceholder: 'Tu contraseña',
+                inputRequired:    true,
+                inputError:       'Escribe tu contraseña',
+                okLabel:          'Eliminar',
+                okIcon:           'trash-2',
+                okBg:             'bg-red-600 hover:bg-red-700',
+                cancelLabel:      'Cancelar',
+                onOk: async (password) => {
+                    const response = await useFetch({
+                        url: this._link,
+                        data: {
+                            opc:      'applyPedidoIA',
+                            token:    token,
+                            ids:      JSON.stringify(ids),
+                            password: password
+                        }
+                    }).catch(() => null);
+
+                    if (response && response.status === 401) {
+                        resolve(await this.applyPedidoIA(token, ids, true));
+                        return;
+                    }
+
+                    if (response && response.status === 200) this.refreshPedidos((response.data && response.data.folios) || []);
+
+                    resolve(response || {
+                        status:  500,
+                        message: 'No se pudo eliminar. Inténtalo otra vez.'
+                    });
+                },
+                onCancel: () => resolve({
+                    status:  0,
+                    message: 'No se eliminó nada: cancelaste la confirmación.'
+                })
+            });
+        });
+    }
+
+    // -- Complements --
+
+    // La tabla se recarga sin los eliminados; si el detalle abierto era uno de ellos, se cierra.
+    refreshPedidos(folios) {
+        if (folios.includes(app.selectedId)) app.selectOrden(null);
+        ordenes.lsOrdenes();
     }
 }

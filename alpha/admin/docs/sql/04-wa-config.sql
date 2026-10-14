@@ -95,8 +95,9 @@ INSERT IGNORE INTO wa_destinatarios (name, phone, type, companies_id, active) VA
 ('Gerente', '9621501886', 'turno',  4, 1);
 
 -- Los textos son los mismos que hoy arman notifyDailyClosed() y notifyShiftClosed().
--- Pedidos personalizados nace pausado: hoy no avisa y nadie lo recibe todavía.
+-- El aviso de Pedidos (clave 'personalizado': normales y personalizados, al terminar
+-- el pedido) nace pausado: nadie lo recibe todavía.
 INSERT IGNORE INTO wa_plantillas (type, body, companies_id, active) VALUES
 ('cierre', '*CIERRE DEL DIA*\n{sucursal} - {fecha}\nCerro: {cajero}\n\n*Ventas:* ${ventas}\nEfectivo: ${efectivo}\nTarjeta: ${tarjeta}\nTransferencia: ${transferencia}\nDescuentos: ${descuentos}\nPedidos: {pedidos}\nTurnos: {turnos}', 4, 1),
 ('turno', '*CORTE DE TURNO*\n{sucursal} - {cajero}\n\n*Ventas:* ${ventas}\nEfectivo: ${efectivo}\nTarjeta: ${tarjeta}\nTransferencia: ${transferencia}\nPedidos: {pedidos}', 4, 1),
-('personalizado', '🎂 *PEDIDO #{folio}*\n📅 Fecha: {fecha}\n⏰ Hora: {hora}\n📍 Sucursal: {sucursal}\n👤 Cliente: {cliente}\n📱 Tel: {telefono}\n\n*PASTEL*\n• Porción: {porciones}\n• Forma: {forma}\n• Relleno: {relleno}\n• Decoración: {decoracion}\n• Dedicatoria: {dedicatoria}\n• Referencia: {referencia}\n• Domo: {domo}\n\n*ESTATUS:* {estatus}', 4, 0);
+('personalizado', '🎂 *PEDIDO #{folio}*\n📅 Fecha: {fecha}\n⏰ Hora: {hora}\n📍 Sucursal: {sucursal}\n👤 Cliente: {cliente}\n📱 Tel: {telefono}\n\n*PRODUCTOS*\n{productos}\n\n*ESTATUS:* {estatus}', 4, 0);

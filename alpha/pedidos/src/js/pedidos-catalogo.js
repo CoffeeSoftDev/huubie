@@ -2357,6 +2357,8 @@ class CatalogProduct extends Pos {
             ],
             success: (response) => {
                 if (response.status == 200) {
+                    // Al terminar el pedido sale su aviso de WhatsApp; no se espera porque el envio tarda.
+                    useFetch({ url: this._link, data: { opc: "addOrderNotice", id: idFolio } });
                     alert({ icon: "success", text: response.message, timer: 1500 });
                     app.render();
                 } else {

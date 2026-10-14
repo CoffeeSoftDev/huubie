@@ -1,5 +1,6 @@
 // Chat flotante de CoffeeIA. El aspecto copia el chat coffeeIA de erp-pro
-// (pro/auth/src/js/nav-coffeeia.js): panel de 380×520, cabecera con el blob Base,
+// (pro/auth/src/js/nav-coffeeia.js): panel de 380×620 (erp-pro usa 520; aquí más alto
+// a pedido del usuario, 14/10/2026), cabecera con el blob Base,
 // portada con el muñeco vivo y la caja de escribir en el centro, burbujas con hora,
 // copiar, volver a preguntar y editar, y caja con el "+".
 // El azul de erp-pro va como blue-* para seguir el acento del tema.
@@ -550,6 +551,8 @@ class IaChat {
             title:       'Asistente',
             subtitle:    '',
             placeholder: 'Escribe un mensaje…',
+            // false: sin "+" ni adjuntos (arrastrar o pegar archivos no hace nada).
+            attach:      true,
             accept:      '',
             maxFiles:    3,
             welcome:     '',
@@ -619,6 +622,8 @@ class IaChat {
         this.dragDepth = 0;
         this.bot       = null;
         this.pildora   = null;
+        this.cara      = null;
+        this.caraRaf   = 0;
 
         this.ensureStyles();
         this.ensureSkin();
@@ -664,6 +669,7 @@ class IaChat {
         const o = this.opts;
 
         clearInterval(this.ticker);
+        cancelAnimationFrame(this.caraRaf);
         this.stopBot();
         if (this.pildora) this.pildora.destroy();
         $(document).off(`mousedown.${o.id}`);
@@ -694,6 +700,7 @@ class IaChat {
         this.previews = {};
         this.dirty    = false;
 
+        this.faceRest();
         this.leavePortada();
         $(`#${this.opts.id}_msgs`).empty();
         $(`#${this.opts.id}_input`).val('');
@@ -716,7 +723,7 @@ class IaChat {
         const parent = o.parent === 'body' ? $('body') : $(`#${o.parent}`);
 
         parent.append(`
-            <div id="${o.id}" class="iac-root iac-panel hidden fixed ${o.dock} z-[1040] w-[380px] max-w-[calc(100vw-16px)] h-[520px] max-h-[72vh] flex-col bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_22px_55px_rgba(15,23,42,.20)] overflow-hidden transition-[width,height] duration-200">
+            <div id="${o.id}" class="iac-root iac-panel hidden fixed ${o.dock} z-[1040] w-[380px] max-w-[calc(100vw-16px)] h-[620px] max-h-[84vh] flex-col bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_22px_55px_rgba(15,23,42,.20)] overflow-hidden transition-[width,height] duration-200">
                 <div data-head class="flex items-center justify-between gap-2 px-[11px] py-[9px] border-b border-[#F1F5F9] flex-shrink-0 cursor-grab touch-none select-none">
                     <div class="flex items-center gap-[9px] min-w-0 flex-1">
                         <span id="${o.id}_cara" class="iac-mini block w-12 h-12 -my-[6px] -ml-[6px] flex-shrink-0">${this.avatar()}</span>
@@ -744,7 +751,7 @@ class IaChat {
                     <div id="${o.id}_composer">
                         <div id="${o.id}_chips" class="hidden flex-wrap gap-[5px] mb-1.5 max-h-[135px] overflow-y-auto"></div>
                         <div class="iac-wrap flex items-end gap-[7px] bg-white border border-[#CBD5E1] rounded-[11px] p-1 transition-shadow focus-within:border-[#7C3AED] focus-within:shadow-[0_0_0_3px_rgba(124,58,237,.13)]">
-                            <div class="relative flex-shrink-0">
+                            ${o.attach ? `<div class="relative flex-shrink-0">
                                 <button type="button" id="${o.id}_plus" title="${this.esc(l.more)}" aria-haspopup="true" aria-expanded="false" class="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#7C3AED] transition-colors">
                                     <i data-lucide="plus" class="w-[17px] h-[17px] transition-transform duration-150"></i>
                                 </button>
@@ -759,7 +766,7 @@ class IaChat {
                                         </span>
                                     </button>
                                 </div>
-                            </div>
+                            </div>` : ''}
                             <textarea id="${o.id}_input" rows="1" placeholder="${this.esc(o.placeholder)}" class="iac-input flex-1 min-w-0 resize-none bg-transparent border-0 outline-none text-[12.5px] leading-[1.45] text-[#1E293B] placeholder:text-[#94A3B8] py-1.5 px-0.5 max-h-[132px]"></textarea>
                             <button type="button" id="${o.id}_send" title="${this.esc(l.send)}" class="iac-send w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-white bg-gradient-to-br from-blue-800 to-blue-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 transition-opacity">
                                 <i data-lucide="arrow-up" class="w-4 h-4"></i>
@@ -862,6 +869,108 @@ class IaChat {
     stopBot() {
         if (this.bot) this.bot.stop();
         this.bot = null;
+    }
+
+    // -- Cara de la cabecera --
+
+    // Dos procesos del vestidor de coffeeIA (erp-pro/avatars, VEST_PROCESOS) en la cara
+    // de la cabecera. «Pregunta» (p_pregunta) cuando una vista previa espera que marques y
+    // confirmes: entra y se queda en la pose de la pregunta hasta que decides; ahí termina
+    // su vuelta. «Terminado» (p_listo) cuando se aplica: la vuelta con las estrellas. Sin
+    // el motor la cara es la chispa y no se anima; con movimiento reducido no hay vuelta y
+    // la pregunta queda dibujada quieta.
+    faceAsk() {
+        const A = this.faceAnimDef('p_pregunta');
+        if (!A) return;
+
+        const pose = A.per * A.fase;
+
+        if (this.faceStill()) {
+            this.facePaint('p_pregunta', pose);
+            this.cara = { anim: 'p_pregunta', fase: pose };
+            return;
+        }
+
+        this.facePlay('p_pregunta', 0, pose, null);
+    }
+
+    faceRelease() {
+        const A = this.faceAnimDef('p_pregunta');
+        if (!A || !this.cara || this.cara.anim !== 'p_pregunta') return;
+
+        if (this.faceStill()) {
+            this.faceRest();
+            return;
+        }
+
+        this.facePlay('p_pregunta', this.cara.fase, A.per - 0.001, () => this.faceRest());
+    }
+
+    faceDone() {
+        const A = this.faceAnimDef('p_listo');
+        if (!A) return;
+
+        if (this.faceStill()) {
+            this.faceRest();
+            return;
+        }
+
+        this.facePlay('p_listo', 0, A.per - 0.001, () => this.faceRest());
+    }
+
+    // Recorre la animación de `desde` a `hasta` (segundos) y se queda en el último
+    // cuadro; `alFinal` decide qué sigue. Una nueva corta a la que iba.
+    facePlay(anim, desde, hasta, alFinal) {
+        cancelAnimationFrame(this.caraRaf);
+
+        const t0 = performance.now();
+        const paso = (now) => {
+            const fase = Math.min(hasta, desde + (now - t0) / 1000);
+
+            this.facePaint(anim, fase);
+            this.cara = { anim: anim, fase: fase };
+
+            if (fase < hasta) {
+                this.caraRaf = requestAnimationFrame(paso);
+                return;
+            }
+
+            this.caraRaf = 0;
+            if (alFinal) alFinal();
+        };
+
+        this.caraRaf = requestAnimationFrame(paso);
+    }
+
+    faceRest() {
+        cancelAnimationFrame(this.caraRaf);
+        this.caraRaf = 0;
+        this.cara    = null;
+        this.facePaint('ninguna');
+    }
+
+    facePaint(anim, fase) {
+        const g = $(`#${this.opts.id}_cara .iac-bot g`)[0];
+        if (g) g.innerHTML = this.faceFrame(anim, fase);
+    }
+
+    // El cuadro de la cara: quieto (como siempre) y, con `fase`, la animación en ese
+    // instante. Mismo encaje y pose de frente que avatar().
+    faceFrame(anim, fase) {
+        return window.Bloub.cuadro(
+            { forma: 'gota', gesto: 'calma', accesorio: 'ninguno', anim: anim, color: IA_BASE.color },
+            0, null,
+            { margen: 30, clases: IA_BOT.clases, quieto: true, pose: IA_BOT.pose, fase: fase }
+        );
+    }
+
+    faceAnimDef(anim) {
+        const B = window.Bloub;
+        return B && B.cuadro && B.ANIMS && $(`#${this.opts.id}_cara .iac-bot`).length ? B.ANIMS[anim] : null;
+    }
+
+    faceStill() {
+        return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
     // -- Mensajes --
@@ -1152,6 +1261,8 @@ class IaChat {
         card.on('change', '[data-row]', () => this.syncPreview(token));
         card.on('click', '[data-discard]', () => this.closePreview(token, 'discarded'));
         card.on('click', '[data-confirm]', () => this.confirmPreview(token));
+
+        this.faceAsk();
     }
 
     previewRow(r) {
@@ -1275,6 +1386,10 @@ class IaChat {
         card.find('input').prop('disabled', true);
         card.find('[data-footer]').html(`<span class="flex items-center gap-1.5 text-[11px] font-medium ${tone}"><i data-lucide="${icon}" class="w-3.5 h-3.5 flex-shrink-0"></i>${this.esc(text)}</span>`);
         this.icons();
+
+        // Aplicado: «Terminado». Descartado o reemplazado: la pregunta cierra su vuelta.
+        if (state === 'applied') this.faceDone();
+        else this.faceRelease();
     }
 
     // -- Envío --
@@ -1452,6 +1567,8 @@ class IaChat {
         Object.keys(this.previews).forEach(t => {
             if (!$(`#${this.previews[t].uid}`).length) delete this.previews[t];
         });
+
+        if (!Object.values(this.previews).some(p => p.state === 'pending')) this.faceRelease();
     }
 
     // Lo ya aplicado no se deshace desde el chat: del turno donde se aplicó hacia atrás
@@ -1516,6 +1633,8 @@ class IaChat {
     async addFiles(fileList) {
         const o = this.opts;
         const l = o.labels;
+
+        if (!o.attach) return;
 
         for (const file of Array.from(fileList || [])) {
             const item = { uid: 'f' + Date.now() + Math.random().toString(36).slice(2, 6), name: file.name || 'captura.png', status: 'reading', texto: '', detalle: '' };
@@ -1687,6 +1806,7 @@ class IaChat {
 
         panel.on('dragenter', e => {
             e.preventDefault();
+            if (!o.attach) return;
             this.dragDepth++;
             $(`#${o.id}_drop`).removeClass('hidden').addClass('flex');
         });
@@ -1715,7 +1835,7 @@ class IaChat {
 
         this.expanded = !this.expanded;
 
-        panel.toggleClass('w-[380px] h-[520px] max-h-[72vh]', !this.expanded).toggleClass('w-[680px] h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)]', this.expanded);
+        panel.toggleClass('w-[380px] h-[620px] max-h-[84vh]', !this.expanded).toggleClass('w-[680px] h-[calc(100vh-5rem)] max-h-[calc(100vh-5rem)]', this.expanded);
         panel.find('[data-list]').toggleClass('max-h-[280px]', !this.expanded).toggleClass('max-h-[55vh]', this.expanded);
         $(`#${o.id}_expand`).html(`<i data-lucide="${this.expanded ? 'minimize-2' : 'maximize-2'}" class="w-4 h-4"></i>`);
         this.icons();
@@ -1859,15 +1979,9 @@ class IaChat {
             return '<span class="w-full h-full rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><i data-lucide="sparkles" class="w-5 h-5"></i></span>';
         }
 
-        const cuerpo = window.Bloub.cuadro(
-            { forma: 'gota', gesto: 'calma', accesorio: 'ninguno', anim: 'ninguna', color: IA_BASE.color },
-            0, null,
-            { margen: 30, clases: IA_BOT.clases, quieto: true, pose: IA_BOT.pose }
-        );
-
         return `
             <span class="iac-bot block w-full h-full">
-                <svg viewBox="0 0 400 400" class="block w-full h-full" aria-hidden="true"><g transform="${IA_BOT.encaje}">${cuerpo}</g></svg>
+                <svg viewBox="0 0 400 400" class="block w-full h-full" aria-hidden="true"><g transform="${IA_BOT.encaje}">${this.faceFrame('ninguna')}</g></svg>
             </span>`;
     }
 

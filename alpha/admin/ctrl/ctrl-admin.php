@@ -256,6 +256,22 @@ class User extends MUser{
             ];
         }
 
+        $key2 = $_POST['key2'];
+        if ($key2 !== '') {
+            if (strlen($key2) < 4) {
+                return [
+                    'status'  => 422,
+                    'message' => 'La segunda clave debe tener al menos 4 caracteres.'
+                ];
+            }
+            if ($key2 === $_POST['key']) {
+                return [
+                    'status'  => 422,
+                    'message' => 'La segunda clave debe ser distinta a la contraseña.'
+                ];
+            }
+        }
+
         $__values = [
             $_POST['fullname'],
             date('Y-m-d H:i:s'),
@@ -263,6 +279,7 @@ class User extends MUser{
             $user,
             $subsidiaries[0],
             $_POST['key'],
+            $key2 !== '' ? password_hash($key2, PASSWORD_BCRYPT) : null,
         ];
         // Crear el usuario
         $create = $this->createUser($__values, $subsidiaries);
@@ -302,6 +319,23 @@ class User extends MUser{
                 'status' => 400,
                 'message' => 'Este correo ya está registrado por otro usuario.'
             ];
+        }
+
+        $key2 = $_POST['key2'];
+        if ($key2 !== '') {
+            if (strlen($key2) < 4) {
+                return [
+                    'status'  => 422,
+                    'message' => 'La segunda clave debe tener al menos 4 caracteres.'
+                ];
+            }
+            if ($key2 === $_POST['key']) {
+                return [
+                    'status'  => 422,
+                    'message' => 'La segunda clave debe ser distinta a la contraseña.'
+                ];
+            }
+            $_POST['key2'] = password_hash($key2, PASSWORD_BCRYPT);
         }
 
         $edit = $this->updateUser($_POST);

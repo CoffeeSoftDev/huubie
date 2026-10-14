@@ -5221,11 +5221,18 @@ class Templates extends Components {
             class:    'grid grid-cols-1 md:grid-cols-2 gap-[10px]',
             theme:    'dark',
             selected: null,
+            size:     'md',
             json:     [],
             onSelect: () => {}
         };
 
         const opts = Object.assign({}, defaults, options);
+
+        const sizes = {
+            md: { pad: 'p-[12px]', head: 'gap-[10px] mb-[8px]', logo: 'w-8 h-8 text-[11px]', title: 'text-sm',  sub: 'text-[11px]', feat: 'gap-[3px] text-[11px]', foot: 'mt-[8px] pt-[8px]', footText: 'text-[11px]' },
+            sm: { pad: 'p-[8px]',  head: 'gap-[8px] mb-[6px]',  logo: 'w-6 h-6 text-[9px]',  title: 'text-xs', sub: 'text-[10px]', feat: 'gap-[1px] text-[10px]', foot: 'mt-[6px] pt-[6px]', footText: 'text-[10px]' }
+        };
+        const sz = sizes[opts.size] || sizes.md;
 
         const skin = opts.theme === 'light'
             ? { card: 'bg-white', line: '#E5E7EB', title: 'text-gray-900', soft: 'text-gray-500', text: 'text-gray-600' }
@@ -5256,7 +5263,7 @@ class Templates extends Components {
         const buildCard = (item) => {
             const card = $('<div>', {
                 'data-card': item.id,
-                class: `${skin.card} border-2 rounded-lg p-[12px] cursor-pointer transition-all duration-200 flex flex-col`,
+                class: `${skin.card} border-2 rounded-lg ${sz.pad} cursor-pointer transition-all duration-200 flex flex-col`,
                 click: () => {
                     opts.selected = item.id;
                     paint();
@@ -5264,16 +5271,16 @@ class Templates extends Components {
                 }
             }).data('item', item);
 
-            const head = $('<div>', { class: 'flex items-start gap-[10px] mb-[8px]' });
+            const head = $('<div>', { class: `flex items-start ${sz.head}` });
 
             const logo = $('<div>', {
-                class: 'w-8 h-8 rounded-lg grid place-items-center text-[11px] font-extrabold shrink-0',
+                class: `${sz.logo} rounded-lg grid place-items-center font-extrabold shrink-0`,
                 css:   { background: `${item.color}1F`, color: item.color },
                 text:  item.logo
             });
 
             const titleRow = $('<div>', { class: 'flex items-center gap-[6px] flex-wrap' })
-                .append($('<span>', { class: `text-sm font-bold ${skin.title}`, text: item.title }));
+                .append($('<span>', { class: `${sz.title} font-bold ${skin.title}`, text: item.title }));
 
             if (item.badge) {
                 const tone = dots[item.badge.tone] || dots.green;
@@ -5286,7 +5293,7 @@ class Templates extends Components {
 
             const info = $('<div>', { class: 'flex-1 min-w-0' })
                 .append(titleRow)
-                .append($('<p>', { class: `text-[11px] ${skin.soft} m-0`, text: item.subtitle || '' }));
+                .append($('<p>', { class: `${sz.sub} ${skin.soft} m-0`, text: item.subtitle || '' }));
 
             const mark = $('<span>', {
                 'data-check': true,
@@ -5296,7 +5303,7 @@ class Templates extends Components {
             head.append(logo, info, mark);
 
             // Las caracteristicas las define el modulo (no el usuario): admiten <code>.
-            const features = $('<ul>', { class: `flex flex-col gap-[3px] text-[11px] ${skin.text} m-0 p-0 list-none flex-1` });
+            const features = $('<ul>', { class: `flex flex-col ${sz.feat} ${skin.text} m-0 p-0 list-none flex-1` });
             (item.features || []).forEach(feature => {
                 features.append($('<li>', { html: `<span style="color:${item.color}">✓</span> ${feature}` }));
             });
@@ -5306,13 +5313,13 @@ class Templates extends Components {
             if (item.status) {
                 const tone = dots[item.status.tone] || dots.gray;
                 const foot = $('<div>', {
-                    class: 'mt-[8px] pt-[8px] border-t-[1px] flex items-center justify-between gap-[8px]',
+                    class: `${sz.foot} border-t-[1px] flex items-center justify-between gap-[8px]`,
                     css:   { borderColor: skin.line }
                 });
 
                 foot.append(
-                    $('<span>', { class: `text-[11px] ${skin.soft}`, text: item.status.label || 'Estado:' }),
-                    $('<span>', { class: 'text-[11px] font-semibold flex items-center gap-[5px]', css: { color: tone } })
+                    $('<span>', { class: `${sz.footText} ${skin.soft}`, text: item.status.label || 'Estado:' }),
+                    $('<span>', { class: `${sz.footText} font-semibold flex items-center gap-[5px]`, css: { color: tone } })
                         .append($('<span>', { class: 'inline-block w-1.5 h-1.5 rounded-full', css: { background: tone, boxShadow: `0 0 5px ${tone}` } }))
                         .append($('<span>', { text: item.status.text }))
                 );

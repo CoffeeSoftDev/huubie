@@ -1,6 +1,7 @@
-/*  COPIA de erp-pro (ERP24/avatars/src/js/forja-blob.js), traída el 10/10/2026
-    para el muñeco de coffeeIA del chat de inventory (ia-chat.js). La fuente es
-    la de erp-pro: si allá cambia, se vuelve a copiar entera, no se edita aquí. */
+/*  COPIA de erp-pro (ERP24/avatars/src/js/forja-blob.js), traída el 14/10/2026
+    (antes 10/10/2026) para el muñeco de coffeeIA del chat de inventory (ia-chat.js)
+    y sus procesos del vestidor (Pregunta, Terminado...). La fuente es la de erp-pro:
+    si allá cambia, se vuelve a copiar entera, no se edita aquí. */
 
 /*  FORJA :: el motor del blob.
 
@@ -726,6 +727,52 @@
         return '<path transform="scale(' + e + ')" d="M0 -9L2.6 -3.2L9 -2.8L4.1 1.4L5.6 7.6L0 4.2L-5.6 7.6L-4.1 1.4L-9 -2.8L-2.6 -3.2Z" fill="' + col + '"/>';
     }
 
+    /*  El casco de obra, la pieza de la cabeza de `casco_obra`. Ver la nota
+        en ACCESORIOS. */
+    function cascoDeObra(c, c2, c3) {
+        var cresta = 'M-9 0V-41C-9 -45 -6 -47 0 -47C6 -47 9 -45 9 -41V0';
+        return '<path d="M-38 0C-38 -26 -22 -42 0 -42C22 -42 38 -26 38 0Z" fill="' + c + '"/>'
+             + '<path d="M14 -40C28 -34 38 -20 38 0H27C29 -16 25 -30 14 -40Z" fill="' + c2 + '" opacity=".35"/>'
+             + '<path d="M-29 -12C-27 -24 -19 -33 -11 -37" fill="none" stroke="' + c3 + '" stroke-width="3.4" stroke-linecap="round" opacity=".85"/>'
+             + '<path d="' + cresta + 'Z" fill="' + c3 + '"/>'
+             + '<path d="' + cresta + '" fill="none" stroke="' + c2 + '" stroke-width="2.2" stroke-linejoin="round" opacity=".7"/>'
+             + '<path d="M-50 2C-50 -3 -40 -5 0 -5C40 -5 50 -3 50 2C50 7 44 9 32 10C22 15 11 17 0 17C-11 17 -22 15 -32 10C-44 9 -50 7 -50 2Z" fill="' + c + '"/>'
+             + '<path d="M-50 2C-50 7 -44 9 -32 10C-22 15 -11 17 0 17C11 17 22 15 32 10C44 9 50 7 50 2C46 6 38 7 28 7.5C20 11.5 10 13 0 13C-10 13 -20 11.5 -28 7.5C-38 7 -46 6 -50 2Z" fill="' + c2 + '" opacity=".6"/>'
+             + '<path d="M-37 -3H37" stroke="' + c2 + '" stroke-width="2" opacity=".45"/>';
+    }
+
+    /*  EL PLANO DEL CASCO DE OBRA (11/10/2026). Una hoja azul a medio
+        desenrollar: el rollo arriba, con sus dos bocas, y en la hoja una
+        planta en blanco --el cuarto, dos muros, una puerta con su arco-- sobre
+        una cuadricula tenue. Abierto y no enrollado a proposito: un tubo
+        solo se lee como baston; la planta en blanco sobre azul es lo que
+        dice "plano".
+
+        El azul es el del plano y no el del accesorio: teñir el casco no
+        pinta los planos. Por eso todo va con `s ||`, como los de temporada:
+        en la sombra de contacto sale entero de su color.
+
+        rotate(90) por lo mismo que la agenda, que vive del mismo lado: el
+        arriba del dibujo vuelve a ser el arriba de la pantalla. El
+        rotate(-10) lo ladea un poco, como sostenido. */
+    function planoDeObra(c, c2, c3, s) {
+        var hoja = s || '#2F6FD6', rollo = s || '#2559B5', boca = s || '#1C4590', blanco = s || '#FFFFFF';
+        var reja = '';
+        for (var x = -12; x <= 12; x += 8) reja += 'M' + x + ' -22V32';
+        for (var y = -14; y <= 30; y += 8) reja += 'M-20 ' + y + 'H20';
+        return '<g transform="rotate(90) rotate(-10)">'
+             +   '<path d="M-20 -26H20V28C20 31 18 34 14 34H-20Z" fill="' + hoja + '"/>'
+             +   '<path d="M14 34C18 34 20 31 20 28C17 28 14 30 14 34Z" fill="' + rollo + '"/>'
+             +   '<path d="' + reja + '" fill="none" stroke="' + blanco + '" stroke-width=".8" opacity=".2"/>'
+             +   '<g fill="none" stroke="' + blanco + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".92">'
+             +     '<path d="M-14 -16H14V26H-14Z"/><path d="M-14 6H0V26"/><path d="M4 -16V-6"/>'
+             +     '<path d="M4 -6A7 7 0 0 1 11 1" opacity=".7"/><path d="M-8 -16V-10"/></g>'
+             +   '<rect x="-24" y="-34" width="48" height="12" rx="6" fill="' + rollo + '"/>'
+             +   '<path d="M-18 -31H16" stroke="' + blanco + '" stroke-width="2" stroke-linecap="round" opacity=".35"/>'
+             +   '<ellipse cx="-24" cy="-28" rx="3" ry="6" fill="' + boca + '"/><ellipse cx="24" cy="-28" rx="3" ry="6" fill="' + boca + '"/>'
+             + '</g>';
+    }
+
     var ACCESORIOS = {
         ninguno: { nom: 'Ninguno', f: null },
 
@@ -771,25 +818,30 @@
                  + '<path d="M18 0C44 0 58 6 58 13C58 19 48 21 36 19C22 17 18 9 18 0Z" fill="' + c2 + '"/>';
         }},
 
-        /*  EL CASCO DE OBRA (10/10/2026, «un casco de ingeniero»). Se posa
-            como el bombin: el ala abajo y la cupula sentada en ella con su
-            sombra (c2), como el gorro de mago. Lo que dice "casco" y no
-            "bombin" es la CRESTA del centro --en la luz, c3, y asomando dos
-            unidades sobre la cupula para que se lea en la silueta-- y las dos
-            nervaduras de los lados. Solo c, c2 y c3: la sombra de contacto lo
-            pinta entero de un color. Amarillo de obra de fabrica, el mismo
-            «Amarillo» de la paleta del vestidor. */
-        casco_obra: { nom: 'Casco', col: '#F2B72B', lon: 0, lat: 56, esc: 1.4, apoyo: 11, caja: [-50, -47, 50, 14], f: function (c, c2, c3) {
-            return '<path d="M-50 4C-50 -3 -36 -7 0 -7C36 -7 50 -3 50 4C50 10 36 14 0 14C-36 14 -50 10 -50 4Z" fill="' + c + '"/>'
-                 + '<path d="M-50 4C-46 10 -32 14 0 14C32 14 46 10 50 4C44 9 30 11 0 11C-30 11 -44 9 -50 4Z" fill="' + c2 + '" opacity=".7"/>'
-                 + '<ellipse cx="0" cy="2" rx="34" ry="5" fill="' + c2 + '" opacity=".55"/>'
-                 + '<path d="M-35 2C-37 -24 -21 -44 0 -44C21 -44 37 -24 35 2C35 5 18 7 0 7C-18 7 -35 5 -35 2Z" fill="' + c + '"/>'
-                 + '<path d="M20 -38C31 -28 37 -14 35 2C35 4 30 5.5 24 6.3C27 -10 26 -26 20 -38Z" fill="' + c2 + '" opacity=".4"/>'
-                 + '<path d="M-20 5C-23 -12 -19 -28 -10 -40M20 5C23 -12 19 -28 10 -40" fill="none" stroke="' + c2 + '" stroke-width="2.4" stroke-linecap="round" opacity=".45"/>'
-                 + '<path d="M-7 6C-8 -14 -6 -36 0 -47C6 -36 8 -14 7 6C5 6.6 2 7 0 7C-2 7 -5 6.6 -7 6Z" fill="' + c3 + '"/>'
-                 + '<path d="M7 6C8 -14 6 -36 0 -47" fill="none" stroke="' + c2 + '" stroke-width="1.6" stroke-linecap="round" opacity=".5"/>'
-                 + '<path d="M-28 -16C-26 -28 -19 -36 -13 -39" fill="none" stroke="' + c3 + '" stroke-width="3" stroke-linecap="round" opacity=".8"/>';
-        }},
+        /*  EL CASCO DE OBRA (11/10/2026, «un casco de ingeniero»). Lo que
+            lo hace casco y no bombin: una cupula ANCHA y baja, la CRESTA del
+            centro --recta, de punta redonda, en la luz (c3) y asomando cinco
+            unidades sobre la cupula para que se lea en la silueta-- y la
+            VISERA, el ala que baja al frente. La primera version (10/10/2026)
+            llevaba nervaduras a los lados, la cresta en punta y un ala
+            delgada de bombin, y se pidio rehacerla: «no parece casco de obra»,
+            se leia como calabaza. Se eligio entre tres (ala plana con cresta
+            del color, ala plana con cresta clara y esta).
+            Solo c, c2 y c3: la sombra de contacto lo pinta entero de un color.
+            Amarillo de obra de fabrica, el mismo «Amarillo» de la paleta del
+            vestidor. */
+        /*  Y LOS PLANOS (11/10/2026, «agregale planos al accesorio del
+            casco»): desde entonces va en piezas, como los cascos de musica.
+            El casco en la cabeza y, al costado izquierdo --donde la agenda--,
+            un plano azul a medio desenrollar (ver planoDeObra). */
+        casco_obra: { nom: 'Casco', col: '#F2B72B', partes: [
+            { lon: 0, lat: 56, esc: 1.55, apoyo: 12, caja: [-50, -47, 50, 17], f: cascoDeObra },
+            { lon: -70, lat: -14, esc: 1.25, dist: 1.26, caja: [-39, -33, 39, 33], f: planoDeObra }
+        ]},
+
+        /*  El Cabello de coffeePlanner (fleco, mechones y chongo con liga
+            naranja, como su retrato) se hizo el 11/10/2026 y se quito ese
+            mismo dia a pedido. */
 
         boina: { nom: 'Boina', lon: -6, lat: 56, esc: 1.3, apoyo: 17, caja: [-40, -45, 44, 17], f: function (c, c2) {
             return '<path d="M-40 4C-40 -20 -22 -36 4 -36C31 -36 45 -21 43 1C41 12 20 17 -6 17C-27 17 -40 12 -40 4Z" fill="' + c + '"/>'
@@ -2357,8 +2409,9 @@
         if (anima && an.lado && !o.soloCaja) P.lado = ladoDe(tf, an, r);
         else if (conLado && !o.soloCaja) P.lado = ladoDe(tf, LADO_ACC, r);
 
-        /*  Y la utileria de los movimientos de trabajo. */
-        if (anima && an.utileria && !o.soloCaja) P.util = an.utileria(((tf / an.per) % 1 + 1) % 1, r, mov);
+        /*  Y la utileria de los movimientos de trabajo. Las opciones van de
+            cuarto argumento para la que las lea (cargaFija en puntosUtil). */
+        if (anima && an.utileria && !o.soloCaja) P.util = an.utileria(((tf / an.per) % 1 + 1) % 1, r, mov, o);
 
         /*  Lo que ocupa este cuadro y cuanto hay que encogerlo para que
             quepa. Ver `extremos` y `encuadre`. */
@@ -3823,13 +3876,42 @@
 
     function pNada() { return []; }
 
-    /*  Tres puntos que botan por turnos dentro de una pildora: trabaja,
-        piensa y busca, cada uno de su color. */
-    function puntosUtil(u, mov, col, x, y, op) {
-        var v = [pieza(pildora(col), x, y, 0, 1, op)];
+    /*  Tres puntos que laten por turnos dentro de una pildora: trabaja,
+        piensa y busca, cada uno de su color.
+
+        A ESCALA PUNTOS_ESC (11/10/2026, «las animaciones de carga mas
+        grandes, pensando no se nota»). A 1 la pildora media 34 de los 320
+        del lienzo: en la tarjeta del vestidor, con el muñeco a ~67 px, eran
+        7 px de pildora y puntos de 1 px. Crecen la pildora y la separacion
+        de los puntos. Iba a 2.4; a 3 desde que va al costado.
+
+        AL COSTADO Y COMO CARGANDO (11/10/2026, primero en la tarjeta del
+        turno de avatars y luego en los tres procesos: «mueve las animaciones
+        de carga a lado izquierdo ya que no se nota en la parte de arriba»,
+        «más arriba y debe verse como animación de cargando», «tenías que
+        aplicárselo a las animaciones de proceso trabajo»; y ese mismo dia,
+        «que sean en el lado derecho»):
+        - arriba a la DERECHA de la cabeza, a la altura de la frente
+          (CARGA_ALTO sobre el centro), montada un poco sobre el borde del
+          cuerpo, que ahi ya se curva. Encima de la cabeza quedaba sobre el
+          sombrero y, en la tarjeta del turno, en el filo. Cabe en el lienzo
+          (x de 212 a 314) y no entra en el encuadre: no encoge al muñeco;
+        - los puntos se encienden y crecen uno tras otro, una ola por vuelta
+          (cada uno 0.3 s detras del anterior), como el «escribiendo…» de un
+          chat; antes botaban 3 unidades y a 32 px no se veia;
+        - `cargaFija` en las opciones deja la pildora encendida toda la
+          vuelta: en bucle (enBucle de vestidor.js) apagarse al final era un
+          parpadeo cada 1.5 s. Sin ella entra y sale con la vuelta (`entraEn`). */
+    var PUNTOS_ESC = 3, CARGA_ALTO = 60, CARGA_MONTA = 20;
+    function puntosUtil(u, mov, col, o, entraEn) {
+        var e = PUNTOS_ESC, ancho = Math.sqrt(94 * 94 - CARGA_ALTO * CARGA_ALTO);
+        var x = CX + (mov.dx || 0) + ancho + 17 * e - CARGA_MONTA;
+        var y = CY + (mov.dy || 0) - CARGA_ALTO;
+        var op = o && o.cargaFija ? 1 : entraEn;
+        var v = [pieza(pildora(col), x, y, 0, e, op)];
         for (var i = 0; i < 3; i++) {
-            var b = Math.max(0, Math.sin(Math.PI * 2 * (u * 2 - i * 0.16)));
-            v.push(pieza(PUNTO_P, x + (i - 1) * 9, y - 3 * b, 0, 1, op));
+            var k = Math.max(0, Math.sin(Math.PI * 2 * (u - i * 0.2)));
+            v.push(pieza(PUNTO_P, x + (i - 1) * 9 * e, y - 2 * k * e, 0, e * (0.75 + 0.5 * k), op * (0.35 + 0.65 * k)));
         }
         return v;
     }
@@ -3837,6 +3919,19 @@
         var c = coronilla(mov);
         return { x: c.x + (dx == null ? 58 : dx), y: c.y + (dy == null ? 22 : dy) };
     }
+
+    /*  LOS CIRCULOS DE LOS PROCESOS, A ESCALA (11/10/2026, «lo mismo pasa
+        con los circulos de las demas animaciones»): el punto de estado
+        (puntoB: Aviso, Terminado, Error, Limite), la insignia con su signo
+        (Pide permiso, Pregunta) y la palomita de Aprobar. Por lo mismo que
+        PUNTOS_ESC: a escala 1 median de 13 a 34 de los 320 del lienzo, y en la
+        tarjeta del vestidor quedaban en 3 a 7 px. Con 2.2 la insignia y la
+        palomita miden 53, mas o menos el alto de la pildora de carga. El
+        centro de cada uno no se mueve: la insignia sigue montada en el borde
+        de la cabeza, arriba a la derecha, sin llegar a los ojos. La palomita
+        de Adjuntar no usa la escala: va pegada a la ventana, que no crece, y
+        solo paso de 0.8 a 1.4. */
+    var INSIGNIA_ESC = 2.2;
 
     /* ── Ventana ── */
     function pAsoma(u) {
@@ -4029,31 +4124,28 @@
     }
     function pAvisoUtil(u, r, mov) {
         var p = insigniaSobre(mov, 60, 26);
-        return [pieza(puntoB(ERP.azul), p.x, p.y, 0, rebote((u - 0.05) / 0.25), entra(u, 0.05, 0.1, 0.8, 0.97))];
+        return [pieza(puntoB(ERP.azul), p.x, p.y, 0, INSIGNIA_ESC * rebote((u - 0.05) / 0.25), entra(u, 0.05, 0.1, 0.8, 0.97))];
     }
 
     /* ── Trabajo ── */
     function pTrabaja(u) {
         return { dy: -2 * Math.sin(Math.PI * 4 * u), pitch: -5 * entra(u, 0, 0.12, 0.88, 1) };
     }
-    function pTrabajaUtil(u, r, mov) {
-        var p = insigniaSobre(mov, 0, -24);
-        return puntosUtil(u, mov, PC.trabaja, p.x, p.y, entra(u, 0, 0.08, 0.9, 1));
+    function pTrabajaUtil(u, r, mov, o) {
+        return puntosUtil(u, mov, PC.trabaja, o, entra(u, 0, 0.08, 0.9, 1));
     }
     function pPiensa(u) {
         var a = entra(u, 0.02, 0.2, 0.82, 0.98);
         return { yaw: 16 * a, pitch: 15 * a };
     }
-    function pPiensaUtil(u, r, mov) {
-        var p = insigniaSobre(mov, 44, -18);
-        return puntosUtil(u, mov, PC.piensa, p.x, p.y, entra(u, 0, 0.1, 0.9, 1));
+    function pPiensaUtil(u, r, mov, o) {
+        return puntosUtil(u, mov, PC.piensa, o, entra(u, 0, 0.1, 0.9, 1));
     }
     function pBusca(u) {
         return { yaw: 26 * Math.sin(Math.PI * 2 * u) * entra(u, 0, 0.05, 0.95, 1) };
     }
-    function pBuscaUtil(u, r, mov) {
-        var p = insigniaSobre(mov, 0, -24);
-        return puntosUtil(u, mov, PC.busca, p.x, p.y, entra(u, 0, 0.08, 0.9, 1));
+    function pBuscaUtil(u, r, mov, o) {
+        return puntosUtil(u, mov, PC.busca, o, entra(u, 0, 0.08, 0.9, 1));
     }
     function pPermiso(u) {
         var gp = golpes(u, 0.05, 0.8, 3).g;
@@ -4061,7 +4153,7 @@
     }
     function pPermisoUtil(u, r, mov) {
         var p = insigniaSobre(mov), a = entra(u, 0, 0.08, 0.9, 1);
-        return [pieza(insignia(PC.permiso, EXCLAMA), p.x, p.y, 0, 1.2 + 0.12 * Math.max(0, Math.sin(Math.PI * 2 * u * 3)), a)];
+        return [pieza(insignia(PC.permiso, EXCLAMA), p.x, p.y, 0, INSIGNIA_ESC * (1.2 + 0.12 * Math.max(0, Math.sin(Math.PI * 2 * u * 3))), a)];
     }
     function pPregunta(u) {
         var a = entra(u, 0.04, 0.2, 0.82, 0.97);
@@ -4069,7 +4161,7 @@
     }
     function pPreguntaUtil(u, r, mov) {
         var p = insigniaSobre(mov), a = entra(u, 0.1, 0.2, 0.88, 1);
-        return [pieza(insignia(PC.pregunta, PREGUNTA), p.x, p.y, -8 * a, 1.2 * rebote((u - 0.1) / 0.2), a)];
+        return [pieza(insignia(PC.pregunta, PREGUNTA), p.x, p.y, -8 * a, INSIGNIA_ESC * 1.2 * rebote((u - 0.1) / 0.2), a)];
     }
     function pListo(u) {
         var x = clamp((u - 0.06) / 0.62, 0, 1);
@@ -4085,7 +4177,7 @@
                          vive ? Math.min(1, t * 6) * (1 - tramo(t, 0.6, 1)) : 0);
         });
         var p = insigniaSobre(mov);
-        v.push(pieza(puntoB(PC.listo), p.x, p.y, 0, 1, entra(u, 0.66, 0.72, 0.95, 1)));
+        v.push(pieza(puntoB(PC.listo), p.x, p.y, 0, INSIGNIA_ESC, entra(u, 0.66, 0.72, 0.95, 1)));
         return v;
     }
     /*  FELIZ (08/10/2026, «en Terminado hay una animacion de felicidad al
@@ -4112,7 +4204,7 @@
     }
     function pErrorUtil(u, r, mov) {
         var p = insigniaSobre(mov);
-        return [pieza(puntoB(PC.error), p.x, p.y, 0, rebote((u - 0.02) / 0.2), entra(u, 0.02, 0.06, 0.9, 1))];
+        return [pieza(puntoB(PC.error), p.x, p.y, 0, INSIGNIA_ESC * rebote((u - 0.02) / 0.2), entra(u, 0.02, 0.06, 0.9, 1))];
     }
     function pLimite(u) {
         var a = entra(u, 0.02, 0.15, 0.85, 0.98);
@@ -4125,7 +4217,7 @@
             return pieza(GOTA, c.x + (i ? -70 : 72), c.y + 40 + 40 * t, 0, 1.3, a * Math.sin(Math.PI * t));
         });
         var p = insigniaSobre(mov);
-        v.push(pieza(puntoB(PC.limite), p.x, p.y, 0, 1, a));
+        v.push(pieza(puntoB(PC.limite), p.x, p.y, 0, INSIGNIA_ESC, a));
         return v;
     }
 
@@ -4135,7 +4227,7 @@
     }
     function pApruebaUtil(u, r, mov) {
         var c = coronilla(mov);
-        return [pieza(PALOMITA, c.x, c.y - 26, 0, 1.4 * rebote((u - 0.08) / 0.3), entra(u, 0.08, 0.14, 0.82, 0.97))];
+        return [pieza(PALOMITA, c.x, c.y - 26, 0, INSIGNIA_ESC * rebote((u - 0.08) / 0.3), entra(u, 0.08, 0.14, 0.82, 0.97))];
     }
     function pEnvia(u) {
         var q = entra(u, 0.05, 0.2, 0.3, 0.55);
@@ -4153,7 +4245,7 @@
     function pAdjuntaUtil(u, r, mov) {
         var x = lerp(CX + 170, CX + 96, rebote((u - 0.1) / 0.35)), pega = Math.sin(Math.PI * clamp((u - 0.45) / 0.12, 0, 1));
         return [pieza(VENTANA, x, CY + 30, -6, 1.5 + 0.2 * pega, entra(u, 0.1, 0.18, 0.86, 0.97)),
-                pieza(PALOMITA, x + 22, CY + 12, 0, 0.8 * rebote((u - 0.5) / 0.2), entra(u, 0.5, 0.55, 0.86, 0.97))];
+                pieza(PALOMITA, x + 22, CY + 12, 0, 1.4 * rebote((u - 0.5) / 0.2), entra(u, 0.5, 0.55, 0.86, 0.97))];
     }
     function pTraga(u) {
         var cae = entra(u, 0.02, 0.1, 0.3, 0.36), g = Math.sin(Math.PI * clamp((u - 0.36) / 0.18, 0, 1));

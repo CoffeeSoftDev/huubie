@@ -186,8 +186,8 @@ class MUser extends CRUD {
            $query	=
             "INSERT INTO
             usr_users
-            (fullname, date_creation, usr_rols_id, user, subsidiaries_id, `key`)
-            VALUE (?,?,?,?,?,MD5(?))";
+            (fullname, date_creation, usr_rols_id, user, subsidiaries_id, `key`, key2)
+            VALUE (?,?,?,?,?,MD5(?),?)";
 
            $result = $this->_CUD($query,$array);
 
@@ -221,6 +221,11 @@ class MUser extends CRUD {
         if (!empty($array['key'])) {
             $query .= ", `key` = MD5(?)";
             $data[] = $array['key'];
+        }
+
+        if (!empty($array['key2'])) {
+            $query .= ", key2 = ?";
+            $data[] = $array['key2'];
         }
 
         $query .= " WHERE id = ?";

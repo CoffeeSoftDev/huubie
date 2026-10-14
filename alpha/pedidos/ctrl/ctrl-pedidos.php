@@ -35,9 +35,6 @@ require_once '../../conf/_Message.php';
 
 class Pedidos extends MPedidos{
 
-    // Telefono de 10 digitos, id de grupo ('...@g.us') o array de varios. Vacio = no envia.
-    const WHATSAPP_TURNO = '9621501886';
-
     const ROL_PRODUCCION = 8;
 
     function init(){
@@ -2061,23 +2058,22 @@ class Pedidos extends MPedidos{
     }
 
     private function notifyShiftClosed($shift, $metrics, $subsidiary_id) {
-        if (self::WHATSAPP_TURNO === '' || self::WHATSAPP_TURNO === []) return;
-
         try {
             $sucursal  = $this->getSucursalByID([$subsidiary_id]);
             $nombreSuc = $sucursal['sucursal'] ?? 'Sucursal';
             $cajero    = $shift['employee_name'] ?: 'un usuario';
 
-            $mensaje = "*CORTE DE TURNO*\n"
-                     . $nombreSuc . ' - ' . $cajero . "\n\n"
-                     . '*Ventas:* $' . number_format(floatval($metrics['total_sales']), 2) . "\n"
-                     . 'Efectivo: $' . number_format(floatval($metrics['cash_sales']), 2) . "\n"
-                     . 'Tarjeta: $' . number_format(floatval($metrics['card_sales']), 2) . "\n"
-                     . 'Transferencia: $' . number_format(floatval($metrics['transfer_sales']), 2) . "\n"
-                     . 'Pedidos: ' . intval($metrics['total_orders']);
-
             $msg = new Message();
-            $msg->whatsapp(self::WHATSAPP_TURNO, $mensaje);
+            $msg->aviso('turno', $sucursal['idCompany'] ?? null, [
+                'sucursal'      => $nombreSuc,
+                'fecha'         => date('d/m/Y'),
+                'cajero'        => $cajero,
+                'ventas'        => number_format(floatval($metrics['total_sales']), 2),
+                'efectivo'      => number_format(floatval($metrics['cash_sales']), 2),
+                'tarjeta'       => number_format(floatval($metrics['card_sales']), 2),
+                'transferencia' => number_format(floatval($metrics['transfer_sales']), 2),
+                'pedidos'       => intval($metrics['total_orders'])
+            ], "Turno de {$cajero}", $subsidiary_id);
         } catch (Exception $e) {
             error_log('[ WHATSAPP closeShift ] :: ' . $e->getMessage() . PHP_EOL, 3, 'error.log');
         }

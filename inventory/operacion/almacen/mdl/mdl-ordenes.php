@@ -185,16 +185,26 @@ class mdl extends CRUD {
             $where .= ' AND po.branch_id = ?';
             $data[] = $array['branch_id'];
         }
+        // Grupos de estado de Mis entregas. Aprobada incluye Recibida: aprobar surte en el
+        // mismo paso y el pedido queda Recibida.
+        $grupos = [
+            'PorAtender' => ['Solicitada', 'Parcial'],
+            'Aprobadas'  => ['Aprobada', 'Recibida'],
+            'Cerradas'   => ['Rechazada', 'Cancelada']
+        ];
         if (!empty($array['status'])) {
             if ($array['status'] === 'Activas') {
                 $where .= " AND po.status NOT IN ('Cancelada', 'Rechazada')";
+            } elseif (isset($grupos[$array['status']])) {
+                $where .= ' AND po.status IN (?, ?)';
+                $data   = array_merge($data, $grupos[$array['status']]);
             } else {
                 $where .= ' AND po.status = ?';
                 $data[] = $array['status'];
             }
         }
         if (!empty($array['fi']) && !empty($array['ff'])) {
-            $where .= ' AND DATE(po.date_order) BETWEEN ? AND ?';
+            $where .= ' AND DATE(po.created_at) BETWEEN ? AND ?';
             $data[] = $array['fi'];
             $data[] = $array['ff'];
         }
@@ -238,10 +248,16 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bdErp}users         u  ON u.id  = po.user_id
             LEFT JOIN {$this->bdErp}users         au ON au.id = po.approved_user_id
             WHERE {$where}
-            ORDER BY po.date_order DESC, po.id DESC
+            ORDER BY po.created_at DESC, po.id DESC
         ";
         $r = $this->_Read($query, $data);
         return is_array($r) ? $r : [];
+    }
+
+    // Día de hoy según MySQL, el mismo reloj que llena created_at (PHP corre en UTC).
+    function getFechaBd() {
+        $r = $this->_Read('SELECT CURDATE() AS hoy', []);
+        return $r[0]['hoy'] ?? date('Y-m-d');
     }
 
     // -----------------------------------------------------------------------
@@ -564,5 +580,120 @@ class mdl extends CRUD {
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
+    }
+
+    // -----------------------------------------------------------------------
+    // CoffeeIA: eliminar pedidos desde el chat
+    // -----------------------------------------------------------------------
+
+    // Los pedidos que coinciden con el filtro que armó el modelo. `branch_ids` son las
+    // sucursales del usuario (vacío = dueño, sin tope): pide o surte alguna de ellas.
+    // `movido` > 0 = ya surtió o recibió material (renglones con recibido o entradas).
+    function qPedidosIA($array) {
+        $where = "po.active = 1 AND po.companies_id = ? AND po.folio NOT LIKE 'CP-%'";
+        $data  = [$array['companies_id']];
+
+        if (!empty($array['branch_ids'])) {
+            $in     = implode(',', array_fill(0, count($array['branch_ids']), '?'));
+            $where .= " AND (po.branch_id IN ({$in}) OR po.destination_branch_id IN ({$in}))";
+            $data   = array_merge($data, $array['branch_ids'], $array['branch_ids']);
+        }
+        if (!empty($array['ids'])) {
+            $where .= ' AND po.id IN (' . implode(',', array_fill(0, count($array['ids']), '?')) . ')';
+            $data   = array_merge($data, $array['ids']);
+        }
+        if (!empty($array['folios'])) {
+            $where .= ' AND po.folio IN (' . implode(',', array_fill(0, count($array['folios']), '?')) . ')';
+            $data   = array_merge($data, $array['folios']);
+        }
+        if (!empty($array['kind'])) {
+            $where .= $array['kind'] === 'reabasto' ? " AND po.folio LIKE 'REAB-%'" : " AND po.folio NOT LIKE 'REAB-%'";
+        }
+        if (!empty($array['status'])) {
+            $where .= ' AND po.status IN (' . implode(',', array_fill(0, count($array['status']), '?')) . ')';
+            $data   = array_merge($data, $array['status']);
+        }
+        if (!empty($array['branch'])) {
+            $where .= ' AND po.branch_id = ?';
+            $data[] = $array['branch'];
+        }
+        if (!empty($array['destination'])) {
+            $where .= ' AND po.destination_branch_id = ?';
+            $data[] = $array['destination'];
+        }
+        if (!empty($array['date_from'])) {
+            $where .= ' AND po.date_order >= ?';
+            $data[] = $array['date_from'];
+        }
+        if (!empty($array['date_to'])) {
+            $where .= ' AND po.date_order <= ?';
+            $data[] = $array['date_to'];
+        }
+        if (!empty($array['user_id'])) {
+            $where .= ' AND po.user_id = ?';
+            $data[] = $array['user_id'];
+        }
+        if (!empty($array['text'])) {
+            $where .= ' AND po.note LIKE ?';
+            $data[] = '%' . $array['text'] . '%';
+        }
+        if (!empty($array['product'])) {
+            $where .= " AND EXISTS (
+                SELECT 1
+                FROM {$this->bd}detail_purchase_order dp
+                INNER JOIN {$this->bd}item ip ON ip.id = dp.item_id
+                WHERE dp.purchase_order_id = po.id AND dp.active = 1 AND ip.name LIKE ?
+            )";
+            $data[] = '%' . $array['product'] . '%';
+        }
+
+        $query = "
+            SELECT
+                po.id,
+                po.folio,
+                po.status,
+                po.date_order,
+                po.created_at,
+                po.note,
+                po.total_products,
+                po.total_cost,
+                s.name  AS branch_name,
+                ds.name AS destination_branch_name,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name,
+                (SELECT COUNT(*) FROM {$this->bd}detail_purchase_order d
+                  WHERE d.purchase_order_id = po.id AND d.active = 1 AND d.quantity_received > 0)
+                + (SELECT COUNT(*) FROM {$this->bd}inventory_inflow f WHERE f.purchase_order_id = po.id) AS movido
+            FROM {$this->bd}purchase_order po
+            LEFT JOIN {$this->bdErp}branches s  ON s.id  = po.branch_id
+            LEFT JOIN {$this->bdErp}branches ds ON ds.id = po.destination_branch_id
+            LEFT JOIN {$this->bdErp}users    u  ON u.id  = po.user_id
+            WHERE {$where}
+            ORDER BY po.date_order DESC, po.id DESC
+        ";
+        $r = $this->_Read($query, $data);
+        return is_array($r) ? $r : [];
+    }
+
+    // Eliminar = active 0 (nunca DELETE): el folio no se reutiliza (nextFolio cuenta
+    // los inactivos) y lo que el pedido ya movió en inventario no se toca.
+    function softDeleteOrden($array) {
+        $query = "
+            UPDATE {$this->bd}purchase_order
+            SET active = 0, updated_at = NOW()
+            WHERE id = ? AND companies_id = ? AND active = 1
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Credenciales del usuario en sesión para confirmar con su contraseña (como mdl-stock).
+    function qUserPassword($array) {
+        $query = "
+            SELECT password, `key` AS user_key
+            FROM {$this->bdErp}users
+            WHERE id = ? AND status = 'active'
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
     }
 }

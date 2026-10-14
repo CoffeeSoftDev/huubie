@@ -8,6 +8,7 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); // Métodos permitid
 header("Access-Control-Allow-Headers: Content-Type"); // Encabezados permitidos
 
 require_once '../mdl/mdl-pedidos.php';
+require_once '../../conf/_Message.php';
 
 class ctrl extends MPedidos{
 
@@ -695,6 +696,99 @@ class ctrl extends MPedidos{
     }
 
 
+    // Aviso de WhatsApp del pedido terminado (normal o personalizado) a los destinatarios
+    // de Admin > WhatsApp. El front lo llama al terminar el pedido; sale una sola vez
+    // aunque el pedido se vuelva a terminar al editarlo.
+    function addOrderNotice() {
+        $orderId = $_POST['id'];
+        $order   = $this->getOrderID([$orderId])[0] ?? null;
+        $branch  = $order ? $this->getSucursalByID([$order['subsidiaries_id']]) : null;
+
+        if (!$order || !$branch || $branch['idCompany'] != $_SESSION['COMPANY_ID']) {
+            return [
+                'status'  => 404,
+                'message' => 'El pedido no existe o no es de tu empresa.'
+            ];
+        }
+
+        $lines = (array) $this->getOrderById([$orderId]);
+
+        if (empty($lines)) {
+            return [
+                'status'  => 200,
+                'message' => 'El pedido no lleva productos',
+                'data'    => ['enviados' => 0, 'fallidos' => 0]
+            ];
+        }
+
+        // Cada envio tarda unos segundos: se suelta la sesion para no frenar las
+        // demas peticiones del cajero mientras sale el aviso.
+        session_write_close();
+
+        // El aviso conserva su clave 'personalizado' (destinatarios, plantilla e
+        // historial ya guardados con ella); en Admin se muestra como "Pedidos".
+        $folio  = formatFolio($order['subsidiaries_id'], $order['id']);
+        $msg    = new Message();
+        $result = $msg->aviso('personalizado', $branch['idCompany'], [
+            'folio'     => $folio,
+            'fecha'     => $order['date_order'],
+            'hora'      => $order['time_order'],
+            'sucursal'  => $branch['sucursal'],
+            'cliente'   => textOrDash($order['name']),
+            'telefono'  => textOrDash($order['phone']),
+            'productos' => $this->orderNoticeProducts($lines),
+            'estatus'   => orderStatusText($order['status'])
+        ], "Pedido #{$folio}", $order['subsidiaries_id'], true);
+
+        return [
+            'status'  => 200,
+            'message' => "Aviso enviado a {$result['enviados']} destinatario(s)",
+            'data'    => $result
+        ];
+    }
+
+    // Variable {productos}: una viñeta por linea. El pastel personalizado lleva sus
+    // modificadores agrupados como en el armado.
+    private function orderNoticeProducts($lines) {
+        $text = [];
+
+        foreach ($lines as $line) {
+            $qty    = intval($line['quantity']);
+            $detail = [];
+
+            if ($line['is_custom']) {
+                $title    = "• {$qty} × Pastel personalizado «{$line['name']}»";
+                $detail[] = 'Porciones: ' . textOrDash($line['portion_qty']);
+
+                $groups = [];
+
+                foreach ($line['customer_products'] as $item) {
+                    $group = mb_strtolower(trim($item['modifier_name']), 'UTF-8');
+                    $label = mb_strtoupper(mb_substr($group, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($group, 1, null, 'UTF-8');
+                    $count = intval($item['custom_quantity']);
+
+                    $groups[$label][] = $item['name'] . ($count > 1 ? " x{$count}" : '');
+                }
+
+                foreach ($groups as $label => $names) {
+                    $detail[] = $label . ': ' . implode(', ', $names);
+                }
+            } else {
+                $title = "• {$qty} × {$line['name']}";
+            }
+
+            if (oneLine($line['dedication']) !== '')    $detail[] = 'Dedicatoria: ' . oneLine($line['dedication']);
+            if (oneLine($line['order_details']) !== '') $detail[] = 'Observaciones: ' . oneLine($line['order_details']);
+
+            $images = count((array) $line['images']);
+            if ($images > 0) $detail[] = imagesLabel($images);
+
+            $text[] = $title . ($detail ? "\n   " . implode("\n   ", $detail) : '');
+        }
+
+        return implode("\n", $text);
+    }
+
     function getPayment(){
 
          $ls      = $this->getOrderID([$_POST['id']]);
@@ -775,6 +869,31 @@ class ctrl extends MPedidos{
 function formatFolio($subsidiariesId = null, $numero = null) {
     $sucursal = ($subsidiariesId === null || $subsidiariesId === '') ? 'X' : str_pad($subsidiariesId, 2, '0', STR_PAD_LEFT);
     return 'P' . $numero . '-' . $sucursal;
+}
+
+function textOrDash($value) {
+    $text = trim((string) $value);
+    return $text !== '' ? $text : '—';
+}
+
+// Dedicatoria y observaciones en un renglon: sus saltos romperian la viñeta.
+function oneLine($value) {
+    return trim(preg_replace('/\s*\R\s*/', ' ', (string) $value));
+}
+
+function imagesLabel($total) {
+    return $total == 1 ? '🖼️ 1 imagen adjunta' : "🖼️ {$total} imágenes adjuntas";
+}
+
+function orderStatusText($status) {
+    $names = [
+        1 => '📝 COTIZACIÓN',
+        2 => '🟡 PENDIENTE',
+        3 => '🟢 PAGADO',
+        4 => '🔴 CANCELADO'
+    ];
+
+    return $names[$status] ?? '—';
 }
 
 // Produccion no edita pedidos: aqui solo se arman y modifican sus partidas.

@@ -20,7 +20,7 @@ class OrdenForm extends EntradaForm {
             subtitle:      'Arma la lista de materiales a solicitar',
             sucursal:      'Solicitar a',
             mismaSucursal: 'Le estás pidiendo a tu misma sucursal',
-            fecha:         'Fecha en que necesitas tus insumos',
+            fecha:         'Lo necesitas para',
             fechaReq:      'Elige la fecha en que necesitas tus insumos',
             fechaVieja:    'La fecha no puede ser de hace más de un mes',
             nota:          'Comentario para quien revise la solicitud',
@@ -482,11 +482,24 @@ class OrdenForm extends EntradaForm {
         };
     }
 
+    // "¿Deseas crear el pedido de la sucursal X para el día viernes 17 de octubre del 2026?"
+    confirmCrearTexto(payload) {
+        const dias     = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const meses    = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        const m        = String(payload.date_order || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const sucursal = ((this.opts.data && this.opts.data.sucursales) || []).find(s => String(s.id) === String(payload.destination_branch_id));
+
+        if (!m || !sucursal) return this.opts.labels.confirmAdd;
+
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        return `¿Deseas crear el pedido de la sucursal ${sucursal.valor} para el día ${dias[d.getDay()]} ${Number(m[3])} de ${meses[Number(m[2]) - 1]} del ${m[1]}?`;
+    }
+
     confirmRegistrar(payload) {
         const o       = this.opts;
         const editing = !!this.editing;
 
-        const title = editing ? o.labels.confirmEdit   : (payload.submit ? o.labels.confirmAdd   : o.labels.confirmDraft);
+        const title = editing ? o.labels.confirmEdit   : (payload.submit ? this.confirmCrearTexto(payload) : o.labels.confirmDraft);
         const okLbl = editing ? o.labels.confirmEditOk : (payload.submit ? o.labels.confirmAddOk : o.labels.confirmDraftOk);
 
         this.confirmBox(title, () => {

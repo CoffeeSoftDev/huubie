@@ -51,7 +51,6 @@ class WhatsApp extends Templates {
         this.config   = request;
         this.provider = request.proveedor || 'ultramsg';
 
-        this.renderStatus();
         this.renderTabs();
         this.renderProvider();
     }
@@ -66,50 +65,19 @@ class WhatsApp extends Templates {
                 container: [
                     {
                         type:  'div',
-                        id:    `header${this.PROJECT_NAME}`,
-                        class: 'w-full mb-[10px]'
-                    },
-                    {
-                        type:  'div',
                         id:    `tabs${this.PROJECT_NAME}`,
                         class: 'w-full'
                     }
                 ]
             }
         });
-
-        this.createLayout({
-            parent: `header${this.PROJECT_NAME}`,
-            design: false,
-            data: {
-                id:    `heading${this.PROJECT_NAME}`,
-                class: 'flex flex-col sm:flex-row sm:items-center justify-between gap-[12px]',
-                container: [
-                    {
-                        type:  'div',
-                        id:    `title${this.PROJECT_NAME}`,
-                        class: 'min-w-0'
-                    },
-                    {
-                        type:  'div',
-                        id:    `status${this.PROJECT_NAME}`,
-                        class: 'shrink-0'
-                    }
-                ]
-            }
-        });
-
-        this.sectionTitle({
-            parent: `title${this.PROJECT_NAME}`,
-            icon:   'message-circle',
-            color:  '#25D366',
-            size:   'lg',
-            title:  'Avisos de WhatsApp',
-            text:   'Proveedor, destinatarios, plantillas e historial de los avisos automáticos de cierre y pedidos personalizados.'
-        });
     }
 
+    // La pildora vive junto al titulo de la pestaña Proveedor: si esa pestaña no
+    // esta pintada no hay donde ponerla.
     renderStatus() {
+        if (!$(`#status${this.PROJECT_NAME}`).length) return;
+
         const active = this.config.proveedor;
         const state  = active
             ? this.providerState(active)
@@ -255,13 +223,35 @@ class WhatsApp extends Templates {
             }
         });
 
-        this.sectionTitle({
+        this.createLayout({
             parent: 'waProviderTitle',
+            design: false,
+            data: {
+                id:    'waProviderHeading',
+                class: 'flex flex-col sm:flex-row sm:items-start justify-between gap-[12px]',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'waProviderHeadingText',
+                        class: 'min-w-0'
+                    },
+                    {
+                        type:  'div',
+                        id:    `status${this.PROJECT_NAME}`,
+                        class: 'shrink-0'
+                    }
+                ]
+            }
+        });
+
+        this.sectionTitle({
+            parent: 'waProviderHeadingText',
             icon:   'package',
             title:  'Proveedor de WhatsApp',
             text:   'Selecciona qué servicio API enviará los mensajes. Solo uno puede estar activo a la vez.'
         });
 
+        this.renderStatus();
         this.renderProviderCards();
 
         this.sectionTitle({
@@ -300,6 +290,7 @@ class WhatsApp extends Templates {
             id:       'waProviders',
             class:    'grid grid-cols-2 md:grid-cols-4 gap-[8px]',
             theme:    'dark',
+            size:     'sm',
             selected: this.provider,
             json: [
                 {
@@ -311,7 +302,7 @@ class WhatsApp extends Templates {
                     badge:    this.providerBadge('ultramsg'),
                     status:   this.providerStatus('ultramsg'),
                     features: [
-                        'Números formato <code class="text-[#FB923C]">+52XXXXXXXXXX</code>',
+                        'Números formato <code class="text-[#A78BFA]">+52XXXXXXXXXX</code>',
                         'Instancia + Token (2 credenciales)',
                         'Soporta grupos (<code class="text-gray-300">@g.us</code>)',
                         'Envía texto y archivos'
@@ -795,7 +786,7 @@ class WhatsApp extends Templates {
 
         const steps = [
             `${name} conecta un WhatsApp normal por QR y envía los mensajes por API REST.`,
-            'Cada vez que se cierra un Corte Z, un Corte X o se registra un pedido personalizado, el sistema arma el resumen con su plantilla y lo envía solo.',
+            'Cada vez que se cierra un Corte Z, un Corte X o se termina un pedido, el sistema arma el resumen con su plantilla y lo envía solo.',
             'Si la API falla, el cierre no se ve afectado: el error queda en el Historial.',
             isGreen
                 ? 'El token viaja dentro de la URL del request; por eso esa URL nunca se escribe en los logs.'
@@ -1126,7 +1117,7 @@ class WhatsApp extends Templates {
                         },
                         {
                             id:    'personalizado',
-                            valor: 'Pedido Personalizado'
+                            valor: 'Pedidos'
                         }
                     ]
                 },
@@ -2019,13 +2010,13 @@ class WhatsApp extends Templates {
             },
             {
                 id:       'personalizado',
-                name:     'Pedidos Personalizados',
-                short:    'Personalizados',
-                title:    'Pedidos Personalizados',
-                subtitle: 'Se envía al crear o editar un arma-tu-pastel',
+                name:     'Pedidos',
+                short:    'Pedidos',
+                title:    'Pedidos',
+                subtitle: 'Se envía al terminar cada pedido, normal o personalizado',
                 icon:     'cake',
                 color:    '#C4B5FD',
-                note:     'Incluye datos del pastel, modificadores y dedicatoria.'
+                note:     'Incluye los productos del pedido; el pastel personalizado lleva sus modificadores y dedicatoria.'
             }
         ];
     }
@@ -2034,7 +2025,7 @@ class WhatsApp extends Templates {
         return [
             {
                 id:    'todos',
-                valor: 'Todos los avisos (Cierres + Personalizados)'
+                valor: 'Todos los avisos (Cierres + Pedidos)'
             },
             {
                 id:    'cierres',
@@ -2050,7 +2041,7 @@ class WhatsApp extends Templates {
             },
             {
                 id:    'personalizado',
-                valor: 'Solo Pedidos Personalizados'
+                valor: 'Solo Pedidos'
             }
         ];
     }
@@ -2084,19 +2075,21 @@ class WhatsApp extends Templates {
                 ['pedidos',       '9']
             ],
             personalizado: [
-                ['folio',       '988-25'],
-                ['fecha',       '07/oct'],
-                ['hora',        '1:00 pm'],
-                ['cliente',     'María'],
-                ['telefono',    '962 XXX XXXX'],
-                ['porciones',   '10'],
-                ['forma',       'Redonda'],
-                ['relleno',     'Mermelada'],
-                ['decoracion',  'Sencilla'],
-                ['dedicatoria', '"Happy Birthday Mom"'],
-                ['referencia',  '🖼️ imagen adjunta'],
-                ['domo',        'Sí'],
-                ['estatus',     '🟡 EN PRODUCCIÓN']
+                ['folio',     'P988-25'],
+                ['hora',      '01:00 PM'],
+                ['cliente',   'María'],
+                ['telefono',  '962 XXX XXXX'],
+                ['productos', [
+                    '• 1 × Tres Leches Fresas con Crema 12',
+                    '   Dedicatoria: Felicidades mami',
+                    '• 1 × Pastel personalizado «María»',
+                    '   Porciones: 10',
+                    '   Forma: redonda',
+                    '   Rellenos: manjar',
+                    '   Dedicatoria: Happy Birthday Mom',
+                    '   🖼️ 1 imagen adjunta'
+                ].join('\n')],
+                ['estatus',   '🟡 PENDIENTE']
             ]
         };
 
@@ -2125,7 +2118,7 @@ class WhatsApp extends Templates {
         return {
             thead: [
                 '',
-                '<span class="text-[#FB923C]">UltraMsg</span>',
+                '<span class="text-[#A78BFA]">UltraMsg</span>',
                 '<span class="text-[#4ADE80]">Green API</span>'
             ],
             row: [
@@ -2146,7 +2139,7 @@ class WhatsApp extends Templates {
     consoleHint(provider) {
         return provider === 'greenapi'
             ? 'Encuentra estos datos en <a href="https://console.green-api.com" target="_blank" rel="noopener" class="text-[#4ADE80] underline">console.green-api.com</a> → tu instancia. Cada instancia vive en su propio servidor: la API URL es de la instancia, no fija.'
-            : 'Encuentra estos datos en <a href="https://user.ultramsg.com" target="_blank" rel="noopener" class="text-[#FB923C] underline">user.ultramsg.com</a> → tu instancia.';
+            : 'Encuentra estos datos en <a href="https://user.ultramsg.com" target="_blank" rel="noopener" class="text-[#A78BFA] underline">user.ultramsg.com</a> → tu instancia.';
     }
 
     toneText(tone) {
@@ -2165,7 +2158,7 @@ class WhatsApp extends Templates {
     }
 
     providerColor(provider) {
-        return provider === 'greenapi' ? '#4CAF50' : '#F97316';
+        return provider === 'greenapi' ? '#4CAF50' : '#8B5CF6';
     }
 
     formatPhone(phone) {

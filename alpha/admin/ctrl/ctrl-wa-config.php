@@ -600,14 +600,8 @@ function defaultTemplates(){
             '👤 Cliente: {cliente}',
             '📱 Tel: {telefono}',
             '',
-            '*PASTEL*',
-            '• Porción: {porciones}',
-            '• Forma: {forma}',
-            '• Relleno: {relleno}',
-            '• Decoración: {decoracion}',
-            '• Dedicatoria: {dedicatoria}',
-            '• Referencia: {referencia}',
-            '• Domo: {domo}',
+            '*PRODUCTOS*',
+            '{productos}',
             '',
             '*ESTATUS:* {estatus}'
         ])
@@ -686,7 +680,7 @@ function noticeName($type){
     $names = [
         'cierre'        => 'Cierre Diario',
         'turno'         => 'Cierre de Turno',
-        'personalizado' => 'Pedido Personalizado',
+        'personalizado' => 'Pedidos',
         'prueba'        => 'Mensaje de prueba'
     ];
 
@@ -778,7 +772,7 @@ function renderOrigin($sucursal, $reference){
 function renderProvider($provider){
     $style = $provider === 'greenapi'
         ? 'bg-[#4CAF50]/15 text-[#4ADE80]'
-        : 'bg-[#F97316]/15 text-[#FB923C]';
+        : 'bg-[#8B5CF6]/15 text-[#A78BFA]';
 
     return '<span class="px-[6px] py-[1px] rounded-full text-[10px] font-semibold whitespace-nowrap ' . $style . '">' . providerName($provider) . '</span>';
 }

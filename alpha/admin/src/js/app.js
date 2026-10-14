@@ -439,6 +439,14 @@ class Usuarios extends Templates {
                 class: "col-12",
                 required: mode === 'add'
             },
+            {
+                opc: "input-group",
+                lbl: mode === 'edit' ? 'Nueva segunda clave (vacío = sin cambio)' : 'Segunda clave (maestra)',
+                id: "key2",
+                icon: "icon-key",
+                type: "password",
+                class: "col-12 mt-3",
+            },
         ]
     }
 
