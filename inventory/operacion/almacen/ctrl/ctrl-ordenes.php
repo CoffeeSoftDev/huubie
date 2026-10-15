@@ -426,13 +426,10 @@ class ctrl extends mdl {
         $header = $this->qGetOrden([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
 
-        // Misma verificación que el login: bcrypt con respaldo MD5 heredado.
+        // Misma verificación que el login: users.password (bcrypt).
         $user  = $this->qUserPassword([$this->userId]);
         $pass  = str_replace("'", "", $_POST['password']);
-        $valid = $user && (
-            (!empty($user['password']) && password_verify($pass, $user['password'])) ||
-            (!empty($user['user_key']) && $user['user_key'] === md5($pass))
-        );
+        $valid = $user && !empty($user['password']) && password_verify($pass, $user['password']);
         if (!$valid) return ['status' => 401, 'message' => 'Contraseña incorrecta'];
 
         $_SESSION['orden_edit'][$id] = time();
@@ -1295,13 +1292,10 @@ class ctrl extends mdl {
 
         if (empty($ids)) return ['status' => 400, 'message' => 'No marcaste ningún pedido.'];
 
-        // Misma verificación que el login: bcrypt con respaldo MD5 heredado.
+        // Misma verificación que el login: users.password (bcrypt).
         $user  = $this->qUserPassword([$this->userId]);
         $pass  = str_replace("'", "", (string) ($_POST['password'] ?? ''));
-        $valid = $user && $pass !== '' && (
-            (!empty($user['password']) && password_verify($pass, $user['password'])) ||
-            (!empty($user['user_key']) && $user['user_key'] === md5($pass))
-        );
+        $valid = $user && $pass !== '' && !empty($user['password']) && password_verify($pass, $user['password']);
         if (!$valid) return ['status' => 401, 'message' => 'Contraseña incorrecta'];
 
         // Desde la vista previa pudieron eliminarlos en otra pestaña: se buscan otra vez.

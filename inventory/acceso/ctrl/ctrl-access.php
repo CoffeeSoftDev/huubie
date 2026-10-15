@@ -23,10 +23,10 @@ class Access extends MAccess {
 
             $usr = $this->getUserByCredentials([$user]);
 
-            // Verifica la contrasena: bcrypt (password) con respaldo MD5 (key) para credenciales heredadas.
+            // Verifica la contrasena contra users.password (bcrypt); si no coincide, prueba users.password2.
             $valid = $usr && (
-                (!empty($usr['password']) && password_verify($pass, $usr['password'])) ||
-                (!empty($usr['user_key']) && $usr['user_key'] === md5($pass))
+                (!empty($usr['password'])  && password_verify($pass, $usr['password'])) ||
+                (!empty($usr['password2']) && password_verify($pass, $usr['password2']))
             );
 
             if (!$valid) {
@@ -201,7 +201,6 @@ class Access extends MAccess {
 
         $guardada = $this->setNewPassword([
             password_hash($nueva, PASSWORD_BCRYPT),
-            md5($nueva),
             $usuario['IDU']
         ]);
 

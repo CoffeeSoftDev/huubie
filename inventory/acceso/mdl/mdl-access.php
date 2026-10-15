@@ -95,7 +95,7 @@ class MAccess extends CRUD {
                 u.last_name  AS last_name,
                 u.email      AS email,
                 u.password   AS password,
-                u.`key`      AS user_key,
+                u.password2  AS password2,
                 u.photo      AS photo,
                 u.color      AS color,
                 u.is_owner   AS is_owner,
@@ -170,15 +170,13 @@ class MAccess extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    // Se escriben las dos llaves porque login() acepta las dos: bcrypt en
-    // `password` y el MD5 heredado en `key` (igual que admin/accesos).
+    // login() solo valida contra `password` (bcrypt), así que es la única llave que se escribe.
     // El código se tira en el mismo UPDATE: ya se gastó.
     function setNewPassword($array) {
-        // [password bcrypt, key md5, id usuario]
+        // [password bcrypt, id usuario]
         $query = "
             UPDATE {$this->bd}users
                SET password      = ?,
-                   `key`         = ?,
                    reset_code    = NULL,
                    reset_expires = NULL,
                    reset_tries   = 0

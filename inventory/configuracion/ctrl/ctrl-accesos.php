@@ -261,7 +261,6 @@ class ctrl extends mdl {
                 $lastName ?: null,
                 $email,
                 password_hash($password, PASSWORD_BCRYPT),
-                md5($password),
                 $branchIds[0],
                 $this->companiesId,
                 $color
@@ -346,7 +345,6 @@ class ctrl extends mdl {
 
         $ok = $this->qUpdateUserPassword([
             password_hash($password, PASSWORD_BCRYPT),
-            md5($password),
             $id,
             $this->companiesId
         ]);
