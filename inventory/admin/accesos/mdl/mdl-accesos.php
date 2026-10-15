@@ -178,11 +178,11 @@ class mdl extends CRUD {
     }
 
     function qInsertUser($array) {
-        // [name, last_name, email, password, key, branch_id, company_id, color]
+        // [name, last_name, email, password, branch_id, company_id, color]
         $query = "
             INSERT INTO {$this->bd}users
-                (name, last_name, email, password, `key`, branch_id, company_id, color, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+                (name, last_name, email, password, branch_id, company_id, color, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
         ";
         return $this->_CUD($query, $array);
     }
@@ -233,8 +233,8 @@ class mdl extends CRUD {
     }
 
     function qUpdateUserPassword($array) {
-        // [password, key, id, company_id]
-        $query = "UPDATE {$this->bd}users SET password = ?, `key` = ? WHERE id = ? AND company_id = ?";
+        // [password, id, company_id]
+        $query = "UPDATE {$this->bd}users SET password = ? WHERE id = ? AND company_id = ?";
         return $this->_CUD($query, $array);
     }
 

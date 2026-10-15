@@ -382,7 +382,7 @@ class mdl extends CRUD {
     function qUserPassword($array) {
         // [user_id]
         $query = "
-            SELECT password, `key` AS user_key
+            SELECT password
             FROM {$this->bdErp}users
             WHERE id = ? AND status = 'active'
             LIMIT 1

@@ -326,10 +326,7 @@ class ctrl extends mdl {
 
         $user  = $this->qUserPassword([$this->userId]);
         $pass  = str_replace("'", "", $_POST['password'] ?? '');
-        $valid = $user && (
-            (!empty($user['password']) && password_verify($pass, $user['password'])) ||
-            (!empty($user['user_key']) && $user['user_key'] === md5($pass))
-        );
+        $valid = $user && !empty($user['password']) && password_verify($pass, $user['password']);
         if (!$valid) return ['status' => 401, 'message' => 'Contraseña incorrecta'];
 
         $_SESSION['adjustment_cancel'][$id] = time();
