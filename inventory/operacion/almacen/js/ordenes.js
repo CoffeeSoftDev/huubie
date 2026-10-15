@@ -1134,6 +1134,7 @@ class OrdenesView extends Templates {
                 data: {
                     opc:           'approveOrden',
                     id:            orden.id,
+                    vista:         app.vista,
                     items:         JSON.stringify(items),
                     note:          $(`#${modalId}_note`).val() || '',
                     warehouse_id:  $(`#${modalId}_warehouse_id`).val() || '',
@@ -1983,6 +1984,7 @@ class OrdenesView extends Templates {
                 data: {
                     opc:           'fulfillOrden',
                     id:            orden.id,
+                    vista:         app.vista,
                     warehouse_id:  warehouseId,
                     note:          $(`#${modalId}_note`).val() || '',
                     items:         JSON.stringify(items),
@@ -2309,8 +2311,9 @@ class OrdenesView extends Templates {
         const esReabasto   = String(e.folio || '').startsWith('REAB-');
         // Quien surte (Mis entregas) no edita el pedido: Editar solo se pinta en Mis pedidos.
         const enEntregas   = app.vista === 'entregas';
-        // Quien hizo el pedido no lo aprueba ni lo surte (el ctrl también lo valida).
-        const esCreador    = !esReabasto && String(e.user_id || '') !== '' && String(e.user_id) === String((app.dataInit && app.dataInit.user_id) || '');
+        // Quien hizo el pedido no lo aprueba ni lo surte desde Mis pedidos (el ctrl también
+        // lo valida); en Mis entregas sí: ahí atiende los pedidos que le llegan.
+        const esCreador    = !enEntregas && !esReabasto && String(e.user_id || '') !== '' && String(e.user_id) === String((app.dataInit && app.dataInit.user_id) || '');
 
         let actionsHtml = '';
         if (status === 'Borrador') {
@@ -2457,7 +2460,7 @@ class OrdenesView extends Templates {
                     ${e.destination_branch_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Surte</span><span class="text-gray-700 text-right">${esc(e.destination_branch_name)}</span></div>` : ''}
                     ${e.warehouse_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">${esReabasto ? 'Almacén destino' : 'Sale del almacén'}</span><span class="text-gray-700 text-right">${esc(e.warehouse_name)}</span></div>` : ''}
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha solicitud</span><span class="text-gray-700 text-right">${esc(this.fechaLarga(e.created_at || e.date_order) || '-')}</span></div>
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Lo necesita para</span><span class="${necesita.today ? 'text-red-600 font-semibold' : 'text-gray-700'} text-right">${esc((necesita.today ? 'Hoy · ' : '') + (this.fechaLarga(e.date_order) || '-'))}</span></div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Lo necesita para</span><span class="${necesita.today ? 'text-red-600' : 'text-gray-700'} font-bold text-right">${esc((necesita.today ? 'Hoy · ' : '') + (this.fechaLarga(e.date_order) || '-'))}</span></div>
                     ${e.expected_date && !esReabasto ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha esperada</span><span class="text-gray-700 text-right">${esc(e.expected_date)}</span></div>` : ''}
                 </div>
 

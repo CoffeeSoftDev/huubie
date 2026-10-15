@@ -492,7 +492,10 @@ class OrdenForm extends EntradaForm {
         if (!m || !sucursal) return this.opts.labels.confirmAdd;
 
         const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-        return `¿Deseas crear el pedido de la sucursal ${sucursal.valor} para el día ${dias[d.getDay()]} ${Number(m[3])} de ${meses[Number(m[2]) - 1]} del ${m[1]}?`;
+        // El alertBox pinta el título como HTML; sucursal y fecha van escapadas y en el color del tema.
+        const tema  = 'style="color:rgb(var(--brand-600, 192 90 64))"';
+        const fecha = `${dias[d.getDay()]} ${Number(m[3])} de ${meses[Number(m[2]) - 1]} del ${m[1]}`;
+        return `¿Deseas crear el pedido de la sucursal <span ${tema}>${this.esc(sucursal.valor)}</span> para el día <span ${tema}>${this.esc(fecha)}</span>?`;
     }
 
     confirmRegistrar(payload) {
