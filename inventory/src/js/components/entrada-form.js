@@ -104,7 +104,14 @@ class EntradaForm {
                 prodTax:      'Impuesto',
                 prodHint:     'El SKU se genera solo. El precio de venta se captura después.',
                 prodGuardar:  'Crear y agregar',
-                iaSubir:      'Subir con IA',
+                prodModalEdit:'Editar producto',
+                prodGuardarEdit:'Guardar cambios',
+                prodDesc:     'Descripción',
+                prodDescPh:   '¿Con qué otro nombre se le conoce? Ej. Maicena',
+                prodEditarTit:'Editar las características del producto',
+                prodHintEdit: 'El SKU no cambia. La cantidad y el costo de este renglón se conservan.',
+                iaSubir:      'Subir con',
+                iaSubirTit:   'Subir con IA',
                 fecha:        'Fecha',
                 fechaReq:     'Elige la fecha de la entrada',
                 fechaFutura:  'La fecha no puede ser posterior a hoy',
@@ -172,6 +179,7 @@ class EntradaForm {
             onCreateSupplier: null,
             onCreateProduct:  null,
             onOpenIA:         null,
+            onEditProduct:    null,
             onLoadFormatos:   null,
             onSaveFormato:    null,
             onDeleteFormato:  null,
@@ -314,8 +322,10 @@ class EntradaForm {
         $sel.val(String(sup.id));
     }
 
-    openNuevoProveedor() {
+    // `cfg.onCreated(sup)` y `cfg.z` permiten abrirlo desde fuera de la captura (formulario previo).
+    openNuevoProveedor(cfg = {}) {
         const o       = this.opts;
+        const zCls    = cfg.z || 'z-[120]';
         const modalId = `${o.id}_supModal`;
         $(`#${modalId}`).remove();
 
@@ -328,7 +338,7 @@ class EntradaForm {
             </div>`;
 
         const html = `
-            <div id="${modalId}" class="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div id="${modalId}" class="fixed inset-0 ${zCls} flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" data-sup-backdrop></div>
                 <div class="relative w-full max-w-xs bg-white border border-gray-200 rounded-xl shadow-2xl shadow-black/30 overflow-hidden">
                     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
@@ -356,6 +366,9 @@ class EntradaForm {
 
         $('body').append(html);
         if (window.lucide) lucide.createIcons();
+
+        // Abierto sobre un bootbox (formulario previo), Bootstrap le quitaría el foco.
+        $(`#${modalId}`).on('focusin', (e) => e.stopPropagation());
         $(`#${modalId}_name`).focus();
 
         // Teléfono: solo dígitos y máximo 10 (lo que se pegue también se limpia).
@@ -384,7 +397,11 @@ class EntradaForm {
             };
             if (typeof o.onCreateSupplier === 'function') {
                 o.onCreateSupplier(payload, (sup) => {
-                    if (sup && sup.id) { this.addSupplierOption(sup); closeModal(); }
+                    if (sup && sup.id) {
+                        if (typeof cfg.onCreated === 'function') cfg.onCreated(sup);
+                        else this.addSupplierOption(sup);
+                        closeModal();
+                    }
                 });
             } else {
                 // Sin backend (modo demo): alta local optimista.
@@ -411,8 +428,13 @@ class EntradaForm {
             </button>`;
     }
 
-    openNuevoProducto(prefill) {
+    // Sin editId es el alta exprés; con editId (id de un producto del catálogo) el mismo
+    // formulario edita sus características principales.
+    openNuevoProducto(prefill, editId) {
         const o       = this.opts;
+        const edit    = editId != null && editId !== '';
+        const current = edit ? ((o.json || []).find(p => String(p.id) === String(editId)) || this.lote.find(p => String(p.id) === String(editId))) : null;
+        if (edit && !current) return;
         const modalId = `${o.id}_prodModal`;
         $(`#${modalId}`).remove();
         this.closeFloat();
@@ -426,7 +448,7 @@ class EntradaForm {
                 <div class="relative w-full max-w-sm bg-white border border-gray-200 rounded-xl shadow-2xl shadow-black/30 overflow-hidden">
                     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
                         <p class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                            <i data-lucide="package-plus" class="w-3.5 h-3.5 text-emerald-600"></i>${this.esc(o.labels.prodModalTit)}
+                            <i data-lucide="${edit ? 'pencil' : 'package-plus'}" class="w-3.5 h-3.5 text-emerald-600"></i>${this.esc(edit ? o.labels.prodModalEdit : o.labels.prodModalTit)}
                         </p>
                         <button id="${modalId}_close" class="text-gray-400 hover:text-gray-700 transition-colors">
                             <i data-lucide="x" class="w-3.5 h-3.5"></i>
@@ -459,23 +481,49 @@ class EntradaForm {
                                 <select id="${modalId}_tax" class="${selCls}">${(o.data.impuestos || []).map(it => this.optionTag(it)).join('')}</select>
                             </div>
                         </div>
+                        ${edit ? `
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${this.esc(o.labels.prodDesc)}</label>
+                            <textarea id="${modalId}_desc" rows="3" maxlength="255" placeholder="${this.esc(o.labels.prodDescPh)}"
+                                class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 !text-sm text-gray-800 placeholder-gray-400 outline-none resize-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all"></textarea>
+                        </div>` : ''}
                         <p id="${modalId}_err" class="hidden text-[11px] font-medium text-red-500"></p>
-                        <p class="text-[10px] text-gray-400">${this.esc(o.labels.prodHint)}</p>
+                        <p class="text-[10px] text-gray-400">${this.esc(edit ? o.labels.prodHintEdit : o.labels.prodHint)}</p>
                     </div>
                     <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50">
                         <button id="${modalId}_cancel" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 border border-gray-300 hover:border-gray-400 hover:text-gray-800 transition-all">${this.esc(o.labels.cancelar)}</button>
                         <button id="${modalId}_confirm" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-600 flex items-center gap-1.5 transition-all">
-                            <i data-lucide="check" class="w-3 h-3"></i>${this.esc(o.labels.prodGuardar)}
+                            <i data-lucide="check" class="w-3 h-3"></i>${this.esc(edit ? o.labels.prodGuardarEdit : o.labels.prodGuardar)}
                         </button>
                     </div>
                 </div>
             </div>`;
 
         $('body').append(html);
+
+        if (edit) {
+            const selectValue = ($sel, value) => {
+                const v = String(value == null ? '' : value);
+                if (v !== '' && !$sel.find('option').filter((_, op) => op.value === v).length) {
+                    $sel.append(`<option value="${this.esc(v)}">${this.esc(v)}</option>`);
+                }
+                $sel.val(v);
+            };
+            $(`#${modalId}_name`).val(current.nombre || '');
+            $(`#${modalId}_desc`).val(current.descripcion || '');
+            selectValue($(`#${modalId}_cat`),  current.category_id);
+            selectValue($(`#${modalId}_unit`), current.unit_id);
+            $(`#${modalId}_cost`).val(Number(current.costo || 0).toFixed(2));
+            selectValue($(`#${modalId}_tax`), Number(current.tax || 0));
+        }
+
         if (window.lucide) lucide.createIcons();
         setTimeout(() => $(`#${modalId}_name`).trigger('focus').trigger('select'), 50);
 
         const closeModal = () => $(`#${modalId}`).remove();
+        $(`#${modalId}_cost`)
+            .on('keydown', (e) => this.bloquearSigno(e))
+            .on('input',   (e) => this.limpiarNegativo($(e.currentTarget)));
         $(`#${modalId}`).on('click', '[data-prod-backdrop]', closeModal);
         $(`#${modalId}_close`).on('click', closeModal);
         $(`#${modalId}_cancel`).on('click', closeModal);
@@ -491,6 +539,21 @@ class EntradaForm {
             const tax   = this.parseTax($(`#${modalId}_tax`).val());
 
             const $btn = $(`#${modalId}_confirm`).prop('disabled', true).addClass('opacity-60');
+
+            if (edit) {
+                this.saveProductEdit(current, {
+                    id:          current.id,
+                    name:        name,
+                    description: ($(`#${modalId}_desc`).val() || '').trim(),
+                    category_id: $(`#${modalId}_cat`).val()  || '',
+                    unit_id:     $(`#${modalId}_unit`).val() || '',
+                    costo:       costo,
+                    cost_unit:   this.baseFromCost(costo, tax),
+                    cost_tax:    tax
+                }, modalId, $btn);
+                return;
+            }
+
             const payload = {
                 name:        name,
                 category_id: $(`#${modalId}_cat`).val()  || '',
@@ -516,9 +579,48 @@ class EntradaForm {
         };
 
         $(`#${modalId}_confirm`).on('click', confirmar);
+        // La descripción es textarea: ahí Enter hace salto de línea, no guarda.
         $(`#${modalId}_name, #${modalId}_cost`).on('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); confirmar(); }
         });
+    }
+
+    // Guarda la edición por onEditProduct y refresca el producto en el catálogo y en el
+    // renglón. Un nombre parecido (409 con matches) se confirma pulsando otra vez.
+    saveProductEdit(current, payload, modalId, $btn) {
+        const o = this.opts;
+
+        if (this.similarOkFor === payload.name) payload.similar_ok = '1';
+
+        o.onEditProduct(payload, (changes, error, info) => {
+            if (!changes) {
+                $btn.prop('disabled', false).removeClass('opacity-60');
+                $(`#${modalId}_err`).text(error || '').toggleClass('hidden', !error);
+                const m = info && info.matches;
+                this.similarOkFor = (m && !m.exact && (m.similar || []).length) ? payload.name : null;
+                return;
+            }
+
+            this.similarOkFor = null;
+            this.applyProductChanges(payload.id, changes);
+            $(`#${modalId}`).remove();
+        });
+    }
+
+    // Mezcla las características editadas en el catálogo de la captura y en el renglón
+    // del lote; la cantidad, el costo y el impuesto del renglón no se tocan.
+    applyProductChanges(id, changes) {
+        const prod = (this.opts.json || []).find(p => String(p.id) === String(id));
+        if (prod) Object.assign(prod, changes);
+
+        const row = this.lote.find(p => String(p.id) === String(id));
+        if (row) {
+            ['nombre', 'categoria', 'category_id', 'unit_id'].forEach((k) => {
+                if (k in changes) row[k] = changes[k];
+            });
+        }
+
+        this.renderLote();
     }
 
     renderSearchBar() {
@@ -567,6 +669,25 @@ class EntradaForm {
             </div>`;
     }
 
+    // -- Ícono de CoffeeIA --
+
+    // El mismo de la navbar (Templates.prototype.iaIcon, ia-chat.js) con su "IA" morado
+    // en la esquina de abajo a la derecha. Sin ia-chat.js cargado cae a los destellos.
+    renderIaMark() {
+        if (typeof Templates === 'undefined' || typeof Templates.prototype.iaIcon !== 'function') {
+            return '<i data-lucide="sparkles" class="w-3.5 h-3.5"></i>';
+        }
+
+        const svg = Templates.prototype.iaIcon.call(this)
+            .replace('class="lucide lucide-coffee-ia"', 'class="lucide lucide-coffee-ia block w-[18px] h-[18px]"');
+
+        return `
+            <span class="relative inline-flex items-center flex-shrink-0 ml-0.5 mr-1">
+                ${svg}
+                <span class="absolute right-[-4px] bottom-[-2px] text-[7.5px] font-extrabold leading-none tracking-[-.02em] pointer-events-none text-[#7C3AED]">IA</span>
+            </span>`;
+    }
+
     renderLoteHeader() {
         const o   = this.opts;
         const cls = this.cls;
@@ -585,8 +706,8 @@ class EntradaForm {
                         <span class="ef-kbd ml-1.5">Enter</span>${this.esc(o.labels.hintBuscador)}
                     </span>
                     ${typeof o.onOpenIA === 'function' ? `
-                    <button id="${o.id}_btnIA" type="button" class="${cls.btnIco}">
-                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.iaSubir)}</span>
+                    <button id="${o.id}_btnIA" type="button" class="${cls.btnIco}" title="${this.esc(o.labels.iaSubirTit)}">
+                        <span>${this.esc(o.labels.iaSubir)}</span>${this.renderIaMark()}
                     </button>` : ''}
                     <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-500 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-50">
                         <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
@@ -721,22 +842,24 @@ class EntradaForm {
         const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const baseFmt     = baseNum.toFixed(2);
         return `
-            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
+            <tr class="group border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
                 <td class="px-3 py-2 align-middle w-28">
                     <span class="block truncate text-[11px] font-mono text-gray-500" title="${this.esc(p.sku)}">${this.esc(p.sku)}</span>
                 </td>
                 <td class="px-3 py-2 align-middle">
-                    <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="group/prod flex items-center gap-2.5 min-w-0">
                         ${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}
-                        <div class="min-w-0">
-                            <p class="text-xs font-semibold text-gray-800 truncate leading-tight">${this.esc(p.nombre)}</p>
-                            ${p.categoria ? `<p class="text-[10px] text-gray-400 truncate mt-0.5">${this.esc(p.categoria)}</p>` : ''}
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 min-w-0">
+                                ${this.renderProductName(p)}
+                            </div>
+                            ${(p.categoria || this.unitOf(p)) ? `<p class="text-[10px] text-gray-400 truncate mt-0.5">${[p.categoria, this.unitOf(p)].filter(Boolean).map(x => this.esc(x)).join(' &middot; ')}</p>` : ''}
                         </div>
                     </div>
                 </td>
                 <td class="px-2 py-2 align-middle text-center w-32" data-stock-cell>${this.stockCell(p)}</td>
                 <td class="px-2 py-2 align-middle w-24">
-                    <input type="number" min="1" step="0.01" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
+                    <input type="number" min="0" step="0.01" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
                 </td>
                 <td class="px-2 py-2 align-middle w-28">
                     <div class="relative" title="Costo con impuesto">
@@ -772,6 +895,18 @@ class EntradaForm {
                     </button>
                 </td>
             </tr>`;
+    }
+
+    // Nombre del producto en el renglón. Con onEditProduct es un enlace que abre la edición: se ve
+    // azul y subrayado al pasar el cursor por el producto (group/prod) o con foco de teclado.
+    // Con "!": Bootstrap 5 pisa color y subrayado con !important.
+    renderProductName(p) {
+        const base = 'text-xs font-semibold truncate leading-tight';
+        if (typeof this.opts.onEditProduct !== 'function') {
+            return `<p class="${base} text-gray-800">${this.esc(p.nombre)}</p>`;
+        }
+        return `
+            <button type="button" class="${base} min-w-0 max-w-full text-left bg-transparent border-0 p-0 text-gray-800 cursor-pointer outline-none transition-colors group-hover/prod:!text-blue-600 group-hover/prod:!underline hover:!text-blue-800 focus-visible:!text-blue-600 focus-visible:!underline focus-visible:ring-2 focus-visible:ring-blue-500/40 rounded-sm" data-edit-product="${this.esc(p.id)}" title="${this.esc(this.opts.labels.prodEditarTit)}">${this.esc(p.nombre)}</button>`;
     }
 
     // Al final del subtotal; lo usa la captura de pedidos (orden-form) para la nota.
@@ -839,6 +974,17 @@ class EntradaForm {
         return `<div class="px-3 py-2 bg-amber-50/70 border-b border-gray-200 text-[11px] font-semibold text-amber-700 flex items-center gap-1.5"><i data-lucide="lightbulb" class="w-3 h-3"></i>${this.esc(this.opts.labels.sugerencia)}</div>${lista}${this.renderCreateProduct(term)}`;
     }
 
+    // Unidad a la que pertenece el producto: código del catálogo de unidades por unit_id.
+    unitOf(p) {
+        const u = ((this.opts.data || {}).unidades || []).find(x => String(x.id) === String(p.unit_id));
+        return u ? (u.code || u.valor || '') : '';
+    }
+
+    // Nombre que se pinta en el buscador; OrdenForm lo sobrescribe para añadir la presentación.
+    nombreVista(p) {
+        return this.esc(p.nombre);
+    }
+
     // `term` = lo buscado, para mostrar qué parte de la descripción coincidió.
     renderSearchResult(p, i, term) {
         const o          = this.opts;
@@ -848,9 +994,9 @@ class EntradaForm {
             <div class="ef-cat-item flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-blue-50/60 border-b border-gray-100 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
                 ${this.prodThumb(p, 'w-9 h-9', 'w-4 h-4')}
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-gray-800 truncate">${this.esc(p.nombre)}</p>
+                    <p class="text-xs font-semibold text-gray-800 truncate">${this.nombreVista(p)}</p>
                     <p class="text-[10px] text-gray-500 truncate mt-0.5">
-                        <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
+                        <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}${this.unitOf(p) ? `<span class="text-gray-300"> &middot; </span>${this.esc(this.unitOf(p))}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
                     </p>
                     ${this.coincidenciaHtml(p, term)}
                 </div>
@@ -1559,6 +1705,18 @@ class EntradaForm {
         this.renderLote();
     }
 
+    bloquearSigno(e) {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') e.preventDefault();
+    }
+
+    // Quita el signo menos de lo pegado/arrastrado (el type=number lo acepta por pegado).
+    limpiarNegativo($el) {
+        const raw = String($el.val());
+        if (raw.indexOf('-') !== -1) $el.val(raw.replace(/-/g, ''));
+        else if (!raw && $el[0] && $el[0].validity && $el[0].validity.badInput) $el.val('');
+    }
+
     updateField($el) {
         const idx   = Number($el.data('idx'));
         const field = $el.data('field');
@@ -2141,6 +2299,7 @@ class EntradaForm {
         wrap.on('change', `#${id}_selOrigen`,         () => this.syncProveedorVisibility());
         wrap.on('click', `#${id}_btnNuevoProveedor`,  () => this.openNuevoProveedor());
         wrap.on('click', '[data-create-product]',     (e) => this.openNuevoProducto($(e.currentTarget).attr('data-create-product')));
+        wrap.on('click', '[data-edit-product]',       (e) => { e.stopPropagation(); this.openNuevoProducto('', $(e.currentTarget).attr('data-edit-product')); });
         wrap.on('change', `#${id}_selSucursal`, (e) => {
             this.refreshAlmacenes(e.target.value);
             this.refreshDestinos($(`#${id}_selAlmacen`).val());
@@ -2162,6 +2321,10 @@ class EntradaForm {
             }
         });
         wrap.on('click', '[data-remove]',             (e) => this.removeProducto(Number($(e.currentTarget).attr('data-remove'))));
+        // -- Sin negativos: el signo "-" ni se teclea ni se pega en los numericos --
+        wrap.on('keydown', 'input[type="number"]',    (e) => this.bloquearSigno(e));
+        wrap.on('input',   'input[type="number"], input[data-field="tax"]', (e) => this.limpiarNegativo($(e.currentTarget)));
+        wrap.on('keydown', 'input[data-field="tax"]', (e) => { if (e.key === '-' && !e.ctrlKey) e.preventDefault(); });
         wrap.on('input', 'input[data-field]',         (e) => this.updateField($(e.currentTarget)));
 
         wrap.on('input',   `#${id}_draftInput`,       (e) => this.onDraftInput(e.target.value));
@@ -2330,6 +2493,7 @@ class EntradaForm {
             $(`#${id}_selAlmacen`).val(String(newData.warehouse_id));
             this.refreshDestinos(newData.warehouse_id);
         }
+        if (newData && 'supplier_id' in newData)     $(`#${id}_selProveedor`).val(newData.supplier_id ? String(newData.supplier_id) : '');
         if (newData && 'nota' in newData)            $(`#${id}_inpNota`).val(newData.nota);
     }
 

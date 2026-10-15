@@ -9,6 +9,9 @@
     <title>Alpha</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema (Huubie oscuro / Huubie Claro): justo tras Tailwind, antes de pintar -->
+    <script src="<?=PATH_PEDIDOS?>src/js/theme.js?t=<?php echo time(); ?>"></script>
+    <link rel="stylesheet" href="<?=PATH_PEDIDOS?>src/css/theme-light.css?t=<?php echo time(); ?>" />
     <!-- Fuente del ticket: monoespaciada con peso 600 real (semibold) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

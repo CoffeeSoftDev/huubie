@@ -196,6 +196,15 @@
         setScale(style, 'brand', ramp(palette && palette.accent));
         setScale(style, 'accent-2', ramp(secondary));
 
+        // Secundario propio: un segundo color que no es el acento ni el
+        // primario y que aguanta texto blanco (el azul de Huubie Claro). Con él la
+        // página clara también lo usa donde la oscura: botón secundario, foco
+        // y hover de las cards (themes.css). Un pastel como el #91B2E8 de
+        // Claro se queda en los detalles de la barra.
+        var second = channels(secondary);
+        var own    = !!second && str(second) !== str(accent) && str(second) !== tones.base && luma(second) < 0.5;
+        document.documentElement.setAttribute('data-second', own ? 'own' : 'accent');
+
         if (isNeutral(accent)) {
             setScale(style, 'gray', NEUTRAL);
             style.setProperty('--line', '#E5E5E5');

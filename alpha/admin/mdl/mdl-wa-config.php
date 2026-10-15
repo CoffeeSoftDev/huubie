@@ -86,7 +86,7 @@ class MWaConfig extends CRUD {
             SELECT id, name, phone, type, active
             FROM wa_destinatarios
             WHERE companies_id = ?
-            ORDER BY FIELD(type, 'cierre', 'turno', 'personalizado'), name, id";
+            ORDER BY FIELD(type, 'cierre', 'turno', 'personalizado', 'edicion'), name, id";
 
         return $this->_Read($query, $array);
     }
@@ -126,6 +126,15 @@ class MWaConfig extends CRUD {
         return $this->_Update([
             'table'  => 'wa_destinatarios',
             'values' => ['name', 'phone', 'type', 'active'],
+            'where'  => ['id', 'companies_id'],
+            'data'   => $array
+        ]);
+    }
+
+    function updateDestinatarioActive($array){
+        return $this->_Update([
+            'table'  => 'wa_destinatarios',
+            'values' => ['active'],
             'where'  => ['id', 'companies_id'],
             'data'   => $array
         ]);

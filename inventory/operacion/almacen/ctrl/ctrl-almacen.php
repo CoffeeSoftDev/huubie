@@ -299,6 +299,75 @@ class ctrl extends mdl {
         ];
     }
 
+    // Edición exprés desde la captura de Entradas: solo nombre, categoría, unidad, último
+    // costo y descripción (sobrenombres). El SKU, la foto, el precio de venta y el resto del producto no se tocan.
+    function editProductoRapido() {
+        $id       = (int) $_POST['id'];
+        $material = $this->getMaterialById($id);
+
+        if (!$material || (int) $material['companies_id'] !== (int) $_SESSION['company_id']) {
+            return ['status' => 404, 'message' => 'Producto no encontrado'];
+        }
+
+        $name = trim($_POST['name']);
+
+        if ($name === '') {
+            return ['status' => 400, 'message' => 'El nombre del producto es obligatorio'];
+        }
+
+        if ($this->normalizarIA($name) !== $this->normalizarIA($material['name'])) {
+            $nameCheck = $this->checkMaterialName($name, $id);
+
+            if ($nameCheck) return $nameCheck;
+        }
+
+        $category = $_POST['category_id'] === '' ? null : $_POST['category_id'];
+        $unit     = $_POST['unit_id'] === '' ? null : $_POST['unit_id'];
+
+        $values = 'unit_id = ?';
+        $data   = [$unit];
+
+        // Costo de compra: se omite si no viene (no se pisa el último costo con 0).
+        if (isset($_POST['cost_unit']) && $_POST['cost_unit'] !== '') {
+            $values .= ', cost_unit = ?, cost_tax = ?';
+            $data[]  = max(0, (float) $_POST['cost_unit']);
+            $data[]  = max(0, (float) $_POST['cost_tax']);
+        }
+
+        // Sobrenombres (item_attribute.description): solo si viene; vacío la limpia.
+        if (isset($_POST['description'])) {
+            $values .= ', description = ?';
+            $data[]  = mb_substr(trim(preg_replace('/\s+/u', ' ', $_POST['description'])), 0, 255);
+        }
+
+        $data[] = $id;
+        $data[] = $_SESSION['company_id'];
+
+        // Producto y atributos juntos: si uno falla, no queda la mitad guardada.
+        // El where va como arreglo: _Update cuenta un solo "?" por cadena.
+        try {
+            $this->transaction(function () use ($name, $category, $id, $values, $data) {
+                $updated = $this->updateMaterial([
+                    'values' => 'name = ?, category_id = ?',
+                    'where'  => ['id', 'companies_id'],
+                    'data'   => [$name, $category, $id, $_SESSION['company_id']]
+                ]);
+                if (!$updated || is_string($updated)) throw new Exception('producto');
+
+                $updated = $this->updateItemAttribute([
+                    'values' => $values,
+                    'where'  => ['item_id', 'companies_id'],
+                    'data'   => $data
+                ]);
+                if (!$updated || is_string($updated)) throw new Exception('atributos');
+            });
+        } catch (\Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo editar el producto'];
+        }
+
+        return ['status' => 200, 'message' => 'Producto actualizado', 'id' => $id];
+    }
+
     function editMaterial() {
         $status  = 500;
         $message = 'Error al editar el insumo';
@@ -841,7 +910,7 @@ class ctrl extends mdl {
             session_write_close();
             set_time_limit(180);
 
-            $leido = $ia->transcribirImagen($f['tmp_name']);
+            $leido = $ia->transcribirImagen($f['tmp_name'], ($_POST['dudas'] ?? '') === '1');
         } else {
             $leido = IaLector::leer($f['tmp_name'], $ext);
         }

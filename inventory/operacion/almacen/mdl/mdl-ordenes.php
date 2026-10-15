@@ -1,8 +1,12 @@
 <?php
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
+require_once __DIR__ . '/mdl-borrado.php';
 
 class mdl extends CRUD {
+
+    // Borrado real con su stock (CoffeeIA): deletePedidoFullById y compañía.
+    use BorradoInventario;
 
     public $util;
     public $bd;
@@ -140,10 +144,12 @@ class mdl extends CRUD {
                 ROUND(COALESCE(ia.cost_unit, 0) * (1 + COALESCE(ia.cost_tax, i.tax, 0) / 100), 2) AS costo,
                 i.image                                    AS image,
                 ia.description                             AS descripcion,
-                ia.stock_max                               AS stock_max
+                ia.stock_max                               AS stock_max,
+                COALESCE(u.code, u.name)                   AS presentacion
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}unit            u  ON u.id = ia.unit_id
             WHERE i.active = 1 AND i.companies_id = ?
             ORDER BY i.name ASC
         ";
@@ -551,13 +557,14 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? (int) $r[0]['id'] : null;
     }
 
+    // purchase_order_id liga la salida con su pedido (migración 2026-10-14).
     function insertShrinkageFromOrden($array) {
         $query = "
             INSERT INTO {$this->bd}inventory_shrinkage
                 (folio, note, total_products, total_units, total_cost,
                  status, shrinkage_reason_id, warehouse_id,
-                 branch_id, user_id, companies_id, date_shrinkage)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                 branch_id, user_id, companies_id, date_shrinkage, purchase_order_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
     }
@@ -589,8 +596,10 @@ class mdl extends CRUD {
     // Los pedidos que coinciden con el filtro que armó el modelo. `branch_ids` son las
     // sucursales del usuario (vacío = dueño, sin tope): pide o surte alguna de ellas.
     // `movido` > 0 = ya surtió o recibió material (renglones con recibido o entradas).
+    // `ocultos` suma los que se eliminaron antes con active = 0: no salen en la lista,
+    // pero siguen contando para el folio.
     function qPedidosIA($array) {
-        $where = "po.active = 1 AND po.companies_id = ? AND po.folio NOT LIKE 'CP-%'";
+        $where = "po.companies_id = ? AND po.folio NOT LIKE 'CP-%'" . (empty($array['ocultos']) ? ' AND po.active = 1' : '');
         $data  = [$array['companies_id']];
 
         if (!empty($array['branch_ids'])) {
@@ -652,6 +661,7 @@ class mdl extends CRUD {
                 po.id,
                 po.folio,
                 po.status,
+                po.active,
                 po.date_order,
                 po.created_at,
                 po.note,
@@ -674,15 +684,19 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    // Eliminar = active 0 (nunca DELETE): el folio no se reutiliza (nextFolio cuenta
-    // los inactivos) y lo que el pedido ya movió en inventario no se toca.
-    function softDeleteOrden($array) {
+    // Pedidos y reabastos de la empresa (también los ocultos) que piden y surten fuera
+    // de `branch_ids`: si hay alguno, la serie no se puede reiniciar desde aquí.
+    function getPedidosAjenosCount($array) {
+        $in    = implode(',', array_fill(0, count($array['branch_ids']), '?'));
         $query = "
-            UPDATE {$this->bd}purchase_order
-            SET active = 0, updated_at = NOW()
-            WHERE id = ? AND companies_id = ? AND active = 1
+            SELECT COUNT(*) AS total
+            FROM {$this->bd}purchase_order
+            WHERE companies_id = ? AND folio NOT LIKE 'CP-%'
+              AND (branch_id IS NULL OR branch_id NOT IN ({$in}))
+              AND (destination_branch_id IS NULL OR destination_branch_id NOT IN ({$in}))
         ";
-        return $this->_CUD($query, $array);
+        $r = $this->_Read($query, array_merge([$array['companies_id']], $array['branch_ids'], $array['branch_ids']));
+        return (int) ($r[0]['total'] ?? 0);
     }
 
     // Credenciales del usuario en sesión para confirmar con su contraseña (como mdl-stock).

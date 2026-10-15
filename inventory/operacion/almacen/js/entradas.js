@@ -39,6 +39,7 @@ class App extends Templates {
                 unidades:        r.unidades          || [],
                 proveedores:     r.proveedores       || [],
                 productos:       r.productos         || [],
+                is_admin:        Number(r.is_admin || 0),
                 coffeeia:        r.coffeeia !== false
             };
         } else {
@@ -53,6 +54,7 @@ class App extends Templates {
                 unidades:        [],
                 proveedores:     [],
                 productos:       [],
+                is_admin:        0,
                 coffeeia:        false
             };
         }
@@ -130,7 +132,7 @@ class App extends Templates {
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class: '!hidden w-full md:w-[var(--entradas-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 border-gray-200 dark:!border-0 flex flex-col overflow-hidden',
+            class: '!hidden w-full md:w-[var(--entradas-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-[1px] border-solid border-gray-200 rounded-lg dark:!border-0 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -767,6 +769,7 @@ class EntradasView extends Templates {
 
         $('#ne_date_inflow').attr('max', hoy);
         this.mountNuevaEntradaIconos();
+        this.mountNuevaEntradaProveedor();
         this.syncNuevaEntradaTipo();
     }
 
@@ -780,6 +783,13 @@ class EntradasView extends Templates {
                 data: (app.dataInit.origenes || []).filter(o => o.id !== ''),
                 onchange: 'entradasView.syncNuevaEntradaTipo()',
                 required: true
+            },
+            {
+                opc: 'select',
+                id: 'supplier_id',
+                lbl: 'Proveedor',
+                class: 'col-12 hidden',
+                data: [{ id: '', valor: '-- Selecciona proveedor --' }].concat(app.dataInit.proveedores || [])
             },
             {
                 opc: 'select',
@@ -811,13 +821,55 @@ class EntradasView extends Templates {
         ];
     }
 
+    // -- Proveedor nuevo (formulario previo) --
+
+    // Mismo modal y mismo createSupplier que la captura (EntradaForm.openNuevoProveedor).
+    // El proveedor queda en app.dataInit.proveedores, en la captura y elegido aquí.
+    mountNuevaEntradaProveedor() {
+        const $campo = $('#ne_supplier_id').closest('.relative').parent();
+
+        $campo.find('label').first().before(
+            $('<button>', {
+                type:  'button',
+                id:    'ne_btnNuevoProveedor',
+                class: 'float-right text-[10px] font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center leading-none mt-1'
+            }).append(
+                $('<i>', { 'data-lucide': 'plus', class: 'w-3 h-3 mr-0.5' }),
+                document.createTextNode('Nuevo')
+            ).on('click', () => this.openNuevaEntradaProveedor())
+        );
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    openNuevaEntradaProveedor() {
+        const form = this.entradaFormInstance();
+
+        form.openNuevoProveedor({
+            z: 'z-[2000]',
+            onCreated: (sup) => {
+                form.addSupplierOption(sup);
+
+                const lista = app.dataInit.proveedores || (app.dataInit.proveedores = []);
+                if (!lista.some(p => String(p.id) === String(sup.id))) lista.push({ id: sup.id, valor: sup.valor });
+
+                const $sel = $('#ne_supplier_id');
+                if (!$sel.find(`option[value="${sup.id}"]`).length) {
+                    $sel.append($('<option>', { value: sup.id, text: sup.valor }));
+                }
+                $sel.val(String(sup.id));
+            }
+        });
+    }
+
     // Íconos dentro de los selects, como en la captura de Salidas (salida-form).
     // Debajo de Tipo de entrada va su descripción en una tarjeta informativa (syncNuevaEntradaTipo).
     mountNuevaEntradaIconos() {
         const iconos = {
             ne_inflow_origin_id: 'log-in',
             ne_branch_id:        'building-2',
-            ne_warehouse_id:     'warehouse'
+            ne_warehouse_id:     'warehouse',
+            ne_supplier_id:      'truck'
         };
 
         $.each(iconos, (id, icon) => {
@@ -848,6 +900,11 @@ class EntradasView extends Templates {
 
         $('#ne_inflow_origin_hint_text').text(desc);
         $('#ne_inflow_origin_hint').toggleClass('hidden', !desc);
+
+        // -- Proveedor: solo si el tipo lo exige (inflow_origin.requires_supplier) --
+        const exige = !!(tipo && Number(tipo.requires_supplier));
+        $('#ne_supplier_id').closest('.relative').parent().toggleClass('hidden', !exige);
+        if (!exige) $('#ne_supplier_id').val('');
     }
 
     // El Origen es un almacén DE la sucursal elegida.
@@ -1026,6 +1083,26 @@ class EntradasView extends Templates {
 
                     done(this.productoNuevo(r, data));
                 },
+                // Edita las características principales del producto (ctrl-almacen::editProductoRapido).
+                onEditProduct: async (data, done) => {
+                    const r = await useFetch({
+                        url:  apiAlmacen,
+                        data: Object.assign({ opc: 'editProductoRapido' }, data)
+                    }).catch(() => null);
+
+                    if (!(r && r.status === 200)) {
+                        done(null, (r && r.message) || 'No se pudo editar el producto', r);
+                        return;
+                    }
+
+                    const changes = this.productoEditado(data);
+                    // app.dataInit.productos es el catálogo del módulo (Salidas, IA y demás lo leen).
+                    const base = (app.dataInit.productos || []).find(p => String(p.id) === String(data.id));
+                    if (base) Object.assign(base, changes);
+
+                    this.alertBox({ type: 'success', title: r.message || 'Producto actualizado', timer: 1600 });
+                    done(changes);
+                },
                 onUpdate: async (payload) => {
                     const send = () => useFetch({
                         url:  apiEntradas,
@@ -1060,8 +1137,12 @@ class EntradasView extends Templates {
                             title: r.message || ('Entrada ' + r.folio + ' registrada'),
                             timer: r.pending ? 0 : 1600
                         });
-                        entradas.lsEntradas();
+                        // Se recarga la lista y se abre el visor con la entrada recién creada
+                        // (también una orden de producción pendiente).
+                        const lista = entradas.lsEntradas();
                         entradas.lsKpis();
+                        await lista;
+                        if (r.folio && r.id) app.selectEntrada(r.folio, r.id);
                     } else {
                         this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la entrada' });
                     }
@@ -1108,6 +1189,8 @@ class EntradasView extends Templates {
             nombre:            data.name,
             sku:               r.sku || '',
             categoria:         cat ? cat.valor : 'Sin categoria',
+            category_id:       String(data.category_id || ''),
+            unit_id:           String(data.unit_id || ''),
             costo:             data.costo,
             price_without_tax: data.cost_unit,
             tax:               data.cost_tax,
@@ -1116,6 +1199,21 @@ class EntradasView extends Templates {
             icon:              'package',
             bg:                'bg-gray-100',
             color:             'text-gray-500'
+        };
+    }
+
+    // Campos del renglón de catálogo que cambian al editar un producto.
+    productoEditado(data) {
+        const cat = (app.dataInit.categorias || []).find(c => String(c.id) === String(data.category_id));
+        return {
+            nombre:            data.name,
+            categoria:         cat ? cat.valor : 'Sin categoria',
+            category_id:       String(data.category_id || ''),
+            unit_id:           String(data.unit_id || ''),
+            descripcion:       String(data.description || '').replace(/\s+/g, ' ').trim().slice(0, 255),
+            costo:             data.costo,
+            price_without_tax: data.cost_unit,
+            tax:               data.cost_tax
         };
     }
 
@@ -1152,6 +1250,7 @@ class EntradasView extends Templates {
 
     // El mismo chat de Catálogo (iaChat): se adjunta la foto o un Excel, la IA propone
     // qué agregar y qué falta en el catálogo, y lo que se marca entra al lote del modal.
+    // Al administrador también le prepara entradas para eliminar o el reinicio del folio.
     openChatIA() {
         if (!this.chatIA) {
             this.chatIA = this.iaChat({
@@ -1160,7 +1259,9 @@ class EntradasView extends Templates {
                 subtitle:    'Productos de la entrada desde una foto o un Excel',
                 placeholder: 'Adjunta la foto del ticket o escribe qué llegó…',
                 accept:      '.png,.jpg,.jpeg,.webp,.xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv',
-                welcome:     'Adjunta la foto de la factura, ticket o remisión. Te digo qué productos agrego a la entrada y cuáles faltan en el catálogo. Nada entra sin tu confirmación.',
+                welcome:     'Adjunta la foto de la factura, ticket o remisión. Te digo qué productos agrego a la entrada y cuáles faltan en el catálogo. '
+                           + (app.dataInit.is_admin ? 'También elimino entradas y reinicio el folio. ' : '')
+                           + 'Nada entra sin tu confirmación.',
                 actions: {
                     add: {
                         label: 'Agregar',
@@ -1169,6 +1270,16 @@ class EntradasView extends Templates {
                     create: {
                         label: 'Crear',
                         tone:  'bg-amber-100 text-amber-700'
+                    },
+                    delete: {
+                        label: 'Eliminar',
+                        tone:  'bg-red-100 text-red-700'
+                    },
+                    reset: {
+                        label:        'Reiniciar',
+                        tone:         'bg-red-100 text-red-700',
+                        confirm:      'Se borran todas las marcadas para que el folio vuelva a empezar. Haz clic otra vez para seguir.',
+                        confirmLabel: 'Sí, borrar'
                     }
                 },
                 onAttach:  (file) => {
@@ -1183,11 +1294,12 @@ class EntradasView extends Templates {
     }
 
     // Misma lectura que el chat de Catálogo (ctrl-almacen::readArchivo): la foto se
-    // transcribe y el Excel se pasa a texto.
+    // transcribe y el Excel se pasa a texto. "dudas" marca con (?) la letra que se lee a medias.
     async readArchivoIA(file) {
         const data = new FormData();
         data.append('opc', 'readArchivo');
         data.append('archivo', file);
+        data.append('dudas', '1');
 
         try {
             const response = await fetch(apiAlmacen, {
@@ -1212,15 +1324,17 @@ class EntradasView extends Templates {
             }
         }).catch(() => null);
 
-        if (r && r.status === 200 && r.token) this.iaPropuesta = { token: r.token, row: r.row || [] };
+        if (r && r.status === 200 && r.token) this.iaPropuesta = { token: r.token, row: r.row || [], borrar: !!r.borrar };
         return r || { status: 500, message: 'CoffeeIA no respondió. Inténtalo otra vez.' };
     }
 
     // "Agregar" toma el producto del catálogo; "Crear" lo da de alta con la alta exprés
     // (costo leído, sin impuesto) y luego lo agrega. Todo entra al lote en un paso.
+    // Una vista previa de eliminar va al servidor (deleteEntradaIA).
     async applyEntradaIA(token, ids) {
         const pv = this.iaPropuesta;
         if (!pv || pv.token !== token) return { status: 400, message: 'Esa vista previa ya no es válida. Pídemela otra vez.' };
+        if (pv.borrar) return this.deleteEntradaIA(token, ids);
 
         const form     = this.entradaFormInstance();
         const catalogo = form.opts.json || [];
@@ -1266,6 +1380,60 @@ class EntradasView extends Templates {
         if (creados) msg += `; ${creados} ${creados === 1 ? 'es nuevo' : 'son nuevos'} en el catálogo`;
         if (fallos.length) msg += `. No pude crear: ${fallos.join(', ')}`;
         return { status: 200, message: msg + '.' };
+    }
+
+    // Pide la contraseña de quien está en sesión, como al cancelar. Con una equivocada
+    // vuelve a preguntar; Cancelar deja la vista previa como estaba.
+    deleteEntradaIA(token, ids, retry) {
+        const cuales = ids.length === 1 ? 'la entrada marcada' : `las ${ids.length} entradas marcadas`;
+
+        return new Promise((resolve) => {
+            this.alertBox({
+                type:             'confirm',
+                icon:             'lock',
+                title:            'Confirma tu contraseña',
+                detailHtml:       retry ? 'Contraseña incorrecta. Intenta de nuevo.' : `Para eliminar ${cuales} escribe tu contraseña.`,
+                input:            'password',
+                inputPlaceholder: 'Tu contraseña',
+                inputRequired:    true,
+                inputError:       'Escribe tu contraseña',
+                okLabel:          'Eliminar',
+                okIcon:           'trash-2',
+                okBg:             'bg-red-600 hover:bg-red-700',
+                cancelLabel:      'Cancelar',
+                onOk: async (password) => {
+                    const response = await useFetch({
+                        url: apiEntradas,
+                        data: {
+                            opc:      'deleteEntradaIA',
+                            token:    token,
+                            ids:      JSON.stringify(ids),
+                            password: password
+                        }
+                    }).catch(() => null);
+
+                    if (response && response.status === 401) {
+                        resolve(await this.deleteEntradaIA(token, ids, true));
+                        return;
+                    }
+
+                    if (response && response.status === 200) {
+                        if (((response.data && response.data.folios) || []).includes(app.selectedId)) app.selectEntrada(null);
+                        entradas.lsEntradas();
+                        entradas.lsKpis();
+                    }
+
+                    resolve(response || {
+                        status:  500,
+                        message: 'No se pudo eliminar. Inténtalo otra vez.'
+                    });
+                },
+                onCancel: () => resolve({
+                    status:  0,
+                    message: 'No se eliminó nada: cancelaste la confirmación.'
+                })
+            });
+        });
     }
 
     kpisRow(options) {

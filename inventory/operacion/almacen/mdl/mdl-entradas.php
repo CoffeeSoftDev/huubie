@@ -1,8 +1,12 @@
 <?php
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
+require_once __DIR__ . '/mdl-borrado.php';
 
 class mdl extends CRUD {
+
+    // Borrado real con su stock (CoffeeIA): deleteEntradaFullById.
+    use BorradoInventario;
 
     public $util;
     public $bd;
@@ -84,7 +88,7 @@ class mdl extends CRUD {
     // Orden del Catálogo > Unidad (arrastre). sort_order: docs/sql/2026-10-02_unidad-orden.sql.
     function lsUnidades($array) {
         $query = "
-            SELECT id, name AS valor
+            SELECT id, name AS valor, code
             FROM {$this->bd}unit
             WHERE active = 1 AND companies_id = ?
             ORDER BY sort_order ASC, name ASC
@@ -160,6 +164,8 @@ class mdl extends CRUD {
                 i.name                                     AS nombre,
                 ia.sku                                     AS sku,
                 ic.name                                    AS categoria,
+                i.category_id                              AS category_id,
+                ia.unit_id                                 AS unit_id,
                 {$this->ultimoCostoCols()},
                 i.image                                    AS image,
                 ia.description                             AS descripcion,
@@ -696,5 +702,62 @@ class mdl extends CRUD {
             $next  = $num + 1;
         }
         return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
+    }
+
+    // -- CoffeeIA: eliminar --
+
+    // Las entradas que CoffeeIA puede eliminar, también las inactivas (cuentan para el
+    // folio). `branch_ids` = sucursales del usuario (vacío = dueño, sin tope). `pedido`
+    // es el folio del pedido o compra de donde salió la recepción: esa no se borra aquí.
+    function listEntradasIA($array) {
+        $where = 'i.companies_id = ?';
+        $data  = [$array['companies_id']];
+
+        foreach (['branch_ids' => 'i.branch_id', 'ids' => 'i.id', 'folios' => 'i.folio'] as $campo => $columna) {
+            if (empty($array[$campo])) continue;
+            $where .= " AND {$columna} IN (" . implode(',', array_fill(0, count($array[$campo]), '?')) . ')';
+            $data   = array_merge($data, $array[$campo]);
+        }
+
+        $query = "
+            SELECT
+                i.id,
+                i.folio,
+                i.status,
+                i.active,
+                i.date_inflow,
+                i.created_at,
+                i.note,
+                i.total_products,
+                i.total_cost,
+                io.name AS origin_name,
+                w.name  AS warehouse_name,
+                s.name  AS branch_name,
+                sp.name AS supplier_name,
+                po.folio AS pedido
+            FROM {$this->bd}inventory_inflow i
+            LEFT JOIN {$this->bd}inflow_origin  io ON io.id = i.inflow_origin_id
+            LEFT JOIN {$this->bd}warehouse      w  ON w.id  = i.warehouse_id
+            LEFT JOIN {$this->bdErp}branches  s  ON s.id  = i.branch_id
+            LEFT JOIN {$this->bd}supplier       sp ON sp.id = i.supplier_id
+            LEFT JOIN {$this->bd}purchase_order po ON po.id = i.purchase_order_id
+            WHERE {$where}
+            ORDER BY i.id DESC
+        ";
+        $r = $this->_Read($query, $data);
+        return is_array($r) ? $r : [];
+    }
+
+    // Entradas de la empresa de sucursales fuera de `branch_ids`: con alguna, el folio
+    // no puede volver a ENT-0001 desde aquí.
+    function getEntradasAjenasCount($array) {
+        $query = "
+            SELECT COUNT(*) AS total
+            FROM {$this->bd}inventory_inflow
+            WHERE companies_id = ?
+              AND (branch_id IS NULL OR branch_id NOT IN (" . implode(',', array_fill(0, count($array['branch_ids']), '?')) . "))
+        ";
+        $r = $this->_Read($query, array_merge([$array['companies_id']], $array['branch_ids']));
+        return (int) ($r[0]['total'] ?? 0);
     }
 }

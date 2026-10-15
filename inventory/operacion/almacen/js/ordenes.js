@@ -839,6 +839,15 @@ class OrdenesView extends Templates {
         return { text: today ? `Hoy · ${this.fechaCorta(dia)}` : this.fechaCorta(dia), today };
     }
 
+    // AAAA-MM-DD -> Lunes 19/OCT/2026 (mismo estilo de mes que Fecha de pedido).
+    fechaConDia(raw) {
+        const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const m    = String(raw || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return '';
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        return `${dias[d.getDay()]} ${this.fechaCorta(raw)}`;
+    }
+
     // AAAA-MM-DD -> Viernes 17 de oct 2026.
     fechaLarga(raw) {
         const dias  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -960,7 +969,7 @@ class OrdenesView extends Templates {
                             </div>
                             <div class="min-w-0">
                                 <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Lo necesita para</p>
-                                <p class="text-xs font-semibold ${necesita.today ? 'text-red-600' : 'text-gray-800'}">${esc(necesita.text)}</p>
+                                <p class="text-xs font-semibold ${necesita.today ? 'text-red-600' : 'text-gray-800'}">${esc((necesita.today ? 'Hoy · ' : '') + (this.fechaConDia(orden.date_order) || necesita.text))}</p>
                             </div>
                         </div>
                         <input type="hidden" id="${modalId}_warehouse_id" value="${almacen ? almacen.id : ''}">
@@ -1457,6 +1466,7 @@ class OrdenesView extends Templates {
                     sku:       p.sku || '',
                     categoria: prod.categoria || 'Sin categoría',
                     unit_id:   p.unit_id,
+                    presentacion: prod.presentacion || '',
                     cantidad:  p.quantity_ordered,
                     nota:      p.nota,
                     stock:     0,
@@ -2594,16 +2604,23 @@ class AsistentePedidos extends Templates {
                 subtitle:    'Revisa y elimina pedidos y solicitudes',
                 placeholder: 'Pregúntame por tus pedidos o dime cuáles eliminar…',
                 attach:      false,
-                welcome:     'Reviso tus pedidos de verdad: te digo qué hay, qué trae cada uno y cuáles se ven duplicados o de prueba. Si me pides eliminar, te armo la vista previa; nada se elimina sin tu contraseña.',
+                welcome:     'Reviso tus pedidos de verdad: te digo qué hay, qué trae cada uno y cuáles se ven duplicados o de prueba. Si me pides eliminar o reiniciar los folios, te armo la vista previa; nada se elimina sin tu contraseña.',
                 suggestions: [
                     '¿Cuántos pedidos tengo por estado?',
                     '¿Hay pedidos duplicados o de prueba?',
-                    'Elimina los pedidos cancelados y rechazados'
+                    'Elimina los pedidos cancelados y rechazados',
+                    'Reinicia los folios de pedidos'
                 ],
                 actions: {
                     delete: {
                         label: 'Eliminar',
                         tone:  'bg-red-100 text-red-700'
+                    },
+                    reset: {
+                        label:        'Reiniciar',
+                        tone:         'bg-red-100 text-red-700',
+                        confirm:      'Se borran todos los marcados con lo que movieron para que el folio vuelva a empezar. Haz clic otra vez para seguir.',
+                        confirmLabel: 'Sí, borrar'
                     }
                 },
                 onSend:    (text, adjuntos, historial, progress) => this.askPedidoIA(text, historial, progress),

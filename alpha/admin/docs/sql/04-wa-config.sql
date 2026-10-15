@@ -1,5 +1,9 @@
 USE fayxzvov_alpha;
 
+-- Las plantillas llevan emojis de 4 bytes: con la conexión en utf8 (3 bytes) cada uno se
+-- guarda como "????". Esta línea fuerza utf8mb4 aunque el cliente abra en utf8.
+SET NAMES utf8mb4;
+
 -- Avisos de WhatsApp (pestaña WhatsApp del admin). Todo cuelga de la empresa: alpha
 -- atiende a varias (Marinni, Club Campestre, Terraza, Reginas) y cada una lleva su
 -- propio proveedor, sus números y sus textos.
@@ -100,4 +104,4 @@ INSERT IGNORE INTO wa_destinatarios (name, phone, type, companies_id, active) VA
 INSERT IGNORE INTO wa_plantillas (type, body, companies_id, active) VALUES
 ('cierre', '*CIERRE DEL DIA*\n{sucursal} - {fecha}\nCerro: {cajero}\n\n*Ventas:* ${ventas}\nEfectivo: ${efectivo}\nTarjeta: ${tarjeta}\nTransferencia: ${transferencia}\nDescuentos: ${descuentos}\nPedidos: {pedidos}\nTurnos: {turnos}', 4, 1),
 ('turno', '*CORTE DE TURNO*\n{sucursal} - {cajero}\n\n*Ventas:* ${ventas}\nEfectivo: ${efectivo}\nTarjeta: ${tarjeta}\nTransferencia: ${transferencia}\nPedidos: {pedidos}', 4, 1),
-('personalizado', '🎂 *PEDIDO #{folio}*\n📅 Fecha: {fecha}\n⏰ Hora: {hora}\n📍 Sucursal: {sucursal}\n👤 Cliente: {cliente}\n📱 Tel: {telefono}\n\n*PRODUCTOS*\n{productos}\n\n*ESTATUS:* {estatus}', 4, 0);
+('personalizado', '🎂 *PEDIDO #{folio}*\n📅 Fecha: {fecha}\n⏰ Hora: {hora}\n📍 Sucursal: {sucursal}\n👤 Cliente: {cliente}\n📱 Tel: {telefono}\n\n*PRODUCTOS*\n{productos}\n\n*PAGO*\n💰 Total: {total}\n💵 Anticipo: {anticipo}\n💳 Forma de pago: {forma_pago}\n🧾 Restante: {restante}\n\n*ESTATUS:* {estatus}', 4, 0);

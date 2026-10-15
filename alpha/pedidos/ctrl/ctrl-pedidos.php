@@ -1117,10 +1117,22 @@ class Pedidos extends MPedidos{
     }
 
     function deletePay() {
-        if (($_SESSION['ROLID'] ?? 0) != 1) {
+        // Admin (1) y supervisor (6). El 7 (supervisor restringido) queda fuera, igual
+        // que con descuentos y cancelaciones.
+        if (!in_array($_SESSION['ROLID'] ?? 0, [1, 6])) {
             return [
                 'status'  => 403,
-                'message' => 'Solo un administrador puede eliminar un pago.'
+                'message' => 'Solo un administrador o un supervisor puede eliminar un pago.'
+            ];
+        }
+
+        // El motivo es obligatorio y queda en la bitacora. Sin etiquetas: el visor de
+        // cierre pinta el mensaje como HTML.
+        $motivo = trim(strip_tags($_POST['reason'] ?? ''));
+        if ($motivo === '') {
+            return [
+                'status'  => 400,
+                'message' => 'Escribe el motivo para eliminar el pago.'
             ];
         }
 
@@ -1168,6 +1180,7 @@ class Pedidos extends MPedidos{
         $amount  = evaluar($_POST['amount']);
         $nota    = $requiereClave ? ' (pedido liquidado, autorizado con contraseña)' : '';
         $nota   .= $reabierto ? '. El pedido regresó a PENDIENTE' : '';
+        $nota   .= ". Motivo: {$motivo}";
         $success = $this->logHistory("Se eliminó un pago de {$amount}{$nota}", 'payment', 'Eliminar');
 
 

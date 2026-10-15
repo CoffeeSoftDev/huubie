@@ -36,6 +36,7 @@ class App extends Templates {
                 motivos:         r.motivos_salida    || [],
                 almacenes:       r.almacenes        || [],
                 productos:       r.productos        || [],
+                is_admin:        Number(r.is_admin || 0),
                 coffeeia:        r.coffeeia !== false
             };
         } else {
@@ -45,6 +46,7 @@ class App extends Templates {
                 motivos:         [],
                 almacenes:       [],
                 productos:       [],
+                is_admin:        0,
                 coffeeia:        false
             };
         }
@@ -447,6 +449,7 @@ class Salidas extends Templates {
             id:             h.id,
             folio:          h.folio,
             status:         h.status || '',
+            editable:       !h.purchase_order_id,
             motivo:         h.reason_name  || '',
             motivo_color:   h.reason_color || '',
             motivo_bg:      h.reason_bg    || '',
@@ -530,6 +533,35 @@ class Salidas extends Templates {
                         app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la salida' });
                     }
                 },
+                onUpdate: async (payload) => {
+                    const backendPayload = {
+                        id:                  payload.id,
+                        note:                payload.nota || null,
+                        shrinkage_reason_id: payload.motivo,
+                        warehouse_id:        payload.warehouseId,
+                        branch_id:           payload.sucursalId,
+                        productos:           payload.items.map(it => ({
+                            product_id: it.id,
+                            quantity:   it.qty,
+                            cost:       it.costo
+                        }))
+                    };
+
+                    const r = await useFetch({
+                        url:  apiSalidas,
+                        data: { opc: 'updateSalida', payload: JSON.stringify(backendPayload) }
+                    });
+
+                    if (r && r.status === 200) {
+                        if (payload.photo) await this.uploadEvidence(payload.id, payload.photo.dataUrl);
+                        app.alertBox({ type: 'success', title: r.message || 'Salida actualizada', timer: 2200 });
+                        this.lsSalidas();
+                        this.lsKpis();
+                        this.getSalida(payload.id);
+                    } else {
+                        app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar la salida' });
+                    }
+                },
                 // Con CoffeeIA apagado el formulario no pinta su botón CoffeeIA.
                 onOpenIA: app.dataInit.coffeeia ? () => this.openChatIA() : null,
                 onClose:  () => { if (this.chatIA) this.chatIA.close(); }
@@ -570,6 +602,7 @@ class Salidas extends Templates {
 
     // El mismo chat de Catálogo y Entradas (iaChat): se adjunta la nota o un Excel,
     // la IA propone qué sale, se revisa en la vista previa y lo marcado entra al lote.
+    // Al administrador también le prepara salidas para eliminar o el reinicio de folios.
     openChatIA() {
         if (!this.chatIA) {
             this.chatIA = this.iaChat({
@@ -578,7 +611,9 @@ class Salidas extends Templates {
                 subtitle:    'Revisa y captura la salida desde una foto o un Excel',
                 placeholder: 'Adjunta la nota de salida o escribe qué sale…',
                 accept:      '.png,.jpg,.jpeg,.webp,.xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv',
-                welcome:     'Adjunta la foto de la nota, hoja de salida o lista. Te digo qué productos salen, cuáles no están en el catálogo y cuáles no tienen stock suficiente. Nada entra sin tu confirmación.',
+                welcome:     'Adjunta la foto de la nota, hoja de salida o lista. Te digo qué productos salen, cuáles no están en el catálogo y cuáles no tienen stock suficiente. '
+                           + (app.dataInit.is_admin ? 'También elimino salidas y reinicio los folios. ' : '')
+                           + 'Nada entra sin tu confirmación.',
                 actions: {
                     add: {
                         label: 'Agregar',
@@ -591,6 +626,16 @@ class Salidas extends Templates {
                     exists: {
                         label: 'Ya está',
                         tone:  'bg-gray-100 text-gray-500'
+                    },
+                    delete: {
+                        label: 'Eliminar',
+                        tone:  'bg-red-100 text-red-700'
+                    },
+                    reset: {
+                        label:        'Reiniciar',
+                        tone:         'bg-red-100 text-red-700',
+                        confirm:      'Se borran todas las marcadas para que el folio vuelva a empezar. Haz clic otra vez para seguir.',
+                        confirmLabel: 'Sí, borrar'
                     }
                 },
                 onAttach:  (file) => {
@@ -649,6 +694,12 @@ class Salidas extends Templates {
 
         if (!(r && r.status === 200)) return r || { status: 500, message: 'CoffeeIA no respondió. Inténtalo otra vez.' };
 
+        // Eliminar no pasa por el lote ni por el stock: se aplica en el servidor.
+        if (r.borrar) {
+            if (r.token) this.iaPropuesta = { token: r.token, row: r.row || [], borrar: true };
+            return r;
+        }
+
         const yaEstan = this.marcarYaEnSalida(r.row || []);
         if (yaEstan) {
             r.reply = `${r.reply || ''}\n${yaEstan} ${yaEstan === 1 ? 'ya está' : 'ya están'} en la salida: no los vuelvo a agregar.`.trim();
@@ -691,8 +742,10 @@ class Salidas extends Templates {
     // Al aplicar se revisa otra vez: entre la vista previa y el clic en Aplicar se
     // pudo capturar a mano alguno de esos productos.
     // Con la salida cerrada van a su lote igual (cerrarla es lo que lo vacía): se ven
-    // en cuanto se abre.
+    // en cuanto se abre. Una vista previa de eliminar va al servidor (deleteSalidaIA).
     applySalidaIA(token, ids) {
+        if (this.iaPropuesta && this.iaPropuesta.token === token && this.iaPropuesta.borrar) return this.deleteSalidaIA(token, ids);
+
         const pv      = this.iaPropuesta;
         const abierta = this.capturaAbierta();
         const form    = this.salidaFormInstance();
@@ -721,6 +774,60 @@ class Salidas extends Templates {
             status:  200,
             message: fuera.length ? `${message}\nNo agregué ${fuera.length}:\n• ${fuera.join('\n• ')}` : message
         };
+    }
+
+    // Pide la contraseña de quien está en sesión, como al cancelar. Con una equivocada
+    // vuelve a preguntar; Cancelar deja la vista previa como estaba.
+    deleteSalidaIA(token, ids, retry) {
+        const cuales = ids.length === 1 ? 'la salida marcada' : `las ${ids.length} salidas marcadas`;
+
+        return new Promise((resolve) => {
+            app.alertBox({
+                type:             'confirm',
+                icon:             'lock',
+                title:            'Confirma tu contraseña',
+                detailHtml:       retry ? 'Contraseña incorrecta. Intenta de nuevo.' : `Para eliminar ${cuales} escribe tu contraseña.`,
+                input:            'password',
+                inputPlaceholder: 'Tu contraseña',
+                inputRequired:    true,
+                inputError:       'Escribe tu contraseña',
+                okLabel:          'Eliminar',
+                okIcon:           'trash-2',
+                okBg:             'bg-red-600 hover:bg-red-700',
+                cancelLabel:      'Cancelar',
+                onOk: async (password) => {
+                    const response = await useFetch({
+                        url: apiSalidas,
+                        data: {
+                            opc:      'deleteSalidaIA',
+                            token:    token,
+                            ids:      JSON.stringify(ids),
+                            password: password
+                        }
+                    }).catch(() => null);
+
+                    if (response && response.status === 401) {
+                        resolve(await this.deleteSalidaIA(token, ids, true));
+                        return;
+                    }
+
+                    if (response && response.status === 200) {
+                        if (((response.data && response.data.ids) || []).includes(Number(app.selectedId))) salidasView.renderDetail(null);
+                        this.lsSalidas();
+                        this.lsKpis();
+                    }
+
+                    resolve(response || {
+                        status:  500,
+                        message: 'No se pudo eliminar. Inténtalo otra vez.'
+                    });
+                },
+                onCancel: () => resolve({
+                    status:  0,
+                    message: 'No se eliminó nada: cancelaste la confirmación.'
+                })
+            });
+        });
     }
 
     async printSalida(arg) {
@@ -794,7 +901,8 @@ class Salidas extends Templates {
 
     // Resuelve true si la contraseña del usuario en sesión es correcta; con una
     // equivocada vuelve a preguntar y con Cancelar resuelve false.
-    askCancelPassword(id, retry) {
+    // `opc` = verifyCancelPassword (cancelar) o verifyEditPassword (editar).
+    askCancelPassword(id, retry, opc = 'verifyCancelPassword', hint = 'Para cancelar la salida escribe tu contraseña.') {
         return new Promise((resolve) => {
             app.alertBox({
                 type:             'confirm',
@@ -802,7 +910,7 @@ class Salidas extends Templates {
                 title:            'Confirma tu contraseña',
                 detailHtml:       retry
                     ? 'Contraseña incorrecta. Intenta de nuevo.'
-                    : 'Para cancelar la salida escribe tu contraseña.',
+                    : hint,
                 input:            'password',
                 inputPlaceholder: 'Tu contraseña',
                 inputRequired:    true,
@@ -813,20 +921,61 @@ class Salidas extends Templates {
                     const r = await useFetch({
                         url:  apiSalidas,
                         data: {
-                            opc:      'verifyCancelPassword',
+                            opc:      opc,
                             id:       id,
                             password: password
                         }
                     }).catch(() => null);
 
                     if (r && r.status === 200) { resolve(true); return; }
-                    if (r && r.status === 401) { resolve(await this.askCancelPassword(id, true)); return; }
+                    if (r && r.status === 401) { resolve(await this.askCancelPassword(id, true, opc, hint)); return; }
 
                     app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo verificar la contraseña' });
                     resolve(false);
                 },
                 onCancel: () => resolve(false)
             });
+        });
+    }
+
+    // -- Editar --
+
+    // Editar = abrir la salida en el mismo modal del alta, con sus datos. Antes pide
+    // la contraseña de quien está en sesión.
+    async openEditSalida(id) {
+        const ok = await this.askCancelPassword(id, false, 'verifyEditPassword', 'Para editar una salida ya registrada escribe tu contraseña.');
+        if (!ok) return;
+
+        const r = await useFetch({ url: apiSalidas, data: { opc: 'getSalida', id: id } });
+        if (!(r && r.status === 200)) {
+            app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo abrir la salida' });
+            return;
+        }
+
+        const h        = r.header || {};
+        const catalogo = app.dataInit.productos || [];
+
+        this.salidaFormInstance().openEdit({
+            id:           h.id,
+            folio:        h.folio,
+            motivo:       h.shrinkage_reason_id,
+            branch_id:    h.branch_id,
+            warehouse_id: h.warehouse_id,
+            fecha:        String(h.date_shrinkage || h.created_at || '').slice(0, 10),
+            nota:         h.note || '',
+            productos: (r.detail || []).map(d => {
+                const prod = catalogo.find(p => String(p.id) === String(d.product_id)) || {};
+                return Object.assign({}, prod, {
+                    id:        String(d.product_id),
+                    nombre:    d.product_name,
+                    sku:       d.sku || '',
+                    categoria: d.category_name || prod.categoria || 'Sin categoria',
+                    unidad:    d.unit || prod.unidad || '',
+                    cantidad:  Number(d.quantity),
+                    costo:     Number(d.cost || 0),
+                    stock:     0
+                });
+            })
         });
     }
 
@@ -923,8 +1072,9 @@ class SalidasView extends Templates {
             json:             salida,
             onClose:          ()  => this.renderDetail(null),
             onImprimir:       (m) => { if (m) salidas.printSalida(m); },
+            onEditar:         (m) => { if (m) salidas.openEditSalida(m.id); },
             onCancelar:       (m) => { if (m) salidas.cancelSalida(m.id); },
-            onDelete:         (m) => { if (m) salidas.deleteSalida(m.id); },
+            onDelete:        (m) => { if (m) salidas.deleteSalida(m.id); },
             onUploadEvidence: (m, dataUrl) => { if (m) salidas.uploadEvidence(m.id, dataUrl); },
             onRemoveEvidence: (m) => { if (m) salidas.removeEvidence(m.id); }
         });
@@ -1047,7 +1197,8 @@ class SalidasView extends Templates {
                 subtotal:    'Subtot',
                 imprimir:    'Imprimir',
                 cancelar:    'Cancelar',
-                eliminar:    'Eliminar',
+                editar:      'Editar',
+                eliminar:   'Eliminar',
                 folioPrefix: 'Salida'
             },
             motivoPalettes: {
@@ -1067,6 +1218,7 @@ class SalidasView extends Templates {
             },
             onClose:          () => {},
             onImprimir:       () => {},
+            onEditar:         () => {},
             onCancelar:       () => {},
             onDelete:         () => {},
             onUploadEvidence: () => {},
@@ -1231,6 +1383,9 @@ class SalidasView extends Templates {
                         </div>
                         <div class="flex items-center gap-2">
                             ${m.status ? `<span class="px-2 py-0.5 rounded text-xs font-bold" style="background:${stC.bg};color:${stC.fg};">${esc(m.status)}</span>` : ''}
+                            ${editable && m.editable ? `<button id="${opts.id}_edit" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors" title="${esc(opts.labels.editar)}">
+                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                            </button>` : ''}
                             <button id="${opts.id}_print" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors" title="${esc(opts.labels.imprimir)}">
                                 <i data-lucide="printer" class="w-3.5 h-3.5"></i>
                             </button>
@@ -1290,6 +1445,7 @@ class SalidasView extends Templates {
             const m = opts.json;
             $(`#${opts.id}_close`).on('click',  () => opts.onClose(m));
             $(`#${opts.id}_print`).on('click',  () => opts.onImprimir(m));
+            $(`#${opts.id}_edit`).on('click',   () => opts.onEditar(m));
             $(`#${opts.id}_cancel`).on('click', () => opts.onCancelar(m));
             $(`#${opts.id}_delete`).on('click', () => opts.onDelete(m));
 

@@ -138,6 +138,53 @@ body.dark-mode .module-card-item:hover {
     border-color: rgb(var(--accent-2-500, 200 105 76)) !important;
 }
 
+/* -- Página clara con secundario propio --
+   data-second="own" lo pone InventoryPalette cuando el tema trae un segundo
+   color de verdad (Huubie Claro: el azul junto a su morado). Toma los papeles que ya
+   tiene en página oscura (dark-mode.css): botón secundario de Bootstrap y de
+   coffeeSoft, foco de inputs y hover de las cards. Sin él, todo sigue en el
+   acento. */
+html[data-second="own"] body:not(.dark-mode) .btn-secondary,
+html[data-second="own"] body:not(.dark-mode) .tw-btn.dark\:bg-second-600 {
+    background-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .btn-secondary:hover,
+html[data-second="own"] body:not(.dark-mode) .tw-btn.dark\:bg-second-600:hover {
+    background-color: rgb(var(--accent-2-700, 168 74 51)) !important;
+    border-color: rgb(var(--accent-2-700, 168 74 51)) !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .tw-btn.dark\:bg-second-600:focus {
+    --tw-ring-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .btn-outline-secondary {
+    color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .btn-outline-secondary:hover,
+html[data-second="own"] body:not(.dark-mode) .btn-outline-secondary:focus,
+html[data-second="own"] body:not(.dark-mode) .btn-outline-secondary:active {
+    background-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .form-control:focus,
+html[data-second="own"] body:not(.dark-mode) input:focus,
+html[data-second="own"] body:not(.dark-mode) select:focus,
+html[data-second="own"] body:not(.dark-mode) textarea:focus {
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 192 90 64) / .2) !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .module-card-item:hover {
+    border-color: rgb(var(--accent-2-500, 200 105 76)) !important;
+}
+
 
 /* ============================================================
    CONTENEDORES CON EL COLOR CLAVADO EN CSS

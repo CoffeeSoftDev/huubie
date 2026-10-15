@@ -355,7 +355,7 @@ class WhatsApp extends Templates {
             design: false,
             data: {
                 id:    'waRecipientsCards',
-                class: 'grid grid-cols-1 lg:grid-cols-3 gap-[10px]',
+                class: 'grid grid-cols-1 lg:grid-cols-2 gap-[10px]',
                 container: this.noticeTypes().map(notice => ({
                     type:  'div',
                     id:    `waCard-${notice.id}`,
@@ -408,9 +408,14 @@ class WhatsApp extends Templates {
                     : {
                         text: 'Pausado',
                         type: 'danger'
-                    }
+                    },
+                switch: {
+                    checked: Number(item.activo) === 1,
+                    title:   Number(item.activo) === 1 ? 'Pausar este número' : 'Reactivar este número'
+                }
             })),
             onToggle: (checked) => this.toggleNotice(type, checked),
+            onSwitch: (id, checked) => this.statusDestinatario(id, checked),
             onAdd:    () => this.addDestinatario(type),
             onEdit:   (id) => this.editDestinatario(id),
             onDelete: (id) => this.deleteDestinatario(id)
@@ -786,7 +791,7 @@ class WhatsApp extends Templates {
 
         const steps = [
             `${name} conecta un WhatsApp normal por QR y envía los mensajes por API REST.`,
-            'Cada vez que se cierra un Corte Z, un Corte X o se termina un pedido, el sistema arma el resumen con su plantilla y lo envía solo.',
+            'Cada vez que se cierra un Corte Z, un Corte X, se termina un pedido o se edita uno ya avisado, el sistema arma el resumen con su plantilla y lo envía solo.',
             'Si la API falla, el cierre no se ve afectado: el error queda en el Historial.',
             isGreen
                 ? 'El token viaja dentro de la URL del request; por eso esa URL nunca se escribe en los logs.'
@@ -1118,6 +1123,10 @@ class WhatsApp extends Templates {
                         {
                             id:    'personalizado',
                             valor: 'Pedidos'
+                        },
+                        {
+                            id:    'edicion',
+                            valor: 'Pedido editado'
                         }
                     ]
                 },
@@ -1515,7 +1524,7 @@ class WhatsApp extends Templates {
             theme:      'dark',
             type:       'cancel',
             title:      `¿Eliminar a ${this.escape(recipient.nombre)}?`,
-            detailHtml: `Deja de recibir el aviso de ${notice.name}. Si solo quieres detener sus avisos, edítalo y apaga «Activo».`,
+            detailHtml: `Deja de recibir el aviso de ${notice.name}. Si solo quieres detener sus avisos, apaga el interruptor de su fila.`,
             okLabel:    'Sí, eliminar',
             onOk: async () => {
                 const request = await useFetch({
@@ -1535,6 +1544,31 @@ class WhatsApp extends Templates {
                 this.lsDestinatarios();
             }
         });
+    }
+
+    // Pausa o reactiva un número en un aviso; la tarjeta se repinta para que el badge cuadre.
+    async statusDestinatario(id, checked) {
+        const recipient = this.config.destinatarios.find(item => Number(item.id) === Number(id));
+        if (!recipient) return;
+
+        const request = await useFetch({
+            url:  this._link,
+            data: {
+                opc:    'statusWaDestinatario',
+                id:     recipient.id,
+                activo: checked ? 1 : 0
+            }
+        });
+
+        if (!this.isOk(request)) {
+            this.notify('error', this.errorText(request, 'No se pudo cambiar el destinatario.'));
+            this.renderRecipientCard(recipient.tipo);
+            return;
+        }
+
+        recipient.activo = checked ? 1 : 0;
+        this.notify(checked ? 'success' : 'warning', request.message);
+        this.renderRecipientCard(recipient.tipo);
     }
 
     async toggleNotice(type, checked) {
@@ -2016,7 +2050,17 @@ class WhatsApp extends Templates {
                 subtitle: 'Se envía al terminar cada pedido, normal o personalizado',
                 icon:     'cake',
                 color:    '#C4B5FD',
-                note:     'Incluye los productos del pedido; el pastel personalizado lleva sus modificadores y dedicatoria.'
+                note:     'Incluye los productos del pedido; el pastel personalizado lleva sus modificadores y dedicatoria, y su foto va arriba del mensaje (si hay más, llegan detrás).'
+            },
+            {
+                id:       'edicion',
+                name:     'Pedido editado',
+                short:    'Pedido editado',
+                title:    'Pedido editado',
+                subtitle: 'Se envía cuando cambia un pedido que ya se avisó',
+                icon:     'pencil',
+                color:    '#38BDF8',
+                note:     'Dice qué cambió desde el último aviso (➕ agregado, ➖ quitado, antes → ahora) y cómo quedó el pedido; solo manda las fotos nuevas del pastel personalizado. Si no cambió nada, no se envía.'
             }
         ];
     }
@@ -2025,11 +2069,15 @@ class WhatsApp extends Templates {
         return [
             {
                 id:    'todos',
-                valor: 'Todos los avisos (Cierres + Pedidos)'
+                valor: 'Todos los avisos (Cierres + Pedidos + Editados)'
             },
             {
                 id:    'cierres',
                 valor: 'Cierre Diario + Cierre de Turno'
+            },
+            {
+                id:    'pedidos',
+                valor: 'Pedidos + Pedido editado'
             },
             {
                 id:    'cierre',
@@ -2042,6 +2090,10 @@ class WhatsApp extends Templates {
             {
                 id:    'personalizado',
                 valor: 'Solo Pedidos'
+            },
+            {
+                id:    'edicion',
+                valor: 'Solo Pedido editado'
             }
         ];
     }
@@ -2054,6 +2106,28 @@ class WhatsApp extends Templates {
             month: '2-digit',
             year:  'numeric'
         });
+
+        const order = [
+            ['folio',     'P988-25'],
+            ['hora',      '01:00 PM'],
+            ['cliente',   'María'],
+            ['telefono',  '962 XXX XXXX'],
+            ['productos', [
+                '• 1 × Tres Leches Fresas con Crema 12',
+                '   Dedicatoria: Felicidades mami',
+                '• 1 × Pastel personalizado «María»',
+                '   Porciones: 10',
+                '   Forma: redonda',
+                '   Rellenos: manjar',
+                '   Dedicatoria: Happy Birthday Mom',
+                '   🖼️ 1 imagen adjunta'
+            ].join('\n')],
+            ['total',      '$1,250.00'],
+            ['anticipo',   '$500.00'],
+            ['forma_pago', 'Efectivo'],
+            ['restante',   '$750.00'],
+            ['estatus',    '🟡 PENDIENTE']
+        ];
 
         const pairs = {
             cierre: [
@@ -2074,22 +2148,17 @@ class WhatsApp extends Templates {
                 ['transferencia', '0.00'],
                 ['pedidos',       '9']
             ],
-            personalizado: [
-                ['folio',     'P988-25'],
-                ['hora',      '01:00 PM'],
-                ['cliente',   'María'],
-                ['telefono',  '962 XXX XXXX'],
-                ['productos', [
-                    '• 1 × Tres Leches Fresas con Crema 12',
-                    '   Dedicatoria: Felicidades mami',
-                    '• 1 × Pastel personalizado «María»',
+            personalizado: order,
+            edicion: [
+                ...order,
+                ['cambios', [
+                    '• Hora: 11:00 AM → 01:00 PM',
+                    '• Anticipo: $300.00 → $500.00',
+                    '➕ 1 × Pastel personalizado «María»',
                     '   Porciones: 10',
-                    '   Forma: redonda',
                     '   Rellenos: manjar',
-                    '   Dedicatoria: Happy Birthday Mom',
-                    '   🖼️ 1 imagen adjunta'
-                ].join('\n')],
-                ['estatus',   '🟡 PENDIENTE']
+                    '➖ 1 × Gelatina de mosaico'
+                ].join('\n')]
             ]
         };
 

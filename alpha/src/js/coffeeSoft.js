@@ -5354,6 +5354,7 @@ class Templates extends Components {
             toggle:    null,
             json:      [],
             onToggle:  () => {},
+            onSwitch:  () => {},
             onAdd:     () => {},
             onEdit:    () => {},
             onDelete:  () => {}
@@ -5396,31 +5397,40 @@ class Templates extends Components {
 
         const list = $('<div>', { class: 'flex flex-col gap-[6px] transition-opacity' });
 
-        if (opts.toggle) {
-            let on = !!opts.toggle.checked;
+        // Interruptor del encabezado (todo el aviso) y de cada fila (un registro).
+        const buildSwitch = (checked, title, small, onChange) => {
+            let on = !!checked;
 
-            const knob   = $('<span>', { class: 'absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform duration-200' });
+            const knob   = $('<span>', { class: `absolute top-[2px] left-[2px] ${small ? 'w-[10px] h-[10px]' : 'w-[14px] h-[14px]'} rounded-full bg-white transition-transform duration-200` });
             // `title` va por attr(): en las props de jQuery lo intercepta $.fn.title (popover).
             const toggle = $('<button>', {
                 type:  'button',
                 role:  'switch',
-                class: 'relative w-[32px] h-[18px] rounded-full shrink-0 transition-colors duration-200'
-            }).attr('title', opts.toggle.title || '').append(knob);
+                class: `relative ${small ? 'w-[24px] h-[14px]' : 'w-[32px] h-[18px]'} rounded-full shrink-0 transition-colors duration-200`
+            }).attr('title', title || '').append(knob);
 
-            const paintToggle = () => {
+            const paint = () => {
                 toggle.attr('aria-checked', on).css('background', on ? '#10B981' : skin.off);
-                knob.css('transform', on ? 'translateX(14px)' : 'none');
-                list.toggleClass('opacity-50', !on);
+                knob.css('transform', on ? `translateX(${small ? 10 : 14}px)` : 'none');
             };
 
             toggle.on('click', () => {
                 on = !on;
-                paintToggle();
-                opts.onToggle(on);
+                paint();
+                onChange(on);
             });
 
-            head.append(toggle);
-            paintToggle();
+            paint();
+            return toggle;
+        };
+
+        if (opts.toggle) {
+            list.toggleClass('opacity-50', !opts.toggle.checked);
+
+            head.append(buildSwitch(opts.toggle.checked, opts.toggle.title, false, (on) => {
+                list.toggleClass('opacity-50', !on);
+                opts.onToggle(on);
+            }));
         }
 
         // -- Lista --
@@ -5468,6 +5478,10 @@ class Templates extends Components {
                     css:   { background: badge.bg, color: badge.color },
                     text:  item.badge.text
                 }));
+            }
+
+            if (item.switch) {
+                row.append(buildSwitch(item.switch.checked, item.switch.title, true, (on) => opts.onSwitch(item.id, on, item)));
             }
 
             row.append($('<button>', {

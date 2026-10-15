@@ -56,6 +56,18 @@ class Navbar {
             },
         };
 
+        // Huubie Claro (theme.js): la barra y el menú del usuario como los pinta
+        // inventory con ese tema (acceso/src/js/navbar.js): blancos, con la línea
+        // de la barra en el azul secundario y el rol en gris, sin fondo.
+        const light = !!(window.PedidosTheme && PedidosTheme.isLight());
+        if (light) {
+            defaults.navbar   = { bg: '#FFFFFF', border: '#1C64F2' };
+            defaults.header   = { bg: '#FFFFFF', statusOnline: '#22C55E' };
+            defaults.dropdown = { bg: '#FFFFFF', hover: '#F3F4F6', divider: '#E5E7EB', iconBox: '#F3F4F6', iconBoxHover: '#F3F4F6' };
+            defaults.badge    = { bg: '#FFFFFF', text: '#6B7280' };
+            defaults.logout   = { border: '#DC2626', hover: '#FEF2F2' };
+        }
+
         this.settings = Object.assign({}, defaults, options);
         this.settings.navbar   = Object.assign({}, defaults.navbar,   options?.navbar   || {});
         this.settings.header   = Object.assign({}, defaults.header,   options?.header   || {});
@@ -209,6 +221,7 @@ class Navbar {
                             </svg>
                         </button>
                         ` : ''}
+                        ${window.PedidosTheme ? this.themeToggleHtml(light, dropdown) : ''}
                     </div>
                     <div class="w-full px-5 mt-3 mb-4">
                         <button id="btnLogout" class="w-full flex items-center justify-center gap-2 px-2 py-2 border rounded-xl transition" style="border-color: ${logout.border}; color: ${logout.border};" onmouseover="this.style.backgroundColor='${logout.hover}'; this.style.color='#fff';" onmouseout="this.style.backgroundColor=''; this.style.color='${logout.border}';">
@@ -509,6 +522,7 @@ class Navbar {
         $("#toggleSidebar").on("click", () => this.toggleSidebar());
         $("#btn_perfil").on("click", () => window.location.href = "/alpha/perfil/");
         $("#btn_admin").on("click", () => window.location.href = "/alpha/admin/");
+        $("#btnThemeToggle").on("click", () => PedidosTheme.toggle());
 
         $("#btnBranch").on("click", (e) => {
             e.stopPropagation();
@@ -534,6 +548,30 @@ class Navbar {
 
     toggleUserMenu() {
         $("#userMenuDropdown").toggleClass("opacity-0 scale-95 invisible");
+    }
+
+    // Interruptor Huubie oscuro / Huubie Claro del menú del usuario. Cambiar
+    // de tema recarga la página (theme.js).
+    themeToggleHtml(light, dropdown) {
+        const icon = light
+            ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>'
+            : '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>';
+
+        return `
+        <button id="btnThemeToggle" class="w-full flex items-center justify-between px-3 py-2 rounded-xl transition" onmouseover="this.style.backgroundColor='${dropdown.hover}'" onmouseout="this.style.backgroundColor=''">
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center justify-center h-10 w-10 rounded-xl" style="background-color: ${dropdown.iconBox};">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-gray-400">${icon}</svg>
+                </div>
+                <div class="text-left">
+                    <p class="text-white font-medium leading-tight">Tema claro</p>
+                    <p class="text-gray-400 text-xs">${light ? 'Huubie Claro' : 'Huubie oscuro'}</p>
+                </div>
+            </div>
+            <span class="relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors" style="background-color: ${light ? '#7C3AED' : '#4B5563'};">
+                <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all" style="left: ${light ? '18px' : '2px'};"></span>
+            </span>
+        </button>`;
     }
 
     // Avatar sin foto: circulo en el color del rol con el icono "user" de lucide,

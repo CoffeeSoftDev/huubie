@@ -44,6 +44,7 @@ class ctrl extends mdl {
                 'descripcion'       => $producto['descripcion'] ?? '',
                 'stock_max'         => (float) ($producto['stock_max'] ?? 0),
                 'image'             => $producto['image'] ?? '',
+                'presentacion'      => $producto['presentacion'] ?? '',
                 'icon'              => 'package',
                 'bg'                => 'bg-gray-100',
                 'color'             => 'text-gray-500'
@@ -106,7 +107,7 @@ class ctrl extends mdl {
                     ? "<span class='whitespace-nowrap'>" . $this->puntoNueva($orden['status']) . $this->folioLink($orden['folio'], $orden['id']) . '</span>'
                     : $this->folioLink($orden['folio'], $orden['id']),
                 'Fecha de pedido'  => $this->fechaHoraPedido($orden['date_order'], $orden['created_at']),
-                'Entrega para'     => $this->entregaParaCell($orden['date_order'], $_POST['vista'] === 'entregas'),
+                'Entrega para'     => $this->entregaParaCell($orden['date_order']),
                 'Solicita → Surte' => $this->rutaCell($orden),
                 'Materiales'       => (int) $orden['total_products'],
                 'Estado'           => $this->statusBadge($orden['status'])
@@ -837,7 +838,7 @@ class ctrl extends mdl {
             ? $this->sucChipCell($surteId, $orden['destination_branch_name'], $orden['warehouse_name'])
             : "<span class='text-gray-400'>-</span>";
 
-        return "<div class='flex items-center gap-1'><div class='min-w-0'>{$solicita}</div>"
+        return "<div class='flex items-center justify-center gap-1'><div class='min-w-0'>{$solicita}</div>"
              . "<i data-lucide='arrow-right' class='w-4 h-4 text-gray-500 flex-shrink-0'></i><div class='min-w-0'>{$surte}</div></div>";
     }
 
@@ -872,10 +873,9 @@ class ctrl extends mdl {
             : "<span class='inline-block w-1.5 h-1.5 mr-1.5 align-middle'></span>";
     }
 
-    // Columna "Entrega para" (date_order): "Hoy" en rojo si es hoy; si no, 13/OCT/2026.
-    // Hoy sale de MySQL (getFechaBd), como en fechaHoraPedido. En Mis entregas
-    // ($conDia) la fecha lleva el día de la semana: Lunes 17/OCT/2026.
-    private function entregaParaCell($fecha, $conDia = false) {
+    // Columna "Entrega para" (date_order): "Hoy" en rojo si es hoy; si no, con el día de
+    // la semana: Lunes 19/OCT/2026. Hoy sale de MySQL (getFechaBd), como en fechaHoraPedido.
+    private function entregaParaCell($fecha, $conDia = true) {
         $dia = substr((string) $fecha, 0, 10);
         $ts  = $dia !== '' ? strtotime($dia) : false;
         if (!$ts) return '-';
@@ -1055,7 +1055,7 @@ class ctrl extends mdl {
         $this->insertShrinkageFromOrden([
             $siFolio, $note, $totProds, $totUnits, $totCost,
             'Aplicada', $reasonId, $warehouseId,
-            $header['branch_id'], $this->userId, $this->companiesId, date('Y-m-d')
+            $header['branch_id'], $this->userId, $this->companiesId, date('Y-m-d'), $id
         ]);
         $shrRow = $this->_Read(
             "SELECT id FROM {$this->bd}inventory_shrinkage WHERE folio = ? AND companies_id = ? LIMIT 1",
@@ -1130,6 +1130,7 @@ class ctrl extends mdl {
             $warehouseId,               // almacen a reponer
             date('Y-m-d'),
             null,                       // expected_date
+            // Esta nota es la liga del reabasto con su pedido (getPedidoLinksById): no cambiarla.
             'Reabasto por surtido de la solicitud ' . $header['folio'],
             $totProds,
             $totUnits,
@@ -1177,11 +1178,12 @@ class ctrl extends mdl {
 
     // Mismo chat que Catálogo, Entradas y Salidas (ia-chat.js). Aquí el modelo trabaja
     // con herramientas: busca, abre y cuenta pedidos de verdad, decide qué contestar y,
-    // si la persona pidió eliminar, propone cuáles (proponer_eliminar). Cada vuelta es una
-    // petición: si pidió herramientas se ejecutan, el hilo queda en sesión y el chat
-    // vuelve a llamar con `turno` (así enseña cada paso mientras trabaja). Eliminar sigue
-    // detrás de la vista previa y la contraseña: marca los pedidos como inactivos
-    // (active = 0) y lo que ya surtieron o recibieron en inventario se queda.
+    // si la persona pidió eliminar, propone cuáles (proponer_eliminar) o la serie entera
+    // (proponer_reiniciar). Cada vuelta es una petición: si pidió herramientas se
+    // ejecutan, el hilo queda en sesión y el chat vuelve a llamar con `turno` (así enseña
+    // cada paso mientras trabaja). Eliminar sigue detrás de la vista previa y la
+    // contraseña: borra el pedido de verdad con lo que movió (deletePedidoFullById), y
+    // al quedar la serie vacía el folio vuelve a OC-0001.
     const IA_MAX_PEDIDOS = 100;
     const IA_MAX_LISTA   = 60;
     const IA_MAX_RONDAS  = 8;
@@ -1209,7 +1211,8 @@ class ctrl extends mdl {
                 'mensajes'  => $this->mensajesPedidoIA($mensaje, is_array($historial) ? $historial : [], $sucursales),
                 'rondas'    => 0,
                 'cierre'    => false,
-                'propuesta' => []
+                'propuesta' => [],
+                'reiniciar' => false
             ];
         } else {
             $hilo = $_SESSION['iaPedidosHilo'] ?? null;
@@ -1264,7 +1267,7 @@ class ctrl extends mdl {
         // Respuesta final: si propuso eliminar, la vista previa sale de lo que dejó en el
         // hilo (ids ya validados) y reemplaza a la anterior.
         $vista = $hilo['propuesta']
-            ? $this->vistaPedidoIA($this->qPedidosIA(['companies_id' => $this->companiesId, 'branch_ids' => $this->_userBranchIds(), 'ids' => $hilo['propuesta']]))
+            ? $this->vistaPedidoIA($this->qPedidosIA(['companies_id' => $this->companiesId, 'branch_ids' => $this->_userBranchIds(), 'ids' => $hilo['propuesta'], 'ocultos' => true]), $hilo['reiniciar'])
             : ['row' => [], 'ids' => []];
         $token = empty($vista['ids']) ? '' : bin2hex(random_bytes(8));
 
@@ -1280,7 +1283,7 @@ class ctrl extends mdl {
         ];
     }
 
-    // Todo o nada: si un pedido no se puede marcar, la transacción deshace los demás.
+    // Todo o nada: si un pedido no se puede borrar, la transacción deshace los demás.
     function applyPedidoIA() {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
         if (!$this->esAdminIA()) return ['status' => 403, 'message' => 'Solo un administrador puede eliminar pedidos.'];
@@ -1310,13 +1313,17 @@ class ctrl extends mdl {
         if (!$valid) return ['status' => 401, 'message' => 'Contraseña incorrecta'];
 
         // Desde la vista previa pudieron eliminarlos en otra pestaña: se buscan otra vez.
-        $vigentes = $this->qPedidosIA(['companies_id' => $this->companiesId, 'branch_ids' => $this->_userBranchIds(), 'ids' => $ids]);
+        $vigentes = $this->qPedidosIA(['companies_id' => $this->companiesId, 'branch_ids' => $this->_userBranchIds(), 'ids' => $ids, 'ocultos' => true]);
         if (empty($vigentes)) return ['status' => 409, 'message' => 'Esos pedidos ya no están en la lista.'];
 
+        // Un reabasto marcado junto con su pedido ya se fue con él: deletePedidoFullById
+        // devuelve vacío y no se cuenta dos veces.
+        $borrado = ['pedidos' => [], 'movimientos' => []];
+
         try {
-            $this->transaction(function () use ($vigentes) {
+            $this->transaction(function () use ($vigentes, &$borrado) {
                 foreach ($vigentes as $p) {
-                    if (!$this->softDeleteOrden([(int) $p['id'], $this->companiesId])) throw new Exception("no se pudo eliminar {$p['folio']}");
+                    $borrado = array_merge_recursive($borrado, $this->deletePedidoFullById((int) $p['id'], $this->companiesId));
                 }
             });
         } catch (\Throwable $e) {
@@ -1325,12 +1332,16 @@ class ctrl extends mdl {
 
         unset($_SESSION['iaPedidos']);
 
-        $folios  = array_column($vigentes, 'folio');
+        $folios  = $borrado['pedidos'];
         $n       = count($folios);
-        $faltan  = count($ids) - $n;
+        $faltan  = count($ids) - count($vigentes);
         $message = ($n === 1 ? 'Eliminé el pedido ' : "Eliminé {$n} pedidos: ") . implode(', ', $folios) . '.';
 
-        if ($faltan > 0) $message .= $faltan === 1 ? ' 1 ya no estaba en la lista.' : " {$faltan} ya no estaban en la lista.";
+        if ($borrado['movimientos']) $message .= ' También borré ' . implode(', ', $borrado['movimientos']) . ' y regresé su stock.';
+        if ($faltan > 0)             $message .= $faltan === 1 ? ' 1 ya no estaba en la lista.' : " {$faltan} ya no estaban en la lista.";
+
+        $message .= ' Siguientes folios: ' . $this->nextFolio('OC-', 'purchase_order', $this->companiesId)
+                  . ' y ' . $this->nextFolio('REAB-', 'purchase_order', $this->companiesId) . '.';
 
         return [
             'status'  => 200,
@@ -1357,15 +1368,19 @@ class ctrl extends mdl {
             '== CÓMO TRABAJAS ==',
             '- Tienes herramientas para consultar los pedidos reales. Úsalas con libertad y las veces que haga falta: busca, abre pedidos, cuenta, compara. Piensa antes de contestar.',
             '- Todo dato de un pedido sale de una herramienta. Nunca inventes folios, cantidades ni fechas.',
-            '- Las herramientas solo ven pedidos activos: uno que ya se eliminó no aparece.',
+            '- Las herramientas ven los pedidos activos. Los "ocultos" son pedidos que se eliminaron antes con el sistema viejo: ya no salen en la lista, pero siguen contando para el folio. Los ves con ocultos = true.',
             '- Contesta cualquier pregunta sobre los pedidos (cuántos hay, qué trae uno, quién lo pidió, cuáles se ven duplicados, vacíos o de prueba) y da tu opinión con lo que veas.',
             '- Si una búsqueda no trae nada, prueba con otro criterio antes de rendirte.',
             '',
             '== ELIMINAR ==',
             '- Solo con proponer_eliminar, y solo si la persona pidió eliminar. Tú no eliminas: al terminar tu respuesta ella ve la vista previa, marca y confirma con su contraseña.',
             '- Antes de proponer, revisa los pedidos. Si el criterio es ambiguo o son muchos, di lo que encontraste y pregunta antes de proponer.',
-            '- Eliminar quita el pedido de la lista. Si ya surtió material, ese inventario NO se regresa: avísalo.',
+            '- Eliminar borra el pedido de verdad, con lo que movió en inventario: la salida de su surtido (SI-), las entradas de su recepción y el reabasto (REAB-) que generó. El stock se regresa. Avísalo si ya surtió material.',
             '- Crear, aprobar, surtir o cancelar no se hace aquí: es en la pantalla de Pedidos.',
+            '',
+            '== REINICIAR FOLIOS ==',
+            '- Si piden reiniciar los folios (que el siguiente vuelva a OC-0001), usa proponer_reiniciar: arma la vista previa con TODOS los pedidos y reabastos, también los ocultos. El folio solo vuelve a empezar si se eliminan todos.',
+            '- Es lo más delicado que haces: di cuántos pedidos son y cuántos ya movieron inventario, y que revise la vista previa.',
             '',
             '== CÓMO RESPONDES ==',
             '- Texto plano, sin markdown (nada de **, # ni tablas). Listas con guiones.',
@@ -1391,7 +1406,8 @@ class ctrl extends mdl {
     }
 
     // Las herramientas que ve el modelo (formato tools de Ollama). Todas leen, salvo
-    // proponer_eliminar, que solo deja en el hilo qué pedidos van a la vista previa.
+    // proponer_eliminar y proponer_reiniciar, que solo dejan en el hilo qué pedidos van
+    // a la vista previa.
     private function herramientasPedidoIA() {
         $fn = function ($nombre, $descripcion, $propiedades = [], $requeridos = []) {
             return [
@@ -1417,15 +1433,17 @@ class ctrl extends mdl {
                 'date_to'     => ['type' => 'string', 'description' => 'Fecha del pedido hasta, YYYY-MM-DD'],
                 'mine'        => ['type' => 'boolean', 'description' => 'Solo los que capturó la persona que te escribe'],
                 'text'        => ['type' => 'string', 'description' => 'Palabra que aparece en la nota del pedido'],
-                'product'     => ['type' => 'string', 'description' => 'Nombre (o parte) de un material que viene en el pedido']
+                'product'     => ['type' => 'string', 'description' => 'Nombre (o parte) de un material que viene en el pedido'],
+                'ocultos'     => ['type' => 'boolean', 'description' => 'true = también los ocultos (eliminados antes, siguen contando para el folio)']
             ]),
             $fn('ver_pedido', 'Abre un pedido: estado, fechas, sucursales, almacén, quién lo capturó y lo aprobó, notas, motivo de rechazo, fecha compromiso y sus renglones (material, unidad, pedido, entregado, costo, nota).', [
                 'folio' => ['type' => 'string', 'description' => 'Folio del pedido, ej. OC-0009']
             ], ['folio']),
-            $fn('resumen_pedidos', 'Cuenta los pedidos activos por estado y por sucursal que pide, y cuántos ya surtieron material.'),
-            $fn('proponer_eliminar', 'Arma la vista previa para ELIMINAR esos pedidos (máximo ' . self::IA_MAX_PEDIDOS . '). Úsala solo si la persona pidió eliminar. No elimina: la persona marca y confirma con su contraseña. Llamarla otra vez reemplaza la propuesta anterior.', [
+            $fn('resumen_pedidos', 'Cuenta los pedidos activos por estado y por sucursal que pide, cuántos ya surtieron material, cuántos ocultos hay y cuáles serán los siguientes folios.'),
+            $fn('proponer_eliminar', 'Arma la vista previa para ELIMINAR esos pedidos (máximo ' . self::IA_MAX_PEDIDOS . '), activos u ocultos. Úsala solo si la persona pidió eliminar. No elimina: la persona marca y confirma con su contraseña. Llamarla otra vez reemplaza la propuesta anterior.', [
                 'folios' => $folios
-            ], ['folios'])
+            ], ['folios']),
+            $fn('proponer_reiniciar', 'Arma la vista previa para REINICIAR LOS FOLIOS: todos los pedidos y reabastos de la empresa, también los ocultos, para que el siguiente sea OC-0001 y REAB-0001. Úsala solo si la persona pidió reiniciar los folios. No elimina: la persona confirma con su contraseña.')
         ];
     }
 
@@ -1450,10 +1468,10 @@ class ctrl extends mdl {
 
             case 'ver_pedido':
                 $folio = $this->filtroPedidoIA(['folios' => [$args['folio'] ?? '']], $sucursales)['folios'][0] ?? '';
-                $p     = $folio !== '' ? ($this->qPedidosIA($alcance + ['folios' => [$folio]])[0] ?? null) : null;
+                $p     = $folio !== '' ? ($this->qPedidosIA($alcance + ['folios' => [$folio], 'ocultos' => true])[0] ?? null) : null;
 
                 if (!$p) {
-                    return ['resultado' => ['error' => 'No encontré ese pedido entre los activos de tus sucursales.'], 'paso' => 'Buscando ' . ($folio ?: 'el pedido')];
+                    return ['resultado' => ['error' => 'No encontré ese pedido entre los de tus sucursales.'], 'paso' => 'Buscando ' . ($folio ?: 'el pedido')];
                 }
 
                 $h = $this->qGetOrden([(int) $p['id']]);
@@ -1481,11 +1499,12 @@ class ctrl extends mdl {
                 ];
 
             case 'resumen_pedidos':
-                $todos       = $this->qPedidosIA($alcance);
+                $todos       = $this->qPedidosIA($alcance + ['ocultos' => true]);
+                $activos     = array_filter($todos, function ($p) { return (int) $p['active'] === 1; });
                 $porEstado   = [];
                 $porSucursal = [];
 
-                foreach ($todos as $p) {
+                foreach ($activos as $p) {
                     $suc = $p['branch_name'] ?: '-';
 
                     $porEstado[$p['status']] = ($porEstado[$p['status']] ?? 0) + 1;
@@ -1494,10 +1513,13 @@ class ctrl extends mdl {
 
                 return [
                     'resultado' => [
-                        'total'        => count($todos),
-                        'por_estado'   => $porEstado,
-                        'por_sucursal' => $porSucursal,
-                        'surtieron'    => count(array_filter($todos, function ($p) { return (int) $p['movido'] > 0; }))
+                        'total'              => count($activos),
+                        'por_estado'         => $porEstado,
+                        'por_sucursal'       => $porSucursal,
+                        'surtieron'          => count(array_filter($activos, function ($p) { return (int) $p['movido'] > 0; })),
+                        'ocultos'            => count($todos) - count($activos),
+                        'siguiente_pedido'   => $this->nextFolio('OC-', 'purchase_order', $this->companiesId),
+                        'siguiente_reabasto' => $this->nextFolio('REAB-', 'purchase_order', $this->companiesId)
                     ],
                     'paso' => 'Contando pedidos'
                 ];
@@ -1506,9 +1528,10 @@ class ctrl extends mdl {
                 $pedidos = $this->filtroPedidoIA(['folios' => $args['folios'] ?? []], $sucursales)['folios'] ?? [];
                 if (!$pedidos) return ['resultado' => ['error' => 'Dame folios válidos, ej. OC-0003.'], 'paso' => 'Preparando la vista previa'];
 
-                $hallados          = $this->qPedidosIA($alcance + ['folios' => $pedidos]);
+                $hallados          = $this->qPedidosIA($alcance + ['folios' => $pedidos, 'ocultos' => true]);
                 $folios            = array_column($hallados, 'folio');
                 $hilo['propuesta'] = array_map('intval', array_column($hallados, 'id'));
+                $hilo['reiniciar'] = false;
 
                 return [
                     'resultado' => [
@@ -1519,6 +1542,37 @@ class ctrl extends mdl {
                         'nota'            => 'La persona verá la vista previa cuando termines tu respuesta. No digas que ya se eliminaron.'
                     ],
                     'paso' => 'Preparando la vista previa · ' . (count($folios) === 1 ? '1 pedido' : count($folios) . ' pedidos')
+                ];
+
+            // La serie es de la empresa: si hay pedidos de sucursales que no maneja,
+            // borrar solo los suyos no regresaría el folio a OC-0001.
+            case 'proponer_reiniciar':
+                $ajenos = $alcance['branch_ids'] ? $this->getPedidosAjenosCount($alcance) : 0;
+                if ($ajenos > 0) {
+                    return [
+                        'resultado' => ['error' => "No se puede: hay {$ajenos} pedidos de sucursales que esta persona no maneja. Los folios solo vuelven a empezar si se eliminan todos; eso lo hace el dueño."],
+                        'paso'      => 'Revisando la serie de folios'
+                    ];
+                }
+
+                $todos = $this->qPedidosIA($alcance + ['ocultos' => true]);
+                if (!$todos) return ['resultado' => ['error' => 'No hay pedidos: el siguiente folio ya es ' . $this->nextFolio('OC-', 'purchase_order', $this->companiesId) . '.'], 'paso' => 'Revisando la serie de folios'];
+
+                if (count($todos) > self::IA_MAX_PEDIDOS) {
+                    return ['resultado' => ['error' => 'Son ' . count($todos) . ' pedidos; de una vez solo puedo ' . self::IA_MAX_PEDIDOS . '. Propón eliminar por partes.'], 'paso' => 'Revisando la serie de folios'];
+                }
+
+                $hilo['propuesta'] = array_map('intval', array_column($todos, 'id'));
+                $hilo['reiniciar'] = true;
+
+                return [
+                    'resultado' => [
+                        'en_vista_previa' => count($todos),
+                        'ocultos'         => count(array_filter($todos, function ($p) { return (int) $p['active'] === 0; })),
+                        'ya_surtieron'    => array_column(array_filter($todos, function ($p) { return (int) $p['movido'] > 0; }), 'folio'),
+                        'nota'            => 'La persona verá la vista previa cuando termines tu respuesta. Si los elimina todos, el siguiente folio será OC-0001. No digas que ya se eliminaron.'
+                    ],
+                    'paso' => 'Preparando el reinicio · ' . (count($todos) === 1 ? '1 pedido' : count($todos) . ' pedidos')
                 ];
         }
 
@@ -1538,7 +1592,8 @@ class ctrl extends mdl {
             'costo'           => round((float) $p['total_cost'], 2),
             'nota'            => $this->textoPedidoIA($p['note']),
             'capturo'         => $this->textoPedidoIA($p['user_name']),
-            'surtio_material' => (int) $p['movido'] > 0
+            'surtio_material' => (int) $p['movido'] > 0,
+            'oculto'          => (int) $p['active'] === 0
         ];
     }
 
@@ -1586,20 +1641,25 @@ class ctrl extends mdl {
             if ($texto !== '') $f[$campo] = $texto;
         }
 
+        if (($s['ocultos'] ?? false) === true) $f['ocultos'] = true;
+
         return $f ? $f : null;
     }
 
     // Filas de la vista previa del chat (previewRow de ia-chat.js). El índice de la fila
-    // es lo que viaja al aplicar; el id del pedido solo vive en la sesión.
-    private function vistaPedidoIA($pedidos) {
+    // es lo que viaja al aplicar; el id del pedido solo vive en la sesión. Con
+    // `$reiniciar` las filas van como "reset" (el chat pide un segundo clic).
+    private function vistaPedidoIA($pedidos, $reiniciar = false) {
         $row = [];
         $ids = [];
 
         foreach (array_slice($pedidos, 0, self::IA_MAX_PEDIDOS) as $i => $p) {
-            $surtio = (int) $p['movido'] > 0;
-            $mats   = (int) $p['total_products'];
-            $ruta   = ($p['branch_name'] ?: '-') . ($p['destination_branch_name'] ? ' → ' . $p['destination_branch_name'] : '');
-            $nota   = $this->textoPedidoIA($p['note']);
+            $mats  = (int) $p['total_products'];
+            $ruta  = ($p['branch_name'] ?: '-') . ($p['destination_branch_name'] ? ' → ' . $p['destination_branch_name'] : '');
+            $nota  = $this->textoPedidoIA($p['note']);
+            $ligas = $this->getPedidoLinksById((int) $p['id']);
+            $junto = array_merge($ligas['salidas'], $ligas['entradas'], $ligas['reabastos']);
+            $lista = count($junto) > 1 ? implode(', ', array_slice($junto, 0, -1)) . ' y ' . end($junto) : implode('', $junto);
 
             // El chat escapa el texto: el "Hoy" en dorado de la tabla se queda en "Hoy".
             $detalle = array_filter([
@@ -1610,15 +1670,16 @@ class ctrl extends mdl {
                 $nota !== '' ? '«' . mb_strimwidth($nota, 0, 60, '…') . '»' : ''
             ]);
 
+            // Una compra (CP-) que salió de este pedido lo detiene: deletePedidoFullById no lo borra.
             $row[] = [
                 'idx'    => $i,
-                'action' => 'delete',
-                'valid'  => true,
+                'action' => $reiniciar ? 'reset' : 'delete',
+                'valid'  => !$ligas['compras'],
                 'name'   => $p['folio'],
-                'tag'    => $p['status'],
+                'tag'    => $p['status'] . ((int) $p['active'] === 0 ? ' · oculto' : ''),
                 'detail' => implode(' · ', $detalle),
-                'warn'   => $surtio ? 'Ya surtió material: se quita de la lista, pero el inventario no se regresa.' : '',
-                'note'   => ''
+                'warn'   => $junto ? (count($junto) === 1 ? 'Se borra también ' : 'Se borran también ') . $lista . ', y se regresa el stock.' : '',
+                'note'   => $ligas['compras'] ? 'La compra ' . implode(', ', $ligas['compras']) . ' viene de este pedido: no se puede borrar aquí.' : ''
             ];
 
             $ids[$i] = (int) $p['id'];

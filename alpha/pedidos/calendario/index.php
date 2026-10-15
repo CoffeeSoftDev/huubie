@@ -9,6 +9,9 @@
     <title>Calendario de Pedidos</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema (Huubie oscuro / Huubie Claro): justo tras Tailwind, antes de pintar -->
+    <script src="<?=PATH_PEDIDOS?>src/js/theme.js?t=<?php echo time(); ?>"></script>
+    <link rel="stylesheet" href="<?=PATH_PEDIDOS?>src/css/theme-light.css?t=<?php echo time(); ?>" />
     <!-- icons -->
     <link rel="stylesheet" href="<?=PATH_BASE?>src/plugins/fontello/css/fontello.css" />
     <link rel="stylesheet" href="<?=PATH_EVENTOS?>src/css/style.css" />

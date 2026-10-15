@@ -1,8 +1,12 @@
 <?php
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
+require_once __DIR__ . '/mdl-borrado.php';
 
 class mdl extends CRUD {
+
+    // Borrado real con su stock (CoffeeIA): deleteSalidaFullById.
+    use BorradoInventario;
 
     public $util;
     public $bd;
@@ -86,9 +90,11 @@ class mdl extends CRUD {
                 ic.name                                    AS categoria,
                 COALESCE(ia.cost_unit, 0)                  AS costo,
                 i.price                                    AS precio,
-                i.image                                    AS image
+                i.image                                    AS image,
+                COALESCE(iu.code, '')                      AS unidad
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}unit            iu ON iu.id = ia.unit_id
             LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
             WHERE i.active = 1 AND i.companies_id = ?
             ORDER BY i.name ASC
@@ -178,6 +184,7 @@ class mdl extends CRUD {
                 m.branch_id,
                 s.name              AS branch_name,
                 m.user_id,
+                m.purchase_order_id,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name
             FROM {$this->bd}inventory_shrinkage m
             LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
@@ -341,6 +348,27 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    function disableSalidaDetail($array) {
+        // [salida_id]
+        $query = "
+            UPDATE {$this->bd}detail_inventory_shrinkage
+            SET active = 0
+            WHERE inventory_shrinkage_id = ? AND active = 1
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function updateSalidaHeader($array) {
+        // [note, total_products, total_units, total_cost, shrinkage_reason_id, warehouse_id, branch_id, id, companies_id]
+        $query = "
+            UPDATE {$this->bd}inventory_shrinkage
+            SET note = ?, total_products = ?, total_units = ?, total_cost = ?,
+                shrinkage_reason_id = ?, warehouse_id = ?, branch_id = ?, updated_at = NOW()
+            WHERE id = ? AND companies_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
     function qCancelSalida($array) {
         $query = "
             UPDATE {$this->bd}inventory_shrinkage
@@ -426,5 +454,47 @@ class mdl extends CRUD {
             $next  = $num + 1;
         }
         return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
+    }
+
+    // -- CoffeeIA: eliminar --
+
+    // Las salidas que CoffeeIA puede eliminar, también las inactivas (cuentan para el
+    // folio). Como la lista del módulo, son las de toda la empresa. `pedido` es el folio
+    // del pedido que la generó al surtirse: esa se borra en Pedidos.
+    function listSalidasIA($array) {
+        $where = 's.companies_id = ?';
+        $data  = [$array['companies_id']];
+
+        foreach (['ids' => 's.id', 'folios' => 's.folio'] as $campo => $columna) {
+            if (empty($array[$campo])) continue;
+            $where .= " AND {$columna} IN (" . implode(',', array_fill(0, count($array[$campo]), '?')) . ')';
+            $data   = array_merge($data, $array[$campo]);
+        }
+
+        $query = "
+            SELECT
+                s.id,
+                s.folio,
+                s.status,
+                s.active,
+                s.date_shrinkage,
+                s.created_at,
+                s.note,
+                s.total_products,
+                s.total_cost,
+                sr.name  AS reason_name,
+                w.name   AS warehouse_name,
+                b.name   AS branch_name,
+                po.folio AS pedido
+            FROM {$this->bd}inventory_shrinkage s
+            LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = s.shrinkage_reason_id
+            LEFT JOIN {$this->bd}warehouse        w  ON w.id  = s.warehouse_id
+            LEFT JOIN {$this->bdErp}branches    b  ON b.id  = s.branch_id
+            LEFT JOIN {$this->bd}purchase_order   po ON po.id = s.purchase_order_id
+            WHERE {$where}
+            ORDER BY s.id DESC
+        ";
+        $r = $this->_Read($query, $data);
+        return is_array($r) ? $r : [];
     }
 }

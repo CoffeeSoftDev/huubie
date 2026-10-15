@@ -1,0 +1,1252 @@
+/* ============================================================
+   HUUBIE CLARO PARA PEDIDOS
+   ============================================================
+   Pedidos nació oscuro: sus módulos y los componentes de coffeeSoft
+   (variante 'dark') traen los colores fijos en sus clases, unas 600
+   veces. Esta hoja NO toca esos archivos: con <html data-scheme="light">
+   (lo pone src/js/theme.js) traduce cada color oscuro a su papel claro.
+
+   Papeles (los mismos del tema 'huubie-claro' de inventory):
+     página      #F3F4F6      #111928, #111827, gray-900...
+     tarjeta     #FFFFFF      #1F2A37, #1E293B, gray-800...
+     hundido     #F9FAFB      #1a2332, filas de tabla
+     elevado     #F3F4F6      #374151, #283341, gray-700...
+     línea       #E5E7EB      border-gray-700, #374151...
+     texto       #111827 / #374151 / #6B7280
+     acento      morado #7C3AED (Tailwind blue-* ya es violet, ver theme.js)
+     secundario  azul #1C64F2 (foco de campos y botón secundario)
+
+   Todo va con !important: los módulos pintan con utilidades de Tailwind,
+   con estilos en línea y con hojas propias que también lo usan.
+   ============================================================ */
+
+:root[data-scheme="light"] {
+    --hc-page:      #F3F4F6;
+    --hc-card:      #FFFFFF;
+    --hc-sunken:    #F9FAFB;
+    --hc-raised:    #F3F4F6;
+    --hc-hover:     #E5E7EB;
+    --hc-line:      #E5E7EB;
+    --hc-line-hi:   #D1D5DB;
+    --hc-ink:       #111827;
+    --hc-ink-2:     #374151;
+    --hc-muted:     #6B7280;
+    --hc-accent:    #7C3AED;
+    --hc-accent-hi: #6D28D9;
+    --hc-second:    #1C64F2;
+
+    /* alpha/src/css/colors.css: botón primario morado, secundario azul. */
+    --primary:   #7C3AED;
+    --secondary: #1C64F2;
+
+    color-scheme: light;
+}
+
+
+/* -- Página -- */
+
+:root[data-scheme="light"],
+:root[data-scheme="light"] body,
+:root[data-scheme="light"] #mainContainer,
+:root[data-scheme="light"] #root {
+    background-color: var(--hc-page) !important;
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .bg-\[\#111928\],
+:root[data-scheme="light"] .bg-\[\#111827\],
+:root[data-scheme="light"] .bg-\[\#0E1521\],
+:root[data-scheme="light"] .bg-\[\#0F172A\],
+:root[data-scheme="light"] .bg-\[\#19232D\],
+:root[data-scheme="light"] .bg-gray-900,
+:root[data-scheme="light"] .bg-gray-950,
+:root[data-scheme="light"] .bg-slate-900,
+:root[data-scheme="light"] .bg-slate-950 {
+    background-color: var(--hc-page) !important;
+}
+
+
+/* -- Tarjetas y contenedores -- */
+
+:root[data-scheme="light"] .bg-\[\#1F2A37\],
+:root[data-scheme="light"] .bg-\[\#1E293B\],
+:root[data-scheme="light"] .bg-\[\#1F2937\],
+:root[data-scheme="light"] .bg-\[\#141d2b\],
+:root[data-scheme="light"] .bg-\[\#151D2B\],
+:root[data-scheme="light"] .bg-\[\#151d2a\],
+:root[data-scheme="light"] .bg-\[\#161d29\],
+:root[data-scheme="light"] .bg-\[\#161f2b\],
+:root[data-scheme="light"] .bg-\[\#2E3148\],
+:root[data-scheme="light"] .bg-\[\#23262f\],
+:root[data-scheme="light"] .bg-gray-800,
+:root[data-scheme="light"] .bg-slate-800 {
+    background-color: var(--hc-card) !important;
+}
+
+/* Hundido: campos, cajas dentro de una tarjeta, filas de tabla. */
+:root[data-scheme="light"] .bg-\[\#1a2332\],
+:root[data-scheme="light"] .bg-\[\#283341\],
+:root[data-scheme="light"] .bg-\[\#2C3E50\],
+:root[data-scheme="light"] .bg-gray-800\/50,
+:root[data-scheme="light"] .bg-gray-800\/60,
+:root[data-scheme="light"] .bg-gray-800\/40,
+:root[data-scheme="light"] .bg-slate-800\/50 {
+    background-color: var(--hc-sunken) !important;
+}
+
+/* Elevado: encabezados de tabla, chips grises, cajas de ícono. */
+:root[data-scheme="light"] .bg-\[\#374151\],
+:root[data-scheme="light"] .bg-\[\#334155\],
+:root[data-scheme="light"] #productGrid .bg-\[\#141d2b\],
+:root[data-scheme="light"] .bg-\[\#29374A\],
+:root[data-scheme="light"] .bg-\[\#2C3A4C\],
+:root[data-scheme="light"] .bg-\[\#28324c\],
+:root[data-scheme="light"] .bg-\[\#2a3441\],
+:root[data-scheme="light"] .bg-\[\#333D4C\],
+:root[data-scheme="light"] .bg-\[\#2B3D4F\],
+:root[data-scheme="light"] .bg-\[\#2D3748\],
+:root[data-scheme="light"] .bg-gray-700,
+:root[data-scheme="light"] .bg-gray-700\/50,
+:root[data-scheme="light"] .bg-slate-700,
+:root[data-scheme="light"] .bg-slate-700\/50 {
+    background-color: var(--hc-raised) !important;
+}
+
+:root[data-scheme="light"] .bg-gray-600,
+:root[data-scheme="light"] .bg-slate-600,
+:root[data-scheme="light"] .bg-\[\#4B5563\] {
+    background-color: var(--hc-hover) !important;
+}
+
+/* Cards de producto del catálogo: en claro se separan de la página con borde. */
+:root[data-scheme="light"] #productGrid .card {
+    border: 1px solid var(--hc-line) !important;
+    box-shadow: 0 1px 2px rgb(17 24 39 / .04);
+}
+
+/* Velos blancos pensados para fondo oscuro: en claro serían invisibles. */
+:root[data-scheme="light"] .bg-white\/5,
+:root[data-scheme="light"] .bg-white\/10 {
+    background-color: rgb(17 24 39 / .04) !important;
+}
+
+/* Hover de superficies. */
+:root[data-scheme="light"] .hover\:bg-gray-800:hover,
+:root[data-scheme="light"] .hover\:bg-gray-700:hover,
+:root[data-scheme="light"] .hover\:bg-gray-600:hover,
+:root[data-scheme="light"] .hover\:bg-slate-800:hover,
+:root[data-scheme="light"] .hover\:bg-slate-700:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#111928\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#111827\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#1F2A37\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#1F2937\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#2D3748\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#36475D\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#2B3D4F\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#4B5563\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#333f4f\]:hover,
+:root[data-scheme="light"] .hover\:bg-white\/5:hover,
+:root[data-scheme="light"] .hover\:bg-white\/10:hover {
+    background-color: var(--hc-hover) !important;
+}
+
+
+/* -- Tablas de coffeeSoft (variante 'dark') --
+   Pensadas para leerse rápido en caja: letra de 14px, filas con aire,
+   encabezado suave que no compite con los datos, filas alternas apenas
+   marcadas para seguir la línea a lo ancho, y la fila bajo el mouse en el
+   tinte del acento (las filas de pedidos se abren con un clic).
+     tabla   borde 1px #E5E7EB, radio 12px
+     header  #F9FAFB, texto #4B5563 13px semibold, línea inferior #E5E7EB
+     celdas  14px #111827, 12px de alto y 12px a los lados
+     filas   alternas #FAFAFB, hover #F5F3FF */
+
+:root[data-scheme="light"] table.border-separate {
+    border: 1px solid #E5E7EB !important;
+    border-radius: 12px;
+    overflow: hidden;
+    color: #111827 !important;
+}
+
+:root[data-scheme="light"] table.border-separate > thead th {
+    background-color: #F9FAFB !important;
+    color: #4B5563 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    padding: 12px !important;
+    border: 0 !important;
+    border-bottom: 1px solid #E5E7EB !important;
+}
+
+:root[data-scheme="light"] table.border-separate > tbody > tr > td {
+    font-size: 14px !important;
+    padding: 12px !important;
+    border-top: 0 !important;
+    border-bottom: 1px solid #F3F4F6 !important;
+}
+
+:root[data-scheme="light"] table.border-separate > tbody > tr:last-child > td {
+    border-bottom: 0 !important;
+}
+
+:root[data-scheme="light"] table.border-separate > tbody > tr:nth-child(odd) > td:not([colspan]) {
+    background-color: #FFFFFF !important;
+}
+
+:root[data-scheme="light"] table.border-separate > tbody > tr:nth-child(even) > td:not([colspan]) {
+    background-color: #FAFAFB !important;
+}
+
+:root[data-scheme="light"] table.border-separate > tbody > tr:hover > td:not([colspan]) {
+    background-color: #F5F3FF !important;
+}
+
+/* El texto chico de las celdas (teléfono, descuento) sube a 13px. */
+:root[data-scheme="light"] table.border-separate td .text-\[10px\],
+:root[data-scheme="light"] table.border-separate td p.text-gray-500 {
+    font-size: 13px !important;
+}
+
+/* Texto gris de las celdas (text-gray-300 de la variante oscura): tinta.
+   Los montos de color (abono, saldo) conservan el suyo. */
+:root[data-scheme="light"] table.border-separate td.text-gray-300,
+:root[data-scheme="light"] table.border-separate td .text-gray-300 {
+    color: #111827 !important;
+}
+
+/* Estados (status() y renderDeliveryStatus() de ctrl-pedidos.php): píldora
+   a su ancho con un punto del mismo color al frente, para distinguirlos de
+   un vistazo aunque se lean de lado. */
+:root[data-scheme="light"] table td span.rounded[class*="bg-[#"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto !important;
+    margin-right: 0 !important;
+    padding: 4px 10px !important;
+    border-radius: 9999px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: .02em;
+}
+
+:root[data-scheme="light"] table td span.rounded[class*="bg-[#"]:not(:has(i))::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+:root[data-scheme="light"] table tr.bg-\[\#111827\],
+:root[data-scheme="light"] table td.bg-\[\#111827\] {
+    background-color: var(--hc-sunken) !important;
+}
+
+:root[data-scheme="light"] table tr.bg-\[\#334155\],
+:root[data-scheme="light"] table td.bg-\[\#334155\] {
+    background-color: #EDE9FE !important;
+    color: var(--hc-ink) !important;
+}
+
+
+/* -- Bordes -- */
+
+:root[data-scheme="light"] .border-gray-800,
+:root[data-scheme="light"] .border-gray-800\/60,
+:root[data-scheme="light"] .border-gray-700,
+:root[data-scheme="light"] .border-gray-700\/50,
+:root[data-scheme="light"] .border-gray-600,
+:root[data-scheme="light"] .border-slate-800,
+:root[data-scheme="light"] .border-slate-700,
+:root[data-scheme="light"] .border-slate-700\/50,
+:root[data-scheme="light"] .border-slate-600,
+:root[data-scheme="light"] .\!border-slate-700,
+:root[data-scheme="light"] .border-\[\#374151\],
+:root[data-scheme="light"] .border-\[\#334155\],
+:root[data-scheme="light"] .border-\[\#2a3444\],
+:root[data-scheme="light"] .border-\[\#2A2E45\],
+:root[data-scheme="light"] .border-\[\#1F2A37\],
+:root[data-scheme="light"] .border-\[rgba\(51\2c 65\2c 85\2c 0\.6\)\],
+:root[data-scheme="light"] .border-\[rgba\(55\2c 65\2c 81\2c 0\.5\)\],
+:root[data-scheme="light"] .border-white\/5,
+:root[data-scheme="light"] .border-white\/10 {
+    border-color: var(--hc-line) !important;
+}
+
+:root[data-scheme="light"] .hover\:border-slate-500:hover,
+:root[data-scheme="light"] .hover\:border-gray-500:hover,
+:root[data-scheme="light"] .border-gray-500,
+:root[data-scheme="light"] .border-slate-500 {
+    border-color: var(--hc-line-hi) !important;
+}
+
+:root[data-scheme="light"] .divide-gray-700 > :not([hidden]) ~ :not([hidden]),
+:root[data-scheme="light"] .divide-gray-800 > :not([hidden]) ~ :not([hidden]),
+:root[data-scheme="light"] .divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--hc-line) !important;
+}
+
+
+/* -- Texto -- */
+
+/* Blanco = texto sobre fondo oscuro. Pasa a tinta, salvo cuando va sobre un
+   color de verdad (botones, badges, avatares): ahí se queda blanco. El fondo
+   se busca como clase suelta (al inicio o tras un espacio) para que un
+   hover:bg-purple-950 no cuente como fondo morado. */
+:root[data-scheme="light"] .text-white:not(:is(
+        [class^="bg-blue-"], [class*=" bg-blue-"], [class^="bg-purple-"], [class*=" bg-purple-"],
+        [class^="bg-violet-"], [class*=" bg-violet-"], [class^="bg-indigo-"], [class*=" bg-indigo-"],
+        [class^="bg-green-"], [class*=" bg-green-"], [class^="bg-emerald-"], [class*=" bg-emerald-"],
+        [class^="bg-teal-"], [class*=" bg-teal-"], [class^="bg-cyan-"], [class*=" bg-cyan-"],
+        [class^="bg-sky-"], [class*=" bg-sky-"], [class^="bg-red-"], [class*=" bg-red-"],
+        [class^="bg-rose-"], [class*=" bg-rose-"], [class^="bg-pink-"], [class*=" bg-pink-"],
+        [class^="bg-fuchsia-"], [class*=" bg-fuchsia-"], [class^="bg-orange-"], [class*=" bg-orange-"],
+        [class^="bg-amber-"], [class*=" bg-amber-"], [class^="bg-yellow-"], [class*=" bg-yellow-"],
+        [class^="bg-lime-"], [class*=" bg-lime-"], [class^="bg-black"], [class*=" bg-black"],
+        [class^="bg-gradient"], [class*=" bg-gradient"], [class*="btn-"], [style*="background"],
+        [class^="bg-[#7"], [class*=" bg-[#7"], [class^="bg-[#1C"], [class*=" bg-[#1C"],
+        [class^="bg-[#1c"], [class*=" bg-[#1c"], [class^="bg-[#1A"], [class*=" bg-[#1A"],
+        [class^="bg-[#10"], [class*=" bg-[#10"], [class^="bg-[#0E9"], [class*=" bg-[#0E9"],
+        [class^="bg-[#db"], [class*=" bg-[#db"], [class^="bg-[#ef"], [class*=" bg-[#ef"],
+        [class^="bg-[#E0"], [class*=" bg-[#E0"], [class^="bg-[#6D"], [class*=" bg-[#6D"],
+        [class^="bg-[#00"], [class*=" bg-[#00"], [class^="bg-[#9e"], [class*=" bg-[#9e"],
+        [class^="bg-[#8"], [class*=" bg-[#8"]
+    )):not(:is(
+        [class^="bg-blue-"], [class*=" bg-blue-"], [class^="bg-purple-"], [class*=" bg-purple-"],
+        [class^="bg-violet-"], [class*=" bg-violet-"], [class^="bg-green-"], [class*=" bg-green-"],
+        [class^="bg-red-"], [class*=" bg-red-"], [class^="bg-orange-"], [class*=" bg-orange-"],
+        [class^="bg-gradient"], [class*=" bg-gradient"],
+        [class^="bg-[#7"], [class*=" bg-[#7"], [class^="bg-[#1C"], [class*=" bg-[#1C"]
+    ) *) {
+    color: var(--hc-ink) !important;
+}
+
+/* Velos de color (bg-blue-600/25...) sobre blanco no aguantan texto blanco. */
+:root[data-scheme="light"] .text-white:is(
+        [class^="bg-blue-"], [class*=" bg-blue-"], [class^="bg-purple-"], [class*=" bg-purple-"],
+        [class^="bg-violet-"], [class*=" bg-violet-"], [class^="bg-green-"], [class*=" bg-green-"],
+        [class^="bg-red-"], [class*=" bg-red-"], [class^="bg-amber-"], [class*=" bg-amber-"]
+    )[class*="00/"] {
+    color: var(--hc-accent-hi) !important;
+}
+
+/* Etiquetas sobre foto (velo negro): el texto se hereda y en claro saldría
+   tinta sobre el velo. */
+:root[data-scheme="light"] .bg-black\/50,
+:root[data-scheme="light"] .bg-black\/60,
+:root[data-scheme="light"] .bg-black\/70 {
+    color: #FFFFFF !important;
+}
+
+:root[data-scheme="light"] .hover\:bg-purple-950:hover,
+:root[data-scheme="light"] .hover\:bg-purple-900:hover {
+    background-color: #EDE9FE !important;
+}
+
+/* hover:text-white: tinta sobre un hover neutro (que en claro es gris claro);
+   blanco solo si el hover rellena con un color de verdad. */
+:root[data-scheme="light"] .hover\:text-white:hover {
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .hover\:text-white:is(
+        [class*="hover:bg-blue-"], [class*="hover:bg-purple-"], [class*="hover:bg-violet-"],
+        [class*="hover:bg-red-"], [class*="hover:bg-green-"], [class*="hover:bg-emerald-"],
+        [class*="hover:bg-orange-"], [class*="hover:bg-amber-"], [class*="hover:bg-pink-"],
+        [class*="hover:bg-[#1a5"], [class*="hover:bg-[#1A5"], [class*="hover:bg-[#0E9"],
+        [class*="hover:bg-[#be"], [class*="hover:bg-[#dc"], [class*="hover:bg-[#C8"],
+        [class*="hover:bg-[#6D"], [class*="hover:bg-[#51"]
+    ):hover {
+    color: #FFFFFF !important;
+}
+
+:root[data-scheme="light"] .text-gray-50,
+:root[data-scheme="light"] .text-gray-100,
+:root[data-scheme="light"] .text-gray-200,
+:root[data-scheme="light"] .text-slate-100,
+:root[data-scheme="light"] .text-slate-200,
+:root[data-scheme="light"] .text-\[\#F1F5F9\],
+:root[data-scheme="light"] .text-\[\#F3F4F6\],
+:root[data-scheme="light"] .text-\[\#e5e5e5\],
+:root[data-scheme="light"] .text-\[\#f5f5f5\] {
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .text-gray-300,
+:root[data-scheme="light"] .text-slate-300,
+:root[data-scheme="light"] .text-\[\#D1D5DB\] {
+    color: var(--hc-ink-2) !important;
+}
+
+:root[data-scheme="light"] .text-gray-400,
+:root[data-scheme="light"] .text-slate-400,
+:root[data-scheme="light"] .text-\[\#9CA3AF\],
+:root[data-scheme="light"] .placeholder-gray-500::placeholder {
+    color: var(--hc-muted) !important;
+}
+
+/* Colores pastel (300/400) que en oscuro se leían bien: en blanco se pierden.
+   Bajan a su tono 600/700. blue-* ya es violet (theme.js). */
+:root[data-scheme="light"] .text-blue-200,
+:root[data-scheme="light"] .text-blue-300,
+:root[data-scheme="light"] .text-blue-400,
+:root[data-scheme="light"] .text-purple-200,
+:root[data-scheme="light"] .text-purple-300,
+:root[data-scheme="light"] .text-purple-400,
+:root[data-scheme="light"] .text-violet-300,
+:root[data-scheme="light"] .text-violet-400,
+:root[data-scheme="light"] .text-indigo-300,
+:root[data-scheme="light"] .text-indigo-400,
+:root[data-scheme="light"] .text-\[\#A855F7\],
+:root[data-scheme="light"] .text-\[\#c4b5fd\],
+:root[data-scheme="light"] .text-\[\#C4B5FD\],
+:root[data-scheme="light"] .text-\[\#76A9FA\],
+:root[data-scheme="light"] .text-\[\#93C5FD\],
+:root[data-scheme="light"] .text-\[\#BDD9FC\] {
+    color: var(--hc-accent-hi) !important;
+}
+
+:root[data-scheme="light"] .text-green-300,
+:root[data-scheme="light"] .text-green-400,
+:root[data-scheme="light"] .text-emerald-300,
+:root[data-scheme="light"] .text-emerald-400,
+:root[data-scheme="light"] .text-teal-400,
+:root[data-scheme="light"] .text-\[\#3FC189\] {
+    color: #15803D !important;
+}
+
+:root[data-scheme="light"] .text-red-300,
+:root[data-scheme="light"] .text-red-400,
+:root[data-scheme="light"] .text-rose-400,
+:root[data-scheme="light"] .text-\[\#E05562\],
+:root[data-scheme="light"] .text-\[\#ba464d\] {
+    color: #B91C1C !important;
+}
+
+/* Estado "Cotización" (bg-[#9EBBDB] text-[#2A55A3]): blue-100 / blue-700. */
+:root[data-scheme="light"] .bg-\[\#9EBBDB\] { background-color: #DBEAFE !important; }
+:root[data-scheme="light"] .text-\[\#2A55A3\] { color: #1D4ED8 !important; }
+
+:root[data-scheme="light"] .text-yellow-300,
+:root[data-scheme="light"] .text-yellow-400,
+:root[data-scheme="light"] .text-amber-200,
+:root[data-scheme="light"] .text-amber-300,
+:root[data-scheme="light"] .text-amber-400,
+:root[data-scheme="light"] .text-\[\#fbbf24\],
+:root[data-scheme="light"] .text-\[\#F2C215\],
+:root[data-scheme="light"] .text-\[\#f0ad28\] {
+    color: #B45309 !important;
+}
+
+:root[data-scheme="light"] .text-orange-300,
+:root[data-scheme="light"] .text-orange-400 {
+    color: #C2410C !important;
+}
+
+:root[data-scheme="light"] .text-pink-300,
+:root[data-scheme="light"] .text-pink-400,
+:root[data-scheme="light"] .text-\[\#f472b6\] {
+    color: #BE185D !important;
+}
+
+:root[data-scheme="light"] .text-cyan-400,
+:root[data-scheme="light"] .text-sky-400 {
+    color: #0369A1 !important;
+}
+
+/* Sobre su badge claro el texto pastel va oscuro (reglas de arriba); los
+   textos de color dentro de un botón sólido siguen blancos. */
+:root[data-scheme="light"] :is([class*="bg-purple-6"], [class*="bg-purple-7"], [class*="bg-blue-6"], [class*="bg-blue-7"], [class*="bg-[#7C3AED]"]) :is(.text-purple-200, .text-purple-300, .text-blue-200, .text-blue-300) {
+    color: #FFFFFF !important;
+}
+
+
+/* -- Botón primario de Bootstrap --
+   admin.php no carga buttons.css: su .btn-primary es el azul de Bootstrap. */
+:root[data-scheme="light"] .btn-primary {
+    background-color: var(--hc-accent) !important;
+    border-color: var(--hc-accent) !important;
+    color: #FFFFFF !important;
+}
+
+:root[data-scheme="light"] .btn-primary:hover,
+:root[data-scheme="light"] .btn-primary:focus,
+:root[data-scheme="light"] .btn-primary:active {
+    background-color: var(--hc-accent-hi) !important;
+    border-color: var(--hc-accent-hi) !important;
+}
+
+
+/* -- Botones de coffeeSoft (CF_CSS de alpha) --
+   El primario es navy #003360 y el secundario morado #7152EC: en Huubie Claro
+   el primario es el morado y el secundario el azul, como en inventory. */
+
+:root[data-scheme="light"] .bg-\[\#003360\]\/90,
+:root[data-scheme="light"] .bg-\[\#003360\] {
+    background-color: var(--hc-accent) !important;
+}
+
+:root[data-scheme="light"] .hover\:bg-\[\#003360\]:hover,
+:root[data-scheme="light"] .active\:bg-\[\#003360\]:active {
+    background-color: var(--hc-accent-hi) !important;
+}
+
+:root[data-scheme="light"] .border-\[\#003360\] {
+    border-color: var(--hc-accent) !important;
+}
+
+:root[data-scheme="light"] .text-\[\#003360\] {
+    color: var(--hc-accent) !important;
+}
+
+/* La blue de Huubie fija en hex (#1C64F2): en claro es el morado, igual que
+   las clases blue-* que theme.js ya pasó a violet. */
+:root[data-scheme="light"] .bg-\[\#1C64F2\],
+:root[data-scheme="light"] .bg-\[\#1c64f2\] {
+    background-color: var(--hc-accent) !important;
+}
+
+:root[data-scheme="light"] .hover\:bg-\[\#1A56DB\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#1a53d4\]:hover,
+:root[data-scheme="light"] .hover\:bg-\[\#1a56db\]:hover {
+    background-color: var(--hc-accent-hi) !important;
+}
+
+:root[data-scheme="light"] .text-\[\#1C64F2\],
+:root[data-scheme="light"] .text-\[\#3F83F8\] {
+    color: var(--hc-accent) !important;
+}
+
+/* Secundario de coffeeSoft (#7152EC): inventory con Huubie Claro lo pinta
+   con el acento (bg-blue-600 = violet), no con el azul. */
+:root[data-scheme="light"] .bg-\[\#7152EC\] {
+    background-color: var(--hc-accent) !important;
+}
+
+:root[data-scheme="light"] .hover\:bg-\[\#51309B\]:hover,
+:root[data-scheme="light"] .active\:bg-\[\#51309B\]:active {
+    background-color: var(--hc-accent-hi) !important;
+}
+
+
+/* -- Pestañas (tabLayout de coffeeSoft) --
+   La variante 'dark' trae riel #19232D y la activa en bg-blue-600. En claro
+   van como la 'light' de inventory: riel gray-200, activa blanca con texto
+   negro, inactivas gray-600 que se aclaran a blanco al pasar. */
+:root[data-scheme="light"] .bg-\[\#19232D\].rounded-lg {
+    background-color: #E5E7EB !important;
+    color: #000000 !important;
+}
+
+:root[data-scheme="light"] .bg-\[\#19232D\] > button[data-state="active"] {
+    background-color: #FFFFFF !important;
+    color: #111827 !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgb(16 24 40 / .10), 0 1px 2px rgb(16 24 40 / .06);
+}
+
+:root[data-scheme="light"] .bg-\[\#19232D\] > button[data-state="inactive"] {
+    background-color: transparent !important;
+    color: #4B5563 !important;
+}
+
+:root[data-scheme="light"] .bg-\[\#19232D\] > button[data-state="inactive"]:hover {
+    background-color: #FFFFFF !important;
+}
+
+:root[data-scheme="light"] .bg-\[\#19232D\] > button[data-state="active"] i,
+:root[data-scheme="light"] .bg-\[\#19232D\] > button[data-state="active"] svg {
+    color: var(--hc-accent) !important;
+}
+
+
+/* -- Badges y tintes pensados para fondo oscuro --
+   Los de estado (ctrl-pedidos.php) traen un fondo muy oscuro de su color;
+   pasan al -100 de su color y el texto al -700, como los badges de inventory. */
+
+:root[data-scheme="light"] .bg-\[\#014737\] { background-color: #DCFCE7 !important; }
+:root[data-scheme="light"] .bg-\[\#572A34\],
+:root[data-scheme="light"] .bg-\[\#721c24\],
+:root[data-scheme="light"] .bg-\[\#3B1B2B\],
+:root[data-scheme="light"] .hover\:bg-\[\#3B1B2B\]:hover { background-color: #FEE2E2 !important; }
+:root[data-scheme="light"] .bg-\[\#633112\],
+:root[data-scheme="light"] .bg-\[\#8a4600\] { background-color: #FEF3C7 !important; }
+:root[data-scheme="light"] .bg-\[\#831843\] { background-color: #FCE7F3 !important; }
+
+:root[data-scheme="light"] .bg-violet-700\/30,
+:root[data-scheme="light"] .bg-purple-950,
+:root[data-scheme="light"] .bg-purple-900\/30,
+:root[data-scheme="light"] .bg-blue-900\/30,
+:root[data-scheme="light"] .bg-blue-900\/50 { background-color: #EDE9FE !important; }
+:root[data-scheme="light"] .bg-green-900\/30 { background-color: #D1FAE5 !important; }
+:root[data-scheme="light"] .bg-amber-950\/30,
+:root[data-scheme="light"] .bg-amber-900\/40 { background-color: #FEF3C7 !important; }
+:root[data-scheme="light"] .bg-red-900\/30 { background-color: #FEE2E2 !important; }
+
+
+/* -- Campos -- */
+
+:root[data-scheme="light"] .tw-input,
+:root[data-scheme="light"] .form-control,
+:root[data-scheme="light"] .form-select,
+:root[data-scheme="light"] .input-group-text {
+    background-color: var(--hc-card) !important;
+    color: #1F2937 !important;
+    border-color: #DEE2E6 !important;
+}
+
+/* Campos de coffeeForm: 40px de alto, radio 10px, texto 14px, borde #D1D5DB
+   que se ve sin forzar la vista. */
+:root[data-scheme="light"] .tw-input {
+    min-height: 40px;
+    border-color: #D1D5DB !important;
+    border-radius: 10px !important;
+    padding: 8px 14px !important;
+    font-size: 14px !important;
+}
+
+:root[data-scheme="light"] .tw-input:hover {
+    border-color: #9CA3AF !important;
+}
+
+/* Etiquetas de coffeeForm (text-gray-400 en oscuro): 13px, gris oscuro. */
+:root[data-scheme="light"] label.block.text-xs.text-gray-400 {
+    color: #374151 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+
+:root[data-scheme="light"] .tw-input:focus,
+:root[data-scheme="light"] .form-control:focus,
+:root[data-scheme="light"] .form-select:focus,
+:root[data-scheme="light"] input:focus,
+:root[data-scheme="light"] select:focus,
+:root[data-scheme="light"] textarea:focus {
+    border-color: var(--hc-second) !important;
+    box-shadow: 0 0 0 3px rgb(28 100 242 / .15) !important;
+}
+
+:root[data-scheme="light"] input::placeholder,
+:root[data-scheme="light"] textarea::placeholder {
+    color: #9CA3AF !important;
+}
+
+/* Un <option> no hereda: el navegador lo pinta con su propio fondo. */
+:root[data-scheme="light"] option {
+    background-color: var(--hc-card) !important;
+    color: var(--hc-ink) !important;
+}
+
+
+/* -- Navbar de Pedidos (navbar.js) --
+   Los colores de la barra y del menú del usuario ya llegan claros por sus
+   settings; aquí van el texto de la barra (lleva text-white con fondo en
+   línea) y los de su <style> propio (sucursal y aviso). */
+
+/* La barra, el menú lateral y sus desplegables copian a inventory con Huubie
+   Claro (acceso/src/js/navbar.js y sidebar.js). Valores medidos en su pantalla
+   el 15/10/2026. Los detalles de la barra van en el SECUNDARIO azul #1C64F2:
+     --nav-accent-tint  rgb(28 100 242 / .12)   fondo de la sucursal
+     --nav-accent-line  rgb(28 100 242 / .28)   línea de la barra y bordes
+   Sin sombra: la de la barra es el .shadow-lg de Bootstrap (!important). */
+:root[data-scheme="light"] {
+    --nav-accent:      #1C64F2;
+    --nav-accent-tint: rgb(28 100 242 / .12);
+    --nav-accent-line: rgb(28 100 242 / .28);
+}
+
+:root[data-scheme="light"] #menu-navbar > nav,
+:root[data-scheme="light"] nav.fixed.border-pink-500 {
+    color: var(--hc-ink) !important;
+    box-shadow: none !important;
+    border-bottom: 1px solid var(--nav-accent-line) !important;
+}
+
+/* El logo es blanco (logo.svg): sobre la barra blanca va en tinta. */
+:root[data-scheme="light"] nav img[src*="logo/logo.svg"] {
+    filter: brightness(0);
+    opacity: .85;
+}
+
+/* Botones de ícono (menú, recargar, aplicaciones): redondos y grises, como
+   .nav-theme-toggle de inventory. */
+:root[data-scheme="light"] #menu-navbar > nav #toggleSidebar,
+:root[data-scheme="light"] #menu-navbar > nav #btnReloadApp,
+:root[data-scheme="light"] #menu-navbar > nav a[aria-label="Aplicaciones"] {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+    border-radius: 9999px !important;
+}
+
+:root[data-scheme="light"] #menu-navbar > nav #toggleSidebar svg,
+:root[data-scheme="light"] #menu-navbar > nav #btnReloadApp svg,
+:root[data-scheme="light"] #menu-navbar > nav a[aria-label="Aplicaciones"] svg {
+    color: #6B7280 !important;
+}
+
+:root[data-scheme="light"] #menu-navbar > nav #toggleSidebar:hover,
+:root[data-scheme="light"] #menu-navbar > nav #btnReloadApp:hover,
+:root[data-scheme="light"] #menu-navbar > nav a[aria-label="Aplicaciones"]:hover {
+    background-color: #F3F4F6 !important;
+}
+
+:root[data-scheme="light"] #menu-navbar > nav #toggleSidebar:hover svg,
+:root[data-scheme="light"] #menu-navbar > nav #btnReloadApp:hover svg,
+:root[data-scheme="light"] #menu-navbar > nav a[aria-label="Aplicaciones"]:hover svg {
+    color: #111827 !important;
+}
+
+/* Usuario: línea a la izquierda, nombre 13px y rol 11px, avatar de 38px. */
+:root[data-scheme="light"] #btnUserMenu {
+    padding: 4px 8px 4px 13px !important;
+    border: 1px solid transparent !important;
+    border-left-color: #E5E7EB !important;
+    border-radius: 8px;
+    transition: all .15s ease;
+}
+
+:root[data-scheme="light"] #btnUserMenu:hover {
+    background-color: #F3F4F6 !important;
+    border-color: #E5E7EB !important;
+}
+
+:root[data-scheme="light"] #btnUserMenu > img,
+:root[data-scheme="light"] #btnUserMenu > div.rounded-full {
+    width: 38px !important;
+    height: 38px !important;
+}
+
+:root[data-scheme="light"] #btnUserMenu span.text-xs {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #111827 !important;
+}
+
+:root[data-scheme="light"] #btnUserMenu span.text-\[10px\] {
+    font-size: 11px !important;
+    color: #6B7280 !important;
+}
+
+/* Menú del usuario: tarjeta blanca de 16px, como .nav-dropdown. */
+:root[data-scheme="light"] #userMenuDropdown {
+    border: 1px solid #E5E7EB;
+    border-radius: 16px !important;
+    box-shadow: 0 14px 38px rgb(17 24 39 / .14) !important;
+    overflow: hidden;
+}
+
+:root[data-scheme="light"] #userMenuDropdown h2 {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+}
+
+:root[data-scheme="light"] #userMenuDropdown span.rounded-full {
+    font-size: 11px !important;
+    font-weight: 400 !important;
+}
+
+/* Cerrar sesión como .nav-logout-btn: borde gris, texto rojo. */
+:root[data-scheme="light"] #btnLogout {
+    border-color: #E5E7EB !important;
+    color: #DC2626 !important;
+    border-radius: 12px !important;
+    font-weight: 600;
+    padding: 11px !important;
+}
+
+:root[data-scheme="light"] #btnLogout:hover {
+    background-color: #FEF2F2 !important;
+    border-color: #FECACA !important;
+    color: #DC2626 !important;
+}
+
+/* Menú lateral como el rail de inventory: blanco, línea #E5E7EB a la
+   derecha, opciones en gris; al pasar, gris claro; la activa, tinte morado. */
+:root[data-scheme="light"] #sidebar {
+    background-color: var(--hc-card) !important;
+    border-right: 1px solid #E5E7EB !important;
+    box-shadow: none !important;
+}
+
+:root[data-scheme="light"] #sidebar a,
+:root[data-scheme="light"] #sidebar button,
+:root[data-scheme="light"] #sidebar .submenu {
+    color: #6B7280 !important;
+    border: 1px solid transparent;
+    border-radius: 11px !important;
+}
+
+:root[data-scheme="light"] #sidebar a:hover,
+:root[data-scheme="light"] #sidebar button:hover {
+    color: #111827 !important;
+    background-color: #F3F4F6 !important;
+    border-color: #E5E7EB;
+}
+
+:root[data-scheme="light"] #sidebar li.bg-\[\#374151\] {
+    background-color: rgb(124 58 237 / .10) !important;
+    border: 1px solid rgb(124 58 237 / .12);
+    border-radius: 11px !important;
+}
+
+:root[data-scheme="light"] #sidebar li.bg-\[\#374151\] > a {
+    color: #7C3AED !important;
+    border-color: transparent;
+}
+
+:root[data-scheme="light"] .group:hover .group-hover\:text-white {
+    color: var(--hc-ink) !important;
+}
+
+/* Sucursal: píldora en el tinte del secundario, como .branch-pill. */
+:root[data-scheme="light"] .branch-pill {
+    background: var(--nav-accent-tint) !important;
+    border: 1px solid var(--nav-accent-line) !important;
+    border-radius: 10px !important;
+    padding: 4px 10px !important;
+    box-shadow: none !important;
+}
+
+:root[data-scheme="light"] .branch-pill:hover {
+    border-color: var(--nav-accent) !important;
+}
+
+:root[data-scheme="light"] .branch-pill span.uppercase {
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    color: #6B7280 !important;
+}
+
+:root[data-scheme="light"] .branch-pill #btnBranchName,
+:root[data-scheme="light"] .branch-pill span.text-sm {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+}
+
+:root[data-scheme="light"] .branch-pill .chev {
+    color: #9CA3AF !important;
+}
+
+:root[data-scheme="light"] .branch-dropdown,
+:root[data-scheme="light"] .toast-card {
+    background: var(--hc-card) !important;
+    border: 1px solid var(--nav-accent-line) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 16px 40px rgb(17 24 39 / .16) !important;
+}
+
+:root[data-scheme="light"] .branch-dropdown > div:first-child {
+    border-bottom-color: #F3F4F6 !important;
+}
+
+/* "Filtrar por sucursal": el rótulo del secundario, como .branch-dd-label. */
+:root[data-scheme="light"] .branch-dropdown p.uppercase {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: var(--nav-accent) !important;
+}
+
+:root[data-scheme="light"] .branch-card {
+    background: #FAFAFA !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 10px !important;
+}
+
+:root[data-scheme="light"] .branch-card:hover {
+    background: var(--nav-accent-tint) !important;
+    border-color: var(--nav-accent-line) !important;
+}
+
+:root[data-scheme="light"] .branch-card.selected {
+    background: var(--nav-accent-tint) !important;
+    border-color: var(--nav-accent) !important;
+    box-shadow: 0 0 0 1px var(--nav-accent-line) !important;
+}
+
+:root[data-scheme="light"] .radio-mark {
+    border-color: #D1D5DB !important;
+}
+
+:root[data-scheme="light"] .branch-card.selected .radio-mark {
+    border-color: var(--nav-accent) !important;
+}
+
+:root[data-scheme="light"] .radio-mark .inner {
+    background: var(--nav-accent) !important;
+}
+
+/* Avatares de sucursal: la rampa del secundario, en el orden de inventory
+   (600→300, 700→600, 500→200, 800→600, 400→100). La primera tarjeta es
+   "Todas las sucursales". */
+:root[data-scheme="light"] .branch-avatar {
+    background: linear-gradient(135deg, #1C64F2 0%, #A4CAFE 100%) !important;
+    box-shadow: 0 4px 10px rgb(28 100 242 / .35) !important;
+}
+
+:root[data-scheme="light"] #branchCardList > .branch-card:nth-child(5n+3) .branch-avatar {
+    background: linear-gradient(135deg, #1A56DB 0%, #1C64F2 100%) !important;
+}
+
+:root[data-scheme="light"] #branchCardList > .branch-card:nth-child(5n+4) .branch-avatar {
+    background: linear-gradient(135deg, #3F83F8 0%, #C3DDFD 100%) !important;
+}
+
+:root[data-scheme="light"] #branchCardList > .branch-card:nth-child(5n+5) .branch-avatar {
+    background: linear-gradient(135deg, #1E429F 0%, #1C64F2 100%) !important;
+}
+
+:root[data-scheme="light"] #branchCardList > .branch-card:nth-child(5n+6) .branch-avatar {
+    background: linear-gradient(135deg, #76A9FA 0%, #E1EFFE 100%) !important;
+}
+
+:root[data-scheme="light"] .btn-ghost {
+    color: #9CA3AF !important;
+}
+
+:root[data-scheme="light"] .btn-ghost:hover {
+    color: #111827 !important;
+    background: #F3F4F6 !important;
+}
+
+/* Aviso de cambio de sucursal: el check en el secundario. */
+:root[data-scheme="light"] .toast-card .bg-\[\#7C3AED\]\/15 {
+    background-color: var(--nav-accent-tint) !important;
+    border-color: var(--nav-accent-line) !important;
+}
+
+:root[data-scheme="light"] .toast-card .text-\[\#A855F7\] {
+    color: var(--nav-accent) !important;
+}
+
+/* Navbar del menú (admin.php): misma barra blanca. */
+:root[data-scheme="light"] nav.fixed.border-pink-500 {
+    background-color: var(--hc-card) !important;
+}
+
+
+/* -- Buscador de la tabla de pedidos (estilos en index.php) -- */
+
+:root[data-scheme="light"] #searchBarFormPedidos .input-group {
+    background: var(--hc-card) !important;
+    border-color: var(--hc-line-hi) !important;
+}
+
+:root[data-scheme="light"] #searchBarFormPedidos .form-control {
+    background: transparent !important;
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .search-clear:hover {
+    background: var(--hc-raised) !important;
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .search-scope {
+    background: #EDE9FE !important;
+    color: var(--hc-accent-hi) !important;
+}
+
+
+/* -- Plugins -- */
+
+/* Select2 y autocomplete (admin.php los pinta oscuros en su <style>). */
+:root[data-scheme="light"] .select2-selection,
+:root[data-scheme="light"] .select2-dropdown {
+    background-color: var(--hc-card) !important;
+    border-color: var(--hc-line-hi) !important;
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .select2-selection__rendered,
+:root[data-scheme="light"] .select2-selection__choice,
+:root[data-scheme="light"] .select2-search,
+:root[data-scheme="light"] .select2-results__option {
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .select2-results__option--highlighted {
+    background-color: #EDE9FE !important;
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .ui-autocomplete {
+    background: var(--hc-card) !important;
+    color: var(--hc-ink) !important;
+    border-color: var(--hc-line) !important;
+    box-shadow: 0 12px 32px rgb(17 24 39 / .12) !important;
+}
+
+:root[data-scheme="light"] .ui-menu-item-wrapper {
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .ui-menu-item-wrapper.ui-state-active,
+:root[data-scheme="light"] .ui-menu-item-wrapper:hover {
+    background: #EDE9FE !important;
+    color: var(--hc-ink) !important;
+}
+
+/* SweetAlert y bootbox: diálogos claros. */
+:root[data-scheme="light"] .swal2-popup {
+    background-color: var(--hc-card) !important;
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .swal2-title {
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .swal2-html-container {
+    color: var(--hc-ink-2) !important;
+}
+
+:root[data-scheme="light"] .modal-content {
+    background-color: var(--hc-card) !important;
+    color: var(--hc-ink) !important;
+}
+
+/* FullCalendar (calendario). calendario-pedidos.js pinta el día de hoy y los
+   bordes en línea (customizeCalendarAppearance) y el encabezado, "+N más" y el
+   popover en su <style> propio: aquí se pasan a claro. */
+:root[data-scheme="light"] .fc {
+    --fc-border-color: var(--hc-line);
+    --fc-page-bg-color: var(--hc-card);
+    --fc-neutral-bg-color: var(--hc-raised);
+    --fc-today-bg-color: #F5F3FF;
+    --fc-button-bg-color: var(--hc-card);
+    --fc-button-border-color: var(--hc-line-hi);
+    --fc-button-text-color: var(--hc-ink-2);
+    --fc-button-hover-bg-color: var(--hc-raised);
+    --fc-button-hover-border-color: var(--hc-line-hi);
+    --fc-button-active-bg-color: var(--hc-accent);
+    --fc-button-active-border-color: var(--hc-accent);
+}
+
+:root[data-scheme="light"] .fc .fc-button-primary:not(:disabled).fc-button-active,
+:root[data-scheme="light"] .fc .fc-button-primary:not(:disabled):active {
+    color: #FFFFFF !important;
+}
+
+:root[data-scheme="light"] #calendarFull {
+    background-color: var(--hc-card) !important;
+    border: 1px solid var(--hc-line);
+}
+
+:root[data-scheme="light"] #calendarFull thead {
+    background: var(--hc-raised) !important;
+}
+
+:root[data-scheme="light"] #calendarFull .fc-day-today {
+    background-color: #F5F3FF !important;
+}
+
+:root[data-scheme="light"] #calendarFull .fc-daygrid-day,
+:root[data-scheme="light"] #calendarFull .fc-scrollgrid,
+:root[data-scheme="light"] #calendarFull .fc-theme-standard td,
+:root[data-scheme="light"] #calendarFull .fc-theme-standard th,
+:root[data-scheme="light"] #calendarFull td,
+:root[data-scheme="light"] #calendarFull th {
+    border-color: var(--hc-line) !important;
+}
+
+:root[data-scheme="light"] .fc .fc-toolbar-title,
+:root[data-scheme="light"] .fc .fc-daygrid-day-number {
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .fc .fc-col-header-cell-cushion {
+    color: var(--hc-ink-2) !important;
+}
+
+:root[data-scheme="light"] .fc-more-link {
+    background: var(--hc-raised) !important;
+    color: var(--hc-ink-2) !important;
+}
+
+:root[data-scheme="light"] .fc-more-link:hover {
+    background: var(--hc-hover) !important;
+    color: var(--hc-ink) !important;
+}
+
+:root[data-scheme="light"] .fc-popover {
+    background: var(--hc-card) !important;
+    border-color: var(--hc-line) !important;
+    box-shadow: 0 12px 32px rgb(17 24 39 / .12) !important;
+}
+
+:root[data-scheme="light"] .fc-popover-header {
+    background: var(--hc-raised) !important;
+    color: var(--hc-ink) !important;
+}
+
+/* DataTables: "Mostrar N", "Mostrando…" y paginación legibles (13-14px),
+   paginación en grupo con el activo en el primario. */
+:root[data-scheme="light"] .dataTables_wrapper .dataTables_length,
+:root[data-scheme="light"] .dataTables_wrapper .dataTables_info,
+:root[data-scheme="light"] .dataTables_wrapper .dataTables_length label {
+    color: #4B5563 !important;
+    font-size: 13px !important;
+}
+
+:root[data-scheme="light"] .dataTables_wrapper .dataTables_length select {
+    font-size: 13px !important;
+    padding: 4px 1.8rem 4px 10px !important;
+    border-color: #D1D5DB !important;
+    border-radius: 8px !important;
+}
+
+:root[data-scheme="light"] .dataTables_wrapper .pagination {
+    display: inline-flex;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px 0 rgb(16 24 40 / .05);
+}
+
+:root[data-scheme="light"] .dataTables_wrapper .page-link {
+    min-width: 2.5rem;
+    padding: 7px 14px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 20px !important;
+    text-align: center;
+    background-color: var(--hc-card) !important;
+    border-color: #E5E7EB !important;
+    color: #374151 !important;
+}
+
+:root[data-scheme="light"] .dataTables_wrapper .page-link:hover {
+    background-color: #F3F4F6 !important;
+    color: #111827 !important;
+}
+
+:root[data-scheme="light"] .dataTables_wrapper .page-item:first-child .page-link {
+    border-radius: 10px 0 0 10px !important;
+}
+
+:root[data-scheme="light"] .dataTables_wrapper .page-item:last-child .page-link {
+    border-radius: 0 10px 10px 0 !important;
+}
+
+:root[data-scheme="light"] .dataTables_wrapper .page-item.disabled .page-link {
+    color: #9CA3AF !important;
+}
+
+:root[data-scheme="light"] .dataTables_wrapper .page-item.active .page-link {
+    background-color: var(--hc-accent) !important;
+    border-color: var(--hc-accent) !important;
+    color: #FFFFFF !important;
+}
+
+
+/* -- Tarjetas --
+   Lo que va junto se ve junto: los filtros (con la sucursal y la fecha) en
+   una tarjeta y la tabla en otra, blancas, con borde #E5E7EB, radio 12px y
+   una sombra apenas visible para separarlas del gris de la página. */
+:root[data-scheme="light"] #filterBar,
+:root[data-scheme="light"] #containerPedidos,
+:root[data-scheme="light"] #containerCalendario,
+:root[data-scheme="light"] #containerAdmin {
+    background-color: var(--hc-card) !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 2px 0 rgb(16 24 40 / .05) !important;
+}
+
+:root[data-scheme="light"] #filterBar {
+    padding: 16px 16px 4px !important;
+    margin-bottom: 12px;
+}
+
+:root[data-scheme="light"] #containerPedidos {
+    padding: 16px !important;
+}
+
+/* Formulario del pedido (pestaña "Crear orden"): también en tarjeta. */
+:root[data-scheme="light"] #container-pedido {
+    background-color: var(--hc-card) !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 2px 0 rgb(16 24 40 / .05) !important;
+    margin-top: 12px;
+}
+
+/* Títulos de sección del formulario ("Información del cliente"): línea
+   suave debajo. */
+:root[data-scheme="light"] .border-gray-600\/60 {
+    border-color: #E5E7EB !important;
+}
+
+/* Buscador de la tabla: legible y del alto de los demás campos. */
+:root[data-scheme="light"] #searchBarFormPedidos .input-group {
+    min-height: 38px;
+    border-radius: 10px !important;
+}
+
+:root[data-scheme="light"] #searchBarFormPedidos .form-control,
+:root[data-scheme="light"] #searchBarFormPedidos .input-group-text {
+    font-size: 14px !important;
+}
+
+:root[data-scheme="light"] #searchBarFormPedidos .form-control {
+    height: 36px !important;
+}
+
+/* La línea de sucursal y fecha bajo los filtros: separador gris, sin el
+   verde del turno que parecía un error de borde. */
+:root[data-scheme="light"] #containerHours > div {
+    border-bottom: 0 !important;
+    border-top: 1px solid #F3F4F6 !important;
+    margin-top: 4px !important;
+    padding-top: 12px;
+}
+
+:root[data-scheme="light"] #containerHours label {
+    color: #111827 !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}
+
+:root[data-scheme="light"] #containerHours span.font-semibold {
+    color: #374151 !important;
+    font-size: 14px !important;
+}
+
+
+/* -- Botones --
+   Una sola acción fuerte por pantalla. El primario (morado) va lleno; el
+   secundario (#7152EC de coffeeSoft: "Calendario") va en contorno morado
+   para no competir con "Nuevo pedido". Todos a 40px de alto y radio 10px. */
+:root[data-scheme="light"] .tw-btn {
+    min-height: 40px;
+    border-radius: 10px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+}
+
+:root[data-scheme="light"] .tw-btn.bg-\[\#7152EC\] {
+    background-color: #FFFFFF !important;
+    color: var(--hc-accent) !important;
+    box-shadow: inset 0 0 0 1.5px var(--hc-accent) !important;
+}
+
+:root[data-scheme="light"] .tw-btn.bg-\[\#7152EC\]:hover {
+    background-color: #F5F3FF !important;
+    color: var(--hc-accent-hi) !important;
+}
+
+:root[data-scheme="light"] .tw-btn:focus-visible {
+    outline: 3px solid rgb(124 58 237 / .35) !important;
+    outline-offset: 2px;
+}
+
+/* Sombras negras pensadas para fondo oscuro: en claro, suaves. */
+:root[data-scheme="light"] .shadow-black\/20 {
+    --tw-shadow-color: rgb(17 24 39 / .08) !important;
+}

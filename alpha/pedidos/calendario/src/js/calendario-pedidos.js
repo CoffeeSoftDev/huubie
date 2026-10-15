@@ -1001,16 +1001,16 @@ class App extends Templates {
         $header.children().first().removeClass('w-9 h-9 rounded-lg').addClass('w-11 h-11 rounded-xl');
         $header.find('.cf-close').removeClass('p-1 -mr-1').addClass('w-8 h-8 rounded-lg border border-gray-600');
 
-        // Tipo de entrega, sucursal y estado de entrega como subtitulo del encabezado: el
+        // Sucursal, tipo de entrega y estado de entrega como subtitulo del encabezado: el
         // componente no admite subtitulo por opciones. Los badges conservan su id porque
         // refreshOrderDetails() los repinta.
         $header.find('span').first().removeClass('text-base truncate').addClass('text-lg block')
             .wrap('<div class="flex-1 min-w-0"></div>').after(`
             <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                <span id="orderDeliveryBadge">${this.getBadgeDeliveryType(orderData.delivery_type)}</span>
                 <span class="inline-flex items-center gap-1 text-xs text-gray-400">
                     ${lucideIcon('house', 'w-3.5 h-3.5')} ${orderData.subsidiarie_name || ''}
                 </span>
+                <span id="orderDeliveryBadge">${this.getBadgeDeliveryType(orderData.delivery_type)}</span>
                 <span id="orderStatusBadge">${this.statusDelivery(orderData.is_delivered)}</span>
             </div>`);
 
@@ -1345,11 +1345,11 @@ class App extends Templates {
         const faltan  = Math.max(balance, 0);
 
         // Eliminar abono: el mismo boton del historial de pagos (listPayment). Solo el
-        // admin (1) borra pagos y aqui siempre confirma con contraseña (ultimo
-        // argumento de deletePay). Con el pedido liquidado lleva candado, como en el
-        // historial.
+        // admin (1) y el supervisor (6) borran pagos y aqui siempre confirma con
+        // contraseña (ultimo argumento de deletePay). Con el pedido liquidado lleva
+        // candado, como en el historial.
         const requiereClave = balance <= 0.009 ? 1 : 0;
-        const deleteBtn = (p) => this.rolId == 1 ? `
+        const deleteBtn = (p) => [1, 6].includes(Number(this.rolId)) ? `
                                 <button type="button" onclick="app.deletePay(${p.id}, ${orderData.id}, ${requiereClave}, ${parseFloat(p.pay || 0)}, true)"
                                     title="Eliminar pago (requiere contraseña)"
                                     class="${requiereClave ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'} p-1 shrink-0">
@@ -1498,11 +1498,18 @@ class App extends Templates {
         const hasDedication = product.dedication && product.dedication.trim() !== '';
         const hasDetails = product.order_details && product.order_details.trim() !== '';
 
+        // Si la linea trae fotos propias (order_images) se muestran con la misma galeria
+        // del personalizado; si no, la miniatura del producto del catalogo.
+        const hasPhotos = Array.isArray(product.images) && product.images.length > 0;
+        const photo = hasPhotos
+            ? `<div class="sm:w-[190px] shrink-0">${this.customGallery(product)}</div>`
+            : `<div class="w-14 h-14 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
+                    ${this.renderProductImage(product)}
+                </div>`;
+
         return `
             <div class="bg-[#29374A] rounded-xl p-[16px] flex items-start gap-[16px]">
-                <div class="w-14 h-14 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
-                    ${this.renderProductImage(product)}
-                </div>
+                ${photo}
 
                 <div class="flex-1 min-w-0">
                     <h4 class="text-white font-bold text-sm uppercase">${product.name || 'Producto sin nombre'}</h4>
@@ -2889,31 +2896,73 @@ class App extends Templates {
             return;
         }
 
-        this.swalQuestion({
-            opts: {
-                title: "¿Confirmar eliminación?",
-                text: `Se eliminará el pago de ${formatPrice(amount)} de forma permanente.`,
-                icon: "warning"
-            },
-            data: { opc: "deletePay", id: idFolio, amount: amount, idPay: id },
-            methods: {
-                success: (res) => {
-                    if (res.status === 200) {
-                        this.afterDeletePay(res, idFolio);
-                    } else {
-                        this._restoreLink();
-                        alert({ icon: "error", text: res.message });
-                    }
-                }
+        // Sin contraseña, el dialogo del motivo es la confirmacion del borrado.
+        this.askDeleteReason(amount, async (reason) => {
+            const res = await useFetch({
+                url: this._pedidosLink,
+                data: { opc: 'deletePay', id: idFolio, amount: amount, idPay: id, reason: reason }
+            });
+
+            if (res.status === 200) {
+                this.afterDeletePay(res, idFolio);
+            } else {
+                this._restoreLink();
+                alert({ icon: "error", text: res.message });
             }
+        });
+    }
+
+    // Motivo del borrado: el controlador lo exige y lo deja en la bitacora del pedido.
+    askDeleteReason(amount, onReason) {
+        this.alertBox({
+            theme:       'dark',
+            type:        'cancel',
+            icon:        'trash-2',
+            title:       '¿Eliminar pago?',
+            detailHtml:  `Se eliminará el pago de <b class="text-gray-200">${formatPrice(amount)}</b> de forma permanente.`,
+            input:       'textarea',
+            inputLabel:  'Motivo',
+            inputPlaceholder: 'Ej. el pago se registró dos veces',
+            inputRequired: true,
+            inputError:  'Escribe el motivo',
+            okLabel:     'Eliminar pago',
+            okBg:        'bg-[#E02424] hover:bg-[#C81E1E]',
+            cancelLabel: 'Cancelar',
+            onCancel:    () => this._restoreLink(),
+            onOk:        onReason
         });
     }
 
     // Borrado autorizado. Liquidado: el saldo del pedido ya es cero, por lo que
     // eliminar un abono reabre un pedido cerrado. Sin liquidar: confirmacion con
     // contraseña desde el resumen de pago del detalle. Este modal solo recolecta la
-    // contraseña; quien la valida es deletePay() del controlador.
-    deletePayWithKey(id, idFolio, amount, liquidado = true) {
+    // contraseña; quien la valida es deletePay() del controlador. Despues de la
+    // contraseña se pide el motivo; en un reintento ya viene en reason y no se repite.
+    deletePayWithKey(id, idFolio, amount, liquidado = true, reason = '') {
+        const enviar = async (password, motivo) => {
+            const res = await useFetch({
+                url: this._pedidosLink,
+                data: { opc: 'deletePay', id: idFolio, amount: amount, idPay: id, password: password, reason: motivo }
+            });
+
+            if (res.status !== 200) {
+                // Contraseña rechazada: se avisa y se vuelve a abrir el dialogo,
+                // porque alertBox ya se cerro al confirmar.
+                this._restoreLink();
+                this.alertBox({
+                    theme:      'dark',
+                    type:       'error',
+                    title:      'No se eliminó el pago',
+                    detailHtml: res.message || 'Contraseña incorrecta.',
+                    okLabel:    'Reintentar',
+                    onOk:       () => this.deletePayWithKey(id, idFolio, amount, liquidado, motivo)
+                });
+                return;
+            }
+
+            this.afterDeletePay(res, idFolio);
+        };
+
         this.alertBox({
             theme:       'dark',
             type:        'cancel',
@@ -2925,33 +2974,13 @@ class App extends Templates {
             inputPlaceholder: '••••••••',
             inputRequired: true,
             inputError:  'Ingresa tu contraseña',
-            okLabel:     'Eliminar pago',
+            okLabel:     reason ? 'Eliminar pago' : 'Continuar',
             okBg:        'bg-[#E02424] hover:bg-[#C81E1E]',
             cancelLabel: 'Cancelar',
             onCancel:    () => this._restoreLink(),
-            onOk: async (password) => {
-                const res = await useFetch({
-                    url: this._pedidosLink,
-                    data: { opc: 'deletePay', id: idFolio, amount: amount, idPay: id, password: password }
-                });
-
-                if (res.status !== 200) {
-                    // Contraseña rechazada: se avisa y se vuelve a abrir el dialogo,
-                    // porque alertBox ya se cerro al confirmar.
-                    this._restoreLink();
-                    this.alertBox({
-                        theme:      'dark',
-                        type:       'error',
-                        title:      'No se eliminó el pago',
-                        detailHtml: res.message || 'Contraseña incorrecta.',
-                        okLabel:    'Reintentar',
-                        onOk:       () => this.deletePayWithKey(id, idFolio, amount, liquidado)
-                    });
-                    return;
-                }
-
-                this.afterDeletePay(res, idFolio);
-            }
+            onOk: (password) => reason
+                ? enviar(password, reason)
+                : this.askDeleteReason(amount, (motivo) => enviar(password, motivo))
         });
     }
 
@@ -3101,7 +3130,7 @@ class App extends Templates {
 
     previewImage(imageUrl, imageName = 'Imagen') {
         const modal = $(`
-            <div id="imagePreviewModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80" onclick="if(event.target === this) $(this).remove()">
+            <div id="imagePreviewModal" class="fixed inset-0 z-[100100] flex items-center justify-center bg-black/80" onclick="if(event.target === this) $(this).remove()">
                 <div class="relative max-w-4xl max-h-[90vh] p-2">
                     <button onclick="$('#imagePreviewModal').remove()"
                             class="absolute -top-2 -right-2 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xl font-bold z-10 shadow-lg">

@@ -15,7 +15,7 @@ class WaConfig extends MWaConfig {
     const ROL_ADMIN = 1;
 
     const PROVIDERS = ['ultramsg', 'greenapi'];
-    const TYPES     = ['cierre', 'turno', 'personalizado'];
+    const TYPES     = ['cierre', 'turno', 'personalizado', 'edicion'];
 
     private function accessDenial(){
         if (empty($_SESSION['USR']) || empty($_SESSION['COMPANY_ID'])) {
@@ -296,6 +296,32 @@ class WaConfig extends MWaConfig {
         return [
             'status'  => 200,
             'message' => 'Destinatario actualizado'
+        ];
+    }
+
+    // Interruptor de la fila: pausa o reactiva un número en ese aviso sin abrir el formulario.
+    function statusWaDestinatario(){
+        $denial = $this->accessDenial();
+        if ($denial) return $denial;
+
+        $company = $this->companyId();
+        $id      = intval($_POST['id']);
+        $active  = intval($_POST['activo']) === 1 ? 1 : 0;
+
+        $current = $this->getDestinatarioById([$id, $company]);
+        if (!$current) {
+            return ['status' => 404, 'message' => 'El destinatario ya no existe.'];
+        }
+
+        $ok = $this->updateDestinatarioActive([$active, $id, $company]);
+        if (!$ok) {
+            return ['status' => 500, 'message' => 'No se pudo cambiar el destinatario.'];
+        }
+
+        return [
+            'status'  => 200,
+            'message' => $current['name'] . ($active ? ' vuelve a recibir' : ' deja de recibir') . ' el aviso de ' . noticeName($current['type']),
+            'activo'  => $active
         ];
     }
 
@@ -603,6 +629,34 @@ function defaultTemplates(){
             '*PRODUCTOS*',
             '{productos}',
             '',
+            '*PAGO*',
+            '💰 Total: {total}',
+            '💵 Anticipo: {anticipo}',
+            '💳 Forma de pago: {forma_pago}',
+            '🧾 Restante: {restante}',
+            '',
+            '*ESTATUS:* {estatus}'
+        ]),
+        'edicion' => implode("\n", [
+            '✏️ *PEDIDO EDITADO #{folio}*',
+            '📅 Fecha: {fecha}',
+            '⏰ Hora: {hora}',
+            '📍 Sucursal: {sucursal}',
+            '👤 Cliente: {cliente}',
+            '📱 Tel: {telefono}',
+            '',
+            '*CAMBIOS*',
+            '{cambios}',
+            '',
+            '*PRODUCTOS*',
+            '{productos}',
+            '',
+            '*PAGO*',
+            '💰 Total: {total}',
+            '💵 Anticipo: {anticipo}',
+            '💳 Forma de pago: {forma_pago}',
+            '🧾 Restante: {restante}',
+            '',
             '*ESTATUS:* {estatus}'
         ])
     ];
@@ -652,14 +706,16 @@ function normalizePhone($raw){
     return strlen($digits) === 10 ? $digits : '';
 }
 
-// Las 5 opciones del modal se guardan como una fila por aviso.
+// Las opciones del modal se guardan como una fila por aviso.
 function expandTypes($value){
     $map = [
-        'todos'         => ['cierre', 'turno', 'personalizado'],
+        'todos'         => ['cierre', 'turno', 'personalizado', 'edicion'],
         'cierres'       => ['cierre', 'turno'],
+        'pedidos'       => ['personalizado', 'edicion'],
         'cierre'        => ['cierre'],
         'turno'         => ['turno'],
-        'personalizado' => ['personalizado']
+        'personalizado' => ['personalizado'],
+        'edicion'       => ['edicion']
     ];
 
     return $map[$value] ?? [];
@@ -681,6 +737,7 @@ function noticeName($type){
         'cierre'        => 'Cierre Diario',
         'turno'         => 'Cierre de Turno',
         'personalizado' => 'Pedidos',
+        'edicion'       => 'Pedido editado',
         'prueba'        => 'Mensaje de prueba'
     ];
 
@@ -757,6 +814,7 @@ function renderNotice($type){
         'cierre'        => 'bg-[#7C3AED]/15 text-[#A78BFA]',
         'turno'         => 'bg-[#F59E0B]/15 text-[#FBBF24]',
         'personalizado' => 'bg-[#C4B5FD]/15 text-[#C4B5FD]',
+        'edicion'       => 'bg-[#38BDF8]/15 text-[#7DD3FC]',
         'prueba'        => 'bg-[#25D366]/15 text-[#4ADE80]'
     ];
 

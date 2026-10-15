@@ -34,6 +34,7 @@ class ctrl extends mdl {
                 'precio'    => (float) ($producto['precio'] ?? 0),
                 'stock'     => 0,
                 'image'     => $producto['image'] ?? '',
+                'unidad'    => $producto['unidad'] ?? '',
                 'icon'      => 'package',
                 'bg'        => 'bg-gray-700/40',
                 'color'     => 'text-gray-300'
@@ -45,6 +46,7 @@ class ctrl extends mdl {
             'companies_id'    => $this->companiesId,
             'branch_id'       => $this->branchId,
             'user_id'         => $this->userId,
+            'is_admin'        => (int) $this->esAdminIA(),
             'coffeeia'        => IaOllama::activo($this),
             'sucursales'      => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'       => $this->lsWarehouses(['companies_id' => $this->companiesId]),
@@ -77,6 +79,21 @@ class ctrl extends mdl {
 
         $row = [];
         foreach ($rows as $salida) {
+            $acciones = [
+                [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
+                    'onclick' => "salidas.getSalida({$salida['id']})"
+                ]
+            ];
+            // Las salidas que genera un pedido al surtirse no se editan aquí.
+            if ($salida['status'] !== 'Cancelada' && empty($salida['purchase_order_id'])) {
+                $acciones[] = [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
+                    'onclick' => "salidas.openEditSalida({$salida['id']})"
+                ];
+            }
             $row[] = [
                 'id'         => $salida['id'],
                 'Folio'      => [
@@ -89,13 +106,7 @@ class ctrl extends mdl {
                 'Costo'      => '<span class="text-red-400">' . evaluar((float) $salida['total_cost_loss']) . '</span>',
                 'Estado'     => statusBadge($salida['status']),
                 'Registrado' => $salida['user_name'] ?: '-',
-                'a' => [
-                    [
-                        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
-                        'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
-                        'onclick' => "salidas.getSalida({$salida['id']})"
-                    ]
-                ]
+                'a' => $acciones
             ];
         }
         return ['status' => 200, 'row' => $row];
@@ -250,6 +261,144 @@ class ctrl extends mdl {
         return $at > 0 && (time() - $at) <= self::CANCEL_WINDOW;
     }
 
+    // -- Editar --
+
+    // Igual que cancelar: contraseña del usuario en sesión y ventana de CANCEL_WINDOW
+    // segundos para ESA salida; updateSalida la exige y la consume.
+    function verifyEditPassword() {
+        $id     = (int) $_POST['id'];
+        $header = $this->qGetSalida([$id]);
+        if (!$header || (int) $header['companies_id'] !== $this->companiesId) {
+            return ['status' => 404, 'message' => 'Salida no encontrada'];
+        }
+        if (!empty($header['purchase_order_id'])) {
+            return ['status' => 400, 'message' => 'Esta salida la generó un pedido al surtirse: se corrige desde Pedidos, no aquí'];
+        }
+        if ($header['status'] === 'Cancelada') {
+            return ['status' => 400, 'message' => 'No se puede editar una salida cancelada'];
+        }
+
+        $user  = $this->qUserPassword([$this->userId]);
+        $pass  = str_replace("'", "", $_POST['password']);
+        $valid = $user && (
+            (!empty($user['password']) && password_verify($pass, $user['password'])) ||
+            (!empty($user['user_key']) && $user['user_key'] === md5($pass))
+        );
+        if (!$valid) return ['status' => 401, 'message' => 'Contraseña incorrecta'];
+
+        $_SESSION['shrinkage_edit'][$id] = time();
+        return ['status' => 200, 'message' => 'OK'];
+    }
+
+    private function editSalidaAuthorized($id) {
+        $at = (int) ($_SESSION['shrinkage_edit'][$id] ?? 0);
+        return $at > 0 && (time() - $at) <= self::CANCEL_WINDOW;
+    }
+
+    // Recalcula el stock por diferencia: se regresa al almacén anterior lo que la
+    // salida había sacado y se saca lo nuevo del almacén elegido (si es el mismo,
+    // el efecto neto es la diferencia). Todo o nada.
+    function updateSalida() {
+        $payload   = json_decode($_POST['payload'] ?? '[]', true);
+        $id        = (int) ($payload['id'] ?? 0);
+        $productos = $payload['productos'] ?? [];
+        $header    = $this->qGetSalida([$id]);
+
+        if (!$header || (int) $header['companies_id'] !== $this->companiesId) {
+            return ['status' => 404, 'message' => 'Salida no encontrada'];
+        }
+        if (!empty($header['purchase_order_id'])) {
+            return ['status' => 400, 'message' => 'Esta salida la generó un pedido al surtirse: se corrige desde Pedidos, no aquí'];
+        }
+        if (!$this->editSalidaAuthorized($id)) {
+            return ['status' => 403, 'message' => 'Confirma tu contraseña para editar la salida'];
+        }
+        if ($header['status'] === 'Cancelada') {
+            return ['status' => 400, 'message' => 'No se puede editar una salida cancelada'];
+        }
+        if (empty($productos)) {
+            return ['status' => 400, 'message' => 'No se enviaron renglones'];
+        }
+
+        $totalUnits = 0;
+        $totalLoss  = 0;
+        foreach ($productos as $p) {
+            $qty  = $p['quantity'] ?? '';
+            $cost = $p['cost'] ?? 0;
+            if (!is_numeric($qty) || (float) $qty <= 0) {
+                return ['status' => 400, 'message' => 'La cantidad de cada producto debe ser mayor que cero'];
+            }
+            if (!is_numeric($cost) || (float) $cost < 0) {
+                return ['status' => 400, 'message' => 'El costo no puede ser negativo'];
+            }
+            $totalUnits += (float) $qty;
+            $totalLoss  += (float) $qty * (float) $cost;
+        }
+
+        $oldWarehouse = (int) $header['warehouse_id'];
+        $warehouse    = (int) ($payload['warehouse_id'] ?? 0);
+        $oldDetail    = $this->getSalidaDetail([$id]);
+
+        if ($warehouse <= 0) return ['status' => 400, 'message' => 'Elige el almacén de la salida'];
+
+        try {
+            $this->transaction(function () use ($id, $payload, $productos, $oldWarehouse, $warehouse, $oldDetail, $totalUnits, $totalLoss) {
+                foreach ($oldDetail as $d) {
+                    $productId = (int) $d['product_id'];
+                    $qty       = (float) $d['quantity'];
+                    $stockRow  = $this->getStockRow([$productId, $oldWarehouse]);
+                    if ($stockRow) {
+                        $this->updateStockQuantity([(float) $stockRow['quantity'] + $qty, (int) $stockRow['id']]);
+                    } else {
+                        $this->insertStockRow([$qty, $oldWarehouse, $productId, $this->companiesId]);
+                    }
+                }
+
+                $this->disableSalidaDetail([$id]);
+
+                $this->updateSalidaHeader([
+                    $payload['note'] ?? null,
+                    count($productos),
+                    $totalUnits,
+                    $totalLoss,
+                    (int) $payload['shrinkage_reason_id'],
+                    $warehouse,
+                    (int) ($payload['branch_id'] ?? $this->branchId),
+                    $id,
+                    $this->companiesId
+                ]);
+
+                foreach ($productos as $p) {
+                    $productId = (int) $p['product_id'];
+                    $qty       = (float) $p['quantity'];
+                    $cost      = (float) $p['cost'];
+
+                    $stockRow = $this->getStockRow([$productId, $warehouse]);
+                    $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
+                    $post     = $prev - $qty;
+
+                    $this->insertSalidaDetail([$qty, $cost, $qty * $cost, $prev, $post, $productId, $id]);
+
+                    if ($stockRow) {
+                        $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                    }
+                }
+
+                // Lo capturado después de esta salida traía el stock de antes de la edición.
+                $pares = [];
+                foreach ($oldDetail as $d) $pares[] = [$d['product_id'], $oldWarehouse];
+                foreach ($productos as $p) $pares[] = [$p['product_id'], $warehouse];
+                $this->updateKardexChains($pares, $this->companiesId);
+            });
+        } catch (Throwable $e) {
+            error_log('[updateSalida] ' . $e->getMessage());
+            return ['status' => 500, 'message' => 'No se guardó ningún cambio: la base de datos rechazó la edición'];
+        }
+
+        unset($_SESSION['shrinkage_edit'][$id]);
+        return ['status' => 200, 'message' => 'Salida ' . $header['folio'] . ' actualizada', 'folio' => $header['folio'], 'id' => $id];
+    }
+
     function cancelSalida() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetSalida([$id]);
@@ -280,6 +429,11 @@ class ctrl extends mdl {
 
         $r = $this->qCancelSalida([$id]);
         if ($r) unset($_SESSION['shrinkage_cancel'][$id]);
+
+        // Ya cancelada sale de la vista: lo que vino después se recalcula sin ella.
+        if ($r) $this->updateKardexChains(array_map(function ($d) use ($warehouse) {
+            return [$d['product_id'], $warehouse];
+        }, $detail), $this->companiesId);
         return [
             'status'  => $r ? 200 : 500,
             'message' => $r ? 'Salida cancelada y stock restaurado' : 'No se pudo cancelar'
@@ -351,8 +505,12 @@ class ctrl extends mdl {
     // ctrl-almacen::readArchivo; aquí se empareja con el catálogo y el servidor lo
     // valida: solo entran ids que existen. El costo no se pide: una salida usa el
     // costo del producto. Lo que no está en el catálogo se reporta como faltante.
+    // Un administrador también elimina salidas y reinicia los folios: el modelo solo
+    // nombra folios, la vista previa sale de la BD y borrar pide su contraseña.
     const IA_MAX_CATALOGO  = 800;
     const IA_MAX_RENGLONES = 100;
+    const IA_MAX_LISTA     = 100;
+    const IA_MAX_BORRAR    = 200;
 
     function askSalidaIA() {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
@@ -373,18 +531,97 @@ class ctrl extends mdl {
         if ($ia === null) return ['status' => 503, 'message' => 'La IA no está configurada: falta la llave de Ollama.'];
 
         $catalogo = array_slice($this->qProductsForTransfer([$this->companiesId]), 0, self::IA_MAX_CATALOGO);
+        $salidas  = $this->esAdminIA() ? $this->listSalidasIA(['companies_id' => $this->companiesId]) : null;
 
         // Sin esto la sesión queda bloqueada mientras el modelo piensa.
         session_write_close();
         set_time_limit(180);
 
-        $r = $ia->chatJson($this->mensajesSalidaIA($mensaje, $adjuntos, $historial, $catalogo));
+        $r = $ia->chatJson($this->mensajesSalidaIA($mensaje, $adjuntos, $historial, $catalogo, $salidas));
         if (!$r['ok']) return ['status' => 502, 'message' => $r['error']];
 
-        return ['status' => 200] + $this->validarSalidaIA($r['data'], $catalogo);
+        $borrar = $salidas !== null ? $this->borrarSalidaIA($r['data']) : null;
+        if ($borrar === null) return ['status' => 200] + $this->validarSalidaIA($r['data'], $catalogo);
+
+        // La vista previa de eliminar queda en sesión: deleteSalidaIA solo borra lo de aquí.
+        session_start();
+        unset($_SESSION['iaSalidasBorrar']);
+        if ($borrar['token'] !== '') $_SESSION['iaSalidasBorrar'] = ['token' => $borrar['token'], 'ids' => $borrar['ids']];
+        unset($borrar['ids']);
+
+        return ['status' => 200, 'borrar' => true] + $borrar;
     }
 
-    private function mensajesSalidaIA($mensaje, $adjuntos, $historial, $catalogo) {
+    // Borra de verdad lo que quedó en la vista previa, regresando el stock. Todo o nada.
+    function deleteSalidaIA() {
+        if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
+        if (!$this->esAdminIA()) return ['status' => 403, 'message' => 'Solo un administrador puede eliminar salidas.'];
+
+        $pendiente = $_SESSION['iaSalidasBorrar'] ?? null;
+        $token     = (string) ($_POST['token'] ?? '');
+
+        if (!is_array($pendiente) || $token === '' || !hash_equals((string) $pendiente['token'], $token)) {
+            return ['status' => 409, 'message' => 'Esa vista previa ya no está vigente. Pídeme las salidas otra vez.'];
+        }
+
+        $ids = [];
+        foreach ((array) json_decode((string) ($_POST['ids'] ?? '[]'), true) as $i) {
+            if (is_numeric($i) && isset($pendiente['ids'][(int) $i])) $ids[] = (int) $pendiente['ids'][(int) $i];
+        }
+        $ids = array_values(array_unique($ids));
+
+        if (empty($ids)) return ['status' => 400, 'message' => 'No marcaste ninguna salida.'];
+
+        // Misma verificación que el login: bcrypt con respaldo MD5 heredado.
+        $user  = $this->qUserPassword([$this->userId]);
+        $pass  = str_replace("'", "", (string) ($_POST['password'] ?? ''));
+        $valid = $user && $pass !== '' && (
+            (!empty($user['password']) && password_verify($pass, $user['password'])) ||
+            (!empty($user['user_key']) && $user['user_key'] === md5($pass))
+        );
+        if (!$valid) return ['status' => 401, 'message' => 'Contraseña incorrecta'];
+
+        // Se buscan otra vez: desde la vista previa pudieron borrarlas.
+        $vigentes = array_filter($this->listSalidasIA(['companies_id' => $this->companiesId, 'ids' => $ids]), function ($s) {
+            return $s['pedido'] === null;
+        });
+        if (empty($vigentes)) return ['status' => 409, 'message' => 'Esas salidas ya no están para eliminar.'];
+
+        $folios = [];
+
+        try {
+            $this->transaction(function () use ($vigentes, &$folios) {
+                foreach ($vigentes as $s) $folios[] = $this->deleteSalidaFullById((int) $s['id'], $this->companiesId);
+            });
+        } catch (\Throwable $e) {
+            return ['status' => 500, 'message' => 'No se eliminó ninguna salida: ' . $e->getMessage()];
+        }
+
+        unset($_SESSION['iaSalidasBorrar']);
+
+        $n         = count($folios);
+        $faltan    = count($ids) - $n;
+        $aplicadas = count(array_filter($vigentes, function ($s) { return $s['status'] === 'Aplicada'; }));
+        $message   = ($n === 1 ? 'Eliminé la salida ' : "Eliminé {$n} salidas: ") . implode(', ', $folios) . '.';
+
+        if ($aplicadas > 0) $message .= $aplicadas === 1 ? ' Regresé al stock lo que sacó la aplicada.' : " Regresé al stock lo que sacaron las {$aplicadas} aplicadas.";
+        if ($faltan > 0)    $message .= $faltan === 1 ? ' 1 ya no estaba.' : " {$faltan} ya no estaban.";
+
+        return [
+            'status'  => 200,
+            'message' => $message . ' Siguientes folios: ' . $this->nextFolio('S-', 'inventory_shrinkage', $this->companiesId)
+                       . ' y ' . $this->nextFolio('SI-', 'inventory_shrinkage', $this->companiesId) . '.',
+            'data'    => ['folios' => $folios, 'ids' => array_map('intval', array_column($vigentes, 'id'))]
+        ];
+    }
+
+    private function esAdminIA() {
+        return (int) ($_SESSION['is_admin'] ?? 0) === 1;
+    }
+
+    // `$salidas` = null para quien no es administrador: el modelo no ve la lista y
+    // contesta que eliminar no es para él.
+    private function mensajesSalidaIA($mensaje, $adjuntos, $historial, $catalogo, $salidas) {
         $filas = array_map(function ($p) {
             return implode(' | ', array_map(function ($v) {
                 $v = trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $v));
@@ -407,6 +644,8 @@ class ctrl extends mdl {
             '',
             'Responde SOLO con un objeto JSON, sin texto antes ni después. La forma:',
             '{"reply": "Encontré 5 productos; 1 no está en el catálogo.", "items": [{"id": 45, "ref": "COCA COLA 600", "quantity": 12}], "missing": [{"name": "Salsa Valentina 1 L", "quantity": 3}]}',
+            '',
+            $this->reglasBorrarSalidaIA($salidas),
             '',
             'CATÁLOGO (id | sku | nombre | categoría):',
             empty($filas) ? '(vacío)' : implode("\n", $filas)
@@ -435,6 +674,113 @@ class ctrl extends mdl {
         $mensajes[] = ['role' => 'user', 'content' => $pregunta];
 
         return $mensajes;
+    }
+
+    // Eliminar y reiniciar los folios, con la lista de salidas que ve el modelo. Para
+    // quien no es administrador, solo la regla de no hacerlo.
+    private function reglasBorrarSalidaIA($salidas) {
+        if ($salidas === null) {
+            return '- Eliminar salidas o reiniciar folios solo lo hace un administrador. Si te lo piden, dilo en "reply" con "items" y "missing" vacíos.';
+        }
+
+        $filas = array_map(function ($s) {
+            return implode(' | ', array_map(function ($v) {
+                $v = trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $v));
+                return $v === '' ? '-' : $v;
+            }, [
+                $s['folio'],
+                substr((string) ($s['date_shrinkage'] ?: $s['created_at']), 0, 10),
+                $s['status'] . ((int) $s['active'] === 0 ? ' (oculta)' : ''),
+                $s['reason_name'],
+                $s['branch_name'],
+                $s['warehouse_name'],
+                number_format((float) $s['total_cost'], 2, '.', ''),
+                $s['pedido'],
+                mb_strimwidth((string) $s['note'], 0, 60, '…')
+            ]));
+        }, array_slice($salidas, 0, self::IA_MAX_LISTA));
+
+        return implode("\n", [
+            '== ELIMINAR Y REINICIAR LOS FOLIOS (eres administrador) ==',
+            '- Folios: S-0001 es una salida capturada aquí; SI-0001 es la salida que se genera al surtir un pedido. "La 3" es S-0003.',
+            '- Si la persona pide ELIMINAR salidas, pon sus folios en "eliminar", ej. ["S-0003"]. Tómalos de la lista SALIDAS. No inventes folios.',
+            '- Si pide REINICIAR LOS FOLIOS (que la siguiente sea S-0001), pon "reiniciar": true. Eso arma la vista previa con TODAS las salidas: el folio solo vuelve a empezar si se eliminan todas.',
+            '- Al eliminar, "items" y "missing" van vacíos. Tú no eliminas: la persona revisa la vista previa y confirma con su contraseña. En "reply" di cuántas y que revise la vista previa; no digas que ya se eliminaron.',
+            '- Eliminar borra la salida de verdad y, si estaba aplicada, regresa al stock lo que sacó. Una salida que viene de un pedido (columna pedido) no se elimina aquí: va en Pedidos, junto con su pedido.',
+            '- Si no queda claro cuáles, pregunta en "reply" y deja "eliminar" vacío.',
+            'La forma al eliminar: {"reply": "Te preparo 2 salidas para eliminar.", "items": [], "missing": [], "eliminar": ["S-0003", "S-0004"], "reiniciar": false}',
+            '',
+            'SALIDAS (folio | fecha | estado | tipo | sucursal | almacén | total | pedido | nota), las ' . count($filas) . ' más recientes de ' . count($salidas) . ':',
+            $filas ? implode("\n", $filas) : '(ninguna)'
+        ]);
+    }
+
+    // Vista previa de eliminar si el modelo nombró folios o pidió reiniciar; null si no
+    // (entonces es una captura). Las filas salen de la BD, no del modelo.
+    private function borrarSalidaIA($data) {
+        $reiniciar = is_array($data) && ($data['reiniciar'] ?? false) === true;
+        $folios    = [];
+
+        foreach ((array) (is_array($data) ? ($data['eliminar'] ?? []) : []) as $v) {
+            $v = strtoupper(preg_replace('/\s+/', '', is_scalar($v) ? (string) $v : ''));
+            if (preg_match('/^(SI|S)?-?(\d+)$/', $v, $m)) $folios[] = ($m[1] ?: 'S') . '-' . str_pad((string) (int) $m[2], 4, '0', STR_PAD_LEFT);
+        }
+
+        if (!$reiniciar && !$folios) return null;
+
+        $reply   = $this->textoSalidaIA($data['reply'] ?? '');
+        $salidas = $this->listSalidasIA(['companies_id' => $this->companiesId] + ($reiniciar ? [] : ['folios' => array_values(array_unique($folios))]));
+
+        if (!$salidas) {
+            return ['reply' => $reiniciar ? 'No hay salidas: el siguiente folio ya es ' . $this->nextFolio('S-', 'inventory_shrinkage', $this->companiesId) . '.' : 'No encontré esas salidas.', 'token' => '', 'row' => [], 'ids' => []];
+        }
+        if (count($salidas) > self::IA_MAX_BORRAR) {
+            return ['reply' => 'Son ' . count($salidas) . ' salidas; de una vez solo puedo eliminar ' . self::IA_MAX_BORRAR . '. Pídemelas por partes.', 'token' => '', 'row' => [], 'ids' => []];
+        }
+
+        $row = [];
+        $ids = [];
+
+        foreach ($salidas as $i => $s) {
+            $libre = $s['pedido'] === null;
+            $nota  = trim((string) $s['note']);
+
+            $row[] = [
+                'idx'    => $i,
+                'action' => $reiniciar ? 'reset' : 'delete',
+                'valid'  => $libre,
+                'name'   => $s['folio'],
+                'tag'    => $s['status'] . ((int) $s['active'] === 0 ? ' · oculta' : ''),
+                'detail' => implode(' · ', array_filter([
+                    fechaHoraSalida($s['created_at']),
+                    $s['reason_name'],
+                    $s['warehouse_name'],
+                    '$' . number_format((float) $s['total_cost'], 2),
+                    $nota !== '' ? '«' . mb_strimwidth($nota, 0, 60, '…') . '»' : ''
+                ])),
+                'warn'   => $libre && $s['status'] === 'Aplicada' ? 'Se regresa al stock lo que sacó.' : '',
+                'note'   => $libre ? '' : "Viene del pedido {$s['pedido']}: se elimina en Pedidos, junto con su pedido."
+            ];
+
+            $ids[$i] = (int) $s['id'];
+        }
+
+        $libres  = count(array_filter($row, function ($r) { return $r['valid']; }));
+        $ligadas = count($row) - $libres;
+
+        // Sin ninguna que se pueda borrar no hay vista previa que revisar: manda este aviso.
+        if ($libres === 0) {
+            $reply = 'Ninguna se puede eliminar aquí: ' . ($ligadas === 1 ? 'viene de un pedido' : 'vienen de pedidos') . '. Se eliminan en Pedidos, junto con su pedido.';
+        } elseif ($reply === '') {
+            $reply = $reiniciar
+                ? 'Para que el folio vuelva a S-0001 hay que eliminar ' . ($libres === 1 ? 'la salida' : "las {$libres} salidas") . '. Revisa la vista previa.'
+                : ($libres === 1 ? 'Te preparé 1 salida para eliminar. Revísala.' : "Te preparé {$libres} salidas para eliminar. Revísalas.");
+        }
+        if ($reiniciar && $ligadas > 0 && $libres > 0) {
+            $reply .= "\n" . ($ligadas === 1 ? '1 viene de un pedido' : "{$ligadas} vienen de pedidos") . ': se eliminan en Pedidos, y mientras queden el folio SI- no vuelve a SI-0001.';
+        }
+
+        return ['reply' => $reply, 'token' => $libres ? bin2hex(random_bytes(8)) : '', 'row' => $row, 'ids' => $ids];
     }
 
     // Vista previa del chat: "add" = producto del catálogo; "missing" = no está y no

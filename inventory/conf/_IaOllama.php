@@ -6,7 +6,8 @@
     servidor y nunca viaja al navegador.
 
     Hace cuatro cosas:
-    - chatJson(): pregunta y exige la respuesta en JSON (format: "json").
+    - chatJson(): pregunta y exige la respuesta en JSON (format: "json"); si
+      contesta en prosa, se lo vuelve a pedir una vez.
     - chatRonda(): una vuelta de un chat con herramientas (tools de Ollama);
       el bucle lo lleva quien llama (CoffeeIA de Pedidos).
     - transcribirImagen(): pasa una foto a texto con un modelo que ve. El de
@@ -99,32 +100,52 @@ class IaOllama {
     }
 
     // Devuelve ['ok', 'data', 'error']. 'data' es el objeto JSON ya decodificado.
+    // En un hilo largo (historial en prosa y adjuntos de cientos de renglones) el modelo
+    // olvida el formato que pide el system y contesta platicando, aunque vaya
+    // format:"json" (15/10/2026, glm-5.3-flash): por eso el recordatorio al final y,
+    // si aun así platica, una segunda vuelta pidiéndole lo mismo en JSON.
     function chatJson($mensajes) {
-        $cuerpo = [
-            'model'    => $this->modelo,
-            'stream'   => false,
-            'format'   => 'json',
-            'options'  => ['temperature' => 0.1],
-            'messages' => $this->conTono($mensajes)
-        ];
+        $mensajes = $this->conTono($mensajes);
+        $ultimo   = count($mensajes) - 1;
 
-        if ($this->esfuerzo !== '') $cuerpo['think'] = $this->esfuerzo === 'off' ? false : $this->esfuerzo;
-
-        $r = $this->llamar($cuerpo);
-
-        if ($r['error'] !== '') return ['ok' => false, 'data' => null, 'error' => $r['error']];
-
-        $j     = json_decode($r['cuerpo'], true);
-        $texto = trim((string) ($j['message']['content'] ?? ''));
-        $data  = self::extraerJson($texto);
-
-        if ($data === null) {
-            self::anotar('chatJson · respuesta sin JSON · ' . mb_substr($texto, 0, 200));
-
-            return ['ok' => false, 'data' => null, 'error' => 'No entendí mi propia respuesta. Pídemelo otra vez, con otras palabras.'];
+        if ($ultimo >= 0 && ($mensajes[$ultimo]['role'] ?? '') === 'user') {
+            $mensajes[$ultimo]['content'] .= "\n\nRecuerda: contesta SOLO con el objeto JSON del formato que te pedí, sin texto antes ni después, aunque solo te hagan una pregunta.";
         }
 
-        return ['ok' => true, 'data' => $data, 'error' => ''];
+        for ($vuelta = 1; $vuelta <= 2; $vuelta++) {
+            $cuerpo = [
+                'model'    => $this->modelo,
+                'stream'   => false,
+                'format'   => 'json',
+                'options'  => ['temperature' => 0.1],
+                'messages' => $mensajes
+            ];
+
+            if ($this->esfuerzo !== '') $cuerpo['think'] = $this->esfuerzo === 'off' ? false : $this->esfuerzo;
+
+            $r = $this->llamar($cuerpo);
+
+            if ($r['error'] !== '') return ['ok' => false, 'data' => null, 'error' => $r['error']];
+
+            $j     = json_decode($r['cuerpo'], true);
+            $texto = trim((string) ($j['message']['content'] ?? ''));
+            $data  = self::extraerJson($texto);
+
+            if ($data !== null) return ['ok' => true, 'data' => $data, 'error' => ''];
+
+            self::anotar('chatJson · respuesta sin JSON (vuelta ' . $vuelta . ') · ' . mb_substr($texto, 0, 200));
+
+            if ($vuelta === 2) break;
+
+            // La segunda vuelta trae su propio tiempo: en Windows el reloj de PHP cuenta la espera de curl.
+            set_time_limit($this->espera + 60);
+
+            if ($texto !== '') $mensajes[] = ['role' => 'assistant', 'content' => $texto];
+
+            $mensajes[] = ['role' => 'user', 'content' => 'Tu respuesta no vino en JSON. Repítela igual, pero como el objeto JSON del formato que te pedí, sin texto antes ni después.'];
+        }
+
+        return ['ok' => false, 'data' => null, 'error' => 'No entendí mi propia respuesta. Pídemelo otra vez, con otras palabras.'];
     }
 
     // Una vuelta de un chat con herramientas; el bucle (ejecutar lo que pida y volver a
@@ -185,13 +206,16 @@ class IaOllama {
 
     // Transcribe, no interpreta: la interpretacion es del modelo de texto, que
     // tiene el catalogo delante. Devuelve ['texto', 'aviso'].
-    function transcribirImagen($ruta) {
+    // $marcarDudas: la palabra que se lee a medias sale con (?) pegado (Entradas lo
+    // usa para avisar de la letra dudosa; Catálogo no, o crearía nombres con "(?)").
+    function transcribirImagen($ruta, $marcarDudas = false) {
         return $this->mirarImagen($ruta,
             "Transcribe esta imagen para alguien que no la puede ver.\n\n"
             . "- Si tiene texto, TRANSCRÍBELO COMPLETO y literal: nombres, cantidades, precios y claves tal como aparecen.\n"
             . "- Si es una lista, tabla, ticket o menú, pon un renglón por producto con sus columnas separadas por \" | \".\n"
-            . "- No opines, no resumas y no completes lo que no se ve. Si algo no se lee, escribe [ilegible].\n\n"
-            . "Contesta en español."
+            . "- No opines, no resumas y no completes lo que no se ve. Si algo no se lee, escribe [ilegible].\n"
+            . ($marcarDudas ? "- Si una palabra se lee a medias (letra a mano, borrosa o cortada), escribe lo que más se parece y ponle (?) pegado al final, ej. \"Azucar(?)\".\n" : '')
+            . "\nContesta en español."
         );
     }
 

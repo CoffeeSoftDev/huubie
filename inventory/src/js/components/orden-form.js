@@ -198,6 +198,11 @@ class OrdenForm extends EntradaForm {
             <div class="h-64" aria-hidden="true"></div>`;
     }
 
+    // NOMBRE - PRESENTACION (HUEVO - CJA360); sin presentación, solo el nombre.
+    nombreVista(p) {
+        return this.esc(p.presentacion ? `${p.nombre} - ${p.presentacion}` : p.nombre);
+    }
+
     renderProductRow(p, i) {
         const cant  = Number(p.cantidad || 0);
         const costo = Number(p.costo || 0);
@@ -212,7 +217,7 @@ class OrdenForm extends EntradaForm {
                     <div class="flex items-center gap-2.5 min-w-0">
                         <span class="hidden sm:inline-flex">${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}</span>
                         <div class="min-w-0">
-                            <p class="text-xs font-semibold text-gray-800 leading-tight line-clamp-2 sm:line-clamp-none sm:truncate">${this.esc(p.nombre)}</p>
+                            <p class="text-xs font-semibold text-gray-800 leading-tight line-clamp-2 sm:line-clamp-none sm:truncate">${this.nombreVista(p)}</p>
                             ${p.categoria ? `<p class="text-[10px] text-gray-400 truncate mt-0.5">${this.esc(p.categoria)}</p>` : ''}
                         </div>
                     </div>

@@ -1359,11 +1359,11 @@ class StockView extends Templates {
                         </div>
                         <div class="text-center leading-tight">
                             <p class="text-[8px] text-gray-500 uppercase">${esc(opts.labels.min)}</p>
-                            <p class="text-sm font-bold text-gray-800">${p.min}</p>
+                            <p class="text-sm font-bold text-gray-800">${Number(p.min) > 0 ? p.min : '-'}</p>
                         </div>
                         <div class="text-center leading-tight">
                             <p class="text-[8px] text-gray-500 uppercase">${esc(opts.labels.max)}</p>
-                            <p class="text-sm font-bold text-gray-800">${p.max}</p>
+                            <p class="text-sm font-bold text-gray-800">${Number(p.max) > 0 ? p.max : '-'}</p>
                         </div>
                     </div>
                 </div>
@@ -1518,18 +1518,20 @@ class StockCount extends Templates {
         this.paintSheet(data);
     }
 
-    // Enter pasa a la captura del producto de abajo (los renglones contraídos se saltan);
+    // Enter y la flecha abajo pasan a la captura del producto de abajo, la flecha arriba a la
+    // de arriba (los renglones contraídos se saltan y la flecha ya no suma/resta al número);
     // Tab y el resto de teclas siguen como siempre.
     onCountKey(e) {
-        if (e.key !== 'Enter') return;
+        const step = { Enter: 1, ArrowDown: 1, ArrowUp: -1 }[e.key];
+        if (!step) return;
 
         e.preventDefault();
         e.stopPropagation();
 
         const $fields = $('#mdlConteoTable [data-count]:enabled:visible');
-        const next    = $fields.eq($fields.index(e.currentTarget) + 1);
+        const index   = $fields.index(e.currentTarget) + step;
 
-        if (next.length) next.trigger('focus').trigger('select');
+        if (index >= 0 && index < $fields.length) $fields.eq(index).trigger('focus').trigger('select');
     }
 
     // "Todas" llega con id vacio; en la pestana va como 'todas' para que su id del DOM no quede en blanco.

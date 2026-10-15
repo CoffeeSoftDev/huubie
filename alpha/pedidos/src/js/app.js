@@ -2436,30 +2436,70 @@ class App extends Templates {
             return;
         }
 
-        this.swalQuestion({
-            opts: {
-                title: "¿Confirmar eliminación?",
-                text: `Se eliminará el pago de ${formatPrice(amount)} de forma permanente.`,
-                icon: "warning"
-            },
-            data: { opc: "deletePay", id: idFolio, amount: amount, idPay: id },
-            methods: {
-                success: (res) => {
-                    if (res.status === 200) {
-                        this.afterDeletePay(res, idFolio);
-                    } else {
-                        alert({ icon: "error", text: res.message });
-                    }
-                }
+        // Sin contraseña, el dialogo del motivo es la confirmacion del borrado.
+        this.askDeleteReason(amount, async (reason) => {
+            const res = await useFetch({
+                url: this._link,
+                data: { opc: 'deletePay', id: idFolio, amount: amount, idPay: id, reason: reason }
+            });
+
+            if (res.status === 200) {
+                this.afterDeletePay(res, idFolio);
+            } else {
+                alert({ icon: "error", text: res.message });
             }
+        });
+    }
+
+    // Motivo del borrado: el controlador lo exige y lo deja en la bitacora del pedido.
+    askDeleteReason(amount, onReason) {
+        this.alertBox({
+            theme:       'dark',
+            type:        'cancel',
+            icon:        'trash-2',
+            title:       '¿Eliminar pago?',
+            detailHtml:  `Se eliminará el pago de <b class="text-gray-200">${formatPrice(amount)}</b> de forma permanente.`,
+            input:       'textarea',
+            inputLabel:  'Motivo',
+            inputPlaceholder: 'Ej. el pago se registró dos veces',
+            inputRequired: true,
+            inputError:  'Escribe el motivo',
+            okLabel:     'Eliminar pago',
+            okBg:        'bg-[#E02424] hover:bg-[#C81E1E]',
+            cancelLabel: 'Cancelar',
+            onOk:        onReason
         });
     }
 
     // Borrado autorizado. Liquidado: el saldo del pedido ya es cero, por lo que
     // eliminar un abono reabre un pedido cerrado. Sin liquidar: confirmacion con
     // contraseña desde el resumen de pago del detalle. Este modal solo recolecta la
-    // contraseña; quien la valida es deletePay() del controlador.
-    deletePayWithKey(id, idFolio, amount, liquidado = true) {
+    // contraseña; quien la valida es deletePay() del controlador. Despues de la
+    // contraseña se pide el motivo; en un reintento ya viene en reason y no se repite.
+    deletePayWithKey(id, idFolio, amount, liquidado = true, reason = '') {
+        const enviar = async (password, motivo) => {
+            const res = await useFetch({
+                url: this._link,
+                data: { opc: 'deletePay', id: idFolio, amount: amount, idPay: id, password: password, reason: motivo }
+            });
+
+            if (res.status !== 200) {
+                // Contraseña rechazada: se avisa y se vuelve a abrir el dialogo,
+                // porque alertBox ya se cerro al confirmar.
+                this.alertBox({
+                    theme:      'dark',
+                    type:       'error',
+                    title:      'No se eliminó el pago',
+                    detailHtml: res.message || 'Contraseña incorrecta.',
+                    okLabel:    'Reintentar',
+                    onOk:       () => this.deletePayWithKey(id, idFolio, amount, liquidado, motivo)
+                });
+                return;
+            }
+
+            this.afterDeletePay(res, idFolio);
+        };
+
         this.alertBox({
             theme:       'dark',
             type:        'cancel',
@@ -2471,31 +2511,12 @@ class App extends Templates {
             inputPlaceholder: '••••••••',
             inputRequired: true,
             inputError:  'Ingresa tu contraseña',
-            okLabel:     'Eliminar pago',
+            okLabel:     reason ? 'Eliminar pago' : 'Continuar',
             okBg:        'bg-[#E02424] hover:bg-[#C81E1E]',
             cancelLabel: 'Cancelar',
-            onOk: async (password) => {
-                const res = await useFetch({
-                    url: this._link,
-                    data: { opc: 'deletePay', id: idFolio, amount: amount, idPay: id, password: password }
-                });
-
-                if (res.status !== 200) {
-                    // Contraseña rechazada: se avisa y se vuelve a abrir el dialogo,
-                    // porque alertBox ya se cerro al confirmar.
-                    this.alertBox({
-                        theme:      'dark',
-                        type:       'error',
-                        title:      'No se eliminó el pago',
-                        detailHtml: res.message || 'Contraseña incorrecta.',
-                        okLabel:    'Reintentar',
-                        onOk:       () => this.deletePayWithKey(id, idFolio, amount, liquidado)
-                    });
-                    return;
-                }
-
-                this.afterDeletePay(res, idFolio);
-            }
+            onOk: (password) => reason
+                ? enviar(password, reason)
+                : this.askDeleteReason(amount, (motivo) => enviar(password, motivo))
         });
     }
 
@@ -2871,16 +2892,16 @@ class App extends Templates {
         $header.children().first().removeClass('w-9 h-9 rounded-lg').addClass('w-11 h-11 rounded-xl');
         $header.find('.cf-close').removeClass('p-1 -mr-1').addClass('w-8 h-8 rounded-lg border border-gray-600');
 
-        // Tipo de entrega, sucursal y estado de entrega como subtitulo del encabezado: el
+        // Sucursal, tipo de entrega y estado de entrega como subtitulo del encabezado: el
         // componente no admite subtitulo por opciones. Los badges conservan su id porque
         // refreshOrderDetails() los repinta.
         $header.find('span').first().removeClass('text-base truncate').addClass('text-lg block')
             .wrap('<div class="flex-1 min-w-0"></div>').after(`
             <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                <span id="orderDeliveryBadge">${badgeTipo}</span>
                 <span class="inline-flex items-center gap-1 text-xs text-gray-400">
                     ${lucideIcon('house', 'w-3.5 h-3.5')} ${subsidiarieName}
                 </span>
+                <span id="orderDeliveryBadge">${badgeTipo}</span>
                 <span id="orderStatusBadge">${this.statusDelivery(response.data.order.is_delivered)}</span>
             </div>`);
 

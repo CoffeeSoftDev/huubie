@@ -72,11 +72,15 @@ class SalidaForm {
                 limpiar:        'Limpiar',
                 cancelar:       'Cancelar',
                 registrar:      'Registrar Salida',
-                iaBtn:          'CoffeeIA',
+                titleEdit:      'Editar Salida',
+                guardarEdit:    'Guardar cambios',
+                unidad:         'Unidad',
+                iaBtn:         'CoffeeIA',
                 iaTag:          'Agregado con CoffeeIA'
             },
             onSubmit:          () => {},
-            onClose:           () => {},
+            onUpdate:          () => {},
+            onClose:          () => {},
             onOpenIA:          null,
             onSearch:          null,
             onWarehouseChange: null
@@ -91,7 +95,8 @@ class SalidaForm {
         this.draft        = null;   // renglón vacío con buscador propio ({ term })
         this.float        = null;   // lista flotante del renglón vacío
         this.photo        = null;
-        this.searchTerm   = '';
+        this.editing      = null;   // { id, folio, warehouse_id, original } al editar una salida
+        this.searchTerm  = '';
         this.activeIdx    = 0;      // resultado resaltado para navegación por teclado
         this.catalogItems = [];     // resultados visibles actuales del catálogo
 
@@ -112,7 +117,7 @@ class SalidaForm {
                         <i data-lucide="package-minus" class="w-5 h-5 text-white"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold text-gray-800">${this.esc(o.labels.title)}</h3>
+                        <h3 id="${o.id}_title" class="text-sm font-bold text-gray-800">${this.esc(o.labels.title)}</h3>
                         <p class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
                     </div>
                 </div>
@@ -305,6 +310,9 @@ class SalidaForm {
                 <td class="px-2 py-2 align-middle w-24">
                     <input type="number" min="1" step="0.01" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
                 </td>
+                <td class="px-2 py-2 align-middle text-center w-20">
+                    <span class="text-[11px] font-medium text-gray-600">${this.esc(p.unidad || '-')}</span>
+                </td>
                 <td class="px-2 py-2 align-middle w-28">
                     <div class="relative" title="Costo del producto (no editable)">
                         <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
@@ -336,6 +344,7 @@ class SalidaForm {
                         <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
                         <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-36">Stock</th>
                         <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Cantidad</th>
+                        <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Unidad</th>
                         <th class="text-left px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo</th>
                         <th class="text-right px-5 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Subtotal</th>
                         <th class="w-10 px-2 py-2"></th>
@@ -359,7 +368,7 @@ class SalidaForm {
                         <input id="${o.id}_draftInput" type="text" autocomplete="off" value="${this.esc(this.draft.term)}" placeholder="${this.esc(o.labels.draftPh)}" class="${this.cls.search}">
                     </div>
                 </td>
-                <td colspan="4"></td>
+                <td colspan="5"></td>
                 <td class="px-2 py-2 align-middle text-center w-10">
                     <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-draft-remove title="${this.esc(o.labels.quitarRenglon)}">
                         <i data-lucide="x" class="w-3 h-3"></i>
@@ -383,7 +392,7 @@ class SalidaForm {
                 <div class="flex-1 min-w-0">
                     <p class="text-xs font-semibold text-gray-800 truncate">${this.esc(p.nombre)}</p>
                     <p class="text-[10px] text-gray-500 truncate mt-0.5">
-                        <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
+                        <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}${p.unidad ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.unidad)}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
                     </p>
                 </div>
                 <div class="text-right flex-shrink-0">
@@ -933,9 +942,17 @@ class SalidaForm {
         this.opts.onWarehouseChange(warehouseId, (stockMap) => this.applyStock(stockMap));
     }
 
+    // Editando, lo que esta salida ya descontó del almacén de origen vuelve a estar
+    // disponible para el cálculo (el servidor lo regresa antes de aplicar lo nuevo).
+    devuelto(id) {
+        const e = this.editing;
+        if (!e || String(e.warehouse_id) !== String($(`#${this.opts.id}_selAlmacen`).val())) return 0;
+        return Number(e.original[String(id)] || 0);
+    }
+
     applyStock(stockMap) {
         const map = stockMap || {};
-        const at  = (p) => Number(map[String(p.id)] || 0);
+        const at  = (p) => Number(map[String(p.id)] || 0) + this.devuelto(p.id);
         (this.opts.json || []).forEach(p => { p.stock = at(p); });
         this.lote.forEach(p => { p.stock = at(p); });
         this.renderLote();
@@ -989,6 +1006,7 @@ class SalidaForm {
 
     closeModal() {
         this.wrap.addClass('hidden');
+        if (this.editing) this.setMode(null);
         this.lote  = [];
         this.draft = null;
         this.resetSearchState();
@@ -1049,9 +1067,22 @@ class SalidaForm {
 
         // El registro es definitivo y descuenta stock del almacén: se pide confirmación.
         // Productos, sucursal y valor van en el color del resumen del modal.
+        // El valor es dinero que sale: va con signo negativo ("- $600.00").
         const dato = (txt) => `<strong class="text-blue-600">${txt}</strong>`;
+        const valor = `- ${this.fmtMoney(totCosto)}`;
+
+        if (this.editing) {
+            payload.id = this.editing.id;
+            this.confirmBox('Guardar los cambios de esta salida?', () => { o.onUpdate(payload); this.closeModal(); }, {
+                detailHtml:  `La salida ${this.esc(this.editing.folio)} quedara con ${dato(`${totProd} ${totProd === 1 ? 'producto' : 'productos'}`)} de ${dato(this.esc(this.sucursalActual()))} por un valor de ${dato(valor)}.<br>El stock se recalculara por la diferencia.`,
+                okLabel:     'Sí, guardar',
+                cancelLabel: 'No'
+            });
+            return;
+        }
+
         this.confirmBox('Registrar esta salida?', () => { o.onSubmit(payload); this.closeModal(); }, {
-            detailHtml:  `Se registraran ${dato(`${totProd} ${totProd === 1 ? 'producto' : 'productos'}`)} de ${dato(this.esc(this.sucursalActual()))} por un valor de ${dato(this.fmtMoney(totCosto))}.<br>El stock se descontara del almacen y la accion es definitiva.`,
+            detailHtml:  `Se registraran ${dato(`${totProd} ${totProd === 1 ? 'producto' : 'productos'}`)} de ${dato(this.esc(this.sucursalActual()))} por un valor de ${dato(valor)}.<br>El stock se descontara del almacen y la accion es definitiva.`,
             okLabel:     'Sí, registrar',
             cancelLabel: 'No'
         });
@@ -1162,6 +1193,43 @@ class SalidaForm {
 
     close() {
         this.closeModal();
+    }
+
+    // Abre una salida ya registrada con sus datos y renglones. Al guardar llama
+    // onUpdate (en vez de onSubmit) con el mismo payload mas el id de la salida.
+    openEdit(salida) {
+        const id = this.opts.id;
+        this.setMode(salida);
+
+        $(`#${id}_selMotivo`).val(String(salida.motivo || ''));
+        $(`#${id}_selSucursal`).val(String(salida.branch_id || ''));
+        this.refreshAlmacenes(salida.branch_id);
+        $(`#${id}_selAlmacen`).val(String(salida.warehouse_id || ''));
+        $(`#${id}_inpFecha`).val(salida.fecha || '').attr('max', this.hoy());
+        $(`#${id}_inpNota`).val(salida.nota || '');
+
+        this.lote  = (salida.productos || []).map(p => Object.assign({}, p));
+        this.draft = null;
+        this.resetSearchState();
+
+        this.wrap.removeClass('hidden');
+        this.renderLote();
+        this.reloadStock(salida.warehouse_id);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Alta (salida = null) o edicion: titulo y boton de guardar.
+    setMode(salida) {
+        const o  = this.opts;
+        const id = o.id;
+        const original = {};
+        if (salida) (salida.productos || []).forEach(p => {
+            original[String(p.id)] = (original[String(p.id)] || 0) + Number(p.cantidad || 0);
+        });
+        this.editing = salida ? { id: salida.id, folio: salida.folio, warehouse_id: salida.warehouse_id, original } : null;
+
+        $(`#${id}_title`).text(salida ? `${o.labels.titleEdit} ${salida.folio || ''}`.trim() : o.labels.title);
+        $(`#${id}_btnRegistrar span`).text(salida ? o.labels.guardarEdit : o.labels.registrar);
     }
 
     setData(newData) {
