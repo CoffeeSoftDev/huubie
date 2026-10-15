@@ -106,7 +106,7 @@ class ctrl extends mdl {
                     ? "<span class='whitespace-nowrap'>" . $this->puntoNueva($orden['status']) . $this->folioLink($orden['folio'], $orden['id']) . '</span>'
                     : $this->folioLink($orden['folio'], $orden['id']),
                 'Fecha de pedido'  => $this->fechaHoraPedido($orden['date_order'], $orden['created_at']),
-                'Entrega para'     => $this->entregaParaCell($orden['date_order']),
+                'Entrega para'     => $this->entregaParaCell($orden['date_order'], $_POST['vista'] === 'entregas'),
                 'Solicita → Surte' => $this->rutaCell($orden),
                 'Materiales'       => (int) $orden['total_products'],
                 'Estado'           => $this->statusBadge($orden['status'])
@@ -466,7 +466,7 @@ class ctrl extends mdl {
     // faltante queda en un reabasto (REAB-) con la fecha compromiso, como en surtir().
     // `reabasto` = '0' cuando el almacenista solo surte: se entrega todo lo marcado sin generar REAB-.
     function approveOrden() {
-        $_POST += ['items' => '{}', 'note' => '', 'warehouse_id' => 0, 'expected_date' => '', 'reabasto' => '1'];
+        $_POST += ['items' => '{}', 'note' => '', 'warehouse_id' => 0, 'expected_date' => '', 'reabasto' => '1', 'vista' => ''];
 
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
@@ -478,7 +478,7 @@ class ctrl extends mdl {
         if (!$this->puedeGestionarDestino($header)) {
             return ['status' => 403, 'message' => 'Solo la sucursal de destino puede aprobar esta solicitud'];
         }
-        if ($this->esCreadorPedido($header)) {
+        if ($_POST['vista'] !== 'entregas' && $this->esCreadorPedido($header)) {
             return ['status' => 403, 'message' => 'No puedes aprobar ni surtir un pedido que tú hiciste'];
         }
 
@@ -837,8 +837,8 @@ class ctrl extends mdl {
             ? $this->sucChipCell($surteId, $orden['destination_branch_name'], $orden['warehouse_name'])
             : "<span class='text-gray-400'>-</span>";
 
-        return "<div class='flex items-center gap-3'>{$solicita}"
-             . "<i data-lucide='arrow-right' class='w-4 h-4 text-gray-500 flex-shrink-0'></i>{$surte}</div>";
+        return "<div class='flex items-center gap-1'><div class='min-w-0'>{$solicita}</div>"
+             . "<i data-lucide='arrow-right' class='w-4 h-4 text-gray-500 flex-shrink-0'></i><div class='min-w-0'>{$surte}</div></div>";
     }
 
     // Cuándo se hizo el pedido (created_at): 13/OCT/2026 10:47 PM. `$fecha` (date_order,
@@ -873,8 +873,9 @@ class ctrl extends mdl {
     }
 
     // Columna "Entrega para" (date_order): "Hoy" en rojo si es hoy; si no, 13/OCT/2026.
-    // Hoy sale de MySQL (getFechaBd), como en fechaHoraPedido.
-    private function entregaParaCell($fecha) {
+    // Hoy sale de MySQL (getFechaBd), como en fechaHoraPedido. En Mis entregas
+    // ($conDia) la fecha lleva el día de la semana: Lunes 17/OCT/2026.
+    private function entregaParaCell($fecha, $conDia = false) {
         $dia = substr((string) $fecha, 0, 10);
         $ts  = $dia !== '' ? strtotime($dia) : false;
         if (!$ts) return '-';
@@ -884,7 +885,11 @@ class ctrl extends mdl {
         if ($dia === $this->hoyBd) return "<span class='font-semibold text-red-600'>Hoy</span>";
 
         $meses = ['', 'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-        return date('d', $ts) . '/' . $meses[(int) date('n', $ts)] . '/' . date('Y', $ts);
+        $texto = date('d', $ts) . '/' . $meses[(int) date('n', $ts)] . '/' . date('Y', $ts);
+        if (!$conDia) return $texto;
+
+        $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        return $dias[(int) date('w', $ts)] . ' ' . $texto;
     }
 
     private function folioLink($folio, $id) {
@@ -931,7 +936,7 @@ class ctrl extends mdl {
     // Surtido inter-sucursal: reabasto opcional (ENT-) + salida (SI-, motivo SURTIDO_SUC).
     // Clampeado al pendiente y al stock real. Todo en una transaccion atomica.
     function fulfillOrden() {
-        $_POST += ['warehouse_id' => 0, 'items' => '{}', 'replenish' => '{}', 'note' => '', 'expected_date' => ''];
+        $_POST += ['warehouse_id' => 0, 'items' => '{}', 'replenish' => '{}', 'note' => '', 'expected_date' => '', 'vista' => ''];
 
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
@@ -949,7 +954,7 @@ class ctrl extends mdl {
         if (!$this->puedeGestionarDestino($header)) {
             return ['status' => 403, 'message' => 'Solo la sucursal de destino puede surtir esta solicitud'];
         }
-        if ($this->esCreadorPedido($header)) {
+        if ($_POST['vista'] !== 'entregas' && $this->esCreadorPedido($header)) {
             return ['status' => 403, 'message' => 'No puedes aprobar ni surtir un pedido que tú hiciste'];
         }
 
