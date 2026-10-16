@@ -218,23 +218,128 @@ class Cierre extends MCierre {
             $nombreSuc = $sub ? $sub['sucursal'] : 'Sucursal';
             $fecha     = date('d/m/Y', strtotime($date));
             $cajero    = $_SESSION['USER'] ?? 'un usuario';
+            $day       = $this->dailyNoticeSummary($date, $subsidiaries_id);
+
+            // Montos y cantidades en cero salen como "-" en el mensaje.
+            $money = function ($value) { return abs(floatval($value)) < 0.005 ? '-' : number_format(floatval($value), 2); };
+            $count = function ($value) { return intval($value) === 0 ? '-' : intval($value); };
 
             $msg = new Message();
             $msg->aviso('cierre', $sub['companies_id'] ?? null, [
-                'sucursal'      => $nombreSuc,
-                'fecha'         => $fecha,
-                'cajero'        => $cajero,
-                'ventas'        => number_format(floatval($metrics['total_sales']), 2),
-                'efectivo'      => number_format(floatval($cash), 2),
-                'tarjeta'       => number_format(floatval($card), 2),
-                'transferencia' => number_format(floatval($transfer), 2),
-                'descuentos'    => number_format(floatval($discount), 2),
-                'pedidos'       => intval($metrics['total_orders']),
-                'turnos'        => intval($metrics['total_shifts'])
+                'sucursal'        => $nombreSuc,
+                'fecha'           => $fecha,
+                'cajero'          => $cajero,
+                'venta_bruta'     => $money($day['venta_bruta']),
+                'pendiente'       => $money($day['pendiente']),
+                'pedidos_dia'     => $money($day['pedidos_dia']),
+                'abonos_ant'      => $money($day['abonos_ant']),
+                'en_caja'         => $money($day['en_caja']),
+                'efectivo'        => $money($day['efectivo']),
+                'efectivo_n'      => $count($day['efectivo_n']),
+                'tarjeta'         => $money($day['tarjeta']),
+                'tarjeta_n'       => $count($day['tarjeta_n']),
+                'transferencia'   => $money($day['transferencia']),
+                'transferencia_n' => $count($day['transferencia_n']),
+                'fondo_inicial'   => $money($day['fondo_inicial']),
+                'pagadas'         => $count($day['pagadas']),
+                'pendientes'      => $count($day['pendientes']),
+                'cotizaciones'    => $count($day['cotizaciones']),
+                'cuentas'         => $count($day['cuentas']),
+                'canceladas'      => $count($day['canceladas']),
+                'con_descuento'   => $count($day['con_descuento']),
+                'ticket_promedio' => $money($day['ticket_promedio']),
+                'turnos'          => $count($metrics['total_shifts']),
+                // Variables de la plantilla anterior: siguen llenas para no romperla.
+                'ventas'          => $money($metrics['total_sales']),
+                'descuentos'      => $money($discount),
+                'pedidos'         => $count($metrics['total_orders'])
             ], "Cierre del {$fecha}", $subsidiaries_id);
         } catch (Exception $e) {
             error_log('[ WHATSAPP addCierre ] :: ' . $e->getMessage() . PHP_EOL, 3, 'error.log');
         }
+    }
+
+    // Cifras del aviso de cierre: las mismas del "Resumen del dia" del Corte Z, que las
+    // arma pedidos-cierre.js en el navegador; aqui se repiten porque el aviso sale del
+    // servidor. Metodos de pago = cobrado hoy de pedidos del dia + abonos a anteriores.
+    private function dailyNoticeSummary($date, $subsidiaries_id) {
+        $params  = [$date, $subsidiaries_id];
+        $summary = $this->getOrdersSummary($params);
+
+        // Importe o conteo por metodo: 1 efectivo, 2 tarjeta, 3 transferencia.
+        $byMethod = function ($rows, $field) {
+            $out = [1 => 0, 2 => 0, 3 => 0];
+            foreach ((array) $rows as $row) {
+                $id = intval($row['method_pay_id']);
+                if (isset($out[$id])) $out[$id] = floatval($row[$field]);
+            }
+            return $out;
+        };
+
+        $live      = $byMethod($this->getConsolidatedPayments([$date, $subsidiaries_id, $date, $subsidiaries_id]), 'total_paid');
+        $liveCount = $byMethod($this->getPaymentTransactions([$date, $subsidiaries_id, $date, $subsidiaries_id]), 'transactions');
+        $prevRows  = $this->getDailyPrevPaymentsByMethod([$date, $date, $subsidiaries_id]);
+        $prev      = $byMethod($prevRows, 'total_paid');
+        $prevCount = $byMethod($prevRows, 'transactions');
+
+        $abonos = 0;
+        foreach ((array) $this->getDailyPrevPayments([$date . ' 23:59:59', $date, $date, $subsidiaries_id]) as $payment) {
+            $abonos += floatval($payment['payment_real']);
+        }
+
+        $fondo = 0;
+        foreach ((array) $this->getCashShiftsSummary($params) as $shift) {
+            $fondo += floatval($shift['fondo_caja']);
+        }
+
+        // Estado de cuentas por saldo al corte, igual que la tabla del Corte Z.
+        $pagadas = 0; $pendientes = 0; $cotizaciones = 0; $canceladas = 0; $conDescuento = 0;
+        $pendiente = 0; $neto = 0;
+
+        foreach ((array) $this->getOrdersBreakdown($params) as $order) {
+            $status = intval($order['status']);
+
+            if ($status === 1) { $cotizaciones++; continue; }
+            if ($status === 4) { $canceladas++;   continue; }
+            if ($status !== 2 && $status !== 3) continue;
+
+            $total    = floatval($order['total_pay']);
+            $discount = floatval($order['discount']);
+            $saldo    = $total - $discount - floatval($order['total_paid_upto']);
+
+            if ($saldo <= 0.005) $pagadas++;
+            else $pendientes++;
+
+            if ($discount > 0.005) $conDescuento++;
+
+            $pendiente += max($saldo, 0);
+            $neto      += $total - $discount;
+        }
+
+        $vendidas = $pagadas + $pendientes;
+        $cobrado  = array_sum($live);
+
+        return [
+            'venta_bruta'     => floatval($summary['total_ventas']) - floatval($summary['total_descuentos']),
+            'pendiente'       => $pendiente,
+            'pedidos_dia'     => $cobrado,
+            'abonos_ant'      => $abonos,
+            'en_caja'         => $cobrado + $abonos,
+            'efectivo'        => $live[1] + $prev[1],
+            'efectivo_n'      => intval($liveCount[1] + $prevCount[1]),
+            'tarjeta'         => $live[2] + $prev[2],
+            'tarjeta_n'       => intval($liveCount[2] + $prevCount[2]),
+            'transferencia'   => $live[3] + $prev[3],
+            'transferencia_n' => intval($liveCount[3] + $prevCount[3]),
+            'fondo_inicial'   => $fondo,
+            'pagadas'         => $pagadas,
+            'pendientes'      => $pendientes,
+            'cotizaciones'    => $cotizaciones,
+            'cuentas'         => $vendidas + $cotizaciones,
+            'canceladas'      => $canceladas,
+            'con_descuento'   => $conDescuento,
+            'ticket_promedio' => $vendidas ? $neto / $vendidas : 0
+        ];
     }
 
     // Lista de fechas pasadas (dentro de un rango) con turnos y sin cierre diario,

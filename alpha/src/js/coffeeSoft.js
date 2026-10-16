@@ -5526,10 +5526,14 @@ class Templates extends Components {
             name:   'Contacto',
             status: 'en línea',
             text:   '',
-            time:   ''
+            time:   '',
+            theme:  'dark',
+            image:  false
         };
 
         const opts = Object.assign({}, defaults, options);
+
+        if (opts.theme === 'light') return this._chatPreviewLight(opts);
 
         // Formato de WhatsApp: *negrita*, _cursiva_, ~tachado~. Se escapa antes de
         // marcar, porque el texto lo escribe el usuario.
@@ -5567,6 +5571,113 @@ class Templates extends Components {
 
         return {
             update: (text) => bubble.html(format(text))
+        };
+    }
+
+    // -- Vista previa de WhatsApp en tema claro (formato completo + foto opcional) --
+    _chatPreviewLight(opts) {
+        const esc = (text) => String(text || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        // Escapa primero y luego marca; el codigo se aparta para que no se le aplique formato.
+        const format = (text) => {
+            const saved = [];
+            const keep  = (html) => { saved.push(html); return `\u0001${saved.length - 1}\u0002`; };
+
+            let source = esc(text).replace(/\r/g, '');
+
+            source = source.replace(/```([\s\S]+?)```/g, (all, code) =>
+                keep(`<span style="display:block;font-family:monospace;white-space:pre-wrap;">${code.replace(/^\n|\n$/g, '')}</span>`));
+            source = source.replace(/`([^`\n]+)`/g, (all, code) =>
+                keep(`<code style="font-family:monospace;background:rgba(0,0,0,.07);padding:0 3px;border-radius:3px;color:inherit;">${code}</code>`));
+
+            const inline = (line) => line
+                .replace(/\*(?!\s)([^*\n]+?)(?<!\s)\*/g, '<b>$1</b>')
+                .replace(/(^|[\s(])_(?!\s)([^_\n]+?)(?<!\s)_(?=$|[\s.,;:!?)])/g, '$1<i>$2</i>')
+                .replace(/~(?!\s)([^~\n]+?)(?<!\s)~/g, '<s>$1</s>');
+
+            const row = (mark, body) => `<div style="display:flex;gap:6px;padding-left:4px;"><span style="flex:none;">${mark}</span><span style="min-width:0;">${inline(body)}</span></div>`;
+
+            const html = source.split('\n').map((line) => {
+                let found;
+                if ((found = line.match(/^[*-] (.*)$/)))      return row('•', found[1]);
+                if ((found = line.match(/^(\d+)\. (.*)$/)))   return row(`${found[1]}.`, found[2]);
+                if ((found = line.match(/^&gt; ?(.*)$/)))
+                    return `<div style="border-left:4px solid #06CF9C;background:rgba(0,0,0,.05);padding:2px 6px;border-radius:4px;margin:1px 0;">${inline(found[1])}</div>`;
+                return `<div>${line === '' ? '<br>' : inline(line)}</div>`;
+            }).join('');
+
+            return html.replace(/\u0001(\d+)\u0002/g, (all, index) => saved[index]);
+        };
+
+        const photo = `<svg viewBox="0 0 300 190" width="100%" style="display:block;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Foto de ejemplo">
+            <defs><linearGradient id="${opts.id}Sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBE3D6"/><stop offset="1" stop-color="#F6C9B4"/></linearGradient></defs>
+            <rect width="300" height="190" fill="url(#${opts.id}Sky)"/>
+            <ellipse cx="150" cy="158" rx="105" ry="14" fill="#E9B79D"/>
+            <rect x="85" y="95" width="130" height="58" rx="6" fill="#F4A6B8"/>
+            <rect x="85" y="95" width="130" height="14" rx="6" fill="#FFFFFF"/>
+            <path d="M85 109 q10 14 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t10 0" fill="#FFFFFF"/>
+            <rect x="105" y="62" width="90" height="36" rx="6" fill="#F9C5D1"/>
+            <rect x="105" y="62" width="90" height="10" rx="5" fill="#FFFFFF"/>
+            <rect x="146" y="38" width="8" height="24" rx="2" fill="#7C3AED"/>
+            <path d="M150 24 q-7 9 0 14 q7 -5 0 -14z" fill="#F59E0B"/>
+            <circle cx="108" cy="130" r="5" fill="#EF4444"/><circle cx="150" cy="134" r="5" fill="#EF4444"/><circle cx="192" cy="130" r="5" fill="#EF4444"/>
+        </svg>`;
+
+        const time = opts.time || new Date().toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' });
+
+        const phone = $('<div>', {
+            id:    opts.id,
+            class: 'rounded-[14px] overflow-hidden max-w-[300px] mx-auto w-full'
+        });
+
+        const head = $('<div>', { class: 'flex items-center gap-[8px] px-[10px] py-[8px]', css: { background: '#008069' } })
+            .append($('<div>', {
+                class: 'w-7 h-7 rounded-full grid place-items-center bg-[#25D366] text-white shrink-0',
+                html:  typeof lucideIcon === 'function' ? lucideIcon('message-circle', 'w-3.5 h-3.5') : ''
+            }))
+            .append($('<div>', { class: 'min-w-0 leading-tight' })
+                .append($('<p>', { class: 'text-xs font-semibold m-0 truncate', css: { color: '#FFFFFF' }, text: opts.name }))
+                .append($('<p>', { class: 'text-[10px] m-0', css: { color: 'rgba(255,255,255,.8)' }, text: opts.status })));
+
+        const chat = $('<div>', {
+            class: 'p-[10px]',
+            css: {
+                background:      '#EFEAE2',
+                backgroundImage: 'radial-gradient(rgba(0,0,0,.045) 1px, transparent 1.5px)',
+                backgroundSize:  '14px 14px'
+            }
+        });
+
+        const bubble = $('<div>', {
+            class: 'text-[12px] leading-snug break-words ml-auto',
+            css: {
+                background:   '#D9FDD3',
+                color:        '#111B21',
+                borderRadius: '8px 8px 0 8px',
+                padding:      '4px 7px 5px',
+                maxWidth:     '260px',
+                boxShadow:    '0 1px .5px rgba(11,20,26,.13)'
+            }
+        });
+
+        const image = $('<div>', { css: { margin: '-1px -4px 5px', borderRadius: '6px', overflow: 'hidden' }, html: photo });
+        const body  = $('<div>', { html: format(opts.text) });
+        const stamp = $('<div>', { class: 'text-[10px] text-right', css: { color: '#667781', marginTop: '2px' } })
+            .append($('<span>', { text: time + ' ' }))
+            .append($('<span>', { css: { color: '#53BDEB' }, text: '✓✓' }));
+
+        const showImage = (on) => { on ? image.show() : image.hide(); };
+        showImage(!!opts.image);
+
+        bubble.append(image, body, stamp);
+        chat.append(bubble);
+        phone.append(head, chat);
+        $(`#${opts.parent}`).html(phone);
+
+        return {
+            update:   (text) => body.html(format(text)),
+            setImage: showImage
         };
     }
 

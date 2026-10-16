@@ -14,6 +14,10 @@ class WaConfig extends MWaConfig {
     // administrador la abre.
     const ROL_ADMIN = 1;
 
+    // Tope diario de mensajes del proveedor y porcentaje del tope en que el aviso pasa a ámbar.
+    const DAILY_LIMIT  = 150;
+    const WARN_PERCENT = 80;
+
     const PROVIDERS = ['ultramsg', 'greenapi'];
     const TYPES     = ['cierre', 'turno', 'personalizado', 'edicion'];
 
@@ -376,10 +380,17 @@ class WaConfig extends MWaConfig {
 
         $company = $this->companyId();
         $type    = in_array($_POST['tipo'], self::TYPES, true) ? $_POST['tipo'] : '';
-        $days    = intval($_POST['rango']);
-        if ($days < 1 || $days > 365) $days = 30;
+        $start   = $_POST['fi'];
+        $end     = $_POST['ff'];
 
-        $params = [$company, $type, $type, $days];
+        if (!validDate($start) || !validDate($end) || $start > $end) {
+            return [
+                'status'  => 400,
+                'message' => 'El periodo de consulta no es válido.'
+            ];
+        }
+
+        $params = [$company, $type, $type, $start, $end];
         $counts = $this->getHistorialCounts($params);
         $rows   = [];
         $logs   = [];
@@ -422,6 +433,11 @@ class WaConfig extends MWaConfig {
                 'exitosos' => $exitosos,
                 'fallidos' => intval($counts['fallidos']),
                 'tasa'     => $total ? round($exitosos * 100 / $total) : 0
+            ],
+            'limite' => [
+                'max'   => self::DAILY_LIMIT,
+                'aviso' => intval(ceil(self::DAILY_LIMIT * self::WARN_PERCENT / 100)),
+                'hoy'   => $this->getHistorialTodayCounts([$company])
             ]
         ];
     }
@@ -595,31 +611,61 @@ class WaConfig extends MWaConfig {
 
 function defaultTemplates(){
     return [
+        // Lo mas importante del "Resumen del dia" del Corte Z. Tambien hay {fondo_inicial},
+        // {cuentas} (total), {con_descuento}, {ventas}, {descuentos} y {pedidos}.
         'cierre' => implode("\n", [
-            '*CIERRE DEL DIA*',
-            '{sucursal} - {fecha}',
-            'Cerro: {cajero}',
+            '*CIERRE DEL DÍA*',
+            '📍 {sucursal} · 📅 {fecha}',
+            '👤 Cerró: {cajero}',
             '',
-            '*Ventas:* ${ventas}',
-            'Efectivo: ${efectivo}',
-            'Tarjeta: ${tarjeta}',
-            'Transferencia: ${transferencia}',
-            'Descuentos: ${descuentos}',
-            'Pedidos: {pedidos}',
-            'Turnos: {turnos}'
+            '*TOTALES*',
+            '💰 Venta bruta: ${venta_bruta}',
+            '⏳ Pendiente: ${pendiente}',
+            '🛍️ Pedidos del día: ${pedidos_dia}',
+            '↩️ Abonos ant.: ${abonos_ant}',
+            '✅ *En caja: ${en_caja}*',
+            '',
+            '*MÉTODOS DE PAGO*',
+            '💵 Efectivo ({efectivo_n}): ${efectivo}',
+            '💳 Tarjeta ({tarjeta_n}): ${tarjeta}',
+            '🏦 Transferencia ({transferencia_n}): ${transferencia}',
+            '',
+            '*CUENTAS*',
+            '✔️ Pagadas: {pagadas}',
+            '🕒 Pendientes: {pendientes}',
+            '📝 Cotizaciones: {cotizaciones}',
+            '❌ Canceladas: {canceladas}',
+            '🎟️ Ticket promedio: ${ticket_promedio}',
+            '',
+            '🔄 *Turnos:* {turnos}'
         ]),
+        // Lo mas importante del ticket "Cierre x Turno".
         'turno' => implode("\n", [
-            '*CORTE DE TURNO*',
-            '{sucursal} - {cajero}',
+            '*CIERRE DE TURNO*',
+            '📍 {sucursal} · 📅 {fecha}',
+            '👤 {cajero} · 🕒 {apertura} – {cierre}',
+            '💼 Inicio de caja: ${fondo_inicial}',
             '',
-            '*Ventas:* ${ventas}',
-            'Efectivo: ${efectivo}',
-            'Tarjeta: ${tarjeta}',
-            'Transferencia: ${transferencia}',
-            'Pedidos: {pedidos}'
+            '*TOTALES*',
+            '💰 Venta del turno: ${ventas}',
+            '🛍️ Cobrado de pedidos: ${cobrado_turno}',
+            '↩️ Abonos ant. ({abonos_n}): ${abonos_ant}',
+            '✅ *Total caja: ${total_caja}*',
+            '',
+            '*MÉTODOS DE PAGO*',
+            '💵 Efectivo: ${efectivo}',
+            '💳 Tarjeta: ${tarjeta}',
+            '🏦 Transferencia: ${transferencia}',
+            '',
+            '*PEDIDOS DEL TURNO*',
+            '🧾 Pedidos: {pedidos}',
+            '✔️ Pagados: {pagados}',
+            '🕒 Pendientes: {pendientes}',
+            '📝 Cotizaciones: {cotizaciones}',
+            '❌ Cancelados: {cancelados}'
         ]),
         'personalizado' => implode("\n", [
-            '🎂 *PEDIDO #{folio}*',
+            '🎂 *PEDIDO {folio}*',
             '📅 Fecha: {fecha}',
             '⏰ Hora: {hora}',
             '📍 Sucursal: {sucursal}',
@@ -638,7 +684,7 @@ function defaultTemplates(){
             '*ESTATUS:* {estatus}'
         ]),
         'edicion' => implode("\n", [
-            '✏️ *PEDIDO EDITADO #{folio}*',
+            '✏️ *PEDIDO EDITADO {folio}*',
             '📅 Fecha: {fecha}',
             '⏰ Hora: {hora}',
             '📍 Sucursal: {sucursal}',
@@ -726,6 +772,11 @@ function recipientError($name, $phone, $types){
     if ($phone === '') return 'El teléfono va a 10 dígitos (ej. 9621501886) o como id de grupo …@g.us.';
     if (empty($types)) return 'Elige qué aviso recibe.';
     return '';
+}
+
+function validDate($value){
+    $date = DateTime::createFromFormat('Y-m-d', (string) $value);
+    return $date && $date->format('Y-m-d') === $value;
 }
 
 function providerName($provider){

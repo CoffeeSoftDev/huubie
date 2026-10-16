@@ -165,8 +165,11 @@ class Message {
                 }
 
                 $images[$index]['bytes'] = $bytes;
-                $images[$index]['remote'] = ($bytes !== false && $config['provider'] === 'greenapi')
-                    ? $this->uploadGreenApi($config, $images[$index])
+            }
+
+            foreach ($images as $index => $image) {
+                $images[$index]['remote'] = ($image['bytes'] !== false && $config['provider'] === 'greenapi')
+                    ? $this->uploadGreenApi($config, $image)
                     : null;
             }
 
@@ -260,8 +263,19 @@ class Message {
             $keys = preg_match_all('/\{(\w+)\}/', $line, $found) ? $found[1] : [];
             if ($keys && !array_filter($keys, $hasValue)) continue;
 
-            $lines[] = preg_replace_callback('/\{(\w+)\}/', function ($match) use ($vars, $hasValue) {
-                return $hasValue($match[1]) ? (string) $vars[$match[1]] : '';
+            // Un conteo en cero entre parentesis no se muestra: "Efectivo ({efectivo_n}):"
+            // queda "Efectivo:" en lugar de "Efectivo (-):".
+            $line = preg_replace_callback('/ ?\(\{(\w+)\}\)/', function ($match) use ($vars, $hasValue) {
+                return (!$hasValue($match[1]) || (string) $vars[$match[1]] === '-') ? '' : $match[0];
+            }, $line);
+
+            // Un monto en cero llega como "-": el "$" de la plantilla (${efectivo}) se quita
+            // para que no salga "$-".
+            $lines[] = preg_replace_callback('/(\$?)\{(\w+)\}/', function ($match) use ($vars, $hasValue) {
+                if (!$hasValue($match[2])) return '';
+
+                $value = (string) $vars[$match[2]];
+                return $value === '-' ? '-' : $match[1] . $value;
             }, $line);
         }
 

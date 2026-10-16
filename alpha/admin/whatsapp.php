@@ -32,6 +32,11 @@
     <link rel="stylesheet" href="<?=PATH_BASE?>src/plugins/bootstrap-5/css/bootstrap.min.css" />
     <script src="<?=PATH_BASE?>src/plugins/bootstrap-5/js/bootstrap.bundle.js"></script>
 
+    <!-- selector de periodo del Historial (dataPicker) -->
+    <link rel="stylesheet" href="<?=PATH_BASE?>src/plugins/daterangepicker/daterangepicker.css" />
+    <script src="<?=PATH_BASE?>src/plugins/daterangepicker/moment.min.js"></script>
+    <script src="<?=PATH_BASE?>src/plugins/daterangepicker/daterangepicker.js"></script>
+
     <script src="<?=PATH_ADMIN?>src/js/lucide-icons.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_BASE?>access/src/js/session.js"></script>
     <!-- Vista global de la empresa: la navbar no muestra el selector de sucursal. -->

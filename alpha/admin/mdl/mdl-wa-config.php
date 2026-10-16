@@ -186,7 +186,8 @@ class MWaConfig extends CRUD {
     }
 
     // Historial
-    // El rango va en días hacia atrás desde hoy; '' en tipo trae todos los avisos.
+    // Params: [empresa, tipo, tipo, fecha inicial, fecha final] (Y-m-d, ambas inclusivas);
+    // '' en tipo trae todos los avisos.
     function listHistorial($array){
         $query = "
             SELECT
@@ -203,7 +204,8 @@ class MWaConfig extends CRUD {
             LEFT JOIN subsidiaries s ON s.id = h.subsidiaries_id
             WHERE h.companies_id = ?
               AND (? = '' OR h.type = ?)
-              AND h.sent_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+              AND h.sent_at >= ?
+              AND h.sent_at < DATE_ADD(?, INTERVAL 1 DAY)
             ORDER BY h.sent_at DESC, h.id DESC";
 
         return $this->_Read($query, $array);
@@ -226,7 +228,8 @@ class MWaConfig extends CRUD {
             FROM wa_historial
             WHERE companies_id = ?
               AND (? = '' OR type = ?)
-              AND sent_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)";
+              AND sent_at >= ?
+              AND sent_at < DATE_ADD(?, INTERVAL 1 DAY)";
 
         $rows = $this->_Read($query, $array);
         return $rows ? $rows[0] : ['total' => 0, 'exitosos' => 0, 'fallidos' => 0];

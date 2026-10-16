@@ -1,3 +1,227 @@
+[ 2026-10-16 10:33:35 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                u.id         AS IDU,
+                u.name       AS name,
+                u.last_name  AS last_name,
+                u.email      AS email,
+                u.password   AS password,
+                u.password2  AS password2,
+                u.photo      AS photo,
+                u.color      AS color,
+                u.is_owner   AS is_owner,
+                u.company_id AS company_id,
+                c.name       AS company,
+                u.branch_id  AS branch_id,
+                b.name       AS branch
+            FROM fayxzvov_erp.users u
+            LEFT JOIN fayxzvov_erp.companies c ON c.id = u.company_id
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = u.branch_id
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.password2' in 'field list'
+
+
+[ 2026-10-16 10:33:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                u.id         AS IDU,
+                u.name       AS name,
+                u.last_name  AS last_name,
+                u.email      AS email,
+                u.password   AS password,
+                u.password2  AS password2,
+                u.photo      AS photo,
+                u.color      AS color,
+                u.is_owner   AS is_owner,
+                u.company_id AS company_id,
+                c.name       AS company,
+                u.branch_id  AS branch_id,
+                b.name       AS branch
+            FROM fayxzvov_erp.users u
+            LEFT JOIN fayxzvov_erp.companies c ON c.id = u.company_id
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = u.branch_id
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.password2' in 'field list'
+
+
+[ 2026-10-16 10:07:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                u.id         AS IDU,
+                u.name       AS name,
+                u.last_name  AS last_name,
+                u.email      AS email,
+                u.password   AS password,
+                u.password2  AS password2,
+                u.photo      AS photo,
+                u.color      AS color,
+                u.is_owner   AS is_owner,
+                u.company_id AS company_id,
+                c.name       AS company,
+                u.branch_id  AS branch_id,
+                b.name       AS branch
+            FROM fayxzvov_erp.users u
+            LEFT JOIN fayxzvov_erp.companies c ON c.id = u.company_id
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = u.branch_id
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.password2' in 'field list'
+
+
+[ 2026-10-16 10:04:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                u.id         AS IDU,
+                u.name       AS name,
+                u.last_name  AS last_name,
+                u.email      AS email,
+                u.password   AS password,
+                u.password2  AS password2,
+                u.photo      AS photo,
+                u.color      AS color,
+                u.is_owner   AS is_owner,
+                u.company_id AS company_id,
+                c.name       AS company,
+                u.branch_id  AS branch_id,
+                b.name       AS branch
+            FROM fayxzvov_erp.users u
+            LEFT JOIN fayxzvov_erp.companies c ON c.id = u.company_id
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = u.branch_id
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.password2' in 'field list'
+
+
+[ 2026-10-16 09:40:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                u.id         AS IDU,
+                u.name       AS name,
+                u.last_name  AS last_name,
+                u.email      AS email,
+                u.password   AS password,
+                u.password2  AS password2,
+                u.photo      AS photo,
+                u.color      AS color,
+                u.is_owner   AS is_owner,
+                u.company_id AS company_id,
+                c.name       AS company,
+                u.branch_id  AS branch_id,
+                b.name       AS branch
+            FROM fayxzvov_erp.users u
+            LEFT JOIN fayxzvov_erp.companies c ON c.id = u.company_id
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = u.branch_id
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.password2' in 'field list'
+
+
+[ 2026-10-16 09:40:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                u.id         AS IDU,
+                u.name       AS name,
+                u.last_name  AS last_name,
+                u.email      AS email,
+                u.password   AS password,
+                u.password2  AS password2,
+                u.photo      AS photo,
+                u.color      AS color,
+                u.is_owner   AS is_owner,
+                u.company_id AS company_id,
+                c.name       AS company,
+                u.branch_id  AS branch_id,
+                b.name       AS branch
+            FROM fayxzvov_erp.users u
+            LEFT JOIN fayxzvov_erp.companies c ON c.id = u.company_id
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = u.branch_id
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.password2' in 'field list'
+
+
+[ 2026-10-16 09:40:20 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                u.id         AS IDU,
+                u.name       AS name,
+                u.last_name  AS last_name,
+                u.email      AS email,
+                u.password   AS password,
+                u.password2  AS password2,
+                u.photo      AS photo,
+                u.color      AS color,
+                u.is_owner   AS is_owner,
+                u.company_id AS company_id,
+                c.name       AS company,
+                u.branch_id  AS branch_id,
+                b.name       AS branch
+            FROM fayxzvov_erp.users u
+            LEFT JOIN fayxzvov_erp.companies c ON c.id = u.company_id
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = u.branch_id
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.password2' in 'field list'
+
+
+[ 2026-10-16 09:39:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                u.id         AS IDU,
+                u.name       AS name,
+                u.last_name  AS last_name,
+                u.email      AS email,
+                u.password   AS password,
+                u.password2  AS password2,
+                u.photo      AS photo,
+                u.color      AS color,
+                u.is_owner   AS is_owner,
+                u.company_id AS company_id,
+                c.name       AS company,
+                u.branch_id  AS branch_id,
+                b.name       AS branch
+            FROM fayxzvov_erp.users u
+            LEFT JOIN fayxzvov_erp.companies c ON c.id = u.company_id
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = u.branch_id
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.password2' in 'field list'
+
+
 [ 2026-10-14 19:28:33 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: ROSY$

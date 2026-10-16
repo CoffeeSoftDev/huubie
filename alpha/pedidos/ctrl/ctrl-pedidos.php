@@ -2070,22 +2070,58 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    private function notifyShiftClosed($shift, $metrics, $subsidiary_id) {
+    // Aviso del cierre de turno con las cifras del ticket "Cierre x Turno"
+    // (shift-ticket.js): formas de pago, total en caja, conteo de pedidos del turno y
+    // abonos a pedidos de turnos anteriores.
+    private function notifyShiftClosed($shift, $metrics, $subsidiary_id, $closed_at) {
         try {
             $sucursal  = $this->getSucursalByID([$subsidiary_id]);
             $nombreSuc = $sucursal['sucursal'] ?? 'Sucursal';
             $cajero    = $shift['employee_name'] ?: 'un usuario';
 
+            // Montos y cantidades en cero salen como "-" en el mensaje.
+            $money = function ($value) { return abs(floatval($value)) < 0.005 ? '-' : number_format(floatval($value), 2); };
+            $count = function ($value) { return intval($value) === 0 ? '-' : intval($value); };
+
+            $detail = $this->getShiftDetailedOrders([$shift['id'], $shift['opened_at'], $closed_at, $subsidiary_id]);
+            $prev   = $this->getShiftPrevPaymentsSummary([$closed_at, $shift['opened_at'], $closed_at, $shift['id'], $subsidiary_id]);
+
+            $cobrado = 0;
+            foreach ($detail['shift_orders'] as $order) $cobrado += floatval($order['payment_real']);
+
+            $abonos = 0;
+            foreach ($detail['external_payments'] as $order) $abonos += floatval($order['payment_real']);
+
+            $cash     = floatval($metrics['cash_sales']);
+            $card     = floatval($metrics['card_sales']);
+            $transfer = floatval($metrics['transfer_sales']);
+
+            // total_orders ya excluye cancelados: pagados = el resto sin cotizaciones ni pendientes.
+            $orders     = intval($metrics['total_orders']);
+            $quotations = intval($metrics['quotation_count']);
+            $pending    = intval($metrics['pending_count']);
+
             $msg = new Message();
             $msg->aviso('turno', $sucursal['idCompany'] ?? null, [
                 'sucursal'      => $nombreSuc,
-                'fecha'         => date('d/m/Y'),
+                'fecha'         => date('d/m/Y', strtotime($shift['opened_at'])),
                 'cajero'        => $cajero,
-                'ventas'        => number_format(floatval($metrics['total_sales']), 2),
-                'efectivo'      => number_format(floatval($metrics['cash_sales']), 2),
-                'tarjeta'       => number_format(floatval($metrics['card_sales']), 2),
-                'transferencia' => number_format(floatval($metrics['transfer_sales']), 2),
-                'pedidos'       => intval($metrics['total_orders'])
+                'apertura'      => date('h:i A', strtotime($shift['opened_at'])),
+                'cierre'        => date('h:i A', strtotime($closed_at)),
+                'fondo_inicial' => $money($shift['opening_amount'] ?? 0),
+                'ventas'        => $money($metrics['total_sales']),
+                'cobrado_turno' => $money($cobrado),
+                'abonos_ant'    => $money($abonos),
+                'abonos_n'      => $count($prev['prev_count'] ?? 0),
+                'total_caja'    => $money($cash + $card + $transfer),
+                'efectivo'      => $money($cash),
+                'tarjeta'       => $money($card),
+                'transferencia' => $money($transfer),
+                'pedidos'       => $count($orders),
+                'pagados'       => $count(max(0, $orders - $quotations - $pending)),
+                'pendientes'    => $count($pending),
+                'cotizaciones'  => $count($quotations),
+                'cancelados'    => $count($metrics['cancelled_count'])
             ], "Turno de {$cajero}", $subsidiary_id);
         } catch (Exception $e) {
             error_log('[ WHATSAPP closeShift ] :: ' . $e->getMessage() . PHP_EOL, 3, 'error.log');
@@ -2146,7 +2182,7 @@ class Pedidos extends MPedidos{
 
         $this->updateOrdersCashShift([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
 
-        $this->notifyShiftClosed($shift, $metrics, $subsidiary_id);
+        $this->notifyShiftClosed($shift, $metrics, $subsidiary_id, $closed_at);
 
         $updatedShift = $this->getCashShiftById($shift_id);
         $date = date('Y-m-d', strtotime($opened_at));

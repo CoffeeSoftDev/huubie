@@ -779,7 +779,14 @@ class ctrl extends MPedidos{
         // comparan los que tiene.
         $before = $last['snapshot'];
 
-        if ($before !== null && array_intersect_key($snapshot, $before) === $before) {
+        // Los productos se comparan sin formato (negritas, viñetas, mayusculas): un aviso
+        // guardado con el formato anterior no cuenta como pedido editado.
+        $plain = function ($snap) {
+            $snap['productos'] = array_map('noticeKey', (array) ($snap['productos'] ?? []));
+            return $snap;
+        };
+
+        if ($before !== null && array_intersect_key($plain($snapshot), $plain($before)) === $plain($before)) {
             return [
                 'status'  => 200,
                 'message' => 'El pedido no cambió desde el último aviso',
@@ -846,14 +853,18 @@ class ctrl extends MPedidos{
             if ($gonePhotos) $changes[] = '📷 ' . $gonePhotos . ($gonePhotos === 1 ? ' foto quitada' : ' fotos quitadas');
         }
 
-        $removed = (array) ($before['productos'] ?? []);
-        $added   = [];
+        $removed     = (array) ($before['productos'] ?? []);
+        $removedKeys = array_map('noticeKey', $removed);
+        $added       = [];
 
         foreach ($after['productos'] as $block) {
-            $index = array_search($block, $removed, true);
+            $index = array_search(noticeKey($block), $removedKeys, true);
 
-            if ($index === false) $added[] = $block;
-            else unset($removed[$index]);
+            if ($index === false) {
+                $added[] = $block;
+            } else {
+                unset($removed[$index], $removedKeys[$index]);
+            }
         }
 
         // Cada bloque empieza con "• ": la viñeta se cambia por la marca.
@@ -877,7 +888,7 @@ class ctrl extends MPedidos{
                 $photos[] = [
                     'path'    => $image['path'],
                     'name'    => $image['name'] ?: basename($image['path']),
-                    'product' => "Pastel personalizado «{$line['name']}»"
+                    'cake'    => $line['name']
                 ];
             }
         }
@@ -891,6 +902,10 @@ class ctrl extends MPedidos{
         $total  = count($photos);
         $images = [];
 
+        // El pie dice primero que foto es y de que pedido; el nombre del pastel solo se
+        // agrega cuando el pedido trae fotos de mas de un pastel.
+        $severalCakes = count(array_unique(array_column($photos, 'cake'))) > 1;
+
         foreach ($photos as $index => $photo) {
             $count = 'foto ' . ($index + 1) . " de {$total}";
 
@@ -898,7 +913,7 @@ class ctrl extends MPedidos{
             $images[] = [
                 'file'      => rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') . '/' . ltrim($photo['path'], '/'),
                 'name'      => $photo['name'],
-                'caption'   => "📷 Pedido #{$folio} · {$photo['product']} · {$count}",
+                'caption'   => '📷 Foto ' . ($index + 1) . " de {$total} · Pedido {$folio}" . ($severalCakes ? " · «{$photo['cake']}»" : ''),
                 'reference' => "Pedido #{$folio} · {$count}"
             ];
         }
@@ -925,8 +940,10 @@ class ctrl extends MPedidos{
             $qty    = intval($line['quantity']);
             $detail = [];
 
+            // El producto va en negritas y cada dato con su viñeta ◦: en el celular los
+            // renglones largos se parten y sin viñeta no se ve donde empieza el siguiente.
             if ($line['is_custom']) {
-                $title    = "• {$qty} × Pastel personalizado «{$line['name']}»";
+                $title    = "• *{$qty} × Pastel personalizado «{$line['name']}»*";
                 $portions = oneLine($line['portion_qty']);
 
                 if ($portions !== '' && $portions !== '0') $detail[] = "Porciones: {$portions}";
@@ -938,23 +955,26 @@ class ctrl extends MPedidos{
                     $label = mb_strtoupper(mb_substr($group, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($group, 1, null, 'UTF-8');
                     $count = intval($item['custom_quantity']);
 
-                    $groups[$label][] = $item['name'] . ($count > 1 ? " x{$count}" : '');
+                    // El catalogo de modificadores mezcla MAYUSCULAS y minusculas: el valor
+                    // va siempre en minusculas para que se lea parejo.
+                    $groups[$label][] = mb_strtolower(trim($item['name']), 'UTF-8') . ($count > 1 ? " x{$count}" : '');
                 }
 
                 foreach ($groups as $label => $names) {
                     $detail[] = $label . ': ' . implode(', ', $names);
                 }
             } else {
-                $title = "• {$qty} × {$line['name']}";
+                $title = "• *{$qty} × {$line['name']}*";
             }
 
+            // Dedicatoria y observaciones las escribe el cliente: se respetan tal cual.
             if (oneLine($line['dedication']) !== '')    $detail[] = 'Dedicatoria: ' . oneLine($line['dedication']);
             if (oneLine($line['order_details']) !== '') $detail[] = 'Observaciones: ' . oneLine($line['order_details']);
 
             $images = count((array) $line['images']);
             if ($images > 0) $detail[] = imagesLabel($images);
 
-            $text[] = $title . ($detail ? "\n   " . implode("\n   ", $detail) : '');
+            $text[] = $title . ($detail ? "\n   ◦ " . implode("\n   ◦ ", $detail) : '');
         }
 
         return $text;
@@ -1052,6 +1072,13 @@ function oneLine($value) {
 // lleva HTML.
 function noticeMoney($value) {
     return '$' . number_format(floatval($value), 2);
+}
+
+// Llave de un bloque de producto sin formato: minusculas, sin negritas ni viñetas y con
+// los espacios juntos. Asi un cambio de formato del aviso no se toma como cambio del pedido.
+function noticeKey($block) {
+    $plain = str_replace(['*', '•', '◦'], '', (string) $block);
+    return trim(preg_replace('/\s+/u', ' ', mb_strtolower($plain, 'UTF-8')));
 }
 
 function imagesLabel($total) {

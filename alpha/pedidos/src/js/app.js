@@ -1088,45 +1088,69 @@ class App extends Templates {
         const row = event.target.closest('tr');
         const folio = row.querySelectorAll('td')[0]?.innerText || '';
 
-        this.createModalForm({
-            id: 'formDeleteOrder',
-            data: { opc: 'deleteOrder', id: id },
-            bootbox: {
-                title: '<i class="icon-trash text-red-400"></i> Eliminar pedido',
-                size: 'medium'
-            },
+        // Lista fija en el front: no es administrable y el ctrl solo exige texto de 5+ caracteres.
+        const OTHER = '__otro';
+        const reasons = [
+            'Pedido capturado por error',
+            'Pedido duplicado',
+            'Cliente canceló antes de confirmar',
+            'Datos de prueba'
+        ].map(r => ({ id: r, valor: r }));
+        reasons.push({ id: OTHER, valor: 'Otro (especificar)' });
+
+        const modalId = 'formDeleteOrder';
+        let sending   = false;
+
+        const modal = createCoffeeModalForm({
+            id: modalId,
+            title: 'Eliminar pedido',
+            iconSvg: lucideIcon('trash-2', 'w-5 h-5'),
+            iconBg: 'bg-red-600',
+            theme: 'dark',
+            width: 400,
+            confirmText: 'Eliminar',
+            confirmBg: 'bg-red-600 hover:bg-red-700',
+            cancelText: 'Cancelar',
             json: [
                 {
-                    opc: "div",
-                    id: "deleteOrderContext",
-                    class: 'col-12 mb-3',
+                    opc: 'html',
                     html: `
-                        <div class="bg-[#1E293B] rounded-lg p-3">
-                            <p class="text-white text-sm">Se eliminará el pedido <strong>${folio}</strong>.</p>
-                            <p class="text-red-400 text-xs mt-1">Es permanente y no se puede deshacer.</p>
+                        <div class="bg-[#1a2332] border border-red-500/30 rounded-lg p-3 flex items-start gap-2">
+                            <span class="text-red-400 flex-shrink-0 mt-0.5">${lucideIcon('alert-triangle', 'w-4 h-4')}</span>
+                            <div>
+                                <p class="text-white text-sm">Se eliminará el pedido <strong>${folio}</strong>.</p>
+                                <p class="text-red-400 text-xs mt-1">Es permanente y no se puede deshacer.</p>
+                            </div>
                         </div>
                     `
                 },
-                {
-                    opc: "input",
-                    id: "reason",
-                    lbl: "Motivo de la eliminación",
-                    class: "col-12 mb-3",
-                    placeholder: "Ej: PEDIDO CAPTURADO POR ERROR",
-                    required: true
-                },
-                {
-                    opc: "input",
-                    id: "password",
-                    lbl: "Tu contraseña",
-                    type: "password",
-                    class: "col-12 mb-3",
-                    placeholder: "••••••••",
-                    required: true
-                }
+                { opc: 'select', id: 'reasonSelect', lbl: 'Motivo de la eliminación', placeholder: 'Selecciona un motivo', required: true, data: reasons },
+                { opc: 'text', id: 'reasonOther', lbl: 'Especifica el motivo', placeholder: 'Escribe el motivo (mínimo 5 caracteres)' },
+                { opc: 'text', id: 'password', lbl: 'Tu contraseña', type: 'password', placeholder: '••••••••', required: true, autofocus: true }
             ],
-            success: (response) => {
+            onConfirm: async (data, modal) => {
+                const isOther = data.reasonSelect === OTHER;
+                const reason = isOther ? String(data.reasonOther || '').trim() : data.reasonSelect;
+
+                if (reason.length < 5) {
+                    $(`#${modalId}-reasonOther`).addClass('!border-red-500').trigger('focus');
+                    return;
+                }
+
+                // Un segundo Enter o clic mientras responde el servidor no manda otro borrado.
+                if (sending) return;
+                sending = true;
+
+                const $confirm = modal.el.find('.cf-confirm').prop('disabled', true).addClass('opacity-60 cursor-not-allowed');
+
+                const response = await useFetch({
+                    url: this._link,
+                    data: { opc: 'deleteOrder', id: id, reason: reason, password: data.password }
+                });
+
                 if (response.status != 200) {
+                    sending = false;
+                    $confirm.prop('disabled', false).removeClass('opacity-60 cursor-not-allowed');
                     alert({
                         icon: "error",
                         title: "No se eliminó",
@@ -1136,6 +1160,7 @@ class App extends Templates {
                     return;
                 }
 
+                modal.close();
                 alert({
                     icon: "success",
                     title: "Eliminado",
@@ -1144,6 +1169,22 @@ class App extends Templates {
                 });
                 this.ls();
             }
+        });
+
+        const $other = $(`#${modalId}-reasonOther`).closest('div.relative').parent().hide();
+        $(`#${modalId}-reasonOther`).on('input', function () { $(this).removeClass('!border-red-500'); });
+        $(`#${modalId}-reasonSelect`).on('change', function () {
+            const show = $(this).val() === OTHER;
+            $other.toggle(show);
+            if (show) $(`#${modalId}-reasonOther`).trigger('focus');
+        });
+
+        // Enter en la contraseña = pulsar «Eliminar»: valida motivo y contraseña igual que
+        // el botón, y el ctrl solo elimina si la contraseña es la correcta.
+        $(`#${modalId}-password`).on('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            modal.el.find('.cf-confirm').trigger('click');
         });
     }
 

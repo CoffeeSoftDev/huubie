@@ -882,6 +882,11 @@ class WhatsApp extends Templates {
                     },
                     {
                         type:  'div',
+                        id:    'waTplFormats',
+                        class: 'w-full'
+                    },
+                    {
+                        type:  'div',
                         id:    'waTplForm',
                         class: 'w-full'
                     },
@@ -905,6 +910,11 @@ class WhatsApp extends Templates {
                         type:  'div',
                         id:    'waTplPreviewTitle',
                         class: 'w-full'
+                    },
+                    {
+                        type:  'div',
+                        id:    'waTplPreviewMode',
+                        class: 'w-full flex justify-center'
                     },
                     {
                         type:  'div',
@@ -989,18 +999,142 @@ class WhatsApp extends Templates {
             success: (request) => this.onTemplateSaved(type, request)
         });
 
-        $('#waBody').addClass('font-mono !text-[12px] !py-[6px] leading-snug');
+        $('#waBody')
+            .addClass('font-mono !text-[12px] !py-[6px] leading-snug')
+            .css({ resize: 'none', overflow: 'hidden', minHeight: '220px' });
 
+        this.renderTemplateFormats();
         this.renderTemplateVars();
+        this.renderPreviewMode();
 
         this.preview = this.chatPreview({
             parent: 'waTplPhone',
             id:     'waPhone',
             name:   nameCompany,
+            theme:  'light',
+            image:  !!this.previewImage,
             text:   this.fillTemplate(template.cuerpo)
         });
 
-        $('#waBody').on('input', () => this.preview.update(this.fillTemplate($('#waBody').val())));
+        $('#waBody').on('input', () => {
+            this.autoGrowBody();
+            this.preview.update(this.fillTemplate($('#waBody').val()));
+        });
+
+        $(window).off('resize.waBody').on('resize.waBody', () => this.autoGrowBody());
+        this.autoGrowBody();
+    }
+
+    autoGrowBody() {
+        const field = document.getElementById('waBody');
+        if (!field) return;
+
+        field.style.height = 'auto';
+        field.style.height = `${field.scrollHeight + 2}px`;
+    }
+
+    renderPreviewMode() {
+        const modes = [
+            { id: 'text',  label: 'Solo texto', image: false },
+            { id: 'photo', label: 'Con foto',   image: true }
+        ];
+
+        this.createLayout({
+            parent: 'waTplPreviewMode',
+            design: false,
+            data: {
+                id:    'waTplModeBtns',
+                class: 'inline-flex rounded-lg bg-[#111827] p-[3px] gap-[2px]',
+                container: modes.map(mode => ({
+                    type:  'button',
+                    id:    `waMode-${mode.id}`,
+                    class: `text-[11px] px-[10px] py-[3px] rounded-md transition-colors ${mode.image === !!this.previewImage ? 'bg-[#7C3AED] text-white' : 'text-gray-400 hover:text-white'}`,
+                    text:  mode.label,
+                    click: () => {
+                        this.previewImage = mode.image;
+                        modes.forEach(item => $(`#waMode-${item.id}`)
+                            .toggleClass('bg-[#7C3AED] text-white', item.image === mode.image)
+                            .toggleClass('text-gray-400 hover:text-white', item.image !== mode.image));
+                        this.preview.setImage(mode.image);
+                    }
+                }))
+            }
+        });
+    }
+
+    renderTemplateFormats() {
+        const formats = [
+            { label: 'B',    cls: 'font-bold',          tip: 'Negrita · *texto*',               mark: '*',   kind: 'wrap' },
+            { label: 'I',    cls: 'italic',             tip: 'Cursiva · _texto_',               mark: '_',   kind: 'wrap' },
+            { label: 'S',    cls: 'line-through',       tip: 'Tachado · ~texto~',               mark: '~',   kind: 'wrap' },
+            { label: '</>',  cls: 'font-mono',          tip: 'Monoespaciado · ```texto```',     mark: '```', kind: 'wrap' },
+            { label: '`x`',  cls: 'font-mono',          tip: 'Código en línea · `texto`',       mark: '`',   kind: 'wrap' },
+            { label: '• Lista',    cls: '',             tip: 'Lista · * al inicio del renglón', prefix: '* ',  kind: 'line' },
+            { label: '1. Lista',   cls: '',             tip: 'Lista numerada · 1. al inicio',   prefix: '1. ', kind: 'line' },
+            { label: '❝ Cita',     cls: '',             tip: 'Cita · > al inicio del renglón',  prefix: '> ',  kind: 'line' }
+        ];
+
+        this.createLayout({
+            parent: 'waTplFormats',
+            design: false,
+            data: {
+                id:    'waTplFormatBody',
+                class: 'flex flex-col gap-[6px]',
+                container: [
+                    {
+                        type:  'p',
+                        class: 'text-xs text-gray-400 m-0',
+                        text:  'Formato de WhatsApp · aplica a lo seleccionado o al renglón del cursor:'
+                    },
+                    {
+                        type:  'div',
+                        id:    'waTplFormatChips',
+                        class: 'flex flex-wrap gap-[6px]',
+                        children: formats.map(format => ({
+                            type:  'button',
+                            class: `text-[11px] px-[8px] py-[2px] rounded bg-[#25D366]/15 text-[#4ADE80] hover:bg-[#25D366]/30 transition-colors ${format.cls}`,
+                            attr:  { title: format.tip, type: 'button' },
+                            text:  format.label,
+                            click: () => this.applyFormat(format)
+                        }))
+                    }
+                ]
+            }
+        });
+    }
+
+    applyFormat(format) {
+        const field = document.getElementById('waBody');
+        if (!field) return;
+
+        let start = field.selectionStart;
+        let end   = field.selectionEnd;
+        const value = field.value;
+
+        let result, from, to;
+
+        if (format.kind === 'wrap') {
+            const selected = value.slice(start, end);
+            result = value.slice(0, start) + format.mark + selected + format.mark + value.slice(end);
+            from   = start + format.mark.length;
+            to     = from + selected.length;
+        } else {
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd   = value.indexOf('\n', end) === -1 ? value.length : value.indexOf('\n', end);
+            const lines     = value.slice(lineStart, lineEnd).split('\n');
+            const numbered  = format.prefix === '1. ';
+            const marked    = lines.map((line, index) => (numbered ? `${index + 1}. ` : format.prefix) + line).join('\n');
+
+            result = value.slice(0, lineStart) + marked + value.slice(lineEnd);
+            from   = lineStart;
+            to     = lineStart + marked.length;
+        }
+
+        field.value = result;
+        field.focus();
+        field.setSelectionRange(from, to);
+
+        $(field).trigger('input');
     }
 
     renderTemplateVars() {
@@ -1064,6 +1198,11 @@ class WhatsApp extends Templates {
                     },
                     {
                         type:  'div',
+                        id:    'waHistLimit',
+                        class: 'w-full'
+                    },
+                    {
+                        type:  'div',
                         id:    'waHistTable',
                         class: 'w-full'
                     }
@@ -1076,12 +1215,17 @@ class WhatsApp extends Templates {
             design: false,
             data: {
                 id:    'waHistHeadRow',
-                class: 'flex flex-col md:flex-row md:items-end justify-between gap-[12px]',
+                class: 'flex flex-col md:flex-row md:flex-wrap md:items-end justify-between gap-[12px]',
                 container: [
                     {
                         type:  'div',
                         id:    'waHistTitle',
-                        class: 'min-w-0'
+                        class: 'min-w-0 md:flex-1'
+                    },
+                    {
+                        type:  'div',
+                        id:    'waHistPeriod',
+                        class: 'w-full md:w-[340px]'
                     },
                     {
                         type:  'div',
@@ -1096,8 +1240,12 @@ class WhatsApp extends Templates {
             parent: 'waHistTitle',
             icon:   'activity',
             title:  'Historial de envíos',
-            text:   'Últimos 30 días · ordenado por fecha descendente.'
+            text:   'Cargando…',
+            textId: 'waHistSubtitle'
         });
+
+        this.histMode = 'rango';
+        this.periodBox();
 
         this.createfilterBar({
             parent: 'filterBarWaHistorial',
@@ -1149,6 +1297,131 @@ class WhatsApp extends Templates {
         this.lsHistorial();
     }
 
+    periodBox() {
+        const radio = (value, text) => ({
+            type:  'label',
+            class: 'flex items-center gap-[4px] text-[12px] text-gray-200 cursor-pointer whitespace-nowrap m-0',
+            html:  `<input type="radio" name="waHistMode" value="${value}" class="m-0" style="accent-color:#7C3AED" ${this.histMode === value ? 'checked' : ''} onchange="whatsapp.setHistPeriod('${value}')"> ${text}`
+        });
+        const input = (id) => ({
+            type:  'input',
+            id:    id,
+            class: 'flex-1 min-w-0 w-full bg-transparent text-white text-[12px] border-0 outline-none p-0 m-0'
+        });
+
+        this.createLayout({
+            parent: 'waHistPeriod',
+            design: false,
+            data: {
+                id:    'waHistPeriodBox',
+                class: 'flex items-center gap-[8px] h-[31px] px-[10px] rounded-md border-[1px] border-[#475569] bg-[#1F2A37]',
+                container: [
+                    radio('fecha', 'Fecha'),
+                    radio('rango', 'Rango'),
+                    {
+                        type:  'span',
+                        class: 'shrink-0 bg-[#475569]',
+                        style: 'width:1px;height:16px'
+                    },
+                    input('waHistFecha'),
+                    input('waHistRango'),
+                    {
+                        type:  'span',
+                        class: 'shrink-0 text-gray-400 flex items-center',
+                        html:  lucideIcon('calendar', 'w-4 h-4')
+                    }
+                ]
+            }
+        });
+
+        dataPicker({
+            parent: 'waHistFecha',
+            type:   'simple',
+            onSelect: () => this.lsHistorial()
+        });
+
+        dataPicker({
+            parent: 'waHistRango',
+            type:   'all',
+            rangepicker: {
+                startDate:     moment().subtract(29, 'days'),
+                endDate:       moment(),
+                showDropdowns: true,
+                ranges: {
+                    'Hoy':          [moment(), moment()],
+                    'Últimos 7 días': [moment().subtract(6, 'days'), moment()],
+                    'Mes actual':   [moment().startOf('month'), moment()],
+                    'Mes anterior': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                },
+                locale: { format: 'DD-MM-YYYY' }
+            },
+            onSelect: () => this.lsHistorial()
+        });
+
+        this.applyHistPeriod();
+    }
+
+    applyHistPeriod() {
+        $('#waHistFecha').toggle(this.histMode === 'fecha');
+        $('#waHistRango').toggle(this.histMode === 'rango');
+    }
+
+    setHistPeriod(mode) {
+        this.histMode = mode;
+        this.applyHistPeriod();
+        this.lsHistorial();
+    }
+
+    histPeriod() {
+        const { fi, ff } = getDataRangePicker(this.histMode === 'fecha' ? 'waHistFecha' : 'waHistRango');
+        const show       = (date) => date.split('-').reverse().join('/');
+
+        return {
+            fi,
+            ff,
+            label: fi === ff ? show(fi) : `${show(fi)} al ${show(ff)}`
+        };
+    }
+
+    renderHistoryLimit(limit) {
+        const used     = limit.hoy;
+        const reached  = used >= limit.max;
+        const near     = !reached && used >= limit.aviso;
+        const tone     = reached ? WA_UI.tones.red : near ? WA_UI.tones.amber : WA_UI.tones.green;
+        const message  = reached
+            ? 'Llegaste al tope diario: los siguientes envíos pueden ser rechazados por el proveedor.'
+            : near
+                ? 'Te acercas al tope diario de mensajes.'
+                : 'Uso del tope diario de mensajes.';
+
+        this.createLayout({
+            parent: 'waHistLimit',
+            design: false,
+            data: {
+                id:    'waHistLimitBox',
+                class: `flex items-center gap-[10px] rounded-lg border-[1px] border-[${tone}] bg-[${tone}]/10 px-[12px] py-[8px]`,
+                container: [
+                    {
+                        type:  'span',
+                        class: 'shrink-0',
+                        style: `color:${tone}`,
+                        html:  lucideIcon(reached || near ? 'alert-triangle' : 'activity', 'w-4 h-4')
+                    },
+                    {
+                        type:  'p',
+                        class: 'text-[12px] font-bold text-white m-0 whitespace-nowrap',
+                        text:  `${used} de ${limit.max} mensajes hoy`
+                    },
+                    {
+                        type:  'p',
+                        class: 'text-[11px] text-gray-300 m-0',
+                        text:  message
+                    }
+                ]
+            }
+        });
+    }
+
     renderHistoryKpis(kpis) {
         this.cardsDashboard({
             parent: 'waHistKpis',
@@ -1196,7 +1469,8 @@ class WhatsApp extends Templates {
             color:  '#A78BFA',
             size:   'base',
             title:  '',
-            text:   ''
+            text:   '',
+            textId: undefined
         }, options);
 
         const isLarge   = opts.size === 'lg';
@@ -1211,6 +1485,7 @@ class WhatsApp extends Templates {
         if (opts.text) {
             container.push({
                 type:  'p',
+                id:    opts.textId,
                 class: 'text-[11px] text-gray-400 m-0 mt-[2px]',
                 text:  opts.text
             });
@@ -1329,12 +1604,14 @@ class WhatsApp extends Templates {
 
     async lsHistorial() {
         const tipo    = $('#waFilterTipo').val() || '';
+        const period  = this.histPeriod();
         const request = await useFetch({
             url:  this._link,
             data: {
-                opc:   'lsWaHistorial',
-                tipo:  tipo,
-                rango: 30
+                opc:  'lsWaHistorial',
+                tipo: tipo,
+                fi:   period.fi,
+                ff:   period.ff
             }
         });
 
@@ -1343,17 +1620,19 @@ class WhatsApp extends Templates {
             return;
         }
 
+        $('#waHistSubtitle').text(`${period.label} · ordenado por fecha descendente.`);
         this.historyLogs = request.logs;
         this.renderHistoryKpis(request.kpis);
+        this.renderHistoryLimit(request.limite);
 
         if (!request.row.length) {
             this.emptyState({
                 parent: 'waHistTable',
                 icon:   'clock',
-                title:  tipo ? 'Sin envíos de este aviso' : 'Todavía no hay envíos',
+                title:  tipo ? 'Sin envíos de este aviso' : 'Sin envíos en este periodo',
                 text:   tipo
-                    ? 'En los últimos 30 días no salió ningún aviso de este tipo.'
-                    : 'El primer corte que se cierre aparecerá aquí con su proveedor y su estado.'
+                    ? 'En el periodo elegido no salió ningún aviso de este tipo.'
+                    : 'Cambia el periodo de consulta o espera al próximo aviso: aparecerá aquí con su proveedor y su estado.'
             });
             return;
         }
@@ -2113,14 +2392,14 @@ class WhatsApp extends Templates {
             ['cliente',   'María'],
             ['telefono',  '962 XXX XXXX'],
             ['productos', [
-                '• 1 × Tres Leches Fresas con Crema 12',
-                '   Dedicatoria: Felicidades mami',
-                '• 1 × Pastel personalizado «María»',
-                '   Porciones: 10',
-                '   Forma: redonda',
-                '   Rellenos: manjar',
-                '   Dedicatoria: Happy Birthday Mom',
-                '   🖼️ 1 imagen adjunta'
+                '• *1 × Tres Leches Fresas con Crema 12*',
+                '   ◦ Dedicatoria: Felicidades mami',
+                '• *1 × Pastel personalizado «María»*',
+                '   ◦ Porciones: 10',
+                '   ◦ Forma: redonda',
+                '   ◦ Rellenos: manjar',
+                '   ◦ Dedicatoria: Happy Birthday Mom',
+                '   ◦ 🖼️ 1 imagen adjunta'
             ].join('\n')],
             ['total',      '$1,250.00'],
             ['anticipo',   '$500.00'],
@@ -2130,23 +2409,52 @@ class WhatsApp extends Templates {
         ];
 
         const pairs = {
+            // Mismas cifras que el "Resumen del dia" del Corte Z (ejemplo: 30/09/2026).
             cierre: [
-                ['cajero',        'Rosy'],
-                ['ventas',        '8,450.00'],
-                ['efectivo',      '3,200.00'],
-                ['tarjeta',       '4,150.00'],
-                ['transferencia', '1,100.00'],
-                ['descuentos',    '250.00'],
-                ['pedidos',       '18'],
-                ['turnos',        '2']
+                ['cajero',          'Rosy'],
+                ['venta_bruta',     '10,220.00'],
+                ['pendiente',       '6,320.00'],
+                ['pedidos_dia',     '3,900.00'],
+                ['abonos_ant',      '1,780.00'],
+                ['en_caja',         '5,680.00'],
+                ['efectivo',        '1,200.00'],
+                ['efectivo_n',      '3'],
+                ['tarjeta',         '650.00'],
+                ['tarjeta_n',       '2'],
+                ['transferencia',   '3,830.00'],
+                ['transferencia_n', '6'],
+                ['fondo_inicial',   '-'],
+                ['pagadas',         '4'],
+                ['pendientes',      '4'],
+                ['cotizaciones',    '1'],
+                ['cuentas',         '9'],
+                ['canceladas',      '-'],
+                ['con_descuento',   '-'],
+                ['ticket_promedio', '1,277.50'],
+                ['turnos',          '2'],
+                ['ventas',          '10,220.00'],
+                ['descuentos',      '-'],
+                ['pedidos',         '9']
             ],
+            // Mismas cifras que el ticket "Cierre x Turno".
             turno: [
                 ['cajero',        'Rosy'],
+                ['apertura',      '09:00 AM'],
+                ['cierre',        '03:00 PM'],
+                ['fondo_inicial', '500.00'],
                 ['ventas',        '4,200.00'],
+                ['cobrado_turno', '3,400.00'],
+                ['abonos_ant',    '800.00'],
+                ['abonos_n',      '2'],
+                ['total_caja',    '4,200.00'],
                 ['efectivo',      '1,800.00'],
                 ['tarjeta',       '2,400.00'],
-                ['transferencia', '0.00'],
-                ['pedidos',       '9']
+                ['transferencia', '-'],
+                ['pedidos',       '9'],
+                ['pagados',       '5'],
+                ['pendientes',    '3'],
+                ['cotizaciones',  '1'],
+                ['cancelados',    '-']
             ],
             personalizado: order,
             edicion: [
@@ -2154,10 +2462,10 @@ class WhatsApp extends Templates {
                 ['cambios', [
                     '• Hora: 11:00 AM → 01:00 PM',
                     '• Anticipo: $300.00 → $500.00',
-                    '➕ 1 × Pastel personalizado «María»',
-                    '   Porciones: 10',
-                    '   Rellenos: manjar',
-                    '➖ 1 × Gelatina de mosaico'
+                    '➕ *1 × Pastel personalizado «María»*',
+                    '   ◦ Porciones: 10',
+                    '   ◦ Rellenos: manjar',
+                    '➖ *1 × Gelatina de mosaico*'
                 ].join('\n')]
             ]
         };
@@ -2175,7 +2483,14 @@ class WhatsApp extends Templates {
         const values = {};
         this.templateVars(this.templateType).forEach(variable => values[variable.key] = variable.sample);
 
-        return String(body || '').replace(/\{(\w+)\}/g, (match, key) => values[key] !== undefined ? values[key] : match);
+        // Igual que Message::fillTemplate: un cero llega como "-"; si va entre parentesis
+        // ({efectivo_n}) se quitan, y si lleva "$" delante (${var}) se quita el "$".
+        return String(body || '')
+            .replace(/ ?\(\{(\w+)\}\)/g, (match, key) => values[key] === '-' ? '' : match)
+            .replace(/(\$?)\{(\w+)\}/g, (match, dollar, key) => {
+                if (values[key] === undefined) return match;
+                return values[key] === '-' ? '-' : dollar + values[key];
+            });
     }
 
     compareData() {
