@@ -68,8 +68,8 @@ class ctrl extends mdl {
                 'id'          => $t['id'],
                 'Tema'        => renderThemeName($t, $t['tipo'] === 'imagen' ? $image : ''),
                 'Código'      => htmlspecialchars($t['code']),
-                'Fondo'       => renderThemeTipo($t['tipo'], $missing),
-                'Texto'       => $t['mode'] === 'dark' ? 'Claro' : 'Oscuro',
+                'Navbar'      => renderThemeBar($t, $missing),
+                'Sidebar'     => renderThemeSidebar($t['sidebar_color']),
                 'Colores'     => renderThemeColors($t['accent'], $t['primary_color'], $t['secondary_color']),
                 'Página'      => renderThemeScheme($t['scheme']),
                 'Usuarios'    => (int) $t['chosen_by'],
@@ -107,7 +107,7 @@ class ctrl extends mdl {
         // alta un tema no le cambie la barra a nadie por descuido.
         // Sin util->sql(): en PHP 7 convierte el 0 en NULL (0 == '').
         $ok = $this->createTheme([
-            'values' => ['code', 'name', 'tipo', 'color', 'accent', 'primary_color', 'secondary_color', 'scheme', 'mode', 'badge', 'is_default', 'orden', 'is_active', 'created_at'],
+            'values' => ['code', 'name', 'tipo', 'color', 'accent', 'primary_color', 'secondary_color', 'sidebar_color', 'scheme', 'mode', 'badge', 'is_default', 'orden', 'is_active', 'created_at'],
             'data'   => [
                 $code,
                 trim($_POST['name']),
@@ -116,6 +116,7 @@ class ctrl extends mdl {
                 $this->hex('accent'),
                 $this->hex('primary_color'),
                 $this->hex('secondary_color'),
+                $this->sidebar(),
                 $this->scheme(),
                 $this->mode(),
                 $this->badge(),
@@ -146,7 +147,7 @@ class ctrl extends mdl {
         if ($error !== null) return $error;
 
         $ok = $this->updateTheme([
-            'values' => ['name', 'tipo', 'color', 'accent', 'primary_color', 'secondary_color', 'scheme', 'mode', 'badge', 'orden'],
+            'values' => ['name', 'tipo', 'color', 'accent', 'primary_color', 'secondary_color', 'sidebar_color', 'scheme', 'mode', 'badge', 'orden'],
             'where'  => ['id'],
             'data'   => [
                 trim($_POST['name']),
@@ -155,6 +156,7 @@ class ctrl extends mdl {
                 $this->hex('accent'),
                 $this->hex('primary_color'),
                 $this->hex('secondary_color'),
+                $this->sidebar(),
                 $this->scheme(),
                 $this->mode(),
                 $this->badge(),
@@ -373,6 +375,9 @@ class ctrl extends mdl {
         if ($this->hex('accent') === null)        return ['status' => 400, 'message' => 'El acento debe ser un hexadecimal como #C05A40'];
         if ($this->hex('primary_color') === null) return ['status' => 400, 'message' => 'El primario debe ser un hexadecimal como #292524'];
         if ($this->hex('secondary_color') === null) return ['status' => 400, 'message' => 'El secundario debe ser un hexadecimal como #7C3AED'];
+        if (trim($_POST['sidebar_color'] ?? '') !== '' && $this->hex('sidebar_color') === null) {
+            return ['status' => 400, 'message' => 'El color de la sidebar debe ser un hexadecimal como #0F2740, o déjalo vacío para que siga a la página'];
+        }
         if (mb_strlen(trim($_POST['badge'])) > 30) return ['status' => 400, 'message' => 'La etiqueta admite máximo 30 caracteres'];
 
         return null;
@@ -388,6 +393,12 @@ class ctrl extends mdl {
     private function badge() {
         $b = trim($_POST['badge']);
         return $b === '' ? null : $b;
+    }
+
+    // Vacío = NULL: el rail sigue a la página (blanco u oscuro), como antes de
+    // que existiera el campo.
+    private function sidebar() {
+        return trim($_POST['sidebar_color'] ?? '') === '' ? null : $this->hex('sidebar_color');
     }
 
     private function scheme() {
@@ -456,7 +467,8 @@ class ctrl extends mdl {
             'scheme'          => $this->enLista($a['scheme'] ?? '', $this->schemes, 'light'),
             'accent'          => $accent,
             'primary_color'   => $this->hexValor($a['primary_color'] ?? '') ?? '#292524',
-            'secondary_color' => $this->hexValor($a['secondary_color'] ?? '') ?? $accent
+            'secondary_color' => $this->hexValor($a['secondary_color'] ?? '') ?? $accent,
+            'sidebar_color'   => $this->hexValor($a['sidebar_color'] ?? '') ?? ''
         ];
     }
 
@@ -471,6 +483,11 @@ class ctrl extends mdl {
             $hex = $this->hexValor($t[$k] ?? '');
             if ($hex !== null) $p[$k] = $hex;
         }
+
+        // "auto" suelta la sidebar: vuelve a seguir a la página (campo vacío).
+        $side = $t['sidebar_color'] ?? null;
+        if (is_scalar($side) && strtolower(trim((string) $side)) === 'auto') $p['sidebar_color'] = '';
+        elseif ($this->hexValor($side) !== null)                             $p['sidebar_color'] = $this->hexValor($side);
 
         $p['mode']   = $this->enLista($t['mode'] ?? '', $this->modes, $p['mode']);
         $p['scheme'] = $this->enLista($t['scheme'] ?? '', $this->schemes, $p['scheme']);
@@ -510,14 +527,16 @@ class ctrl extends mdl {
             'name'            => ['tema',    'Nombre',     false],
             'color'           => ['barra',   'Fondo',      true],
             'mode'            => ['barra',   'Texto',      false],
+            'sidebar_color'   => ['sidebar', 'Fondo',      true],
             'scheme'          => ['pagina',  'Fondo',      false],
             'accent'          => ['colores', 'Acento',     true],
             'primary_color'   => ['colores', 'Primario',   true],
             'secondary_color' => ['colores', 'Secundario', true]
         ];
         $textos = [
-            'mode'   => ['light' => 'Oscuro', 'dark' => 'Claro'],
-            'scheme' => array_column($this->init()['schemes'], 'valor', 'id')
+            'mode'          => ['light' => 'Oscuro', 'dark' => 'Claro'],
+            'sidebar_color' => ['' => 'Como la página'],
+            'scheme'        => array_column($this->init()['schemes'], 'valor', 'id')
         ];
         $row = [];
 
@@ -525,7 +544,8 @@ class ctrl extends mdl {
             $antes   = (string) $actual[$campo];
             $despues = (string) $propuesta['tema'][$campo];
 
-            if ($despues === '' || strcasecmp($antes, $despues) === 0) continue;
+            // La sidebar vacía es un valor (sigue a la página); en los demás, nada que cambiar.
+            if (($despues === '' && $campo !== 'sidebar_color') || strcasecmp($antes, $despues) === 0) continue;
 
             $row[] = [
                 'idx'     => count($row),
@@ -586,8 +606,9 @@ class ctrl extends mdl {
             '== CONTRATO (lo que el sistema acepta) ==',
             'Campos del tema. Todos son opcionales: manda solo los que propones cambiar.',
             '- name: nombre corto del tema, máximo 40 caracteres.',
-            '- color: fondo de la barra superior, hexadecimal #RRGGBB.',
-            '- mode: color del TEXTO de la barra. "light" = texto oscuro, para fondos claros. "dark" = texto claro, para fondos oscuros.',
+            '- color: fondo de la barra superior (navbar), hexadecimal #RRGGBB.',
+            '- mode: color del TEXTO de la navbar. "light" = texto oscuro, para fondos claros. "dark" = texto claro, para fondos oscuros.',
+            '- sidebar_color: fondo de la barra lateral (sidebar, el menú de íconos de la izquierda), #RRGGBB. "auto" = que siga a la página (blanca en la clara, la oscura de cada página oscura). El color de sus íconos lo pone el sistema según la luz del fondo.',
             '- scheme: fondo de la página. "light" = gris claro de siempre; "huubie" = oscura navy; "midnight" = oscura azul noche; "rose" = oscura vino.',
             '- accent: acento #RRGGBB (pestañas activas, chips, enlaces).',
             '- primary_color: primario #RRGGBB (botones principales; llevan texto BLANCO encima).',
@@ -601,6 +622,7 @@ class ctrl extends mdl {
             'name: ' . ($actual['name'] !== '' ? $actual['name'] : '(vacío)'),
             'color: ' . $actual['color'] . ($actual['tipo'] === 'imagen' ? ' (la barra lleva una imagen de temporada encima)' : ''),
             'mode: ' . $actual['mode'],
+            'sidebar_color: ' . ($actual['sidebar_color'] !== '' ? $actual['sidebar_color'] : 'auto (sigue a la página)'),
             'scheme: ' . $actual['scheme'],
             'accent: ' . $actual['accent'],
             'primary_color: ' . $actual['primary_color'],
@@ -714,24 +736,37 @@ function renderThemeName($t, $image) {
         . '</div>';
 }
 
-function renderThemeTipo($tipo, $missing) {
-    if ($tipo !== 'imagen') return 'Color plano';
-
-    return $missing
-        ? '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-amber-50 text-amber-700">Falta la imagen</span>'
-        : 'Imagen';
+// Muestra de color + hex. Los hex ya vienen validados al guardar.
+function renderThemeDot($hex, $label) {
+    return '<span class="inline-flex items-center gap-1.5" title="' . $label . '">'
+        . '<span class="w-3 h-3 rounded-full shrink-0 border border-gray-200" style="background:' . htmlspecialchars($hex) . ';"></span>'
+        . '<span class="text-xs text-gray-600">' . htmlspecialchars($hex) . '</span>'
+        . '</span>';
 }
 
-// Acento, primario y secundario con su muestra. Los hex ya vienen validados al guardar.
-function renderThemeColors($accent, $primary, $secondary) {
-    $dot = function ($hex, $label) {
-        return '<span class="inline-flex items-center gap-1.5" title="' . $label . '">'
-            . '<span class="w-3 h-3 rounded-full shrink-0 border border-gray-200" style="background:' . htmlspecialchars($hex) . ';"></span>'
-            . '<span class="text-xs text-gray-600">' . htmlspecialchars($hex) . '</span>'
-            . '</span>';
-    };
+// El color de la navbar; con imagen de temporada, si ya la tiene o le falta.
+function renderThemeBar($t, $missing) {
+    $dot = renderThemeDot($t['color'], 'Fondo de la navbar');
+    if ($t['tipo'] !== 'imagen') return $dot;
 
-    return '<div class="inline-flex items-center gap-3">' . $dot($accent, 'Acento') . $dot($primary, 'Primario') . $dot($secondary, 'Secundario') . '</div>';
+    return '<div class="inline-flex items-center gap-2">' . $dot
+        . ($missing
+            ? '<span class="px-2 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700">Falta la imagen</span>'
+            : '<span class="text-xs text-gray-500">+ imagen</span>')
+        . '</div>';
+}
+
+// Sin color propio la sidebar sigue a la página (blanca u oscura).
+function renderThemeSidebar($hex) {
+    return trim((string) $hex) === ''
+        ? '<span class="text-xs text-gray-400">Como la página</span>'
+        : renderThemeDot($hex, 'Fondo de la sidebar');
+}
+
+function renderThemeColors($accent, $primary, $secondary) {
+    return '<div class="inline-flex items-center gap-3">'
+        . renderThemeDot($accent, 'Acento') . renderThemeDot($primary, 'Primario') . renderThemeDot($secondary, 'Secundario')
+        . '</div>';
 }
 
 function renderThemeScheme($scheme) {

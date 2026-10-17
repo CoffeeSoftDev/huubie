@@ -17,7 +17,7 @@ class mdl extends CRUD {
     function listThemes($array) {
         $query = "
             SELECT
-                t.id, t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.scheme, t.mode, t.badge,
+                t.id, t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.sidebar_color, t.scheme, t.mode, t.badge,
                 t.is_default, t.orden, t.is_active,
                 (SELECT COUNT(*) FROM {$this->bd}users u WHERE u.theme_code = t.code) AS chosen_by
             FROM {$this->bd}themes t
@@ -30,7 +30,7 @@ class mdl extends CRUD {
 
     function getThemeById($array) {
         $query = "
-            SELECT id, code, name, tipo, color, image, accent, primary_color, secondary_color, scheme, mode, badge, is_default, orden, is_active
+            SELECT id, code, name, tipo, color, image, accent, primary_color, secondary_color, sidebar_color, scheme, mode, badge, is_default, orden, is_active
             FROM {$this->bd}themes
             WHERE id = ?
             LIMIT 1

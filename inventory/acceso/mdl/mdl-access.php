@@ -345,7 +345,7 @@ class MAccess extends CRUD {
     // Catalogo de temas activos para el selector de la barra.
     function getThemes() {
         $query = "
-            SELECT code, name, tipo, color, image, accent, primary_color, secondary_color, scheme, mode, badge, is_default, orden
+            SELECT code, name, tipo, color, image, accent, primary_color, secondary_color, sidebar_color, scheme, mode, badge, is_default, orden
             FROM {$this->bd}themes
             WHERE is_active = 1
             ORDER BY orden ASC, id ASC
@@ -359,7 +359,7 @@ class MAccess extends CRUD {
     function getThemesByCompany($array) {
         // [company_id]
         $query = "
-            SELECT t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.scheme, t.mode, t.badge, t.is_default, t.orden
+            SELECT t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.sidebar_color, t.scheme, t.mode, t.badge, t.is_default, t.orden
             FROM {$this->bd}themes t
             LEFT JOIN {$this->bd}company_themes ct ON ct.theme_id = t.id AND ct.company_id = ?
             WHERE t.is_active = 1

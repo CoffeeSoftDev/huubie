@@ -1,3 +1,41 @@
+[ 2026-10-17 09:08:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost            AS total_cost_loss,
+                m.status,
+                m.created_at,
+                m.updated_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.bg_hex           AS reason_bg,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.branch_id,
+                s.name              AS branch_name,
+                m.user_id,
+                m.purchase_order_id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name
+            FROM fayxzvov_inventory.inventory_shrinkage m
+            LEFT JOIN fayxzvov_inventory.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_inventory.warehouse         w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_erp.branches   s  ON s.id  = m.branch_id
+            LEFT JOIN fayxzvov_erp.users          u  ON u.id  = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.branch_id = ? AND DATE(m.created_at) BETWEEN ? AND ? AND m.status = ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'm.purchase_order_id' in 'field list'
+
+
 [ 2026-10-16 23:55:05 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: ROSY$
