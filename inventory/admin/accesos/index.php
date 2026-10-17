@@ -17,8 +17,9 @@ require_once('layout/core-libraries.php');
 
 <!-- CoffeeSoft Framework -->
 <script src="../../src/js/coffeeSoft.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/coffeeSoft.js'); ?>"></script>
-<script src="https://rawcdn.githack.com/SomxS/Grupo-Varoch/refs/heads/main/src/js/plugins.js"></script>
-<script src="https://www.plugins.erp-varoch.com/ERP/JS/complementos.js"></script>
+<!-- Las copias locales, las mismas de almacén: dataPicker, simple_data_table y alert(). -->
+<script src="../../src/js/plugins.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/plugins.js'); ?>"></script>
+<script src="../../src/js/complementos.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/complementos.js'); ?>"></script>
 <link rel="stylesheet" href="../../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/dark-mode.css'); ?>">
 
 <!-- Forzar modales (bootbox) en light theme aunque el body este en dark-mode -->
@@ -67,14 +68,6 @@ require_once('layout/core-libraries.php');
         <div id="menu-navbar"></div>
 
         <div id="main__content">
-            <!-- Breadcrumb Navigation -->
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item text-uppercase text-muted">Administración</li>
-                    <li class="breadcrumb-item fw-bold active">Accesos</li>
-                </ol>
-            </nav>
-
             <!-- Contenedor principal -->
             <div class="" id="root"></div>
         </div>
@@ -84,7 +77,11 @@ require_once('layout/core-libraries.php');
     <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
     <script src="../../acceso/src/js/sidebar.js"></script>
 
-    <!-- Módulo de Accesos -->
+    <!-- Navegación de Configuración y lista de roles (csNavList) y la matriz de permisos del rol -->
+    <script src="../../src/js/components/cs-grouped-list.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/cs-grouped-list.js'); ?>"></script>
+    <script src="../../src/js/components/cs-permission-matrix.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/cs-permission-matrix.js'); ?>"></script>
+
+    <!-- Módulo de Configuración: resumen, usuarios, roles, sucursales y bitácora -->
     <!-- Acciones del rol en Accesos: el módulo solo pinta los botones que puede usar -->
     <?php echo Permissions::script($permissions); ?>
     <script src="js/accesos.js?t=<?php echo time(); ?>"></script>

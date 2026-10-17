@@ -405,12 +405,12 @@ class mdl extends CRUD {
 
     // Mismo criterio que el menú: acceso/mdl/mdl-access.php::userIsSuperAdmin.
     function isSuperAdmin($array) {
-        // [user_id, branch_id]
+        // [user_id]
         $query = "
             SELECT 1
             FROM fayxzvov_erp.users_braches ub
             JOIN fayxzvov_erp.roles r ON r.id = ub.role_id AND r.is_active = 1
-            WHERE ub.user_id = ? AND ub.branch_id = ?
+            WHERE ub.user_id = ?
                 AND r.code = 'superadmin'
             LIMIT 1
         ";

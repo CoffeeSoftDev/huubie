@@ -43,6 +43,38 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? $r[0] : [];
     }
 
+    // Desglose de las cards: cada producto activo con su existencia en la sucursal,
+    // su mínimo y su último costo. Mismos cruces que getDashboardCounts, para que
+    // el modal sume lo mismo que la card.
+    function listStockDetail($array) {
+        // [branch_id, companies_id]
+        $query = "
+            SELECT
+                i.name,
+                ia.sku,
+                ic.name                    AS categoria,
+                u.name                     AS unidad,
+                COALESCE(s.q, 0)           AS stock,
+                COALESCE(ia.stock_min, 0)  AS stock_min,
+                COALESCE(ia.cost_unit, 0)  AS cost_unit
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}unit           u  ON u.id = ia.unit_id
+            LEFT JOIN (
+                SELECT st.item_id, SUM(st.quantity) AS q
+                FROM {$this->bd}stock st
+                INNER JOIN {$this->bd}warehouse w ON w.id = st.warehouse_id AND w.active = 1
+                WHERE st.active = 1 AND w.branch_id = ?
+                GROUP BY st.item_id
+            ) s ON s.item_id = i.id
+            WHERE i.active = 1 AND i.companies_id = ?
+            ORDER BY i.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     // Los que ya llegaron a su mínimo (o se acabaron), los más urgentes primero.
     // Sin mínimo capturado no hay contra qué comparar y no salen.
     function listLowStock($array) {
@@ -97,6 +129,40 @@ class mdl extends CRUD {
             GROUP BY mv.movement_type, mv.folio, mv.user_id, mv.warehouse_id, u.name, u.last_name, w.name
             ORDER BY created_at DESC, mv.folio DESC
             LIMIT 500
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Detalle de un renglón de la bitácora: los productos del documento (folio) en
+    // la sucursal. Un traspaso tiene la salida en la sucursal de origen y la
+    // entrada en la de destino con el mismo folio: el filtro por sucursal deja el
+    // lado que se ve en su bitácora.
+    function listMovementDetail($array) {
+        // [companies_id, branch_id, movement_type, folio]
+        $query = "
+            SELECT
+                i.name,
+                ia.sku,
+                un.name        AS unidad,
+                mv.quantity,
+                mv.stock_prev,
+                mv.stock_post,
+                mv.cost_unit,
+                mv.cost_total,
+                mv.note,
+                mv.created_at,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS usuario,
+                w.name         AS almacen
+            FROM {$this->bd}inventory_movement mv
+            LEFT JOIN {$this->bd}item           i  ON i.id = mv.item_id
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}unit           un ON un.id = ia.unit_id
+            LEFT JOIN {$this->bdErp}users       u  ON u.id = mv.user_id
+            LEFT JOIN {$this->bd}warehouse      w  ON w.id = mv.warehouse_id
+            WHERE mv.companies_id = ? AND mv.branch_id = ?
+                AND mv.movement_type = ? AND mv.folio = ?
+            ORDER BY i.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];

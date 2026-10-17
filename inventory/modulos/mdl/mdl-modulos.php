@@ -14,12 +14,13 @@ class mdl extends CRUD {
         $this->bd   = 'fayxzvov_erp.';
     }
 
-    // Módulos activos (cards de primer nivel).
+    // Módulos activos (cards de primer nivel). El módulo DEV no va aquí: el Super
+    // Admin lo abre desde la pantalla de Empresas (empresas/).
     function qModules() {
         $query = "
             SELECT id, name, code, icon, description, route, orden
             FROM {$this->bd}modules
-            WHERE is_active = 1
+            WHERE is_active = 1 AND code <> 'dev'
             ORDER BY orden ASC, id ASC
         ";
         $r = $this->_Read($query, null);
@@ -36,7 +37,7 @@ class mdl extends CRUD {
         $query = "
             SELECT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
             FROM {$this->bd}modules m
-            WHERE m.is_active = 1
+            WHERE m.is_active = 1 AND m.code <> 'dev'
                 AND EXISTS (
                     SELECT 1
                     FROM {$this->bd}sections s
@@ -56,16 +57,43 @@ class mdl extends CRUD {
 
     // Mismo criterio que el menú: acceso/mdl/mdl-access.php::userIsSuperAdmin.
     function qIsSuperAdmin($array) {
-        // [user_id, branch_id]
+        // [user_id]
         $query = "
             SELECT 1
             FROM {$this->bd}users_braches ub
             JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
-            WHERE ub.user_id = ? AND ub.branch_id = ?
+            WHERE ub.user_id = ?
                 AND r.code = 'superadmin'
             LIMIT 1
         ";
         return !empty($this->_Read($query, $array));
+    }
+
+    // Secciones con página de un módulo, en su orden, que el usuario puede abrir en
+    // su sucursal activa (el Super Admin, todas). Mismo criterio de acceso que
+    // conf/_Permissions.php: al menos una acción del rol en la sección.
+    function qLandingSections($array) {
+        // [module_id, es_super_admin, user_id, branch_id]
+        $query = "
+            SELECT s.id, s.route
+            FROM {$this->bd}sections s
+            WHERE s.module_id = ? AND s.is_active = 1
+                AND s.route IS NOT NULL AND s.route <> ''
+                AND (? = 1 OR EXISTS (
+                    SELECT 1
+                    FROM {$this->bd}users_braches ub
+                    JOIN {$this->bd}roles r              ON r.id = ub.role_id AND r.is_active = 1
+                    JOIN {$this->bd}permissions_roles pr ON pr.role_id = r.id
+                    JOIN {$this->bd}permissions p        ON p.id = pr.permission_id AND p.is_active = 1
+                    JOIN {$this->bd}type_permissions tp  ON tp.id = p.type_permission_id AND tp.is_active = 1
+                    WHERE ub.user_id = ? AND ub.branch_id = ?
+                        AND p.section_id = s.id
+                        AND tp.code IS NOT NULL
+                ))
+            ORDER BY s.orden ASC, s.id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
     }
 
     // Submódulos activos de un módulo (cards de segundo nivel).

@@ -56,10 +56,11 @@ class MAccess extends CRUD {
     }
 
     function getSessionUser($array) {
-        // [branch_id activa, id usuario]
-        // El rol y la sucursal salen de users_braches para la SUCURSAL ACTIVA: un
-        // usuario puede tener un rol distinto por sucursal, asi que se empareja ub
-        // por branch_id (no por LIMIT 1, que tomaba una fila arbitraria).
+        // [company_id activa, branch_id activa, id usuario]
+        // La empresa y la sucursal son las de la sesión, no users.company_id: el
+        // Super Admin entra a otras empresas. El rol sale de users_braches para la
+        // SUCURSAL ACTIVA: un usuario puede tener un rol distinto por sucursal, asi
+        // que se empareja ub por branch_id (no por LIMIT 1, que tomaba una fila arbitraria).
         $query = "
             SELECT
                 u.id        AS id,
@@ -68,15 +69,15 @@ class MAccess extends CRUD {
                 u.photo     AS photo,
                 u.color     AS color,
                 u.is_owner  AS level,
-                u.company_id AS company_id,
+                c.id        AS company_id,
                 c.name      AS company,
-                ub.branch_id AS branch_id,
+                s.id        AS branch_id,
                 s.name      AS branch,
                 r.name      AS rol
             FROM {$this->bd}users u
-            LEFT JOIN {$this->bd}companies c ON c.id = u.company_id
-            LEFT JOIN {$this->bd}users_braches ub ON ub.user_id = u.id AND ub.branch_id = ?
-            LEFT JOIN {$this->bd}branches s ON s.id = ub.branch_id
+            LEFT JOIN {$this->bd}companies c ON c.id = ?
+            LEFT JOIN {$this->bd}branches s ON s.id = ?
+            LEFT JOIN {$this->bd}users_braches ub ON ub.user_id = u.id AND ub.branch_id = s.id
             LEFT JOIN {$this->bd}roles r ON r.id = ub.role_id
             WHERE u.id = ?
             LIMIT 1
@@ -293,15 +294,17 @@ class MAccess extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    // ¿Es Super Admin en esta sucursal? El Super Admin no lleva filas en
-    // permissions_roles: su acceso es total y el tenant no deja editarlo.
+    // ¿Es Super Admin? Basta con tenerlo en CUALQUIER sucursal: es un rol del
+    // sistema que entra a todas las empresas, también a las que no tienen filas
+    // suyas en users_braches. No lleva filas en permissions_roles: su acceso es
+    // total y el tenant no deja editarlo.
     function userIsSuperAdmin($array) {
-        // [user_id, branch_id]
+        // [user_id]
         $query = "
             SELECT 1
             FROM {$this->bd}users_braches ub
             JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
-            WHERE ub.user_id = ? AND ub.branch_id = ?
+            WHERE ub.user_id = ?
                 AND r.code = 'superadmin'
             LIMIT 1
         ";

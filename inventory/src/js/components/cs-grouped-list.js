@@ -33,6 +33,7 @@ Templates.prototype.csNavList = function (options) {
         json: [],
         active: null,
         addTitle: 'Agregar',
+        empty: '',
         onAdd: null,
         onSelect: () => { },
         onEdit: () => { },
@@ -181,6 +182,13 @@ Templates.prototype.csNavList = function (options) {
 
         list.append(row);
     });
+
+    if (!opts.json.length && opts.empty) {
+        list.append($('<p>', {
+            class: 'text-xs text-gray-400 text-center px-3 py-6',
+            text: opts.empty
+        }));
+    }
 
     container.append(list);
 

@@ -71,6 +71,12 @@ layout() {
 - `heightPreset`: siempre `'full'`. Nunca `'auto'`.
 - `card.filterBar.id`: literal `'filterBar'` (id generico, no `'filterBar' + PROJECT_NAME`).
 - `card.container`: incluye `h-screen` + `overflow-auto` para scroll vertical interno.
+  - **Excepcion `inventory/`:** el container **no** lleva `h-screen` ni `overflow-auto`. Ahi el
+    unico scroll vertical es `#main__content` y `#root` crece con su contenido
+    (`inventory/src/css/general.css`); un container de una pantalla de alto debajo del filterBar
+    da dos barras verticales y el fondo no acompana a la tabla. Si el modulo es un visor (tabla +
+    panel de detalle que scrollean por dentro), su primer nivel lleva `flex-1 min-h-0` y `#root`
+    se queda del alto disponible (ver `layout()` de `inventory/operacion/almacen/js/salidas.js`).
 - **Fondo del container segun tema (no es fijo):** el `bg-[#1F2A37]` del ejemplo aplica solo a modulos en **tema dark**. El fondo se elige por el tema del modulo, no se copia siempre:
   - **dark:** `bg-[#1F2A37]` (azul-gris oscuro). Usar cuando el modulo corre en dark y sus tabs/tablas/modales van con `theme: 'dark'`.
   - **light:** sin fondo (transparente, hereda el blanco de la pagina) o `bg-white border border-gray-200` si se quiere efecto tarjeta. Usar cuando el modulo va con `theme: 'light'` (filterBar, createTable, modales y badges en paleta clara).

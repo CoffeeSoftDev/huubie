@@ -192,12 +192,24 @@ body {
 #root{
  /* Antes usaba un min-height aproximado con 4rem que no contemplaba el navbar
     real (64px) ni el breadcrumb -> desbordaba. Ahora #main__content es flex
-    column, asi que #root simplemente toma el alto restante y se vuelve flex
-    para que sus hijos con flex-1 lo llenen. Sin calculo en JS. */
- flex: 1;
- min-height: 0;
+    column, asi que #root toma al menos el alto restante y se vuelve flex para
+    que sus hijos con flex-1 lo llenen. Sin calculo en JS.
+    CRECE CON SU CONTENIDO (flex-shrink 0, base auto): con flex:1 + min-height:0
+    se quedaba del alto de la pantalla y lo que no cabia se salia de su fondo
+    (dashboard, accesos, tenant), y los modulos que le ponian un scroll propio
+    terminaban con dos barras. Asi el contenedor acompana a la tabla y el unico
+    scroll vertical es el de #main__content. */
+ flex: 1 0 auto;
  display: flex;
  flex-direction: column;
+}
+
+/* Excepcion: el modulo cuyo primer nivel pide llenar exacto el alto disponible
+   (flex-1 min-h-0): los visores de tabla + panel de detalle (.cs-visor) y el
+   Catalogo. Scrollean por dentro para que el detalle quede siempre a la vista. */
+#root:has(> .min-h-0){
+ flex: 1 1 0%;
+ min-height: 0;
 }
 
 .pointer {

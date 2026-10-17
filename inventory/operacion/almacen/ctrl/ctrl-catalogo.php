@@ -1349,11 +1349,11 @@ class ctrl extends mdl {
         ];
     }
 
-    // Mismo criterio que ctrl-almacen::esSuperAdminIA (rol 'superadmin' en la sucursal).
+    // Mismo criterio que ctrl-almacen::esSuperAdminIA (rol 'superadmin' en cualquier sucursal).
     private function esSuperAdmin() {
         if (empty($_SESSION['user_id']) || empty($_SESSION['branch_id'])) return false;
 
-        return $this->isSuperAdmin([$_SESSION['user_id'], $_SESSION['branch_id']]);
+        return $this->isSuperAdmin([$_SESSION['user_id']]);
     }
 
     // Código a partir del nombre: "Pedido complementario" -> PEDIDO_COMPLEMENTARIO.
