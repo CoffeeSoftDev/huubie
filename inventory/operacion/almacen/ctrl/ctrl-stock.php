@@ -9,8 +9,19 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 require_once '../mdl/mdl-stock.php';
 require_once '../../../conf/coffeSoft.php';
 require_once '../../../conf/_IaOllama.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
+
+    // Acción del rol que pide cada opc (conf/_Permissions.php); los demás solo
+    // piden poder entrar a Stock. Capturar y aplicar son parte de agregar el conteo.
+    const PERMISSIONS = [
+        'addConteo'            => 'agregar-conteo',
+        'editConteo'           => 'agregar-conteo',
+        'statusConteo'         => 'agregar-conteo',
+        'verifyCancelPassword' => 'cancelar-conteo',
+        'cancelConteo'         => 'cancelar-conteo'
+    ];
 
     public $companiesId;
     public $branchId;
@@ -703,13 +714,18 @@ class ctrl extends mdl {
     // Pendiente: enviado a revision antes de quitar ese paso (01/10/2026); cuenta como borrador.
     const CANCEL_DAYS = 2;
 
+    // Además de ser quien abrió el conteo, el rol debe tener la acción en Stock:
+    // de aquí salen los botones del conteo y los permisos de editConteo,
+    // statusConteo y cancelConteo.
     private function _conteoPerms($header) {
-        $owner    = $this->userId > 0 && (int) $header['registered_user_id'] === $this->userId;
-        $editable = $owner && in_array($header['status'], ['Borrador', 'Pendiente'], true);
+        $owner     = $this->userId > 0 && (int) $header['registered_user_id'] === $this->userId;
+        $editable  = $owner && in_array($header['status'], ['Borrador', 'Pendiente'], true);
+        $canCount  = Permissions::can('stock', 'agregar-conteo');
+        $canCancel = Permissions::can('stock', 'cancelar-conteo');
         return [
-            'edit'   => $editable,
-            'apply'  => $editable,
-            'cancel' => $editable || ($owner && $this->_cancelVigente($header))
+            'edit'   => $editable && $canCount,
+            'apply'  => $editable && $canCount,
+            'cancel' => $canCancel && ($editable || ($owner && $this->_cancelVigente($header)))
         ];
     }
 
@@ -938,4 +954,4 @@ if (!method_exists($obj, $opc)) {
     echo json_encode(['status' => 405, 'message' => "opc '{$opc}' no implementado"]);
     exit(0);
 }
-echo json_encode($obj->{$opc}());
+echo json_encode(Permissions::guard('stock', $opc, ctrl::PERMISSIONS) ?: $obj->{$opc}());

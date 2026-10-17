@@ -1,40 +1,43 @@
 <?php
 require_once __DIR__ . '/../../conf/_Session.php';
 
-if (empty($_COOKIE["IDU"])) {
+// Validar sesión de usuario
+if (empty($_SESSION["IDU"])) {
     require_once('../../acceso/ctrl/ctrl-logout.php');
     exit();
 }
+
+// El rol necesita al menos una acción en el Dashboard; si no, de regreso a Inicio.
+require_once __DIR__ . '/../../conf/_Permissions.php';
+Permissions::page('dashboard');
 
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>
 
-<link rel="stylesheet" href="../../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/dark-mode.css'); ?>">
-
+<!-- CoffeeSoft Framework -->
 <script src="../../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
 <script src="../../src/js/plugins.js?t=<?php echo time(); ?>"></script>
 <script src="../../src/js/complementos.js?t=<?php echo time(); ?>"></script>
 
+<link rel="stylesheet" href="../../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/dark-mode.css'); ?>">
+
 <body>
-    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2">
-    </div>
+    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
     <main>
         <div id="menu-navbar"></div>
+
         <div id="main__content">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item text-uppercase parent">Operación</li>
-                    <li class="breadcrumb-item fw-bold child">Dashboard</li>
-                </ol>
-            </nav>
-            <div id="root"></div>
+            <!-- Contenedor principal -->
+            <div class="" id="root"></div>
         </div>
     </main>
 
+    <!-- Importación navbar y sidebar -->
     <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
     <script src="../../acceso/src/js/sidebar.js"></script>
-    <script src="js/dashboard.js?t=<?php echo time(); ?>"></script>
 
+    <!-- Dashboard del almacén -->
+    <script src="js/dashboard.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

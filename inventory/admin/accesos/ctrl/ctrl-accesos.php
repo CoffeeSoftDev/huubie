@@ -7,8 +7,22 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
 require_once '../mdl/mdl-accesos.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
+
+    // Acción del rol que pide cada opc (conf/_Permissions.php); los demás solo
+    // piden poder entrar a Configuración > Accesos. Apagar un usuario o una
+    // sucursal es darlo de baja.
+    const PERMISSIONS = [
+        'addBranch'      => 'agregar',
+        'addUser'        => 'agregar',
+        'editBranch'     => 'editar',
+        'editUser'       => 'editar',
+        'changePassword' => 'editar',
+        'toggleBranch'   => 'cancelar',
+        'toggleUser'     => 'cancelar'
+    ];
 
     public $companiesId;
     public $branchId;
@@ -75,7 +89,7 @@ class ctrl extends mdl {
                 'Sucursal'   => $name,
                 'Ubicación'  => $b['ubication'] ?: '-',
                 'Estado'     => renderStatus($b['is_active']),
-                'a'          => $a
+                'a'          => Permissions::rowActions('configuracion-accesos', $a)
             ];
         }
 
@@ -200,7 +214,7 @@ class ctrl extends mdl {
                 'Correo'      => $u['email'] ?: '-',
                 'Sucursales'  => $branchNames,
                 'Estado'      => renderStatus($u['status'] === 'active' ? 1 : 0),
-                'a'           => $a
+                'a'           => Permissions::rowActions('configuracion-accesos', $a)
             ];
         }
 
@@ -582,4 +596,4 @@ if (!method_exists($obj, $opc)) {
     echo json_encode(['status' => 405, 'message' => "opc '{$opc}' no implementado"]);
     exit(0);
 }
-echo json_encode($obj->{$opc}());
+echo json_encode(Permissions::guard('configuracion-accesos', $opc, ctrl::PERMISSIONS) ?: $obj->{$opc}());

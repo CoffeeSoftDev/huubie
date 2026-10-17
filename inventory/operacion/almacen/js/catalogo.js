@@ -68,7 +68,7 @@ class Category extends Templates {
                     ],
                     onchange: "category.lsCategory()"
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: "button",
                     class: "col-12 col-md-2",
                     className: 'w-100',
@@ -76,7 +76,7 @@ class Category extends Templates {
                     color_btn: "primary",
                     text: "Nueva categoría",
                     onClick: () => this.addCategory()
-                }
+                }] : [])
             ]
         });
     }
@@ -242,7 +242,7 @@ class Area extends Templates {
                     ],
                     onchange: "area.lsArea()"
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: "button",
                     class: "col-12 col-md-2",
                     className: 'w-100',
@@ -250,7 +250,7 @@ class Area extends Templates {
                     color_btn: "primary",
                     text: "Nueva área",
                     onClick: () => this.addArea()
-                }
+                }] : [])
             ]
         });
     }
@@ -445,7 +445,7 @@ class Unit extends Templates {
                     ],
                     onchange: "unit.lsUnit()"
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: "button",
                     class: "col-12 col-md-2",
                     className: 'w-100',
@@ -453,7 +453,7 @@ class Unit extends Templates {
                     color_btn: "primary",
                     text: "Nueva unidad",
                     onClick: () => this.addUnit()
-                }
+                }] : [])
             ]
         });
     }
@@ -644,7 +644,7 @@ class Warehouse extends Templates {
                     ],
                     onchange: "warehouse.lsWarehouse()"
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: "button",
                     class: "col-12 col-md-2",
                     className: 'w-100',
@@ -652,7 +652,7 @@ class Warehouse extends Templates {
                     color_btn: "primary",
                     text: "Nuevo almacén",
                     onClick: () => this.addWarehouse()
-                }
+                }] : [])
             ]
         });
     }
@@ -840,7 +840,7 @@ class InflowOrigin extends Templates {
                     ],
                     onchange: "inflow.lsInflow()"
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: "button",
                     class: "col-12 col-md-2",
                     className: 'w-100',
@@ -848,7 +848,7 @@ class InflowOrigin extends Templates {
                     color_btn: "primary",
                     text: "Nuevo origen",
                     onClick: () => this.addInflow()
-                }
+                }] : [])
             ]
         });
     }
@@ -1094,7 +1094,7 @@ class ShrinkageReason extends Templates {
                     ],
                     onchange: "shrinkage.lsShrinkage()"
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: "button",
                     class: "col-12 col-md-2",
                     className: 'w-100',
@@ -1102,7 +1102,7 @@ class ShrinkageReason extends Templates {
                     color_btn: "primary",
                     text: "Nuevo motivo",
                     onClick: () => this.addShrinkage()
-                }
+                }] : [])
             ]
         });
     }
@@ -1296,7 +1296,7 @@ class Supplier extends Templates {
                     ],
                     onchange: "supplier.lsSupplier()"
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: "button",
                     class: "col-12 col-md-2",
                     className: 'w-100',
@@ -1304,7 +1304,7 @@ class Supplier extends Templates {
                     color_btn: "primary",
                     text: "Nuevo proveedor",
                     onClick: () => this.addSupplier()
-                }
+                }] : [])
             ]
         });
     }
@@ -1749,6 +1749,9 @@ function deactivateAlert(detail) {
 // respondiendo al clic. Al soltar entrega los ids en el nuevo orden; el id sale
 // del id de la primera celda (createCoffeeTable3 la nombra `${columna}_${id}`).
 function sortableRows(tableId, onSort) {
+    // Reordenar guarda el orden nuevo: es editar el catálogo.
+    if (!can('editar')) return;
+
     const tbody = $(`#${tableId} tbody`);
     if (!tbody.length || typeof Sortable === "undefined") return;
 

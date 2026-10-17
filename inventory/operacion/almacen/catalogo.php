@@ -7,6 +7,10 @@ if (empty($_COOKIE["IDU"])) {
     exit();
 }
 
+// El rol necesita al menos una acción en el Catálogo; si no, de regreso a Inicio.
+require_once __DIR__ . '/../../conf/_Permissions.php';
+$permissions = Permissions::page('administrador');
+
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>
@@ -38,6 +42,8 @@ require_once('layout/core-libraries.php');
     <script src="../../acceso/src/js/sidebar.js"></script>
 
     <!-- Módulo de Catálogo -->
+    <!-- Acciones del rol en el Catálogo: el módulo solo pinta los botones que puede usar -->
+    <?php echo Permissions::script($permissions); ?>
     <script src="js/catalogo.js?t=<?php echo time(); ?>"></script>
 
 </body>

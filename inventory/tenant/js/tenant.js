@@ -305,11 +305,19 @@ class AccesosGroup extends Templates {
             content: { class: 'flex-1 min-h-0 flex flex-col' },
             json: [
                 {
+                    id: 'tipos-permiso',
+                    tab: 'Tipos de permiso',
+                    lucideIcon: 'key-round',
+                    class: 'flex-1 min-h-0 flex flex-col',
+                    active: true,
+                    onClick: () => { typePermissions.render(); typePermissions.lsTypePermissions(); }
+                },
+                {
                     id: 'secciones',
                     tab: 'Secciones',
                     lucideIcon: 'layout-list',
-                    class: 'flex-1 min-h-0 flex flex-col',
-                    active: true,
+                    
+                   
                     onClick: () => { sections.render(); sections.lsSections(); }
                 },
                 {
@@ -343,12 +351,7 @@ class AccesosGroup extends Templates {
                     lucideIcon: 'map-pin',
                     onClick: () => branches.render()
                 },
-                {
-                    id: 'tipos-permiso',
-                    tab: 'Tipos de permiso',
-                    lucideIcon: 'key-round',
-                    onClick: () => { typePermissions.render(); typePermissions.lsTypePermissions(); }
-                },
+              
             ]
         });
     }
@@ -356,5 +359,7 @@ class AccesosGroup extends Templates {
     renderActiveTab() {
         sections.render();
         sections.lsSections();
+        typePermissions.render();
+        typePermissions.lsTypePermissions();
     }
 }

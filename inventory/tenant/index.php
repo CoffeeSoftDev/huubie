@@ -7,6 +7,11 @@ if (empty($_SESSION["IDU"])) {
     exit();
 }
 
+// Aquí se editan roles y permisos: solo entra quien tiene acceso a la sección
+// "Permisos" del módulo dev (hoy, el Super Admin). Los demás, a Inicio.
+require_once __DIR__ . '/../conf/_Permissions.php';
+Permissions::page('permisos-editor');
+
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 

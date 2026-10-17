@@ -7,6 +7,10 @@ if (empty($_SESSION["IDU"])) {
     exit();
 }
 
+// El rol necesita al menos una acción en Compras; si no, de regreso a Inicio.
+require_once __DIR__ . '/../../conf/_Permissions.php';
+Permissions::page('ordenes');
+
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>

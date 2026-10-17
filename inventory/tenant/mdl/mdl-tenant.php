@@ -646,10 +646,10 @@ class mdl extends CRUD {
     function qTypePermissions($array) {
         // [is_active]
         $query = "
-            SELECT id, name, is_active
+            SELECT id, name, code, is_active
             FROM {$this->bd}type_permissions
             WHERE is_active = ?
-            ORDER BY id ASC
+            ORDER BY type_permissions.order ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -668,14 +668,25 @@ class mdl extends CRUD {
 
     function qTypePermission($array) {
         // [id]
-        $query = "SELECT id, name, is_active FROM {$this->bd}type_permissions WHERE id = ? LIMIT 1";
+        $query = "SELECT id, name, code, is_active FROM {$this->bd}type_permissions WHERE id = ? LIMIT 1";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
+    function qTypeCodeExists($array) {
+        // [code]
+        $query = "SELECT id FROM {$this->bd}type_permissions WHERE code = ? LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r);
+    }
+
     function qInsertTypePermission($array) {
-        // [name]
-        $query = "INSERT INTO {$this->bd}type_permissions (name, is_active, created_at) VALUES (?, 1, NOW())";
+        // [name, code] · al final del orden: así se acomodan las columnas de Permisos y las acciones del rol
+        $query = "
+            INSERT INTO {$this->bd}type_permissions (name, code, `order`, is_active, created_at)
+            SELECT ?, ?, COALESCE(MAX(`order`), 0) + 1, 1, NOW()
+            FROM {$this->bd}type_permissions
+        ";
         return $this->_CUD($query, $array);
     }
 
@@ -709,12 +720,25 @@ class mdl extends CRUD {
     /* ===== Roles (roles) ===== */
 
     function qRoles($array) {
-        // [is_active]
+        // [is_active] · actions/sections: acciones vigentes del rol y en cuántas secciones caen
         $query = "
-            SELECT id, code, name, is_system, is_active
-            FROM {$this->bd}roles
-            WHERE is_active = ?
-            ORDER BY id ASC
+            SELECT
+                r.id, r.code, r.name, r.is_system, r.is_active,
+                COUNT(c.id)                  AS actions,
+                COUNT(DISTINCT c.section_id) AS sections
+            FROM {$this->bd}roles r
+            LEFT JOIN {$this->bd}permissions_roles pr ON pr.role_id = r.id
+            LEFT JOIN (
+                SELECT p.id, p.section_id
+                FROM {$this->bd}permissions p
+                JOIN {$this->bd}type_permissions tp ON tp.id = p.type_permission_id AND tp.is_active = 1
+                JOIN {$this->bd}sections s          ON s.id = p.section_id AND s.is_active = 1
+                JOIN {$this->bd}modules m           ON m.id = s.module_id AND m.is_active = 1
+                WHERE p.is_active = 1
+            ) AS c ON c.id = pr.permission_id
+            WHERE r.is_active = ?
+            GROUP BY r.id, r.code, r.name, r.is_system, r.is_active
+            ORDER BY r.id ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -739,8 +763,8 @@ class mdl extends CRUD {
     }
 
     function qInsertRole($array) {
-        // [code, name]
-        $query = "INSERT INTO {$this->bd}roles (code, name, is_system, is_active, created_at) VALUES (?, ?, 0, 1, NOW())";
+        // [code, name, company_id] · sin empresa no saldría en Configuración > Accesos
+        $query = "INSERT INTO {$this->bd}roles (code, name, is_system, is_active, company_id, created_at) VALUES (?, ?, 0, 1, ?, NOW())";
         return $this->_CUD($query, $array);
     }
 
@@ -756,50 +780,56 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ===== Permisos (permissions) ===== */
+    /* ===== Permisos: acciones de cada sección (permissions) ===== */
 
-    function qPermissions($array) {
-        // [is_active]
+    // Secciones encendidas de módulos encendidos: las filas de la pestaña Permisos.
+    function qCatalogSections() {
         $query = "
             SELECT
-                p.id, p.is_active, p.role_id, p.section_id, p.type_permission_id,
-                r.name  AS role_name,
-                s.name  AS section_name,
-                tp.name AS type_name
-            FROM {$this->bd}permissions p
-            LEFT JOIN {$this->bd}roles            r  ON r.id  = p.role_id
-            LEFT JOIN {$this->bd}sections         s  ON s.id  = p.section_id
-            LEFT JOIN {$this->bd}type_permissions tp ON tp.id = p.type_permission_id
-            WHERE p.is_active = ?
-            ORDER BY r.name ASC, s.name ASC
+                s.id, s.name, s.icon, s.route, s.module_id,
+                m.name AS module_name,
+                m.icon AS module_icon
+            FROM {$this->bd}sections s
+            JOIN {$this->bd}modules m ON m.id = s.module_id AND m.is_active = 1
+            WHERE s.is_active = 1
+            ORDER BY m.orden ASC, m.id ASC, s.orden ASC, s.id ASC
         ";
-        $r = $this->_Read($query, $array);
+        $r = $this->_Read($query, null);
         return is_array($r) ? $r : [];
     }
 
-    function qPermission($array) {
-        // [id]
-        $query = "SELECT id, role_id, section_id, type_permission_id, is_active FROM {$this->bd}permissions WHERE id = ? LIMIT 1";
+    // Todo el catálogo (encendido y apagado) con cuántos roles tiene cada acción.
+    function qPermissionsCatalog() {
+        $query = "
+            SELECT
+                p.id, p.section_id, p.type_permission_id, p.is_active,
+                (SELECT COUNT(*) FROM {$this->bd}permissions_roles pr WHERE pr.permission_id = p.id) AS roles
+            FROM {$this->bd}permissions p
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    // La acción de una sección, para decidir entre insertarla o encenderla/apagarla.
+    function qFindPermission($array) {
+        // [section_id, type_permission_id]
+        $query = "
+            SELECT
+                p.id, p.section_id, p.type_permission_id, p.is_active,
+                (SELECT COUNT(*) FROM {$this->bd}permissions_roles pr WHERE pr.permission_id = p.id) AS roles
+            FROM {$this->bd}permissions p
+            WHERE p.section_id = ? AND p.type_permission_id = ?
+            LIMIT 1
+        ";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
-    function qPermissionExists($array) {
-        // [role_id, section_id, type_permission_id]
-        $query = "
-            SELECT id FROM {$this->bd}permissions
-            WHERE role_id = ? AND section_id = ? AND type_permission_id = ?
-            LIMIT 1
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) && count($r) > 0;
-    }
-
     function qInsertPermission($array) {
-        // [role_id, section_id, type_permission_id]
+        // [section_id, type_permission_id]
         $query = "
-            INSERT INTO {$this->bd}permissions (role_id, section_id, type_permission_id, is_active, created_at)
-            VALUES (?, ?, ?, 1, NOW())
+            INSERT INTO {$this->bd}permissions (section_id, type_permission_id, is_active, created_at)
+            VALUES (?, ?, 1, NOW())
         ";
         return $this->_CUD($query, $array);
     }
@@ -810,110 +840,45 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    /* ===== Matriz de acceso (rol x seccion) ===== */
+    /* ===== Acciones de cada rol (permissions_roles) ===== */
 
-    // Tipo de permiso "Acceso" (modelo binario). Se asume el primero activo.
-    function qAccessTypeId() {
-        $query = "SELECT id FROM {$this->bd}type_permissions WHERE is_active = 1 ORDER BY id ASC LIMIT 1";
-        $r = $this->_Read($query, null);
-        return is_array($r) && !empty($r) ? (int) $r[0]['id'] : 0;
-    }
-
-    // Todas las secciones activas con su módulo y submódulo, marcando si el rol tiene acceso.
-    function qAccessMatrix($array) {
-        // [role_id, type_permission_id]
+    // Acciones vigentes del catálogo (acción, tipo, sección y módulo encendidos),
+    // marcando las que tiene el rol. role_id = 0 (rol nuevo) las trae sin marcar.
+    function qRolePermissions($array) {
+        // [role_id]
         $query = "
             SELECT
-                s.id          AS section_id,
-                s.name        AS section_name,
-                s.module_id   AS module_id,
-                m.name        AS module_name,
-                s.submodule_id AS submodule_id,
-                sm.name       AS submodule_name,
-                p.id          AS permission_id,
-                COALESCE(p.is_active, 0) AS has_access
-            FROM {$this->bd}sections s
-            LEFT JOIN {$this->bd}modules    m  ON m.id  = s.module_id
-            LEFT JOIN {$this->bd}submodules sm ON sm.id = s.submodule_id
-            LEFT JOIN {$this->bd}permissions p
-                   ON p.section_id = s.id
-                  AND p.role_id = ?
-                  AND p.type_permission_id = ?
-            WHERE s.is_active = 1
-            ORDER BY m.orden ASC, m.id ASC, s.orden ASC, s.id ASC
+                p.id    AS permission_id,
+                s.id    AS section_id,
+                s.name  AS section_name,
+                s.icon  AS section_icon,
+                m.id    AS module_id,
+                m.name  AS module_name,
+                m.icon  AS module_icon,
+                tp.name AS type_name,
+                (pr.id IS NOT NULL) AS granted
+            FROM {$this->bd}permissions p
+            JOIN {$this->bd}type_permissions tp ON tp.id = p.type_permission_id AND tp.is_active = 1
+            JOIN {$this->bd}sections s          ON s.id = p.section_id AND s.is_active = 1
+            JOIN {$this->bd}modules m           ON m.id = s.module_id AND m.is_active = 1
+            LEFT JOIN {$this->bd}permissions_roles pr ON pr.permission_id = p.id AND pr.role_id = ?
+            WHERE p.is_active = 1
+            ORDER BY m.orden ASC, m.id ASC, s.orden ASC, s.id ASC, tp.order ASC, tp.id ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
     }
 
-    // Roles activos con su conteo de accesos efectivos (para la lista lateral del editor).
-    // Total de secciones activas y cuántas tiene concedidas cada rol.
-    function qRolesWithAccessCount($array) {
-        // [type_permission_id]
-        $query = "
-            SELECT
-                r.id, r.code, r.name, r.is_system,
-                (SELECT COUNT(*) FROM {$this->bd}sections WHERE is_active = 1) AS total_sections,
-                (
-                    SELECT COUNT(*)
-                    FROM {$this->bd}permissions p
-                    JOIN {$this->bd}sections s ON s.id = p.section_id AND s.is_active = 1
-                    WHERE p.role_id = r.id
-                      AND p.type_permission_id = ?
-                      AND p.is_active = 1
-                ) AS granted
-            FROM {$this->bd}roles r
-            WHERE r.is_active = 1
-            ORDER BY r.is_system DESC, r.id ASC
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) ? $r : [];
+    function qInsertRolePermission($array) {
+        // [role_id, permission_id]
+        $query = "INSERT INTO {$this->bd}permissions_roles (role_id, permission_id) VALUES (?, ?)";
+        return $this->_CUD($query, $array);
     }
 
-    // IDs de secciones activas de un módulo concreto (para conceder/retirar en bloque).
-    function qSectionIdsByModule($array) {
-        // [module_id]
-        $query = "SELECT id FROM {$this->bd}sections WHERE module_id = ? AND is_active = 1";
-        $r = $this->_Read($query, $array);
-        return is_array($r) ? $r : [];
-    }
-
-    // Todas las secciones activas (para conceder/retirar todo el rol).
-    function qAllSectionIds() {
-        $query = "SELECT id FROM {$this->bd}sections WHERE is_active = 1";
-        $r = $this->_Read($query, null);
-        return is_array($r) ? $r : [];
-    }
-
-    // Localiza el permiso de un trío para decidir entre insertar o reactivar.
-    function qFindPermission($array) {
-        // [role_id, section_id, type_permission_id]
-        $query = "
-            SELECT id, is_active FROM {$this->bd}permissions
-            WHERE role_id = ? AND section_id = ? AND type_permission_id = ?
-            LIMIT 1
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) && !empty($r) ? $r[0] : null;
-    }
-
-    function qSectionPermissionTypes($array) {
-        // [role_id, section_id]
-        $query = "
-            SELECT
-                tp.id,
-                tp.name,
-                COALESCE(p.is_active, 0) AS granted
-            FROM {$this->bd}type_permissions tp
-            LEFT JOIN {$this->bd}permissions p
-                   ON p.type_permission_id = tp.id
-                  AND p.role_id    = ?
-                  AND p.section_id = ?
-            WHERE tp.is_active = 1
-            ORDER BY tp.id ASC
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) ? $r : [];
+    function qDeleteRolePermission($array) {
+        // [role_id, permission_id]
+        $query = "DELETE FROM {$this->bd}permissions_roles WHERE role_id = ? AND permission_id = ?";
+        return $this->_CUD($query, $array);
     }
 
     /* ===== Sucursales (branches) ===== */
@@ -1294,25 +1259,6 @@ class mdl extends CRUD {
         // [status, id, company_id]
         $query = "UPDATE {$this->bd}users SET status = ? WHERE id = ? AND company_id = ?";
         return $this->_CUD($query, $array);
-    }
-
-    // Secciones a las que el usuario tiene acceso efectivo en una sucursal concreta
-    // (resuelve users_braches -> roles -> permissions). Base para proteger el menú.
-    function qUserAccessibleSections($array) {
-        // [user_id, branch_id]
-        $query = "
-            SELECT DISTINCT
-                s.id, s.name, s.code, s.icon, s.route,
-                m.name AS module_name
-            FROM {$this->bd}users_braches ub
-            JOIN {$this->bd}permissions p ON p.role_id = ub.role_id AND p.is_active = 1
-            JOIN {$this->bd}sections s    ON s.id = p.section_id AND s.is_active = 1
-            LEFT JOIN {$this->bd}modules m ON m.id = s.module_id
-            WHERE ub.user_id = ? AND ub.branch_id = ?
-            ORDER BY m.name ASC, s.orden ASC
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) ? $r : [];
     }
 
     /* ===== Temas por empresa (company_themes) ===== */

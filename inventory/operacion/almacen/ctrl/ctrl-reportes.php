@@ -8,6 +8,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 
 require_once '../mdl/mdl-reportes.php';
 require_once '../../../conf/coffeSoft.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
 
@@ -594,4 +595,6 @@ if (!method_exists($obj, $fn)) {
     echo json_encode(['status' => 405, 'message' => "opc '{$fn}' no implementado"]);
     exit(0);
 }
-echo json_encode($obj->$fn());
+// Todo aquí es consulta: basta con poder entrar a Reportes. Imprimir y el Excel
+// se arman en el navegador y los esconde reportes.js.
+echo json_encode(Permissions::guard('reportes', $fn, []) ?: $obj->$fn());

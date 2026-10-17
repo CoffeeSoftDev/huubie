@@ -9,8 +9,24 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 require_once '../mdl/mdl-salidas.php';
 require_once '../../../conf/coffeSoft.php';
 require_once '../../../conf/_IaOllama.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
+
+    // Acción del rol que pide cada opc (conf/_Permissions.php); los demás solo
+    // piden poder entrar a Salidas. Borrar una salida cancelada es eliminar,
+    // no darla de baja.
+    const PERMISSIONS = [
+        'saveSalida'           => 'agregar',
+        'askSalidaIA'          => ['agregar', 'eliminar'],
+        'verifyEditPassword'   => 'editar',
+        'updateSalida'         => 'editar',
+        'verifyCancelPassword' => 'cancelar',
+        'cancelSalida'         => 'cancelar',
+        'saveSalidaEvidence'   => 'subir-comprobante',
+        'deleteSalida'         => 'eliminar',
+        'deleteSalidaIA'       => 'eliminar'
+    ];
 
     public $companiesId;
     public $branchId;
@@ -106,7 +122,7 @@ class ctrl extends mdl {
                 'Costo'      => '<span class="text-red-400">' . evaluar((float) $salida['total_cost_loss']) . '</span>',
                 'Estado'     => statusBadge($salida['status']),
                 'Registrado' => $salida['user_name'] ?: '-',
-                'a' => $acciones
+                'a' => Permissions::rowActions('salidas', $acciones)
             ];
         }
         return ['status' => 200, 'row' => $row];
@@ -1001,4 +1017,4 @@ if (!method_exists($obj, $opc)) {
     echo json_encode(['status' => 405, 'message' => "opc '{$opc}' no implementado"]);
     exit(0);
 }
-echo json_encode($obj->{$opc}());
+echo json_encode(Permissions::guard('salidas', $opc, ctrl::PERMISSIONS) ?: $obj->{$opc}());

@@ -9,8 +9,28 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 require_once '../mdl/mdl-entradas.php';
 require_once '../../../conf/coffeSoft.php';
 require_once '../../../conf/_IaOllama.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
+
+    // Acción del rol que pide cada opc (conf/_Permissions.php); los demás solo
+    // piden poder entrar a Entradas. Confirmar una producción termina su alta;
+    // la contraseña se pide igual para editar que para cancelar.
+    const PERMISSIONS = [
+        'verifyNuevaEntrada' => 'agregar',
+        'saveEntrada'        => 'agregar',
+        'confirmEntrada'     => 'agregar',
+        'createSupplier'     => 'agregar',
+        'saveFormato'        => 'agregar',
+        'deleteFormato'      => 'agregar',
+        'askEntradaIA'       => ['agregar', 'eliminar'],
+        'verifyEditPassword' => ['editar', 'cancelar'],
+        'updateEntrada'      => 'editar',
+        'editEntrada'        => 'editar',
+        'reverseEntrada'     => 'cancelar',
+        'saveEntradaVoucher' => 'subir-comprobante',
+        'deleteEntradaIA'    => 'eliminar'
+    ];
 
     public $companiesId;
     public $branchId;
@@ -129,7 +149,7 @@ class ctrl extends mdl {
                 'Costo'      => evaluar((float) $r['total_cost']),
                 'Estado'     => $this->statusBadge($r['status']),
                 'Registrado' => $r['user_name'] ?: '-',
-                'a'          => $a
+                'a'          => Permissions::rowActions('entradas', $a)
             ];
         }
         return ['status' => 200, 'row' => $row];
@@ -1548,4 +1568,4 @@ if (!method_exists($obj, $opc)) {
     echo json_encode(['status' => 405, 'message' => "opc '{$opc}' no implementado"]);
     exit(0);
 }
-echo json_encode($obj->{$opc}());
+echo json_encode(Permissions::guard('entradas', $opc, ctrl::PERMISSIONS) ?: $obj->{$opc}());

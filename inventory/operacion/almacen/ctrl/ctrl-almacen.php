@@ -6,11 +6,37 @@ require_once __DIR__ . '/../../../conf/_Session.php';
 require_once '../mdl/mdl-almacen.php';
 require_once '../../../conf/_IaLector.php';
 require_once '../../../conf/_IaOllama.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
 
     // Tope de la foto del producto, ya decodificada (4 MB, igual que el comprobante de Entradas).
     const IMAGE_MAX = 4194304;
+
+    // Acción del rol que pide cada opc (conf/_Permissions.php); los demás solo
+    // piden poder entrar al Catálogo. deleteMaterial y statusMaterial solo cambian
+    // active (dar de baja / reactivar); deleteProducto es el que borra de verdad.
+    // Entradas y Programadas dan de alta productos al vuelo, y el chat de Entradas
+    // y Salidas lee sus adjuntos aquí.
+    const PERMISSIONS = [
+        'addMaterial'        => 'agregar',
+        'addProductoRapido'  => ['administrador' => 'agregar', 'entradas' => 'agregar', 'programadas' => '*'],
+        'editMaterial'       => 'editar',
+        'editProductoRapido' => ['administrador' => 'editar', 'entradas' => ['agregar', 'editar']],
+        'statusMaterial'     => 'cancelar',
+        'deleteMaterial'     => 'cancelar',
+        'deleteProducto'     => 'eliminar',
+        'applyAsistente'     => ['agregar', 'editar', 'cancelar'],
+        'readArchivo'        => ['administrador' => '*', 'entradas' => '*', 'salidas' => '*']
+    ];
+
+    // Cada cambio del asistente pide su propia acción al aplicarse.
+    const IA_PERMISSIONS = [
+        'add'        => 'agregar',
+        'edit'       => 'editar',
+        'deactivate' => 'cancelar',
+        'activate'   => 'cancelar'
+    ];
 
     function init() {
         // Cada área lleva los colores de su badge para que el select la pinte igual que la
@@ -94,7 +120,7 @@ class ctrl extends mdl {
 
             if ($showStatus) $row['Estado'] = renderStatus($item['active']);
 
-            $row['a'] = $a;
+            $row['a'] = Permissions::rowActions('administrador', $a);
             $rows[]   = $row;
         }
 
@@ -1011,6 +1037,13 @@ class ctrl extends mdl {
         // El rol se vuelve a revisar al aplicar: pudo cambiar desde la vista previa.
         if (in_array('purge', array_column($selecciones, 'entity'), true) && !$this->esSuperAdminIA()) {
             return ['status' => 403, 'message' => 'Solo el Super Admin puede vaciar la base de datos.'];
+        }
+        $verbos = ['add' => 'dar de alta', 'edit' => 'editar', 'deactivate' => 'dar de baja', 'activate' => 'reactivar'];
+        foreach ($selecciones as $c) {
+            $accion = self::IA_PERMISSIONS[$c['action']] ?? null;
+            if ($accion !== null && !Permissions::can('administrador', $accion)) {
+                return ['status' => 403, 'message' => 'Tu rol no tiene permiso para ' . $verbos[$c['action']] . ' en el Catálogo.'];
+            }
         }
 
         // El índice ya viene en orden de aplicación: catálogos primero, productos después.
@@ -2429,4 +2462,5 @@ function renderStatus($estatus) {
 }
 
 $obj = new ctrl();
-echo json_encode($obj->{$_POST['opc']}());
+$opc = $_POST['opc'];
+echo json_encode(Permissions::guard('administrador', $opc, ctrl::PERMISSIONS) ?: $obj->{$opc}());
