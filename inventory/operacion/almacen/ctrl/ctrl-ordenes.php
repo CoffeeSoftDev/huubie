@@ -467,8 +467,9 @@ class ctrl extends mdl {
     // `reabasto` = '0' cuando el almacenista solo surte: se entrega todo lo marcado sin generar REAB-.
     // `salida` = 'manual' aprueba sin llamar a surtir(): sin salida SI-, sin descuento y sin REAB-;
     // el pedido queda Aprobada y se surte después con el botón Surtir. 'auto' (omisión) surte como siempre.
+    // `subs` = {renglón: item_id} de lo que se entrega en lugar de lo pedido («Producto a entregar»).
     function approveOrden() {
-        $_POST += ['items' => '{}', 'note' => '', 'warehouse_id' => 0, 'expected_date' => '', 'reabasto' => '1', 'salida' => 'auto', 'vista' => ''];
+        $_POST += ['items' => '{}', 'subs' => '{}', 'note' => '', 'warehouse_id' => 0, 'expected_date' => '', 'reabasto' => '1', 'salida' => 'auto', 'vista' => ''];
 
         $salida = (string) $_POST['salida'];
         if (!in_array($salida, ['auto', 'manual'], true)) {
@@ -497,6 +498,9 @@ class ctrl extends mdl {
         $items = is_array($items) ? array_intersect_key(array_filter($items, function ($qty) { return (float) $qty > 0; }), $byId) : [];
         if (empty($items)) return ['status' => 400, 'message' => 'Selecciona al menos un producto para aprobar'];
 
+        $subs = $this->sustitutosEntrega($_POST['subs'], $items, $byId);
+        if (is_string($subs)) return ['status' => 400, 'message' => $subs];
+
         $warehouseId = (int) $_POST['warehouse_id'] ?: (int) $header['warehouse_id'];
         if ($warehouseId <= 0) return ['status' => 400, 'message' => 'Elige el almacén del que se surte'];
 
@@ -513,7 +517,7 @@ class ctrl extends mdl {
         $conReabasto = $conSalida && (string) $_POST['reabasto'] !== '0';
 
         try {
-            return $this->transaction(function () use ($id, $header, $detalle, $byId, $items, $warehouseId, $compromiso, $reasonId, $note, $conReabasto, $conSalida) {
+            return $this->transaction(function () use ($id, $header, $detalle, $byId, $items, $subs, $warehouseId, $compromiso, $reasonId, $note, $conReabasto, $conSalida) {
                 $unidades = 0;
                 $costo    = 0.0;
                 $base     = 0.0;
@@ -529,6 +533,16 @@ class ctrl extends mdl {
 
                 if (!$this->updateOrdenTotals([count($items), $unidades, $costo, $base, $id])) throw new Exception('No se pudieron actualizar los totales');
                 if (!$this->updateOrdenStatusApprove(['Aprobada', $this->userId, $note, $id])) throw new Exception('No se pudo aprobar el pedido');
+
+                // Lo que se entrega en lugar de lo pedido queda en su renglón, también sin salida:
+                // el botón Surtir de después entrega ese mismo producto.
+                foreach ($subs as $detailId => $itemId) {
+                    if (!$this->updateDetailDelivered([$itemId, (int) $detailId, $id])) throw new Exception('No se pudo guardar el producto a entregar');
+                }
+                if ($subs) {
+                    $byId = [];
+                    foreach ($this->qGetOrdenDetail([$id]) as $renglon) $byId[(string) $renglon['id']] = $renglon;
+                }
 
                 if (!$conSalida) {
                     return [
@@ -1022,7 +1036,7 @@ class ctrl extends mdl {
             $detailId = (string) $detailId;
             if (!isset($byId[$detailId])) continue;
 
-            $renglon = $byId[$detailId];
+            $renglon = $this->renglonEntregado($byId[$detailId]);
             $pending = (float) $renglon['quantity_ordered'] - (float) $renglon['quantity_received'];
             if ($pending <= 0) continue;
 
@@ -1117,6 +1131,37 @@ class ctrl extends mdl {
             'reabasto_folio' => $reabFolio,
             'orden_status'   => $newStatus
         ];
+    }
+
+    // El renglón con el producto que de verdad sale del almacén: el que se entrega en lugar
+    // del pedido (con su unidad y su último costo del Catálogo) o, si no hay, lo pedido.
+    private function renglonEntregado($renglon) {
+        if (empty($renglon['delivered_item_id'])) return $renglon;
+
+        return array_merge($renglon, [
+            'product_id'        => $renglon['delivered_item_id'],
+            'unit_id'           => $renglon['delivered_unit_id'],
+            'cost'              => $renglon['delivered_cost'],
+            'price_without_tax' => $renglon['delivered_price_without_tax'],
+            'tax'               => $renglon['delivered_tax']
+        ]);
+    }
+
+    // «Producto a entregar» de Revisar y aprobar: {renglón: item_id} de lo marcado que se
+    // entrega en lugar de lo pedido. El que coincide con lo pedido no cuenta; los demás deben
+    // estar activos en el Catálogo de la empresa. Regresa el mapa o el mensaje de error.
+    private function sustitutosEntrega($json, $items, $byId) {
+        $subs = json_decode((string) $json, true);
+        if (!is_array($subs)) return [];
+
+        $out = [];
+        foreach ($subs as $detailId => $itemId) {
+            $itemId = (int) $itemId;
+            if (!isset($items[$detailId]) || $itemId <= 0 || $itemId === (int) $byId[(string) $detailId]['product_id']) continue;
+            if (!$this->qItemEntrega([$itemId, $this->companiesId])) return 'Uno de los productos a entregar ya no está en el Catálogo';
+            $out[$detailId] = $itemId;
+        }
+        return $out;
     }
 
     // Genera una OC de reabasto pendiente (REAB-, Aprobada, sin proveedor) por el faltante
@@ -1501,11 +1546,12 @@ class ctrl extends mdl {
                         'fecha_compromiso' => $h['expected_date'] ?? '',
                         'renglones'        => array_map(function ($d) {
                             return [
-                                'material'  => $d['product_name'],
-                                'unidad'    => $d['unidad'] ?? '',
-                                'pedido'    => (float) $d['quantity_ordered'],
-                                'entregado' => (float) $d['quantity_received'],
-                                'nota'      => $d['note'] ?? ''
+                                'material'   => $d['product_name'],
+                                'se_entrego' => $d['delivered_name'] ?? '',
+                                'unidad'     => $d['unidad'] ?? '',
+                                'pedido'     => (float) $d['quantity_ordered'],
+                                'entregado'  => (float) $d['quantity_received'],
+                                'nota'       => $d['note'] ?? ''
                             ];
                         }, $this->qGetOrdenDetail([(int) $p['id']]))
                     ],

@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Órdenes · Inventory — Propuesta A</title>
+<style>
+:root{
+  --bg:#F3F4F6; --card:#FFFFFF; --line:#E5E7EB; --soft:#F6F8FA;
+  --tx:#111827; --mut:#6B7280;
+  --ac:#C05A40; --ac-soft:rgba(192,90,64,.10);
+  --ok:#15803D; --ok-soft:rgba(21,128,61,.10);
+  --warn:#C2410C; --warn-soft:rgba(194,65,12,.10);
+  --er:#B91C1C; --er-soft:rgba(185,28,28,.10);
+  --go:#3FC189;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
+.sprite{display:none}
+.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ── layout ─────────────────────────────────────────── */
+.app{display:flex;min-height:100vh}
+.side{width:216px;background:var(--card);border-right:1px solid var(--line);padding:14px 10px;position:sticky;top:0;height:100vh;overflow:auto}
+.side-logo{display:flex;align-items:center;gap:9px;padding:4px 8px 14px}
+.logo-tile{width:30px;height:30px;border-radius:9px;background:var(--ac);display:grid;place-items:center;color:#fff}
+.side-logo b{font-size:15px;letter-spacing:-.01em}
+.side-h{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);padding:12px 8px 5px}
+.side a{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;color:var(--mut);text-decoration:none;font-size:13px;font-weight:500}
+.side a:hover{background:var(--soft);color:var(--tx)}
+.side a.on{background:var(--ac-soft);color:var(--ac);font-weight:650}
+.side a .ic{width:15px;height:15px}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);border-bottom:1px solid var(--line);padding:12px 22px}
+.top h1{font-size:17px;font-weight:700}
+.top small{color:var(--mut);font-size:12px}
+.page{padding:18px 22px;display:flex;flex-direction:column;gap:14px;max-width:1180px;width:100%;margin:0 auto}
+
+/* ── pestañas, filtros, leyenda ─────────────────────── */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:none;padding:9px 14px;font:inherit;font-size:13.5px;font-weight:600;color:var(--mut);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{color:var(--tx);border-color:var(--ac)}
+.bar{display:flex;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field small{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.field .in{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;background:var(--card);border:1px solid var(--line);border-radius:9px;color:var(--mut);font-size:13px}
+.field.grow{flex:1}
+.field.select .in{justify-content:space-between;min-width:170px}
+.in-v{color:var(--tx);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:11.5px;color:var(--mut)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block}
+.dot.warn{background:var(--warn)}
+.pill .dot{width:6px;height:6px}
+
+/* ── tabla del listado ──────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:auto}
+.tbl{width:100%;border-collapse:collapse;min-width:720px}
+.tbl th{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);text-align:left;padding:10px 14px;background:var(--soft);border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tbody tr:hover{background:var(--soft)}
+.tbl tr.off td{opacity:.62}
+.folio{font-weight:700}
+.tbl em{font-style:normal;font-size:10.5px;color:var(--mut)}
+.acts{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+.eye{color:var(--mut);cursor:pointer}
+
+/* ── pills y botones ────────────────────────────────── */
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:650;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.er{background:var(--er-soft);color:var(--er)}
+.pill.ac{background:var(--ac-soft);color:var(--ac)}
+.pill.mut{background:#F3F4F6;color:var(--mut)}
+.btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--tx);font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--soft)}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+.btn.pri:hover{background:#A84A33}
+.btn.go{background:var(--go);border-color:var(--go);color:#fff}
+.btn.go:hover{background:#2FA973}
+.btn.danger{border-color:var(--er);color:var(--er)}
+.btn.danger:hover{background:var(--er-soft)}
+.btn.sm{height:28px;padding:0 11px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── velos y modales ────────────────────────────────── */
+.veil{position:fixed;inset:0;background:rgba(17,24,39,.45);display:none;align-items:flex-start;justify-content:center;padding:4vh 16px;z-index:50;overflow:auto}
+.veil.show{display:flex}
+.modal{background:var(--card);border-radius:14px;width:100%;box-shadow:0 24px 60px rgba(15,23,42,.25);display:flex;flex-direction:column;max-height:92vh}
+.modal.big{max-width:880px}
+.modal.sm{max-width:520px}
+.mh{display:flex;align-items:center;gap:11px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.mh .tile{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;background:var(--go);flex:none}
+.mh .tile.ac{background:var(--ac)}
+.mh h3{font-size:15px;font-weight:700}
+.mh .sub{font-size:11.5px;color:var(--mut);display:flex;align-items:center;gap:7px;margin-top:3px}
+.mh .sub b{color:var(--tx)}
+.mh-b{font-size:14px;font-weight:700}
+.x{margin-left:auto;cursor:pointer;color:var(--mut);background:none;border:0;display:grid;place-items:center;padding:4px;border-radius:7px}
+.x:hover{background:var(--soft);color:var(--tx)}
+.warn-ic{color:var(--warn);width:18px;height:18px}
+.er-ic{color:var(--er);width:17px;height:17px}
+.mbody{padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.mfoot{display:flex;align-items:center;justify-content:flex-end;gap:9px;padding:13px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
+.spacer{flex:1}
+.lead{font-size:13.5px;line-height:1.5}
+.mut{font-size:12px;color:var(--mut);line-height:1.5}
+.negs{display:grid;gap:8px}
+
+/* ── metadatos · patrón inventory (plano, sin cajas) ── */
+.meta4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:end}
+.meta{min-width:0;display:flex;flex-direction:column;gap:4px}
+.meta small{display:block;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.meta-v{display:flex;align-items:center;gap:8px;min-width:0}
+.meta-v .ic{width:15px;height:15px;color:#9CA3AF;flex:none}
+.meta-v b{display:block;font-size:12.5px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── tabla del modal ────────────────────────────────── */
+.mtable{border:1px solid var(--line);border-radius:11px;overflow:auto}
+.mtable table{width:100%;border-collapse:collapse;min-width:640px}
+.mtable th{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);text-align:left;padding:8px 12px;background:var(--soft);border-bottom:1px solid var(--line);white-space:nowrap}
+.mtable td{padding:9px 12px;border-bottom:1px solid var(--line);font-size:12.5px;vertical-align:middle}
+.mtable tbody tr:last-child td{border-bottom:0}
+.mtable tbody tr{cursor:pointer}
+.mtable tbody tr:hover{background:var(--soft)}
+.mtable tbody tr.on{background:rgba(63,193,137,.09)}
+.mtable tbody tr.on:hover{background:rgba(63,193,137,.13)}
+.mtable em{font-style:normal;font-size:10.5px;color:var(--mut)}
+.ck-td,.ck-th{width:34px}
+.prod b{display:block;font-size:13px;font-weight:650}
+.prod small{display:block;font-size:10.5px;color:var(--mut)}
+.c-warn{color:var(--warn)}
+.c-ok{color:var(--ok)}
+.c-er{color:var(--er)}
+.ck{width:17px;height:17px;border:1.5px solid #D1D5DB;border-radius:5px;display:inline-grid;place-items:center;color:transparent;background:var(--card);padding:0;cursor:pointer;transition:.12s}
+.ck.on{background:var(--go);border-color:var(--go);color:#fff}
+.ck .ic{width:11px;height:11px;stroke-width:3.2}
+.ent{width:58px;height:28px;border:1px solid var(--line);border-radius:7px;text-align:center;font:inherit;font-weight:700;font-size:12.5px;color:var(--tx);background:var(--card)}
+.ent:focus{outline:2px solid var(--ac-soft);border-color:var(--ac)}
+
+/* ── selects de la tabla ────────────────────────────── */
+.tsel{position:relative;display:flex;align-items:center;gap:6px;min-width:0;height:32px;padding:0 8px 0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer;transition:border-color .12s}
+.tsel:hover{border-color:#D1D5DB}
+.tsel .tsel-v{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tsel .tsel-v small{display:block;font-size:10px;font-weight:500;color:var(--mut)}
+.tsel .ic{width:13px;height:13px;color:var(--mut);flex:none}
+.tsel.uni .tsel-v{font-weight:700;font-size:11.5px;letter-spacing:.02em}
+.tsel select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+
+/* ── la decisión en tarjetas ────────────────────────── */
+.opts{display:grid;gap:8px}
+.opt{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;padding:12px 13px;border:1px solid var(--line);border-radius:11px;background:var(--card);cursor:pointer;font:inherit;transition:border-color .12s, background .12s}
+.opt:hover{border-color:var(--ac);background:var(--soft)}
+.opt .tile{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:#fff;flex:none;margin-top:1px}
+.opt .tile.go{background:var(--go)}
+.opt .tile.mut{background:var(--mut)}
+.opt .tile.ac{background:var(--ac)}
+.opt b{display:block;font-size:13px;color:var(--tx)}
+.opt small{display:block;font-size:11.5px;color:var(--mut);margin-top:2px;line-height:1.45}
+.opt .chev{margin-left:auto;color:var(--mut);margin-top:6px;flex:none}
+.opt.reco{border-color:rgba(63,193,137,.5)}
+.opt.reco:hover{border-color:var(--go);background:rgba(63,193,137,.06)}
+.opt .reco-tag{margin-left:auto;flex:none;align-self:center}
+.opt.reco .chev{margin-left:0}
+
+/* ── nota, resumen, campos ──────────────────────────── */
+.nota-strip{display:flex;gap:10px;padding:10px 13px;border:1px solid var(--line);border-left:3px solid var(--ac);border-radius:10px;background:var(--card);font-size:12.5px;color:var(--mut);line-height:1.5}
+.nota-strip b{color:var(--tx)}
+.nota-strip .ic{color:var(--ac);margin-top:2px}
+.resumen{font-size:12.5px;color:var(--mut);line-height:1.55}
+.resumen b{color:var(--tx)}
+.ask{font-size:13px;font-weight:650;color:var(--tx);line-height:1.5}
+.in-txt{height:36px;border:1px solid var(--line);border-radius:9px;padding:0 12px;font:inherit;font-size:13px;color:var(--tx);background:var(--card)}
+.in-txt:focus{outline:2px solid var(--ac-soft);border-color:var(--ac)}
+.in-area{border:1px solid var(--line);border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;resize:vertical;color:var(--tx)}
+.in-area:focus{outline:2px solid var(--ac-soft);border-color:var(--ac)}
+.err{display:none;font-size:12px;color:var(--er)}
+.hint{display:flex;gap:8px;font-size:11.5px;color:var(--mut);line-height:1.5}
+.hint .ic{width:14px;height:14px;color:var(--ok);margin-top:1px}
+.alertbox{display:flex;gap:10px;padding:11px 13px;border-radius:10px;font-size:12.5px;line-height:1.5;border:1px solid}
+.alertbox .ic{margin-top:1px}
+.alertbox.warn{background:var(--warn-soft);border-color:rgba(194,65,12,.25);color:var(--warn)}
+.alertbox.warn b{color:var(--warn)}
+.alertbox.info{background:var(--ac-soft);border-color:rgba(192,90,64,.25);color:var(--ac)}
+.alertbox.info b{color:var(--ac)}
+
+/* ── toast ──────────────────────────────────────────── */
+.toast{position:fixed;right:18px;bottom:18px;display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ok);border-radius:11px;padding:12px 15px;box-shadow:0 14px 38px rgba(15,23,42,.18);max-width:420px;z-index:90;transform:translateY(12px);opacity:0;pointer-events:none;transition:.22s}
+.toast.show{transform:none;opacity:1}
+.toast .ic{color:var(--ok);width:17px;height:17px;margin-top:1px}
+.toast b{display:block;font-size:12.5px}
+.toast span{display:block;font-size:12px;color:var(--mut);margin-top:1px}
+
+@media (max-width:880px){
+  .side{display:none}
+  .meta4{grid-template-columns:1fr 1fr}
+  .page{padding:14px}
+}
+</style>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-user-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="9.5" r="3.5"/><path d="M5.6 19a7.2 7.2 0 0 1 12.8 0"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/><path d="M2 21h20"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7.5"/><path d="m21 21-4.5-4.5"/></symbol>
+  <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14.5 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7.5Z"/><path d="M14.5 2.5v5h5"/><path d="M8.5 13h7M8.5 17h7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18.5a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12s3-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3 6.5-9.5 6.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M12 16.5V12M12 8h.01"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="m8.5 12 2.5 2.5 5-5"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h2.5l2.2 11.4a1.8 1.8 0 0 0 1.8 1.4h8.6a1.8 1.8 0 0 0 1.8-1.4L21 7H5.5"/></symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 4v16M6 14l6 6 6-6"/></symbol>
+  <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 20V4M6 10l6-6 6 6"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h13M13 4l4 4-4 4"/><path d="M20 16H7M11 12l-4 4 4 4"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 14 9 5 9-5"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2.5" width="8" height="3.5" rx="1"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.6 2.5 21 11a2 2 0 0 1 0 2.8l-7.2 7.2a2 2 0 0 1-2.8 0L2.5 11.4V4.5a2 2 0 0 1 2-2Z"/><circle cx="7.5" cy="7.5" r="1.2"/></symbol>
+</svg>
+
+<div class="app">
+
+  <aside class="side">
+    <div class="side-logo"><span class="logo-tile"><svg class="ic"><use href="#i-box"/></svg></span><b>inventory</b></div>
+    <nav>
+      <p class="side-h">Operación</p>
+      <a href="#"><svg class="ic"><use href="#i-box"/></svg>Almacen</a>
+      <a href="#"><svg class="ic"><use href="#i-arrow-down"/></svg>Entradas</a>
+      <a href="#"><svg class="ic"><use href="#i-arrow-up"/></svg>Salidas</a>
+      <a href="#"><svg class="ic"><use href="#i-swap"/></svg>Movimientos</a>
+      <a href="#"><svg class="ic"><use href="#i-swap"/></svg>Traspasos</a>
+      <p class="side-h">Análisis</p>
+      <a href="#"><svg class="ic"><use href="#i-layers"/></svg>Existencias</a>
+      <a href="#"><svg class="ic"><use href="#i-clipboard"/></svg>Stock</a>
+      <a href="#"><svg class="ic"><use href="#i-chart"/></svg>Reportes</a>
+      <p class="side-h">Compras</p>
+      <a href="#" class="on"><svg class="ic"><use href="#i-clipboard"/></svg>Órdenes</a>
+      <a href="#"><svg class="ic"><use href="#i-cart"/></svg>Compras</a>
+      <a href="#"><svg class="ic"><use href="#i-tag"/></svg>Catálogo</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <div><h1>Órdenes</h1><small>Almacén Regina Gpe · lo que me piden</small></div>
+      <button class="btn pri" type="button" title="Simulación — fuera de alcance"><svg class="ic"><use href="#i-plus"/></svg>Nuevo pedido</button>
+    </header>
+
+    <div class="page">
+      <div class="tabs">
+        <button type="button">Mis pedidos</button>
+        <button type="button" class="on">Mis entregas</button>
+      </div>
+
+      <div class="bar">
+        <label class="field select">
+          <small>Estado</small>
+          <span class="in"><b class="in-v">Por surtir</b><svg class="ic"><use href="#i-chevron-down"/></svg></span>
+        </label>
+        <label class="field grow">
+          <small>Buscar</small>
+          <span class="in"><svg class="ic"><use href="#i-search"/></svg>Buscar folio…</span>
+        </label>
+      </div>
+
+      <div class="legend">
+        <span><span class="dot"></span>Pedido Solicitada, nuevo por surtir</span>
+        <span><span class="dot"></span>Surtido: ya salió del almacén</span>
+        <span><span class="dot warn"></span>Surtido a medias: faltó algo</span>
+      </div>
+
+      <div class="card">
+        <table class="tbl">
+          <thead><tr><th>Folio</th><th>Pide</th><th>Para</th><th>Prod.</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            <tr id="rowSol">
+              <td class="folio">SOL-0007</td><td>Reginas Kafeto</td><td>Lun 12/OCT</td><td>4</td>
+              <td><span class="pill ok" id="pillSol"><span class="dot"></span>Solicitada</span></td>
+              <td class="acts">
+                <button class="btn sm go" id="btnAbrir" type="button"><svg class="ic"><use href="#i-check"/></svg>Revisar y aprobar</button>
+                <svg class="ic eye"><use href="#i-eye"/></svg>
+              </td>
+            </tr>
+            <tr id="rowReab" hidden>
+              <td class="folio">REAB-2026-014</td><td>Regina Gpe</td><td>—</td><td>1</td>
+              <td><span class="pill ac">Aprobada</span></td>
+              <td class="acts"><svg class="ic eye"><use href="#i-eye"/></svg></td>
+            </tr>
+            <tr>
+              <td class="folio">SOL-0006</td><td>Reginas Kafeto</td><td>Vie 09/OCT</td><td>12</td>
+              <td><span class="pill ac">Aprobada</span></td>
+              <td class="acts"><svg class="ic eye"><use href="#i-eye"/></svg></td>
+            </tr>
+            <tr>
+              <td class="folio">SOL-0005</td><td>Punto Modelo</td><td>Jue 08/OCT</td><td>7</td>
+              <td><span class="pill er">Rechazada</span></td>
+              <td class="acts"><svg class="ic eye"><use href="#i-eye"/></svg></td>
+            </tr>
+            <tr class="off">
+              <td class="folio">SOL-0004</td><td>Reginas Kafeto</td><td>Mié 07/OCT</td><td>3</td>
+              <td><span class="pill mut">Cancelada</span></td>
+              <td class="acts"><svg class="ic eye"><use href="#i-eye"/></svg></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL · Revisar y aprobar ─────────────────────── -->
+<div class="veil show" id="mAprob">
+  <div class="modal big">
+    <header class="mh">
+      <span class="tile"><svg class="ic"><use href="#i-check"/></svg></span>
+      <div>
+        <h3>Revisar y aprobar</h3>
+        <span class="sub">Solicitud <b>SOL-0007</b> <span class="pill ok"><span class="dot"></span>Solicitada</span></span>
+      </div>
+      <button class="x" id="xModal" type="button" title="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+
+    <div class="mbody">
+      <div class="meta4">
+        <div class="meta">
+          <small>Solicitado por</small>
+          <div class="meta-v"><svg class="ic"><use href="#i-user-circle"/></svg><b>Sergio Os.</b></div>
+        </div>
+        <div class="meta">
+          <small>Sucursal que pide</small>
+          <div class="meta-v"><svg class="ic"><use href="#i-building"/></svg><b>Reginas Kafeto</b></div>
+        </div>
+        <div class="meta">
+          <small>Fecha de solicitud</small>
+          <div class="meta-v"><svg class="ic"><use href="#i-calendar"/></svg><b>09/OCT/2026</b></div>
+        </div>
+        <div class="meta">
+          <small>Lo necesita para</small>
+          <div class="meta-v"><svg class="ic"><use href="#i-clock"/></svg><b>Lun 12/OCT/2026</b></div>
+        </div>
+      </div>
+
+      <div class="mtable">
+        <table>
+          <thead><tr>
+            <th class="ck-th"><button class="ck" id="ckAll" type="button" title="Marcar o desmarcar todos"><svg class="ic"><use href="#i-check"/></svg></button></th>
+            <th>Producto</th><th>Pedido</th><th>Producto a entregar</th><th>Cant. a entregar</th><th>Unidad</th><th>¿Alcanza?</th>
+          </tr></thead>
+          <tbody id="mrows"></tbody>
+        </table>
+      </div>
+
+      <div class="nota-strip">
+        <svg class="ic"><use href="#i-file-text"/></svg>
+        <div><b>Nota de quien pidió:</b> «El huevo puede ser de otro tamaño, lo que sea para el pastel. Entrega con Beto en la puerta de atrás.»</div>
+      </div>
+
+      <p class="resumen" id="resumen"></p>
+
+      <label class="field"><small>Nota</small>
+        <input class="in-txt" type="text" placeholder="Observaciones de la aprobación…">
+      </label>
+
+      <p class="hint"><svg class="ic"><use href="#i-info"/></svg>Marca lo que vas a entregar. Al aprobar se descuenta el almacén con su cantidad a entregar; si algo queda en negativo, el sistema te pregunta si la salida es automática o manual.</p>
+    </div>
+
+    <footer class="mfoot">
+      <button class="btn" id="btnCerrar" type="button">Cerrar</button>
+      <span class="spacer"></span>
+      <button class="btn danger" id="btnRechazar" type="button"><svg class="ic"><use href="#i-x"/></svg>Rechazar</button>
+      <button class="btn go" id="btnAprobar" type="button"></button>
+    </footer>
+  </div>
+</div>
+
+<!-- ── AVISO ÚNICO de aprobación ────────────────────── -->
+<div class="veil" id="mAviso">
+  <div class="modal sm">
+    <header class="mh">
+      <svg class="ic warn-ic"><use href="#i-alert"/></svg>
+      <b class="mh-b" id="avTitle"></b>
+      <button class="x" id="avX" type="button" title="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="mbody">
+      <p class="lead" id="avLead"></p>
+      <div class="negs" id="avNeg"></div>
+      <div id="avOptsWrap" hidden>
+        <p class="ask" id="avAsk"></p>
+        <div class="opts">
+          <button class="opt reco" id="avAuto" type="button">
+            <span class="tile go"><svg class="ic"><use href="#i-arrow-down"/></svg></span>
+            <span style="flex:1;min-width:0"><b>Salida automática</b><small>El sistema descuenta el almacén al aceptar. El negativo se ajusta con una entrada después.</small></span>
+            <span class="reco-tag"><span class="pill ok">Recomendada</span></span>
+            <svg class="ic chev"><use href="#i-chevron-right"/></svg>
+          </button>
+          <button class="opt" id="avManual" type="button">
+            <span class="tile mut"><svg class="ic"><use href="#i-arrow-up"/></svg></span>
+            <span style="flex:1;min-width:0"><b>Salida manual después</b><small>Queda aprobada sin descuento: la registras desde Salidas de almacén. El almacén queda en negativo hasta que surtas en entradas.</small></span>
+            <svg class="ic chev"><use href="#i-chevron-right"/></svg>
+          </button>
+          <button class="opt" id="avPend" type="button">
+            <span class="tile ac"><svg class="ic"><use href="#i-cart"/></svg></span>
+            <span style="flex:1;min-width:0"><b>Generar orden pendiente</b><small>Lo que falta se compra (REAB-2026-014): la recibes en Mis entregas y el faltante se completa en la solicitud.</small></span>
+            <svg class="ic chev"><use href="#i-chevron-right"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <footer class="mfoot">
+      <button class="btn" id="avRegresar" type="button">Regresar</button>
+      <span class="spacer"></span>
+      <button class="btn go" id="avOk" type="button"></button>
+    </footer>
+  </div>
+</div>
+
+<!-- ── MODAL · Generar orden pendiente ──────────────── -->
+<div class="veil" id="mPend">
+  <div class="modal sm">
+    <header class="mh">
+      <span class="tile ac"><svg class="ic"><use href="#i-cart"/></svg></span>
+      <b class="mh-b">Generar orden pendiente</b>
+      <button class="x" id="pendX" type="button" title="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="mbody">
+      <p class="lead" id="pendLead"></p>
+      <div class="mtable">
+        <table>
+          <thead><tr><th>Producto</th><th>Entrega</th><th>Se compra</th></tr></thead>
+          <tbody id="pendRows"></tbody>
+        </table>
+      </div>
+      <div class="alertbox info">
+        <svg class="ic"><use href="#i-info"/></svg>
+        <div>La compra queda <b>pendiente de compra</b> (REAB-2026-014): la recibes en Mis entregas cuando llegue el producto, y el faltante se completa en la solicitud.</div>
+      </div>
+    </div>
+    <footer class="mfoot">
+      <button class="btn" id="pendRegresar" type="button">Regresar</button>
+      <span class="spacer"></span>
+      <button class="btn pri" id="pendOk" type="button"><svg class="ic"><use href="#i-cart"/></svg>Sí, generar orden pendiente</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ── MODAL · Rechazo ──────────────────────────────── -->
+<div class="veil" id="mRech">
+  <div class="modal sm">
+    <header class="mh">
+      <svg class="ic er-ic"><use href="#i-x"/></svg>
+      <b class="mh-b">Rechazar pedido SOL-0007</b>
+      <button class="x" id="rechX" type="button" title="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="mbody">
+      <label class="field"><small>Motivo del rechazo</small>
+        <textarea class="in-area" id="rechMotivo" rows="3" placeholder="Escribe el motivo…"></textarea>
+      </label>
+      <span class="err" id="rechErr">El motivo es obligatorio.</span>
+    </div>
+    <footer class="mfoot">
+      <button class="btn" id="rechCancelar" type="button">Cancelar</button>
+      <span class="spacer"></span>
+      <button class="btn danger" id="rechOk" type="button">Rechazar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ── TOAST ────────────────────────────────────────── -->
+<div class="toast" id="toast">
+  <svg class="ic"><use href="#i-check-circle"/></svg>
+  <div><b id="toastT"></b><span id="toastB"></span></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* catálogo de similares: cada producto trae sus alternativas con su stock,
+     y cada unidad su equivalencia para reescalar la disponibilidad */
+  var CAT = {
+    1: [ {nom:'Huevo 30 piezas', sku:'HEV-30', disp:20},
+         {nom:'Huevo blanco por kilo', sku:'HEV-KG', disp:12},
+         {nom:'Huevo líquido 1 L', sku:'HEV-LIQ', disp:6} ],
+    2: [ {nom:'Azúcar glass', sku:'AZU-GLS', disp:8} ],
+    3: [ {nom:'Crema para batir', sku:'CRE-BAT', disp:5},
+         {nom:'Crema vegetal 1 L', sku:'CRE-VEG', disp:9} ],
+    4: [ {nom:'Vaso 12 oz', sku:'VAS-12', disp:240} ]
+  };
+  var UNI = {
+    1: [ {u:'PZAS', f:1}, {u:'CJ', f:30} ],
+    2: [ {u:'KG', f:1}, {u:'G', f:1000} ],
+    3: [ {u:'LT', f:1}, {u:'ML', f:1000} ],
+    4: [ {u:'PZAS', f:1}, {u:'PAQ', f:25} ]
+  };
+
+  var P = [
+    {id:1, nom:'Huevo 30 piezas', sku:'HEV-30', ped:30, uni:'PZAS', disp:20, ent:30, on:true},
+    {id:2, nom:'Azúcar glass',   sku:'AZU-GLS', ped:1,  uni:'KG',  disp:8,  ent:1,  on:true},
+    {id:3, nom:'Crema para batir', sku:'CRE-BAT', ped:2, uni:'LT',  disp:5,  ent:2,  on:true},
+    {id:4, nom:'Vaso 12 oz',     sku:'VAS-12',  ped:100, uni:'PZAS', disp:240, ent:100, on:true}
+  ];
+
+  function $(id){ return document.getElementById(id); }
+  function byId(id){
+    for (var i = 0; i < P.length; i++){ if (P[i].id === Number(id)) return P[i]; }
+    return null;
+  }
+  function marcados(){
+    return P.filter(function(p){ return p.on; });
+  }
+  function faltantes(){
+    return P.filter(function(p){ return p.on && p.ent > p.disp; });
+  }
+  function pillAlcanza(p){
+    if (p.ent > p.disp) return '<span class="pill warn">Solo ' + p.disp + ' de ' + p.ent + '</span>';
+    return '<span class="pill ok">Sí</span>';
+  }
+
+  var tbody = $('mrows');
+
+  function selProdHTML(p){
+    var ops = CAT[p.id] || [{nom:p.nom, sku:p.sku, disp:p.disp}];
+    var sel = '<select class="selp" data-id="' + p.id + '" aria-label="Producto a entregar">';
+    for (var i = 0; i < ops.length; i++){
+      var o = ops[i];
+      sel += '<option value="' + i + '"' + (o.nom === p.nom ? ' selected' : '') + '>' + o.nom + ' · ' + o.disp + ' disp.</option>';
+    }
+    sel += '</select>';
+    var dispCls = p.disp < p.ped ? 'c-warn' : 'c-ok';
+    return '<span class="tsel">' +
+      '<span class="tsel-v ' + dispCls + '">' + p.nom + '<small>' + p.sku + ' · ' + p.disp + ' disp.</small></span>' +
+      '<svg class="ic"><use href="#i-chevron-down"/></svg>' + sel + '</span>';
+  }
+  function selUniHTML(p){
+    var ops = UNI[p.id] || [{u:p.uni, f:1}];
+    var sel = '<select class="selu" data-id="' + p.id + '" aria-label="Unidad">';
+    for (var i = 0; i < ops.length; i++){
+      sel += '<option value="' + i + '"' + (ops[i].u === p.uni ? ' selected' : '') + '>' + ops[i].u + '</option>';
+    }
+    sel += '</select>';
+    return '<span class="tsel uni">' +
+      '<span class="tsel-v">' + p.uni + '</span>' +
+      '<svg class="ic"><use href="#i-chevron-down"/></svg>' + sel + '</span>';
+  }
+
+  function filaHTML(p){
+    return '<tr class="' + (p.on ? 'on' : '') + '" data-id="' + p.id + '">' +
+      '<td class="ck-td"><span class="ck' + (p.on ? ' on' : '') + '"><svg class="ic"><use href="#i-check"/></svg></span></td>' +
+      '<td><div class="prod"><b>' + p.nom0 + '</b><small>' + p.sku0 + '</small></div></td>' +
+      '<td>' + p.ped + '</td>' +
+      '<td class="cprod">' + selProdHTML(p) + '</td>' +
+      '<td><input class="ent" type="number" min="0" value="' + p.ent + '" data-id="' + p.id + '"></td>' +
+      '<td class="cuni">' + selUniHTML(p) + '</td>' +
+      '<td class="alz">' + pillAlcanza(p) + '</td></tr>';
+  }
+
+  function resumen(){
+    var m = marcados(), f = faltantes(), html;
+    if (!m.length){
+      html = '<b>Ningún producto marcado.</b> Marca lo que vas a entregar.';
+    } else {
+      var partes = [];
+      var comp = m.length - f.length;
+      if (comp) partes.push('<b>' + comp + '</b> con stock completo');
+      if (f.length){
+        var lista = [];
+        for (var i = 0; i < f.length; i++){
+          var p = f[i];
+          lista.push('<b>' + p.nom + ' ' + p.ent + ' ' + p.uni + '</b> quedará en <b class="c-er">−' + (p.ent - p.disp) + ' ' + p.uni + '</b>');
+        }
+        partes.push('<b>' + f.length + '</b> con faltante: ' + lista.join(' · '));
+      }
+      html = '<b>' + m.length + ' de ' + P.length + '</b> productos marcados: ' + partes.join(' y ') + '.';
+    }
+    $('resumen').innerHTML = html;
+    var btn = $('btnAprobar');
+    btn.disabled = !m.length;
+    btn.innerHTML = '<svg class="ic"><use href="#i-check"/></svg>Aprobar y surtir (' + m.length + ')';
+  }
+
+  function render(){
+    var html = [];
+    for (var i = 0; i < P.length; i++) html.push(filaHTML(P[i]));
+    tbody.innerHTML = html.join('');
+    var todos = true;
+    for (var j = 0; j < P.length; j++){ if (!P[j].on){ todos = false; break; } }
+    $('ckAll').classList.toggle('on', todos);
+    resumen();
+  }
+
+  /* nombre y sku originales: la columna Producto conserva lo que pidió */
+  for (var k = 0; k < P.length; k++){ P[k].nom0 = P[k].nom; P[k].sku0 = P[k].sku; }
+
+  tbody.addEventListener('click', function(e){
+    if (e.target.closest('.ent')) return;
+    if (e.target.closest('.tsel') || e.target.closest('select')) return;
+    var tr = e.target.closest('tr[data-id]');
+    if (!tr) return;
+    var p = byId(tr.dataset.id);
+    p.on = !p.on;
+    tr.classList.toggle('on', p.on);
+    tr.querySelector('.ck').classList.toggle('on', p.on);
+    var todos = true;
+    for (var j = 0; j < P.length; j++){ if (!P[j].on){ todos = false; break; } }
+    $('ckAll').classList.toggle('on', todos);
+    resumen();
+  });
+
+  tbody.addEventListener('change', function(e){
+    var el = e.target;
+    var p = byId(el.dataset.id);
+    if (!p) return;
+    if (el.classList.contains('selp')){
+      var o = CAT[p.id][Number(el.value)];
+      p.nom = o.nom; p.sku = o.sku; p.disp = o.disp;
+      var tr = el.closest('tr');
+      tr.querySelector('.cprod').innerHTML = selProdHTML(p);
+      tr.querySelector('.alz').innerHTML = pillAlcanza(p);
+      resumen();
+    } else if (el.classList.contains('selu')){
+      var prev = null;
+      var ops = UNI[p.id];
+      for (var i = 0; i < ops.length; i++){ if (ops[i].u === p.uni) prev = ops[i]; }
+      var nu = ops[Number(el.value)];
+      if (prev && nu.f !== prev.f){
+        p.disp = Math.round(p.disp * prev.f / nu.f * 100) / 100;
+        p.ent  = Math.round(p.ent  * prev.f / nu.f * 100) / 100;
+      }
+      p.uni = nu.u;
+      var tr2 = el.closest('tr');
+      tr2.querySelector('.cuni').innerHTML = selUniHTML(p);
+      tr2.querySelector('.cprod').innerHTML = selProdHTML(p);
+      tr2.querySelector('.ent').value = p.ent;
+      tr2.querySelector('.alz').innerHTML = pillAlcanza(p);
+      resumen();
+    }
+  });
+
+  tbody.addEventListener('input', function(e){
+    var inp = e.target;
+    if (!inp.classList.contains('ent')) return;
+    var p = byId(inp.dataset.id);
+    var v = parseInt(inp.value, 10);
+    p.ent = isNaN(v) ? 0 : Math.max(0, v);
+    inp.closest('tr').querySelector('.alz').innerHTML = pillAlcanza(p);
+    resumen();
+  });
+
+  $('ckAll').addEventListener('click', function(){
+    var todos = true;
+    for (var j = 0; j < P.length; j++){ if (!P[j].on){ todos = false; break; } }
+    for (var i = 0; i < P.length; i++) P[i].on = !todos;
+    render();
+  });
+
+  function closeAll(){
+    var vs = document.querySelectorAll('.veil');
+    for (var i = 0; i < vs.length; i++) vs[i].classList.remove('show');
+  }
+  function openM(id){ closeAll(); $(id).classList.add('show'); }
+
+  $('btnAbrir').addEventListener('click', function(){ openM('mAprob'); });
+  $('btnCerrar').addEventListener('click', closeAll);
+  $('xModal').addEventListener('click', closeAll);
+
+  $('btnRechazar').addEventListener('click', function(){
+    $('rechErr').style.display = 'none';
+    openM('mRech');
+  });
+
+  var avStep = 'simple';
+
+  function avisoSimple(){
+    avStep = 'simple';
+    $('avTitle').textContent = '¿Aprobar y surtir la solicitud SOL-0007?';
+    $('avLead').innerHTML = 'Se van a surtir <b>' + marcados().length + ' productos</b>. Todo alcanza: la salida de almacén se registra al aceptar.';
+    $('avNeg').innerHTML = '';
+    $('avOptsWrap').hidden = true;
+    $('avOk').style.display = '';
+    $('avOk').className = 'btn go';
+    $('avOk').innerHTML = '<svg class="ic"><use href="#i-check"/></svg>Sí, aprobar y surtir';
+  }
+
+  function avisoPregunta(){
+    avStep = 'pregunta';
+    var m = marcados(), f = faltantes();
+    $('avTitle').textContent = '¿Aprobar y surtir la solicitud SOL-0007?';
+    $('avLead').innerHTML = 'Se van a surtir <b>' + m.length + ' productos</b> · <b class="c-warn">' + f.length + ' con faltante</b>.';
+    var negs = [];
+    for (var i = 0; i < f.length; i++){
+      var p = f[i];
+      negs.push('<div class="alertbox warn"><svg class="ic"><use href="#i-alert"/></svg><div><b>' +
+        p.nom + ' ' + p.ent + ' ' + p.uni + ' quedará en −' + (p.ent - p.disp) + ' ' + p.uni +
+        '</b> en Almacén Regina Gpe.</div></div>');
+    }
+    $('avNeg').innerHTML = negs.join('');
+    $('avAsk').textContent = '¿Cómo quieres darle salida al almacén?';
+    $('avOptsWrap').hidden = false;
+    $('avOk').style.display = 'none';
+  }
+
+  function avisoDisculpa(){
+    avStep = 'disculpa';
+    $('avTitle').textContent = 'No le diste salida a almacén';
+    $('avLead').innerHTML = 'Lo sentimos: la solicitud <b>SOL-0007</b> quedó aprobada sin movimiento de almacén.';
+    $('avNeg').innerHTML = '<div class="alertbox warn"><svg class="ic"><use href="#i-alert"/></svg><div>Tendrás que hacerlo manual desde <b>Salidas de almacén</b>: hasta entonces el pedido figura aprobado sin descuento.</div></div>';
+    $('avOptsWrap').hidden = true;
+    $('avOk').style.display = '';
+    $('avOk').className = 'btn pri';
+    $('avOk').textContent = 'Entendido';
+  }
+
+  $('btnAprobar').addEventListener('click', function(){
+    if (faltantes().length) avisoPregunta(); else avisoSimple();
+    openM('mAviso');
+  });
+
+  $('avAuto').addEventListener('click', function(){
+    var m = marcados(), f = faltantes();
+    var negs = [];
+    for (var i = 0; i < f.length; i++){
+      var p = f[i];
+      negs.push(p.nom + ' quedó en −' + (p.ent - p.disp) + ' ' + p.uni);
+    }
+    setEstado('warn', 'Parcial', false);
+    showToast('Surtido registrado', 'Salida SI-0231, ' + m.length + ' materiales. ' + negs.join(' · ') + ' hasta que registres la entrada. Solicitud ahora Parcial.');
+  });
+
+  $('avManual').addEventListener('click', avisoDisculpa);
+  $('avRegresar').addEventListener('click', function(){ openM('mAprob'); });
+  $('avX').addEventListener('click', closeAll);
+
+  $('avPend').addEventListener('click', function(){
+    var f = faltantes();
+    var rows = [];
+    for (var i = 0; i < f.length; i++){
+      var p = f[i];
+      rows.push('<tr><td><div class="prod"><b>' + p.nom + '</b><small>' + p.sku + '</small></div></td>' +
+        '<td>' + p.disp + ' <em>' + p.uni + '</em></td>' +
+        '<td><b>' + (p.ent - p.disp) + '</b> <em>' + p.uni + '</em></td></tr>');
+    }
+    $('pendRows').innerHTML = rows.join('');
+    $('pendLead').innerHTML = 'Se creará una compra con lo que falta de <b>SOL-0007</b> y se surtirán los <b>' + marcados().length + '</b> productos marcados.';
+    openM('mPend');
+  });
+
+  $('pendRegresar').addEventListener('click', function(){ openM('mAviso'); });
+  $('pendX').addEventListener('click', closeAll);
+  $('pendOk').addEventListener('click', function(){
+    setEstado('warn', 'Parcial', false);
+    $('rowReab').removeAttribute('hidden');
+    showToast('Surtido registrado', 'Salida SI-0231, ' + marcados().length + ' materiales. Se generó la orden de reabasto REAB-2026-014 (pendiente de compra). Solicitud ahora Parcial.');
+  });
+
+  $('avOk').addEventListener('click', function(){
+    if (avStep === 'disculpa'){
+      setEstado('ac', 'Aprobada', false);
+      showToast('Solicitud aprobada sin salida de almacén', 'Registra la salida manual desde Salidas de almacén; el faltante sigue en la solicitud.');
+      return;
+    }
+    var m = marcados();
+    setEstado('ok', 'Surtido', true);
+    showToast('Surtido registrado', 'Salida SI-0231, ' + m.length + ' materiales. Solicitud ahora Surtido.');
+  });
+
+  $('rechCancelar').addEventListener('click', function(){ openM('mAprob'); });
+  $('rechX').addEventListener('click', closeAll);
+  $('rechOk').addEventListener('click', function(){
+    var v = $('rechMotivo').value.trim();
+    if (!v){ $('rechErr').style.display = 'block'; return; }
+    setEstado('er', 'Rechazada', false);
+    showToast('Solicitud SOL-0007 rechazada', 'El motivo quedó registrado en la solicitud.');
+  });
+
+  function setEstado(cls, txt, dot){
+    var pill = $('pillSol');
+    pill.className = 'pill ' + cls;
+    pill.innerHTML = (dot ? '<span class="dot"></span>' : '') + txt;
+    $('btnAbrir').style.display = 'none';
+    closeAll();
+  }
+
+  var tTimer;
+  function showToast(t, b){
+    $('toastT').textContent = t;
+    $('toastB').textContent = b;
+    var el = $('toast');
+    el.classList.add('show');
+    clearTimeout(tTimer);
+    tTimer = setTimeout(function(){ el.classList.remove('show'); }, 6500);
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

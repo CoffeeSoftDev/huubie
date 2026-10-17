@@ -298,6 +298,8 @@ class mdl extends CRUD {
     }
 
     // unidad: la del renglón; si no trae, la del producto en Catálogo.
+    // delivered_*: el producto que se entrega en lugar del pedido (Revisar y aprobar), con
+    // su unidad y su último costo del Catálogo; vacío si se entrega lo pedido.
     function qGetOrdenDetail($array) {
         $query = "
             SELECT
@@ -315,11 +317,22 @@ class mdl extends CRUD {
                 i.name  AS product_name,
                 ia.sku,
                 i.image,
-                un.name AS unidad
+                un.name AS unidad,
+                d.delivered_item_id,
+                di.name   AS delivered_name,
+                dia.sku   AS delivered_sku,
+                dia.unit_id AS delivered_unit_id,
+                dun.name  AS delivered_unidad,
+                COALESCE(dia.cost_unit, 0)            AS delivered_price_without_tax,
+                COALESCE(dia.cost_tax, di.tax, 0)     AS delivered_tax,
+                ROUND(COALESCE(dia.cost_unit, 0) * (1 + COALESCE(dia.cost_tax, di.tax, 0) / 100), 2) AS delivered_cost
             FROM {$this->bd}detail_purchase_order d
-            INNER JOIN {$this->bd}item            i  ON i.id = d.item_id
-            LEFT  JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
-            LEFT  JOIN {$this->bd}unit            un ON un.id = COALESCE(d.unit_id, ia.unit_id)
+            INNER JOIN {$this->bd}item            i   ON i.id = d.item_id
+            LEFT  JOIN {$this->bd}item_attribute  ia  ON ia.item_id = i.id AND ia.active = 1
+            LEFT  JOIN {$this->bd}unit            un  ON un.id = COALESCE(d.unit_id, ia.unit_id)
+            LEFT  JOIN {$this->bd}item            di  ON di.id = d.delivered_item_id
+            LEFT  JOIN {$this->bd}item_attribute  dia ON dia.item_id = di.id AND dia.active = 1
+            LEFT  JOIN {$this->bd}unit            dun ON dun.id = dia.unit_id
             WHERE d.purchase_order_id = ? AND d.active = 1
             ORDER BY d.id ASC
         ";
@@ -446,6 +459,28 @@ class mdl extends CRUD {
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);
+    }
+
+    // Producto que se entrega en lugar del pedido: [delivered_item_id, renglón, pedido].
+    function updateDetailDelivered($array) {
+        $query = "
+            UPDATE {$this->bd}detail_purchase_order
+            SET delivered_item_id = ?
+            WHERE id = ? AND purchase_order_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Producto del Catálogo que se puede entregar: activo y de la empresa. [item_id, companies_id]
+    function qItemEntrega($array) {
+        $query = "
+            SELECT id, name
+            FROM {$this->bd}item
+            WHERE id = ? AND companies_id = ? AND active = 1
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
     // -----------------------------------------------------------------------

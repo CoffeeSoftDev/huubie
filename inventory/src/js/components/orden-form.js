@@ -257,7 +257,7 @@ class OrdenForm extends EntradaForm {
                         <th class="hidden lg:table-cell text-right px-2 ${th} w-24">Costo s/imp</th>
                         <th class="hidden lg:table-cell text-center px-2 ${th} w-16">Imp. %</th>
                         <th class="text-right px-2 md:px-3 ${th} w-28 md:w-36">Subtotal</th>` : `
-                        <th class="text-center px-2 ${th} w-24 md:w-28">Unidad</th>`}
+                        <th class="text-center px-2 ${th} w-20 md:w-24">Unidad</th>`}
                         <th class="${m ? 'w-10' : 'w-20 lg:w-auto'} px-2 py-2"></th>
                     </tr>
                 </thead>
@@ -275,15 +275,21 @@ class OrdenForm extends EntradaForm {
     }
 
     // Celda de la unidad del producto (columna Unidad del pedido); sin unidad, un guion.
+    // Campo chico donde se escribe para buscar la unidad o se elige de la lista (flecha),
+    // con la misma lista flotante que el Impuesto de Entradas. La letra va en línea con
+    // !important: compact.css le pone 1rem con !important a todo input[type="text"].
     renderUnidadCell(p, i) {
         const unidades = (this.opts.data && this.opts.data.unidades) || [];
         if (unidades.length) {
-            const opts = unidades.map(u => `<option value="${this.esc(u.id)}"${String(u.id) === String(p.unit_id) ? ' selected' : ''}>${this.esc(u.code || u.valor || '')}</option>`).join('');
             return `
             <td class="px-1 py-2 align-middle">
-                <select class="w-full px-1 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 cursor-pointer" data-unit-idx="${i}">
-                    ${p.unit_id ? '' : '<option value="" selected>-</option>'}${opts}
-                </select>
+                <div class="relative" title="Unidad: escribe o elige">
+                    <input type="text" autocomplete="off" value="${this.esc(this.unidadTexto(p.unit_id))}" placeholder="-" data-unit-idx="${i}" style="font-size:12px !important"
+                        class="w-full pl-2 pr-6 py-1 font-semibold uppercase text-gray-700 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all placeholder:text-gray-300">
+                    <button type="button" tabindex="-1" class="absolute right-0.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100" data-unit-toggle="${i}">
+                        <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                    </button>
+                </div>
             </td>`;
         }
 
@@ -292,6 +298,71 @@ class OrdenForm extends EntradaForm {
             <td class="px-2 py-2 align-middle text-center text-xs font-medium text-gray-600">
                 ${pres ? `<span class="block truncate" title="${this.esc(pres)}">${this.esc(pres)}</span>` : '<span class="text-gray-300">&mdash;</span>'}
             </td>`;
+    }
+
+    // -- Unidad: escribe o elige --
+
+    unidadTexto(unitId) {
+        const u = ((this.opts.data && this.opts.data.unidades) || []).find(x => String(x.id) === String(unitId));
+        return u ? (u.code || u.valor || '') : '';
+    }
+
+    unitInput(idx) {
+        return $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"] input[data-unit-idx]`);
+    }
+
+    // Con filter quedan las unidades que traen lo tecleado (nombre o código, sin acentos).
+    openUnitList(idx, filter) {
+        const $inp = this.unitInput(idx);
+        if (!$inp.length || !this.lote[idx]) return;
+        const q     = filter ? this.normTxt($inp.val()) : '';
+        const all   = (this.opts.data && this.opts.data.unidades) || [];
+        const items = q ? all.filter(u => this.normTxt(`${u.code || ''} ${u.valor || ''}`).includes(q)) : all;
+        if (!items.length) { this.closeFloat(); return; }
+        const cur = items.findIndex(u => String(u.id) === String(this.lote[idx].unit_id));
+        this.openFloat({
+            kind:     'unit',
+            idx:      idx,
+            items:    items,
+            active:   Math.max(0, cur),
+            $anchor:  $inp.closest('.relative'),
+            minWidth: 150
+        }, `<div class="max-h-[220px] overflow-y-auto cs-scroll ef-scroll">${items.map((u, k) => `
+            <div class="ef-cat-item px-3 py-1.5 cursor-pointer text-xs font-semibold uppercase text-gray-800 hover:bg-blue-50/60 border-b border-gray-100 last:border-b-0 transition-all" data-unit-val="${this.esc(u.id)}" data-cat-idx="${k}">${this.esc(u.code || u.valor || '')}</div>`).join('')}
+        </div>`);
+    }
+
+    onUnitKeydown(e, idx) {
+        const f    = this.float;
+        const open = f && f.kind === 'unit' && f.idx === idx;
+        if (e.key === 'ArrowDown' && (e.altKey || !open)) {
+            e.preventDefault();
+            this.openUnitList(idx, false);
+            return;
+        }
+        if (!open) return;
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const u = f.items[f.active];
+            if (u) this.selectUnit(idx, u.id);
+            return;
+        }
+        this.onFloatKeydown(e);
+    }
+
+    selectUnit(idx, unitId) {
+        const p = this.lote[idx];
+        this.closeFloat();
+        if (!p) return;
+        p.unit_id = unitId || null;
+        this.unitInput(idx).val(this.unidadTexto(p.unit_id));
+    }
+
+    toggleUnitList(idx) {
+        const f = this.float;
+        if (f && f.kind === 'unit' && f.idx === idx) { this.closeFloat(); return; }
+        this.unitInput(idx).trigger('focus');
+        this.openUnitList(idx, false);
     }
 
     renderProductRow(p, i) {
@@ -481,9 +552,21 @@ class OrdenForm extends EntradaForm {
         // guarda como borrador o se sale (requestClose).
         this.wrap.off('click', '[data-modal-close]').on('click', '[data-modal-close]', () => this.requestClose());
 
-        this.wrap.on('change', 'select[data-unit-idx]', (e) => {
-            const p = this.lote[Number($(e.currentTarget).attr('data-unit-idx'))];
-            if (p) p.unit_id = $(e.currentTarget).val() || null;
+        // Unidad: al escribir se filtra la lista, el clic o la flecha la abren; al salir del
+        // campo sin elegir vuelve a decir la unidad que tenía.
+        const unitIdx = (e) => Number($(e.currentTarget).attr('data-unit-idx'));
+        this.wrap.on('input',   'input[data-unit-idx]', (e) => this.openUnitList(unitIdx(e), true));
+        this.wrap.on('click',   'input[data-unit-idx]', (e) => this.openUnitList(unitIdx(e), false));
+        this.wrap.on('keydown', 'input[data-unit-idx]', (e) => this.onUnitKeydown(e, unitIdx(e)));
+        this.wrap.on('focusout', 'input[data-unit-idx]', (e) => {
+            const p = this.lote[unitIdx(e)];
+            if (this.float && this.float.kind === 'unit') this.closeFloat();
+            if (p) $(e.currentTarget).val(this.unidadTexto(p.unit_id));
+        });
+        this.wrap.on('mousedown', '[data-unit-toggle]', (e) => e.preventDefault());
+        this.wrap.on('click', '[data-unit-toggle]', (e) => this.toggleUnitList(Number($(e.currentTarget).attr('data-unit-toggle'))));
+        this.wrap.on('click', '[data-unit-val]', (e) => {
+            if (this.float && this.float.kind === 'unit') this.selectUnit(this.float.idx, $(e.currentTarget).attr('data-unit-val'));
         });
 
         this.wrap.on('click', '[data-nota-idx]', (e) => this.editNota(Number($(e.currentTarget).attr('data-nota-idx'))));
