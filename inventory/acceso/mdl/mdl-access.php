@@ -95,7 +95,6 @@ class MAccess extends CRUD {
                 u.last_name  AS last_name,
                 u.email      AS email,
                 u.password   AS password,
-                u.password2  AS password2,
                 u.photo      AS photo,
                 u.color      AS color,
                 u.is_owner   AS is_owner,

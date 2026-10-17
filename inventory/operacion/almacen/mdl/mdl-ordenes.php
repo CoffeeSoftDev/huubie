@@ -139,6 +139,7 @@ class mdl extends CRUD {
                 i.name                                     AS nombre,
                 ia.sku                                     AS sku,
                 ic.name                                    AS categoria,
+                ia.unit_id                                 AS unit_id,
                 COALESCE(ia.cost_unit, 0)                  AS costo_sin_iva,
                 COALESCE(ia.cost_tax, i.tax, 0)            AS iva_compra,
                 ROUND(COALESCE(ia.cost_unit, 0) * (1 + COALESCE(ia.cost_tax, i.tax, 0) / 100), 2) AS costo,

@@ -1,7 +1,8 @@
 // Captura de un pedido a sucursal con el mismo formato que la de Entradas (EntradaForm):
 // buscador y renglón vacío con ↓. Cambia lo propio del pedido: "Solicitar a" y la fecha en
 // que se necesitan los insumos; sin almacén (lo elige quien surte al aprobar), sin stock,
-// costos de solo lectura, sin formatos, sin alta de productos ni comprobante. Se guarda
+// sin costos ni importes (opción `montos: false`; Compras, que hereda de aquí, los muestra
+// de solo lectura), sin formatos, sin alta de productos ni comprobante. Se guarda
 // como borrador o se envía a revisión. Se adapta a tablet y teléfono.
 // Requiere entrada-form.js cargado antes.
 class OrdenForm extends EntradaForm {
@@ -72,6 +73,21 @@ class OrdenForm extends EntradaForm {
         document.head.appendChild(style);
     }
 
+    // -- Montos y unidad --
+
+    // El pedido se abre con `montos: false` (ordenes.js): no muestra costos ni importes, la
+    // unidad va en su propia columna, la presentación en el buscador y la nota general es una
+    // caja más alta. Compras (CompraForm) hereda este formato y no pasa la opción: conserva
+    // sus costos y su nota de una línea como estaban.
+    conMontos() {
+        return this.opts.montos !== false;
+    }
+
+    // La presentación es la unidad del catálogo (CJA360, KG, PZ...); '' si el producto no tiene.
+    presentacionDe(p) {
+        return String(p.presentacion || this.unitOf(p) || '');
+    }
+
     // -- Render estático --
 
     // Solo a quién se le pide y para cuándo: el almacén lo elige quien surte al aprobar.
@@ -96,6 +112,29 @@ class OrdenForm extends EntradaForm {
                         <label class="${cls.label}">${this.esc(o.labels.fecha)}</label>
                         <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" min="${this.haceUnMes()}" class="${cls.input}">
                     </div>
+                    ${this.conMontos() ? '' : this.renderSearchField()}
+                </div>
+            </div>`;
+    }
+
+    // En el pedido el buscador va en la misma franja que los filtros (Solicitar a, fecha);
+    // Compras conserva su franja propia.
+    renderSearchBar() {
+        return this.conMontos() ? super.renderSearchBar() : '';
+    }
+
+    renderSearchField() {
+        const o = this.opts;
+        return `
+            <div id="${o.id}_searchBar" class="sm:col-span-2">
+                <label class="${this.cls.label}">Material</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </span>
+                    <input id="${o.id}_buscarProducto" type="text" placeholder="${this.esc(o.labels.placeholder)}" autocomplete="off"
+                        class="${this.cls.input} !pl-9 !pr-3">
+                    <div id="${o.id}_catalogoLista" class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>
                 </div>
             </div>`;
     }
@@ -105,19 +144,39 @@ class OrdenForm extends EntradaForm {
         return '';
     }
 
-    // Nota y botones; en teléfono los botones bajan a su propio renglón.
+    // Nota y botones; en teléfono los botones bajan a su propio renglón. En el pedido la nota
+    // es más alta y los botones se alinean con su base.
     renderFooter() {
+        if (!this.conMontos()) {
+            return `
+                <div class="flex flex-col gap-2 sm:gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                    ${this.renderNotaInput()}
+                    <div class="flex sm:justify-end">${this.renderFooterActions()}</div>
+                </div>`;
+        }
+
+        const alineacion = 'sm:items-center';
         return `
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+            <div class="flex flex-col sm:flex-row ${alineacion} gap-2 sm:gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                 ${this.renderNotaInput()}
                 ${this.renderFooterActions()}
             </div>`;
     }
 
-    // El ícono de nota va dentro del campo, no a un lado.
+    // El ícono de nota va dentro del campo, no a un lado. En el pedido el campo es una caja de
+    // tres líneas para escribir el comentario completo; en Compras sigue siendo de una.
     renderNotaInput() {
         const o   = this.opts;
         const cls = this.cls;
+
+        if (!this.conMontos()) {
+            return `
+                <div class="relative flex-1 min-w-0">
+                    <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-3 pointer-events-none"></i>
+                    <textarea id="${o.id}_inpNota" rows="3" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input} !pl-8 resize-none">${this.esc(o.data.nota)}</textarea>
+                </div>`;
+        }
+
         return `
             <div class="relative flex-1 min-w-0">
                 <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
@@ -134,7 +193,7 @@ class OrdenForm extends EntradaForm {
         const o   = this.opts;
         const cls = this.cls;
         return `
-            <div class="flex gap-2 flex-shrink-0">
+            <div class="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                 <button class="${cls.btnOut} flex-1 sm:flex-none justify-center !text-red-600 hover:!text-red-700" data-modal-close>${this.esc(o.labels.cancelar)}</button>
                 <button id="${o.id}_btnRegistrar" class="${cls.btnOk} flex-1 sm:flex-none justify-center">
                     <i data-lucide="send" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
@@ -142,8 +201,9 @@ class OrdenForm extends EntradaForm {
             </div>`;
     }
 
-    // Mismos totales que Entradas (los ids los llena updateTotals); en tablet y teléfono
-    // se quedan Productos, Unidades y Costo total.
+    // Mismos totales que Entradas (los ids los llena updateTotals); el pedido solo lleva las
+    // cantidades. Con importes (Compras), en tablet y teléfono se quedan Productos, Unidades
+    // y Costo total.
     renderResumen() {
         const o = this.opts;
         return `
@@ -153,6 +213,7 @@ class OrdenForm extends EntradaForm {
                     <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>${this.esc(o.labels.unidadesLbl)} <strong class="text-gray-800 text-sm" id="${o.id}_qtyUnits">0</strong> uds</span>
                     <span class="hidden sm:flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>${this.esc(o.labels.categoriasLbl)} <strong class="text-gray-800 text-sm" id="${o.id}_qtyCats">0</strong></span>
                 </div>
+                ${this.conMontos() ? `
                 <div class="flex items-center gap-4">
                     <div class="hidden lg:flex items-baseline gap-2">
                         <span class="text-[10px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.costoSinImpLbl)}</span>
@@ -167,30 +228,37 @@ class OrdenForm extends EntradaForm {
                         <span class="text-[10px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.costoTotLbl)}</span>
                         <span class="text-green-600 font-bold text-lg leading-none" id="${o.id}_qtyCost">$0.00</span>
                     </div>
-                </div>
+                </div>` : ''}
             </div>`;
     }
 
     // -- Tabla de productos --
 
-    // Sin stock y con los costos de solo lectura (salen del catálogo). Ancho fijo para que
-    // las columnas no se muevan al teclear una cantidad. En tablet se ocultan SKU, costo
-    // sin impuesto e impuesto; en teléfono también el costo y la miniatura: quedan
-    // Producto (el nombre en hasta dos renglones), Cantidad y Subtotal.
+    // Sin stock. Ancho fijo para que las columnas no se muevan al teclear una cantidad.
+    // El pedido lleva SKU, Producto, Cantidad y Unidad (en tablet y teléfono se oculta el
+    // SKU, en teléfono también la miniatura: el nombre ocupa hasta dos renglones). En
+    // computadora Producto no se estira: Cantidad y Unidad quedan cerca del nombre y las
+    // acciones toman el resto, pegadas al borde derecho. Con
+    // montos (Compras) hay costos de solo lectura, que salen del catálogo: en tablet se
+    // ocultan SKU, costo sin impuesto e impuesto; en teléfono también el costo y la
+    // miniatura: quedan Producto, Cantidad y Subtotal.
     renderProductsTable() {
+        const m  = this.conMontos();
         const th = 'py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold';
         return `
             <table class="w-full border-collapse table-fixed">
                 <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                     <tr>
                         <th class="hidden lg:table-cell text-left px-3 ${th} w-28">SKU</th>
-                        <th class="text-left px-3 ${th}">Producto</th>
+                        <th class="text-left px-3 ${th}${m ? '' : ' lg:w-[40%]'}">Producto</th>
                         <th class="text-center px-2 ${th} w-20 md:w-24">Cantidad</th>
+                        ${m ? `
                         <th class="hidden md:table-cell text-right px-2 ${th} w-24">Costo c/imp</th>
                         <th class="hidden lg:table-cell text-right px-2 ${th} w-24">Costo s/imp</th>
                         <th class="hidden lg:table-cell text-center px-2 ${th} w-16">Imp. %</th>
-                        <th class="text-right px-2 md:px-3 ${th} w-28 md:w-36">Subtotal</th>
-                        <th class="w-10 px-2 py-2"></th>
+                        <th class="text-right px-2 md:px-3 ${th} w-28 md:w-36">Subtotal</th>` : `
+                        <th class="text-center px-2 ${th} w-24 md:w-28">Unidad</th>`}
+                        <th class="${m ? 'w-10' : 'w-20 lg:w-auto'} px-2 py-2"></th>
                     </tr>
                 </thead>
                 <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}${this.draft ? this.renderDraftRow() : ''}</tbody>
@@ -198,16 +266,45 @@ class OrdenForm extends EntradaForm {
             <div class="h-64" aria-hidden="true"></div>`;
     }
 
-    // NOMBRE - PRESENTACION (HUEVO - CJA360); sin presentación, solo el nombre.
+    // NOMBRE - PRESENTACION (HUEVO - CJA360); sin presentación, solo el nombre. En el pedido
+    // la unidad tiene su propia columna y aquí va solo el nombre.
     nombreVista(p) {
+        if (!this.conMontos()) return this.esc(p.nombre);
+
         return this.esc(p.presentacion ? `${p.nombre} - ${p.presentacion}` : p.nombre);
     }
 
+    // Celda de la unidad del producto (columna Unidad del pedido); sin unidad, un guion.
+    renderUnidadCell(p, i) {
+        const unidades = (this.opts.data && this.opts.data.unidades) || [];
+        if (unidades.length) {
+            const opts = unidades.map(u => `<option value="${this.esc(u.id)}"${String(u.id) === String(p.unit_id) ? ' selected' : ''}>${this.esc(u.code || u.valor || '')}</option>`).join('');
+            return `
+            <td class="px-1 py-2 align-middle">
+                <select class="w-full px-1 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 cursor-pointer" data-unit-idx="${i}">
+                    ${p.unit_id ? '' : '<option value="" selected>-</option>'}${opts}
+                </select>
+            </td>`;
+        }
+
+        const pres = this.presentacionDe(p);
+        return `
+            <td class="px-2 py-2 align-middle text-center text-xs font-medium text-gray-600">
+                ${pres ? `<span class="block truncate" title="${this.esc(pres)}">${this.esc(pres)}</span>` : '<span class="text-gray-300">&mdash;</span>'}
+            </td>`;
+    }
+
     renderProductRow(p, i) {
+        const m     = this.conMontos();
         const cant  = Number(p.cantidad || 0);
         const costo = Number(p.costo || 0);
         const tax   = Number(p.tax || 0);
         const base  = (p.costoSinTax != null && p.costoSinTax !== '') ? Number(p.costoSinTax) : this.baseFromCost(costo, tax);
+
+        const quitar = `
+            <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-remove="${i}" title="Eliminar">
+                <i data-lucide="x" class="w-3 h-3"></i>
+            </button>`;
         return `
             <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
                 <td class="hidden lg:table-cell px-3 py-2 align-middle">
@@ -225,23 +322,25 @@ class OrdenForm extends EntradaForm {
                 <td class="px-2 py-2 align-middle">
                     <input type="number" min="1" step="0.01" value="${cant}" class="${this.cls.qtyInp}" data-field="cantidad" data-idx="${i}">
                 </td>
+                ${m ? `
                 <td class="hidden md:table-cell px-2 py-2 align-middle text-right text-xs text-gray-600">${this.fmtMoney(costo)}</td>
                 <td class="hidden lg:table-cell px-2 py-2 align-middle text-right text-xs text-gray-600">${this.fmtMoney(base)}</td>
                 <td class="hidden lg:table-cell px-2 py-2 align-middle text-center text-xs text-gray-600">${this.fmtQty(tax)}%</td>
                 <td class="px-2 md:px-3 py-2 align-middle text-right whitespace-nowrap">
                     <span class="text-green-700 font-bold text-xs" data-subtotal>${this.fmtMoney(cant * costo)}</span>${this.renderSubtotalExtra(p, i)}
                 </td>
-                <td class="px-2 py-2 align-middle text-center">
-                    <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-remove="${i}" title="Eliminar">
-                        <i data-lucide="x" class="w-3 h-3"></i>
-                    </button>
-                </td>
+                <td class="px-2 py-2 align-middle text-center">${quitar}</td>` : `
+                ${this.renderUnidadCell(p, i)}
+                <td class="px-2 py-2 align-middle">
+                    <div class="flex items-center justify-end gap-1">${this.renderSubtotalExtra(p, i)}${quitar}</div>
+                </td>`}
             </tr>`;
     }
 
     // Renglón vacío (↓): mismas columnas que la tabla, para que se oculten igual.
     renderDraftRow() {
         const o = this.opts;
+        const m = this.conMontos();
         return `
             <tr class="border-b border-gray-100 bg-blue-50/30" data-draft>
                 <td class="hidden lg:table-cell"></td>
@@ -254,11 +353,13 @@ class OrdenForm extends EntradaForm {
                     </div>
                 </td>
                 <td></td>
+                ${m ? `
                 <td class="hidden md:table-cell"></td>
                 <td class="hidden lg:table-cell"></td>
                 <td class="hidden lg:table-cell"></td>
-                <td></td>
-                <td class="px-2 py-2 align-middle text-center">
+                <td></td>` : `
+                <td></td>`}
+                <td class="px-2 py-2 align-middle ${m ? 'text-center' : 'text-right'}">
                     <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-draft-remove title="${this.esc(o.labels.quitarRenglon)}">
                         <i data-lucide="x" class="w-3 h-3"></i>
                     </button>
@@ -266,8 +367,9 @@ class OrdenForm extends EntradaForm {
             </tr>`;
     }
 
-    // Nota por producto para quien surte: ícono al final del subtotal. Con nota va
-    // marcado y la muestra al pasar el mouse; el clic abre la edición (editNota).
+    // Nota por producto para quien surte: ícono al final del subtotal (en el pedido, que no
+    // lleva subtotal, junto al botón de quitar). Con nota va marcado y la muestra al pasar
+    // el mouse; el clic abre la edición (editNota).
     renderSubtotalExtra(p, i) {
         const nota = String(p.nota || '');
         return `
@@ -323,24 +425,37 @@ class OrdenForm extends EntradaForm {
         return exactos.concat(this.sugerirCatalogo(term).filter(p => !exactos.includes(p)));
     }
 
-    // Igual que en Entradas pero sin el stock: el pedido no lleva almacén.
+    // Etiqueta con la presentación del producto; sin presentación no se pinta. Va pegada al
+    // nombre, a la izquierda, y no al extremo del resultado: lejos del nombre se pierde.
+    renderPresentacion(p) {
+        const pres = this.presentacionDe(p);
+        if (!pres) return '';
+
+        return `<span class="inline-flex items-center flex-shrink-0 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold leading-none tracking-wide">${this.esc(pres)}</span>`;
+    }
+
+    // Igual que en Entradas pero sin el stock: el pedido no lleva almacén. A la derecha va el
+    // costo de referencia; el pedido no lo lleva y muestra la presentación junto al nombre.
     renderSearchResult(p, i, term) {
         const o        = this.opts;
+        const m        = this.conMontos();
         const costoFmt = Number(p.costo || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const nombre   = `<p class="text-xs font-semibold text-gray-800 truncate">${this.esc(p.nombre)}</p>`;
         return `
             <div class="ef-cat-item flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-blue-50/60 border-b border-gray-100 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
                 ${this.prodThumb(p, 'w-9 h-9', 'w-4 h-4')}
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-gray-800 truncate">${this.esc(p.nombre)}</p>
+                    ${m ? nombre : `<div class="flex items-center gap-2 min-w-0">${nombre}${this.renderPresentacion(p)}</div>`}
                     <p class="text-[10px] text-gray-500 truncate mt-0.5">
                         <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}
                     </p>
                     ${this.coincidenciaHtml(p, term)}
                 </div>
+                ${m ? `
                 <div class="text-right flex-shrink-0">
                     <p class="text-[10px] text-gray-400 leading-none">${this.esc(o.labels.costoRefLbl)}</p>
                     <p class="text-xs font-bold text-gray-700 mt-0.5">$${costoFmt}</p>
-                </div>
+                </div>` : ''}
                 <div class="ef-add-btn w-7 h-7 rounded-lg bg-gray-100 border border-gray-200 text-gray-400 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
                     <i data-lucide="plus" class="w-4 h-4"></i>
                 </div>
@@ -365,6 +480,11 @@ class OrdenForm extends EntradaForm {
         // Cancelar y Escape no cierran a ciegas: con materiales capturados preguntan si se
         // guarda como borrador o se sale (requestClose).
         this.wrap.off('click', '[data-modal-close]').on('click', '[data-modal-close]', () => this.requestClose());
+
+        this.wrap.on('change', 'select[data-unit-idx]', (e) => {
+            const p = this.lote[Number($(e.currentTarget).attr('data-unit-idx'))];
+            if (p) p.unit_id = $(e.currentTarget).val() || null;
+        });
 
         this.wrap.on('click', '[data-nota-idx]', (e) => this.editNota(Number($(e.currentTarget).attr('data-nota-idx'))));
     }

@@ -565,7 +565,6 @@ class Ordenes extends Templates {
     // espacio para anotar lo que de verdad se compró y a qué precio.
     _renderListaCompras(o) {
         const esc      = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const fmtNum   = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
         const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -578,22 +577,17 @@ class Ordenes extends Templates {
 
         const productos = o.productos || [];
         const totals    = productos.reduce((acc, p) => {
-            const cant = Math.max(0, p.quantity_ordered - p.quantity_received);
-            acc.uds   += cant;
-            acc.costo += cant * (p.cost || 0);
+            acc.uds += Math.max(0, p.quantity_ordered - p.quantity_received);
             return acc;
-        }, { uds: 0, costo: 0 });
+        }, { uds: 0 });
 
         const rowsHtml = productos.map(p => {
-            const cant    = Math.max(0, p.quantity_ordered - p.quantity_received);
-            const hasCost = p.cost != null;
+            const cant = Math.max(0, p.quantity_ordered - p.quantity_received);
             return `<tr>
                 <td class="c"><span class="check"></span></td>
                 <td><span class="prod-name">${esc(p.nombre)}</span>${p.sku ? ` <span class="sku">${esc(p.sku)}</span>` : ''}</td>
                 <td class="c">${esc(p.unidad || '-')}</td>
                 <td class="c qty">${fmtNum(cant)}</td>
-                <td class="r">${hasCost ? fmtMoney(p.cost) : '—'}</td>
-                <td class="r">${hasCost ? fmtMoney(cant * p.cost) : '—'}</td>
                 <td class="fill"></td>
                 <td class="fill"></td>
             </tr>`;
@@ -631,19 +625,16 @@ class Ordenes extends Templates {
                         <th>Producto</th>
                         <th class="c">Unidad</th>
                         <th class="c">Comprar</th>
-                        <th class="r">Costo ref.</th>
-                        <th class="r">Importe est.</th>
                         <th class="c">Comprado</th>
                         <th class="c">Precio real</th>
                     </tr>
                 </thead>
-                <tbody>${rowsHtml||'<tr><td colspan="8" class="c">Sin productos</td></tr>'}</tbody>
+                <tbody>${rowsHtml||'<tr><td colspan="6" class="c">Sin productos</td></tr>'}</tbody>
             </table>
             <div class="totals">
                 <div class="totals-box">
                     <div class="totals-row"><span>Productos</span><span>${productos.length}</span></div>
                     <div class="totals-row"><span>Unidades a comprar</span><span>${fmtNum(totals.uds)}</span></div>
-                    <div class="totals-row grand"><span>Total estimado</span><span>${fmtMoney(totals.costo)}</span></div>
                 </div>
             </div>
             ${o.note?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(o.note)}</div>`:''}
@@ -661,7 +652,6 @@ class Ordenes extends Templates {
 
     _renderOrdenDoc(o) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const fmtFecha = (raw) => {
@@ -676,14 +666,12 @@ class Ordenes extends Templates {
         const totals = productos.reduce((acc, p) => {
             acc.uds   += p.quantity_ordered;
             acc.recib += p.quantity_received;
-            acc.costo += p.quantity_ordered * (p.cost || 0);
             return acc;
-        }, { uds: 0, recib: 0, costo: 0 });
+        }, { uds: 0, recib: 0 });
 
         const rowsHtml = productos.map(p => {
             const recibido  = p.quantity_received;
             const pendiente = Math.max(0, p.quantity_ordered - recibido);
-            const hasCost   = p.cost != null;
             return `<tr>
                 <td class="prod">
                     <span class="prod-name">${esc(p.nombre)}</span>
@@ -692,8 +680,6 @@ class Ordenes extends Templates {
                 <td class="c">${esc(p.quantity_ordered)}</td>
                 <td class="c">${recibido > 0 ? `<span style="color:#3FC189;font-weight:700">${recibido}</span>` : '<span style="color:#9CA3AF">—</span>'}</td>
                 <td class="c" style="color:${pendiente > 0 ? '#F97316' : '#9CA3AF'}">${pendiente > 0 ? pendiente : '—'}</td>
-                <td class="r">${hasCost ? fmtMoney(p.cost) : '<span style="color:#9CA3AF">—</span>'}</td>
-                <td class="r">${hasCost ? fmtMoney(p.quantity_ordered * p.cost) : '<span style="color:#9CA3AF">—</span>'}</td>
             </tr>`;
         }).join('');
 
@@ -728,18 +714,15 @@ class Ordenes extends Templates {
                         <th class="c">Pedido</th>
                         <th class="c">Recibido</th>
                         <th class="c">Pendiente</th>
-                        <th class="r">Costo unit.</th>
-                        <th class="r">Subtotal</th>
                     </tr>
                 </thead>
-                <tbody>${rowsHtml||'<tr><td colspan="6" class="c">Sin productos</td></tr>'}</tbody>
+                <tbody>${rowsHtml||'<tr><td colspan="4" class="c">Sin productos</td></tr>'}</tbody>
             </table>
             <div class="totals">
                 <div class="totals-box">
                     <div class="totals-row"><span>Tipos de material</span><span>${productos.length}</span></div>
                     <div class="totals-row"><span>Unidades pedidas</span><span>${totals.uds}</span></div>
                     <div class="totals-row"><span>Unidades recibidas</span><span>${totals.recib}</span></div>
-                    <div class="totals-row grand"><span>Costo total</span><span>${fmtMoney(totals.costo)}</span></div>
                 </div>
             </div>
             ${o.note?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(o.note)}</div>`:''}
@@ -903,8 +886,9 @@ class OrdenesView extends Templates {
     // Aprobar = surtir: arranca sin marcar; lo marcado se descuenta del almacén de la
     // sucursal que surte con la cantidad de "A entregar" (arranca en lo pedido y se puede
     // bajar). Lo no marcado sale del pedido. Un producto sin stock suficiente se puede
-    // marcar y surtir igual. Con faltante se pregunta si se genera una orden de producción
-    // pendiente (openFaltanteModal pide la fecha) o solo se surte, dejando el stock en negativo.
+    // marcar y surtir igual. Con faltante se pregunta cómo darle salida al almacén (csChoiceCards):
+    // automática (el stock queda en negativo), manual después (aprueba sin descuento y se surte
+    // con el botón Surtir) o generar una orden pendiente (openPendingOrderModal pide la fecha).
     openAprobacionModal(orden) {
         if (!orden || !orden.id) return;
 
@@ -933,6 +917,13 @@ class OrdenesView extends Templates {
             return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,.15);color:#B91C1C"><i data-lucide="x" class="w-3 h-3"></i>No hay</span>`;
         };
 
+        const meta = [
+            { lbl: 'Solicitado por',     icon: 'circle-user', tone: 'text-gray-400',  val: esc(orden.user_name || '-') },
+            { lbl: 'Sucursal que pide',  icon: 'building-2',  tone: 'text-gray-400',  val: esc(orden.branch_name || '-') },
+            { lbl: 'Fecha de solicitud', icon: 'calendar',    tone: 'text-gray-400',  val: esc(this.fechaCorta(orden.created_at || orden.date_order) || '-') },
+            { lbl: 'Lo necesita para',   icon: 'clock',       tone: 'text-amber-500', val: esc((necesita.today ? 'Hoy · ' : '') + (this.fechaConDia(orden.date_order) || necesita.text)), cls: necesita.today ? 'text-red-600' : 'text-gray-800' }
+        ];
+
         const $modal = $(`
             <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/40"></div>
@@ -955,22 +946,14 @@ class OrdenesView extends Templates {
 
                     <div class="px-5 py-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+                            ${meta.map(m => `
                             <div class="min-w-0">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Solicitado por</p>
-                                <p class="text-xs font-semibold text-gray-800 truncate">${esc(orden.user_name || '-')}</p>
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Sucursal que pide</p>
-                                <p class="text-xs font-semibold text-gray-800 truncate">${esc(orden.branch_name || '-')}</p>
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Fecha de solicitud</p>
-                                <p class="text-xs font-semibold text-gray-800">${esc(this.fechaCorta(orden.created_at || orden.date_order) || '-')}</p>
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Lo necesita para</p>
-                                <p class="text-xs font-semibold ${necesita.today ? 'text-red-600' : 'text-gray-800'}">${esc((necesita.today ? 'Hoy · ' : '') + (this.fechaConDia(orden.date_order) || necesita.text))}</p>
-                            </div>
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${m.lbl}</p>
+                                <div class="mt-0.5 flex items-center gap-2 min-w-0">
+                                    <i data-lucide="${m.icon}" class="w-[15px] h-[15px] flex-shrink-0 ${m.tone}"></i>
+                                    <p class="text-xs font-semibold truncate ${m.cls || 'text-gray-800'}">${m.val}</p>
+                                </div>
+                            </div>`).join('')}
                         </div>
                         <input type="hidden" id="${modalId}_warehouse_id" value="${almacen ? almacen.id : ''}">
                     </div>
@@ -978,18 +961,20 @@ class OrdenesView extends Templates {
                     <div id="${modalId}_table" class="flex-1 min-h-0 overflow-auto px-[20px] pt-2"></div>
 
                     ${orden.note ? `
-                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 flex items-start gap-2">
-                        <i data-lucide="message-square" class="w-3.5 h-3.5 mt-px flex-shrink-0 text-gray-400"></i>
-                        <p class="text-[11px] leading-snug text-gray-600"><span class="font-semibold text-gray-700">Nota de quien pidió:</span> ${esc(orden.note)}</p>
+                    <div class="flex-shrink-0 px-5 pt-3 pb-3">
+                        <div class="flex items-start gap-2.5 rounded-[10px] border border-gray-200 bg-white px-3 py-2.5" style="border-left:3px solid rgb(var(--brand-600, 192 90 64))">
+                            <i data-lucide="file-text" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:rgb(var(--brand-600, 192 90 64))"></i>
+                            <p class="text-xs leading-relaxed text-gray-500"><b class="font-semibold text-gray-800">Nota de quien pidió:</b> «${esc(orden.note)}»</p>
+                        </div>
                     </div>` : ''}
 
                     <div class="flex-shrink-0 border-t border-gray-200 px-5 py-3 bg-gray-50">
-                        <p id="${modalId}_resumen" class="text-[11px] text-gray-500 mb-2.5">Cargando disponibilidad...</p>
+                        <p id="${modalId}_resumen" class="text-xs leading-relaxed text-gray-500 mb-2.5">Cargando disponibilidad...</p>
                         <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
                         <input type="text" id="${modalId}_note" maxlength="255" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 placeholder:text-gray-400" placeholder="Observaciones de la aprobación...">
                         <p class="mt-1.5 flex items-start gap-1.5 text-[10px] leading-snug text-gray-500">
                             <i data-lucide="info" class="w-3 h-3 mt-px flex-shrink-0" style="color:#15803D"></i>
-                            <span>Marca lo que vas a entregar. Al aprobar se descuenta del almacén con su cantidad "A entregar" y lo no marcado se quita del pedido.</span>
+                            <span>Marca lo que vas a entregar. Al aprobar se descuenta del almacén con su cantidad "A entregar" y lo no marcado se quita del pedido; si algo queda en negativo, el sistema te pregunta si la salida es automática o manual.</span>
                         </p>
                     </div>
 
@@ -1011,10 +996,14 @@ class OrdenesView extends Templates {
         $('body').append($modal);
         if (window.lucide) lucide.createIcons();
 
-        const dispDe = (p) => stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
+        const dispDe  = (p) => stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
+        const unitTx  = (p) => (p.unidad ? ` ${esc(p.unidad)}` : '');
+        const faltaDe = (p) => cantidades[String(p.detailId)] - dispDe(p);
+        const negativoDe = (p) => `<strong>${esc(p.nombre)}</strong> (entrega ${fmtNum(cantidades[String(p.detailId)])}${unitTx(p)}) quedará en <strong style="color:#B91C1C">−${fmtNum(faltaDe(p))}${unitTx(p)}</strong>`;
 
-        // Lo de abajo cuenta solo los productos marcados, con su cantidad a entregar; el
-        // botón de aprobar lleva cuántos van marcados.
+        // Lo de abajo cuenta solo los productos marcados, con su cantidad a entregar y, con
+        // faltante, cómo quedaría cada producto en el almacén; el botón de aprobar lleva
+        // cuántos van marcados.
         const updateResumen = () => {
             const $r       = $(`#${modalId}_resumen`);
             const marcados = productos.filter(p => elegidos.has(String(p.detailId)));
@@ -1023,10 +1012,10 @@ class OrdenesView extends Templates {
             $(`#${modalId}_aprobar span`).text(total ? `Aprobar y surtir (${total})` : 'Aprobar y surtir');
             if (!total)       { $r.html(`Marca los productos que vas a entregar (<strong>0</strong> de <strong>${productos.length}</strong>).`); return; }
             if (!stockLoaded) { $r.html(`<strong>${total}</strong> de <strong>${productos.length}</strong> productos marcados. Cargando disponibilidad...`); return; }
-            const conFalta = marcados.filter(p => dispDe(p) < cantidades[String(p.detailId)]).length;
+            const conFalta = marcados.filter(p => faltaDe(p) > 0);
             $r.html(`<strong>${total}</strong> de <strong>${productos.length}</strong> productos marcados: `
-                  + `<strong style="color:#15803D">${total - conFalta}</strong> con stock completo`
-                  + (conFalta ? ` y <strong style="color:#C2410C">${conFalta}</strong> con faltante.` : '.'));
+                  + `<strong style="color:#15803D">${total - conFalta.length}</strong> con stock completo`
+                  + (conFalta.length ? ` y <strong style="color:#C2410C">${conFalta.length}</strong> con faltante: ${conFalta.map(negativoDe).join(' · ')}.` : '.'));
         };
 
         const tableId = `tb${modalId}`;
@@ -1100,7 +1089,7 @@ class OrdenesView extends Templates {
         $(`#${modalId}_cerrar`).on('click', closeModal);
         $modal.on('click', (ev) => { if ($(ev.target).is(`#${modalId}`)) closeModal(); });
 
-        $(`#${modalId}_rechazar`).on('click', () => { closeModal(); self.doRejectOrden(orden); });
+        $(`#${modalId}_rechazar`).on('click', () => self.doRejectOrden(orden, closeModal));
 
         $modal.on('change', '[data-elegir]', function () {
             const did = String($(this).attr('data-elegir'));
@@ -1132,9 +1121,11 @@ class OrdenesView extends Templates {
             updateResumen();
         });
 
-        // `compromiso` = fecha de la orden pendiente si hubo faltante; `reabasto` = false surte
-        // todo lo marcado sin generar orden (el stock puede quedar en negativo). Regresa true si se guardó.
-        const aprobar = async (compromiso, reabasto = true) => {
+        // `salida` = 'manual' aprueba sin descuento; `reabasto` = false surte todo lo marcado sin
+        // generar orden (el stock puede quedar en negativo); `compromiso` = fecha de la orden
+        // pendiente; `negativos` = lo que queda en negativo, para decirlo en el aviso final.
+        // Regresa true si se guardó.
+        const aprobar = async ({ salida = 'auto', reabasto = true, compromiso = '', negativos = [] } = {}) => {
             const items = {};
             elegidos.forEach(did => { items[did] = cantidades[did]; });
             const $btn = $(`#${modalId}_aprobar`).prop('disabled', true).addClass('opacity-60 pointer-events-none');
@@ -1147,19 +1138,58 @@ class OrdenesView extends Templates {
                     items:         JSON.stringify(items),
                     note:          $(`#${modalId}_note`).val() || '',
                     warehouse_id:  $(`#${modalId}_warehouse_id`).val() || '',
-                    expected_date: compromiso || '',
-                    reabasto:      reabasto ? 1 : 0
+                    expected_date: compromiso,
+                    reabasto:      reabasto ? 1 : 0,
+                    salida:        salida
                 }
             }).catch(() => null);
             if (r && r.status === 200) {
                 closeModal();
-                this.alertBox({ type: 'success', title: r.message || 'Pedido aprobado', timer: 2600 });
+                self.avisoAprobado(r, salida, negativos);
                 self._refreshAfterAction(orden.folio, orden.id);
                 return true;
             }
             $btn.prop('disabled', false).removeClass('opacity-60 pointer-events-none');
             this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo aprobar el pedido' });
             return false;
+        };
+
+        // Con faltante: cómo darle salida al almacén. Regresar en cualquier subpaso vuelve aquí.
+        const askExit = (ctx) => {
+            const { filas, faltantes, titulo, prods, quitadosTx } = ctx;
+
+            this.csChoiceCards({
+                title:   titulo,
+                lead:    `Se van a surtir ${prods(filas.length)} · <b style="color:#C2410C">${faltantes.length} con faltante</b>.${quitadosTx}`,
+                alerts:  faltantes.map(f => ({ html: `<b>${esc(f.nombre)} (entrega ${fmtNum(f.sup)}${f.unidad ? ` ${esc(f.unidad)}` : ''}) quedará en −${fmtNum(f.falta)}${f.unidad ? ` ${esc(f.unidad)}` : ''}</b>${almacen.valor ? ` en ${esc(almacen.valor)}` : ''}.` })),
+                ask:     '¿Cómo quieres darle salida al almacén?',
+                hint:    'Recomendada: el descuento se registra al momento y el faltante queda a la vista en el resumen.',
+                choices: [
+                    { id: 'auto',    icon: 'zap',           tone: 'go',  title: 'Salida automática',       badge: 'Recomendada',
+                      text: 'El sistema descuenta el almacén al aceptar. El negativo se ajusta con una entrada después, desde Entradas.' },
+                    { id: 'manual',  icon: 'hand',          tone: 'mut', title: 'Salida manual después',
+                      text: 'Queda aprobada sin descuento: la surtes después con el botón Surtir de su detalle. Hasta entonces el faltante sigue en la solicitud.' },
+                    { id: 'pending', icon: 'shopping-cart', tone: 'ac',  title: 'Generar orden pendiente',
+                      text: 'Lo que falta se compra: queda una orden pendiente que recibes en Mis entregas cuando llegue el producto.' }
+                ],
+                onChoose: (id) => {
+                    if (id === 'auto')    aprobar({ reabasto: false, negativos: faltantes });
+                    if (id === 'manual')  askManual(ctx);
+                    if (id === 'pending') this.openPendingOrderModal(orden, faltantes, { total: filas.length, onConfirm: (fecha) => aprobar({ compromiso: fecha }), onBack: () => askExit(ctx) });
+                }
+            });
+        };
+
+        const askManual = (ctx) => {
+            this.csChoiceCards({
+                title:   'No le diste salida a almacén',
+                lead:    `Lo sentimos: la solicitud <b>${esc(orden.folio)}</b> quedará aprobada sin movimiento de almacén.${ctx.quitadosTx}`,
+                alerts:  [{ html: 'Hasta que la surtas con el botón <b>Surtir</b> de su detalle, el pedido figura aprobado sin descuento. La encuentras en el filtro «Aprobada».' }],
+                okLabel: 'Entendido',
+                okTone:  'pri',
+                onOk:    () => aprobar({ salida: 'manual' }),
+                onBack:  () => askExit(ctx)
+            });
         };
 
         $(`#${modalId}_aprobar`).on('click', () => {
@@ -1177,58 +1207,143 @@ class OrdenesView extends Templates {
                 return;
             }
 
-            // Aviso final: cuánto se surte con el stock y cuánto queda pendiente.
+            // Sin faltante se pregunta una sola vez; con faltante, cómo darle salida (askExit).
+            // El faltante se calcula como en surtir(): lo que se entrega menos lo que hay.
             const filas = marcados.map(p => {
                 const qty  = cantidades[String(p.detailId)];
                 const disp = dispDe(p) || 0;
-                return { nombre: p.nombre, sku: p.sku, sup: qty, disp: disp, rep: Math.max(0, qty - Math.max(0, disp)) };
+                return { nombre: p.nombre, sku: p.sku, unidad: p.unidad || '', sup: qty, disp: disp, falta: Math.max(0, qty - disp) };
             });
-            const pendientes = filas.filter(f => f.rep > 0);
-            const quitados   = productos.length - marcados.length;
-            const quitadosTx = quitados ? ` ${quitados === 1 ? 'El que no marcaste se quita' : `Los ${quitados} que no marcaste se quitan`} del pedido.` : '';
-            const prods      = (n) => `<strong>${n}</strong> ${n === 1 ? 'producto' : 'productos'}`;
+            const quitados = productos.length - marcados.length;
+            const ctx      = {
+                filas:      filas,
+                faltantes:  filas.filter(f => f.falta > 0),
+                titulo:     `¿Aprobar y surtir la solicitud ${esc(orden.folio)}?`,
+                prods:      (n) => `<strong>${n}</strong> ${n === 1 ? 'producto' : 'productos'}`,
+                quitadosTx: quitados ? ` ${quitados === 1 ? 'El que no marcaste se quita' : `Los ${quitados} que no marcaste se quitan`} del pedido.` : ''
+            };
 
-            if (!pendientes.length) {
-                this.alertBox({
-                    type:        'confirm',
-                    title:       `¿Aprobar y surtir la solicitud ${orden.folio}?`,
-                    detailHtml:  `Se van a surtir ${prods(marcados.length)} y no quedan pendientes.${quitadosTx}`,
-                    okLabel:     'Sí, aprobar y surtir',
-                    cancelLabel: 'Regresar',
-                    onOk:        () => aprobar('')
+            if (!ctx.faltantes.length) {
+                this.csChoiceCards({
+                    title:   ctx.titulo,
+                    lead:    `Se van a surtir ${ctx.prods(filas.length)}. Todo alcanza: la salida de almacén se registra al aceptar.${ctx.quitadosTx}`,
+                    okLabel: 'Sí, aprobar y surtir',
+                    onOk:    () => aprobar()
                 });
                 return;
             }
 
-            // Generar orden = se surte todo lo marcado y el faltante va a una orden pendiente
-            // (REAB-, con fecha compromiso). Solo surtir = se surte todo lo marcado sin orden;
-            // lo que no alcanza deja el stock en negativo, con su propia confirmación.
-            this.alertBox({
-                type:        'confirm',
-                title:       '¿Generar una orden de producción pendiente?',
-                detailHtml:  `${prods(pendientes.length)} ${pendientes.length === 1 ? 'no tiene' : 'no tienen'} stock suficiente. Puedes generar una orden pendiente por el faltante o solo surtir los productos.${quitadosTx}`,
-                okLabel:     'Generar orden pendiente',
-                cancelLabel: 'Solo surtir',
-                width:       'w-[440px]',
-                onOk:        () => this.openFaltanteModal(orden, filas, (compromiso) => aprobar(compromiso, true), {
-                    title:   'Confirmar aprobación con orden pendiente',
-                    okLabel: 'Aprobar y surtir'
-                }),
-                onCancel:    () => {
-                    this.alertBox({
-                        type:        'confirm',
-                        title:       '¿Solo surtir los productos?',
-                        detailHtml:  `Se van a surtir ${prods(filas.length)} sin generar orden pendiente. El stock de ${prods(pendientes.length)} quedará en negativo hasta que se ajuste con una captura.`,
-                        okLabel:     'Sí, solo surtir',
-                        cancelLabel: 'Regresar',
-                        onOk:        () => aprobar('', false)
-                    });
-                }
-            });
+            askExit(ctx);
         });
 
         if (almacen) loadStock(almacen.id);
         else         { renderRows(); updateResumen(); }
+    }
+
+    // Aviso al aprobar: lo que dice el servidor (salida SI-, orden REAB-, estado en que quedó la
+    // solicitud) y, si se surtió con faltante y sin orden pendiente, cómo quedó cada producto.
+    avisoAprobado(r, salida, negativos) {
+        const esc    = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmtNum = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
+        const manual = salida === 'manual';
+        const base   = String(r.message || '').replace(/^Pedido aprobado( sin salida de almacén)?\.\s*/, '');
+        const queda  = negativos.map(n => `${esc(n.nombre)} quedó en −${fmtNum(n.falta)}${n.unidad ? ` ${esc(n.unidad)}` : ''}`).join(' · ');
+
+        this.alertBox({
+            type:       'success',
+            title:      manual ? 'Solicitud aprobada sin salida de almacén' : 'Pedido aprobado',
+            detailHtml: manual
+                ? 'Surte la solicitud después con el botón <strong>Surtir</strong> de su detalle: hasta entonces el faltante sigue en la solicitud.'
+                : [esc(base), queda ? `${queda} hasta que registres la entrada.` : ''].filter(Boolean).join(' '),
+            timer:      6500
+        });
+    }
+
+    // Generar orden pendiente: lo que se entrega con el stock contra lo que se compra (REAB-) y la
+    // fecha compromiso de esa compra, obligatoria y no anterior a hoy. `opts.onConfirm(fecha)`
+    // guarda la aprobación; Regresar, la X o Escape llaman `opts.onBack`.
+    openPendingOrderModal(orden, rows, opts) {
+        const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmtNum    = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
+        const hoy       = moment().format('YYYY-MM-DD');
+        const brand     = 'rgb(var(--brand-600, 192 90 64))';
+        const unitTx    = (f) => (f.unidad ? ` <span class="text-[10px] text-gray-400 uppercase">${esc(f.unidad)}</span>` : '');
+        let   confirmed = false;
+
+        const modal = this.cfModal({
+            title:       `<span class="inline-flex items-center gap-2.5"><span class="w-8 h-8 rounded-[9px] flex items-center justify-center flex-shrink-0 text-white" style="background:${brand}"><i data-lucide="shopping-cart" class="w-4 h-4"></i></span>Generar orden pendiente</span>`,
+            size:        'default',
+            okLabel:     'Sí, generar orden pendiente',
+            cancelLabel: 'Regresar',
+            okBg:        'bg-blue-600 hover:bg-blue-700',
+            onOk: () => {
+                const fecha = $date.val();
+                if (!fecha) {
+                    this.alertBox({ type: 'warning', title: 'Elige la fecha compromiso', timer: 1800 });
+                    $date.addClass('!border-red-400').trigger('focus');
+                    return;
+                }
+                if (fecha < hoy) {
+                    this.alertBox({ type: 'warning', title: 'La fecha compromiso no puede ser anterior a hoy', timer: 1800 });
+                    return;
+                }
+                confirmed = true;
+                modal.close();
+                opts.onConfirm(fecha);
+            },
+            onClose: () => { if (!confirmed) opts.onBack(); }
+        });
+
+        modal.el.attr('id', 'modalOrdenPendiente').css('z-index', 10000);
+        modal.footer.removeClass('justify-end').addClass('justify-between');
+
+        const $table = $('<div>', { id: 'pendingOrderTable', class: 'rounded-[11px] border border-gray-200 overflow-hidden' });
+        const $date  = $('<input>', {
+            type:  'date',
+            id:    'pendingOrderDate',
+            min:   hoy,
+            class: 'w-full md:w-56 px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500'
+        }).on('input', function () { $(this).removeClass('!border-red-400'); });
+
+        modal.body.addClass('flex flex-col gap-3').append(
+            $('<p>', { class: 'text-[13.5px] leading-relaxed text-gray-700', html: `Se creará una compra con lo que falta de <b>${esc(orden.folio)}</b> y se surtirán los <b>${opts.total}</b> ${opts.total === 1 ? 'producto marcado' : 'productos marcados'}.` }),
+            $table,
+            $('<div>', {
+                class: 'flex gap-2.5 rounded-[10px] border px-3 py-2.5 text-[12.5px] leading-snug',
+                style: `background:rgb(var(--brand-600, 192 90 64) / .10);border-color:rgb(var(--brand-600, 192 90 64) / .25);color:${brand}`
+            }).append(
+                $('<i>', { 'data-lucide': 'info', class: 'w-4 h-4 flex-shrink-0 mt-px' }),
+                $('<div>', { html: 'La compra queda <b>pendiente de compra</b>: la recibes en Mis entregas cuando llegue el producto.' })
+            ),
+            $('<div>').append(
+                $('<label>', { class: 'block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1', html: 'Fecha compromiso <span class="text-red-500">*</span> <span class="text-gray-400 normal-case">(cuándo se espera registrar la compra)</span>' }),
+                $date
+            )
+        );
+
+        this.createCoffeeTable3({
+            parent:       'pendingOrderTable',
+            id:           'tbPendingOrder',
+            theme:        'light',
+            f_size:       12,
+            class:        'w-full table-fixed text-xs',
+            color_th:     'bg-gray-50 border-b border-gray-200',
+            border_table: '',
+            border_row:   'border-b border-gray-100',
+            center:       [2, 3],
+            data: {
+                thead: ['Producto', 'Entrega', 'Se compra'],
+                row:   rows.map((f, i) => ({
+                    id:       i + 1,
+                    producto: `<p class="font-semibold text-xs text-gray-800 truncate">${esc(f.nombre)}</p>${f.sku ? `<p class="text-[10px] text-gray-400 truncate">${esc(f.sku)}</p>` : ''}`,
+                    entrega:  `${fmtNum(Math.max(0, Math.min(f.sup, f.disp)))}${unitTx(f)}`,
+                    compra:   `<strong>${fmtNum(f.falta)}</strong>${unitTx(f)}`
+                }))
+            }
+        });
+
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => $date.trigger('focus'), 60);
     }
 
     // Almacén del que se surte (ya no se elige): el que traiga el pedido o, si no, el
@@ -1241,7 +1356,9 @@ class OrdenesView extends Templates {
         return almacenes.find(a => String(a.is_default) === '1') || almacenes[0] || null;
     }
 
-    doRejectOrden(o) {
+    // `onDone` = qué hacer tras rechazar (el modal de aprobación se cierra aquí y no antes: Cancelar
+    // en el motivo deja la captura como estaba).
+    doRejectOrden(o, onDone) {
         if (!o || !o.id) return;
         this.alertBox({
             type:             'cancel',
@@ -1259,6 +1376,7 @@ class OrdenesView extends Templates {
                     data: { opc: 'rejectOrden', id: o.id, reason: reason }
                 }).then(r => {
                     if (r && r.status === 200) {
+                        if (typeof onDone === 'function') onDone();
                         this.alertBox({ type: 'success', title: r.message || 'Pedido rechazado', timer: 1600 });
                         app.selectOrden(null);
                         ordenes.lsOrdenes();
@@ -1488,8 +1606,11 @@ class OrdenesView extends Templates {
                 // Sin almacén, formatos ni alta de productos: solo se piden los del catálogo.
                 data: {
                     sucursales: (app.dataInit.sucursales || []).filter(s => s.id !== ''),
+                    unidades:   app.dataInit.unidades || [],
                     fecha:      moment().format('YYYY-MM-DD')
                 },
+                // El solicitante no ve costos ni importes (Compras, que usa el mismo formato, sí).
+                montos:   false,
                 onAdd:    (payload) => this.saveOrdenForm(payload),
                 onUpdate: (payload) => this.saveOrdenForm(payload)
             });
@@ -1531,12 +1652,10 @@ class OrdenesView extends Templates {
     // abierto hasta que se cierra para que dé tiempo de leerlo.
     avisoPedidoEnviado(r, payload) {
         const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmtMoney  = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const fmtNum    = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
         const productos = payload.productos || [];
         const sucursal  = (app.dataInit.sucursales || []).find(s => String(s.id) === String(payload.destination_branch_id));
         const unidades  = productos.reduce((s, p) => s + Number(p.quantity || 0), 0);
-        const total     = productos.reduce((s, p) => s + Number(p.quantity || 0) * Number(p.cost || 0), 0);
         // span y no div: alertBox mete el detalle dentro de un <p>.
         const renglon   = (k, v) => `<span class="flex justify-between gap-3 py-1 border-b border-gray-100 last:border-b-0"><span class="text-gray-500">${k}</span><span class="font-semibold text-gray-800 text-right">${v}</span></span>`;
 
@@ -1548,7 +1667,6 @@ class OrdenesView extends Templates {
                     ${renglon('Solicitado a', esc(sucursal ? sucursal.valor : '-'))}
                     ${renglon('Lo necesitas para', esc(this.fechaCorta(payload.date_order) || '-'))}
                     ${renglon('Materiales', `${productos.length} &middot; ${fmtNum(unidades)} uds`)}
-                    ${renglon('Costo estimado', fmtMoney(total))}
                 </span>
                 <span class="block text-[11px] text-gray-400">Queda en espera de que lo revisen y aprueben.</span>`
         });
@@ -2205,7 +2323,6 @@ class OrdenesView extends Templates {
         if (!$parent.length) return;
 
         const esc      = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const fmtNum   = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
 
         if (!opts.json) {
@@ -2253,11 +2370,10 @@ class OrdenesView extends Templates {
                    }).join('')}
                </div>`;
 
-        // Materiales: misma tabla compacta que el detalle de Entradas (Producto, Precio,
-        // Cant, Importe, Unidad). Lo recibido y la nota de solicitud van bajo el nombre.
+        // Materiales: tabla compacta sin precios ni importes. Lo recibido y la nota de
+        // solicitud van bajo el nombre.
         const productosHtml = (e.productos || []).map(p => {
             const recibido = p.quantity_received;
-            const hasCost  = p.cost != null;
             return `
                 <tr class="border-b border-gray-100 last:border-b-0 align-top">
                     <td class="!py-1 !pl-2 !pr-2">
@@ -2265,9 +2381,7 @@ class OrdenesView extends Templates {
                         ${recibido > 0 ? `<p class="text-[10px] font-bold" style="color:#3FC189">${fmtNum(recibido)} recibido</p>` : ''}
                         ${p.nota ? `<p class="text-[10px] text-gray-500 italic flex items-start gap-1 mt-0.5"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}
                     </td>
-                    <td class="!py-1 !px-1 text-right text-[11px] text-gray-500 whitespace-nowrap">${hasCost ? fmtMoney(p.cost) : '—'}</td>
                     <td class="!py-1 !px-1 text-center text-[11px] font-semibold text-gray-800">${fmtNum(p.quantity_ordered)}</td>
-                    <td class="!py-1 !px-1 text-right text-[11px] font-semibold text-gray-700 whitespace-nowrap">${hasCost ? fmtMoney(p.quantity_ordered * p.cost) : '—'}</td>
                     <td class="!py-1 !pl-1 !pr-2 text-center text-[11px] text-gray-500">${esc(p.unidad || '-')}</td>
                 </tr>`;
         }).join('');
@@ -2278,9 +2392,7 @@ class OrdenesView extends Templates {
                     <thead>
                         <tr class="text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50 border-b border-gray-200">
                             <th class="text-left font-semibold text-[10px] !py-1.5 !pl-2 !pr-2">Producto</th>
-                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Precio</th>
                             <th class="text-center font-semibold text-[10px] !py-1.5 !px-1">Cant</th>
-                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Importe</th>
                             <th class="text-center font-semibold text-[10px] !py-1.5 !pl-1 !pr-2">Unidad</th>
                         </tr>
                     </thead>
@@ -2289,8 +2401,8 @@ class OrdenesView extends Templates {
             </div>`;
 
         // Totales
+        const totProds = (e.productos || []).length;
         const totUds   = (e.productos || []).reduce((s, p) => s + p.quantity_ordered, 0);
-        const totCosto = (e.productos || []).reduce((s, p) => s + p.quantity_ordered * (p.cost || 0), 0);
 
         // Barra de acciones por estado
         const btnCls = (color, text, icon, id) =>
@@ -2402,15 +2514,12 @@ class OrdenesView extends Templates {
                             <th class="text-left font-semibold text-[10px] !py-1.5 !pl-2 !pr-2">Producto</th>
                             <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Pedido</th>
                             <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Recibido</th>
-                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Pendiente</th>
-                            <th class="text-right font-semibold text-[10px] !py-1.5 !px-1">Costo unit.</th>
-                            <th class="text-right font-semibold text-[10px] !py-1.5 !pl-1 !pr-2">Subtotal</th>
+                            <th class="text-right font-semibold text-[10px] !py-1.5 !pl-1 !pr-2">Pendiente</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${(e.productos || []).map(p => {
-                            const pend    = Math.max(0, p.quantity_ordered - p.quantity_received);
-                            const hasCost = p.cost != null;
+                            const pend = Math.max(0, p.quantity_ordered - p.quantity_received);
                             return `
                                 <tr class="border-b border-gray-100 last:border-b-0 align-top">
                                     <td class="!py-1 !pl-2 !pr-2">
@@ -2418,9 +2527,7 @@ class OrdenesView extends Templates {
                                     </td>
                                     <td class="!py-1 !px-1 text-right text-[11px] text-gray-700">${fmtNum(p.quantity_ordered)}</td>
                                     <td class="!py-1 !px-1 text-right text-[11px]" style="color:${p.quantity_received > 0 ? '#3FC189' : '#9CA3AF'}">${p.quantity_received > 0 ? fmtNum(p.quantity_received) : '—'}</td>
-                                    <td class="!py-1 !px-1 text-right text-[11px] font-semibold" style="color:${pend > 0 ? '#F97316' : '#9CA3AF'}">${pend > 0 ? fmtNum(pend) : '—'}</td>
-                                    <td class="!py-1 !px-1 text-right text-[11px] text-gray-500 whitespace-nowrap">${hasCost ? fmtMoney(p.cost) : '—'}</td>
-                                    <td class="!py-1 !pl-1 !pr-2 text-right text-[11px] font-semibold text-gray-700 whitespace-nowrap">${hasCost ? fmtMoney(p.quantity_ordered * p.cost) : '—'}</td>
+                                    <td class="!py-1 !pl-1 !pr-2 text-right text-[11px] font-semibold" style="color:${pend > 0 ? '#F97316' : '#9CA3AF'}">${pend > 0 ? fmtNum(pend) : '—'}</td>
                                 </tr>`;
                         }).join('')}
                     </tbody>
@@ -2482,13 +2589,13 @@ class OrdenesView extends Templates {
 
                 <!-- Totales -->
                 <div class="cs-visor-totals px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                    <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-                        <span>Unidades</span>
-                        <span class="font-semibold text-gray-700">${fmtNum(totUds)}</span>
-                    </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold text-gray-700">Total general</span>
-                        <span class="text-lg font-bold text-gray-800">${fmtMoney(totCosto)}</span>
+                        <span class="text-sm font-semibold text-gray-700">Productos</span>
+                        <span class="text-xl font-bold text-gray-800">${totProds}</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-sm font-semibold text-gray-700">Unidades</span>
+                        <span class="text-xl font-bold text-gray-800">${fmtNum(totUds)}</span>
                     </div>
                 </div>
 

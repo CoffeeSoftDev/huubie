@@ -45,6 +45,7 @@ class ctrl extends mdl {
                 'stock_max'         => (float) ($producto['stock_max'] ?? 0),
                 'image'             => $producto['image'] ?? '',
                 'presentacion'      => $producto['presentacion'] ?? '',
+                'unit_id'           => !empty($producto['unit_id']) ? (string) $producto['unit_id'] : '',
                 'icon'              => 'package',
                 'bg'                => 'bg-gray-100',
                 'color'             => 'text-gray-500'
@@ -463,8 +464,15 @@ class ctrl extends mdl {
     // descuenta del almacén en ese momento. Si el stock no alcanza se surte igual y el
     // faltante queda en un reabasto (REAB-) con la fecha compromiso, como en surtir().
     // `reabasto` = '0' cuando el almacenista solo surte: se entrega todo lo marcado sin generar REAB-.
+    // `salida` = 'manual' aprueba sin llamar a surtir(): sin salida SI-, sin descuento y sin REAB-;
+    // el pedido queda Aprobada y se surte después con el botón Surtir. 'auto' (omisión) surte como siempre.
     function approveOrden() {
-        $_POST += ['items' => '{}', 'note' => '', 'warehouse_id' => 0, 'expected_date' => '', 'reabasto' => '1', 'vista' => ''];
+        $_POST += ['items' => '{}', 'note' => '', 'warehouse_id' => 0, 'expected_date' => '', 'reabasto' => '1', 'salida' => 'auto', 'vista' => ''];
+
+        $salida = (string) $_POST['salida'];
+        if (!in_array($salida, ['auto', 'manual'], true)) {
+            return ['status' => 400, 'message' => 'Elige si la salida de almacén es automática o manual'];
+        }
 
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
@@ -496,14 +504,15 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => $error];
         }
 
-        $reasonId = $this->getShrinkageReasonId(['SURTIDO_SUC']);
-        if (!$reasonId) return ['status' => 500, 'message' => 'Falta configurar el motivo de salida (SURTIDO_SUC)'];
+        $conSalida = $salida === 'auto';
+        $reasonId  = $this->getShrinkageReasonId(['SURTIDO_SUC']);
+        if ($conSalida && !$reasonId) return ['status' => 500, 'message' => 'Falta configurar el motivo de salida (SURTIDO_SUC)'];
 
         $note        = mb_substr(trim($_POST['note']), 0, 255) ?: null;
-        $conReabasto = (string) $_POST['reabasto'] !== '0';
+        $conReabasto = $conSalida && (string) $_POST['reabasto'] !== '0';
 
         try {
-            return $this->transaction(function () use ($id, $header, $detalle, $byId, $items, $warehouseId, $compromiso, $reasonId, $note, $conReabasto) {
+            return $this->transaction(function () use ($id, $header, $detalle, $byId, $items, $warehouseId, $compromiso, $reasonId, $note, $conReabasto, $conSalida) {
                 $unidades = 0;
                 $costo    = 0.0;
                 $base     = 0.0;
@@ -520,8 +529,19 @@ class ctrl extends mdl {
                 if (!$this->updateOrdenTotals([count($items), $unidades, $costo, $base, $id])) throw new Exception('No se pudieron actualizar los totales');
                 if (!$this->updateOrdenStatusApprove(['Aprobada', $this->userId, $note, $id])) throw new Exception('No se pudo aprobar el pedido');
 
+                if (!$conSalida) {
+                    return [
+                        'status'         => 200,
+                        'message'        => 'Pedido aprobado sin salida de almacén. Surte la solicitud después con el botón Surtir de su detalle.',
+                        'salida_folio'   => null,
+                        'reabasto_folio' => null,
+                        'orden_status'   => 'Aprobada'
+                    ];
+                }
+
                 $r = $this->surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, 'Surtido de solicitud ' . $header['folio'], $conReabasto);
-                $r['message'] = 'Pedido aprobado. ' . $r['message'];
+                // La salida SI- se consulta en Salidas: el aviso lo dice junto a su folio.
+                $r['message'] = 'Pedido aprobado. ' . str_replace("salida {$r['salida_folio']},", "salida {$r['salida_folio']} (en Salidas),", $r['message']);
                 return $r;
             });
         } catch (\Throwable $e) {
@@ -1417,7 +1437,7 @@ class ctrl extends mdl {
         $folios = ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Folios, ej. ["OC-0003", "REAB-0002"]. "7" = OC-0007.'];
 
         return [
-            $fn('buscar_pedidos', 'Busca pedidos activos. Todos los filtros son opcionales; sin filtros trae los más recientes. Devuelve el total y hasta ' . self::IA_MAX_LISTA . ' pedidos con folio, estado, fecha, sucursal que pide y que surte, materiales, costo, nota, quién lo capturó y si ya surtió material.', [
+            $fn('buscar_pedidos', 'Busca pedidos activos. Todos los filtros son opcionales; sin filtros trae los más recientes. Devuelve el total y hasta ' . self::IA_MAX_LISTA . ' pedidos con folio, estado, fecha, sucursal que pide y que surte, materiales, nota, quién lo capturó y si ya surtió material.', [
                 'folios'      => $folios,
                 'kind'        => ['type' => 'string', 'enum' => ['pedido', 'reabasto']],
                 'status'      => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => self::IA_ESTADOS]],
@@ -1430,7 +1450,7 @@ class ctrl extends mdl {
                 'product'     => ['type' => 'string', 'description' => 'Nombre (o parte) de un material que viene en el pedido'],
                 'ocultos'     => ['type' => 'boolean', 'description' => 'true = también los ocultos (eliminados antes, siguen contando para el folio)']
             ]),
-            $fn('ver_pedido', 'Abre un pedido: estado, fechas, sucursales, almacén, quién lo capturó y lo aprobó, notas, motivo de rechazo, fecha compromiso y sus renglones (material, unidad, pedido, entregado, costo, nota).', [
+            $fn('ver_pedido', 'Abre un pedido: estado, fechas, sucursales, almacén, quién lo capturó y lo aprobó, notas, motivo de rechazo, fecha compromiso y sus renglones (material, unidad, pedido, entregado, nota).', [
                 'folio' => ['type' => 'string', 'description' => 'Folio del pedido, ej. OC-0009']
             ], ['folio']),
             $fn('resumen_pedidos', 'Cuenta los pedidos activos por estado y por sucursal que pide, cuántos ya surtieron material, cuántos ocultos hay y cuáles serán los siguientes folios.'),
@@ -1484,7 +1504,6 @@ class ctrl extends mdl {
                                 'unidad'    => $d['unidad'] ?? '',
                                 'pedido'    => (float) $d['quantity_ordered'],
                                 'entregado' => (float) $d['quantity_received'],
-                                'costo'     => (float) $d['cost'],
                                 'nota'      => $d['note'] ?? ''
                             ];
                         }, $this->qGetOrdenDetail([(int) $p['id']]))
@@ -1583,7 +1602,6 @@ class ctrl extends mdl {
             'pide'            => $p['branch_name'] ?: '-',
             'surte'           => $p['destination_branch_name'] ?: '-',
             'materiales'      => (int) $p['total_products'],
-            'costo'           => round((float) $p['total_cost'], 2),
             'nota'            => $this->textoPedidoIA($p['note']),
             'capturo'         => $this->textoPedidoIA($p['user_name']),
             'surtio_material' => (int) $p['movido'] > 0,
@@ -1660,7 +1678,6 @@ class ctrl extends mdl {
                 strip_tags($this->fechaHoraPedido($p['date_order'], $p['created_at'])),
                 $ruta,
                 $mats === 1 ? '1 material' : "{$mats} materiales",
-                '$' . number_format((float) $p['total_cost'], 2),
                 $nota !== '' ? '«' . mb_strimwidth($nota, 0, 60, '…') . '»' : ''
             ]);
 

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview — csChoiceCards</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../../inventory/src/js/tailwind-theme.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../../../inventory/src/js/coffeeSoft.js"></script>
+    <script src="../../../inventory/src/js/components/cs-choice-cards.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #F3F4F6; color: #111827; }
+        .log-entry { border-left: 3px solid #3FC189; padding: 4px 10px; margin: 4px 0; font-size: 12px; background: #fff; border-radius: 4px; }
+        .log-back  { border-color: #f59e0b; }
+    </style>
+</head>
+<body class="p-8">
+
+    <h1 class="text-xl font-bold mb-1">csChoiceCards <span class="text-gray-500 font-normal text-sm">aviso con tarjetas · aviso simple</span></h1>
+    <p class="text-xs text-gray-500 mb-8">Componente de <code>Templates</code> en <code>inventory/src/js/components/cs-choice-cards.js</code>. Se monta sobre <code>cfModal</code>; sin <code>choices</code> es el aviso de un botón.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+            <h2 class="text-sm font-bold">Con tarjetas</h2>
+            <p class="text-xs text-gray-500">Pregunta con tres caminos. Dispara <code>onChoose(id)</code> o <code>onBack()</code>.</p>
+            <button id="btn-cards" class="w-full py-2 rounded-lg bg-main hover:bg-main-hover text-white text-xs font-bold">Salida con faltante</button>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+            <h2 class="text-sm font-bold">Aviso simple</h2>
+            <p class="text-xs text-gray-500">Un botón de confirmar (<code>okLabel</code>) y Regresar. Dispara <code>onOk()</code> o <code>onBack()</code>.</p>
+            <button id="btn-simple" class="w-full py-2 rounded-lg bg-main hover:bg-main-hover text-white text-xs font-bold">Todo alcanza</button>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+            <h2 class="text-sm font-bold">Aviso con alerta</h2>
+            <p class="text-xs text-gray-500">Alerta en ámbar y confirmar en el primario del tema (<code>okTone: 'pri'</code>).</p>
+            <button id="btn-alert" class="w-full py-2 rounded-lg bg-main hover:bg-main-hover text-white text-xs font-bold">Salida manual</button>
+        </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl p-5">
+        <h2 class="text-sm font-bold mb-3">Log de callbacks</h2>
+        <div id="event-log" class="space-y-1 max-h-48 overflow-auto">
+            <p class="text-xs text-gray-500 italic">Aún no hay eventos…</p>
+        </div>
+    </div>
+
+    <script>
+        class TestHost extends Templates {
+            constructor() { super('', 'body'); }
+        }
+
+        const host = new TestHost();
+
+        function log(msg, type) {
+            const $log = $('#event-log');
+            $log.find('p.italic').remove();
+            $log.prepend(`<div class="log-entry ${type || ''}">${new Date().toLocaleTimeString()} — ${msg}</div>`);
+        }
+
+        const back = () => log('onBack()', 'log-back');
+
+        $('#btn-cards').on('click', () => {
+            host.csChoiceCards({
+                title:   '¿Aprobar y surtir la solicitud OC-0007?',
+                lead:    'Se van a surtir <b>4 productos</b> · <b style="color:#C2410C">1 con faltante</b>.',
+                alerts:  [{ html: '<b>HUEVO (entrega 30 PZAS) quedará en −10 PZAS</b> en Almacén general.' }],
+                ask:     '¿Cómo quieres darle salida al almacén?',
+                hint:    'Recomendada: el descuento se registra al momento y el faltante queda a la vista en el resumen.',
+                choices: [
+                    { id: 'auto',    icon: 'zap',           tone: 'go',  title: 'Salida automática', badge: 'Recomendada',
+                      text: 'El sistema descuenta el almacén al aceptar. El negativo se ajusta con una entrada después, desde Entradas.' },
+                    { id: 'manual',  icon: 'hand',          tone: 'mut', title: 'Salida manual después',
+                      text: 'Queda aprobada sin descuento: el faltante sigue en la solicitud hasta que registres la salida.' },
+                    { id: 'pending', icon: 'shopping-cart', tone: 'ac',  title: 'Generar orden pendiente',
+                      text: 'Lo que falta se compra: queda una orden pendiente que recibes en Mis entregas cuando llegue el producto.' }
+                ],
+                onChoose: (id) => log(`onChoose('${id}')`),
+                onBack:   back
+            });
+        });
+
+        $('#btn-simple').on('click', () => {
+            host.csChoiceCards({
+                title:   '¿Aprobar y surtir la solicitud OC-0007?',
+                lead:    'Se van a surtir <b>4 productos</b>. Todo alcanza: la salida de almacén se registra al aceptar.',
+                okLabel: 'Sí, aprobar y surtir',
+                onOk:    () => log('onOk()'),
+                onBack:  back
+            });
+        });
+
+        $('#btn-alert').on('click', () => {
+            host.csChoiceCards({
+                title:   'No le diste salida a almacén',
+                lead:    'Lo sentimos: la solicitud <b>OC-0007</b> quedará aprobada sin movimiento de almacén.',
+                alerts:  [{ html: 'Hasta que la surtas con el botón <b>Surtir</b> de su detalle, el pedido figura aprobado sin descuento.' }],
+                okLabel: 'Entendido',
+                okTone:  'pri',
+                onOk:    () => log('onOk()'),
+                onBack:  back
+            });
+        });
+    </script>
+</body>
+</html>

@@ -37,6 +37,9 @@ require_once('layout/core-libraries.php');
     <script src="../../src/js/components/entrada-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/entrada-form.js'); ?>"></script>
     <script src="../../src/js/components/orden-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/orden-form.js'); ?>"></script>
 
+    <!-- Aviso con tarjetas de elección (aprobar con faltante) -->
+    <script src="../../src/js/components/cs-choice-cards.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/cs-choice-cards.js'); ?>"></script>
+
     <!-- CoffeeIA (eliminar pedidos); forja-blob dibuja el muñeco de coffeeIA -->
     <script src="../../src/js/components/forja-blob.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/forja-blob.js'); ?>"></script>
     <script src="../../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ia-chat.js'); ?>"></script>

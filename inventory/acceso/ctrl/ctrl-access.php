@@ -23,11 +23,11 @@ class Access extends MAccess {
 
             $usr = $this->getUserByCredentials([$user]);
 
-            // Verifica la contrasena contra users.password (bcrypt); si no coincide, prueba users.password2.
-            $valid = $usr && (
-                (!empty($usr['password'])  && password_verify($pass, $usr['password'])) ||
-                (!empty($usr['password2']) && password_verify($pass, $usr['password2']))
-            );
+            // Solo users.password (bcrypt): no se lee `key` ni `password2` porque
+            // cada BD local tiene una u otra y la que falta tumba el SELECT.
+            $valid = $usr
+                && !empty($usr['password'])
+                && password_verify($pass, $usr['password']);
 
             if (!$valid) {
                 return false;
