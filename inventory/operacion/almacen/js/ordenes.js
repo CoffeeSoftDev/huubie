@@ -541,7 +541,12 @@ class Ordenes extends Templates {
                 tax:               d.tax  != null ? Number(d.tax)  : 0,
                 cost:              d.cost != null ? Number(d.cost) : null,
                 subtotal:          Number(d.subtotal || 0),
-                nota:              d.note || ''
+                nota:              d.note || '',
+                // Lo que el almacén entregó en lugar de lo pedido (Revisar y aprobar).
+                delivered_id:      d.delivered_item_id ? String(d.delivered_item_id) : '',
+                delivered_nombre:  d.delivered_name   || '',
+                delivered_sku:     d.delivered_sku    || '',
+                delivered_unidad:  d.delivered_unidad || ''
             }))
         };
     }
@@ -676,6 +681,7 @@ class Ordenes extends Templates {
                 <td class="prod">
                     <span class="prod-name">${esc(p.nombre)}</span>
                     ${p.sku ? `<span class="sku">${esc(p.sku)}</span>` : ''}
+                    ${p.delivered_id ? `<div class="sku" style="margin-left:0">Se entregó: ${esc(p.delivered_nombre)}${p.delivered_unidad ? ` (${esc(p.delivered_unidad)})` : ''}</div>` : ''}
                 </td>
                 <td class="c">${esc(p.quantity_ordered)}</td>
                 <td class="c">${recibido > 0 ? `<span style="color:#3FC189;font-weight:700">${recibido}</span>` : '<span style="color:#9CA3AF">—</span>'}</td>
@@ -884,11 +890,14 @@ class OrdenesView extends Templates {
     }
 
     // Aprobar = surtir: arranca sin marcar; lo marcado se descuenta del almacén de la
-    // sucursal que surte con la cantidad de "A entregar" (arranca en lo pedido y se puede
-    // bajar). Lo no marcado sale del pedido. Un producto sin stock suficiente se puede
-    // marcar y surtir igual. Con faltante se pregunta cómo darle salida al almacén (csChoiceCards):
-    // automática (el stock queda en negativo), manual después (aprueba sin descuento y se surte
-    // con el botón Surtir) o generar una orden pendiente (openPendingOrderModal pide la fecha).
+    // sucursal que surte con su "Cant. a entregar" (arranca en lo pedido y se puede bajar).
+    // En "Producto a entregar" se cambia por otro de la misma categoría con stock en ese
+    // almacén (los de nombre parecido primero); la unidad es la del producto que se entrega,
+    // sin equivalencias. Lo no marcado sale del pedido. Un producto sin stock suficiente se
+    // puede marcar y surtir igual. Con faltante se pregunta cómo darle salida al almacén
+    // (csChoiceCards): automática (el stock queda en negativo), manual después (aprueba sin
+    // descuento y se surte con el botón Surtir) o generar una orden pendiente
+    // (openPendingOrderModal pide la fecha).
     openAprobacionModal(orden) {
         if (!orden || !orden.id) return;
 
@@ -899,21 +908,42 @@ class OrdenesView extends Templates {
         const pendiente  = (p) => Math.max(0, p.quantity_ordered - p.quantity_received);
         const elegidos   = new Set();
         const cantidades = {};
-        productos.forEach(p => { cantidades[String(p.detailId)] = pendiente(p); });
+        // Renglón -> producto que sale del almacén (arranca en lo pedido).
+        const entrega    = {};
+
+        // Sin equivalencias entre unidades, la cantidad se dice en la unidad del producto que sale: lo que
+        // se cuenta (pieza, paquete, caja, "500 GR"...) va entero y solo litro, gramo y sus parientes (ml, kg)
+        // admiten decimales. Se compara el nombre o código exacto: "500 GR" o "4 LT" son empaques.
+        const medidaRe        = /^(l|lt|lts|litros?|ml|mililitros?|g|gr|grs|gramos?|kg|kgs|kilos?|kilogramos?)$/;
+        const aceptaDecimales = (unidad) => medidaRe.test(String(unidad || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase());
+
+        productos.forEach(p => {
+            cantidades[String(p.detailId)] = aceptaDecimales(p.unidad) ? pendiente(p) : Math.floor(pendiente(p));
+            entrega[String(p.detailId)]    = String(p.product_id);
+        });
         const almacen    = this.almacenQueSurte(orden);
+
+        const catalogo = (app.dataInit && app.dataInit.productos) || [];
+        const porId    = {};
+        const unidades = {};
+        catalogo.forEach(x => { porId[String(x.id)] = x; });
+        ((app.dataInit && app.dataInit.unidades) || []).forEach(u => { unidades[String(u.id)] = u.valor; });
 
         const modalId = 'modalAprobacion';
         $(`#${modalId}`).remove();
 
         let stockMap    = {};
         let stockLoaded = false;
+        // Renglón -> productos de su categoría con stock; se arma al cargar el stock.
+        let similares   = {};
 
         const necesita = this.needDateLabel(orden.date_order);
 
-        const alcanzaCell = (disp, ped) => {
+        // `dec` = false: lo que se cuenta, "Solo X de Y" con lo que hay entero (hacia abajo).
+        const alcanzaCell = (disp, ped, dec = true) => {
             if (disp === null) return `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400">—</span>`;
             if (disp >= ped)   return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,.15);color:#15803D"><i data-lucide="check" class="w-3 h-3"></i>Sí</span>`;
-            if (disp > 0)      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(249,115,22,.15);color:#C2410C"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Solo ${fmtNum(disp)} de ${fmtNum(ped)}</span>`;
+            if (disp > 0)      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(249,115,22,.15);color:#C2410C"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Solo ${dec ? fmtNum(disp) : Math.floor(disp)} de ${fmtNum(ped)}</span>`;
             return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,.15);color:#B91C1C"><i data-lucide="x" class="w-3 h-3"></i>No hay</span>`;
         };
 
@@ -927,7 +957,7 @@ class OrdenesView extends Templates {
         const $modal = $(`
             <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/40"></div>
-                <div class="relative z-10 w-full max-w-[960px] h-[90vh] bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+                <div class="relative z-10 w-full max-w-[1080px] h-[90vh] bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
 
                     <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
                         <div class="flex items-center gap-3">
@@ -958,7 +988,21 @@ class OrdenesView extends Templates {
                         <input type="hidden" id="${modalId}_warehouse_id" value="${almacen ? almacen.id : ''}">
                     </div>
 
-                    <div id="${modalId}_table" class="flex-1 min-h-0 overflow-auto px-[20px] pt-2"></div>
+                    <p class="flex-shrink-0 px-5 py-2 flex items-start gap-1.5 text-[10px] leading-snug text-gray-500">
+                        <i data-lucide="info" class="w-3 h-3 mt-px flex-shrink-0" style="color:#15803D"></i>
+                        <span>Marca lo que vas a entregar; en "Producto a entregar" puedes cambiarlo por otro de su categoría con stock. Al aprobar se descuenta del almacén con su "Cant. a entregar" y lo no marcado se quita del pedido; si algo queda en negativo, el sistema te pregunta si la salida es automática o manual.</span>
+                    </p>
+
+                    <!-- Franja y tabla con el formato de la captura de Nueva entrada -->
+                    <div class="px-5 py-2.5 border-y border-gray-200 flex items-center gap-2 flex-shrink-0 bg-gray-50">
+                        <div class="w-6 h-6 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center">
+                            <i data-lucide="boxes" class="w-3.5 h-3.5 text-blue-600"></i>
+                        </div>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">Productos del pedido</p>
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold leading-none bg-blue-50 text-blue-700 border border-blue-200">${productos.length}</span>
+                    </div>
+
+                    <div id="${modalId}_table" class="flex-1 min-h-0 overflow-y-auto cs-scroll"></div>
 
                     ${orden.note ? `
                     <div class="flex-shrink-0 px-5 pt-3 pb-3">
@@ -971,11 +1015,7 @@ class OrdenesView extends Templates {
                     <div class="flex-shrink-0 border-t border-gray-200 px-5 py-3 bg-gray-50">
                         <p id="${modalId}_resumen" class="text-xs leading-relaxed text-gray-500 mb-2.5">Cargando disponibilidad...</p>
                         <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
-                        <input type="text" id="${modalId}_note" maxlength="255" class="w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 placeholder:text-gray-400" placeholder="Observaciones de la aprobación...">
-                        <p class="mt-1.5 flex items-start gap-1.5 text-[10px] leading-snug text-gray-500">
-                            <i data-lucide="info" class="w-3 h-3 mt-px flex-shrink-0" style="color:#15803D"></i>
-                            <span>Marca lo que vas a entregar. Al aprobar se descuenta del almacén con su cantidad "A entregar" y lo no marcado se quita del pedido; si algo queda en negativo, el sistema te pregunta si la salida es automática o manual.</span>
-                        </p>
+                        <textarea id="${modalId}_note" rows="2" maxlength="255" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-md outline-none resize-none focus:border-blue-500 placeholder:text-gray-400" placeholder="Observaciones de la aprobación..."></textarea>
                     </div>
 
                     <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
@@ -996,10 +1036,158 @@ class OrdenesView extends Templates {
         $('body').append($modal);
         if (window.lucide) lucide.createIcons();
 
-        const dispDe  = (p) => stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
-        const unitTx  = (p) => (p.unidad ? ` ${esc(p.unidad)}` : '');
+        // Lo que sale del almacén en el renglón: lo pedido o lo elegido en "Producto a entregar".
+        const entregaDe = (p) => {
+            const id = entrega[String(p.detailId)];
+            if (id === String(p.product_id)) {
+                return { id, nombre: p.nombre, sku: p.sku, unidad: p.unidad, unitId: String(p.unit_id || (porId[id] || {}).unit_id || '') };
+            }
+            const x = porId[id] || {};
+            return { id, nombre: x.nombre || '', sku: x.sku || '', unidad: unidades[String(x.unit_id)] || x.presentacion || '', unitId: String(x.unit_id || '') };
+        };
+
+        // Lo que queda para el renglón: el stock del producto que entrega menos lo que se llevan
+        // los renglones marcados de antes con ese mismo producto (así lo descuenta surtir()).
+        const dispDe = (p) => {
+            if (!stockLoaded) return null;
+            const id = entrega[String(p.detailId)];
+            let disp = stockMap[id] || 0;
+            for (const q of productos) {
+                if (q === p) break;
+                const qid = String(q.detailId);
+                if (elegidos.has(qid) && entrega[qid] === id) disp -= cantidades[qid];
+            }
+            return disp;
+        };
+
+        // Lo que hay y lo que falta en la unidad del producto que sale: en lo que se cuenta va
+        // entero (lo que hay hacia abajo, lo que falta hacia arriba); litro y gramo con decimales.
+        const decDe   = (p) => aceptaDecimales(entregaDe(p).unidad);
+        const dispTx  = (p, n) => decDe(p) ? fmtNum(n) : String(Math.floor(n));
+        const faltaTx = (p, n) => decDe(p) ? fmtNum(n) : String(Math.ceil(n));
+        // Tope de "Cant. a entregar": lo pedido (entero en lo que se cuenta).
+        const topeDe  = (p) => decDe(p) ? pendiente(p) : Math.floor(pendiente(p));
+
+        const unitTx  = (p) => (entregaDe(p).unidad ? ` ${esc(entregaDe(p).unidad)}` : '');
         const faltaDe = (p) => cantidades[String(p.detailId)] - dispDe(p);
-        const negativoDe = (p) => `<strong>${esc(p.nombre)}</strong> (entrega ${fmtNum(cantidades[String(p.detailId)])}${unitTx(p)}) quedará en <strong style="color:#B91C1C">−${fmtNum(faltaDe(p))}${unitTx(p)}</strong>`;
+        const negativoDe = (p) => `<strong>${esc(entregaDe(p).nombre)}</strong> (entrega ${fmtNum(cantidades[String(p.detailId)])}${unitTx(p)}) quedará en <strong style="color:#B91C1C">−${faltaTx(p, faltaDe(p))}${unitTx(p)}</strong>`;
+
+        // Palabras del nombre sin acentos, mayúsculas ni plural, para encontrar los parecidos.
+        const palabras = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .split(/[^a-z0-9]+/).map(w => w.length > 3 ? w.replace(/s$/, '') : w).filter(w => w.length > 2);
+
+        // Misma categoría del Catálogo y con stock en el almacén que surte, en dos grupos:
+        // parecidos (comparten palabras con lo pedido: Mantequilla…) y el resto, por nombre.
+        const armarSimilares = () => {
+            similares = {};
+            productos.forEach(p => {
+                const base = porId[String(p.product_id)];
+                const did  = String(p.detailId);
+                similares[did] = { parecidos: [], otros: [], categoria: base ? base.categoria : '' };
+                if (!base || !base.categoria || base.categoria === 'Sin categoría') return;
+                const suyas = palabras(base.nombre);
+                catalogo
+                    .filter(x => x.categoria === base.categoria && String(x.id) !== String(base.id) && (stockMap[String(x.id)] || 0) > 0)
+                    .map(x => ({ x, n: palabras(x.nombre).filter(w => suyas.includes(w)).length }))
+                    .sort((a, b) => b.n - a.n || a.x.nombre.localeCompare(b.x.nombre, 'es'))
+                    .forEach(o => similares[did][o.n > 0 ? 'parecidos' : 'otros'].push(o.x));
+            });
+        };
+
+        const tonoDisp = (disp, qty) => disp === null ? '#9CA3AF' : (disp >= qty ? '#15803D' : (disp > 0 ? '#C2410C' : '#B91C1C'));
+
+        // Casilla del template: cuadro gris vacío o verde con palomita.
+        const casilla = (on, attrs) => `<span ${attrs} role="checkbox" aria-checked="${on}" class="inline-grid place-items-center w-[17px] h-[17px] rounded-[5px] border-[1.5px] align-middle cursor-pointer transition-colors ${on ? 'text-white' : 'text-transparent bg-white border-gray-300'}" style="${on ? 'background:#3FC189;border-color:#3FC189' : ''}"><i data-lucide="check" class="w-[11px] h-[11px]" style="stroke-width:3.2"></i></span>`;
+
+        // Miniatura igual a la de Entradas (imagen o ícono del catálogo).
+        const thumb = (x, box, ico) => EntradaForm.prototype.prodThumb.call({ esc }, Object.assign({ icon: 'package', bg: 'bg-gray-100', color: 'text-gray-500' }, x), box, ico);
+
+        // "Producto a entregar": campo de búsqueda como el de Entradas (lupa, texto de 14 px)
+        // con el producto que sale; a la derecha lo que hay, en verde si alcanza (naranja o
+        // rojo si no). Al entrar se escribe para buscar (abrirSelector). Sin marcar queda
+        // bloqueado y el clic pasa al renglón (lo marca).
+        const entregaCell = (p, marcado) => {
+            const did  = String(p.detailId);
+            const e    = entregaDe(p);
+            const disp = dispDe(p);
+            return `
+                <div data-entrega-box="${did}" class="relative">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <input type="text" data-entrega-input="${did}" value="${esc(e.nombre)}" autocomplete="off" placeholder="Buscar producto a entregar..."${marcado ? '' : ' disabled tabindex="-1"'}
+                        class="w-full !pl-8 !pr-20 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400 truncate disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:pointer-events-none">
+                    ${disp === null ? '' : `<span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold pointer-events-none whitespace-nowrap" style="color:${marcado ? tonoDisp(disp, cantidades[did]) : '#9CA3AF'}">${esc(dispTx(p, disp))} disp.</span>`}
+                </div>`;
+        };
+
+        // -- Selector de producto a entregar --
+
+        // Igual al buscador de Entradas sin el costo: miniatura, nombre y "SKU · categoría ·
+        // unidad · Stock". Lo pedido, los parecidos y el resto de su categoría con stock; con
+        // texto, solo los que lo traen en el nombre o el SKU.
+        let picker = null;
+        const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+        const gruposSelector = (p, term) => {
+            const s      = similares[String(p.detailId)] || { parecidos: [], otros: [], categoria: '' };
+            const pedido = porId[String(p.product_id)] || { id: String(p.product_id), nombre: p.nombre, sku: p.sku, image: p.image, presentacion: p.unidad };
+            const t      = norm(term).trim();
+            const pasa   = (x) => !t || norm(`${x.nombre} ${x.sku || ''}`).includes(t);
+            return [
+                { titulo: 'Lo pedido',                items: [pedido].filter(pasa) },
+                { titulo: 'Parecidos',                items: s.parecidos.filter(pasa), parecidos: true },
+                { titulo: `Otros de ${s.categoria}`,  items: s.otros.filter(pasa) }
+            ].filter(g => g.items.length);
+        };
+
+        const resultadoSelector = (x, i) => {
+            const stock = Number(stockMap[String(x.id)] || 0);
+            const tono  = stock <= 0 ? 'text-red-500' : stock < 5 ? 'text-orange-500' : 'text-green-600';
+            const sep   = '<span class="text-gray-300"> &middot; </span>';
+            const datos = [
+                x.sku ? `<span class="font-mono">${esc(x.sku)}</span>` : '',
+                x.categoria && x.categoria !== 'Sin categoría' ? esc(x.categoria) : '',
+                x.presentacion ? esc(x.presentacion) : ''
+            ].filter(Boolean).concat(`Stock: <strong class="${tono}">${fmtNum(stock)}</strong>`).join(sep);
+            return `
+                <div class="ef-cat-item flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-blue-50/60 border-b border-gray-100 last:border-b-0 transition-all group" data-entrega-id="${esc(x.id)}" data-cat-idx="${i}">
+                    ${thumb(x, 'w-9 h-9', 'w-4 h-4')}
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold text-gray-800 truncate">${esc(x.nombre)}</p>
+                        <p class="text-[10px] text-gray-500 truncate mt-0.5">${datos}</p>
+                    </div>
+                    <div class="ef-add-btn w-7 h-7 rounded-lg bg-gray-100 border border-gray-200 text-gray-400 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </div>
+                </div>`;
+        };
+
+        // Encabezado de cada grupo; los parecidos con la franja de "Tal vez quisiste decir".
+        const tituloSelector = (g) => g.parecidos
+            ? `<div class="px-3 py-2 bg-amber-50/70 border-b border-gray-200 text-[11px] font-semibold text-amber-700 flex items-center gap-1.5"><i data-lucide="lightbulb" class="w-3 h-3"></i>${esc(g.titulo)}</div>`
+            : `<div class="px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-bold uppercase tracking-wider text-gray-500">${esc(g.titulo)}</div>`;
+
+        // La unidad es la del producto que se entrega; en naranja si no es la que se pidió.
+        const unidadCell = (p) => {
+            const e      = entregaDe(p);
+            const pedida = String(p.unit_id || (porId[String(p.product_id)] || {}).unit_id || '');
+            const otra   = e.id !== String(p.product_id) && e.unitId !== '' && pedida !== '' && e.unitId !== pedida;
+            return `<p class="text-[11px] font-bold uppercase tracking-wide ${otra ? 'text-[#C2410C]' : 'text-gray-700'}">${esc(e.unidad || '-')}</p>`
+                 + (otra ? `<p class="text-[10px] text-gray-400">pidió ${esc(p.unidad || 'otra')}</p>` : '');
+        };
+
+        // Repinta "Producto a entregar" y "¿Alcanza?" de todos los renglones sin rehacer la tabla
+        // (el foco sigue en la cantidad que se captura): otra cantidad cambia lo que les queda a
+        // los renglones de abajo con el mismo producto.
+        const refreshDisp = () => {
+            productos.forEach(p => {
+                const did = String(p.detailId);
+                $modal.find(`[data-entrega-box="${did}"]`).replaceWith(entregaCell(p, elegidos.has(did)));
+                $modal.find(`[data-alcanza="${did}"]`).html(alcanzaCell(dispDe(p), cantidades[did], decDe(p)));
+            });
+            if (window.lucide) lucide.createIcons();
+        };
 
         // Lo de abajo cuenta solo los productos marcados, con su cantidad a entregar y, con
         // faltante, cómo quedaría cada producto en el almacén; el botón de aprobar lleva
@@ -1008,7 +1196,6 @@ class OrdenesView extends Templates {
             const $r       = $(`#${modalId}_resumen`);
             const marcados = productos.filter(p => elegidos.has(String(p.detailId)));
             const total    = marcados.length;
-            $(`#${modalId}_todos`).prop('checked', total > 0 && total === productos.length).prop('indeterminate', total > 0 && total < productos.length);
             $(`#${modalId}_aprobar span`).text(total ? `Aprobar y surtir (${total})` : 'Aprobar y surtir');
             if (!total)       { $r.html(`Marca los productos que vas a entregar (<strong>0</strong> de <strong>${productos.length}</strong>).`); return; }
             if (!stockLoaded) { $r.html(`<strong>${total}</strong> de <strong>${productos.length}</strong> productos marcados. Cargando disponibilidad...`); return; }
@@ -1020,65 +1207,162 @@ class OrdenesView extends Templates {
 
         const tableId = `tb${modalId}`;
 
-        // Lo marcado se resalta; lo no marcado deja "A entregar" bloqueado.
+        // Renglón con el formato de la tabla de Nueva entrada (SKU, miniatura, nombre y
+        // "categoría · unidad", campos de 14 px). Lo marcado se resalta; lo no marcado deja
+        // bloqueados "Producto a entregar" y "Cant. a entregar" (el clic sobre ellos marca el renglón).
+        const filaHtml = (p) => {
+            const did     = String(p.detailId);
+            const qty     = cantidades[did];
+            const marcado = elegidos.has(did);
+            const dec     = decDe(p);
+            const cat     = porId[String(p.product_id)] || {};
+            const datos   = [cat.categoria && cat.categoria !== 'Sin categoría' ? cat.categoria : '', p.unidad].filter(Boolean).map(esc).join(' &middot; ');
+            return `
+                <tr class="group border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors cursor-pointer" data-row="1"${marcado ? ' style="background:rgba(63,193,137,.08)"' : ''}>
+                    <td class="px-3 py-2 align-middle text-center">${casilla(marcado, `data-elegir="${did}"`)}</td>
+                    <td class="px-3 py-2 align-middle">
+                        <span class="block truncate text-[11px] font-mono text-gray-500" title="${esc(p.sku)}">${esc(p.sku)}</span>
+                    </td>
+                    <td class="px-3 py-2 align-middle">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            ${thumb(Object.assign({ image: p.image }, cat), 'w-8 h-8', 'w-3.5 h-3.5')}
+                            <div class="min-w-0 flex-1">
+                                <p class="text-xs font-semibold truncate leading-tight ${marcado ? 'text-gray-800' : 'text-gray-600'}">${esc(p.nombre)}</p>
+                                ${datos ? `<p class="text-[10px] text-gray-400 truncate mt-0.5">${datos}</p>` : ''}
+                                ${p.nota ? `<p class="text-[10px] text-gray-500 italic leading-tight flex items-start gap-1 mt-0.5"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-2 py-2 align-middle text-center text-xs text-gray-600">${fmtNum(pendiente(p))}</td>
+                    <td class="px-2 py-2 align-middle">${entregaCell(p, marcado)}</td>
+                    <td class="px-2 py-2 align-middle">
+                        <input type="number" data-cantidad="${did}" value="${qty}" min="0" max="${topeDe(p)}" step="${dec ? '0.01' : '1'}" inputmode="${dec ? 'decimal' : 'numeric'}"${marcado ? '' : ' disabled tabindex="-1"'}
+                            class="no-spin w-full px-3 py-2 text-sm font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:pointer-events-none">
+                    </td>
+                    <td class="px-2 py-2 align-middle text-center">${unidadCell(p)}</td>
+                    <td class="px-2 py-2 align-middle text-center"><span data-alcanza="${did}">${alcanzaCell(dispDe(p), qty, dec)}</span></td>
+                </tr>`;
+        };
+
+        // Encabezado como el de Nueva entrada (una sola línea); anchos fijos para que las columnas
+        // no se muevan al marcar, al cambiar de producto ni al capturar.
         const renderRows = () => {
-            const row = productos.map(p => {
-                const did     = String(p.detailId);
-                const qty     = cantidades[did];
-                const disp    = dispDe(p);
-                const dispTxt = disp === null ? '—' : fmtNum(disp);
-                const color   = disp === null ? '#9CA3AF' : (disp >= qty ? '#15803D' : (disp > 0 ? '#C2410C' : '#B91C1C'));
-                const marcado = elegidos.has(did);
-                const unidad  = p.unidad ? ` <span class="text-[10px] font-normal uppercase text-gray-400">${esc(p.unidad)}</span>` : '';
-                return {
-                    id:       did,
-                    elegir:   `<input type="checkbox" data-elegir="${did}" ${marcado ? 'checked' : ''} class="w-3.5 h-3.5 align-middle accent-blue-600 cursor-pointer">`,
-                    producto: `<p class="font-medium text-[11px] truncate ${marcado ? 'text-gray-800' : 'text-gray-600'}">${esc(p.nombre)}</p>${p.sku ? `<p class="text-[10px] text-gray-400 truncate">${esc(p.sku)}</p>` : ''}${p.nota ? `<p class="text-[10px] text-gray-500 italic leading-tight flex items-start gap-1 mt-0.5"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}`,
-                    pedido:   `<span class="text-gray-600">${fmtNum(pendiente(p))}</span>${unidad}`,
-                    disp:     `<span class="font-bold" style="color:${color}">${dispTxt}</span>${disp === null ? '' : unidad}`,
-                    entregar: `<input type="number" data-cantidad="${did}" value="${qty}" min="0" max="${pendiente(p)}" step="0.01" ${marcado ? '' : 'disabled'}
-                                class="no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border-[1px] border-gray-300 rounded focus:border-blue-600 outline-none disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed">`,
-                    alcanza:  `<span data-alcanza>${alcanzaCell(disp, qty)}</span>`
-                };
-            });
-
-            self.createCoffeeTable3({
-                parent:       `${modalId}_table`,
-                id:           tableId,
-                theme:        'light',
-                f_size:       11,
-                class:        'w-full table-fixed text-[11px]',
-                color_th:     'sticky top-0 z-10 bg-white border-b border-gray-200',
-                border_table: '',
-                border_row:   'border-b border-gray-100',
-                center:       [1, 3, 4, 5, 6],
-                emptyMessage: 'Este pedido no tiene productos',
-                emptyIcon:    'icon-cube',
-                data: {
-                    thead: [
-                        `<input type="checkbox" id="${modalId}_todos" class="w-3.5 h-3.5 align-middle accent-blue-600 cursor-pointer" title="Marcar o desmarcar todos">`,
-                        'Producto', 'Pedido', 'Disp.', 'A entregar', '¿Alcanza?'
-                    ],
-                    row
-                }
-            });
-
-            // Anchos fijos: las columnas no se mueven al marcar ni al capturar.
-            const widths = ['6%', '34%', '14%', '14%', '14%', '18%'];
-            $(`#${tableId} thead th`).each((i, th) => $(th).css('width', widths[i] || ''));
-            $(`#${tableId} tbody tr`).each(function () {
-                const marcado = $(this).find('[data-elegir]').prop('checked');
-                $(this).addClass('cursor-pointer').attr('data-row', '1');
-                if (marcado) $(this).find('td').css('background', 'rgba(63,193,137,.08)');
-            });
+            const todos = productos.length > 0 && productos.every(p => elegidos.has(String(p.detailId)));
+            const th    = 'py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold whitespace-nowrap';
+            $(`#${modalId}_table`).html(`
+                <table id="${tableId}" class="w-full border-collapse table-fixed">
+                    <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="w-11 px-3 py-2 text-center">${casilla(todos, `id="${modalId}_todos" title="Marcar o desmarcar todos"`)}</th>
+                            <th class="text-left px-3 ${th} w-24">SKU</th>
+                            <th class="text-left px-3 ${th}">Producto</th>
+                            <th class="text-center px-2 ${th} w-16">Pedido</th>
+                            <th class="text-left px-2 ${th} w-[27%]">Producto a entregar</th>
+                            <th class="text-center px-2 ${th} w-32">Cant. a entregar</th>
+                            <th class="text-center px-2 ${th} w-20">Unidad</th>
+                            <th class="text-center px-2 ${th} w-32">¿Alcanza?</th>
+                        </tr>
+                    </thead>
+                    <tbody>${productos.map(filaHtml).join('') || '<tr><td colspan="8" class="px-3 py-6 text-center text-xs text-gray-400">Este pedido no tiene productos</td></tr>'}</tbody>
+                </table>`);
             if (window.lucide) lucide.createIcons();
         };
 
+        // Abre el selector debajo de "Producto a entregar" (arriba si no cabe). Vive en el panel
+        // del modal, fuera del scroll de la tabla, para que no lo recorte.
+        const $panel  = $modal.children('.relative');
+        const $picker = $(`<div id="${modalId}_picker" class="hidden absolute z-30 bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>`).appendTo($panel);
+
+        // Mismo armado que la lista de Entradas: franja de resultados, lista y pie con atajos.
+        const pintarSelector = () => {
+            const p      = productos.find(x => String(x.detailId) === picker.did);
+            const grupos = gruposSelector(p, picker.term);
+            const total  = gruposSelector(p, '').reduce((n, g) => n + g.items.length, 0);
+            let k = 0;
+            picker.items  = [].concat(...grupos.map(g => g.items));
+            picker.active = picker.term ? 0 : Math.max(0, picker.items.findIndex(x => String(x.id) === entrega[picker.did]));
+
+            const n    = picker.items.length;
+            const head = `
+                <div class="flex items-center justify-between px-3 py-2 bg-blue-50/50 border-b border-gray-200">
+                    <span class="text-[11px] font-semibold text-gray-600 flex items-center gap-1.5 truncate">
+                        <i data-lucide="search" class="w-3 h-3 text-blue-600"></i>${picker.term ? `Resultados para "${esc(picker.term)}"` : `Para entregar en lugar de "${esc(p.nombre)}"`}
+                    </span>
+                    <span class="text-[10px] text-gray-400 flex-shrink-0 ml-2">${n} ${n === 1 ? 'encontrado' : 'encontrados'}</span>
+                </div>`;
+            const body = n
+                ? `<div class="max-h-[340px] overflow-y-auto cs-scroll ef-scroll">${grupos.map(g => tituloSelector(g) + g.items.map(x => resultadoSelector(x, k++)).join('')).join('')}</div>`
+                : `<div class="flex flex-col items-center justify-center py-8 text-center px-2">
+                       <div class="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center mb-2"><i data-lucide="search-x" class="w-5 h-5 text-gray-400"></i></div>
+                       <p class="text-[11px] text-gray-500">Sin productos de su categoría con stock que coincidan</p>
+                   </div>`;
+            const foot = `
+                <div class="flex items-center justify-between px-3 py-1.5 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-400">
+                    <span class="flex items-center gap-1"><span class="ef-kbd">&crarr;</span>elegir<span class="ef-kbd ml-1.5">esc</span>cerrar</span>
+                    <span>Mostrando ${n} de ${total}</span>
+                </div>`;
+
+            $picker.html(head + body + foot);
+            marcarSelector();
+            if (window.lucide) lucide.createIcons();
+        };
+
+        const marcarSelector = () => {
+            const $items = $picker.find('.ef-cat-item').removeClass('ef-active');
+            const $a     = $items.eq(picker.active).addClass('ef-active');
+            if ($a.length) $a[0].scrollIntoView({ block: 'nearest' });
+        };
+
+        // Debajo del campo y al menos de 560 px (arriba si no cabe abajo).
+        const colocarSelector = () => {
+            const $inp = $modal.find(`[data-entrega-input="${picker.did}"]`);
+            if (!$inp.length) return;
+            const panel = $panel[0].getBoundingClientRect();
+            const r     = $inp[0].getBoundingClientRect();
+            const width = Math.min(Math.max(r.width, 560), panel.width - 16);
+            const left  = Math.max(8, Math.min(r.left - panel.left, panel.width - width - 8));
+            $picker.css({ left: left, width: width, top: r.bottom - panel.top + 6, bottom: 'auto' }).removeClass('hidden');
+            if (r.bottom + 6 + $picker.outerHeight() > panel.bottom - 8 && r.top - panel.top > panel.bottom - r.bottom) {
+                $picker.css({ top: 'auto', bottom: panel.bottom - r.top + 6 });
+            }
+        };
+
+        const abrirSelector = (did) => {
+            EntradaForm.prototype.ensureStyles();
+            picker = { did: did, term: '', items: [], active: 0 };
+            pintarSelector();
+            colocarSelector();
+        };
+
+        // Al cerrar sin elegir, el campo vuelve a decir el producto que sale.
+        const cerrarSelector = () => {
+            if (picker) {
+                const p = productos.find(x => String(x.detailId) === picker.did);
+                $modal.find(`[data-entrega-input="${picker.did}"]`).val(entregaDe(p).nombre);
+            }
+            picker = null;
+            $picker.addClass('hidden').empty();
+        };
+
+        // Otro producto a entregar: cambia su disponible, su unidad y su "¿Alcanza?"; si el nuevo
+        // se cuenta en piezas, la cantidad queda entera. Como en Entradas, el foco pasa a la cantidad.
+        const elegirEntrega = (did, id) => {
+            const p = productos.find(x => String(x.detailId) === did);
+            entrega[did] = String(id);
+            if (!decDe(p)) cantidades[did] = Math.floor(cantidades[did]);
+            picker = null;
+            $picker.addClass('hidden').empty();
+            renderRows();
+            updateResumen();
+            $modal.find(`[data-cantidad="${did}"]`).trigger('focus').trigger('select');
+        };
+
         const loadStock = (warehouseId) => {
-            if (!warehouseId) { stockLoaded = false; stockMap = {}; renderRows(); updateResumen(); return; }
+            if (!warehouseId) { stockLoaded = false; stockMap = {}; similares = {}; renderRows(); updateResumen(); return; }
             useFetch({ url: apiOrdenes, data: { opc: 'stockByWarehouse', warehouse_id: warehouseId } }).then(r => {
                 stockMap    = (r && r.status === 200 && r.stock) ? r.stock : {};
                 stockLoaded = true;
+                armarSimilares();
                 renderRows();
                 updateResumen();
             });
@@ -1091,33 +1375,69 @@ class OrdenesView extends Templates {
 
         $(`#${modalId}_rechazar`).on('click', () => self.doRejectOrden(orden, closeModal));
 
-        $modal.on('change', '[data-elegir]', function () {
-            const did = String($(this).attr('data-elegir'));
-            if (this.checked) elegidos.add(did); else elegidos.delete(did);
+        // Clic en cualquier parte del renglón marca o desmarca (menos en sus campos activos).
+        $modal.on('click', 'tbody tr[data-row]', function (ev) {
+            if ($(ev.target).closest('input:not(:disabled)').length) return;
+            const did = String($(this).find('[data-elegir]').attr('data-elegir'));
+            if (elegidos.has(did)) elegidos.delete(did); else elegidos.add(did);
             renderRows();
             updateResumen();
         });
-        // Clic en cualquier parte del renglón marca o desmarca (menos en sus campos).
-        $modal.on('click', 'tbody tr[data-row]', function (ev) {
-            if ($(ev.target).is('input')) return;
-            $(this).find('[data-elegir]').prop('checked', (i, v) => !v).trigger('change');
-        });
-        $modal.on('change', `#${modalId}_todos`, function () {
-            productos.forEach(p => this.checked ? elegidos.add(String(p.detailId)) : elegidos.delete(String(p.detailId)));
+        $modal.on('click', `#${modalId}_todos`, () => {
+            const todos = productos.every(p => elegidos.has(String(p.detailId)));
+            productos.forEach(p => todos ? elegidos.delete(String(p.detailId)) : elegidos.add(String(p.detailId)));
             renderRows();
             updateResumen();
         });
 
-        // "A entregar" va de 0 a lo pedido; recalcula el "¿Alcanza?" del renglón y el resumen.
+        // "Producto a entregar" se busca como en Entradas: al entrar al campo se abre la lista,
+        // al escribir se filtra, flechas y Enter eligen, Escape o salir del campo la cierran.
+        // La lista no le quita el foco al campo (mousedown), así el clic en un producto sí cuenta.
+        $modal.on('focus', '[data-entrega-input]', function () {
+            this.select();
+            abrirSelector(String($(this).attr('data-entrega-input')));
+        });
+        $modal.on('input', '[data-entrega-input]', function () {
+            if (!picker) return;
+            picker.term = this.value;
+            pintarSelector();
+            colocarSelector();
+        });
+        $modal.on('keydown', '[data-entrega-input]', function (ev) {
+            if (!picker) return;
+            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                ev.preventDefault();
+                picker.active = ev.key === 'ArrowDown' ? Math.min(picker.active + 1, picker.items.length - 1) : Math.max(picker.active - 1, 0);
+                marcarSelector();
+            } else if (ev.key === 'Enter') {
+                ev.preventDefault();
+                const x = picker.items[picker.active];
+                if (x) elegirEntrega(picker.did, x.id);
+            } else if (ev.key === 'Escape') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                cerrarSelector();
+                this.blur();
+            }
+        });
+        $modal.on('blur', '[data-entrega-input]', () => cerrarSelector());
+        $picker.on('mousedown', (ev) => ev.preventDefault());
+        $picker.on('click', '[data-entrega-id]', function () {
+            if (picker) elegirEntrega(picker.did, $(this).attr('data-entrega-id'));
+        });
+        $(`#${modalId}_table`).on('scroll', () => { if (picker) colocarSelector(); });
+
+        // "Cant. a entregar" va de 0 a lo pedido, entera salvo litro o gramo; recalcula el
+        // disponible, el "¿Alcanza?" y el resumen.
         $modal.on('input', '[data-cantidad]', function () {
             const did = String($(this).attr('data-cantidad'));
             const p   = productos.find(x => String(x.detailId) === did);
             let qty   = parseFloat($(this).val());
             if (isNaN(qty) || qty < 0) qty = 0;
-            if (qty > pendiente(p)) { qty = pendiente(p); $(this).val(qty); }
+            if (!decDe(p) && qty % 1 !== 0) { qty = Math.floor(qty); $(this).val(qty); }
+            if (qty > topeDe(p)) { qty = topeDe(p); $(this).val(qty); }
             cantidades[did] = qty;
-            $(this).closest('tr').find('[data-alcanza]').html(alcanzaCell(dispDe(p), qty));
-            if (window.lucide) lucide.createIcons();
+            refreshDisp();
             updateResumen();
         });
 
@@ -1126,8 +1446,14 @@ class OrdenesView extends Templates {
         // pendiente; `negativos` = lo que queda en negativo, para decirlo en el aviso final.
         // Regresa true si se guardó.
         const aprobar = async ({ salida = 'auto', reabasto = true, compromiso = '', negativos = [] } = {}) => {
-            const items = {};
-            elegidos.forEach(did => { items[did] = cantidades[did]; });
+            // `subs` = lo marcado que se entrega en lugar de lo pedido.
+            const items = {}, subs = {};
+            productos.forEach(p => {
+                const did = String(p.detailId);
+                if (!elegidos.has(did)) return;
+                items[did] = cantidades[did];
+                if (entrega[did] !== String(p.product_id)) subs[did] = entrega[did];
+            });
             const $btn = $(`#${modalId}_aprobar`).prop('disabled', true).addClass('opacity-60 pointer-events-none');
             const r = await useFetch({
                 url:  apiOrdenes,
@@ -1136,6 +1462,7 @@ class OrdenesView extends Templates {
                     id:            orden.id,
                     vista:         app.vista,
                     items:         JSON.stringify(items),
+                    subs:          JSON.stringify(subs),
                     note:          $(`#${modalId}_note`).val() || '',
                     warehouse_id:  $(`#${modalId}_warehouse_id`).val() || '',
                     expected_date: compromiso,
@@ -1209,10 +1536,14 @@ class OrdenesView extends Templates {
 
             // Sin faltante se pregunta una sola vez; con faltante, cómo darle salida (askExit).
             // El faltante se calcula como en surtir(): lo que se entrega menos lo que hay.
+            // En lo que se cuenta, lo que hay va entero hacia abajo y lo que falta hacia arriba.
             const filas = marcados.map(p => {
-                const qty  = cantidades[String(p.detailId)];
-                const disp = dispDe(p) || 0;
-                return { nombre: p.nombre, sku: p.sku, unidad: p.unidad || '', sup: qty, disp: disp, falta: Math.max(0, qty - disp) };
+                const e     = entregaDe(p);
+                const dec   = decDe(p);
+                const qty   = cantidades[String(p.detailId)];
+                const disp  = dispDe(p) || 0;
+                const falta = Math.max(0, qty - disp);
+                return { nombre: e.nombre, sku: e.sku, unidad: e.unidad || '', sup: qty, disp: dec ? disp : Math.floor(disp), falta: dec ? falta : Math.ceil(falta) };
             });
             const quitados = productos.length - marcados.length;
             const ctx      = {
@@ -2043,18 +2374,21 @@ class OrdenesView extends Templates {
 
         const renderRows = () => {
             $(`#${modalId}_tbody`).html(productos.map(p => {
+                // Lo que sale del almacén: lo que se eligió entregar al aprobar o lo pedido.
+                const pid       = p.delivered_id || String(p.product_id);
                 const pendiente = Math.max(0, p.quantity_ordered - p.quantity_received);
-                const disp      = stockLoaded ? (stockMap[String(p.product_id)] || 0) : null;
+                const disp      = stockLoaded ? (stockMap[pid] || 0) : null;
                 const dispTxt   = disp === null ? '—' : fmtNum(disp);
                 const aSurtir   = pendiente; // se propone surtir todo lo pendiente (agiliza la salida)
                 const repInit   = disp === null ? 0 : Math.max(0, aSurtir - disp); // faltante -> reabasto
                 const completo  = pendiente <= 0;
                 const dispColor = (disp !== null && disp < pendiente) ? '#F97316' : '#3FC189';
                 return `
-                    <tr data-detail-id="${p.detailId}" data-product-id="${p.product_id}" data-pending="${pendiente}">
+                    <tr data-detail-id="${p.detailId}" data-product-id="${pid}" data-pending="${pendiente}">
                         <td class="px-3 py-2">
-                            <p class="font-medium text-gray-700 text-xs">${esc(p.nombre)}</p>
-                            ${p.sku ? `<p class="text-[10px] text-gray-400">${esc(p.sku)}</p>` : ''}
+                            <p class="font-medium text-gray-700 text-xs">${esc(p.delivered_nombre || p.nombre)}</p>
+                            ${(p.delivered_id ? p.delivered_sku : p.sku) ? `<p class="text-[10px] text-gray-400">${esc(p.delivered_id ? p.delivered_sku : p.sku)}</p>` : ''}
+                            ${p.delivered_id ? `<p class="text-[10px] text-gray-400">En lugar de ${esc(p.nombre)}</p>` : ''}
                         </td>
                         <td class="px-3 py-2 text-center text-xs text-gray-600">${fmtNum(p.quantity_ordered)}</td>
                         <td class="px-3 py-2 text-center text-xs font-semibold" style="color:${p.quantity_received > 0 ? '#3FC189' : '#9CA3AF'}">${fmtNum(p.quantity_received)}</td>
@@ -2149,7 +2483,7 @@ class OrdenesView extends Templates {
                 if (!isNaN(rep) && rep > 0) replenish[did] = rep;
                 if (!isNaN(sup) && sup > 0) {
                     const p = productos.find(x => String(x.detailId) === String(did)) || {};
-                    filas.push({ nombre: p.nombre, sku: p.sku, sup: sup, rep: isNaN(rep) ? 0 : rep, disp: stockLoaded ? (stockMap[pid] || 0) : 0 });
+                    filas.push({ nombre: p.delivered_nombre || p.nombre, sku: p.delivered_id ? p.delivered_sku : p.sku, sup: sup, rep: isNaN(rep) ? 0 : rep, disp: stockLoaded ? (stockMap[pid] || 0) : 0 });
                 }
             });
             if (!Object.keys(items).length) {
@@ -2378,6 +2712,7 @@ class OrdenesView extends Templates {
                 <tr class="border-b border-gray-100 last:border-b-0 align-top">
                     <td class="!py-1 !pl-2 !pr-2">
                         <p class="text-[11px] font-medium text-gray-700 leading-tight">${esc(p.nombre)}${p.sku ? ` <span class="text-[10px] font-normal text-gray-400">${esc(p.sku)}</span>` : ''}</p>
+                        ${p.delivered_id ? `<p class="text-[10px] text-gray-500 leading-tight flex items-start gap-1 mt-0.5"><i data-lucide="repeat" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>Se entregó: <b class="font-semibold text-gray-700">${esc(p.delivered_nombre)}</b>${p.delivered_unidad ? ` (${esc(p.delivered_unidad)})` : ''}</span></p>` : ''}
                         ${recibido > 0 ? `<p class="text-[10px] font-bold" style="color:#3FC189">${fmtNum(recibido)} recibido</p>` : ''}
                         ${p.nota ? `<p class="text-[10px] text-gray-500 italic flex items-start gap-1 mt-0.5"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}
                     </td>

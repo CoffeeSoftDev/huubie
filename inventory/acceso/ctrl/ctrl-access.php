@@ -616,6 +616,7 @@ class Access extends MAccess {
                 'accent'    => $t['accent'],
                 'primary'   => $t['primary_color'],
                 'secondary' => $t['secondary_color'],
+                'sidebar'   => $t['sidebar_color'] ?: '',
                 'scheme'    => $t['scheme'],
                 'mode'      => $t['mode'],
                 'badge'     => $t['badge'] ?: '',

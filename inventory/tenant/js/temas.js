@@ -1,8 +1,8 @@
 // -- Themes --
 
 // Temas del navbar, como la sección "Personalización" de erp-pro/pro/app/dev.
-// Un tema pinta la barra superior, el acento y el primario, y elige el fondo
-// de la página: el gris claro de siempre o uno de los dos oscuros.
+// Un tema pinta la navbar, la sidebar (opcional), el acento y el primario, y
+// elige el fondo de la página: el gris claro de siempre o uno de los oscuros.
 class Themes extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
@@ -59,7 +59,7 @@ class Themes extends Templates {
                 id: `tb${this.PROJECT_NAME}`,
                 theme: 'light',
                 striped: true,
-                center: [3, 6, 7, 8],
+                center: [6, 7, 8],
                 right: []
             }
         });
@@ -184,23 +184,38 @@ class Themes extends Templates {
             {
                 opc: 'select',
                 id: 'tipo',
-                lbl: '¿Cómo es el fondo?',
+                lbl: 'Navbar: ¿cómo es el fondo?',
                 data: this.options.tipos || [],
                 class: 'col-12 col-md-6 mb-3'
             },
             {
                 opc: 'select',
                 id: 'mode',
-                lbl: 'Color del texto',
+                lbl: 'Navbar: color del texto',
                 data: this.options.modes || [],
                 class: 'col-12 col-md-6 mb-3'
             },
             {
                 opc: 'input',
                 id: 'color',
-                lbl: 'Color de fondo',
+                lbl: 'Navbar: color de fondo',
                 value: '#FFFFFF',
                 placeholder: '#0F2740',
+                class: 'col-12 col-md-6 mb-3'
+            },
+            {
+                opc: 'input',
+                id: 'sidebar_color',
+                lbl: 'Sidebar: color de fondo',
+                placeholder: 'Vacío = como la página',
+                required: false,
+                class: 'col-12 col-md-6 mb-3'
+            },
+            {
+                opc: 'select',
+                id: 'scheme',
+                lbl: 'Fondo de la página',
+                data: this.options.schemes || [],
                 class: 'col-12 col-md-6 mb-3'
             },
             {
@@ -210,13 +225,6 @@ class Themes extends Templates {
                 placeholder: 'NUEVO',
                 required: false,
                 class: 'col-12 col-md-6 mb-3'
-            },
-            {
-                opc: 'select',
-                id: 'scheme',
-                lbl: 'Fondo de la página',
-                data: this.options.schemes || [],
-                class: 'col-12 mb-3'
             },
             {
                 opc: 'input',
@@ -248,8 +256,9 @@ class Themes extends Templates {
     // -- Vista previa --
 
     // Selector de color nativo junto a cada hexadecimal y una muestra que se
-    // repinta con cada cambio: la barra, y debajo una pestaña con el acento y
-    // un botón con el primario, que es lo que de verdad se juzga.
+    // repinta con cada cambio: la barra, y debajo la sidebar junto a una
+    // pestaña con el acento y un botón con el primario, que es lo que de verdad
+    // se juzga.
     // El primario y el secundario SIGUEN al acento mientras sean iguales; si
     // se cambian a mano, se sueltan (así Claro conserva su grafito y Huubie su
     // morado aunque se toque el acento).
@@ -259,6 +268,7 @@ class Themes extends Templates {
         const $accent    = $form.find('[name="accent"]');
         const $primary   = $form.find('[name="primary_color"]');
         const $secondary = $form.find('[name="secondary_color"]');
+        const $sidebar   = $form.find('[name="sidebar_color"]');
         const $tipo    = $form.find('[name="tipo"]');
         const $mode    = $form.find('[name="mode"]');
         const $scheme  = $form.find('[name="scheme"]');
@@ -269,6 +279,14 @@ class Themes extends Templates {
             huubie: '#111928',
             midnight: '#0B1420',
             rose: '#1A1216'
+        };
+
+        // La sidebar sin color propio: blanca en la clara, --dk-chrome en las oscuras (themes.css).
+        const rails = {
+            light: '#FFFFFF',
+            huubie: '#141D2B',
+            midnight: '#101B29',
+            rose: '#1E1519'
         };
 
         let linked    = this.hexOf($accent.val(), '') === this.hexOf($primary.val(), '');
@@ -286,16 +304,27 @@ class Themes extends Templates {
 
         const $tab    = $('<span>', { class: 'text-[12px] font-semibold px-3 py-1.5 rounded-lg', text: 'Pestaña activa' });
         const $button = $('<span>', { class: 'text-[12px] font-semibold px-4 py-1.5 rounded-lg text-white', text: 'Botón primario' });
-        const $page   = $('<div>', { class: 'mt-2 rounded-lg border border-gray-200 px-4 py-3 flex items-center justify-between' })
+        const $page   = $('<div>', { class: 'flex-1 px-4 py-3 flex items-center justify-between gap-2' })
             .append($tab, $button);
+
+        // El primero va como activo, igual que la página donde se está. El borde va
+        // en línea: el .border de Bootstrap trae !important y no dejaría cambiarle el color.
+        const $railItems = ['house', 'package', 'settings'].map((icon) =>
+            $('<span>', { class: 'w-8 h-8 rounded-lg flex items-center justify-center', style: 'border:1px solid transparent' })
+                .append($('<i>', { 'data-lucide': icon, class: 'w-4 h-4' }))
+        );
+        const $rail  = $('<div>', { class: 'w-12 shrink-0 py-2 border-r flex flex-col items-center gap-1.5' }).append($railItems);
+        const $frame = $('<div>', { class: 'mt-2 rounded-lg border border-gray-200 overflow-hidden flex' }).append($rail, $page);
 
         $form.append(
             $('<div>', { class: 'col-span-12 mb-2' }).append(
                 $('<label>', { class: 'form-label fw-semibold', text: 'Así se verá' }),
                 $bar,
-                $page
+                $frame
             )
         );
+
+        if (window.lucide) lucide.createIcons();
 
         const paint = () => {
             const color   = this.hexOf($hex.val(), '#FFFFFF');
@@ -329,10 +358,38 @@ class Themes extends Templates {
 
             $tab.css({ color: accent, background: `${accent}1A` });
             $button.css({ background: primary });
-            $page.css({ background: pages[$scheme.val()] || pages.light });
+            $frame.css({ background: pages[$scheme.val()] || pages.light });
+
+            paintRail(accent);
+        };
+
+        // Mismos tonos que themes.css (data-sidebar) y sidebar.css (rail de la página).
+        const paintRail = (accent) => {
+            const own    = this.hexOf($sidebar.val(), '');
+            const scheme = rails[$scheme.val()] ? $scheme.val() : 'light';
+            const tone   = own
+                ? (window.InventoryPalette ? InventoryPalette.sidebarTone(own) : 'white')
+                : (scheme === 'light' ? 'white' : 'page');
+            const tones  = {
+                white:  { ink: '#6B7280', line: '#E5E7EB', on: { color: accent, background: `${accent}1A`, borderColor: `${accent}1F` } },
+                page:   { ink: '#9CA3AF', line: 'rgba(255,255,255,.08)', on: { color: accent, background: `${accent}2E`, borderColor: `${accent}38` } },
+                tinted: { ink: 'rgba(17,24,39,.62)', line: 'rgba(0,0,0,.10)', on: { color: '#111827', background: 'rgba(255,255,255,.70)', borderColor: 'rgba(255,255,255,.85)' } },
+                dark:   { ink: 'rgba(255,255,255,.68)', line: 'rgba(0,0,0,.10)', on: { color: '#FFFFFF', background: 'rgba(255,255,255,.16)', borderColor: 'rgba(255,255,255,.20)' } }
+            };
+            const t      = tones[tone] || tones.white;
+            const bg     = own || rails[scheme];
+
+            $rail.css({ background: bg, borderRightColor: t.line });
+            $railItems.forEach(($item, i) => {
+                $item.css(i === 0 ? t.on : { color: t.ink, background: 'transparent', borderColor: 'transparent' });
+            });
+
+            // Vacío, el selector muestra el color que se está viendo (no el negro del navegador).
+            if (!own) $sidebarPicker.val(bg);
         };
 
         this.mountColorPicker($hex, paint);
+        const $sidebarPicker = this.mountColorPicker($sidebar, paint);
         this.mountColorPicker($primary, () => {
             linked = this.hexOf($accent.val(), '') === this.hexOf($primary.val(), '');
             paint();
@@ -355,7 +412,7 @@ class Themes extends Templates {
             refresh: () => {
                 linked    = this.hexOf($accent.val(), '') === this.hexOf($primary.val(), '');
                 linkedSec = this.hexOf($accent.val(), '') === this.hexOf($secondary.val(), '');
-                $hex.add($accent).add($primary).add($secondary).trigger('sync');
+                $hex.add($accent).add($primary).add($secondary).add($sidebar).trigger('sync');
                 paint();
             }
         });
@@ -366,6 +423,7 @@ class Themes extends Templates {
     // Pone un <input type="color"> chico DENTRO del campo hexadecimal, a la
     // izquierda, y los mantiene iguales en los dos sentidos. El evento 'sync'
     // repinta solo el recuadro cuando otro campo le cambia el valor por código.
+    // Devuelve el selector (la sidebar lo ajusta cuando su campo va vacío).
     mountColorPicker($hex, onChange) {
         const $picker = $('<input>', {
             type: 'color',
@@ -398,6 +456,8 @@ class Themes extends Templates {
         $hex.on('sync', syncPicker);
 
         syncPicker();
+
+        return $picker;
     }
 
     // #RGB se expande a #RRGGBB: el <input type="color"> solo acepta el largo.
@@ -472,7 +532,8 @@ class ThemeAssistant extends Templates {
                 suggestions: [
                     'Cafetería artesanal: café tostado y verde olivo',
                     'Navidad: rojo y dorado con la barra oscura',
-                    'Tecnología: azul eléctrico y la página oscura'
+                    'Tecnología: azul eléctrico y la página oscura',
+                    'Navbar y sidebar azul marino con la página clara'
                 ],
                 labels: {
                     attach:       'Adjuntar el logo',
@@ -481,7 +542,8 @@ class ThemeAssistant extends Templates {
                 },
                 actions: {
                     tema:    { label: 'Tema',    tone: 'bg-gray-100 text-gray-700' },
-                    barra:   { label: 'Barra',   tone: 'bg-sky-100 text-sky-700' },
+                    barra:   { label: 'Navbar',  tone: 'bg-sky-100 text-sky-700' },
+                    sidebar: { label: 'Sidebar', tone: 'bg-emerald-100 text-emerald-700' },
                     colores: { label: 'Colores', tone: 'bg-violet-100 text-violet-700' },
                     pagina:  { label: 'Página',  tone: 'bg-amber-100 text-amber-700' }
                 },
@@ -625,7 +687,7 @@ class ThemeAssistant extends Templates {
 
     // Pasa al formulario lo marcado en la vista previa. Guardar es del Aceptar.
     applyTheme(token, ids) {
-        const fields = ['name', 'color', 'mode', 'scheme', 'accent', 'primary_color', 'secondary_color'];
+        const fields = ['name', 'color', 'mode', 'sidebar_color', 'scheme', 'accent', 'primary_color', 'secondary_color'];
         const $form  = $(`#${this.formId}`);
         const rows   = (this.proposals[token] || []).filter((r) => r.valid && ids.includes(r.idx) && fields.includes(r.field));
 
@@ -648,7 +710,7 @@ class ThemeAssistant extends Templates {
         const $form = $(`#${this.formId}`);
         const v     = {};
 
-        ['name', 'tipo', 'color', 'mode', 'scheme', 'accent', 'primary_color', 'secondary_color'].forEach((k) => {
+        ['name', 'tipo', 'color', 'mode', 'sidebar_color', 'scheme', 'accent', 'primary_color', 'secondary_color'].forEach((k) => {
             v[k] = $form.find(`[name="${k}"]`).val() || '';
         });
 

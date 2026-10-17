@@ -207,3 +207,60 @@ body { background-color: var(--bg); }
     background: rgb(var(--brand-600, 192 90 64) / .10);
     border-color: rgb(var(--brand-600, 192 90 64) / .12);
 }
+
+
+/* ============================================================
+   SIDEBAR CON COLOR PROPIO (themes.sidebar_color)
+   ============================================================
+   InventoryPalette pone --sidebar-bg y data-sidebar en <html>; sin color
+   propio no hay atributo y el rail sigue a la página. `html … body` y el
+   !important del fondo le ganan al bg-white de cada página y a
+   body.dark-mode #menu-sidebar (dark-mode.css carga después de esta hoja).
+     white  -> casi blanco: los íconos grises de la página clara.
+     tinted -> claro con color (rosa, menta): tinta oscura y velo blanco.
+     dark   -> oscuro: íconos claros y velo blanco, como .nav-dark. */
+
+html[data-sidebar] body #menu-sidebar {
+    background-color: var(--sidebar-bg) !important;
+}
+
+html[data-sidebar="dark"] body #menu-sidebar,
+html[data-sidebar="tinted"] body #menu-sidebar {
+    border-right-color: rgb(0 0 0 / .10) !important;
+}
+
+html[data-sidebar="white"] body .menu-rail-item { color: #6B7280; }
+html[data-sidebar="white"] body .menu-rail-item:hover {
+    color: #111827;
+    background: #F3F4F6;
+    border-color: #E5E7EB;
+}
+html[data-sidebar="white"] body .menu-rail-item.is-active {
+    color: rgb(var(--brand-600, 192 90 64));
+    background: rgb(var(--brand-600, 192 90 64) / .10);
+    border-color: rgb(var(--brand-600, 192 90 64) / .12);
+}
+
+html[data-sidebar="tinted"] body .menu-rail-item { color: rgb(17 24 39 / .62); }
+html[data-sidebar="tinted"] body .menu-rail-item:hover {
+    color: #111827;
+    background: rgb(255 255 255 / .40);
+    border-color: rgb(255 255 255 / .55);
+}
+html[data-sidebar="tinted"] body .menu-rail-item.is-active {
+    color: #111827;
+    background: rgb(255 255 255 / .70);
+    border-color: rgb(255 255 255 / .85);
+}
+
+html[data-sidebar="dark"] body .menu-rail-item { color: rgb(255 255 255 / .68); }
+html[data-sidebar="dark"] body .menu-rail-item:hover {
+    color: #FFFFFF;
+    background: rgb(255 255 255 / .08);
+    border-color: rgb(255 255 255 / .10);
+}
+html[data-sidebar="dark"] body .menu-rail-item.is-active {
+    color: #FFFFFF;
+    background: rgb(255 255 255 / .16);
+    border-color: rgb(255 255 255 / .20);
+}

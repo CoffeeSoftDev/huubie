@@ -14,6 +14,10 @@
  * Las hojas escritas a mano leen lo mismo desde colors.css (--primary,
  * --secondary, --info...), que cuelgan de estas variables.
  *
+ * Opcional, `sidebar` (sidebar_color): el fondo del rail lateral. Pone
+ * --sidebar-bg y data-sidebar="white|tinted|dark" en <html>, según la luz del
+ * color, y themes.css acomoda los íconos. Sin él, el rail sigue a la página.
+ *
  * Y un `scheme` para el fondo de la página:
  *   light              -> el gris de siempre (#F3F4F6). Los temas claros nunca
  *                         lo cambian.
@@ -181,6 +185,32 @@
         } catch (e) { /* modo privado */ }
     }
 
+    // Casi blanco (todos los canales arriba de 235, como isTintedBar() de
+    // navbar.js) lleva los íconos grises de siempre; con color claro, tinta
+    // oscura translúcida; con fondo oscuro, íconos claros.
+    // La vista previa del editor de temas (tenant/js/temas.js) usa la misma regla.
+    function sidebarTone(hex) {
+        var c = channels(hex);
+        if (!c) return '';
+        if (c.every(function (v) { return v >= 235; })) return 'white';
+
+        return luma(c) < 0.5 ? 'dark' : 'tinted';
+    }
+
+    function applySidebar(hex) {
+        var html = document.documentElement;
+        var tone = sidebarTone(hex);
+
+        if (!tone) {
+            html.removeAttribute('data-sidebar');
+            html.style.removeProperty('--sidebar-bg');
+            return;
+        }
+
+        html.style.setProperty('--sidebar-bg', 'rgb(' + str(channels(hex)) + ')');
+        html.setAttribute('data-sidebar', tone);
+    }
+
     // Se escribe en el style de <html>: gana a los :root de las hojas y lo
     // heredan todas, incluidas las que cuelgan de colors.css.
     function apply(palette) {
@@ -190,6 +220,7 @@
         var scheme = SCHEMES.indexOf(palette && palette.scheme) > -1 ? palette.scheme : 'light';
 
         applyScheme(scheme);
+        applySidebar(palette && palette.sidebar);
 
         var secondary = palette && channels(palette.secondary) ? palette.secondary : palette && palette.accent;
 
@@ -223,7 +254,7 @@
 
     function save(palette) {
         try {
-            localStorage.setItem(KEY, JSON.stringify({ accent: palette.accent, primary: palette.primary, secondary: palette.secondary || palette.accent, scheme: palette.scheme || 'light' }));
+            localStorage.setItem(KEY, JSON.stringify({ accent: palette.accent, primary: palette.primary, secondary: palette.secondary || palette.accent, sidebar: palette.sidebar || '', scheme: palette.scheme || 'light' }));
         } catch (e) { /* modo privado: se aplica pero no se recuerda */ }
     }
 
@@ -319,6 +350,7 @@
 
     window.InventoryPalette = {
         ramp: ramp,
+        sidebarTone: sidebarTone,
         apply: apply,
         save: save,
         loader: { show: showLoader, hide: hideLoader, carry: carryLoader }

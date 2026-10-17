@@ -9,13 +9,15 @@ class Navbar {
          - el PRIMARIO (hex): los botones principales.
          - el SECUNDARIO (hex): los detalles de esta barra (sucursal,
            selección, checks), el foco y el hover de las cards.
+         - la SIDEBAR (hex, opcional): el fondo del rail lateral; vacío,
+           sigue a la página.
        Los colores los pinta en toda la página window.InventoryPalette
        (src/js/tailwind-theme.js). El fondo de la página no cambia nunca:
        siempre gris. El catálogo vive en `fayxzvov_erp.themes` y se administra
        en tenant/ (Personalización). Este fallback solo entra si la petición
        falla. */
     static get THEME_FALLBACK() {
-        return { code: 'light', name: 'Claro', tipo: 'color', color: '#FFFFFF', image: '', accent: '#C05A40', primary: '#292524', secondary: '#C05A40', scheme: 'light', mode: 'light', badge: '' };
+        return { code: 'light', name: 'Claro', tipo: 'color', color: '#FFFFFF', image: '', accent: '#C05A40', primary: '#292524', secondary: '#C05A40', sidebar: '', scheme: 'light', mode: 'light', badge: '' };
     }
 
     /* El velo de los temas con imagen: la capa translúcida entre la foto y el
@@ -356,6 +358,8 @@ class Navbar {
             .nav-swatch-acc, .nav-swatch-pri { position:absolute; bottom:4px; height:5px; border-radius:3px; }
             .nav-swatch-acc { left:4px; width:12px; }
             .nav-swatch-pri { right:4px; width:7px; }
+            .nav-swatch-side { position:absolute; left:0; top:7px; bottom:0; width:6px; }
+            .nav-color-swatch.has-side .nav-swatch-acc { left:9px; width:9px; }
             .nav-color-name { font-size:13px; font-weight:600; color:#111827; flex:1; }
             .nav-color-badge { font-size:8.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:2px 6px; border-radius:9999px; background:#7AAB20; color:#FFFFFF; flex-shrink:0; }
             .nav-color-check { color:var(--nav-accent); opacity:0; flex-shrink:0; }
@@ -659,6 +663,11 @@ class Navbar {
         return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(theme.color || '') ? theme.color : Navbar.THEME_FALLBACK.color;
     }
 
+    // Sin color propio, cadena vacía: el rail sigue a la página.
+    themeSidebar(theme) {
+        return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(theme.sidebar || '') ? theme.sidebar : '';
+    }
+
     // Barra con color (no blanca): con texto oscuro lleva .nav-tinted. Casi blanco
     // (todos los canales arriba de 235, como el #F5F5F5 de Pulpos) cuenta como blanca.
     isTintedBar(color) {
@@ -692,14 +701,16 @@ class Navbar {
             const image = this.themeImage(t);
             const color = this.themeColor(t);
             const page  = Navbar.SCHEME_PAGE[t.scheme] || Navbar.SCHEME_PAGE.light;
+            const side  = this.themeSidebar(t);
             const bar   = image
                 ? `background:url('${image}') center/cover no-repeat, ${color};`
                 : `background:${color};`;
 
             return `
             <div class="nav-color-opt ${t.code === this.settings.theme ? 'is-active' : ''}" data-code="${this.escapeText(t.code)}">
-                <span class="nav-color-swatch" style="background:${page};">
+                <span class="nav-color-swatch ${side ? 'has-side' : ''}" style="background:${page};">
                     <span class="nav-swatch-bar" style="${bar}"></span>
+                    ${side ? `<span class="nav-swatch-side" style="background:${side};"></span>` : ''}
                     <span class="nav-swatch-acc" style="background:${this.themeAccent(t)};"></span>
                     <span class="nav-swatch-pri" style="background:${this.themePrimary(t)};"></span>
                 </span>
@@ -725,7 +736,7 @@ class Navbar {
         const theme   = this.themeByCode(code) || Navbar.THEME_FALLBACK;
         const dark    = theme.mode === 'dark';
         const image   = this.themeImage(theme);
-        const palette = { accent: this.themeAccent(theme), primary: this.themePrimary(theme), secondary: this.themeSecondary(theme), scheme: theme.scheme || 'light' };
+        const palette = { accent: this.themeAccent(theme), primary: this.themePrimary(theme), secondary: this.themeSecondary(theme), sidebar: this.themeSidebar(theme), scheme: theme.scheme || 'light' };
         const $nav    = this.parent.find(".navbar-main");
         const nav     = $nav[0];
 
