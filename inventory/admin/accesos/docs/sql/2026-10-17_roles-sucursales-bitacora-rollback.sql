@@ -9,7 +9,7 @@
 --
 --     mysqldump -u root fayxzvov_erp audit_log > audit_log.sql
 --
--- También quita teléfono, correo y responsable de las sucursales, la
+-- También quita teléfono, correo, responsable y orden de las sucursales, la
 -- descripción de los roles, y la acción "Eliminar" de Configuración >
 -- Accesos (a todos los roles que la tengan). Si se regresa la BD hay que
 -- regresar también admin/accesos, conf/_Auditoria.php y los ctrl que la usan.
@@ -17,6 +17,11 @@
 -- =====================================================================
 
 DROP TABLE IF EXISTS fayxzvov_erp.audit_log;
+
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+               WHERE TABLE_SCHEMA = 'fayxzvov_erp' AND TABLE_NAME = 'branches' AND COLUMN_NAME = 'order') = 0, 'DO 0',
+              'ALTER TABLE fayxzvov_erp.branches DROP COLUMN `order`');
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;
 
 SET @sql = IF((SELECT COUNT(*) FROM information_schema.COLUMNS
                WHERE TABLE_SCHEMA = 'fayxzvov_erp' AND TABLE_NAME = 'branches' AND COLUMN_NAME = 'manager_id') = 0, 'DO 0',

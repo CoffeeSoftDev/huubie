@@ -14,7 +14,10 @@
 --      elemento) y `user_name` (quién lo hizo) son copias. `detail` (JSON)
 --      lleva el antes y el después. Mismo diseño que la bitácora del
 --      facturador (app/facture/sql/migra-23-bitacora-de-auditoria.sql).
---   2. branches: teléfono, correo y responsable (users.id) de la sucursal.
+--      `is_superadmin` marca lo que hizo un Super Admin: solo otro Super Admin
+--      lo ve en Configuración.
+--   2. branches: teléfono, correo y responsable (users.id) de la sucursal, y
+--      `order` (orden en el selector de sucursales de la navbar).
 --   3. roles: descripción del rol (la tarjeta del rol en Configuración).
 --   4. La acción "Eliminar" en Configuración > Accesos (borrar roles), y se
 --      le da al rol Dueño. Hasta hoy la sección solo tenía Ver, Agregar,
@@ -41,6 +44,7 @@ CREATE TABLE IF NOT EXISTS fayxzvov_erp.audit_log (
     detail      JSON         NULL     COMMENT 'antes y después, o el resumen de la acción',
     user_id     INT(11)      NULL     COMMENT 'quién lo hizo (users.id) · sin FK',
     user_name   VARCHAR(100) NULL     COMMENT 'copia del nombre',
+    is_superadmin TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'quien lo hizo era Super Admin: solo otro Super Admin lo ve',
     company_id  INT(11)      NULL,
     branch_id   INT(11)      NULL,
     ip          VARCHAR(45)  NULL,
@@ -49,6 +53,24 @@ CREATE TABLE IF NOT EXISTS fayxzvov_erp.audit_log (
     KEY idx_audit_entidad       (entity, entity_id),
     KEY idx_audit_usuario       (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Lo del Super Admin se marca al escribir el renglón, no al leerlo: si después
+-- le quitan el rol, lo que hizo siendo Super Admin sigue oculto. Una bitácora
+-- creada antes de esta columna la recibe aquí y, por única vez, se marca lo que
+-- ya hicieron quienes hoy son Super Admin.
+
+SET @falta = (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
+               WHERE TABLE_SCHEMA = 'fayxzvov_erp' AND TABLE_NAME = 'audit_log' AND COLUMN_NAME = 'is_superadmin');
+
+SET @sql = IF(@falta,
+              'ALTER TABLE fayxzvov_erp.audit_log ADD COLUMN is_superadmin TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''quien lo hizo era Super Admin: solo otro Super Admin lo ve'' AFTER user_name',
+              'DO 0');
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;
+
+SET @sql = IF(@falta,
+              'UPDATE fayxzvov_erp.audit_log a SET a.is_superadmin = 1 WHERE EXISTS (SELECT 1 FROM fayxzvov_erp.users_braches ub JOIN fayxzvov_erp.roles r ON r.id = ub.role_id AND r.is_active = 1 WHERE ub.user_id = a.user_id AND r.code = ''superadmin'')',
+              'DO 0');
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;
 
 -- -- 2. Datos de sucursal -----------------------------------------------
 
@@ -65,6 +87,12 @@ PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;
 SET @sql = IF((SELECT COUNT(*) FROM information_schema.COLUMNS
                WHERE TABLE_SCHEMA = 'fayxzvov_erp' AND TABLE_NAME = 'branches' AND COLUMN_NAME = 'manager_id') > 0, 'DO 0',
               'ALTER TABLE fayxzvov_erp.branches ADD COLUMN manager_id INT(11) NULL DEFAULT NULL COMMENT ''responsable (users.id)'' AFTER email');
+PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;
+
+-- Orden de las sucursales en el selector de la navbar (sin orden, al final).
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+               WHERE TABLE_SCHEMA = 'fayxzvov_erp' AND TABLE_NAME = 'branches' AND COLUMN_NAME = 'order') > 0, 'DO 0',
+              'ALTER TABLE fayxzvov_erp.branches ADD COLUMN `order` INT(11) NULL DEFAULT NULL COMMENT ''orden en la navbar'' AFTER manager_id');
 PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;
 
 -- -- 3. Descripción del rol ---------------------------------------------

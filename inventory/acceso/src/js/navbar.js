@@ -91,8 +91,8 @@ class Navbar {
                     <button id="btn-mobile-menu" class="lg:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Menú">
                         <i data-lucide="menu" class="w-6 h-6"></i>
                     </button>
-                    <span class="nav-brand-logo" title="CoffeeSoft">${Navbar.LOGO_SVG}</span>
-                    <div class="nav-brand-text flex flex-col leading-tight">
+                    <a class="nav-brand-logo" href="${this.homeUrl()}" title="Ir al inicio" aria-label="Ir al inicio">${Navbar.LOGO_SVG}</a>
+                    <div class="flex flex-col leading-tight">
                         <span class="navbar-title">CoffeeSoft</span>
                         <span class="navbar-subtitle">${this.settings.negocio || this.settings.company}</span>
                     </div>
@@ -115,9 +115,28 @@ class Navbar {
                         <i data-lucide="building" class="w-[18px] h-[18px]"></i>
                     </button>` : ''}
 
-                    <button id="btnModulos" class="nav-theme-toggle nav-hide-compact" title="Módulos">
+                    <!-- Oculto: el logo ya lleva a Módulos. -->
+                    <button id="btnModulos" class="nav-theme-toggle" title="Módulos" style="display:none;">
                         <i data-lucide="layout-grid" class="w-[18px] h-[18px]"></i>
                     </button>
+
+                    <!-- Calendario y notificaciones, como la barra de corporativogv.
+                         El contenido de cada panel lo pinta renderCalendar() /
+                         renderNotifs() al abrirlo. -->
+                    <div class="relative">
+                        <button id="btnCalendar" class="nav-theme-toggle" title="Mi calendario" aria-expanded="false">
+                            <i data-lucide="calendar-days" class="w-[18px] h-[18px]"></i>
+                        </button>
+                        <div id="navCalendarPanel" class="nav-panel hidden"></div>
+                    </div>
+
+                    <div class="relative">
+                        <button id="btnNotifs" class="nav-theme-toggle relative" title="Notificaciones" aria-expanded="false">
+                            <i data-lucide="bell" class="w-[18px] h-[18px]"></i>
+                            <span id="navNotifCount" class="nav-count hidden">0</span>
+                        </button>
+                        <div id="navNotifPanel" class="nav-panel hidden"></div>
+                    </div>
 
                     <button id="btnUserMenu" class="nav-user-pill flex items-center gap-2.5">
                         <div class="nav-avatar" style="${avatarStyle}">${avatarHtml}</div>
@@ -267,7 +286,11 @@ class Navbar {
 
             .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,var(--nav-accent) 0%,var(--nav-accent-soft) 100%); display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 4px 12px var(--nav-accent-glow); flex-shrink:0; }
             .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
-            .nav-brand-logo { display:flex; width:30px; height:30px; flex:none; color:#111827; }
+            /* El logo lleva al inicio (los módulos). Es un <a>: el color se fija
+               también en :hover, si no el a:hover de Bootstrap lo pinta de link. */
+            .nav-brand-logo { display:flex; width:30px; height:30px; flex:none; color:#111827; border-radius:8px; cursor:pointer; transition:opacity .15s ease; }
+            .nav-brand-logo:hover { color:#111827; opacity:.7; }
+            .nav-brand-logo:focus-visible { outline:2px solid var(--nav-accent); outline-offset:3px; }
             .nav-brand-logo svg { width:100%; height:100%; }
             .navbar-subtitle { font-size:10px; color:#9CA3AF; letter-spacing:.12em; text-transform:uppercase; }
 
@@ -359,6 +382,36 @@ class Navbar {
             .nav-color-opt.is-active .nav-color-check { opacity:1; }
             .nav-color-opt.is-active { background:var(--nav-accent-tint); }
 
+            /* ── Calendario y notificaciones (como la barra de corporativogv) ──
+               .nav-panel no declara display: así .hidden (display:none) no
+               compite con él por especificidad. */
+            .nav-count { position:absolute; top:2px; right:2px; min-width:17px; height:17px; padding:0 4px; border-radius:9999px; background:var(--nav-accent); color:#FFFFFF; font-size:10px; font-weight:700; line-height:17px; text-align:center; box-shadow:0 0 0 2px #FFFFFF; }
+            .nav-panel { position:absolute; right:0; top:calc(100% + 10px); width:300px; max-width:92vw; background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); z-index:60; overflow:hidden; }
+            .nav-panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; border-bottom:1px solid #F3F4F6; }
+            .nav-panel-title { font-size:13.5px; font-weight:700; color:#111827; }
+            .nav-panel-sub { font-size:11px; color:#9CA3AF; margin-top:1px; }
+            .nav-panel-sub::first-letter { text-transform:uppercase; }
+            .nav-panel-body { padding:12px 14px; }
+            .nav-panel-empty { display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; color:#9CA3AF; font-size:12px; padding:24px 14px; }
+            .nav-panel-empty b { color:#4B5563; font-size:12.5px; }
+            .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+            .cal-mes { font-size:12.5px; font-weight:700; color:#111827; }
+            .cal-mv { border:none; background:transparent; color:#6B7280; cursor:pointer; padding:4px; border-radius:8px; display:flex; }
+            .cal-mv:hover { background:#F3F4F6; color:#111827; }
+            .cal-hoy { border:none; cursor:pointer; font-size:11px; font-weight:600; color:var(--nav-accent); background:var(--nav-accent-tint); border-radius:8px; padding:4px 10px; }
+            .cal-sem, .cal-grid { display:grid; grid-template-columns:repeat(7, 1fr); text-align:center; }
+            .cal-sem { font-size:10px; font-weight:700; color:#9CA3AF; margin-bottom:3px; }
+            .cal-grid { gap:2px; }
+            .cal-d { height:30px; display:flex; align-items:center; justify-content:center; font-size:12px; color:#374151; border-radius:8px; }
+            /* Hoy: velo y filo del acento con el número oscuro. Relleno de acento
+               con número blanco no se leía con los acentos claros (azul pastel). */
+            .cal-d.is-hoy { background:var(--nav-accent-tint); box-shadow:inset 0 0 0 1.5px var(--nav-accent); color:#111827; font-weight:700; }
+            /* En el celular el panel va a todo el ancho: anclado al botón se
+               salía por la izquierda de la pantalla. */
+            @media (max-width: 640px) {
+                .nav-panel { position:fixed; left:8px; right:8px; top:68px; width:auto; max-width:none; }
+            }
+
             /* ── Barra oscura (mode: dark) ──
                Solo cambia la barra: los desplegables siguen blancos y la
                página sigue gris. Valores de erp-pro. */
@@ -434,9 +487,16 @@ class Navbar {
                Toman las superficies de dark-mode.css (--dk-*). */
             body.dark-mode .nav-dropdown,
             body.dark-mode .nav-color-menu,
-            body.dark-mode .branch-dd { background:var(--dk-card, #1F2A37); border-color:var(--dk-line, #374151); box-shadow:0 16px 40px rgba(0,0,0,.45); }
+            body.dark-mode .branch-dd,
+            body.dark-mode .nav-panel { background:var(--dk-card, #1F2A37); border-color:var(--dk-line, #374151); box-shadow:0 16px 40px rgba(0,0,0,.45); }
             body.dark-mode .nav-divider,
-            body.dark-mode .branch-dd-head { background-color:transparent; border-color:var(--dk-line, #374151); }
+            body.dark-mode .branch-dd-head,
+            body.dark-mode .nav-panel-head { background-color:transparent; border-color:var(--dk-line, #374151); }
+            body.dark-mode .nav-panel-title,
+            body.dark-mode .nav-panel-empty b,
+            body.dark-mode .cal-mes,
+            body.dark-mode .cal-d { color:var(--dk-text, #F9FAFB); }
+            body.dark-mode .cal-mv:hover { background:var(--dk-hover, #1a2332); color:var(--dk-text, #F9FAFB); }
             body.dark-mode .nav-divider { background:var(--dk-line, #374151); }
             body.dark-mode .nav-head-name,
             body.dark-mode .nav-color-name,
@@ -494,18 +554,44 @@ class Navbar {
         </style>`;
     }
 
+    // El inicio: la pantalla de módulos. La base sale de la ruta actual para que
+    // sirva igual en /inventory/ que en /huubie/inventory/.
+    homeUrl() {
+        const base = window.location.pathname.split('/inventory/')[0];
+        return `${base}/inventory/modulos/`;
+    }
+
     initEvents() {
+        // Estos tres frenan el clic (stopPropagation) y el de documento no se
+        // entera: por eso cierran ellos mismos el calendario y la campana.
         $("#btnUserMenu").on("click", (e) => {
             e.stopPropagation();
+            this.closeToolPanels();
             this.toggleUserMenu();
         });
         $("#btnLogout").on("click", () => this.logout());
-        $("#btnModulos").on("click", () => this.goTo("modulos"));
-        $("#btnEmpresas").on("click", () => this.goTo("empresas"));
-        $("#userMenuDropdown").on("click", "[data-nav-go]", (e) => this.goTo(e.currentTarget.dataset.navGo));
+        $("#btnModulos").on("click", () => {
+            window.location.href = this.homeUrl();
+        });
+        $("#btnEmpresas").on("click", () => {
+            const base = window.location.pathname.split('/inventory/')[0];
+            window.location.href = `${base}/inventory/empresas/`;
+        });
         $("#btnTheme").on("click", (e) => {
             e.stopPropagation();
+            this.closeToolPanels();
             this.toggleThemeMenu();
+        });
+
+        $("#btnCalendar").on("click", () => this.toggleToolPanel('calendar'));
+        $("#btnNotifs").on("click", () => this.toggleToolPanel('notifs'));
+        $(document).on("click", "#navCalendarPanel [data-cal]", (e) => {
+            const step  = e.currentTarget.getAttribute("data-cal");
+            const today = new Date();
+            this.calView = step === 'hoy'
+                ? new Date(today.getFullYear(), today.getMonth(), 1)
+                : new Date(this.calView.getFullYear(), this.calView.getMonth() + Number(step), 1);
+            this.renderCalendar();
         });
         $(document).on("click", ".nav-color-opt", (e) => {
             this.selectTheme(e.currentTarget.dataset.code);
@@ -513,6 +599,7 @@ class Navbar {
 
         $("#btnBranch").on("click", (e) => {
             e.stopPropagation();
+            this.closeToolPanels();
             this.toggleBranchDropdown();
         });
         $(document).on("click", "#btnBranchClose", (e) => {
@@ -525,6 +612,13 @@ class Navbar {
         });
 
         $(document).on("click", (e) => {
+            // Lo clicado ya no está en la página: el panel se repintó durante el
+            // clic (las flechas del calendario). No es un clic afuera.
+            if (!document.contains(e.target)) return;
+
+            if (!$(e.target).closest("#btnCalendar, #navCalendarPanel, #btnNotifs, #navNotifPanel").length) {
+                this.closeToolPanels();
+            }
             if (!$(e.target).closest("#btnTheme, #navColorMenu").length) {
                 this.closeThemeMenu();
             }
@@ -572,6 +666,7 @@ class Navbar {
 
         if (response.status != 200) {
             Swal.fire({
+                ...this.swalTheme(),
                 icon:              'error',
                 title:             'No se pudo cambiar de sucursal',
                 text:              response.message || 'Inténtalo nuevamente.',
@@ -784,8 +879,109 @@ class Navbar {
         $("#btnUserMenu").removeClass("open");
     }
 
+    // -- Calendario y notificaciones --
+    // Rápido y sencillo: el calendario es el mes (sin eventos todavía) y la
+    // campana avisa que no hay notificaciones. El contador (#navNotifCount) se
+    // queda oculto mientras no haya de dónde contarlas.
+
+    toolPanels() {
+        return {
+            calendar: { btn: '#btnCalendar', panel: '#navCalendarPanel', render: () => this.renderCalendar() },
+            notifs:   { btn: '#btnNotifs',   panel: '#navNotifPanel',    render: () => this.renderNotifs() }
+        };
+    }
+
+    // Abre uno y cierra el otro; si ya estaba abierto, lo cierra.
+    toggleToolPanel(name) {
+        const tool = this.toolPanels()[name];
+        const open = $(tool.panel).hasClass('hidden');
+
+        this.closeToolPanels();
+        if (!open) return;
+
+        if (name === 'calendar') this.calView = null;
+        tool.render();
+        $(tool.panel).removeClass('hidden');
+        $(tool.btn).attr('aria-expanded', 'true');
+    }
+
+    closeToolPanels() {
+        Object.values(this.toolPanels()).forEach((tool) => {
+            $(tool.panel).addClass('hidden');
+            $(tool.btn).attr('aria-expanded', 'false');
+        });
+    }
+
+    // El mes de calView (al abrir, el de hoy), con la semana empezando en lunes.
+    renderCalendar() {
+        const today = new Date();
+        if (!this.calView) this.calView = new Date(today.getFullYear(), today.getMonth(), 1);
+
+        const y       = this.calView.getFullYear();
+        const m       = this.calView.getMonth();
+        const blanks  = (new Date(y, m, 1).getDay() + 6) % 7;
+        const days    = new Date(y, m + 1, 0).getDate();
+        const current = y === today.getFullYear() && m === today.getMonth();
+
+        let cells = '<div></div>'.repeat(blanks);
+        for (let d = 1; d <= days; d++) {
+            cells += `<div class="cal-d${current && d === today.getDate() ? ' is-hoy' : ''}">${d}</div>`;
+        }
+
+        // "octubre de 2026" -> "Octubre de 2026" (capitalize subía también el "De").
+        const month = this.calView.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }).replace(/^./, (c) => c.toUpperCase());
+        const hoy   = today.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        $('#navCalendarPanel').html(`
+            <div class="nav-panel-head">
+                <div>
+                    <p class="nav-panel-title">Mi calendario</p>
+                    <p class="nav-panel-sub">${hoy}</p>
+                </div>
+                ${current ? '' : '<button type="button" class="cal-hoy" data-cal="hoy">Hoy</button>'}
+            </div>
+            <div class="nav-panel-body">
+                <div class="cal-nav">
+                    <button type="button" class="cal-mv" data-cal="-1" title="Mes anterior"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                    <span class="cal-mes">${month}</span>
+                    <button type="button" class="cal-mv" data-cal="1" title="Mes siguiente"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                </div>
+                <div class="cal-sem"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+                <div class="cal-grid">${cells}</div>
+            </div>`);
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    renderNotifs() {
+        $('#navNotifPanel').html(`
+            <div class="nav-panel-head">
+                <div>
+                    <p class="nav-panel-title">Notificaciones</p>
+                    <p class="nav-panel-sub">Avisos del sistema</p>
+                </div>
+            </div>
+            <div class="nav-panel-empty">
+                <i data-lucide="bell-off" class="w-8 h-8"></i>
+                <b>No tienes notificaciones</b>
+                <span>Aquí aparecerán los avisos del sistema.</span>
+            </div>`);
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Colores de los avisos de la navbar según el tema de la página. No pueden
+    // depender de dark-mode.css: no todas las páginas lo cargan (Módulos no) y
+    // ahí el aviso se quedaba blanco aunque el tema fuera oscuro (Eclipse).
+    swalTheme() {
+        return document.body.classList.contains('dark-mode')
+            ? { background: 'var(--dk-bg, #111928)', color: 'var(--dk-text, #F9FAFB)' }
+            : { background: '#FFFFFF' };
+    }
+
     logout() {
         Swal.fire({
+            ...this.swalTheme(),
             title: "¿Está seguro?",
             text: "Está a punto de cerrar su sesión actual.",
             icon: "warning",
@@ -798,7 +994,6 @@ class Navbar {
                 confirmButton: "py-2 px-4 rounded",
                 cancelButton: "bg-secondary border border-gray-500 py-2 px-4 rounded hover:bg-[#555555]",
             },
-            background: "#ffff",
             allowOutsideClick: false,
             allowEscapeKey: false,
         }).then((result) => {

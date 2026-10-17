@@ -90,7 +90,7 @@ class ctrl extends mdl {
     /* ====================== Resumen ====================== */
 
     function showResumen() {
-        $c = $this->qSummaryCounts(array_fill(0, 5, $this->companiesId));
+        $c = $this->qSummaryCounts(array_merge(array_fill(0, 5, $this->companiesId), [$this->seesSuperAdminLog()]));
 
         $actividad = array_map(function ($a) {
             $action = self::AUDIT_ACTIONS[$a['action']] ?? [$a['action'], '#475569', '#F1F5F9', 'circle'];
@@ -102,7 +102,7 @@ class ctrl extends mdl {
                 'label' => trim(($a['user_name'] ?: 'Alguien') . ' · ' . mb_strtolower($action[0]) . $target),
                 'meta'  => date('d/m/Y H:i', strtotime($a['created_at'])) . ' · ' . (self::AUDIT_ENTITIES[$a['entity']] ?? $a['entity'])
             ];
-        }, $this->qRecentAudit([$this->companiesId]));
+        }, $this->qRecentAudit([$this->companiesId, $this->seesSuperAdminLog()]));
 
         $roles = array_map(function ($r) {
             return [
@@ -129,28 +129,32 @@ class ctrl extends mdl {
 
     /* ====================== Sucursales (branches) ====================== */
 
+    // Trae también lo que deja el plan: el front lo refresca con la tabla, que se
+    // vuelve a pedir después de cada alta o cambio de estado.
     function lsBranches() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
-        $ls = $this->qBranches([$this->companiesId, $active]);
+        $ls     = $this->qBranches([$this->companiesId, $active]);
+        $plan   = $this->branchPlan();
 
         $row = [];
         foreach ($ls as $b) {
             $a = [];
             $a[] = [
-                'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition me-1',
+                'class'   => self::ACTION_BUTTON . 'text-gray-500 hover:bg-gray-100 hover:text-blue-600',
                 'html'    => '<i class="icon-pencil"></i>',
                 'title'   => 'Configurar sucursal',
                 'onclick' => 'subsidiaries.editSubsidiary(' . $b['id'] . ')'
             ];
             if ($b['is_active'] == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition',
+                    'class'   => self::ACTION_BUTTON . 'text-red-500 hover:bg-red-50 hover:text-red-600',
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'subsidiaries.toggleSubsidiary(' . $b['id'] . ', 0)'
                 ];
             } else {
+                // Con el plan lleno se ve apagado; al tocarlo el front explica por qué.
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition',
+                    'class'   => self::ACTION_BUTTON . ($plan['canCreate'] ? 'text-gray-400 hover:bg-gray-100 hover:text-green-600' : 'text-gray-300 cursor-not-allowed'),
                     'html'    => '<i class="icon-toggle-off"></i>',
                     'onclick' => 'subsidiaries.toggleSubsidiary(' . $b['id'] . ', 1)'
                 ];
@@ -158,7 +162,8 @@ class ctrl extends mdl {
 
             $name = $this->branchAvatar($b) . htmlspecialchars($b['name']);
             if ((int) $b['id'] === $this->branchId) {
-                $name .= ' ' . badge('Tu sucursal', 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))');
+                // Dentro del inline-flex el espacio se pierde: el margen lo separa del nombre.
+                $name .= '<span class="ml-2 whitespace-nowrap">' . badge('Tu sucursal', 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))') . '</span>';
             }
 
             $row[] = [
@@ -175,7 +180,7 @@ class ctrl extends mdl {
             ];
         }
 
-        return ['status' => 200, 'row' => $row, 'ls' => $ls];
+        return ['status' => 200, 'row' => $row, 'ls' => $ls, 'plan' => $plan];
     }
 
     function getBranch() {
@@ -190,6 +195,11 @@ class ctrl extends mdl {
     }
 
     function addBranch() {
+        $plan = $this->branchPlan();
+        if (!$plan['canCreate']) {
+            return ['status' => 409, 'message' => $plan['denied']['agregar']];
+        }
+
         $fields = $this->branchFields();
         $error  = $this->branchError($fields, 0);
         if ($error) return ['status' => 400, 'message' => $error];
@@ -276,6 +286,15 @@ class ctrl extends mdl {
             return ['status' => 404, 'message' => 'Sucursal no encontrada'];
         }
 
+        // Reactivar también ocupa un lugar del plan: si no, bastaba desactivar,
+        // crear otra y volver a activar la primera.
+        if ($active === 1 && (int) $current['is_active'] !== 1) {
+            $plan = $this->branchPlan();
+            if (!$plan['canCreate']) {
+                return ['status' => 409, 'message' => $plan['denied']['activar']];
+            }
+        }
+
         $ok = $this->qSetBranchActive([$active, $id, $this->companiesId]);
         if ($ok) Auditoria::registrar($active ? 'activar' : 'desactivar', 'branches', $id, $current['name']);
 
@@ -283,6 +302,60 @@ class ctrl extends mdl {
             'status'  => $ok ? 200 : 500,
             'message' => $ok ? ($active ? 'Sucursal activada' : 'Sucursal desactivada') : 'No se pudo actualizar el estado'
         ];
+    }
+
+    /*  Cuántas sucursales activas deja el plan de la empresa. Mismo criterio que
+        DEV (tenant/ctrl addBranch): el plan de la suscripción activa o en prueba
+        más reciente, y cuentan las sucursales activas. Sin plan, o con un plan
+        sin tope, no hay límite. Vale para todos, Super Admin incluido: el plan
+        se cambia en DEV. */
+    private function branchPlan() {
+        $plan   = $this->qActivePlan([$this->companiesId]);
+        $active = $this->qCountActiveBranches([$this->companiesId]);
+        $max    = $plan && $plan['max_branches'] !== null ? (int) $plan['max_branches'] : null;
+
+        $info = [
+            'name'      => $plan ? (string) $plan['name'] : '',
+            'max'       => $max,
+            'active'    => $active,
+            'canCreate' => $max === null || $active < $max,
+            'title'     => '',
+            'message'   => ''
+        ];
+
+        if (!$plan) return $info;
+
+        if ($max === null) {
+            $info['title']   = 'Plan ' . $plan['name'] . ' · sin límite de sucursales';
+            $info['message'] = $active === 1 ? 'Tienes 1 sucursal activa.' : "Tienes {$active} sucursales activas.";
+            return $info;
+        }
+
+        $left = $max - $active;
+        $info['title'] = 'Plan ' . $plan['name'] . ' · permite ' . $max . ($max === 1 ? ' sucursal activa' : ' sucursales activas');
+
+        if ($left > 0) {
+            $info['message'] = 'Puedes agregar ' . $left . ($left === 1 ? ' sucursal más.' : ' sucursales más.');
+            return $info;
+        }
+
+        $info['message'] = $left === 0
+            ? 'Llegaste al límite de tu plan: para agregar otra sucursal, mejora el plan o desactiva una.'
+            : 'Tienes más sucursales activas de las que permite tu plan: no se pueden agregar ni activar más.';
+
+        // Por qué se niega cada acción: lo que responden addBranch y toggleBranch
+        // y lo que el front avisa antes de pedirlas.
+        $info['denied'] = [
+            'agregar' => $this->planDenied($info, 'agregar otra'),
+            'activar' => $this->planDenied($info, 'activar esta')
+        ];
+
+        return $info;
+    }
+
+    private function planDenied($plan, $what) {
+        return 'El plan ' . $plan['name'] . ' permite ' . $plan['max'] . ($plan['max'] === 1 ? ' sucursal activa' : ' sucursales activas')
+             . ' y ya tienes ' . $plan['active'] . '. Para ' . $what . ', mejora el plan o desactiva una sucursal.';
     }
 
     // Campos de la sucursal y su etiqueta en la bitácora.
@@ -407,9 +480,11 @@ class ctrl extends mdl {
 
         $copied = [];
         if ($template) {
-            foreach ($this->qRoleCatalog([(int) $template['id']]) as $p) {
+            $templateCatalog = $this->qRoleCatalog([(int) $template['id']]);
+            foreach ($templateCatalog as $p) {
                 if ((int) $p['granted'] === 1) $copied[] = (int) $p['permission_id'];
             }
+            $copied = $this->withViewAction($templateCatalog, $copied);
         }
 
         $id = $this->transaction(function () use ($code, $name, $description, $copied) {
@@ -488,6 +563,7 @@ class ctrl extends mdl {
         }
 
         $wanted = array_values(array_intersect($this->postedIds($_POST['permissions'] ?? '[]'), $visible));
+        $wanted = $this->withViewAction($catalog, $wanted);
         $remove = array_values(array_diff($granted, $wanted));
         $add    = array_values(array_diff($wanted, $granted));
 
@@ -604,6 +680,27 @@ class ctrl extends mdl {
         return $before > 0 && $after === 0;
     }
 
+    // Acción de la que dependen las demás de una sección (type_permissions.code).
+    const VIEW_CODE = 'ver';
+
+    // Ver va con cualquier otra acción de su sección: la matriz la marca sola, y
+    // aquí se asegura aunque la petición llegue sin ella o se copie un rol que no
+    // la tenía. Solo agrega: nunca quita lo que se pidió.
+    private function withViewAction($catalog, $ids) {
+        $view  = [];
+        $other = [];
+        foreach ($catalog as $p) {
+            $sid = (int) $p['section_id'];
+            if ($p['type_code'] === self::VIEW_CODE)                    $view[$sid]  = (int) $p['permission_id'];
+            elseif (in_array((int) $p['permission_id'], $ids, true))    $other[$sid] = true;
+        }
+
+        foreach (array_keys($other) as $sid) {
+            if (isset($view[$sid]) && !in_array($view[$sid], $ids, true)) $ids[] = $view[$sid];
+        }
+        return $ids;
+    }
+
     // Catálogo → matriz: columnas (tipos de acción en uso) y módulos > secciones >
     // acciones (permission id, tipo y si la tiene).
     private function roleCatalog($roleId) {
@@ -615,7 +712,7 @@ class ctrl extends mdl {
             $mid = (int) $r['module_id'];
             $sid = (int) $r['section_id'];
 
-            $types[$tid] = ['id' => $tid, 'name' => $r['type_name'], 'order' => (int) $r['type_order']];
+            $types[$tid] = ['id' => $tid, 'code' => $r['type_code'], 'name' => $r['type_name'], 'order' => (int) $r['type_order']];
 
             if (!isset($modules[$mid])) {
                 $modules[$mid] = ['id' => $mid, 'name' => $r['module_name'], 'icon' => $r['module_icon'] ?: 'layout-grid', 'sections' => []];
@@ -673,29 +770,40 @@ class ctrl extends mdl {
 
     /* ====================== Usuarios ====================== */
 
+    /*  La tabla cabe en una laptop sin amontonarse (como la del panel de
+        referencia): el correo va debajo del nombre y no en su columna, el rango
+        se lee una sola vez (en Rol) y las sucursales no hacen crecer el renglón. */
     function lsUsers() {
         $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
         $status = $active === 1 ? 'active' : 'inactive';
         $ls = $this->qUsers([$this->companiesId, $status]);
+
+        $assigned = [];
+        foreach ($this->qUserAssignments([$this->companiesId, $this->companiesId]) as $as) {
+            $uid = (int) $as['user_id'];
+            $assigned[$uid]['branches'][] = ['name' => $as['branch_name'], 'active' => (int) $as['branch_active'] === 1];
+            if ($as['role_name'] !== null) $assigned[$uid]['roles'][$as['role_name']] = (string) $as['role_code'];
+        }
+        $activeBranches = $this->qCountActiveBranches([$this->companiesId]);
 
         $row = [];
         foreach ($ls as $u) {
             $a = [];
             if ($this->canManage($u['id'], $u)) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition me-1',
+                    'class'   => self::ACTION_BUTTON . 'text-gray-500 hover:bg-gray-100 hover:text-blue-600',
                     'html'    => '<i class="icon-pencil"></i>',
                     'onclick' => 'users.editUser(' . $u['id'] . ')'
                 ];
                 if ($u['status'] === 'active') {
                     $a[] = [
-                        'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition',
+                        'class'   => self::ACTION_BUTTON . 'text-red-500 hover:bg-red-50 hover:text-red-600',
                         'html'    => '<i class="icon-toggle-on"></i>',
                         'onclick' => 'users.toggleUser(' . $u['id'] . ', 0)'
                     ];
                 } else {
                     $a[] = [
-                        'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition',
+                        'class'   => self::ACTION_BUTTON . 'text-gray-400 hover:bg-gray-100 hover:text-green-600',
                         'html'    => '<i class="icon-toggle-off"></i>',
                         'onclick' => 'users.toggleUser(' . $u['id'] . ', 1)'
                     ];
@@ -704,47 +812,95 @@ class ctrl extends mdl {
                 // Sin acciones, pero la celda se queda: el renglón no se descuadra
                 // y el candado dice por qué no se puede tocar.
                 $a[] = [
-                    'class' => 'inline-flex items-center px-2 py-1 text-sm rounded-md text-gray-400 cursor-default',
+                    'class' => self::ACTION_BUTTON . 'text-gray-400 cursor-default',
                     'html'  => '<i class="icon-lock"></i>',
                     'title' => $this->manageDenied($u)
                 ];
             }
 
-            $color    = $u['color'] ?: renderColorFromName($u['name'] . ' ' . $u['last_name']);
-            $initial  = mb_strtoupper(mb_substr(trim($u['name']), 0, 1));
-            $avatar   = '<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:' . $color . ';color:#fff;font-size:12px;font-weight:700;margin-right:6px;">' . $initial . '</span>';
-
-            $fullname = $avatar . trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
-            if ((int) $u['is_superadmin'] === 1) {
-                $fullname .= ' ' . badge('Super Admin', '#FFFFFF', 100, '#111827');
-            } elseif ((int) $u['is_dueno'] === 1) {
-                $fullname .= ' ' . badge('Dueño', 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))');
-            }
-
-            $branchNames = $u['branch_names']
-                ? implode(' ', array_map(function($n) {
-                    return badge(trim($n), 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))');
-                  }, explode(',', $u['branch_names'])))
-                : '<span class="italic text-gray-400 text-sm">Sin asignar</span>';
-
-            $roleNames = $u['role_names']
-                ? implode(' ', array_map(function($n) {
-                    return badge(trim($n), '#1D4ED8', 100, '#DBEAFE');
-                  }, explode(',', $u['role_names'])))
-                : '<span class="italic text-gray-400 text-sm">Sin rol</span>';
+            $mine = $assigned[(int) $u['id']] ?? [];
 
             $row[] = [
                 'id'          => $u['id'],
-                'Colaborador' => $fullname,
-                'Correo'      => $u['email'] ?: '-',
-                'Rol'         => $roleNames,
-                'Sucursales'  => $branchNames,
+                'Colaborador' => $this->userCell($u),
+                'Rol'         => $this->roleChips($mine['roles'] ?? []),
+                'Sucursales'  => $this->branchChips($mine['branches'] ?? [], $activeBranches),
                 'Estado'      => renderStatus($u['status'] === 'active' ? 1 : 0),
                 'a'           => Permissions::rowActions('configuracion-accesos', $a)
             ];
         }
 
-        return ['status' => 200, 'row' => $row, 'ls' => $ls];
+        return ['status' => 200, 'row' => $row];
+    }
+
+    // Botones de las tablas de Usuarios y Sucursales: solo el ícono, sin borde.
+    const ACTION_BUTTON = 'inline-flex items-center justify-center w-7 h-7 rounded-md transition ';
+
+    // Foto (o inicial sobre su color), nombre y, debajo, el correo.
+    private function userCell($u) {
+        $name  = trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
+        $photo = $this->imageUrl('users', $u['photo'] ?? '');
+
+        $avatar = $photo !== ''
+            ? '<img src="' . htmlspecialchars($photo) . '" alt="" class="w-8 h-8 rounded-full object-cover shrink-0">'
+            : '<span class="w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0 text-white text-[11px] font-bold" style="background:'
+                . ($this->normalizeColor($u['color'] ?? '') ?: renderColorFromName($name)) . ';">'
+                . htmlspecialchars(mb_strtoupper(mb_substr(trim((string) $u['name']), 0, 1))) . '</span>';
+
+        return '<div class="flex items-center gap-2.5 min-w-0">' . $avatar
+             . '<div class="min-w-0 max-w-[230px] leading-tight">'
+             . '<p class="font-medium text-gray-800 truncate">' . htmlspecialchars($name) . '</p>'
+             . '<p class="text-[11px] text-gray-500 truncate" title="' . htmlspecialchars((string) $u['email']) . '">' . htmlspecialchars((string) $u['email']) . '</p>'
+             . '</div></div>';
+    }
+
+    // El rango se distingue por color: Super Admin oscuro, Dueño con el acento
+    // del tema, los de la empresa en azul.
+    private function roleChips($roles) {
+        if (!$roles) return '<span class="italic text-gray-400 text-[11px]">Sin rol</span>';
+
+        $chips = [];
+        foreach ($roles as $name => $code) {
+            $label = htmlspecialchars($name);
+            if ($code === 'superadmin')  $chips[] = badge($label, '#FFFFFF', 100, '#111827');
+            elseif ($code === 'dueno')   $chips[] = badge($label, 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))');
+            else                         $chips[] = badge($label, '#1D4ED8', 100, '#DBEAFE');
+        }
+        return $this->chipRow($chips);
+    }
+
+    // Con todas las sucursales activas de la empresa basta una etiqueta; si no,
+    // las dos primeras y "+N" (el resto en el tooltip).
+    private function branchChips($branches, $activeTotal) {
+        if (!$branches) return '<span class="italic text-gray-400 text-[11px]">Sin asignar</span>';
+
+        $fg    = 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))';
+        $bg    = 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))';
+        $names = array_column($branches, 'name');
+        $all   = htmlspecialchars(implode(', ', $names));
+
+        $active = count(array_filter($branches, function ($b) { return $b['active']; }));
+        if ($activeTotal > 1 && $active === $activeTotal) {
+            return $this->chipRow(['<span title="' . $all . '">' . badge('Todas las sucursales', $fg, 100, $bg) . '</span>']);
+        }
+
+        $chips = array_map(function ($n) use ($fg, $bg) {
+            return badge(htmlspecialchars($n), $fg, 100, $bg);
+        }, array_slice($names, 0, 2));
+
+        $rest = array_slice($names, 2);
+        if ($rest) {
+            $chips[] = '<span title="' . htmlspecialchars(implode(', ', $rest)) . '">' . badge('+' . count($rest), '#475569', 100, '#F1F5F9') . '</span>';
+        }
+        return $this->chipRow($chips);
+    }
+
+    // Cada etiqueta entera en un renglón: badge() es un span en línea y el
+    // nombre se partía a la mitad cuando la columna se angostaba.
+    private function chipRow($chips) {
+        return '<div class="flex flex-wrap items-center gap-1">' . implode('', array_map(function ($c) {
+            return '<span class="whitespace-nowrap">' . $c . '</span>';
+        }, $chips)) . '</div>';
     }
 
     function getUser() {
@@ -757,8 +913,9 @@ class ctrl extends mdl {
         if (!$this->canManage($id, $rank)) {
             return ['status' => 403, 'message' => $this->manageDenied($rank), 'data' => null];
         }
-        $data['branch_ids']   = $this->qUserBranchIds([$id]);
-        $data['branch_roles'] = $this->qUserBranchRoles([$id]);
+        // Solo las sucursales de esta empresa (ver qUserBranchIds).
+        $data['branch_ids']   = $this->qUserBranchIds([$id, $this->companiesId]);
+        $data['branch_roles'] = $this->qUserBranchRoles([$id, $this->companiesId]);
         $data['photo_url']    = $this->imageUrl('users', $data['photo'] ?? '');
         return [
             'status'  => 200,
@@ -893,9 +1050,10 @@ class ctrl extends mdl {
             }
         }
 
-        // Roles de antes de tocar users_braches: la edicion la borra entera y el
-        // Super Admin de una sucursal se conserva tal cual (resolveBranchRoles).
-        $currentRoles = $this->qUserBranchRoles([$id]);
+        // Roles de antes de tocar users_braches: la edicion borra y reinserta las
+        // filas de esta empresa (las de otras se quedan como están) y el Super
+        // Admin de una sucursal se conserva tal cual (resolveBranchRoles).
+        $currentRoles = $this->qUserBranchRoles([$id, $this->companiesId]);
         $roles = $this->resolveBranchRoles($branchIds, $currentRoles);
         if ($roles === null) {
             return ['status' => 400, 'message' => 'Elige el rol del usuario en cada sucursal'];
@@ -921,7 +1079,7 @@ class ctrl extends mdl {
                 $this->companiesId
             ]);
 
-            $this->qDeleteUserBranches([$id]);
+            $this->qDeleteUserBranches([$id, $this->companiesId]);
 
             foreach ($branchIds as $bid) {
                 $this->qInsertUserBranch([$id, $bid, $roles[$bid]]);
@@ -1056,12 +1214,13 @@ class ctrl extends mdl {
 
     function lsBitacora() {
         $ls = $this->qAuditLog([
-            'company_id' => $this->companiesId,
-            'fi'         => $this->validDate($_POST['fi'] ?? ''),
-            'ff'         => $this->validDate($_POST['ff'] ?? ''),
-            'user_id'    => (int) ($_POST['user_id'] ?? 0),
-            'entity'     => isset(self::AUDIT_ENTITIES[$_POST['entity'] ?? '']) ? $_POST['entity'] : '',
-            'limit'      => self::AUDIT_LIMIT
+            'company_id'    => $this->companiesId,
+            'fi'            => $this->validDate($_POST['fi'] ?? ''),
+            'ff'            => $this->validDate($_POST['ff'] ?? ''),
+            'user_id'       => (int) ($_POST['user_id'] ?? 0),
+            'entity'        => isset(self::AUDIT_ENTITIES[$_POST['entity'] ?? '']) ? $_POST['entity'] : '',
+            've_superadmin' => $this->seesSuperAdminLog(),
+            'limit'         => self::AUDIT_LIMIT
         ]);
 
         $row = [];
@@ -1094,7 +1253,8 @@ class ctrl extends mdl {
         $c = $this->qAuditCounts([
             $this->companiesId,
             $this->validDate($_POST['fi'] ?? ''),
-            $this->validDate($_POST['ff'] ?? '')
+            $this->validDate($_POST['ff'] ?? ''),
+            $this->seesSuperAdminLog()
         ]);
 
         return [
@@ -1105,13 +1265,13 @@ class ctrl extends mdl {
                 'cambios'  => (int) ($c['cambios'] ?? 0),
                 'bajas'    => (int) ($c['bajas'] ?? 0)
             ],
-            'usuarios' => $this->qAuditUsers([$this->companiesId])
+            'usuarios' => $this->qAuditUsers([$this->companiesId, $this->seesSuperAdminLog()])
         ];
     }
 
     // El detalle de un movimiento: el antes y el después de cada campo.
     function getBitacora() {
-        $l = $this->qAuditEntry([(int) ($_POST['id'] ?? 0), $this->companiesId]);
+        $l = $this->qAuditEntry([(int) ($_POST['id'] ?? 0), $this->companiesId, $this->seesSuperAdminLog()]);
         if (!$l) return ['status' => 404, 'message' => 'Movimiento no encontrado'];
 
         $action = self::AUDIT_ACTIONS[$l['action']] ?? [$l['action'], '#475569', '#F1F5F9', 'circle'];
@@ -1179,6 +1339,12 @@ class ctrl extends mdl {
             $rows[] = ['campo' => $label, 'antes' => $a, 'despues' => $d];
         }
         return $rows;
+    }
+
+    // Lo que hizo un Super Admin solo lo ve otro Super Admin: la tabla, el
+    // detalle, los números, el filtro de usuario y el Resumen. 1 o 0 para el SQL.
+    private function seesSuperAdminLog() {
+        return (int) $this->actorRank()['is_superadmin'] === 1 ? 1 : 0;
     }
 
     private function validDate($date) {

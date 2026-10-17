@@ -102,7 +102,8 @@ class MAccess extends CRUD {
                 u.company_id AS company_id,
                 c.name       AS company,
                 u.branch_id  AS branch_id,
-                b.name       AS branch
+                b.name       AS branch,
+                b.company_id AS branch_company_id
             FROM {$this->bd}users u
             LEFT JOIN {$this->bd}companies c ON c.id = u.company_id
             LEFT JOIN {$this->bd}branches b ON b.id = u.branch_id
@@ -185,22 +186,29 @@ class MAccess extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    // ¿Manda en alguna sucursal? Superadmin o Dueño en CUALQUIERA basta:
-    // al iniciar sesión todavía no hay sucursal activa que consultar.
+    // ¿Manda en alguna sucursal? Super Admin en cualquiera, o Dueño en una de SU
+    // empresa: al iniciar sesión todavía no hay sucursal activa que consultar. Un
+    // rol Dueño que se quedó en otra empresa (usuario que se cambió de empresa)
+    // no cuenta: lo haría administrador de una empresa donde no lo es.
     function userIsAdmin($array) {
         // [user_id]
         $query = "
             SELECT 1
             FROM {$this->bd}users_braches ub
-            JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
+            JOIN {$this->bd}users u    ON u.id = ub.user_id
+            JOIN {$this->bd}roles r    ON r.id = ub.role_id AND r.is_active = 1
+            JOIN {$this->bd}branches b ON b.id = ub.branch_id
             WHERE ub.user_id = ?
-                AND r.code IN ('superadmin', 'dueno')
+                AND (r.code = 'superadmin' OR (r.code = 'dueno' AND b.company_id = u.company_id))
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
         return !empty($r);
     }
 
+    // El orden de las sucursales en la navbar (y la primera, con la que arranca
+    // la sesión si la suya no sirve) es branches.order; sin orden, al final y
+    // por nombre.
     function getBranchesByCompany($array) {
         $query = "
             SELECT
@@ -212,13 +220,17 @@ class MAccess extends CRUD {
             FROM {$this->bd}branches
             WHERE company_id = ?
                 AND is_active = 1
-            ORDER BY name ASC
+            ORDER BY `order` IS NULL, `order` ASC, name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
     }
 
+    // Sucursales asignadas al usuario en UNA empresa (la suya o la de la sesión).
+    // Las que tenga en otra no salen en el selector de la navbar ni sirven para
+    // arrancar la sesión: tampoco puede cambiarse a ellas (switchBranch).
     function getBranchesByUser($array) {
+        // [user_id, company_id]
         $query = "
             SELECT
                 b.id,
@@ -229,8 +241,9 @@ class MAccess extends CRUD {
             FROM {$this->bd}users_braches ub
             INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
             WHERE ub.user_id = ?
+                AND b.company_id = ?
                 AND b.is_active = 1
-            ORDER BY b.name ASC
+            ORDER BY b.`order` IS NULL, b.`order` ASC, b.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];

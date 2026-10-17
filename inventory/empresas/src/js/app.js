@@ -52,8 +52,26 @@ class App extends Templates {
         });
     }
 
+    // Primero la tarjeta de DEV y después las empresas.
     jsonCards(data) {
-        const cards = (data.companies || []).map((c) => ({
+        const cards = [];
+
+        if (data.dev && data.dev.route) {
+            cards.push({
+                id:           'dev',
+                type:         'dev',
+                title:        String(data.dev.name || 'DEV').toUpperCase(),
+                icon:         data.dev.icon || 'code-xml',
+                // El anillo lo despega de la tarjeta en tema oscuro (gray-800 ≈ el fondo).
+                iconClass:    'bg-gray-800 ring-1 ring-inset ring-white/20',
+                location:     data.dev.description || 'Administrador CoffeeSoft',
+                locationIcon: 'wrench',
+                route:        data.dev.route,
+                status:       { text: 'Módulo del Super Admin', tone: 'neutral' }
+            });
+        }
+
+        (data.companies || []).forEach((c) => cards.push({
             id:       c.id,
             type:     'company',
             title:    c.name,
@@ -65,20 +83,6 @@ class App extends Templates {
                 ? { text: `${c.branches} sucursal${c.branches !== 1 ? 'es' : ''} activa${c.branches !== 1 ? 's' : ''}`, tone: 'open' }
                 : { text: 'Sin sucursales activas', tone: 'neutral' }
         }));
-
-        if (data.dev && data.dev.route) {
-            cards.push({
-                id:           'dev',
-                type:         'dev',
-                title:        String(data.dev.name || 'DEV').toUpperCase(),
-                icon:         data.dev.icon || 'code-xml',
-                iconClass:    'bg-gray-800',
-                location:     data.dev.description || 'Administrador CoffeeSoft',
-                locationIcon: 'wrench',
-                route:        data.dev.route,
-                status:       { text: 'Módulo del Super Admin', tone: 'neutral' }
-            });
-        }
 
         return cards;
     }
