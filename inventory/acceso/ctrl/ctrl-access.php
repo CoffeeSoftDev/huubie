@@ -6,6 +6,7 @@ $opc = $_POST['opc'];
 
 require_once('../mdl/mdl-access.php');
 require_once('../../conf/_Message.php');
+require_once __DIR__ . '/../../conf/_Auditoria.php';
 
 class Access extends MAccess {
 
@@ -42,23 +43,33 @@ class Access extends MAccess {
             setcookie("company_id", $usr['company_id'], $expira, "/");
             setcookie("company",    $usr['company'],    $expira, "/");
 
+            $isSuperAdmin = $this->userIsSuperAdmin([$usr['IDU']]);
+            $branch       = $this->homeBranch($usr, $isSuperAdmin);
+
             $_SESSION['IDU']        = $usr['IDU'];             // id usuario (clave que validan las páginas: sucursales, almacén, etc.)
             $_SESSION['user_id']    = $usr['IDU'];             // alias id usuario
             $_SESSION['company_id'] = $usr['company_id'];      // id compania
-            $_SESSION['branch_id'] = $usr['branch_id'];        // id sucursal
+            $_SESSION['branch_id']  = $branch['id'];           // id sucursal
             $_SESSION['company']    = $usr['company'];         // nombre de la compania
-            $_SESSION['branch']      = $usr['branch'];         // nombre de la sucursal
+            $_SESSION['branch']     = $branch['name'];         // nombre de la sucursal
 
             $_SESSION['user']       = trim(($usr['name'] ?? '') . ' ' . ($usr['last_name'] ?? ''));
             $_SESSION['email']      = $usr['email'] ?? '';
-            $_SESSION['is_owner']   = $usr['is_owner'];
+            // is_owner en sesión decide si se ven TODAS las sucursales de la empresa
+            // (navbar, filtros de sucursal de inventario). El Super Admin entra a
+            // empresas donde no tiene filas en users_braches: las ve como un dueño.
+            $_SESSION['is_owner']      = $isSuperAdmin ? 1 : $usr['is_owner'];
+            $_SESSION['is_superadmin'] = $isSuperAdmin ? 1 : 0;
             $_SESSION['last_activity'] = time();
 
-            // Quién se salta el selector de sucursal: el dueño (is_owner) y
-            // cualquiera con rol Super Admin o Dueño. Antes solo contaba
-            // is_owner, así que quien tenía el rol aterrizaba en el selector.
+            // Administrador de CoffeeIA (borrar entradas, salidas y pedidos): el
+            // dueño (is_owner) y cualquiera con rol Super Admin o Dueño.
             $isAdmin = (int) ($usr['is_owner'] ?? 0) === 1 || $this->userIsAdmin([$usr['IDU']]);
             $_SESSION['is_admin'] = $isAdmin ? 1 : 0;
+
+            Auditoria::registrar('iniciar-sesion', 'sesion', (int) $usr['IDU'], $_SESSION['user'], [
+                'sucursal' => $branch['name']
+            ]);
 
             return [
                 "IDU"        => $usr['IDU'],
@@ -73,7 +84,29 @@ class Access extends MAccess {
                 "color"      => $usr['color'] ?? '',
                 "is_owner"   => $usr['is_owner'],
                 "is_admin"   => $_SESSION['is_admin'],
+                // El Super Admin aterriza en la pantalla de empresas; los demás, en módulos.
+                "is_superadmin" => $_SESSION['is_superadmin'],
             ];
+    }
+
+    /*  Sucursal con la que arranca la sesión: la suya (users.branch_id) si está
+        activa y la puede usar; si no, la primera que sí. Sin el selector de
+        sucursal de por medio, una sucursal en la que no tiene rol dejaría la
+        pantalla de módulos vacía. El dueño y el Super Admin pueden usar
+        cualquiera de la empresa. */
+    private function homeBranch($usr, $isSuperAdmin) {
+        $isOwner = $isSuperAdmin || (int) ($usr['is_owner'] ?? 0) === 1;
+        $list    = $isOwner
+            ? $this->getBranchesByCompany([$usr['company_id']])
+            : $this->getBranchesByUser([$usr['IDU']]);
+
+        foreach ($list as $b) {
+            if ((int) $b['id'] === (int) $usr['branch_id']) return ['id' => (int) $b['id'], 'name' => $b['name']];
+        }
+
+        if (!empty($list)) return ['id' => (int) $list[0]['id'], 'name' => $list[0]['name']];
+
+        return ['id' => $usr['branch_id'], 'name' => $usr['branch']];
     }
 
     /* ===== Recuperación de contraseña =====
@@ -317,10 +350,17 @@ class Access extends MAccess {
     }
 
     function company() {
-        // El rol depende de la sucursal accedida: se pasa la branch_id activa para
-        // resolver users_braches -> roles de esa sucursal (no de una cualquiera).
-        $branchId = (int) ($_SESSION['branch_id'] ?? 0);
-        $sql = !empty($_SESSION['IDU']) ? $this->getSessionUser([$branchId, $_SESSION['IDU']]) : null;
+        // La empresa y la sucursal son las de la sesión (el Super Admin cambia de
+        // empresa sin cambiar de usuario). El rol depende de la sucursal accedida:
+        // users_braches -> roles de esa sucursal (no de una cualquiera).
+        $userId    = (int) ($_SESSION['IDU'] ?? 0);
+        $companyId = (int) ($_SESSION['company_id'] ?? 0);
+        $branchId  = (int) ($_SESSION['branch_id'] ?? 0);
+        $sql = $userId > 0 ? $this->getSessionUser([$companyId, $branchId, $userId]) : null;
+
+        // En una empresa donde no tiene filas en users_braches, el Super Admin no
+        // trae rol de la sucursal: se nombra igual.
+        $isSuperAdmin = $userId > 0 && $this->userIsSuperAdmin([$userId]);
 
         // Se prioriza el valor vivo de la BD sobre el cacheado en sesion (login viejo),
         // asi un rename de compania/sucursal se refleja sin cerrar sesion.
@@ -333,7 +373,8 @@ class Access extends MAccess {
             "color"      => $sql['color'] ?? '',
             "user"       => $sql['user'] ?? ($_SESSION['user'] ?? 'Usuario'),
             "email"      => $sql['email'] ?? ($_SESSION['email'] ?? ''),
-            "rol"        => $sql['rol'] ?? '',
+            "rol"        => ($sql['rol'] ?? '') ?: ($isSuperAdmin ? 'Super Admin' : ''),
+            "is_superadmin" => $isSuperAdmin ? 1 : 0,
             "level"      => isset($sql['level']) ? (int)$sql['level'] : 0,
             "company"    => $company,
             "company_id" => $sql['company_id'] ?? ($_SESSION['company_id'] ?? null),
@@ -421,7 +462,7 @@ class Access extends MAccess {
         // modulo) quedan todas las accesibles. Una seccion se ve cuando el rol tiene
         // al menos una de sus acciones (permissions_roles). El Super Admin ve todas
         // las secciones encendidas: su acceso es total y no lleva filas.
-        $ls = $this->userIsSuperAdmin([$userId, $branchId])
+        $ls = $this->userIsSuperAdmin([$userId])
             ? $this->getAllActiveSections([$moduleId, $moduleId])
             : $this->getAccessibleSections([$userId, $branchId, $moduleId, $moduleId]);
 
@@ -622,13 +663,11 @@ class Access extends MAccess {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Tema guardado' : 'No se pudo guardar el tema'];
     }
 
-    // Temas que puede elegir el usuario: el Super Admin (en su sucursal activa) todos;
-    // los demás, los de su empresa más el de por defecto. Sin sesión, solo el de por
-    // defecto (la barra del login).
+    // Temas que puede elegir el usuario: el Super Admin todos; los demás, los de su
+    // empresa más el de por defecto. Sin sesión, solo el de por defecto (la barra
+    // del login).
     private function allowedThemes($userId) {
-        $branchId = (int) ($_SESSION['branch_id'] ?? 0);
-
-        if ($userId > 0 && $this->userIsSuperAdmin([$userId, $branchId])) {
+        if ($userId > 0 && $this->userIsSuperAdmin([$userId])) {
             return $this->getThemes();
         }
 

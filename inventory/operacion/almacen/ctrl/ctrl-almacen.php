@@ -1951,7 +1951,7 @@ class ctrl extends mdl {
     private function esSuperAdminIA() {
         if (empty($_SESSION['user_id']) || empty($_SESSION['branch_id'])) return false;
 
-        return $this->isSuperAdmin([$_SESSION['user_id'], $_SESSION['branch_id']]);
+        return $this->isSuperAdmin([$_SESSION['user_id']]);
     }
 
     /*  null si el modelo no pidió vaciar. Si lo pidió, la vista previa es SOLO el

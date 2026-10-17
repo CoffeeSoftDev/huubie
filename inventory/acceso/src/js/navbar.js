@@ -69,6 +69,7 @@ class Navbar {
             negocio:  "",
             sucursal: "",
             level:    0,
+            superAdmin: false,
             parent:   "body",
             branches: [],
             current:  null,
@@ -108,6 +109,11 @@ class Navbar {
                             <div id="navColorList"></div>
                         </div>
                     </div>
+
+                    ${this.settings.superAdmin ? `
+                    <button id="btnEmpresas" class="nav-theme-toggle" title="Empresas">
+                        <i data-lucide="building" class="w-[18px] h-[18px]"></i>
+                    </button>` : ''}
 
                     <button id="btnModulos" class="nav-theme-toggle" title="Módulos">
                         <i data-lucide="layout-grid" class="w-[18px] h-[18px]"></i>
@@ -450,6 +456,10 @@ class Navbar {
             const base = window.location.pathname.split('/inventory/')[0];
             window.location.href = `${base}/inventory/modulos/`;
         });
+        $("#btnEmpresas").on("click", () => {
+            const base = window.location.pathname.split('/inventory/')[0];
+            window.location.href = `${base}/inventory/empresas/`;
+        });
         $("#btnTheme").on("click", (e) => {
             e.stopPropagation();
             this.toggleThemeMenu();
@@ -763,10 +773,15 @@ $(async () => {
 
     const themeInfo = await useFetch({ url: ctrlUrl, data: { opc: 'themes' } });
 
-    const branchInfo = await useFetch({ url: ctrlUrl, data: { opc: 'branches' } });
-    const branches   = branchInfo?.branches || [];
-    const company    = branchInfo?.company  || data.udn || '';
-    const current    = branchInfo?.current  || { id: data.branch_id, name: data.sucursal || data.branch || '' };
+    // data-branches="off": la pantalla de Empresas, donde aún no hay empresa elegida
+    // y la píldora de sucursal no aplica.
+    const withBranches = $("#menu-navbar").data("branches") !== "off";
+    const branchInfo   = withBranches ? await useFetch({ url: ctrlUrl, data: { opc: 'branches' } }) : null;
+    const branches     = branchInfo?.branches || [];
+    const company      = branchInfo?.company  || data.udn || '';
+    const current      = withBranches
+        ? (branchInfo?.current || { id: data.branch_id, name: data.sucursal || data.branch || '' })
+        : { id: 0, name: '' };
 
     const navbar = new Navbar();
     navbar.init({
@@ -779,6 +794,7 @@ $(async () => {
         company:  company,
         sucursal: data.sucursal || data.branch || '',
         level:    data.level    || 0,
+        superAdmin: parseInt(data.is_superadmin, 10) === 1,
         parent:   "#menu-navbar",
         branches: branches,
         current:  current,

@@ -8,25 +8,60 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 
 require_once '../mdl/mdl-accesos.php';
 require_once '../../../conf/_Permissions.php';
+require_once '../../../conf/_Auditoria.php';
 
 class ctrl extends mdl {
 
     // Acción del rol que pide cada opc (conf/_Permissions.php); los demás solo
     // piden poder entrar a Configuración > Accesos. Apagar un usuario o una
-    // sucursal es darlo de baja.
+    // sucursal es darlo de baja; borrar un rol es eliminar.
     const PERMISSIONS = [
-        'addBranch'      => 'agregar',
-        'addUser'        => 'agregar',
-        'editBranch'     => 'editar',
-        'editUser'       => 'editar',
-        'changePassword' => 'editar',
-        'toggleBranch'   => 'cancelar',
-        'toggleUser'     => 'cancelar'
+        'addBranch'           => 'agregar',
+        'addUser'             => 'agregar',
+        'addRole'             => 'agregar',
+        'editBranch'          => 'editar',
+        'editUser'            => 'editar',
+        'changePassword'      => 'editar',
+        'editRole'            => 'editar',
+        'saveRolePermissions' => 'editar',
+        'toggleBranch'        => 'cancelar',
+        'toggleUser'          => 'cancelar',
+        'deleteRole'          => 'eliminar'
     ];
+
+    // Acciones de la bitácora: etiqueta, color de texto, fondo e ícono del badge.
+    const AUDIT_ACTIONS = [
+        'crear'          => ['Alta',              '#15803D', '#DCFCE7', 'plus'],
+        'editar'         => ['Edición',           '#1D4ED8', '#DBEAFE', 'pencil'],
+        'permisos'       => ['Permisos',          '#6D28D9', '#EDE9FE', 'shield-check'],
+        'contrasena'     => ['Contraseña',        '#B45309', '#FEF3C7', 'key-round'],
+        'activar'        => ['Activación',        '#15803D', '#DCFCE7', 'toggle-right'],
+        'desactivar'     => ['Baja',              '#B91C1C', '#FEE2E2', 'toggle-left'],
+        'eliminar'       => ['Eliminación',       '#B91C1C', '#FEE2E2', 'trash-2'],
+        'iniciar-sesion' => ['Inicio de sesión',  '#475569', '#F1F5F9', 'log-in'],
+        'cerrar-sesion'  => ['Cierre de sesión',  '#475569', '#F1F5F9', 'log-out'],
+        'entrar-empresa' => ['Entrada a empresa', '#0E7490', '#CFFAFE', 'building-2']
+    ];
+
+    const AUDIT_ENTITIES = [
+        'users'    => 'Usuario',
+        'roles'    => 'Rol',
+        'branches' => 'Sucursal',
+        'sesion'   => 'Sesión'
+    ];
+
+    // Tope de renglones de la bitácora por consulta.
+    const AUDIT_LIMIT = 1000;
+
+    // Códigos que dan rango (conf/_Permissions.php, la jerarquía de abajo): un
+    // rol nuevo de la empresa no puede llamarse así.
+    const RESERVED_CODES = ['superadmin', 'dueno'];
 
     public $companiesId;
     public $branchId;
     public $userId;
+    private $actor;
+    private $actorRoles;
 
     public function __construct() {
         parent::__construct();
@@ -47,7 +82,48 @@ class ctrl extends mdl {
                 ['id' => '0', 'valor' => 'Inactivos']
             ],
             'sucursales'   => $this->qBranchesForSelect([$this->companiesId]),
-            'roles'        => $this->qRolesForSelect([$this->companiesId])
+            'roles'        => $this->qRolesForSelect([$this->companiesId, $this->canAssignOwner() ? 1 : 0]),
+            'usuarios'     => $this->qUsersForSelect([$this->companiesId])
+        ];
+    }
+
+    /* ====================== Resumen ====================== */
+
+    function showResumen() {
+        $c = $this->qSummaryCounts(array_fill(0, 5, $this->companiesId));
+
+        $actividad = array_map(function ($a) {
+            $action = self::AUDIT_ACTIONS[$a['action']] ?? [$a['action'], '#475569', '#F1F5F9', 'circle'];
+            // En las de sesión el elemento es la misma persona: no se repite su nombre.
+            $target = $a['entity'] === 'sesion' ? '' : ': ' . $a['label'];
+            return [
+                'id'    => (int) $a['id'],
+                'icon'  => $action[3],
+                'label' => trim(($a['user_name'] ?: 'Alguien') . ' · ' . mb_strtolower($action[0]) . $target),
+                'meta'  => date('d/m/Y H:i', strtotime($a['created_at'])) . ' · ' . (self::AUDIT_ENTITIES[$a['entity']] ?? $a['entity'])
+            ];
+        }, $this->qRecentAudit([$this->companiesId]));
+
+        $roles = array_map(function ($r) {
+            return [
+                'id'      => (int) $r['id'],
+                'name'    => $r['name'],
+                'users'   => (int) $r['users'],
+                'actions' => (int) $r['actions']
+            ];
+        }, $this->qCompanyRoles([$this->companiesId]));
+
+        return [
+            'status'    => 200,
+            'counts'    => [
+                'usuarios_activos' => (int) ($c['usuarios_activos'] ?? 0),
+                'usuarios_total'   => (int) ($c['usuarios_total'] ?? 0),
+                'roles'            => (int) ($c['roles'] ?? 0),
+                'sucursales'       => (int) ($c['sucursales'] ?? 0),
+                'movimientos_hoy'  => (int) ($c['movimientos_hoy'] ?? 0)
+            ],
+            'actividad' => $actividad,
+            'roles'     => $roles
         ];
     }
 
@@ -63,6 +139,7 @@ class ctrl extends mdl {
             $a[] = [
                 'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition me-1',
                 'html'    => '<i class="icon-pencil"></i>',
+                'title'   => 'Configurar sucursal',
                 'onclick' => 'subsidiaries.editSubsidiary(' . $b['id'] . ')'
             ];
             if ($b['is_active'] == 1) {
@@ -79,17 +156,22 @@ class ctrl extends mdl {
                 ];
             }
 
-            $name = htmlspecialchars($b['name']);
+            $name = $this->branchAvatar($b) . htmlspecialchars($b['name']);
             if ((int) $b['id'] === $this->branchId) {
                 $name .= ' ' . badge('Tu sucursal', 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))');
             }
 
             $row[] = [
-                'id'         => $b['id'],
-                'Sucursal'   => $name,
-                'Ubicación'  => $b['ubication'] ?: '-',
-                'Estado'     => renderStatus($b['is_active']),
-                'a'          => Permissions::rowActions('configuracion-accesos', $a)
+                'id'          => $b['id'],
+                'Sucursal'    => '<span class="inline-flex items-center">' . $name . '</span>',
+                'Dirección'   => $b['ubication'] ? htmlspecialchars($b['ubication']) : '-',
+                'Teléfono'    => $b['phone'] ? htmlspecialchars($b['phone']) : '-',
+                'Correo'      => $b['email'] ? htmlspecialchars($b['email']) : '-',
+                'Responsable' => trim((string) $b['manager_name']) !== ''
+                    ? htmlspecialchars($b['manager_name'])
+                    : '<span class="italic text-gray-400 text-sm">Sin asignar</span>',
+                'Estado'      => renderStatus($b['is_active']),
+                'a'           => Permissions::rowActions('configuracion-accesos', $a)
             ];
         }
 
@@ -98,6 +180,8 @@ class ctrl extends mdl {
 
     function getBranch() {
         $data = $this->qBranch([(int) $_POST['id'], $this->companiesId]);
+        if ($data) $data['logo_url'] = $this->imageUrl('branches', $data['logo'] ?? '');
+
         return [
             'status'  => $data ? 200 : 404,
             'message' => $data ? 'OK' : 'Sucursal no encontrada',
@@ -106,46 +190,81 @@ class ctrl extends mdl {
     }
 
     function addBranch() {
-        $name = trim($_POST['name'] ?? '');
-        if ($name === '') {
-            return ['status' => 400, 'message' => 'El nombre de la sucursal es obligatorio'];
-        }
+        $fields = $this->branchFields();
+        $error  = $this->branchError($fields, 0);
+        if ($error) return ['status' => 400, 'message' => $error];
 
-        $ok = $this->qInsertBranch([
-            $name,
-            trim($_POST['ubication'] ?? '') ?: null,
-            $this->companiesId
+        $id = $this->transaction(function () use ($fields) {
+            $this->qInsertBranch([
+                $fields['name'],
+                $fields['ubication'],
+                $fields['phone'],
+                $fields['email'],
+                $fields['manager_id'],
+                $this->companiesId
+            ]);
+
+            $newId = $this->qLastInsertId();
+            if (!$newId) throw new \Exception('No se pudo obtener el id de la sucursal creada');
+
+            // El logo lleva el id en su nombre de archivo: va después del alta.
+            if ($this->imageTouched('logo')) {
+                $this->qUpdateBranchLogo([$this->saveImage('branches', 'logo', 'branch', $newId, ''), $newId, $this->companiesId]);
+            }
+
+            return $newId;
+        });
+
+        Auditoria::registrar('crear', 'branches', $id, $fields['name'], [
+            'cambios' => $this->diffRows([], $this->branchSnapshot($fields, $this->imageTouched('logo') ? 'Con logo' : ''), self::BRANCH_FIELDS)
         ]);
 
-        return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Sucursal creada correctamente' : 'No se pudo crear la sucursal'
-        ];
+        return ['status' => 200, 'message' => 'Sucursal creada correctamente'];
     }
 
     function editBranch() {
-        $id   = (int) $_POST['id'];
-        $name = trim($_POST['name'] ?? '');
-        if ($name === '') {
-            return ['status' => 400, 'message' => 'El nombre de la sucursal es obligatorio'];
-        }
+        $id     = (int) $_POST['id'];
+        $fields = $this->branchFields();
 
         $current = $this->qBranch([$id, $this->companiesId]);
         if (!$current) {
             return ['status' => 404, 'message' => 'Sucursal no encontrada'];
         }
 
-        $ok = $this->qUpdateBranch([
-            $name,
-            trim($_POST['ubication'] ?? '') ?: null,
-            $id,
-            $this->companiesId
-        ]);
+        $error = $this->branchError($fields, $id);
+        if ($error) return ['status' => 400, 'message' => $error];
 
-        return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Sucursal actualizada correctamente' : 'No se pudo actualizar la sucursal'
-        ];
+        $logoTouched = $this->imageTouched('logo');
+
+        $this->transaction(function () use ($id, $fields, $current, $logoTouched) {
+            $this->qUpdateBranch([
+                $fields['name'],
+                $fields['ubication'],
+                $fields['phone'],
+                $fields['email'],
+                $fields['manager_id'],
+                $id,
+                $this->companiesId
+            ]);
+
+            if ($logoTouched) {
+                $this->qUpdateBranchLogo([$this->saveImage('branches', 'logo', 'branch', $id, $current['logo'] ?? ''), $id, $this->companiesId]);
+            }
+        });
+
+        $before = $this->branchSnapshot([
+            'name'       => $current['name'],
+            'ubication'  => $current['ubication'],
+            'phone'      => $current['phone'],
+            'email'      => $current['email'],
+            'manager_id' => $current['manager_id']
+        ], '');
+        $after = $this->branchSnapshot($fields, $logoTouched ? (($_POST['logo_clear'] ?? '') === '1' ? 'Se quitó' : 'Se cambió') : '');
+
+        $cambios = $this->diffRows($before, $after, self::BRANCH_FIELDS);
+        if ($cambios) Auditoria::registrar('editar', 'branches', $id, $fields['name'], ['cambios' => $cambios]);
+
+        return ['status' => 200, 'message' => 'Sucursal actualizada correctamente'];
     }
 
     function toggleBranch() {
@@ -158,10 +277,398 @@ class ctrl extends mdl {
         }
 
         $ok = $this->qSetBranchActive([$active, $id, $this->companiesId]);
+        if ($ok) Auditoria::registrar($active ? 'activar' : 'desactivar', 'branches', $id, $current['name']);
+
         return [
             'status'  => $ok ? 200 : 500,
             'message' => $ok ? ($active ? 'Sucursal activada' : 'Sucursal desactivada') : 'No se pudo actualizar el estado'
         ];
+    }
+
+    // Campos de la sucursal y su etiqueta en la bitácora.
+    const BRANCH_FIELDS = [
+        'name'      => 'Nombre',
+        'ubication' => 'Dirección',
+        'phone'     => 'Teléfono',
+        'email'     => 'Correo',
+        'manager'   => 'Responsable',
+        'logo'      => 'Logo'
+    ];
+
+    private function branchFields() {
+        $phone = trim((string) ($_POST['phone'] ?? ''));
+
+        return [
+            'name'       => trim((string) ($_POST['name'] ?? '')),
+            'ubication'  => trim((string) ($_POST['ubication'] ?? '')) ?: null,
+            'phone'      => $phone !== '' ? mb_substr($phone, 0, 20) : null,
+            'email'      => trim((string) ($_POST['email'] ?? '')) ?: null,
+            'manager_id' => (int) ($_POST['manager_id'] ?? 0) ?: null
+        ];
+    }
+
+    private function branchError($fields, $id) {
+        if ($fields['name'] === '') return 'El nombre de la sucursal es obligatorio';
+        if ($this->qBranchNameExists([$fields['name'], $this->companiesId, $id])) return 'Ya existe una sucursal con ese nombre';
+        if ($fields['email'] !== null && !filter_var($fields['email'], FILTER_VALIDATE_EMAIL)) return 'El correo de la sucursal no es válido';
+        if ($fields['phone'] !== null && !preg_match('/^[0-9+()\s.-]{7,20}$/', $fields['phone'])) return 'El teléfono solo lleva números, espacios, +, ( ) y guiones';
+
+        if ($fields['manager_id'] !== null) {
+            $manager = $this->qUser([$fields['manager_id'], $this->companiesId]);
+            if (!$manager || $manager['status'] !== 'active') return 'El responsable debe ser un usuario activo de la empresa';
+        }
+
+        return '';
+    }
+
+    // Lo que la bitácora cuenta de una sucursal: el responsable por nombre.
+    private function branchSnapshot($fields, $logo) {
+        $manager = '';
+        if (!empty($fields['manager_id'])) {
+            $user    = $this->qUser([(int) $fields['manager_id'], $this->companiesId]);
+            $manager = $user ? trim($user['name'] . ' ' . ($user['last_name'] ?? '')) : '';
+        }
+
+        return [
+            'name'      => (string) $fields['name'],
+            'ubication' => (string) ($fields['ubication'] ?? ''),
+            'phone'     => (string) ($fields['phone'] ?? ''),
+            'email'     => (string) ($fields['email'] ?? ''),
+            'manager'   => $manager,
+            'logo'      => $logo
+        ];
+    }
+
+    private function branchAvatar($b) {
+        $logo = $this->imageUrl('branches', $b['logo'] ?? '');
+
+        if ($logo !== '') {
+            return '<img src="' . htmlspecialchars($logo) . '" alt="" style="width:28px;height:28px;border-radius:8px;object-fit:cover;margin-right:8px;flex-shrink:0;">';
+        }
+
+        $initial = mb_strtoupper(mb_substr(trim($b['name']), 0, 1));
+        return '<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)));color:var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)));font-size:12px;font-weight:700;margin-right:8px;flex-shrink:0;">' . htmlspecialchars($initial) . '</span>';
+    }
+
+    /* ====================== Roles ====================== */
+
+    // Solo los roles de la empresa (is_system = 0): los del sistema no salen ni
+    // se pueden pedir por id. Cada uno trae si se puede cambiar y borrar.
+    function lsRoles() {
+        $ls = $this->qCompanyRoles([$this->companiesId]);
+
+        $roles = array_map(function ($r) {
+            return $this->roleRow($r);
+        }, $ls);
+
+        return [
+            'status'    => 200,
+            'roles'     => $roles,
+            'templates' => array_map(function ($r) {
+                return ['id' => (int) $r['id'], 'valor' => $r['name']];
+            }, $ls)
+        ];
+    }
+
+    function getRole() {
+        $role = $this->companyRole((int) ($_POST['id'] ?? 0));
+        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
+
+        $row = null;
+        foreach ($this->qCompanyRoles([$this->companiesId]) as $r) {
+            if ((int) $r['id'] === (int) $role['id']) $row = $this->roleRow($r);
+        }
+
+        return [
+            'status'  => 200,
+            'role'    => $row,
+            'catalog' => $this->roleCatalog((int) $role['id'])
+        ];
+    }
+
+    function addRole() {
+        $name        = trim((string) ($_POST['name'] ?? ''));
+        $description = trim((string) ($_POST['description'] ?? '')) ?: null;
+        $templateId  = (int) ($_POST['template_id'] ?? 0);
+        $code        = $this->slug($name);
+
+        if ($name === '') return ['status' => 400, 'message' => 'El nombre del rol es obligatorio'];
+        if ($code === '' || in_array($code, self::RESERVED_CODES, true)) {
+            return ['status' => 400, 'message' => 'Ese nombre está reservado para un rol del sistema'];
+        }
+        if ($this->qRoleNameExists([$name, $this->companiesId, 0])) {
+            return ['status' => 409, 'message' => 'Ya existe un rol con ese nombre'];
+        }
+
+        $template = $templateId > 0 ? $this->companyRole($templateId) : null;
+        if ($templateId > 0 && !$template) {
+            return ['status' => 400, 'message' => 'El rol a copiar no es válido'];
+        }
+
+        $copied = [];
+        if ($template) {
+            foreach ($this->qRoleCatalog([(int) $template['id']]) as $p) {
+                if ((int) $p['granted'] === 1) $copied[] = (int) $p['permission_id'];
+            }
+        }
+
+        $id = $this->transaction(function () use ($code, $name, $description, $copied) {
+            $this->qInsertRole([$code, $name, $description, $this->companiesId]);
+
+            $newId = $this->qLastInsertId();
+            if (!$newId) throw new \Exception('No se pudo obtener el id del rol creado');
+
+            foreach ($copied as $permissionId) {
+                $this->qInsertRolePermission([$newId, $permissionId]);
+            }
+
+            return $newId;
+        });
+
+        $cambios = $this->diffRows([], [
+            'name'        => $name,
+            'description' => (string) $description,
+            'template'    => $template ? $template['name'] . ' (' . count($copied) . ' acciones)' : ''
+        ], self::ROLE_FIELDS);
+        Auditoria::registrar('crear', 'roles', $id, $name, ['cambios' => $cambios]);
+
+        return ['status' => 200, 'message' => 'Rol creado correctamente', 'id' => $id];
+    }
+
+    function editRole() {
+        $id          = (int) ($_POST['id'] ?? 0);
+        $name        = trim((string) ($_POST['name'] ?? ''));
+        $description = trim((string) ($_POST['description'] ?? '')) ?: null;
+
+        $role = $this->companyRole($id);
+        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
+
+        $lock = $this->roleLock($role);
+        if ($lock) return ['status' => 403, 'message' => $lock];
+
+        if ($name === '') return ['status' => 400, 'message' => 'El nombre del rol es obligatorio'];
+        if ($this->qRoleNameExists([$name, $this->companiesId, $id])) {
+            return ['status' => 409, 'message' => 'Ya existe otro rol con ese nombre'];
+        }
+
+        // El código no se toca: es el que da rango al Dueño y no cambia al renombrar.
+        $ok = $this->qUpdateRole([$name, $description, $id, $this->companiesId]);
+
+        if ($ok) {
+            $cambios = $this->diffRows(
+                ['name' => $role['name'], 'description' => (string) $role['description']],
+                ['name' => $name, 'description' => (string) $description],
+                self::ROLE_FIELDS
+            );
+            if ($cambios) Auditoria::registrar('editar', 'roles', $id, $name, ['cambios' => $cambios]);
+        }
+
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Rol actualizado correctamente' : 'No se pudo actualizar el rol'
+        ];
+    }
+
+    /*  Deja en permissions_roles exactamente las acciones marcadas, pero solo
+        entre las del catálogo de la empresa (qRoleCatalog): lo apagado o de la
+        plataforma no sale en la matriz y se conserva tal cual. */
+    function saveRolePermissions() {
+        $id   = (int) ($_POST['id'] ?? 0);
+        $role = $this->companyRole($id);
+        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
+
+        $lock = $this->roleLock($role);
+        if ($lock) return ['status' => 403, 'message' => $lock];
+
+        $catalog = $this->qRoleCatalog([$id]);
+        $visible = array_map('intval', array_column($catalog, 'permission_id'));
+        $granted = [];
+        foreach ($catalog as $p) {
+            if ((int) $p['granted'] === 1) $granted[] = (int) $p['permission_id'];
+        }
+
+        $wanted = array_values(array_intersect($this->postedIds($_POST['permissions'] ?? '[]'), $visible));
+        $remove = array_values(array_diff($granted, $wanted));
+        $add    = array_values(array_diff($wanted, $granted));
+
+        if (!$remove && !$add) return ['status' => 200, 'message' => 'Sin cambios en los permisos'];
+
+        // Quitarle a su propio rol todo Configuración > Accesos lo dejaría fuera de
+        // esta pantalla (y a todos los que tienen ese rol), sin nadie de la empresa
+        // que pueda devolvérselo. El Super Admin no corre ese riesgo.
+        if ($this->locksOutActor($id, $catalog, $wanted)) {
+            return ['status' => 409, 'message' => 'Tu propio rol tiene que conservar al menos una acción en Configuración > Accesos'];
+        }
+
+        $this->transaction(function () use ($id, $remove, $add) {
+            foreach ($remove as $permissionId) $this->qDeleteRolePermission([$id, $permissionId]);
+            foreach ($add as $permissionId)    $this->qInsertRolePermission([$id, $permissionId]);
+        });
+
+        Auditoria::registrar('permisos', 'roles', $id, $role['name'], [
+            'cambios' => $this->permissionDiff($catalog, $wanted)
+        ]);
+
+        return ['status' => 200, 'message' => 'Permisos de «' . $role['name'] . '» guardados'];
+    }
+
+    function deleteRole() {
+        $id   = (int) ($_POST['id'] ?? 0);
+        $role = $this->companyRole($id);
+        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
+
+        $lock = $this->deleteLock($role);
+        if ($lock) return ['status' => 409, 'message' => $lock];
+
+        $actions = 0;
+        foreach ($this->qRoleCatalog([$id]) as $p) $actions += (int) $p['granted'];
+
+        $this->transaction(function () use ($id) {
+            $this->qDeleteRolePermissions([$id]);
+            $this->qDeleteRole([$id, $this->companiesId]);
+        });
+
+        Auditoria::registrar('eliminar', 'roles', $id, $role['name'], [
+            'cambios' => $this->diffRows([
+                'name'        => $role['name'],
+                'description' => (string) $role['description'],
+                'actions'     => $actions . ' acciones'
+            ], [], self::ROLE_FIELDS)
+        ]);
+
+        return ['status' => 200, 'message' => 'Rol eliminado correctamente'];
+    }
+
+    const ROLE_FIELDS = [
+        'name'        => 'Nombre',
+        'description' => 'Descripción',
+        'template'    => 'Permisos copiados de',
+        'actions'     => 'Permisos'
+    ];
+
+    private function companyRole($id) {
+        return $id > 0 ? $this->qCompanyRole([$id, $this->companiesId]) : null;
+    }
+
+    private function roleRow($r) {
+        return [
+            'id'          => (int) $r['id'],
+            'name'        => $r['name'],
+            'description' => $r['description'] ?: '',
+            'users'       => (int) $r['users'],
+            'actions'     => (int) $r['actions'],
+            'lock'        => $this->roleLock($r),
+            'deleteLock'  => $this->deleteLock($r)
+        ];
+    }
+
+    /*  ¿Quién cambia un rol? Además del permiso de la sección:
+          - El rol Dueño, solo un Dueño o un Super Admin.
+          - Nadie que no sea Dueño o Super Admin cambia un rol que él mismo
+            tiene: se estaría dando acceso a sí mismo.
+        Regresa el motivo, o '' si se puede. */
+    private function roleLock($role) {
+        if ($this->isOwnerOrSuper()) return '';
+        if (($role['code'] ?? '') === 'dueno') return 'Solo un Dueño o un Super Admin puede modificar el rol Dueño';
+        if (in_array((int) $role['id'], $this->actorRoleIds(), true)) return 'No puedes modificar el rol que tienes asignado: pídeselo a un Dueño';
+        return '';
+    }
+
+    // Borrar, además: el rol Dueño no se borra nunca (da el rango) y un rol que
+    // alguien tiene tampoco (users_braches lo apunta con FK).
+    private function deleteLock($role) {
+        if (($role['code'] ?? '') === 'dueno') return 'El rol Dueño no se puede eliminar';
+
+        $lock = $this->roleLock($role);
+        if ($lock) return $lock;
+
+        $n = (int) ($role['assignments'] ?? 0);
+        if ($n > 0) return ($n === 1 ? 'Lo tiene 1 usuario' : "Lo tienen {$n} usuarios") . ': cámbiales el rol antes de eliminarlo';
+
+        return '';
+    }
+
+    // ¿El cambio le quita a un rol que tiene quien edita todo lo que tenía en
+    // Configuración > Accesos? (Si nunca lo tuvo, no hay nada que perder.)
+    private function locksOutActor($roleId, $catalog, $wanted) {
+        if ((int) $this->actorRank()['is_superadmin'] === 1)            return false;
+        if (!in_array((int) $roleId, $this->actorRoleIds(), true))      return false;
+
+        $before = 0;
+        $after  = 0;
+        foreach ($catalog as $p) {
+            if ($p['section_code'] !== 'configuracion-accesos') continue;
+            $before += (int) $p['granted'];
+            $after  += in_array((int) $p['permission_id'], $wanted, true) ? 1 : 0;
+        }
+        return $before > 0 && $after === 0;
+    }
+
+    // Catálogo → matriz: columnas (tipos de acción en uso) y módulos > secciones >
+    // acciones (permission id, tipo y si la tiene).
+    private function roleCatalog($roleId) {
+        $types   = [];
+        $modules = [];
+
+        foreach ($this->qRoleCatalog([$roleId]) as $r) {
+            $tid = (int) $r['type_id'];
+            $mid = (int) $r['module_id'];
+            $sid = (int) $r['section_id'];
+
+            $types[$tid] = ['id' => $tid, 'name' => $r['type_name'], 'order' => (int) $r['type_order']];
+
+            if (!isset($modules[$mid])) {
+                $modules[$mid] = ['id' => $mid, 'name' => $r['module_name'], 'icon' => $r['module_icon'] ?: 'layout-grid', 'sections' => []];
+            }
+            if (!isset($modules[$mid]['sections'][$sid])) {
+                $modules[$mid]['sections'][$sid] = ['id' => $sid, 'name' => $r['section_name'], 'icon' => $r['section_icon'] ?: 'square', 'actions' => []];
+            }
+
+            $modules[$mid]['sections'][$sid]['actions'][] = [
+                'id'      => (int) $r['permission_id'],
+                'type_id' => $tid,
+                'granted' => (int) $r['granted'] === 1
+            ];
+        }
+
+        usort($types, function ($a, $b) {
+            return [$a['order'], $a['id']] <=> [$b['order'], $b['id']];
+        });
+
+        // Listas y no objetos en el JSON: el front las recorre en orden.
+        foreach ($modules as &$m) $m['sections'] = array_values($m['sections']);
+        unset($m);
+
+        return ['types' => array_values($types), 'modules' => array_values($modules)];
+    }
+
+    // Qué cambió en los permisos, por sección: "Ver, Agregar" → "Ver, Agregar, Editar".
+    private function permissionDiff($catalog, $wanted) {
+        $sections = [];
+        foreach ($catalog as $p) {
+            $key = $p['module_name'] . ' › ' . $p['section_name'];
+            if (!isset($sections[$key])) $sections[$key] = ['antes' => [], 'despues' => []];
+
+            if ((int) $p['granted'] === 1)                                 $sections[$key]['antes'][]   = $p['type_name'];
+            if (in_array((int) $p['permission_id'], $wanted, true))       $sections[$key]['despues'][] = $p['type_name'];
+        }
+
+        $rows = [];
+        foreach ($sections as $campo => $s) {
+            if ($s['antes'] === $s['despues']) continue;
+            $rows[] = [
+                'campo'   => $campo,
+                'antes'   => $s['antes'] ? implode(', ', $s['antes']) : 'Sin acceso',
+                'despues' => $s['despues'] ? implode(', ', $s['despues']) : 'Sin acceso'
+            ];
+        }
+        return $rows;
+    }
+
+    // 'Gerente Regional' -> 'gerente-regional' (igual que el tenant).
+    private function slug($text) {
+        $text = strtr(mb_strtolower(trim((string) $text), 'UTF-8'), ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n']);
+        return trim(preg_replace('/[^a-z0-9]+/', '-', $text), '-');
     }
 
     /* ====================== Usuarios ====================== */
@@ -174,22 +681,32 @@ class ctrl extends mdl {
         $row = [];
         foreach ($ls as $u) {
             $a = [];
-            $a[] = [
-                'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition me-1',
-                'html'    => '<i class="icon-pencil"></i>',
-                'onclick' => 'users.editUser(' . $u['id'] . ')'
-            ];
-            if ($u['status'] === 'active') {
+            if ($this->canManage($u['id'], $u)) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition',
-                    'html'    => '<i class="icon-toggle-on"></i>',
-                    'onclick' => 'users.toggleUser(' . $u['id'] . ', 0)'
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition me-1',
+                    'html'    => '<i class="icon-pencil"></i>',
+                    'onclick' => 'users.editUser(' . $u['id'] . ')'
                 ];
+                if ($u['status'] === 'active') {
+                    $a[] = [
+                        'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition',
+                        'html'    => '<i class="icon-toggle-on"></i>',
+                        'onclick' => 'users.toggleUser(' . $u['id'] . ', 0)'
+                    ];
+                } else {
+                    $a[] = [
+                        'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition',
+                        'html'    => '<i class="icon-toggle-off"></i>',
+                        'onclick' => 'users.toggleUser(' . $u['id'] . ', 1)'
+                    ];
+                }
             } else {
+                // Sin acciones, pero la celda se queda: el renglón no se descuadra
+                // y el candado dice por qué no se puede tocar.
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition',
-                    'html'    => '<i class="icon-toggle-off"></i>',
-                    'onclick' => 'users.toggleUser(' . $u['id'] . ', 1)'
+                    'class' => 'inline-flex items-center px-2 py-1 text-sm rounded-md text-gray-400 cursor-default',
+                    'html'  => '<i class="icon-lock"></i>',
+                    'title' => $this->manageDenied($u)
                 ];
             }
 
@@ -198,7 +715,9 @@ class ctrl extends mdl {
             $avatar   = '<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:' . $color . ';color:#fff;font-size:12px;font-weight:700;margin-right:6px;">' . $initial . '</span>';
 
             $fullname = $avatar . trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
-            if ((int) $u['is_owner'] === 1) {
+            if ((int) $u['is_superadmin'] === 1) {
+                $fullname .= ' ' . badge('Super Admin', '#FFFFFF', 100, '#111827');
+            } elseif ((int) $u['is_dueno'] === 1) {
                 $fullname .= ' ' . badge('Dueño', 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))');
             }
 
@@ -208,10 +727,17 @@ class ctrl extends mdl {
                   }, explode(',', $u['branch_names'])))
                 : '<span class="italic text-gray-400 text-sm">Sin asignar</span>';
 
+            $roleNames = $u['role_names']
+                ? implode(' ', array_map(function($n) {
+                    return badge(trim($n), '#1D4ED8', 100, '#DBEAFE');
+                  }, explode(',', $u['role_names'])))
+                : '<span class="italic text-gray-400 text-sm">Sin rol</span>';
+
             $row[] = [
                 'id'          => $u['id'],
                 'Colaborador' => $fullname,
                 'Correo'      => $u['email'] ?: '-',
+                'Rol'         => $roleNames,
                 'Sucursales'  => $branchNames,
                 'Estado'      => renderStatus($u['status'] === 'active' ? 1 : 0),
                 'a'           => Permissions::rowActions('configuracion-accesos', $a)
@@ -227,87 +753,18 @@ class ctrl extends mdl {
         if (!$data) {
             return ['status' => 404, 'message' => 'Usuario no encontrado', 'data' => null];
         }
+        $rank = $this->qUserRank([$id]);
+        if (!$this->canManage($id, $rank)) {
+            return ['status' => 403, 'message' => $this->manageDenied($rank), 'data' => null];
+        }
         $data['branch_ids']   = $this->qUserBranchIds([$id]);
         $data['branch_roles'] = $this->qUserBranchRoles([$id]);
-        $data['photo_url']    = $this->photoUrl($data['photo'] ?? '');
+        $data['photo_url']    = $this->imageUrl('users', $data['photo'] ?? '');
         return [
             'status'  => 200,
             'message' => 'OK',
             'data'    => $data
         ];
-    }
-
-    /* ===== Foto del colaborador =====
-       Convención compartida con el login (acceso/ctrl/ctrl-access.php):
-       `users.photo` guarda SOLO el nombre del archivo dentro de
-       inventory/uploads/users/. */
-
-    private function photoDir() {
-        return __DIR__ . '/../../../uploads/users/';
-    }
-
-    // ¿El formulario trae algo que hacer con la foto? Sin esto, guardar el
-    // usuario sin tocar su foto la borraría.
-    private function photoTouched() {
-        return ($_POST['photo_b64'] ?? '') !== '' || ($_POST['photo_clear'] ?? '') === '1';
-    }
-
-    /*  La foto viaja como dataURL en un campo de TEXTO, no como archivo:
-        createModalForm manda el formulario por useFetch, que arma un
-        URLSearchParams, y ahí un File se convierte en "[object File]". Es el
-        mismo camino que la evidencia de mermas (ctrl-salidas.php).
-
-        Devuelve el nombre de archivo a guardar, o null para dejarla vacía. Si
-        el dataURL viene roto se conserva la que ya había: vale más quedarse con
-        la foto vieja que borrarla por un envío mal formado. */
-    private function savePhoto($userId, $currentPhoto) {
-        $b64   = (string) ($_POST['photo_b64'] ?? '');
-        $clear = ($_POST['photo_clear'] ?? '') === '1';
-        $dir   = $this->photoDir();
-
-        if (!$clear) {
-            if (!preg_match('#^data:image/([a-zA-Z0-9.+-]+);base64,#', $b64, $m)) return $currentPhoto;
-
-            $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]);
-            if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'], true))            return $currentPhoto;
-
-            $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
-            if ($data === false)                                                 return $currentPhoto;
-
-            if (!is_dir($dir)) @mkdir($dir, 0777, true);
-
-            $fileName = 'user_' . (int) $userId . '_' . time() . '.' . $ext;
-            if (@file_put_contents($dir . $fileName, $data) === false)           return $currentPhoto;
-
-            $this->dropPhoto($currentPhoto);
-            return $fileName;
-        }
-
-        $this->dropPhoto($currentPhoto);
-        return null;
-    }
-
-    // Borra del disco la foto anterior. basename() para que un valor manipulado
-    // no pueda salirse de la carpeta.
-    private function dropPhoto($photo) {
-        $photo = basename(trim((string) $photo));
-        if ($photo === '') return;
-
-        $file = $this->photoDir() . $photo;
-        if (is_file($file)) @unlink($file);
-    }
-
-    // La foto lista para un <img src>. La base sale de la ruta real de este
-    // controlador (.../inventory/admin/accesos/ctrl/) y no escrita a mano.
-    private function photoUrl($photo) {
-        $photo = trim((string) $photo);
-        if ($photo === '') return '';
-        if ($photo[0] === '/' || preg_match('#^https?://#', $photo)) return $photo;
-
-        $base = dirname(dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? ''))));
-        $base = rtrim(str_replace('\\', '/', $base), '/');
-
-        return $base . '/uploads/users/' . rawurlencode($photo);
     }
 
     function addUser() {
@@ -351,7 +808,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Elige el rol del usuario en cada sucursal'];
         }
 
-        return $this->transaction(function () use ($name, $lastName, $email, $password, $branchIds, $roles, $color) {
+        $newId = $this->transaction(function () use ($name, $lastName, $email, $password, $branchIds, $roles, $color) {
             $this->qInsertUser([
                 $name,
                 $lastName ?: null,
@@ -373,12 +830,23 @@ class ctrl extends mdl {
 
             // La foto se guarda al final porque su nombre lleva el id del usuario,
             // que hasta aquí no existía.
-            if ($this->photoTouched()) {
-                $this->qUpdateUserPhoto([$this->savePhoto($newId, ''), $newId, $this->companiesId]);
+            if ($this->imageTouched('photo')) {
+                $this->qUpdateUserPhoto([$this->saveImage('users', 'photo', 'user', $newId, ''), $newId, $this->companiesId]);
             }
 
-            return ['status' => 200, 'message' => 'Usuario creado correctamente'];
+            return $newId;
         });
+
+        $fullName = trim($name . ' ' . $lastName);
+        Auditoria::registrar('crear', 'users', $newId, $fullName, [
+            'cambios' => $this->diffRows([], [
+                'name'     => $fullName,
+                'email'    => $email,
+                'branches' => $this->branchRolesText($roles)
+            ], self::USER_FIELDS)
+        ]);
+
+        return ['status' => 200, 'message' => 'Usuario creado correctamente'];
     }
 
     function editUser() {
@@ -411,6 +879,10 @@ class ctrl extends mdl {
         if (!$current) {
             return ['status' => 404, 'message' => 'Usuario no encontrado'];
         }
+        $rank = $this->qUserRank([$id]);
+        if (!$this->canManage($id, $rank)) {
+            return ['status' => 403, 'message' => $this->manageDenied($rank)];
+        }
         if ($this->qEmailExistsExcept([$email, $this->companiesId, $id])) {
             return ['status' => 409, 'message' => 'Ya existe otro usuario con ese correo'];
         }
@@ -423,14 +895,22 @@ class ctrl extends mdl {
 
         // Roles de antes de tocar users_braches: la edicion la borra entera y el
         // Super Admin de una sucursal se conserva tal cual (resolveBranchRoles).
-        $roles = $this->resolveBranchRoles($branchIds, $this->qUserBranchRoles([$id]));
+        $currentRoles = $this->qUserBranchRoles([$id]);
+        $roles = $this->resolveBranchRoles($branchIds, $currentRoles);
         if ($roles === null) {
             return ['status' => 400, 'message' => 'Elige el rol del usuario en cada sucursal'];
         }
 
-        $photoActual = $current['photo'] ?? '';
+        // Nadie que no sea Dueño o Super Admin se cambia a sí mismo sucursales o
+        // roles: con permiso en Accesos podría darse el rol que quisiera.
+        if ($id === $this->userId && !$this->isOwnerOrSuper() && $this->rolesChanged($currentRoles, $roles)) {
+            return ['status' => 403, 'message' => 'No puedes cambiar tus propias sucursales ni roles: pídeselo a un Dueño'];
+        }
 
-        return $this->transaction(function () use ($id, $name, $lastName, $email, $branchIds, $roles, $color, $password, $photoActual) {
+        $photoActual  = $current['photo'] ?? '';
+        $photoTouched = $this->imageTouched('photo');
+
+        $this->transaction(function () use ($id, $name, $lastName, $email, $branchIds, $roles, $color, $password, $photoActual, $photoTouched) {
             $this->qUpdateUser([
                 $name,
                 $lastName ?: null,
@@ -455,12 +935,29 @@ class ctrl extends mdl {
                 ]);
             }
 
-            if ($this->photoTouched()) {
-                $this->qUpdateUserPhoto([$this->savePhoto($id, $photoActual), $id, $this->companiesId]);
+            if ($photoTouched) {
+                $this->qUpdateUserPhoto([$this->saveImage('users', 'photo', 'user', $id, $photoActual), $id, $this->companiesId]);
             }
-
-            return ['status' => 200, 'message' => 'Usuario actualizado correctamente'];
         });
+
+        $fullName = trim($name . ' ' . $lastName);
+        $cambios  = $this->diffRows([
+            'name'     => trim($current['name'] . ' ' . ($current['last_name'] ?? '')),
+            'email'    => (string) $current['email'],
+            'branches' => $this->branchRolesText($currentRoles),
+            'password' => '',
+            'photo'    => ''
+        ], [
+            'name'     => $fullName,
+            'email'    => $email,
+            'branches' => $this->branchRolesText($roles),
+            'password' => $password !== '' ? 'Se cambió' : '',
+            'photo'    => $photoTouched ? (($_POST['photo_clear'] ?? '') === '1' ? 'Se quitó' : 'Se cambió') : ''
+        ], self::USER_FIELDS);
+
+        if ($cambios) Auditoria::registrar('editar', 'users', $id, $fullName, ['cambios' => $cambios]);
+
+        return ['status' => 200, 'message' => 'Usuario actualizado correctamente'];
     }
 
     function changePassword() {
@@ -474,12 +971,18 @@ class ctrl extends mdl {
         if (!$current) {
             return ['status' => 404, 'message' => 'Usuario no encontrado'];
         }
+        $rank = $this->qUserRank([$id]);
+        if (!$this->canManage($id, $rank)) {
+            return ['status' => 403, 'message' => $this->manageDenied($rank)];
+        }
 
         $ok = $this->qUpdateUserPassword([
             password_hash($password, PASSWORD_BCRYPT),
             $id,
             $this->companiesId
         ]);
+
+        if ($ok) Auditoria::registrar('contrasena', 'users', $id, trim($current['name'] . ' ' . ($current['last_name'] ?? '')));
 
         return [
             'status'  => $ok ? 200 : 500,
@@ -498,14 +1001,264 @@ class ctrl extends mdl {
         if (!$current) {
             return ['status' => 404, 'message' => 'Usuario no encontrado'];
         }
+        $rank = $this->qUserRank([$id]);
+        if (!$this->canManage($id, $rank)) {
+            return ['status' => 403, 'message' => $this->manageDenied($rank)];
+        }
 
         $status = $active === 1 ? 'active' : 'inactive';
         $ok = $this->qSetUserStatus([$status, $id, $this->companiesId]);
+
+        if ($ok) Auditoria::registrar($active ? 'activar' : 'desactivar', 'users', $id, trim($current['name'] . ' ' . ($current['last_name'] ?? '')));
+
         return [
             'status'  => $ok ? 200 : 500,
             'message' => $ok ? ($active ? 'Usuario activado' : 'Usuario desactivado') : 'No se pudo actualizar el estado'
         ];
     }
+
+    // Campos del usuario y su etiqueta en la bitácora. La contraseña solo dice que
+    // cambió: su valor nunca se guarda.
+    const USER_FIELDS = [
+        'name'     => 'Nombre',
+        'email'    => 'Correo',
+        'branches' => 'Sucursales y roles',
+        'password' => 'Contraseña',
+        'photo'    => 'Foto'
+    ];
+
+    // "Reginas Guadalupe (Almacenista), Reginas kafeto (Supervisor)".
+    private function branchRolesText($map) {
+        $branches = $this->qBranchNames([$this->companiesId]);
+        $roles    = $this->qRoleNames();
+
+        $parts = [];
+        foreach ($map as $branchId => $roleId) {
+            $parts[] = ($branches[$branchId] ?? ('Sucursal ' . $branchId)) . ' (' . ($roles[$roleId] ?? 'Sin rol') . ')';
+        }
+        sort($parts);
+
+        return implode(', ', $parts);
+    }
+
+    private function rolesChanged($currentRoles, $roles) {
+        $a = [];
+        foreach ($currentRoles as $b => $r) $a[(int) $b] = (int) $r;
+        $b = [];
+        foreach ($roles as $k => $r) $b[(int) $k] = (int) $r;
+        ksort($a);
+        ksort($b);
+
+        return $a !== $b;
+    }
+
+    /* ====================== Bitácora (audit_log) ====================== */
+
+    function lsBitacora() {
+        $ls = $this->qAuditLog([
+            'company_id' => $this->companiesId,
+            'fi'         => $this->validDate($_POST['fi'] ?? ''),
+            'ff'         => $this->validDate($_POST['ff'] ?? ''),
+            'user_id'    => (int) ($_POST['user_id'] ?? 0),
+            'entity'     => isset(self::AUDIT_ENTITIES[$_POST['entity'] ?? '']) ? $_POST['entity'] : '',
+            'limit'      => self::AUDIT_LIMIT
+        ]);
+
+        $row = [];
+        foreach ($ls as $l) {
+            $action = self::AUDIT_ACTIONS[$l['action']] ?? [$l['action'], '#475569', '#F1F5F9', 'circle'];
+            $detail = json_decode((string) $l['detail'], true);
+
+            $row[] = [
+                'id'       => $l['id'],
+                'Fecha'    => date('d/m/Y H:i', strtotime($l['created_at'])),
+                'Usuario'  => $l['user_name'] ? htmlspecialchars($l['user_name']) : '-',
+                'Acción'   => badge($action[0], $action[1], 100, $action[2], $action[3]),
+                'Elemento' => '<span class="text-[11px] uppercase tracking-wide text-gray-400">' . (self::AUDIT_ENTITIES[$l['entity']] ?? $l['entity']) . '</span> '
+                            . '<span class="font-medium">' . htmlspecialchars($l['label']) . '</span>',
+                'Detalle'  => htmlspecialchars($this->auditSummary($detail)),
+                'IP'       => $l['ip'] ? htmlspecialchars($l['ip']) : '-',
+                'a'        => [[
+                    'class'   => 'inline-flex items-center justify-center w-8 h-8 p-1.5 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
+                    'title'   => 'Ver detalle',
+                    'onclick' => 'bitacora.getBitacora(' . (int) $l['id'] . ')'
+                ]]
+            ];
+        }
+
+        return ['status' => 200, 'row' => $row];
+    }
+
+    function showBitacora() {
+        $c = $this->qAuditCounts([
+            $this->companiesId,
+            $this->validDate($_POST['fi'] ?? ''),
+            $this->validDate($_POST['ff'] ?? '')
+        ]);
+
+        return [
+            'status' => 200,
+            'counts' => [
+                'total'    => (int) ($c['total'] ?? 0),
+                'sesiones' => (int) ($c['sesiones'] ?? 0),
+                'cambios'  => (int) ($c['cambios'] ?? 0),
+                'bajas'    => (int) ($c['bajas'] ?? 0)
+            ],
+            'usuarios' => $this->qAuditUsers([$this->companiesId])
+        ];
+    }
+
+    // El detalle de un movimiento: el antes y el después de cada campo.
+    function getBitacora() {
+        $l = $this->qAuditEntry([(int) ($_POST['id'] ?? 0), $this->companiesId]);
+        if (!$l) return ['status' => 404, 'message' => 'Movimiento no encontrado'];
+
+        $action = self::AUDIT_ACTIONS[$l['action']] ?? [$l['action'], '#475569', '#F1F5F9', 'circle'];
+        $detail = json_decode((string) $l['detail'], true);
+
+        $row = [];
+        foreach ($this->auditRows($detail) as $r) {
+            $row[] = [
+                'Campo'   => '<span class="font-medium">' . htmlspecialchars($r['campo']) . '</span>',
+                'Antes'   => $r['antes'] !== '' ? htmlspecialchars($r['antes']) : '<span class="text-gray-400">—</span>',
+                'Después' => $r['despues'] !== '' ? htmlspecialchars($r['despues']) : '<span class="text-gray-400">—</span>',
+                'opc'     => 0
+            ];
+        }
+
+        return [
+            'status' => 200,
+            'header' => [
+                'badge'    => badge($action[0], $action[1], 100, $action[2], $action[3]),
+                'elemento' => (self::AUDIT_ENTITIES[$l['entity']] ?? $l['entity']) . ' · ' . $l['label'],
+                'fecha'    => date('d/m/Y H:i:s', strtotime($l['created_at'])),
+                'usuario'  => $l['user_name'] ?: '-',
+                'ip'       => $l['ip'] ?: '-'
+            ],
+            'row' => $row
+        ];
+    }
+
+    // El detalle guardado como renglones campo / antes / después. Los de sesión
+    // traen datos sueltos (sucursal, empresa): van en "Después".
+    private function auditRows($detail) {
+        if (!is_array($detail)) return [];
+        if (isset($detail['cambios']) && is_array($detail['cambios'])) return $detail['cambios'];
+
+        $rows = [];
+        foreach ($detail as $campo => $valor) {
+            $rows[] = ['campo' => ucfirst((string) $campo), 'antes' => '', 'despues' => is_scalar($valor) ? (string) $valor : json_encode($valor)];
+        }
+        return $rows;
+    }
+
+    // Lo que se lee en la columna Detalle de la tabla.
+    private function auditSummary($detail) {
+        $rows = $this->auditRows($detail);
+        if (!$rows) return '';
+
+        if (!isset($detail['cambios'])) {
+            return implode(' · ', array_map(function ($r) { return $r['campo'] . ': ' . $r['despues']; }, $rows));
+        }
+
+        $campos = array_column($rows, 'campo');
+        $resto  = count($campos) > 2 ? ' y ' . (count($campos) - 2) . ' más' : '';
+
+        return implode(', ', array_slice($campos, 0, 2)) . $resto;
+    }
+
+    // Antes y después campo por campo, solo lo que cambió. Alta: antes vacío;
+    // baja: después vacío.
+    private function diffRows($before, $after, $labels) {
+        $rows = [];
+        foreach ($labels as $key => $label) {
+            $a = trim((string) ($before[$key] ?? ''));
+            $d = trim((string) ($after[$key] ?? ''));
+            if ($a === $d) continue;
+            $rows[] = ['campo' => $label, 'antes' => $a, 'despues' => $d];
+        }
+        return $rows;
+    }
+
+    private function validDate($date) {
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $date) ? $date : date('Y-m-d');
+    }
+
+    /* ===== Imágenes: foto del colaborador y logo de la sucursal =====
+       Convención compartida con el login (acceso/ctrl/ctrl-access.php): la
+       columna guarda SOLO el nombre del archivo dentro de
+       inventory/uploads/<carpeta>/ (users, branches). */
+
+    private function imageDir($folder) {
+        return __DIR__ . '/../../../uploads/' . $folder . '/';
+    }
+
+    // ¿El formulario trae algo que hacer con la imagen? Sin esto, guardar sin
+    // tocarla la borraría.
+    private function imageTouched($field) {
+        return ($_POST[$field . '_b64'] ?? '') !== '' || ($_POST[$field . '_clear'] ?? '') === '1';
+    }
+
+    /*  La imagen viaja como dataURL en un campo de TEXTO, no como archivo:
+        createModalForm manda el formulario por useFetch, que arma un
+        URLSearchParams, y ahí un File se convierte en "[object File]". Es el
+        mismo camino que la evidencia de mermas (ctrl-salidas.php).
+
+        Devuelve el nombre de archivo a guardar, o null para dejarla vacía. Si
+        el dataURL viene roto se conserva la que ya había: vale más quedarse con
+        la imagen vieja que borrarla por un envío mal formado. */
+    private function saveImage($folder, $field, $prefix, $id, $current) {
+        $b64   = (string) ($_POST[$field . '_b64'] ?? '');
+        $clear = ($_POST[$field . '_clear'] ?? '') === '1';
+        $dir   = $this->imageDir($folder);
+
+        if (!$clear) {
+            if (!preg_match('#^data:image/([a-zA-Z0-9.+-]+);base64,#', $b64, $m)) return $current;
+
+            $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]);
+            if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'], true))            return $current;
+
+            $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
+            if ($data === false)                                                 return $current;
+
+            if (!is_dir($dir)) @mkdir($dir, 0777, true);
+
+            $fileName = $prefix . '_' . (int) $id . '_' . time() . '.' . $ext;
+            if (@file_put_contents($dir . $fileName, $data) === false)           return $current;
+
+            $this->dropImage($folder, $current);
+            return $fileName;
+        }
+
+        $this->dropImage($folder, $current);
+        return null;
+    }
+
+    // Borra del disco la imagen anterior. basename() para que un valor manipulado
+    // no pueda salirse de la carpeta.
+    private function dropImage($folder, $file) {
+        $file = basename(trim((string) $file));
+        if ($file === '') return;
+
+        $path = $this->imageDir($folder) . $file;
+        if (is_file($path)) @unlink($path);
+    }
+
+    // La imagen lista para un <img src>. La base sale de la ruta real de este
+    // controlador (.../inventory/admin/accesos/ctrl/) y no escrita a mano.
+    private function imageUrl($folder, $file) {
+        $file = trim((string) $file);
+        if ($file === '') return '';
+        if ($file[0] === '/' || preg_match('#^https?://#', $file)) return $file;
+
+        $base = dirname(dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? ''))));
+        $base = rtrim(str_replace('\\', '/', $base), '/');
+
+        return $base . '/uploads/' . $folder . '/' . rawurlencode($file);
+    }
+
+    /* ===== Jerarquía ===== */
 
     private function normalizeBranchIds($raw) {
         if (is_array($raw)) {
@@ -524,12 +1277,27 @@ class ctrl extends mdl {
         return array_values(array_unique($result));
     }
 
+    // Ids que llegan como JSON ("[1,2,3]"): los permisos marcados de un rol.
+    private function postedIds($raw) {
+        $decoded = json_decode((string) $raw, true);
+        if (!is_array($decoded)) return [];
+
+        $ids = [];
+        foreach ($decoded as $v) {
+            $id = (int) $v;
+            if ($id > 0) $ids[] = $id;
+        }
+        return array_values(array_unique($ids));
+    }
+
     // Rol de cada sucursal (branch_id => role_id) a partir de `branch_roles`.
-    // Solo valen los roles de la empresa (qRolesForSelect, sin el 1). Donde el
-    // usuario ya es Super Admin se queda así: ese rol es del sistema y no se
-    // asigna ni se quita desde aquí. null = falta o no vale el rol de alguna.
+    // Solo valen los roles de la empresa que puede asignar quien edita
+    // (qRolesForSelect: nunca el Super Admin; el Dueño, solo un Dueño o Super
+    // Admin). Donde el usuario ya es Super Admin se queda así: ese rol es del
+    // sistema y no se asigna ni se quita desde aquí. null = falta o no vale el
+    // rol de alguna.
     private function resolveBranchRoles($branchIds, $currentRoles) {
-        $allowed = array_map('intval', array_column($this->qRolesForSelect([$this->companiesId]), 'id'));
+        $allowed = array_map('intval', array_column($this->qRolesForSelect([$this->companiesId, $this->canAssignOwner() ? 1 : 0]), 'id'));
         $sent    = $this->normalizeBranchRoles($_POST['branch_roles'] ?? '');
 
         $roles = [];
@@ -544,6 +1312,53 @@ class ctrl extends mdl {
             $roles[$bid] = $role;
         }
         return $roles;
+    }
+
+    /*  JERARQUÍA DE ACCESOS: además del permiso de la sección, editar o dar de
+        baja a alguien depende de quién es cada uno.
+          - Al Super Admin solo lo toca otro Super Admin o él mismo.
+          - Al Dueño, solo un Dueño o un Super Admin.
+        $rank trae is_superadmin e is_dueno (qUsers o qUserRank). */
+    private function canManage($id, $rank) {
+        $actor = $this->actorRank();
+
+        if ((int) $rank['is_superadmin'] === 1) {
+            return (int) $actor['is_superadmin'] === 1 || (int) $id === $this->userId;
+        }
+        if ((int) $rank['is_dueno'] === 1) {
+            return (int) $actor['is_superadmin'] === 1 || (int) $actor['is_dueno'] === 1;
+        }
+        return true;
+    }
+
+    private function manageDenied($rank) {
+        return (int) $rank['is_superadmin'] === 1
+            ? 'Solo otro Super Admin puede modificar a un Super Admin'
+            : 'Solo un Dueño o un Super Admin puede modificar a un Dueño';
+    }
+
+    // Quien no es Dueño ni Super Admin tampoco puede nombrar dueños: sería darse
+    // a sí mismo (o a otro) un rango que después ya no podría tocar.
+    private function canAssignOwner() {
+        return $this->isOwnerOrSuper();
+    }
+
+    private function isOwnerOrSuper() {
+        $actor = $this->actorRank();
+
+        return (int) $actor['is_superadmin'] === 1 || (int) $actor['is_dueno'] === 1;
+    }
+
+    private function actorRank() {
+        if ($this->actor === null) $this->actor = $this->qUserRank([$this->userId]);
+
+        return $this->actor;
+    }
+
+    private function actorRoleIds() {
+        if ($this->actorRoles === null) $this->actorRoles = $this->qUserRoleIds([$this->userId]);
+
+        return $this->actorRoles;
     }
 
     private function normalizeBranchRoles($raw) {

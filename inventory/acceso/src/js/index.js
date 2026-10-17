@@ -106,10 +106,9 @@ function storage(data) {
         // Se guarda DESPUES del clear: si no, el propio login borraría lo que acaba de recordar.
         if ($('#rememberMe').is(':checked')) saveRemembered(data);
 
-        // Administrador o superadmin: directo a módulos, sin pasar por sucursal.
-        // Resto: selector de sucursales (apartado de Rosy); app.js de sucursales
-        // redirige a operacion/almacen/.
-        window.location.href = (parseInt(data.is_admin, 10) === 1) ? "modulos/" : "sucursales/";
+        // Super Admin: elige primero la empresa (o el módulo DEV). Los demás entran
+        // directo a módulos con su sucursal; la cambian desde la navbar.
+        window.location.href = (parseInt(data.is_superadmin, 10) === 1) ? "empresas/" : "modulos/";
     } else {
         setLoading(false);
         showLoginError('Usuario y/o clave incorrectos.');

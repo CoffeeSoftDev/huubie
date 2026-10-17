@@ -15,9 +15,11 @@ class ctrl extends mdl {
         $userId   = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
         $branchId = (int) ($_SESSION['branch_id'] ?? 0);
 
-        $ls = [];
+        $ls           = [];
+        $isSuperAdmin = false;
         if ($userId > 0 && $branchId > 0) {
-            $ls = $this->qIsSuperAdmin([$userId, $branchId])
+            $isSuperAdmin = $this->qIsSuperAdmin([$userId]);
+            $ls = $isSuperAdmin
                 ? $this->qModules()
                 : $this->qAccessibleModules([$userId, $branchId]);
         }
@@ -30,7 +32,7 @@ class ctrl extends mdl {
                 'name'        => $m['name'],
                 'icon'        => $m['icon'] ?: 'layout-grid',
                 'description' => $m['description'] ?: '',
-                'route'       => $m['route'] ?: '',
+                'route'       => $this->landingRoute($m, $isSuperAdmin, $userId, $branchId),
                 'submodules'  => $count,
             ];
         }
@@ -40,6 +42,21 @@ class ctrl extends mdl {
             'user'    => $_SESSION['user'] ?? 'Usuario',
             'modules' => $modules,
         ];
+    }
+
+    // Abrir un módulo lleva a su primera sección (por orden) que el rol puede
+    // abrir: en Inventario, el Dashboard. Solo cuentan las páginas del propio
+    // módulo (su ruta cuelga de modules.route); sin ninguna, la ruta del módulo.
+    private function landingRoute($module, $isSuperAdmin, $userId, $branchId) {
+        $base = trim((string) $module['route'], '/');
+        $ls   = $this->qLandingSections([(int) $module['id'], $isSuperAdmin ? 1 : 0, $userId, $branchId]);
+
+        foreach ($ls as $s) {
+            $route = trim((string) $s['route'], '/');
+            if ($base !== '' && strpos($route . '/', $base . '/') === 0) return $s['route'];
+        }
+
+        return $module['route'] ?: '';
     }
 
     // Submódulos de un módulo (cards de segundo nivel) + datos del módulo padre.

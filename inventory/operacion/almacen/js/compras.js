@@ -48,14 +48,18 @@ class App extends Templates {
     // -- Layout --
 
     layout() {
+        // Visor (tabla + panel de detalle): llena exacto el alto disponible con
+        // flex-1 min-h-0 y scrollea por dentro, como Entradas y Salidas. Con h-screen
+        // el contenedor medía una pantalla completa debajo del filtro: dos barras.
         this.primaryLayout({
             parent:       'root',
             id:           this.PROJECT_NAME,
-            class:        'flex mx-2 ',
+            class:        'flex mx-2 flex-1 min-h-0',
             heightPreset: 'full',
             card: {
-                filterBar: { class: 'w-full ', id: 'filterBar' },
-                container: { class: 'w-full my-2 h-screen rounded p-3 overflow-auto bg-white border border-gray-200', id: 'container' + this.PROJECT_NAME }
+                class:     'flex flex-col col-12 min-h-0',
+                filterBar: { class: 'w-full flex-shrink-0', id: 'filterBar' },
+                container: { class: 'w-full my-2 flex-1 min-h-0 rounded p-3 bg-white border border-gray-200', id: 'container' + this.PROJECT_NAME }
             }
         });
 
@@ -846,8 +850,8 @@ class Compras extends App {
             'Cancelada':  [this.panelButton('Retomar', 'calendar-plus', 'outline', () => opts.onRetake(data))]
         };
 
-        // Las acciones van arriba: con el contenedor h-screen del layout el pie del
-        // panel puede quedar debajo del borde de la pantalla.
+        // Las acciones van arriba: en pantallas bajas el pie del panel puede quedar
+        // fuera de la vista y se alcanza con el scroll del detalle.
         container.empty().append(
             $('<div>', { id: opts.id, class: 'flex-1 flex flex-col overflow-hidden' }).append(
                 header,

@@ -43,7 +43,9 @@ class App extends Templates {
             card: {
                 filterBar: { class: 'w-full ', id: 'filterBar' },
                 // Tema light: el contenedor no lleva fondo, cada bloque es su propia tarjeta.
-                container: { class: 'w-full my-2 h-screen rounded p-3 overflow-auto', id: 'container' + this.PROJECT_NAME }
+                // Sin alto fijo ni scroll propio: crece con la bitácora y el único scroll
+                // es el de la página (#main__content). Con h-screen había dos barras.
+                container: { class: 'w-full my-2 rounded p-3', id: 'container' + this.PROJECT_NAME }
             }
         });
 
@@ -110,7 +112,9 @@ class App extends Templates {
                 class: 'flex flex-col gap-2 min-w-0',
                 container: [
                     { type: 'div', id: 'logHeader' },
-                    { type: 'div', id: 'logTable', class: 'overflow-x-auto' }
+                    // -mx-3 px-3: el .row de DataTables trae margen negativo de 0.75rem por
+                    // lado; sin compensarlo, el overflow-x-auto pintaba una barra horizontal.
+                    { type: 'div', id: 'logTable', class: 'overflow-x-auto -mx-3 px-3' }
                 ]
             }
         });
@@ -213,16 +217,108 @@ class App extends Templates {
 
         this.kpisRow({
             parent: `kpis${this.PROJECT_NAME}`,
-            cardClass: 'bg-white rounded-lg border border-gray-200 px-3 py-3',
+            cardClass: 'bg-white rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:shadow-md transition-shadow',
             json: [
-                { id: 'kpiValor', label: 'Valor del inventario', value: c.valor || '$0.00', tone: 'default', icon: 'wallet' },
-                { id: 'kpiProductos', label: 'Productos activos', value: c.productos || 0, tone: 'info', icon: 'package' },
-                { id: 'kpiBajo', label: 'Stock bajo', value: c.bajo || 0, tone: 'warning', icon: 'triangle-alert' },
-                { id: 'kpiAgotado', label: 'Agotados', value: c.agotado || 0, tone: 'danger', icon: 'package-x' }
-            ]
+                {
+                    id: 'kpiValor',
+                    label: 'Valor del inventario',
+                    value: c.valor || '$0.00',
+                    tone: 'default',
+                    icon: 'wallet'
+                },
+                {
+                    id: 'kpiProductos',
+                    label: 'Productos activos',
+                    value: c.productos || 0,
+                    tone: 'info',
+                    icon: 'package'
+                },
+                {
+                    id: 'kpiBajo',
+                    label: 'Stock bajo',
+                    value: c.bajo || 0,
+                    tone: 'warning',
+                    icon: 'triangle-alert'
+                },
+                {
+                    id: 'kpiAgotado',
+                    label: 'Agotados',
+                    value: c.agotado || 0,
+                    tone: 'danger',
+                    icon: 'package-x'
+                }
+            ],
+            onClick: (kpi) => this.lsKpiDetail(kpi)
         });
 
         this.renderLowStock(ok ? request.lowStock || [] : []);
+    }
+
+    async lsKpiDetail(kpi) {
+        const views = {
+            kpiValor: {
+                title: 'Valor del inventario por producto',
+                right: [3, 4, 5]
+            },
+            kpiProductos: {
+                title: 'Productos activos',
+                center: [5],
+                right: [3, 4]
+            },
+            kpiBajo: {
+                title: 'Productos con stock bajo',
+                right: [3, 4, 5]
+            },
+            kpiAgotado: {
+                title: 'Productos agotados',
+                right: [3, 4]
+            }
+        };
+        const view = views[kpi.id];
+        if (!view) return;
+
+        const request = await useFetch({ url: this._link, data: { opc: 'lsKpiDetail', kpi: kpi.id } });
+
+        if (!(request && request.status === 200)) {
+            this.alertBox({ type: 'error', title: (request && request.message) || 'No se pudo cargar el detalle' });
+            return;
+        }
+
+        const row    = request.row || [];
+        const branch = request.sucursal ? ` en ${$('<span>').text(request.sucursal).html()}` : '';
+
+        this.detailModal(Object.assign({}, view, {
+            id: kpi.id,
+            value: String(kpi.value),
+            subtitle: `${row.length} producto${row.length !== 1 ? 's' : ''} · existencias al día de hoy${branch}`,
+            emptyMessage: 'No hay productos en este indicador',
+            data: { row }
+        }));
+    }
+
+    // El ojo de la bitácora: los productos que movió la operación.
+    async getMovimiento(tipo, folio) {
+        const request = await useFetch({ url: this._link, data: { opc: 'getMovimiento', tipo, folio } });
+
+        if (!(request && request.status === 200)) {
+            this.alertBox({ type: 'error', title: (request && request.message) || 'No se pudo cargar el detalle' });
+            return;
+        }
+
+        const h    = request.header || {};
+        const esc  = (str) => $('<span>').text(str == null ? '' : String(str)).html();
+        const nota = h.nota ? ` · Nota: ${esc(h.nota)}` : '';
+
+        this.detailModal({
+            id: 'movimiento',
+            title: `Detalle de la operación · ${esc(h.folio)}`,
+            value: h.costo ? `${h.badge} <span class="ml-1">${esc(h.costo)}</span>` : h.badge,
+            subtitle: `${esc(h.fecha)} · Registró ${esc(h.usuario)} · ${esc(h.almacen)} · ${h.productos} producto${h.productos !== 1 ? 's' : ''}${nota}`,
+            center: [3],
+            right: [2, 4, 5],
+            emptyMessage: 'La operación no tiene productos',
+            data: { row: request.row || [] }
+        });
     }
 
     async lsMovimientos() {
@@ -303,6 +399,56 @@ class App extends Templates {
             );
 
         $('#lowStockCard').html([header, body]);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Mismo modal de solo lectura que el desglose de las cards de Salidas y Entradas:
+    // lo usan las cards del dashboard y el ojo de la bitácora.
+    detailModal(options) {
+        const defaults = {
+            id: 'detail',
+            title: '',
+            value: '',
+            subtitle: '',
+            size: 'xl',
+            center: [],
+            right: [],
+            emptyMessage: 'Sin información',
+            data: { row: [] }
+        };
+
+        const opts    = Object.assign({}, defaults, options || {});
+        const modal   = this.cfModal({ title: opts.title, size: opts.size, backdropClose: true });
+        const tableId = `tb${opts.id}${this.PROJECT_NAME}`;
+
+        // Solo lectura: se cierra con la X, Escape o clic afuera. -mx-3 px-3 compensa
+        // el margen negativo del .row de DataTables (si no, sale barra horizontal).
+        modal.footer.remove();
+        modal.body.attr('id', `${opts.id}${this.PROJECT_NAME}`).addClass('-mx-3 px-3');
+
+        this.createCoffeeTable3({
+            parent: `${opts.id}${this.PROJECT_NAME}`,
+            id: tableId,
+            theme: 'light',
+            title: opts.value,
+            subtitle: opts.subtitle,
+            center: opts.center,
+            right: opts.right,
+            extends: true,
+            scrollable: false,
+            striped: true,
+            f_size: 12,
+            emptyMessage: opts.emptyMessage,
+            emptyIcon: 'icon-box',
+            data: opts.data
+        });
+
+        // Listas largas (todos los productos activos): buscador y páginas de 8, que caben
+        // sin scroll en el modal de una laptop.
+        if (opts.data.row.length > 8 && typeof simple_data_table === 'function') {
+            simple_data_table(`#${tableId}`, 8);
+        }
+
         if (window.lucide) lucide.createIcons();
     }
 

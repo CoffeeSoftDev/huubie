@@ -95,7 +95,8 @@ class App extends Templates {
             design: false,
             data: {
                 id: this.PROJECT_NAME,
-                class: 'flex flex-col mx-2 flex-1 min-h-0',
+                // Sin min-h-0: #root crece con las tablas y scrollea #main__content (general.css).
+                class: 'flex flex-col mx-2 flex-1',
                 container: [
                     { type: 'div', id: `header${this.PROJECT_NAME}`, class: 'w-full' },
                     { type: 'div', id: `container${this.PROJECT_NAME}`, class: 'w-full rounded p-2 flex-1 min-h-0 flex flex-col' }

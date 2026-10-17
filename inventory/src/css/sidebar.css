@@ -110,6 +110,22 @@
     border-color: rgb(var(--brand-600, 192 90 64) / .12);
 }
 
+/* Linea bajo Inicio: separa la vuelta a las cards de modulos de las secciones
+   del modulo. Inicio siempre es el primer boton del rail (sidebar.js), asi que
+   la linea va arriba del segundo y no sale cuando Inicio esta solo. Va en CSS
+   y no en sidebar.js porque este se carga sin cache-buster. */
+#menu-sidebar .menu-rail-item:nth-child(2) { margin-top: 9px; }
+#menu-sidebar .menu-rail-item:nth-child(2)::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 9px;
+    right: 9px;
+    height: 1px;
+    background: var(--line, #E5E7EB);
+    pointer-events: none;
+}
+
 /* Dark mode */
 body.dark-mode .menu-rail-item { color: var(--dk-muted, #9CA3AF); }
 body.dark-mode .menu-rail-item:hover {

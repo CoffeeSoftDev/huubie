@@ -17,6 +17,7 @@
       guard()       en el ctrl, antes de despachar el opc.
       can()         donde se arman botones.
       rowActions()  quita de una fila los botones que el rol no puede usar.
+      superAdmin()  ¿el usuario en sesión es Super Admin? (elige empresa).
 */
 require_once __DIR__ . '/_CRUD.php';
 
@@ -35,6 +36,13 @@ class Permissions extends CRUD {
 
     public static function can($section, $action) {
         return in_array($action, self::actions($section), true);
+    }
+
+    // El Super Admin no depende de la sucursal: entra a todas las empresas.
+    public static function superAdmin() {
+        $userId = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
+
+        return $userId > 0 && self::db()->isSuperAdmin([$userId]);
     }
 
     public static function page($section) {
@@ -135,7 +143,7 @@ class Permissions extends CRUD {
         $branchId = (int) ($_SESSION['branch_id'] ?? 0);
         if ($userId <= 0 || $branchId <= 0) return [];
 
-        $rows = $this->isSuperAdmin([$userId, $branchId])
+        $rows = $this->isSuperAdmin([$userId])
             ? $this->allActions()
             : $this->roleActions([$userId, $branchId, $section]);
 
@@ -144,12 +152,12 @@ class Permissions extends CRUD {
 
     // Mismo criterio que el menú: acceso/mdl/mdl-access.php::userIsSuperAdmin.
     private function isSuperAdmin($array) {
-        // [user_id, branch_id]
+        // [user_id]
         $query = "
             SELECT 1
             FROM fayxzvov_erp.users_braches ub
             JOIN fayxzvov_erp.roles r ON r.id = ub.role_id AND r.is_active = 1
-            WHERE ub.user_id = ? AND ub.branch_id = ?
+            WHERE ub.user_id = ?
                 AND r.code = 'superadmin'
             LIMIT 1
         ";
