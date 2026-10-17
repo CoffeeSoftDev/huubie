@@ -598,12 +598,16 @@ body.dark-mode .bg-green-50,   body.dark-mode .bg-green-100   { background-color
 body.dark-mode .bg-red-50,     body.dark-mode .bg-red-100     { background-color: rgb(239 68 68 / .16) !important; }
 body.dark-mode .bg-rose-50,    body.dark-mode .bg-rose-100    { background-color: rgb(244 63 94 / .16) !important; }
 body.dark-mode .bg-amber-50,   body.dark-mode .bg-amber-100   { background-color: rgb(245 158 11 / .16) !important; }
+/* Con opacidad: "Tal vez quisiste decir" del buscador de entradas. Sin esto
+   el fondo se quedaba crema y su texto (amber-300 en oscuro) no se leía. */
+body.dark-mode .bg-amber-50\/70                               { background-color: rgb(245 158 11 / .16) !important; }
 body.dark-mode .bg-yellow-50,  body.dark-mode .bg-yellow-100  { background-color: rgb(234 179 8 / .16) !important; }
 body.dark-mode .bg-orange-50,  body.dark-mode .bg-orange-100  { background-color: rgb(249 115 22 / .16) !important; }
 body.dark-mode .bg-sky-50,     body.dark-mode .bg-sky-100     { background-color: rgb(14 165 233 / .16) !important; }
 body.dark-mode .bg-cyan-50,    body.dark-mode .bg-cyan-100    { background-color: rgb(6 182 212 / .16) !important; }
 body.dark-mode .bg-teal-50,    body.dark-mode .bg-teal-100    { background-color: rgb(20 184 166 / .16) !important; }
-body.dark-mode .bg-indigo-50,  body.dark-mode .bg-indigo-100  { background-color: rgb(99 102 241 / .16) !important; }
+body.dark-mode .bg-indigo-50,  body.dark-mode .bg-indigo-100,
+body.dark-mode .bg-indigo-50\/50                              { background-color: rgb(99 102 241 / .16) !important; }
 body.dark-mode .bg-violet-50,  body.dark-mode .bg-violet-100  { background-color: rgb(139 92 246 / .16) !important; }
 body.dark-mode .bg-purple-50,  body.dark-mode .bg-purple-100  { background-color: rgb(168 85 247 / .16) !important; }
 body.dark-mode .bg-pink-50,    body.dark-mode .bg-pink-100    { background-color: rgb(236 72 153 / .16) !important; }
@@ -674,12 +678,20 @@ body.dark-mode .bg-blue-100 {
 /* Sus variantes con opacidad (encabezado de resultados del buscador, renglón
    vacío, hover de un resultado): sin esto se veían como un gris lavado. */
 body.dark-mode .bg-blue-50\/30,
+body.dark-mode .bg-blue-50\/40,
 body.dark-mode .bg-blue-50\/50,
 body.dark-mode .bg-blue-50\/60 {
     background-color: rgb(var(--brand-600, 192 90 64) / .10) !important;
 }
 
+/* La capa de "suelta el archivo" (bg-blue-50/90) tapa lo de abajo: casi sólida,
+   la tarjeta oscura con un toque del acento. */
+body.dark-mode .bg-blue-50\/90 {
+    background-color: color-mix(in srgb, rgb(var(--brand-600, 192 90 64)) 14%, var(--dk-card, #1F2A37)) !important;
+}
+
 body.dark-mode .hover\:bg-blue-50:hover,
+body.dark-mode .hover\:bg-blue-50\/40:hover,
 body.dark-mode .hover\:bg-blue-50\/60:hover {
     background-color: rgb(var(--brand-600, 192 90 64) / .14) !important;
 }

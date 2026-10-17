@@ -98,7 +98,7 @@ class Access extends MAccess {
         $isOwner = $isSuperAdmin || (int) ($usr['is_owner'] ?? 0) === 1;
         $list    = $isOwner
             ? $this->getBranchesByCompany([$usr['company_id']])
-            : $this->getBranchesByUser([$usr['IDU']]);
+            : $this->getBranchesByUser([$usr['IDU'], $usr['company_id']]);
 
         foreach ($list as $b) {
             if ((int) $b['id'] === (int) $usr['branch_id']) return ['id' => (int) $b['id'], 'name' => $b['name']];
@@ -106,7 +106,12 @@ class Access extends MAccess {
 
         if (!empty($list)) return ['id' => (int) $list[0]['id'], 'name' => $list[0]['name']];
 
-        return ['id' => $usr['branch_id'], 'name' => $usr['branch']];
+        // Sin sucursales en su empresa: la suya solo si es de esa misma empresa.
+        // Una de otra empresa armaría una sesión cruzada (empresa A, sucursal de B).
+        if ((int) ($usr['branch_company_id'] ?? 0) === (int) $usr['company_id']) {
+            return ['id' => $usr['branch_id'], 'name' => $usr['branch']];
+        }
+        return ['id' => 0, 'name' => ''];
     }
 
     /* ===== Recuperación de contraseña =====
@@ -506,10 +511,12 @@ class Access extends MAccess {
         $userId   = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
         $isOwner  = (int) ($_SESSION['is_owner'] ?? 0);
 
+        // Solo las de la empresa de la sesión: un usuario con sucursales de otra
+        // empresa (se cambió de empresa) las veía aquí aunque no pudiera usarlas.
         if ($isOwner === 1) {
             $list = $this->getBranchesByCompany([$_SESSION['company_id']]);
         } else {
-            $list = $this->getBranchesByUser([$userId]);
+            $list = $this->getBranchesByUser([$userId, (int) ($_SESSION['company_id'] ?? 0)]);
         }
 
         $branches = [];

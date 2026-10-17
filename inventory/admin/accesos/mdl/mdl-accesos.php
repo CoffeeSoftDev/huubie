@@ -25,9 +25,10 @@ class mdl extends CRUD {
     }
 
     // Los números del Resumen: usuarios (activos y todos), roles, sucursales
-    // activas y movimientos de la bitácora en el día.
+    // activas y movimientos de la bitácora en el día (los del Super Admin solo
+    // cuentan para otro Super Admin).
     function qSummaryCounts($array) {
-        // [company_id x 5]
+        // [company_id x 5, ve_superadmin]
         $query = "
             SELECT
                 (SELECT COUNT(*) FROM {$this->bd}users u WHERE u.company_id = ? AND u.status = 'active') AS usuarios_activos,
@@ -36,7 +37,8 @@ class mdl extends CRUD {
                   WHERE r.company_id = ? AND r.is_system = 0 AND r.is_active = 1)                         AS roles,
                 (SELECT COUNT(*) FROM {$this->bd}branches b WHERE b.company_id = ? AND b.is_active = 1)  AS sucursales,
                 (SELECT COUNT(*) FROM {$this->bd}audit_log a
-                  WHERE a.company_id = ? AND a.created_at >= CURDATE())                                   AS movimientos_hoy
+                  WHERE a.company_id = ? AND a.created_at >= CURDATE()
+                    AND (? = 1 OR a.is_superadmin = 0))                                                   AS movimientos_hoy
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : [];
@@ -127,6 +129,31 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r);
     }
 
+    // Plan vigente de la empresa: el de su suscripción activa o en prueba más
+    // reciente. La misma consulta que DEV (tenant/mdl qPlanActiveByCompany),
+    // para que las dos pantallas digan lo mismo. INNER JOIN a propósito: una
+    // suscripción que apunta a un plan borrado cuenta como "sin plan".
+    function qActivePlan($array) {
+        // [company_id]
+        $query = "
+            SELECT p.id, p.name, p.max_branches
+            FROM {$this->bd}subscriptions s
+            INNER JOIN {$this->bd}plans p ON p.id = s.plan_id
+            WHERE s.company_id = ? AND s.status IN ('active', 'trial')
+            ORDER BY s.id DESC
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    function qCountActiveBranches($array) {
+        // [company_id]
+        $query = "SELECT COUNT(*) AS total FROM {$this->bd}branches WHERE company_id = ? AND is_active = 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['total'] : 0;
+    }
+
     /* ====================== Roles ====================== */
 
     // Roles que se asignan por sucursal en Accesos: los activos de la empresa y
@@ -150,7 +177,8 @@ class mdl extends CRUD {
     }
 
     // Rango del usuario en Accesos: Super Admin (el rol en cualquier sucursal) y
-    // Dueño (users.is_owner o el rol Dueño en alguna sucursal).
+    // Dueño (users.is_owner o el rol Dueño en una sucursal de SU empresa: uno que
+    // se quedó en otra empresa no lo hace dueño de esta).
     function qUserRank($array) {
         // [user_id]
         $query = "
@@ -164,8 +192,9 @@ class mdl extends CRUD {
                 (COALESCE(u.is_owner, 0) = 1 OR EXISTS (
                     SELECT 1
                     FROM {$this->bd}users_braches ub
-                    JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
-                    WHERE ub.user_id = u.id AND r.code = 'dueno'
+                    JOIN {$this->bd}roles r     ON r.id = ub.role_id AND r.is_active = 1
+                    JOIN {$this->bd}branches br ON br.id = ub.branch_id
+                    WHERE ub.user_id = u.id AND r.code = 'dueno' AND br.company_id = u.company_id
                 )) AS is_dueno
             FROM {$this->bd}users u
             WHERE u.id = ?
@@ -276,6 +305,7 @@ class mdl extends CRUD {
             SELECT
                 p.id                 AS permission_id,
                 p.type_permission_id AS type_id,
+                tp.code              AS type_code,
                 tp.name              AS type_name,
                 tp.`order`           AS type_order,
                 s.id                 AS section_id,
@@ -324,20 +354,9 @@ class mdl extends CRUD {
                 u.is_owner,
                 u.branch_id,
                 u.color,
+                u.photo,
                 DATE_FORMAT(u.created_at, '%d/%m/%Y %H:%i') AS created,
                 b.name AS branch_name,
-                (
-                    SELECT GROUP_CONCAT(DISTINCT br.name ORDER BY br.name ASC SEPARATOR ', ')
-                    FROM {$this->bd}users_braches ub
-                    INNER JOIN {$this->bd}branches br ON br.id = ub.branch_id
-                    WHERE ub.user_id = u.id
-                ) AS branch_names,
-                (
-                    SELECT GROUP_CONCAT(DISTINCT ro.name ORDER BY ro.name ASC SEPARATOR ', ')
-                    FROM {$this->bd}users_braches ub
-                    INNER JOIN {$this->bd}roles ro ON ro.id = ub.role_id
-                    WHERE ub.user_id = u.id
-                ) AS role_names,
                 EXISTS (
                     SELECT 1
                     FROM {$this->bd}users_braches ub
@@ -347,13 +366,36 @@ class mdl extends CRUD {
                 (COALESCE(u.is_owner, 0) = 1 OR EXISTS (
                     SELECT 1
                     FROM {$this->bd}users_braches ub
-                    JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
-                    WHERE ub.user_id = u.id AND r.code = 'dueno'
+                    JOIN {$this->bd}roles r     ON r.id = ub.role_id AND r.is_active = 1
+                    JOIN {$this->bd}branches br ON br.id = ub.branch_id
+                    WHERE ub.user_id = u.id AND r.code = 'dueno' AND br.company_id = u.company_id
                 )) AS is_dueno
             FROM {$this->bd}users u
             LEFT JOIN {$this->bd}branches b ON b.id = u.branch_id
             WHERE u.company_id = ? AND u.status = ?
             ORDER BY u.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Sucursal y rol de cada usuario de la empresa, renglón por renglón (no con
+    // GROUP_CONCAT: un nombre con coma se partía en dos). Solo las sucursales de
+    // esta empresa: el Super Admin tiene también las de otras.
+    function qUserAssignments($array) {
+        // [company_id, company_id]
+        $query = "
+            SELECT
+                ub.user_id,
+                br.name      AS branch_name,
+                br.is_active AS branch_active,
+                ro.name      AS role_name,
+                ro.code      AS role_code
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}users u     ON u.id = ub.user_id AND u.company_id = ?
+            INNER JOIN {$this->bd}branches br ON br.id = ub.branch_id AND br.company_id = ?
+            LEFT JOIN  {$this->bd}roles ro    ON ro.id = ub.role_id
+            ORDER BY br.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -391,13 +433,19 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    /*  Las asignaciones (users_braches) se leen y se reemplazan solo en las
+        sucursales de la empresa que se administra: las que el usuario tenga en
+        otra empresa no salen en el formulario ni se tocan al guardar. Antes
+        salían ocultas en el formulario y el ctrl las rechazaba ("sucursal no
+        válida"), y la edición borraba también las de las otras empresas. */
     function qUserBranchIds($array) {
-        // [user_id]
+        // [user_id, company_id]
         $query = "
-            SELECT branch_id
-            FROM {$this->bd}users_braches
-            WHERE user_id = ?
-            ORDER BY branch_id ASC
+            SELECT ub.branch_id
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ? AND b.company_id = ?
+            ORDER BY ub.branch_id ASC
         ";
         $r = $this->_Read($query, $array);
         if (!is_array($r) || empty($r)) return [];
@@ -444,20 +492,26 @@ class mdl extends CRUD {
     }
 
     function qDeleteUserBranches($array) {
-        // [user_id]
-        $query = "DELETE FROM {$this->bd}users_braches WHERE user_id = ?";
+        // [user_id, company_id]
+        $query = "
+            DELETE ub
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ? AND b.company_id = ?
+        ";
         return $this->_CUD($query, $array);
     }
 
-    // Rol que el usuario tiene en cada sucursal, como mapa branch_id => role_id.
-    // editUser() borra y reinserta users_braches, asi que necesita esta foto
-    // previa para devolver cada fila con el rol que ya tenia.
+    // Rol que el usuario tiene en cada sucursal de la empresa, como mapa
+    // branch_id => role_id. editUser() borra y reinserta esas filas, asi que
+    // necesita esta foto previa para devolver cada una con el rol que ya tenia.
     function qUserBranchRoles($array) {
-        // [user_id]
+        // [user_id, company_id]
         $query = "
-            SELECT branch_id, role_id
-            FROM {$this->bd}users_braches
-            WHERE user_id = ?
+            SELECT ub.branch_id, ub.role_id
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ? AND b.company_id = ?
         ";
         $r = $this->_Read($query, $array);
         if (!is_array($r) || empty($r)) return [];
@@ -498,7 +552,9 @@ class mdl extends CRUD {
         return is_array($r) ? array_column($r, 'name', 'id') : [];
     }
 
-    /* ====================== Bitácora (audit_log) ====================== */
+    /* ====================== Bitácora (audit_log) ======================
+       Lo que hizo un Super Admin (is_superadmin = 1) solo lo ve otro Super
+       Admin: cada consulta recibe si quien pregunta lo es (ve_superadmin). */
 
     // Los movimientos del periodo, del más reciente al más viejo. El día final
     // entra completo: created_at lleva hora. Usuario y tipo son opcionales (vacío
@@ -506,6 +562,10 @@ class mdl extends CRUD {
     function qAuditLog($array) {
         $where = 'a.company_id = ? AND a.created_at >= ? AND a.created_at < DATE_ADD(?, INTERVAL 1 DAY)';
         $data  = [$array['company_id'], $array['fi'], $array['ff']];
+
+        if (empty($array['ve_superadmin'])) {
+            $where .= ' AND a.is_superadmin = 0';
+        }
 
         if (!empty($array['user_id'])) {
             $where .= ' AND a.user_id = ?';
@@ -532,11 +592,11 @@ class mdl extends CRUD {
 
     // Los últimos movimientos de la empresa (el Resumen).
     function qRecentAudit($array) {
-        // [company_id]
+        // [company_id, ve_superadmin]
         $query = "
             SELECT a.id, a.created_at, a.action, a.entity, a.label, a.user_name
             FROM {$this->bd}audit_log a
-            WHERE a.company_id = ?
+            WHERE a.company_id = ? AND (? = 1 OR a.is_superadmin = 0)
             ORDER BY a.created_at DESC, a.id DESC
             LIMIT 8
         ";
@@ -544,12 +604,13 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    // Uno del Super Admin, para quien no lo es, no existe.
     function qAuditEntry($array) {
-        // [id, company_id]
+        // [id, company_id, ve_superadmin]
         $query = "
             SELECT a.id, a.created_at, a.action, a.entity, a.entity_id, a.label, a.detail, a.user_name, a.ip
             FROM {$this->bd}audit_log a
-            WHERE a.id = ? AND a.company_id = ?
+            WHERE a.id = ? AND a.company_id = ? AND (? = 1 OR a.is_superadmin = 0)
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
@@ -558,11 +619,11 @@ class mdl extends CRUD {
 
     // Quienes aparecen EN LA BITÁCORA de la empresa, para el filtro de usuario.
     function qAuditUsers($array) {
-        // [company_id]
+        // [company_id, ve_superadmin]
         $query = "
             SELECT a.user_id AS id, MAX(a.user_name) AS valor
             FROM {$this->bd}audit_log a
-            WHERE a.company_id = ? AND a.user_id IS NOT NULL
+            WHERE a.company_id = ? AND a.user_id IS NOT NULL AND (? = 1 OR a.is_superadmin = 0)
             GROUP BY a.user_id
             ORDER BY valor ASC
         ";
@@ -572,7 +633,7 @@ class mdl extends CRUD {
 
     // Los números de la bitácora en el periodo: todo, sesiones, cambios y bajas.
     function qAuditCounts($array) {
-        // [company_id, fi, ff]
+        // [company_id, fi, ff, ve_superadmin]
         $query = "
             SELECT
                 COUNT(*) AS total,
@@ -581,6 +642,7 @@ class mdl extends CRUD {
                 SUM(a.action IN ('eliminar', 'desactivar'))                                      AS bajas
             FROM {$this->bd}audit_log a
             WHERE a.company_id = ? AND a.created_at >= ? AND a.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+                AND (? = 1 OR a.is_superadmin = 0)
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : [];

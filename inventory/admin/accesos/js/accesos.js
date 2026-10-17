@@ -209,6 +209,18 @@ class App extends Templates {
         return CONFIG_VIEWS.some(v => v.id === hash) ? hash : 'resumen';
     }
 
+    // Roles, sucursales y usuarios de los selects: se piden otra vez al abrir un
+    // formulario. Cargados una sola vez al entrar, un rol o una sucursal recién
+    // creados no salían hasta recargar la página.
+    async refreshCatalogs() {
+        const request = await useFetch({ url: api, data: { opc: 'init' } });
+        if (!(request && request.status === 200)) return;
+
+        sucursalesData = request.sucursales || [];
+        rolesData      = request.roles      || [];
+        usuariosData   = request.usuarios   || [];
+    }
+
     // -- Piezas compartidas por las vistas --
 
     // Título de la vista con su acción principal a la derecha.
@@ -560,6 +572,8 @@ class Users extends App {
         this.lsUsers();
     }
 
+    // Letra de 12px, la de la bitácora: con la de 14 que pone createTable la
+    // tabla se amontonaba en una laptop.
     lsUsers() {
         this.createTable({
             parent: `container${this.PROJECT_NAME}`,
@@ -570,13 +584,16 @@ class Users extends App {
             attr: {
                 id: 'tbUsersAcc',
                 theme: 'light',
-                center: [5],
+                f_size: 12,
+                center: [4],
                 right: []
             }
         });
     }
 
-    addUser() {
+    async addUser() {
+        await this.refreshCatalogs();
+
         const modal = this.createModalForm({
             id: 'formUserAdd',
             data: { opc: 'addUser' },
@@ -594,7 +611,10 @@ class Users extends App {
     }
 
     async editUser(id) {
-        const request = await useFetch({ url: this._link, data: { opc: 'getUser', id: id } });
+        const [request] = await Promise.all([
+            useFetch({ url: this._link, data: { opc: 'getUser', id: id } }),
+            this.refreshCatalogs()
+        ]);
         if (request.status !== 200) {
             alert({ icon: 'error', text: request.message || 'No se pudo cargar el usuario', btn1: true });
             return;
@@ -1111,6 +1131,7 @@ class Roles extends App {
             id: 'matrixRole',
             json: request.catalog || {},
             readonly: readonly,
+            baseCode: 'ver',
             note: role.lock || (readonly ? 'Tu rol puede ver los permisos, pero no cambiarlos.' : ''),
             users: role.users,
             onSave: (ids, done) => this.saveRolePermissions(role, ids, done)
@@ -1280,10 +1301,39 @@ class Subsidiaries extends App {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'Subsidiaries';
+        this.plan = null;
     }
 
     render() {
-        this.viewLayout(this.PROJECT_NAME, true);
+        this.createLayout({
+            parent: 'containerConfiguracion',
+            design: false,
+            data: {
+                id: `view${this.PROJECT_NAME}`,
+                class: 'flex flex-col gap-4',
+                container: [
+                    {
+                        type: 'div',
+                        id: `header${this.PROJECT_NAME}`
+                    },
+                    {
+                        type: 'div',
+                        id: `plan${this.PROJECT_NAME}`,
+                        class: 'hidden'
+                    },
+                    {
+                        type: 'div',
+                        id: `filterBar${this.PROJECT_NAME}`,
+                        class: 'bg-white border border-gray-200 rounded-xl px-3 pt-2 pb-1'
+                    },
+                    {
+                        type: 'div',
+                        id: `container${this.PROJECT_NAME}`,
+                        class: 'bg-white border border-gray-200 rounded-xl p-3'
+                    }
+                ]
+            }
+        });
 
         $(`#header${this.PROJECT_NAME}`).html(this.viewHeader({
             title: 'Sucursales',
@@ -1321,16 +1371,79 @@ class Subsidiaries extends App {
             data: { opc: 'lsBranches' },
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
+            success: (data) => this.renderPlan(data && data.plan),
             attr: {
                 id: 'tbSubsidiaries',
                 theme: 'light',
+                f_size: 12,
                 center: [6],
                 right: []
             }
         });
     }
 
-    addSubsidiary() {
+    // -- Plan de la empresa --
+
+    // Cuántas sucursales activas deja el plan. Lleno, el botón Nueva sucursal
+    // se apaga; el ctrl también lo frena (addBranch y toggleBranch).
+    renderPlan(plan) {
+        this.plan = plan || null;
+
+        const $slot = $(`#plan${this.PROJECT_NAME}`);
+        const full  = !!plan && !plan.canCreate;
+
+        $('#btnNewSubsidiary')
+            .prop('disabled', full)
+            .toggleClass('opacity-50 cursor-not-allowed', full)
+            .attr('title', full ? plan.message : '');
+
+        if (!plan || !plan.title) {
+            $slot.empty().addClass('hidden');
+            return;
+        }
+
+        const card = $('<div>', {
+            class: 'flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl border '
+                + (full ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-white')
+        }).append(
+            $('<span>', {
+                class: 'w-9 h-9 rounded-xl inline-flex items-center justify-center shrink-0 '
+                    + (full ? 'bg-amber-100 text-amber-700' : 'bg-blue-600/10 text-blue-600')
+            }).append($('<i>', { 'data-lucide': full ? 'triangle-alert' : 'badge-check', class: 'w-4 h-4' })),
+            $('<div>', { class: 'flex-1 min-w-[200px]' }).append(
+                $('<p>', { class: 'text-sm font-semibold text-gray-800', text: plan.title }),
+                $('<p>', { class: 'text-xs ' + (full ? 'text-amber-800' : 'text-gray-500'), text: plan.message })
+            )
+        );
+
+        // Con tope, el uso a la derecha: "3 / 1" y su barra.
+        if (plan.max !== null) {
+            const percent = plan.max > 0 ? Math.min(plan.active / plan.max * 100, 100) : 100;
+
+            card.append($('<div>', { class: 'w-36 shrink-0' }).append(
+                $('<p>', { class: 'text-right text-sm font-bold ' + (full ? 'text-amber-800' : 'text-gray-800'), text: `${plan.active} / ${plan.max}` }),
+                $('<div>', { class: 'h-1.5 rounded-full bg-gray-200 mt-1 overflow-hidden' }).append(
+                    $('<div>', { class: 'h-full rounded-full ' + (full ? 'bg-amber-500' : 'bg-blue-600'), css: { width: `${percent}%` } })
+                )
+            ));
+        }
+
+        $slot.removeClass('hidden').html(card);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // kind: 'agregar' o 'activar', el mismo motivo que daría el ctrl.
+    planFull(kind) {
+        if (!this.plan || this.plan.canCreate) return false;
+
+        alert({ icon: 'info', text: (this.plan.denied && this.plan.denied[kind]) || this.plan.message, btn1: true });
+        return true;
+    }
+
+    async addSubsidiary() {
+        if (this.planFull('agregar')) return;
+        await this.refreshCatalogs();
+
         this.createModalForm({
             id: 'formSubsidiaryAdd',
             data: { opc: 'addBranch' },
@@ -1344,7 +1457,10 @@ class Subsidiaries extends App {
     }
 
     async editSubsidiary(id) {
-        const request = await useFetch({ url: this._link, data: { opc: 'getBranch', id: id } });
+        const [request] = await Promise.all([
+            useFetch({ url: this._link, data: { opc: 'getBranch', id: id } }),
+            this.refreshCatalogs()
+        ]);
         if (request.status !== 200) {
             alert({ icon: 'error', text: request.message || 'No se pudo cargar la sucursal', btn1: true });
             return;
@@ -1375,6 +1491,8 @@ class Subsidiaries extends App {
     }
 
     toggleSubsidiary(id, active) {
+        if (active == 1 && this.planFull('activar')) return;
+
         const action = active == 1 ? 'activar' : 'desactivar';
         this.swalQuestion({
             opts: {

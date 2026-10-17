@@ -40,8 +40,10 @@ class Auditoria extends CRUD {
 
     // El nombre de quien lo hizo se copia en el mismo INSERT desde users: la
     // bitácora se tiene que poder leer aunque el usuario cambie de nombre o se dé
-    // de baja. El `label` se corta a lo que cabe en la columna y el `detail` viaja
-    // como arreglo: el JSON se codifica en un solo lugar.
+    // de baja. Igual se guarda si era Super Admin (mismo criterio que
+    // _Permissions.php): lo suyo solo lo ve otro Super Admin, aunque después le
+    // quiten el rol. El `label` se corta a lo que cabe en la columna y el
+    // `detail` viaja como arreglo: el JSON se codifica en un solo lugar.
     function createAuditLog($array) {
         $label  = mb_strimwidth((string) $array['label'], 0, 120, '…', 'UTF-8');
         $detail = empty($array['detail'])
@@ -50,10 +52,14 @@ class Auditoria extends CRUD {
 
         $query = "
             INSERT INTO {$this->bd}audit_log
-                   (action, entity, entity_id, label, detail, user_id, user_name, company_id, branch_id, ip)
+                   (action, entity, entity_id, label, detail, user_id, user_name, is_superadmin, company_id, branch_id, ip)
             VALUES (?, ?, ?, ?, ?, ?,
                     (SELECT TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))
                        FROM {$this->bd}users u WHERE u.id = ? LIMIT 1),
+                    EXISTS (SELECT 1
+                              FROM {$this->bd}users_braches ub
+                              JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
+                             WHERE ub.user_id = ? AND r.code = 'superadmin'),
                     ?, ?, ?)
         ";
 
@@ -63,6 +69,7 @@ class Auditoria extends CRUD {
             $array['entity_id'],
             $label,
             $detail ?: null,
+            $array['user_id'],
             $array['user_id'],
             $array['user_id'],
             $array['company_id'],

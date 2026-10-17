@@ -5,6 +5,9 @@
 // Abajo, la barra de cambios sin guardar (Descartar / Guardar), la del
 // rolePermissions de alpha. En solo lectura las casillas no se mueven y arriba
 // va el motivo.
+//
+// baseCode: código del tipo de acción del que dependen los demás (Ver). Marcar
+// otra acción de la sección marca también esa; quitarla quita las demás.
 
 Templates.prototype.csPermissionMatrix = function (options) {
     const defaults = {
@@ -12,6 +15,7 @@ Templates.prototype.csPermissionMatrix = function (options) {
         id:       'csPermissionMatrix',
         json:     { types: [], modules: [] },
         readonly: false,
+        baseCode: null,
         note:     '',
         users:    0,
         empty:    'No hay acciones que asignar.',
@@ -57,12 +61,18 @@ Templates.prototype.csPermissionMatrix = function (options) {
         return;
     }
 
-    const counter = $('<span>', { class: 'text-xs font-medium text-gray-500 shrink-0' });
+    const counter  = $('<span>', { class: 'text-xs font-medium text-gray-500 shrink-0' });
+    const baseType = opts.baseCode ? types.find((t) => t.code === opts.baseCode) : null;
 
     container.append($('<div>', { class: 'flex items-end justify-between gap-3' }).append(
         $('<div>').append(
             $('<p>', { class: 'text-sm font-semibold text-gray-800', text: 'Matriz de permisos' }),
-            $('<p>', { class: 'text-xs text-gray-400', text: 'Marca lo que el rol puede hacer en cada sección. Para entrar a una sección basta con una acción.' })
+            $('<p>', {
+                class: 'text-xs text-gray-400',
+                text: baseType
+                    ? `Marca lo que el rol puede hacer en cada sección. Cualquier otra acción incluye «${baseType.name}».`
+                    : 'Marca lo que el rol puede hacer en cada sección. Para entrar a una sección basta con una acción.'
+            })
         ),
         counter
     ));
@@ -123,7 +133,7 @@ Templates.prototype.csPermissionMatrix = function (options) {
             types.forEach((t) => {
                 const action = s.actions.find((a) => a.type_id === t.id);
                 tr.append($('<td>', { class: 'text-center border-t border-gray-100 px-1 py-2' }).append(action
-                    ? check({ 'data-perm': action.id, checked: granted.has(action.id), title: `${t.name} en ${s.name}`, 'aria-label': `${t.name} en ${s.name}` })
+                    ? check({ 'data-perm': action.id, 'data-type': t.code || '', checked: granted.has(action.id), title: `${t.name} en ${s.name}`, 'aria-label': `${t.name} en ${s.name}` })
                     : $('<span>', { class: 'text-gray-300', text: '—' })
                 ));
             });
@@ -199,9 +209,24 @@ Templates.prototype.csPermissionMatrix = function (options) {
         });
     };
 
+    // La acción base (Ver) va con las demás de su renglón: marcar otra la marca,
+    // y quitarla quita las demás (sin Ver no se puede hacer nada en la sección).
+    const followBase = (row, box) => {
+        const base = row.find(`[data-type="${opts.baseCode}"]`);
+        if (!base.length) return;
+
+        if (box === base[0]) {
+            if (!box.checked) setBoxes(row.find('[data-perm]').not(base), false);
+        } else if (box.checked && !base[0].checked) {
+            setBoxes(base, true);
+        }
+    };
+
     body.on('change', '[data-perm]', (e) => {
-        const id = Number(e.currentTarget.getAttribute('data-perm'));
-        if (e.currentTarget.checked) granted.add(id); else granted.delete(id);
+        const box = e.currentTarget;
+        const id  = Number(box.getAttribute('data-perm'));
+        if (box.checked) granted.add(id); else granted.delete(id);
+        if (baseType) followBase($(box).closest('[data-section-row]'), box);
         refresh();
     });
 
