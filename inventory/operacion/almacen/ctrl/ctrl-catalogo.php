@@ -4,6 +4,7 @@ if (empty($_POST['opc'])) exit(0);
 
 
 require_once '../mdl/mdl-catalogo.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
 
@@ -39,7 +40,7 @@ class ctrl extends mdl {
                 'Categoría'       => $item['valor'],
                 'Productos'       => (int) $item['total_items'],
                 'Estado'          => renderStatus($item['active']),
-                'a'               => $a
+                'a'               => Permissions::rowActions('administrador', $a)
             ];
         }
 
@@ -207,7 +208,7 @@ class ctrl extends mdl {
                 'Área'            => badge($item['valor'], $tone['fg'], 100, $tone['bg'], null, 'rounded-full'),
                 'Almacén'         => $item['almacen'] ?? '-',
                 'Estado'          => renderStatus($item['active']),
-                'a'               => $a
+                'a'               => Permissions::rowActions('administrador', $a)
             ];
         }
 
@@ -393,7 +394,7 @@ class ctrl extends mdl {
                 'Código'   => renderCode($item['code']),
                 'Unidad'   => $item['valor'],
                 'Estado'   => renderStatus($item['active']),
-                'a'        => $a
+                'a'        => Permissions::rowActions('administrador', $a)
             ];
         }
 
@@ -565,7 +566,7 @@ class ctrl extends mdl {
                 'Código'            => renderCode($item['code']),
                 'Requiere proveedor'=> ($item['requires_supplier'] == 1 ? 'Sí' : 'No'),
                 'Estado'            => renderStatus($item['active']),
-                'a'                 => $a
+                'a'                 => Permissions::rowActions('administrador', $a)
             ];
         }
 
@@ -739,7 +740,7 @@ class ctrl extends mdl {
                 'Motivo'  => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null, $item['icon'], 'rounded-full'),
                 'Código'  => renderCode($item['code']),
                 'Estado'  => renderStatus($item['active']),
-                'a'       => $a
+                'a'       => Permissions::rowActions('administrador', $a)
             ];
         }
 
@@ -920,7 +921,7 @@ class ctrl extends mdl {
 
             if ($super) $row['Código'] = renderCode($item['code']);
 
-            $row['a'] = $a;
+            $row['a'] = Permissions::rowActions('administrador', $a);
             $rows[]   = $row;
         }
 
@@ -1023,7 +1024,7 @@ class ctrl extends mdl {
                 'Sucursal'    => $item['branch_name'] ?? '—',
                 'Por defecto' => ($item['is_default'] == 1 ? 'Sí' : 'No'),
                 'Estado'      => renderStatus($item['active']),
-                'a'           => $a
+                'a'           => Permissions::rowActions('administrador', $a)
             ];
         }
 
@@ -1195,7 +1196,7 @@ class ctrl extends mdl {
                 'Teléfono'  => $item['phone'] ?? '—',
                 'Email'     => $item['email'] ?? '—',
                 'Estado'    => renderStatus($item['active']),
-                'a'         => $a
+                'a'         => Permissions::rowActions('administrador', $a)
             ];
         }
 
@@ -1455,5 +1456,9 @@ function renderStatus($active) {
     }
 }
 
+// Los catálogos del Catálogo (categorías, áreas, unidades...) siguen el mismo
+// patrón: addX, editX / sortX, statusX (dar de baja) y deleteX.
 $obj = new ctrl();
-echo json_encode($obj->{$_POST['opc']}());
+$opc = $_POST['opc'];
+$permissions = Permissions::crud(['Category', 'Area', 'Unit', 'Inflow', 'Shrinkage', 'TransferStatus', 'Warehouse', 'Supplier']);
+echo json_encode(Permissions::guard('administrador', $opc, $permissions) ?: $obj->{$opc}());

@@ -1,3 +1,15 @@
+[ 2026-10-16 21:20:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name, is_active
+            FROM fayxzvov_erp.type_permissions
+            WHERE is_active = ?
+            ORDER BY order ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'order ASC' at line 4
+
+
 [ 2026-10-06 16:54:38 ]
 [ UNIX_USR ] :: SomxDev
 [ WINDOWS_USR ] :: SomxDev

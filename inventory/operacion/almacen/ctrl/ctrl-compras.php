@@ -9,6 +9,7 @@ if (empty($_SESSION['company_id'])) {
 
 require_once '../mdl/mdl-compras.php';
 require_once '../../../conf/coffeSoft.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
 
@@ -859,5 +860,8 @@ function actionButtons($id) {
     ];
 }
 
+// Programadas sigue pendiente de definir sus acciones: por ahora basta con que el
+// rol tenga alguna en la sección (hoy, solo el Super Admin).
 $obj = new ctrl();
-echo json_encode($obj->{$_POST['opc']}());
+$opc = $_POST['opc'];
+echo json_encode(Permissions::guard('programadas', $opc, []) ?: $obj->{$opc}());

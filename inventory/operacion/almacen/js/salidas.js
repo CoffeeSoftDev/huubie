@@ -55,8 +55,9 @@ class App extends Templates {
 
         this.render();
 
-        // Se enciende o apaga en Administrador > CoffeeIA.
-        if (this.dataInit.coffeeia) salidas.renderLauncher();
+        // Se enciende o apaga en Administrador > CoffeeIA. Con el chat se dan de alta
+        // salidas (y un administrador las borra): sin esas acciones no sale.
+        if (this.dataInit.coffeeia && (can('agregar') || can('eliminar'))) salidas.renderLauncher();
     }
 
     render() {
@@ -189,16 +190,19 @@ class App extends Templates {
                     { id: 'Aplicada',  valor: 'Aplicada'    },
                     { id: 'Cancelada', valor: 'Cancelada'   }
                 ]
-            },
-            {
+            }
+        ];
+
+        if (can('agregar')) {
+            filters.push({
                 opc:       'button',
                 id:        'btnNuevaSalida',
                 text:      'Nueva Salida',
                 color_btn: 'primary',
                 class:     'col-12 col-md-6 col-lg-3',
                 onClick:   () => salidas.openSalidaForm()
-            }
-        ];
+            });
+        }
 
         this.createfilterBar({
             parent:     'filterBar',
@@ -1070,6 +1074,12 @@ class SalidasView extends Templates {
         this.salidaDetailPanel({
             parent:           'detailPanel',
             json:             salida,
+            actions: {
+                edit:     can('editar'),
+                cancel:   can('cancelar'),
+                delete:   can('eliminar'),
+                evidence: can('subir-comprobante')
+            },
             onClose:          ()  => this.renderDetail(null),
             onImprimir:       (m) => { if (m) salidas.printSalida(m); },
             onEditar:         (m) => { if (m) salidas.openEditSalida(m.id); },
@@ -1216,6 +1226,8 @@ class SalidasView extends Templates {
                 'Aplicada':  { bg: '#DCFCE7', fg: '#16A34A' },
                 'Cancelada': { bg: '#FEE2E2', fg: '#DC2626' }
             },
+            // Botones que el rol puede usar (conf/_Permissions.php); sin dato, todos.
+            actions:          { edit: true, cancel: true, delete: true, evidence: true },
             onClose:          () => {},
             onImprimir:       () => {},
             onEditar:         () => {},
@@ -1230,6 +1242,7 @@ class SalidasView extends Templates {
         opts.labels         = Object.assign({}, defaults.labels,         o.labels         || {});
         opts.motivoPalettes = Object.assign({}, defaults.motivoPalettes, o.motivoPalettes || {});
         opts.statusPalettes = Object.assign({}, defaults.statusPalettes, o.statusPalettes || {});
+        opts.actions        = Object.assign({}, defaults.actions,        o.actions        || {});
 
         const $parent = $(`#${opts.parent}`);
         if (!$parent.length) return;
@@ -1282,7 +1295,9 @@ class SalidasView extends Templates {
         // datos, tabla compacta, totales, registro/nota/evidencia y acciones.
         const infoRow = (label, value) => `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-24 flex-shrink-0">${esc(label)}</span>${value}</div>`;
 
+        // Cancelada: eliminar; aplicada: cancelar. Sin esa acción en el rol, no hay barra.
         const actionsBar = (cancelled) => {
+            if (cancelled ? !opts.actions.delete : !opts.actions.cancel) return '';
             const base = 'flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-rose-600 hover:bg-rose-500 flex items-center justify-center gap-1.5';
             const btn  = cancelled
                 ? `<button id="${opts.id}_delete" class="${base}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.eliminar)}</button>`
@@ -1383,7 +1398,7 @@ class SalidasView extends Templates {
                         </div>
                         <div class="flex items-center gap-2">
                             ${m.status ? `<span class="px-2 py-0.5 rounded text-xs font-bold" style="background:${stC.bg};color:${stC.fg};">${esc(m.status)}</span>` : ''}
-                            ${editable && m.editable ? `<button id="${opts.id}_edit" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors" title="${esc(opts.labels.editar)}">
+                            ${editable && m.editable && opts.actions.edit ? `<button id="${opts.id}_edit" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors" title="${esc(opts.labels.editar)}">
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                             </button>` : ''}
                             <button id="${opts.id}_print" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors" title="${esc(opts.labels.imprimir)}">
@@ -1421,7 +1436,7 @@ class SalidasView extends Templates {
                     <div class="px-4 py-2.5 border-t border-gray-200 dark:!border-0 flex-shrink-0 space-y-1.5">
                         ${infoRow(opts.labels.registrado, `<span class="text-gray-700 text-right">${esc(reg)}</span>`)}
                         ${m.nota ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-24 flex-shrink-0">${esc(opts.labels.notaLbl)}</span><span class="text-gray-700 text-right">${esc(m.nota)}</span></div>` : ''}
-                        ${infoRow(opts.labels.evidenciaLbl, fotoHtml(m.foto, editable))}
+                        ${infoRow(opts.labels.evidenciaLbl, fotoHtml(m.foto, editable && opts.actions.evidence))}
                     </div>
 
                     ${actionsBar(!editable)}

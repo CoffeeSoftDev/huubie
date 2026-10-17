@@ -174,13 +174,13 @@ class Subsidiaries extends Templates {
                     data: statusFilter,
                     onchange: 'subsidiaries.lsSubsidiaries()'
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: 'button',
                     class: 'col-12 col-md-3',
                     id: 'btnNewSubsidiary',
                     text: 'Nueva Sucursal',
                     onClick: () => this.addSubsidiary()
-                }
+                }] : [])
             ]
         });
     }
@@ -293,13 +293,13 @@ class Users extends Templates {
                     data: statusFilter,
                     onchange: 'users.lsUsers()'
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: 'button',
                     class: 'col-12 col-md-3',
                     id: 'btnNewUser',
                     text: 'Nuevo Usuario',
                     onClick: () => this.addUser()
-                }
+                }] : [])
             ]
         });
     }

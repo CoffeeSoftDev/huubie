@@ -9,6 +9,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 require_once '../mdl/mdl-ordenes.php';
 require_once '../../../conf/coffeSoft.php';
 require_once '../../../conf/_IaOllama.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
 
@@ -1694,4 +1695,6 @@ if (!method_exists($obj, $opc)) {
     echo json_encode(['status' => 405, 'message' => "opc '{$opc}' no implementado"]);
     exit(0);
 }
-echo json_encode($obj->{$opc}());
+// Compras sigue pendiente de definir sus acciones: por ahora basta con que el rol
+// tenga alguna en la sección (hoy, solo el Super Admin).
+echo json_encode(Permissions::guard('ordenes', $opc, []) ?: $obj->{$opc}());

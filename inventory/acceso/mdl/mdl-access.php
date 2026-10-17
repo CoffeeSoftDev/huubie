@@ -185,7 +185,7 @@ class MAccess extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    // ¿Manda en alguna sucursal? Superadmin o Administrador en CUALQUIERA basta:
+    // ¿Manda en alguna sucursal? Superadmin o Dueño en CUALQUIERA basta:
     // al iniciar sesión todavía no hay sucursal activa que consultar.
     function userIsAdmin($array) {
         // [user_id]
@@ -194,7 +194,7 @@ class MAccess extends CRUD {
             FROM {$this->bd}users_braches ub
             JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
             WHERE ub.user_id = ?
-                AND r.code IN ('superadmin', 'admin')
+                AND r.code IN ('superadmin', 'dueno')
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
@@ -264,46 +264,38 @@ class MAccess extends CRUD {
         return !empty($r);
     }
 
-    // Secciones a las que el usuario tiene acceso en una sucursal concreta.
-    // Resuelve users_braches -> roles -> permissions -> sections. Base del menú dinámico.
+    // Secciones que el usuario ve en una sucursal: las encendidas, de módulo
+    // encendido, en las que su rol tiene al menos una acción concedida
+    // (users_braches -> permissions_roles -> permissions -> sections). Base del
+    // menú dinámico. module_id = 0 trae las de todos los módulos.
     function getAccessibleSections($array) {
-        // [user_id, branch_id]
+        // [user_id, branch_id, module_id, module_id]
         $query = "
-            SELECT DISTINCT
+            SELECT
                 s.id, s.name, s.code, s.icon, s.route, s.orden,
                 m.name AS module_name
-            FROM {$this->bd}users_braches ub
-            JOIN {$this->bd}permissions p ON p.role_id = ub.role_id AND p.is_active = 1
-            JOIN {$this->bd}sections s    ON s.id = p.section_id AND s.is_active = 1
-            LEFT JOIN {$this->bd}modules m ON m.id = s.module_id
-            WHERE ub.user_id = ? AND ub.branch_id = ?
-            ORDER BY m.orden ASC, s.orden ASC
+            FROM {$this->bd}sections s
+            JOIN {$this->bd}modules m ON m.id = s.module_id AND m.is_active = 1
+            WHERE s.is_active = 1
+                AND EXISTS (
+                    SELECT 1
+                    FROM {$this->bd}users_braches ub
+                    JOIN {$this->bd}roles r              ON r.id = ub.role_id AND r.is_active = 1
+                    JOIN {$this->bd}permissions_roles pr ON pr.role_id = r.id
+                    JOIN {$this->bd}permissions p        ON p.id = pr.permission_id AND p.is_active = 1
+                    JOIN {$this->bd}type_permissions tp  ON tp.id = p.type_permission_id AND tp.is_active = 1
+                    WHERE ub.user_id = ? AND ub.branch_id = ?
+                        AND p.section_id = s.id
+                )
+                AND (? = 0 OR s.module_id = ?)
+            ORDER BY m.orden ASC, s.orden ASC, s.id ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
     }
 
-    // Igual que getAccessibleSections pero acotado a un modulo, para que el
-    // sidebar muestre solo las secciones del modulo en el que esta el usuario.
-    function getAccessibleSectionsByModule($array) {
-        // [user_id, branch_id, module_id]
-        $query = "
-            SELECT DISTINCT
-                s.id, s.name, s.code, s.icon, s.route, s.orden,
-                m.name AS module_name
-            FROM {$this->bd}users_braches ub
-            JOIN {$this->bd}permissions p ON p.role_id = ub.role_id AND p.is_active = 1
-            JOIN {$this->bd}sections s    ON s.id = p.section_id AND s.is_active = 1
-            LEFT JOIN {$this->bd}modules m ON m.id = s.module_id
-            WHERE ub.user_id = ? AND ub.branch_id = ? AND s.module_id = ?
-            ORDER BY s.orden ASC, s.id ASC
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) ? $r : [];
-    }
-
-    // ¿Es Super Admin en esta sucursal? El Super Admin no lleva filas en permissions:
-    // la pestaña Permisos del tenant lo trata como "todo concedido" y no deja editarlo.
+    // ¿Es Super Admin en esta sucursal? El Super Admin no lleva filas en
+    // permissions_roles: su acceso es total y el tenant no deja editarlo.
     function userIsSuperAdmin($array) {
         // [user_id, branch_id]
         $query = "
@@ -318,7 +310,8 @@ class MAccess extends CRUD {
         return !empty($r);
     }
 
-    // Todas las secciones activas (menú del Super Admin). module_id = 0 trae todos los módulos.
+    // Todas las secciones encendidas de módulos encendidos (menú del Super Admin).
+    // module_id = 0 trae todos los módulos.
     function getAllActiveSections($array) {
         // [module_id, module_id]
         $query = "
@@ -326,7 +319,7 @@ class MAccess extends CRUD {
                 s.id, s.name, s.code, s.icon, s.route, s.orden,
                 m.name AS module_name
             FROM {$this->bd}sections s
-            LEFT JOIN {$this->bd}modules m ON m.id = s.module_id
+            JOIN {$this->bd}modules m ON m.id = s.module_id AND m.is_active = 1
             WHERE s.is_active = 1
                 AND (? = 0 OR s.module_id = ?)
             ORDER BY m.orden ASC, s.orden ASC, s.id ASC

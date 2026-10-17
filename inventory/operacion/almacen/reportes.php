@@ -6,6 +6,10 @@ if (empty($_SESSION["IDU"])) {
     exit();
 }
 
+// El rol necesita al menos una acción en Reportes; si no, de regreso a Inicio.
+require_once __DIR__ . '/../../conf/_Permissions.php';
+$permissions = Permissions::page('reportes');
+
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>
@@ -31,6 +35,8 @@ require_once('layout/core-libraries.php');
     <script src="../../acceso/src/js/sidebar.js"></script>
 
     <!-- Modulo de Reportes -->
+    <!-- Acciones del rol en Reportes: imprimir y el Excel solo salen con Imprimir -->
+    <?php echo Permissions::script($permissions); ?>
     <script src="js/reportes.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

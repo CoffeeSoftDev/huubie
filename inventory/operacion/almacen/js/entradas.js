@@ -63,8 +63,9 @@ class App extends Templates {
 
         this.render();
 
-        // Se enciende o apaga en Administrador > CoffeeIA.
-        if (this.dataInit.coffeeia) entradasView.renderLauncher();
+        // Se enciende o apaga en Administrador > CoffeeIA. Con el chat se dan de alta
+        // entradas (y un administrador las borra): sin esas acciones no sale.
+        if (this.dataInit.coffeeia && (can('agregar') || can('eliminar'))) entradasView.renderLauncher();
     }
 
     render() {
@@ -193,16 +194,19 @@ class App extends Templates {
                 onchange: 'app.onChangeFilters()',
                 value:    'Activas',
                 data:     this.dataInit.estados || []
-            },
-            {
+            }
+        ];
+
+        if (can('agregar')) {
+            filters.push({
                 opc:       'button',
                 id:        'btnNuevaEntrada',
                 text:      'Agregar Entrada',
                 color_btn: 'primary',
                 class:     'col-12 col-md-6 col-lg-3',
                 onClick:   () => entradasView.openNuevaEntrada()
-            }
-        ];
+            });
+        }
 
         this.createfilterBar({
             parent:     'filterBar',
@@ -580,6 +584,12 @@ class EntradasView extends Templates {
             parent:       'detailPanel',
             json:         entrada,
             editMode:     editMode,
+            actions: {
+                edit:    can('editar'),
+                cancel:  can('cancelar'),
+                confirm: can('agregar'),
+                voucher: can('subir-comprobante')
+            },
             onClose:      () => app.selectEntrada(null),
             onPrint:      (e) => { if (e) entradas.printEntrada(e); },
             onReverse:    (e) => this.cancelEntrada(e),
@@ -1586,6 +1596,8 @@ class EntradasView extends Templates {
                 'Cancelada': { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' }
             },
             editMode:     false,
+            // Botones que el rol puede usar (conf/_Permissions.php); sin dato, todos.
+            actions:      { edit: true, cancel: true, confirm: true, voucher: true },
             onClose:      () => {},
             onPrint:      () => {},
             onReverse:    () => {},
@@ -1602,6 +1614,7 @@ class EntradasView extends Templates {
         opts.labels         = Object.assign({}, defaults.labels,         o.labels         || {});
         opts.origenPalettes = Object.assign({}, defaults.origenPalettes, o.origenPalettes || {});
         opts.estadoPalettes = Object.assign({}, defaults.estadoPalettes, o.estadoPalettes || {});
+        opts.actions        = Object.assign({}, defaults.actions,        o.actions        || {});
 
         const $parent = $(`#${opts.parent}`);
         if (!$parent.length) return;
@@ -1655,8 +1668,12 @@ class EntradasView extends Templates {
         }).join('');
 
         // Comprobante: miniatura (o "PDF") que abre el archivo, y subir/cambiar/quitar
-        // mientras la entrada no esté cancelada ni en edición.
-        const voucherEditable = !isCancelled && !opts.editMode;
+        // mientras la entrada no esté cancelada ni en edición, si el rol puede subirlo.
+        const voucherEditable = !isCancelled && !opts.editMode && opts.actions.voucher;
+
+        // Barra de abajo: confirmar (pendiente) o editar, y cancelar, según el rol.
+        const mainAction = isPending ? opts.actions.confirm : opts.actions.edit;
+        const showBar    = opts.editMode || (!isCancelled && (mainAction || opts.actions.cancel));
         const voucherHtml = (() => {
             const input = voucherEditable ? `<input type="file" id="${opts.id}_voucherInput" accept="image/*,application/pdf" class="hidden">` : '';
             const btn   = 'w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors';
@@ -1761,7 +1778,7 @@ class EntradasView extends Templates {
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">${esc(opts.labels.comprobante)}</span>${voucherHtml}</div>
                 </div>
 
-                ${(opts.editMode || !isCancelled) ? `
+                ${showBar ? `
                 <div class="px-4 py-3 border-t border-gray-200 dark:!border-0 flex gap-2 flex-shrink-0">
                     ${opts.editMode ? `
                         <button id="${opts.id}_saveEdit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-main hover:bg-main-hover flex items-center justify-center gap-1.5">
@@ -1771,7 +1788,7 @@ class EntradasView extends Templates {
                             ${esc(opts.labels.cancelarEd)}
                         </button>
                     ` : `
-                        ${isPending ? `
+                        ${!mainAction ? '' : isPending ? `
                             <button id="${opts.id}_confirm" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-green-600 hover:bg-green-500 flex items-center justify-center gap-1.5">
                                 <i data-lucide="check" class="w-3.5 h-3.5"></i>${esc(opts.labels.confirmar)}
                             </button>
@@ -1780,9 +1797,10 @@ class EntradasView extends Templates {
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>${esc(opts.labels.editar)}
                             </button>
                         `}
+                        ${opts.actions.cancel ? `
                         <button id="${opts.id}_reverse" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-rose-600 hover:bg-rose-500 flex items-center justify-center gap-1.5">
                             <i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.reversar)}
-                        </button>
+                        </button>` : ''}
                     `}
                 </div>
                 ` : ''}

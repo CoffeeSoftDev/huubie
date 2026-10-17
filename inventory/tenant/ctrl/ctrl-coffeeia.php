@@ -187,4 +187,6 @@ if (!method_exists($obj, $opc) || !is_callable([$obj, $opc])) {
     echo json_encode(['status' => 405, 'message' => "opc '{$opc}' no implementado"]);
     exit(0);
 }
-echo json_encode($obj->{$opc}());
+// Parte del tenant: solo quien entra a la sección "Permisos" (hoy, el Super Admin).
+require_once __DIR__ . '/../../conf/_Permissions.php';
+echo json_encode(Permissions::guard('permisos-editor', $opc, []) ?: $obj->{$opc}());

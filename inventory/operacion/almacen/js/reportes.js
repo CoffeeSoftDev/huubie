@@ -631,6 +631,7 @@ class Reportes extends Templates {
             mode:    this.mode,
             zoom:    this.zoom,
             enabled: !!this.reporte,
+            printable: can('imprimir'),
             periodo: this.reporte ? this.reporte.titulo_periodo : '',
             onMode:  (mode) => this.setMode(mode),
             onZoom:  (zoom) => this.setZoom(zoom),
@@ -1317,6 +1318,8 @@ class ReportesView extends Templates {
             zoom:    100,
             step:    10,
             enabled: false,
+            // Imprimir y el Excel solo salen si el rol tiene la acción Imprimir.
+            printable: true,
             periodo: '',
             labels:  {
                 title:     'Vista previa de impresión',
@@ -1381,6 +1384,7 @@ class ReportesView extends Templates {
                     ${segBtn('completo')}
                     ${segBtn('sencillo')}
                 </div>
+                ${opts.printable ? `
                 <button type="button" id="${opts.id}_print" ${disabled}
                     class="inline-flex items-center rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors ${offClass}" style="gap:6px;padding:7px 12px;">
                     <i data-lucide="printer" class="w-4 h-4"></i> ${esc(opts.labels.print)}
@@ -1388,7 +1392,7 @@ class ReportesView extends Templates {
                 <button type="button" id="${opts.id}_excel" ${disabled}
                     class="inline-flex items-center rounded-lg text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors ${offClass}" style="gap:6px;padding:6px 12px;">
                     <i data-lucide="file-spreadsheet" class="w-4 h-4 text-green-600"></i> ${esc(opts.labels.excel)}
-                </button>
+                </button>` : ''}
             </div>`);
 
         $(`#${opts.parent}`).html(wrap);

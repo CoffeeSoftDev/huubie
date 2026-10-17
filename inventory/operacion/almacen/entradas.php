@@ -7,6 +7,10 @@ if (empty($_SESSION["IDU"])) {
     exit();
 }
 
+// El rol necesita al menos una acción en Entradas; si no, de regreso a Inicio.
+require_once __DIR__ . '/../../conf/_Permissions.php';
+$permissions = Permissions::page('entradas');
+
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>
@@ -46,6 +50,9 @@ require_once('layout/core-libraries.php');
     <!-- Chat de CoffeeIA (el mismo de Catálogo) para "Subir con IA"; forja-blob dibuja su muñeco -->
     <script src="../../src/js/components/forja-blob.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/forja-blob.js'); ?>"></script>
     <script src="../../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ia-chat.js'); ?>"></script>
+
+    <!-- Acciones del rol en Entradas: el módulo solo pinta los botones que puede usar -->
+    <?php echo Permissions::script($permissions); ?>
 
     <!-- Módulo de Entradas -->
     <script src="js/entradas.js?t=<?php echo time(); ?>"></script>

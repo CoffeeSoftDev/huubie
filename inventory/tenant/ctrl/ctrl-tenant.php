@@ -1182,6 +1182,7 @@ class ctrl extends mdl {
             $row[] = [
                 'id'     => $t['id'],
                 'Nombre' => htmlspecialchars($t['name'] ?? ''),
+                'Código' => $t['code'] ?: '-',
                 'Estado' => renderActive($t['is_active']),
                 'a'      => $a
             ];
@@ -1195,11 +1196,22 @@ class ctrl extends mdl {
         return ['status' => $data ? 200 : 404, 'message' => $data ? 'OK' : 'Tipo de permiso no encontrado', 'data' => $data];
     }
 
+    // El código sale del nombre y ya no cambia: los módulos revisan las acciones
+    // por código (conf/_Permissions.php), así renombrar el tipo no quita permisos.
     function addTypePermission() {
         $name = trim($_POST['name'] ?? '');
-        if ($name === '') return ['status' => 400, 'message' => 'El nombre es obligatorio'];
-        $ok = $this->qInsertTypePermission([$name]);
+        $code = $this->slug($name);
+        if ($name === '' || $code === '') return ['status' => 400, 'message' => 'El nombre es obligatorio'];
+        if ($this->qTypeCodeExists([$code])) return ['status' => 409, 'message' => "Ya existe un tipo de permiso con el código «{$code}»"];
+
+        $ok = $this->qInsertTypePermission([$name, $code]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Tipo de permiso creado' : 'No se pudo crear el tipo de permiso'];
+    }
+
+    // 'Subir comprobante' -> 'subir-comprobante'.
+    private function slug($text) {
+        $text = strtr(mb_strtolower(trim((string) $text), 'UTF-8'), ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n']);
+        return trim(preg_replace('/[^a-z0-9]+/', '-', $text), '-');
     }
 
     function editTypePermission() {
@@ -1269,12 +1281,13 @@ class ctrl extends mdl {
                 : '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-600 ">Personalizado</span>';
 
             $row[] = [
-                'id'     => $r['id'],
-                'Código' => $r['code'] ?: '-',
-                'Rol'    => htmlspecialchars($r['name'] ?? ''),
-                'Tipo'   => $system,
-                'Estado' => renderActive($r['is_active']),
-                'a'      => $a
+                'id'       => $r['id'],
+                'Código'   => $r['code'] ?: '-',
+                'Rol'      => htmlspecialchars($r['name'] ?? ''),
+                'Tipo'     => $system,
+                'Permisos' => $this->roleAccessLabel($r),
+                'Estado'   => renderActive($r['is_active']),
+                'a'        => $a
             ];
         }
 
@@ -1286,27 +1299,62 @@ class ctrl extends mdl {
         return ['status' => $data ? 200 : 404, 'message' => $data ? 'OK' : 'Rol no encontrado', 'data' => $data];
     }
 
+    // Acciones por sección para el modal del rol. id = 0 es un rol nuevo: llegan
+    // todas sin marcar. El Super Admin no se edita porque su acceso es total.
+    function getRolePermissions() {
+        $id   = (int) ($_POST['id'] ?? 0);
+        $role = $id > 0 ? $this->qRole([$id]) : null;
+        if ($id > 0 && !$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
+
+        if ($role && $role['code'] === 'superadmin') {
+            return ['status' => 200, 'fullAccess' => true, 'modules' => []];
+        }
+
+        return [
+            'status'     => 200,
+            'fullAccess' => false,
+            'modules'    => $this->permissionTree($this->qRolePermissions([$id]))
+        ];
+    }
+
     function addRole() {
         $name = trim($_POST['name'] ?? '');
+        $code = trim($_POST['code'] ?? '') ?: null;
         if ($name === '') return ['status' => 400, 'message' => 'El nombre del rol es obligatorio'];
-        $ok = $this->qInsertRole([
-            trim($_POST['code'] ?? '') ?: null,
-            $name
-        ]);
-        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Rol creado correctamente' : 'No se pudo crear el rol'];
+
+        return $this->transaction(function () use ($code, $name) {
+            $this->qInsertRole([$code, $name, $this->companyId()]);
+
+            $newId = $this->qLastInsertId();
+            if (!$newId) {
+                throw new \Exception('No se pudo obtener el id del rol creado');
+            }
+
+            $this->syncRolePermissions($newId);
+
+            return ['status' => 200, 'message' => 'Rol creado correctamente'];
+        });
     }
 
     function editRole() {
         $id   = (int) $_POST['id'];
         $name = trim($_POST['name'] ?? '');
+        $code = trim($_POST['code'] ?? '') ?: null;
         if ($name === '') return ['status' => 400, 'message' => 'El nombre del rol es obligatorio'];
-        if (!$this->qRole([$id])) return ['status' => 404, 'message' => 'Rol no encontrado'];
-        $ok = $this->qUpdateRole([
-            trim($_POST['code'] ?? '') ?: null,
-            $name,
-            $id
-        ]);
-        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Rol actualizado correctamente' : 'No se pudo actualizar el rol'];
+
+        $role = $this->qRole([$id]);
+        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
+
+        // El código del Super Admin es el que le da el acceso total: no se cambia.
+        if ((int) $role['is_system'] === 1) $code = $role['code'];
+
+        return $this->transaction(function () use ($id, $code, $name, $role) {
+            $this->qUpdateRole([$code, $name, $id]);
+
+            if ($role['code'] !== 'superadmin') $this->syncRolePermissions($id);
+
+            return ['status' => 200, 'message' => 'Rol actualizado correctamente'];
+        });
     }
 
     function toggleRole() {
@@ -1320,250 +1368,172 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Rol activado' : 'Rol desactivado') : 'No se pudo actualizar el estado'];
     }
 
-    /* ===== Permisos (permissions) ===== */
+    // Columna Permisos de la tabla de roles. El Super Admin tiene acceso total
+    // por código y no lleva filas en permissions_roles.
+    private function roleAccessLabel($role) {
+        if ($role['code'] === 'superadmin') {
+            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-gray-900 text-white">Acceso total</span>';
+        }
 
-    function lsPermissions() {
-        $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
-        $ls = $this->qPermissions([$active]);
+        $actions  = (int) $role['actions'];
+        $sections = (int) $role['sections'];
+        if ($actions === 0) return '<span class="italic text-gray-400">Sin permisos</span>';
 
-        $row = [];
-        foreach ($ls as $p) {
-            $a = [];
-            if ($p['is_active'] == 1) {
-                $a[] = [
-                    'class'   => $this->actionBtnClass('danger', true),
-                    'html'    => '<i class="icon-toggle-on"></i>',
-                    'onclick' => 'permissions.togglePermission(' . $p['id'] . ', 0)'
-                ];
-            } else {
-                $a[] = [
-                    'class'   => $this->actionBtnClass('neutral', true),
-                    'html'    => '<i class="icon-toggle-off"></i>',
-                    'onclick' => 'permissions.togglePermission(' . $p['id'] . ', 1)'
+        return $actions . ($actions === 1 ? ' acción' : ' acciones')
+            . ' · ' . $sections . ($sections === 1 ? ' sección' : ' secciones');
+    }
+
+    // Filas de qRolePermissions -> módulo > sección > acciones, en el orden en que llegan.
+    private function permissionTree($rows) {
+        $modules = [];
+        foreach ($rows as $r) {
+            $mid = (int) $r['module_id'];
+            $sid = (int) $r['section_id'];
+
+            if (!isset($modules[$mid])) {
+                $modules[$mid] = [
+                    'id'       => $mid,
+                    'name'     => $r['module_name'],
+                    'icon'     => $r['module_icon'] ?: 'layout-grid',
+                    'sections' => []
                 ];
             }
 
-            $row[] = [
-                'id'      => $p['id'],
-                'Rol'     => $p['role_name'] ? htmlspecialchars($p['role_name']) : '—',
-                'Sección' => $p['section_name'] ? htmlspecialchars($p['section_name']) : '—',
-                'Tipo'    => $p['type_name'] ? htmlspecialchars($p['type_name']) : '—',
-                'Estado'  => renderActive($p['is_active']),
-                'a'       => $a
+            if (!isset($modules[$mid]['sections'][$sid])) {
+                $modules[$mid]['sections'][$sid] = [
+                    'id'      => $sid,
+                    'name'    => $r['section_name'],
+                    'icon'    => $r['section_icon'] ?: 'square',
+                    'actions' => []
+                ];
+            }
+
+            $modules[$mid]['sections'][$sid]['actions'][] = [
+                'id'      => (int) $r['permission_id'],
+                'name'    => $r['type_name'],
+                'granted' => (int) $r['granted'] === 1
             ];
         }
 
-        return ['status' => 200, 'row' => $row, 'ls' => $ls];
+        // Listas y no objetos en el JSON: el front las recorre en orden.
+        foreach ($modules as &$m) $m['sections'] = array_values($m['sections']);
+        unset($m);
+
+        return array_values($modules);
     }
 
-    function addPermission() {
-        $roleId = (int) ($_POST['role_id'] ?? 0);
+    /*  Deja en permissions_roles exactamente las acciones que llegan en
+        `permissions` (JSON con ids), pero solo entre las vigentes: lo que esté
+        apagado en el catálogo no sale en el modal y se conserva tal cual, para
+        que el rol lo recupere si se vuelve a encender. Sin `permissions` en el
+        POST no se toca nada: una pantalla vieja que solo edita el nombre no le
+        borra los permisos al rol. */
+    private function syncRolePermissions($roleId) {
+        if (!isset($_POST['permissions'])) return;
+
+        $rows    = $this->qRolePermissions([$roleId]);
+        $visible = array_map('intval', array_column($rows, 'permission_id'));
+        $granted = [];
+        foreach ($rows as $r) {
+            if ((int) $r['granted'] === 1) $granted[] = (int) $r['permission_id'];
+        }
+
+        $wanted = array_values(array_intersect($this->postedPermissionIds(), $visible));
+
+        foreach (array_diff($granted, $wanted) as $permissionId) {
+            $this->qDeleteRolePermission([$roleId, $permissionId]);
+        }
+        foreach (array_diff($wanted, $granted) as $permissionId) {
+            $this->qInsertRolePermission([$roleId, $permissionId]);
+        }
+    }
+
+    private function postedPermissionIds() {
+        $decoded = json_decode((string) $_POST['permissions'], true);
+        if (!is_array($decoded)) return [];
+
+        $ids = [];
+        foreach ($decoded as $v) {
+            $id = (int) $v;
+            if ($id > 0) $ids[] = $id;
+        }
+        return array_values(array_unique($ids));
+    }
+
+    /* ===== Permisos: acciones de cada sección (permissions) ===== */
+
+    // Datos de la pestaña Permisos: las secciones encendidas (filas), los tipos
+    // de permiso activos (columnas) y las acciones que ya tiene cada sección.
+    function lsPermissions() {
+        $sections = $this->qCatalogSections();
+
+        $modules = [];
+        foreach ($sections as $s) {
+            $mid = (int) $s['module_id'];
+            if (isset($modules[$mid])) continue;
+            $modules[$mid] = [
+                'id'   => $mid,
+                'name' => $s['module_name'],
+                'icon' => $s['module_icon'] ?: 'layout-grid'
+            ];
+        }
+
+        return [
+            'status'   => 200,
+            'modules'  => array_values($modules),
+            'sections' => array_map(function ($s) {
+                return [
+                    'id'        => (int) $s['id'],
+                    'name'      => $s['name'],
+                    'icon'      => $s['icon'] ?: 'square',
+                    'route'     => $s['route'] ?: '',
+                    'module_id' => (int) $s['module_id']
+                ];
+            }, $sections),
+            'types' => array_map(function ($t) {
+                return ['id' => (int) $t['id'], 'name' => $t['name']];
+            }, $this->qTypePermissions([1])),
+            'permissions' => array_map(function ($p) {
+                return $this->permissionRow($p);
+            }, $this->qPermissionsCatalog())
+        ];
+    }
+
+    // Enciende o apaga una acción en una sección. Apagarla no le quita nada a los
+    // roles: deja de verse y de contar, y al encenderla cada rol la recupera.
+    function togglePermission() {
         $secId  = (int) ($_POST['section_id'] ?? 0);
         $typeId = (int) ($_POST['type_permission_id'] ?? 0);
+        $active = (int) ($_POST['active'] ?? 0) === 1 ? 1 : 0;
 
-        if ($roleId <= 0 || $secId <= 0 || $typeId <= 0) {
-            return ['status' => 400, 'message' => 'Rol, sección y tipo de permiso son obligatorios'];
-        }
-        if ($this->qPermissionExists([$roleId, $secId, $typeId])) {
-            return ['status' => 409, 'message' => 'Ese permiso ya existe para el rol seleccionado'];
-        }
+        if (!$this->qSection([$secId]))         return ['status' => 404, 'message' => 'Sección no encontrada'];
+        if (!$this->qTypePermission([$typeId])) return ['status' => 404, 'message' => 'Tipo de permiso no encontrado'];
 
-        $ok = $this->qInsertPermission([$roleId, $secId, $typeId]);
-        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Permiso asignado correctamente' : 'No se pudo asignar el permiso'];
-    }
-
-    function togglePermission() {
-        $id = (int) $_POST['id'];
-        if (!$this->qPermission([$id])) return ['status' => 404, 'message' => 'Permiso no encontrado'];
-        $ok = $this->qSetPermissionActive([(int) $_POST['active'], $id]);
-        return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Permiso activado' : 'Permiso desactivado') : 'No se pudo actualizar el estado'];
-    }
-
-    /* ===== Matriz de acceso por rol (rol x seccion, modelo Acceso/No acceso) ===== */
-
-    function accessMatrix() {
-        $roleId = (int) ($_POST['role_id'] ?? 0);
-        $role = $this->qRole([$roleId]);
-        if (!$role) {
-            return ['status' => 404, 'message' => 'Rol no encontrado'];
-        }
-        $typeId = $this->qAccessTypeId();
-        if ($typeId <= 0) {
-            return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
-        }
-
-        $isSuperAdmin = ($role['code'] === 'superadmin');
-        $rows = $this->qAccessMatrix([$roleId, $typeId]);
-        foreach ($rows as &$r) {
-            $r['section_id']   = (int) $r['section_id'];
-            $r['module_id']    = $r['module_id'] !== null ? (int) $r['module_id'] : 0;
-            $r['submodule_id'] = $r['submodule_id'] !== null ? (int) $r['submodule_id'] : 0;
-            $r['has_access']   = $isSuperAdmin ? true : ((int) $r['has_access'] === 1);
-        }
-        return [
-            'status'    => 200,
-            'role_id'   => $roleId,
-            'is_system' => (int) ($role['is_system'] ?? 0),
-            'sections'  => $rows
-        ];
-    }
-
-    function accessRoles() {
-        $typeId = $this->qAccessTypeId();
-        if ($typeId <= 0) {
-            return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
-        }
-        $ls = $this->qRolesWithAccessCount([$typeId]);
-        $totalSections = 0;
-        foreach ($ls as $r) {
-            $totalSections = max($totalSections, (int) $r['total_sections']);
-        }
-        foreach ($ls as &$r) {
-            $r['id']             = (int) $r['id'];
-            $r['is_system']      = (int) $r['is_system'];
-            $r['total_sections'] = (int) $r['total_sections'];
-            $r['granted']        = ($r['code'] === 'superadmin') ? $totalSections : (int) $r['granted'];
-        }
-        return ['status' => 200, 'roles' => $ls];
-    }
-
-    function sectionPermissionTypes() {
-        $roleId    = (int) $_POST['role_id'];
-        $sectionId = (int) $_POST['section_id'];
-
-        $role = $this->qRole([$roleId]);
-        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
-
-        $section = $this->qSection([$sectionId]);
-        if (!$section) return ['status' => 404, 'message' => 'Sección no encontrada'];
-
-        $isSuperAdmin = ($role['code'] === 'superadmin');
-        $types = $this->qSectionPermissionTypes([$roleId, $sectionId]);
-
-        foreach ($types as &$t) {
-            $t['id']      = (int) $t['id'];
-            $t['granted'] = $isSuperAdmin ? true : ((int) $t['granted'] === 1);
-        }
-
-        return ['status' => 200, 'types' => $types];
-    }
-
-    function savePermissions() {
-        $roleId  = (int) $_POST['role_id'];
-        $rawJson = $_POST['changes'];
-
-        $role = $this->qRole([$roleId]);
-        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
-        if ((int) $role['is_system'] === 1) {
-            return ['status' => 400, 'message' => 'Los roles del sistema no se editan'];
-        }
-
-        $changes = json_decode($rawJson, true);
-        if (!is_array($changes)) {
-            return ['status' => 400, 'message' => 'Payload de cambios inválido'];
-        }
-
-        $accessChanges = isset($changes['access']) && is_array($changes['access']) ? $changes['access'] : [];
-        $typeChanges   = isset($changes['types'])  && is_array($changes['types'])  ? $changes['types']  : [];
-
-        $typeId = $this->qAccessTypeId();
-        if ($typeId <= 0 && count($accessChanges) > 0) {
-            return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
-        }
-
-        return $this->transaction(function () use ($roleId, $typeId, $accessChanges, $typeChanges) {
-            foreach ($accessChanges as $c) {
-                $secId = (int) $c['section_id'];
-                $grant = (int) $c['grant'] === 1;
-                $existing = $this->qFindPermission([$roleId, $secId, $typeId]);
-                if ($existing) {
-                    $this->qSetPermissionActive([$grant ? 1 : 0, (int) $existing['id']]);
-                } elseif ($grant) {
-                    $this->qInsertPermission([$roleId, $secId, $typeId]);
-                }
-            }
-
-            foreach ($typeChanges as $c) {
-                $secId  = (int) $c['section_id'];
-                $tId    = (int) $c['type_id'];
-                $grant  = (int) $c['grant'] === 1;
-                $existing = $this->qFindPermission([$roleId, $secId, $tId]);
-                if ($existing) {
-                    $this->qSetPermissionActive([$grant ? 1 : 0, (int) $existing['id']]);
-                } elseif ($grant) {
-                    $this->qInsertPermission([$roleId, $secId, $tId]);
-                }
-            }
-
-            return ['status' => 200, 'message' => 'Permisos guardados'];
-        });
-    }
-
-    // Concede o retira el acceso de un rol a TODAS las secciones, o a las de un módulo.
-    // Espejo en bloque de toggleAccess: reutiliza el modelo binario "Acceso".
-    function bulkAccess() {
-        $roleId   = (int) ($_POST['role_id'] ?? 0);
-        $grant    = (int) ($_POST['grant'] ?? 0) === 1;
-        $moduleId = (int) ($_POST['module_id'] ?? 0); // 0 = todas las secciones
-
-        $role = $this->qRole([$roleId]);
-        if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
-        if ((int) $role['is_system'] === 1) {
-            return ['status' => 400, 'message' => 'El acceso de los roles del sistema no se edita'];
-        }
-
-        $typeId = $this->qAccessTypeId();
-        if ($typeId <= 0) return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
-
-        $sections = $moduleId > 0
-            ? $this->qSectionIdsByModule([$moduleId])
-            : $this->qAllSectionIds();
-
-        foreach ($sections as $s) {
-            $secId    = (int) $s['id'];
-            $existing = $this->qFindPermission([$roleId, $secId, $typeId]);
-            if ($existing) {
-                $this->qSetPermissionActive([$grant ? 1 : 0, (int) $existing['id']]);
-            } elseif ($grant) {
-                $this->qInsertPermission([$roleId, $secId, $typeId]);
-            }
-        }
-
-        return [
-            'status'  => 200,
-            'message' => $grant ? 'Accesos habilitados' : 'Accesos deshabilitados'
-        ];
-    }
-
-    // Activa o desactiva el acceso de un rol a UNA sección (insert o reactivación).
-    function toggleAccess() {
-        $roleId = (int) ($_POST['role_id'] ?? 0);
-        $secId  = (int) ($_POST['section_id'] ?? 0);
-        $grant  = (int) ($_POST['grant'] ?? 0) === 1;
-
-        if (!$this->qRole([$roleId]))    return ['status' => 404, 'message' => 'Rol no encontrado'];
-        if (!$this->qSection([$secId]))  return ['status' => 404, 'message' => 'Sección no encontrada'];
-
-        $role = $this->qRole([$roleId]);
-        if ((int) $role['is_system'] === 1) {
-            return ['status' => 400, 'message' => 'El acceso de los roles del sistema no se edita'];
-        }
-
-        $typeId = $this->qAccessTypeId();
-        if ($typeId <= 0) return ['status' => 400, 'message' => 'No hay un tipo de permiso "Acceso" configurado'];
-
-        $existing = $this->qFindPermission([$roleId, $secId, $typeId]);
-        if ($existing) {
-            $ok = $this->qSetPermissionActive([$grant ? 1 : 0, (int) $existing['id']]);
-        } elseif ($grant) {
-            $ok = $this->qInsertPermission([$roleId, $secId, $typeId]);
+        $found = $this->qFindPermission([$secId, $typeId]);
+        if ($found) {
+            $ok = $this->qSetPermissionActive([$active, (int) $found['id']]);
+        } elseif ($active === 1) {
+            $ok = $this->qInsertPermission([$secId, $typeId]);
         } else {
             $ok = true; // No existe y se pide quitar: nada que hacer.
         }
 
+        $current = $this->qFindPermission([$secId, $typeId]);
+
         return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? ($grant ? 'Acceso concedido' : 'Acceso retirado') : 'No se pudo actualizar el acceso'
+            'status'     => $ok ? 200 : 500,
+            'message'    => $ok ? ($active ? 'Acción agregada a la sección' : 'Acción quitada de la sección') : 'No se pudo actualizar la acción',
+            'permission' => $current ? $this->permissionRow($current) : null
+        ];
+    }
+
+    private function permissionRow($p) {
+        return [
+            'id'                 => (int) $p['id'],
+            'section_id'         => (int) $p['section_id'],
+            'type_permission_id' => (int) $p['type_permission_id'],
+            'is_active'          => (int) $p['is_active'],
+            'roles'              => (int) $p['roles']
         ];
     }
 
@@ -2320,4 +2290,7 @@ if (!method_exists($obj, $opc)) {
     echo json_encode(['status' => 405, 'message' => "opc '{$opc}' no implementado"]);
     exit(0);
 }
-echo json_encode($obj->{$opc}());
+// El tenant administra roles y permisos: solo quien entra a la sección "Permisos"
+// (hoy, el Super Admin). Sin esto, cualquiera con sesión podría darse acciones.
+require_once __DIR__ . '/../../conf/_Permissions.php';
+echo json_encode(Permissions::guard('permisos-editor', $opc, []) ?: $obj->{$opc}());

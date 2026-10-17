@@ -7,6 +7,10 @@ if (empty($_SESSION["IDU"])) {
     exit();
 }
 
+// El rol necesita al menos una acción en Configuración > Accesos; si no, de regreso a Inicio.
+require_once __DIR__ . '/../../conf/_Permissions.php';
+$permissions = Permissions::page('configuracion-accesos');
+
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>
@@ -81,6 +85,8 @@ require_once('layout/core-libraries.php');
     <script src="../../acceso/src/js/sidebar.js"></script>
 
     <!-- Módulo de Accesos -->
+    <!-- Acciones del rol en Accesos: el módulo solo pinta los botones que puede usar -->
+    <?php echo Permissions::script($permissions); ?>
     <script src="js/accesos.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

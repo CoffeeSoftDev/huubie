@@ -280,8 +280,11 @@ class App extends Templates {
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     MOVIMIENTOS_STOCK
-            },
-            {
+            }
+        ];
+
+        if (can('agregar-conteo')) {
+            filters.push({
                 opc:       'button',
                 id:        'btnConteoFisico',
                 text:      'Conteo físico',
@@ -290,8 +293,8 @@ class App extends Templates {
                 class:    'col-12 col-md-4 col-lg-1',
                 color_btn: 'primary',
                 onClick:   () => stockCount.addConteo()
-            }
-        ];
+            });
+        }
 
         this.createfilterBar({
             parent: 'filterBar',
@@ -1960,33 +1963,38 @@ class Ajustes extends Templates {
     }
 
     filterBar() {
+        const filters = [
+            {
+                opc:      'select',
+                id:       'fEstadoAjuste',
+                lbl:      'Estado:',
+                class:    'col-12 col-md-4 col-lg-1',
+                onchange: 'ajustes.lsAjustes()',
+                value:    '',
+                required: false,
+                data:     app.dataInit.estadosAjuste
+            }
+        ];
+
+        if (can('agregar-conteo')) {
+            filters.push({
+                opc:       'button',
+                id:        'btnConteoAjustes',
+                text:      'Conteo físico',
+                icon:      'icon-clipboard',
+                className: 'w-100 h-[34px]',
+                class:     'col-12 col-md-4 col-lg-1',
+                color_btn: 'primary',
+                onClick:   () => stockCount.addConteo()
+            });
+        }
+
         this.createfilterBar({
             parent:     'filterBarAjustes',
             id:         `filterForm${this.PROJECT_NAME}`,
             coffeesoft: true,
             theme:      'light',
-            data: [
-                {
-                    opc:      'select',
-                    id:       'fEstadoAjuste',
-                    lbl:      'Estado:',
-                    class:    'col-12 col-md-4 col-lg-1',
-                    onchange: 'ajustes.lsAjustes()',
-                    value:    '',
-                    required: false,
-                    data:     app.dataInit.estadosAjuste
-                },
-                {
-                    opc:       'button',
-                    id:        'btnConteoAjustes',
-                    text:      'Conteo físico',
-                    icon:      'icon-clipboard',
-                    className: 'w-100 h-[34px]',
-                    class:     'col-12 col-md-4 col-lg-1',
-                    color_btn: 'primary',
-                    onClick:   () => stockCount.addConteo()
-                }
-            ]
+            data:       filters
         });
 
         $(`#filterForm${this.PROJECT_NAME}`).addClass('lg:grid-cols-5');

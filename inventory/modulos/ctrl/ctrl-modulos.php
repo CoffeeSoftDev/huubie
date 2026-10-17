@@ -9,14 +9,18 @@ class ctrl extends mdl {
 
     // Módulos como cards de primer nivel, con su conteo de submódulos.
     // Solo se incluyen los módulos en los que el rol del usuario (en su sucursal
-    // activa) tiene permiso a alguna sección. Sin sesión/sucursal -> sin módulos.
+    // activa) tiene alguna acción en alguna sección; el Super Admin los ve todos
+    // porque su acceso es total. Sin sesión/sucursal -> sin módulos.
     function init() {
         $userId   = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
         $branchId = (int) ($_SESSION['branch_id'] ?? 0);
 
-        $ls = ($userId > 0 && $branchId > 0)
-            ? $this->qAccessibleModules([$userId, $branchId])
-            : [];
+        $ls = [];
+        if ($userId > 0 && $branchId > 0) {
+            $ls = $this->qIsSuperAdmin([$userId, $branchId])
+                ? $this->qModules()
+                : $this->qAccessibleModules([$userId, $branchId]);
+        }
 
         $modules = [];
         foreach ($ls as $m) {

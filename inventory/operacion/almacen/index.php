@@ -7,6 +7,10 @@ if (empty($_SESSION["IDU"])) {
     exit();
 }
 
+// El rol necesita al menos una acción en el Catálogo; si no, de regreso a Inicio.
+require_once __DIR__ . '/../../conf/_Permissions.php';
+$permissions = Permissions::page('administrador');
+
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>
@@ -53,6 +57,8 @@ require_once('layout/core-libraries.php');
     <script src="../../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ia-chat.js'); ?>"></script>
 
     <!-- Módulo de Catálogo -->
+    <!-- Acciones del rol en el Catálogo: el módulo solo pinta los botones que puede usar -->
+    <?php echo Permissions::script($permissions); ?>
     <script src="js/almacen.js?t=<?php echo time(); ?>"></script>
     <script src="js/catalogo.js?t=<?php echo time(); ?>"></script>
 </body>

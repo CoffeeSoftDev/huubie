@@ -55,8 +55,8 @@ class Access extends MAccess {
             $_SESSION['last_activity'] = time();
 
             // Quién se salta el selector de sucursal: el dueño (is_owner) y
-            // cualquiera con rol Super Admin o Administrador. Antes solo contaba
-            // is_owner, así que un Administrador aterrizaba en el selector.
+            // cualquiera con rol Super Admin o Dueño. Antes solo contaba
+            // is_owner, así que quien tenía el rol aterrizaba en el selector.
             $isAdmin = (int) ($usr['is_owner'] ?? 0) === 1 || $this->userIsAdmin([$usr['IDU']]);
             $_SESSION['is_admin'] = $isAdmin ? 1 : 0;
 
@@ -418,15 +418,12 @@ class Access extends MAccess {
         $moduleId = $this->resolveModuleId($_POST['module'] ?? '');
 
         // Con modulo resuelto se acota a sus secciones; si no (pagina fuera de un
-        // modulo) se cae al comportamiento previo: todas las secciones accesibles.
-        // El Super Admin ve todas las secciones activas sin depender de permissions.
-        if ($this->userIsSuperAdmin([$userId, $branchId])) {
-            $ls = $this->getAllActiveSections([$moduleId, $moduleId]);
-        } else {
-            $ls = $moduleId > 0
-                ? $this->getAccessibleSectionsByModule([$userId, $branchId, $moduleId])
-                : $this->getAccessibleSections([$userId, $branchId]);
-        }
+        // modulo) quedan todas las accesibles. Una seccion se ve cuando el rol tiene
+        // al menos una de sus acciones (permissions_roles). El Super Admin ve todas
+        // las secciones encendidas: su acceso es total y no lleva filas.
+        $ls = $this->userIsSuperAdmin([$userId, $branchId])
+            ? $this->getAllActiveSections([$moduleId, $moduleId])
+            : $this->getAccessibleSections([$userId, $branchId, $moduleId, $moduleId]);
 
         $items = [];
         foreach ($ls as $s) {

@@ -1,96 +1,120 @@
 <?php
-require_once('../../../conf/_CRUD.php');
+require_once '../../../conf/_CRUD.php';
+require_once '../../../conf/_Utileria.php';
 
-class Dashboard extends CRUD {
+// Modelo del Dashboard del almacén: indicadores del stock de la sucursal activa y la
+// bitácora de movimientos. La bitácora sale de la vista inventory_movement (un
+// renglón por producto de cada entrada, salida, ajuste o traspaso aplicado).
+class mdl extends CRUD {
 
-    protected $bd;
+    public $util;
+    public $bd;
+    public $bdErp;
 
     public function __construct() {
-        $this->bd = "fayxzvov_inventory.";
+        $this->util  = new Utileria;
+        $this->bd    = 'fayxzvov_inventory.';
+        $this->bdErp = 'fayxzvov_erp.';
     }
 
-    public function getTotalProductos() {
-        $query = "SELECT COUNT(*) as total FROM {$this->bd}item WHERE active = 1 AND companies_id = ".$_SESSION['company_id'];
-        $result = $this->_Read($query, []);
-        return $result[0]['total'] ?? 0;
-    }
-
-    public function getStockTotal() {
-        $query = "
-            SELECT COALESCE(SUM(st.quantity), 0) as total
-            FROM {$this->bd}stock st
-            INNER JOIN {$this->bd}item i ON i.id = st.item_id
-            WHERE st.active = 1 AND i.active = 1
-            AND i.companies_id = ".$_SESSION['company_id'];
-        $result = $this->_Read($query, []);
-        return $result[0]['total'] ?? 0;
-    }
-
-    public function getProductosBajos() {
-        $query = "
-            SELECT COUNT(*) as total FROM (
-                SELECT
-                    i.id,
-                    COALESCE(t.qty, 0) AS qty,
-                    COALESCE(ia.stock_min, 0) AS min
-                FROM {$this->bd}item i
-                LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
-                LEFT JOIN (
-                    SELECT item_id, SUM(quantity) AS qty
-                    FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
-                ) t ON t.item_id = i.id
-                WHERE i.active = 1 AND i.companies_id = ".$_SESSION['company_id']."
-                HAVING qty <= min AND qty > 0
-            ) x
-        ";
-        $result = $this->_Read($query, []);
-        return $result[0]['total'] ?? 0;
-    }
-
-    public function getValorInventario() {
-        $query = "
-            SELECT COALESCE(SUM(st.quantity * COALESCE(ia.cost_unit, 0)), 0) as total
-            FROM {$this->bd}stock st
-            INNER JOIN {$this->bd}item i ON i.id = st.item_id
-            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
-            WHERE st.active = 1 AND i.active = 1
-            AND i.companies_id = ".$_SESSION['company_id'];
-        $result = $this->_Read($query, []);
-        return $result[0]['total'] ?? 0;
-    }
-
-    public function getMovimientosRecientes() {
+    // Mismos criterios que las cards de Stock (mdl-stock::getStockKpis): bajo es
+    // tener algo pero no más del mínimo; agotado, no tener nada. El valor va al
+    // último costo de compra, como en el Catálogo.
+    function getDashboardCounts($array) {
+        // [branch_id, companies_id]
         $query = "
             SELECT
-                DATE_FORMAT(mv.occurred_at, '%d/%m/%Y') as fecha,
-                i.name as producto,
-                mv.movement_type as tipo,
-                mv.quantity as cantidad
-            FROM {$this->bd}inventory_movement mv
-            INNER JOIN {$this->bd}item i ON i.id = mv.item_id
-            WHERE mv.companies_id = ".$_SESSION['company_id']."
-            ORDER BY mv.id DESC
-            LIMIT 10
-        ";
-        return $this->_Read($query, []);
-    }
-
-    public function getListaProductosBajos() {
-        $query = "
-            SELECT
-                i.name as nombre,
-                COALESCE(t.qty, 0) as stock
+                COUNT(DISTINCT i.id) AS total_productos,
+                SUM(CASE WHEN COALESCE(s.q, 0) > 0 AND COALESCE(s.q, 0) <= COALESCE(ia.stock_min, 0) THEN 1 ELSE 0 END) AS total_bajo,
+                SUM(CASE WHEN COALESCE(s.q, 0) <= 0 THEN 1 ELSE 0 END) AS total_agotado,
+                COALESCE(SUM(COALESCE(s.q, 0) * COALESCE(ia.cost_unit, 0)), 0) AS valor_inventario
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN (
-                SELECT item_id, SUM(quantity) AS qty
-                FROM {$this->bd}stock WHERE active = 1 GROUP BY item_id
-            ) t ON t.item_id = i.id
-            WHERE i.active = 1 AND i.companies_id = ".$_SESSION['company_id']."
-            AND COALESCE(t.qty, 0) <= COALESCE(ia.stock_min, 0)
-            ORDER BY stock ASC
-            LIMIT 5
+                SELECT st.item_id, SUM(st.quantity) AS q
+                FROM {$this->bd}stock st
+                INNER JOIN {$this->bd}warehouse w ON w.id = st.warehouse_id AND w.active = 1
+                WHERE st.active = 1 AND w.branch_id = ?
+                GROUP BY st.item_id
+            ) s ON s.item_id = i.id
+            WHERE i.active = 1 AND i.companies_id = ?
         ";
-        return $this->_Read($query, []);
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : [];
+    }
+
+    // Los que ya llegaron a su mínimo (o se acabaron), los más urgentes primero.
+    // Sin mínimo capturado no hay contra qué comparar y no salen.
+    function listLowStock($array) {
+        // [branch_id, companies_id]
+        $query = "
+            SELECT
+                i.name,
+                COALESCE(s.q, 0) AS stock,
+                ia.stock_min,
+                u.name AS unidad
+            FROM {$this->bd}item i
+            INNER JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}unit u ON u.id = ia.unit_id
+            LEFT JOIN (
+                SELECT st.item_id, SUM(st.quantity) AS q
+                FROM {$this->bd}stock st
+                INNER JOIN {$this->bd}warehouse w ON w.id = st.warehouse_id AND w.active = 1
+                WHERE st.active = 1 AND w.branch_id = ?
+                GROUP BY st.item_id
+            ) s ON s.item_id = i.id
+            WHERE i.active = 1 AND i.companies_id = ?
+                AND ia.stock_min > 0
+                AND COALESCE(s.q, 0) <= ia.stock_min
+            ORDER BY COALESCE(s.q, 0) / ia.stock_min ASC, i.name ASC
+            LIMIT 10
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Bitácora: un renglón por documento (folio) con quién lo registró, cuántos
+    // productos y unidades movió y a qué costo. Tipo vacío o usuario 0 = todos.
+    function listMovementLog($array) {
+        // [companies_id, branch_id, fi, ff, tipo, tipo, user_id, user_id]
+        $query = "
+            SELECT
+                mv.movement_type,
+                mv.folio,
+                MAX(mv.created_at)         AS created_at,
+                COUNT(DISTINCT mv.item_id) AS productos,
+                SUM(mv.quantity)           AS unidades,
+                SUM(mv.cost_total)         AS costo,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS usuario,
+                w.name                     AS almacen
+            FROM {$this->bd}inventory_movement mv
+            LEFT JOIN {$this->bdErp}users u ON u.id = mv.user_id
+            LEFT JOIN {$this->bd}warehouse w ON w.id = mv.warehouse_id
+            WHERE mv.companies_id = ? AND mv.branch_id = ?
+                AND DATE(mv.created_at) BETWEEN ? AND ?
+                AND (? = '' OR mv.movement_type = ?)
+                AND (? = 0 OR mv.user_id = ?)
+            GROUP BY mv.movement_type, mv.folio, mv.user_id, mv.warehouse_id, u.name, u.last_name, w.name
+            ORDER BY created_at DESC, mv.folio DESC
+            LIMIT 500
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Quienes tienen movimientos en la sucursal, para el filtro de usuario.
+    function lsMovementUsers($array) {
+        // [companies_id, branch_id]
+        $query = "
+            SELECT DISTINCT
+                mv.user_id AS id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS valor
+            FROM {$this->bd}inventory_movement mv
+            INNER JOIN {$this->bdErp}users u ON u.id = mv.user_id
+            WHERE mv.companies_id = ? AND mv.branch_id = ?
+            ORDER BY valor ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
     }
 }

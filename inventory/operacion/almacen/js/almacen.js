@@ -46,8 +46,9 @@ $(async () => {
 
     asistente = new AsistenteProductos(api, "root");
 
-    // Se enciende o apaga en Administrador > CoffeeIA.
-    if (coffeeIA) asistente.renderLauncher();
+    // Se enciende o apaga en Administrador > CoffeeIA. El asistente da de alta,
+    // edita y da de baja productos: sin ninguna de esas acciones no sale.
+    if (coffeeIA && (can('agregar') || can('editar') || can('cancelar'))) asistente.renderLauncher();
 });
 
 class Main extends Templates {
@@ -223,7 +224,7 @@ class Productos extends Templates {
                     ],
                     onchange: 'products.lsMateriales()'
                 },
-                {
+                ...(can('agregar') ? [{
                     opc: "button",
                     id: "btnNuevoMaterial",
                     text: "Nuevo Producto",
@@ -231,7 +232,7 @@ class Productos extends Templates {
                     class: "col-12 col-md-2",
                     color_btn: "primary",
                     onClick: () => this.addMaterial()
-                }
+                }] : [])
             ]
         });
 
@@ -694,7 +695,10 @@ class Productos extends Templates {
     }
 
     // El alta del Catálogo se abre encima: el producto no se cierra ni pierde lo capturado.
+    // Dar de alta un área o una unidad es agregar al Catálogo: sin esa acción no salen.
     mountCatalogShortcuts(formId) {
+        if (!can('agregar')) return;
+
         const $form = $(`#${formId}`);
 
         const shortcut = (field, onClick) => {
