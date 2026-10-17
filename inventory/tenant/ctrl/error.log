@@ -1,3 +1,48 @@
+[ 2026-10-17 13:46:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                t.id, t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.sidebar_color, t.scheme, t.mode, t.badge,
+                t.is_default, t.orden, t.is_active,
+                (SELECT COUNT(*) FROM fayxzvov_erp.users u WHERE u.theme_code = t.code) AS chosen_by
+            FROM fayxzvov_erp.themes t
+            WHERE t.is_active = ?
+            ORDER BY t.orden ASC, t.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 't.sidebar_color' in 'field list'
+
+
+[ 2026-10-17 13:46:41 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                t.id, t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.sidebar_color, t.scheme, t.mode, t.badge,
+                t.is_default, t.orden, t.is_active,
+                (SELECT COUNT(*) FROM fayxzvov_erp.users u WHERE u.theme_code = t.code) AS chosen_by
+            FROM fayxzvov_erp.themes t
+            WHERE t.is_active = ?
+            ORDER BY t.orden ASC, t.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 't.sidebar_color' in 'field list'
+
+
+[ 2026-10-17 13:46:39 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                t.id, t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.sidebar_color, t.scheme, t.mode, t.badge,
+                t.is_default, t.orden, t.is_active,
+                (SELECT COUNT(*) FROM fayxzvov_erp.users u WHERE u.theme_code = t.code) AS chosen_by
+            FROM fayxzvov_erp.themes t
+            WHERE t.is_active = ?
+            ORDER BY t.orden ASC, t.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 't.sidebar_color' in 'field list'
+
+
 [ 2026-10-16 21:20:51 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: ROSY$

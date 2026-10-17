@@ -87,18 +87,18 @@ class Navbar {
         const navbarHtml = `
             ${this.styles()}
             <nav class="navbar-main border-bottom w-full px-4 py-2 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-3">
+                <div class="nav-left flex items-center gap-3">
                     <button id="btn-mobile-menu" class="lg:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Menú">
                         <i data-lucide="menu" class="w-6 h-6"></i>
                     </button>
                     <span class="nav-brand-logo" title="CoffeeSoft">${Navbar.LOGO_SVG}</span>
-                    <div class="flex flex-col leading-tight">
+                    <div class="nav-brand-text flex flex-col leading-tight">
                         <span class="navbar-title">CoffeeSoft</span>
                         <span class="navbar-subtitle">${this.settings.negocio || this.settings.company}</span>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="nav-right flex items-center gap-2">
                     ${this.branchPillHtml()}
 
                     <div class="relative">
@@ -111,17 +111,17 @@ class Navbar {
                     </div>
 
                     ${this.settings.superAdmin ? `
-                    <button id="btnEmpresas" class="nav-theme-toggle" title="Empresas">
+                    <button id="btnEmpresas" class="nav-theme-toggle nav-hide-compact" title="Empresas">
                         <i data-lucide="building" class="w-[18px] h-[18px]"></i>
                     </button>` : ''}
 
-                    <button id="btnModulos" class="nav-theme-toggle" title="Módulos">
+                    <button id="btnModulos" class="nav-theme-toggle nav-hide-compact" title="Módulos">
                         <i data-lucide="layout-grid" class="w-[18px] h-[18px]"></i>
                     </button>
 
                     <button id="btnUserMenu" class="nav-user-pill flex items-center gap-2.5">
                         <div class="nav-avatar" style="${avatarStyle}">${avatarHtml}</div>
-                        <div class="hidden sm:flex flex-col items-start leading-tight">
+                        <div class="hidden lg:flex flex-col items-start leading-tight">
                             <span class="nav-user-name">${this.settings.user}</span>
                             ${this.settings.rol ? `<span class="nav-user-rol">${this.settings.rol}</span>` : ''}
                         </div>
@@ -145,6 +145,19 @@ class Navbar {
                     </div>
 
                     <div class="nav-divider"></div>
+
+                    <!-- En el teléfono Módulos y Empresas no caben en la barra: van aquí. -->
+                    <div class="md:hidden px-2 pt-2">
+                        <button type="button" class="nav-menu-row" data-nav-go="modulos">
+                            <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                            Módulos
+                        </button>
+                        ${this.settings.superAdmin ? `
+                        <button type="button" class="nav-menu-row" data-nav-go="empresas">
+                            <i data-lucide="building" class="w-4 h-4"></i>
+                            Empresas
+                        </button>` : ''}
+                    </div>
 
                     <div class="px-3 py-3">
                         <button id="btnLogout" class="nav-logout-btn">
@@ -190,10 +203,10 @@ class Navbar {
             </div>` : '';
 
         return `
-        <div class="relative">
+        <div class="nav-branch relative">
             <button id="btnBranch" class="branch-pill flex items-center gap-2.5 ${multi ? '' : 'branch-pill-static'}" aria-expanded="false" ${multi ? '' : 'disabled'}>
                 <span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span>
-                <div class="flex flex-col items-start leading-tight">
+                <div class="branch-pill-text flex flex-col items-start leading-tight">
                     <span class="branch-pill-label">Sucursal</span>
                     <span id="btnBranchName" class="branch-pill-name">${current.name || 'Seleccionar'}</span>
                 </div>
@@ -299,7 +312,7 @@ class Navbar {
             /* La foto se redondea ella misma: con overflow:hidden en el contenedor
                el círculo le cortaría el punto verde de estado al avatar del perfil. */
             .nav-avatar img, .nav-head-avatar img { width:100%; height:100%; border-radius:9999px; object-fit:cover; }
-            .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+            .nav-user-name { font-size:13px; font-weight:600; color:#111827; white-space:nowrap; }
             .nav-user-rol  { font-size:11px; color:#6B7280; }
             .nav-chevron { color:#9CA3AF; transition:transform .2s ease; }
             #btnUserMenu.open .nav-chevron { transform:rotate(180deg); }
@@ -318,6 +331,9 @@ class Navbar {
 
             .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1px solid #E5E7EB; color:#DC2626; border-radius:12px; font-weight:600; font-size:14px; background:#FFFFFF; transition:all .15s ease; }
             .nav-logout-btn:hover { background:#FEF2F2; border-color:#FECACA; }
+
+            .nav-menu-row { width:100%; display:flex; align-items:center; gap:10px; padding:10px 12px; border:none; border-radius:10px; background:transparent; color:#374151; font-size:14px; font-weight:600; text-align:left; transition:background .15s ease; }
+            .nav-menu-row:hover { background:#F3F4F6; }
 
             /* ── Selector de temas (estilo del de erp-pro) ── */
             .nav-color-menu { position:absolute; right:0; top:calc(100% + 10px); width:250px; background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); padding:6px; z-index:60; }
@@ -433,6 +449,8 @@ class Navbar {
                perderían con el filo oscuro: aquí va claro. */
             body.dark-mode .nav-color-swatch::after { box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
             body.dark-mode .nav-status-dot { border-color:var(--dk-card, #1F2A37); }
+            body.dark-mode .nav-menu-row { color:var(--dk-text, #F9FAFB); }
+            body.dark-mode .nav-menu-row:hover { background:var(--dk-hover, #1a2332); }
             body.dark-mode .nav-logout-btn { background:transparent; border-color:var(--dk-line, #374151); color:#F87171; }
             body.dark-mode .nav-logout-btn:hover { background:rgba(220,38,38,.12); border-color:rgba(220,38,38,.35); }
             body.dark-mode .branch-card { background:rgba(255,255,255,.04); border-color:var(--dk-line, #374151); }
@@ -443,6 +461,36 @@ class Navbar {
             body.dark-mode .branch-card:hover { border-color:var(--nav-accent); }
             body.dark-mode .nav-avatar,
             body.dark-mode .nav-head-avatar { background:var(--nav-accent); }
+
+            /* ── Teléfono y tablet chica (< 768px, el md de Tailwind) ──
+               Completa la barra pide unos 590px: en un teléfono de 390 se salía
+               por la derecha. Quedan el menú, el logo, la sucursal (que se encoge
+               y corta el nombre), CoffeeIA, Tema y el avatar; Módulos y Empresas
+               pasan al menú del usuario. Bootstrap trae .px-4/.gap-* con
+               !important: por eso los !important de aquí. Los desplegables van
+               fijos a lo ancho de la pantalla para no salirse por la izquierda.
+               Va al final para ganarle por orden a las reglas de arriba. */
+            @media (max-width: 767.98px) {
+                .navbar-main { padding-left:10px !important; padding-right:10px !important; gap:8px; }
+                .navbar-main .nav-left { gap:4px !important; flex-shrink:0; }
+                .navbar-main .nav-brand-text,
+                .navbar-main .nav-hide-compact,
+                .navbar-main .branch-pill-label,
+                .navbar-main .nav-chevron { display:none !important; }
+                .navbar-main .nav-right { gap:4px !important; min-width:0; }
+                .navbar-main .nav-right > :not(.nav-branch) { flex-shrink:0; }
+                .navbar-main .nav-branch { min-width:0; }
+                .navbar-main .branch-pill { max-width:100%; gap:6px !important; padding:3px 8px 3px 4px; }
+                .navbar-main .branch-pill-text { flex:1 1 auto; min-width:0; }
+                .navbar-main .branch-pill-icon { width:26px; height:26px; }
+                .navbar-main .branch-pill-name { display:block; max-width:100%; font-size:12.5px; }
+                .navbar-main .nav-theme-toggle { width:34px; height:34px; }
+                .navbar-main .nav-user-pill,
+                .navbar-main .nav-user-pill:hover { padding:0; border:none; background:transparent; }
+                .navbar-main .nav-avatar { width:34px; height:34px; }
+                .branch-dd,
+                .nav-color-menu { position:fixed; left:10px; right:10px; top:70px; width:auto; }
+            }
         </style>`;
     }
 
@@ -452,14 +500,9 @@ class Navbar {
             this.toggleUserMenu();
         });
         $("#btnLogout").on("click", () => this.logout());
-        $("#btnModulos").on("click", () => {
-            const base = window.location.pathname.split('/inventory/')[0];
-            window.location.href = `${base}/inventory/modulos/`;
-        });
-        $("#btnEmpresas").on("click", () => {
-            const base = window.location.pathname.split('/inventory/')[0];
-            window.location.href = `${base}/inventory/empresas/`;
-        });
+        $("#btnModulos").on("click", () => this.goTo("modulos"));
+        $("#btnEmpresas").on("click", () => this.goTo("empresas"));
+        $("#userMenuDropdown").on("click", "[data-nav-go]", (e) => this.goTo(e.currentTarget.dataset.navGo));
         $("#btnTheme").on("click", (e) => {
             e.stopPropagation();
             this.toggleThemeMenu();
@@ -492,6 +535,11 @@ class Navbar {
                 this.closeBranchDropdown();
             }
         });
+    }
+
+    goTo(section) {
+        const base = window.location.pathname.split('/inventory/')[0];
+        window.location.href = `${base}/inventory/${section}/`;
     }
 
     toggleBranchDropdown() {

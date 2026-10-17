@@ -44,6 +44,9 @@ require_once('layout/core-libraries.php');
     <!-- Aviso con tarjetas de elección (aprobar con faltante) -->
     <script src="../../src/js/components/cs-choice-cards.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/cs-choice-cards.js'); ?>"></script>
 
+    <!-- Pedidos en el teléfono: tarjetas y captura a pantalla completa -->
+    <script src="../../src/js/components/ordenes-movil.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ordenes-movil.js'); ?>"></script>
+
     <!-- CoffeeIA (eliminar pedidos); forja-blob dibuja el muñeco de coffeeIA -->
     <script src="../../src/js/components/forja-blob.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/forja-blob.js'); ?>"></script>
     <script src="../../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ia-chat.js'); ?>"></script>

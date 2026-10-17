@@ -101,7 +101,9 @@ class ctrl extends mdl {
             'q'            => $_POST['q']
         ]);
 
-        $__row = [];
+        $__row    = [];
+        $cards    = [];
+        $entregas = $_POST['vista'] === 'entregas';
         foreach ($ordenes as $orden) {
             $fila = [
                 'id'               => $orden['id'],
@@ -125,9 +127,52 @@ class ctrl extends mdl {
             ];
 
             $__row[] = $fila;
+            $cards[] = $this->tarjetaMovil($orden, $entregas);
         }
 
-        return ['status' => 200, 'row' => $__row, 'thead' => ''];
+        return ['status' => 200, 'row' => $__row, 'thead' => '', 'cards' => $cards];
+    }
+
+    // Tarjeta del teléfono: folio, hace cuánto, estado, los dos primeros materiales y
+    // cuántos más. En Mis entregas también quién pide y para cuándo lo necesita.
+    private function tarjetaMovil($orden, $entregas) {
+        $nombres  = array_values(array_filter(explode('|', (string) $orden['materiales'])));
+        $necesita = strip_tags($this->entregaParaCell($orden['date_order'], false));
+
+        return [
+            'id'         => (int) $orden['id'],
+            'folio'      => $orden['folio'],
+            'status'     => $orden['status'],
+            'hace'       => $this->haceCuanto($orden['minutos'], $orden['dias']),
+            'materiales' => implode(', ', array_slice($nombres, 0, 2)),
+            'mas'        => max(0, count($nombres) - 2),
+            'total'      => count($nombres) ?: (int) $orden['total_products'],
+            'nueva'      => $entregas && $orden['status'] === 'Solicitada',
+            'pide'       => $entregas ? ($orden['branch_name'] ?: '-') : '',
+            'necesita'   => $entregas && $necesita !== '-' ? $necesita : '',
+            'hoy'        => $necesita === 'Hoy'
+        ];
+    }
+
+    // "hace 20 min", "hace 2 h", "ayer", "hace 3 días", "hace 1 semana". Minutos y días
+    // vienen de MySQL (qOrdenes).
+    private function haceCuanto($minutos, $dias) {
+        $minutos = max(0, (int) $minutos);
+        $dias    = max(0, (int) $dias);
+
+        if ($minutos < 1)  return 'ahora';
+        if ($minutos < 60) return "hace {$minutos} min";
+        if ($dias === 0)   return 'hace ' . intdiv($minutos, 60) . ' h';
+        if ($dias === 1)   return 'ayer';
+        if ($dias < 7)     return "hace {$dias} días";
+
+        if ($dias < 30) {
+            $semanas = intdiv($dias, 7);
+            return "hace {$semanas} " . ($semanas === 1 ? 'semana' : 'semanas');
+        }
+
+        $meses = intdiv($dias, 30);
+        return "hace {$meses} " . ($meses === 1 ? 'mes' : 'meses');
     }
 
     function getOrden() {

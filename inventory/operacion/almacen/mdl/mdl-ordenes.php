@@ -176,6 +176,8 @@ class mdl extends CRUD {
     // Las compras (folio CP-) comparten la tabla pero se gestionan en Compras.
     // vista 'pedidos': lo que pide la sucursal. 'entregas': lo que le piden a la
     // sucursal (ya enviado: el borrador solo lo ve quien lo arma).
+    // Para las tarjetas del teléfono: nombres de los materiales y hace cuánto se pidió,
+    // medido con el reloj de MySQL (el mismo que llena created_at; PHP corre en UTC).
     function qOrdenes($array) {
         $where = "po.active = 1 AND po.companies_id = ? AND po.folio NOT LIKE 'CP-%'";
         $data  = [$array['companies_id']];
@@ -246,7 +248,13 @@ class mdl extends CRUD {
                 po.approved_user_id,
                 TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
                 po.approved_at,
-                po.reject_reason
+                po.reject_reason,
+                (SELECT GROUP_CONCAT(i.name ORDER BY d.id SEPARATOR '|')
+                   FROM {$this->bd}detail_purchase_order d
+                   INNER JOIN {$this->bd}item i ON i.id = d.item_id
+                  WHERE d.purchase_order_id = po.id AND d.active = 1) AS materiales,
+                TIMESTAMPDIFF(MINUTE, po.created_at, NOW()) AS minutos,
+                DATEDIFF(CURDATE(), DATE(po.created_at))    AS dias
             FROM {$this->bd}purchase_order po
             LEFT JOIN {$this->bd}warehouse        w  ON w.id  = po.warehouse_id
             LEFT JOIN {$this->bdErp}branches      s  ON s.id  = po.branch_id

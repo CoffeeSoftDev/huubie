@@ -76,6 +76,7 @@ class App extends Templates {
         this.renderTabs();
         ordenesView.renderDetail(null);
         this.populateFilters();
+        ordenesView.renderMovil();
         this.syncVista();
         ordenes.lsOrdenes();
     }
@@ -130,8 +131,31 @@ class App extends Templates {
             ]
         };
 
+        // Escritorio (tabla + visor) desde md; debajo, la vista de teléfono (renderMovil).
+        // Las dos se pintan con la misma consulta.
         this.createLayout({
             parent: 'root',
+            design: false,
+            data: {
+                id:        'ordenesShell',
+                class:     'flex-1 min-h-0 w-full flex flex-col',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'ordenesDesk',
+                        class: 'hidden md:flex flex-1 min-h-0 w-full'
+                    },
+                    {
+                        type:  'div',
+                        id:    'ordenesMovil',
+                        class: 'md:hidden'
+                    }
+                ]
+            }
+        });
+
+        this.createLayout({
+            parent: 'ordenesDesk',
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
@@ -198,6 +222,7 @@ class App extends Templates {
         $('#fEstado').val(entregas ? 'PorAtender' : 'Activas');
 
         this.renderLegends(entregas);
+        ordenesView.syncMovil();
     }
 
     // Solo en Mis entregas: qué significa el punto verde (bajo el título) y la línea de
@@ -460,6 +485,8 @@ class Ordenes extends Templates {
         });
 
         const data = (r && r.status === 200) ? { row: r.row } : { row: [] };
+
+        if (ordenesView.movil) ordenesView.movil.setCards((r && r.status === 200 && r.cards) || []);
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
@@ -766,9 +793,13 @@ class OrdenesView extends Templates {
 
     // El visor siempre está abierto: Ver pinta el pedido; la X, un cambio de estado que
     // cierra el pedido o un error al cargarlo regresan a "Selecciona un pedido".
+    // En el teléfono el pedido se abre a pantalla completa y la X lo cierra.
     renderDetail(orden) {
+        const enMovil = !!orden && !!this.movil && this.movil.isActive();
+
         this.ordenDetailPanel({
-            parent:  'detailPanel',
+            parent:  enMovil ? this.movil.detailParent() : 'detailPanel',
+            id:      enMovil ? 'ordenDetailMovil' : 'ordenDetailPanel',
             json:    orden,
             onClose: () => app.selectOrden(null),
             onPrint: (o) => { if (o) ordenes.printOrden(o); },
@@ -779,6 +810,100 @@ class OrdenesView extends Templates {
             onRecibir:       (o) => (String(o && o.folio || '').startsWith('REAB-') ? this.openRecepcionModal(o) : this.openSurtidoModal(o)),
             onCancel:        (o) => this.doCancelOrden(o),
             onCompromiso:    (o) => this.editCompromiso(o)
+        });
+
+        if (this.movil) this.movil.toggleDetail(enMovil);
+    }
+
+    // -- Teléfono --
+
+    // Debajo de md se ve como app (ordenes-movil.js): tarjetas, estados en píldoras, botón
+    // flotante y barra inferior. Los filtros son los de escritorio (#fEstado, #branch_id):
+    // el teléfono solo los cambia y vuelve a consultar.
+    renderMovil() {
+        this.movil = this.ordenesMovil({
+            parent: 'ordenesMovil',
+            id:     'ordenesMovilList',
+            tabs: [
+                {
+                    id:   'inicio',
+                    icon: 'house',
+                    text: 'Inicio',
+                    href: '../../modulos/'
+                },
+                {
+                    id:   'pedidos',
+                    icon: 'clipboard-list',
+                    text: 'Mis pedidos'
+                },
+                {
+                    id:   'entregas',
+                    icon: 'truck',
+                    text: 'Mis entregas'
+                }
+            ],
+            onChip: (id) => {
+                $('#fEstado').val(id);
+                app.onChangeFilters();
+            },
+            onBranch: (id) => {
+                $('#branch_id').val(id);
+                app.onChangeFilters();
+            },
+            onTab: (id) => {
+                app.onChangeTab(id);
+                app.renderTabs();
+            },
+            onOpen: (card) => app.selectOrden(card.folio, card.id),
+            onNew:  () => this.openOrdenMovil()
+        });
+    }
+
+    syncMovil() {
+        if (!this.movil) return;
+
+        const entregas = app.vista === 'entregas';
+        const opciones = (sel) => $(sel).find('option').map((i, el) => ({ id: el.value, valor: el.textContent })).get();
+
+        this.movil.setView({
+            title:     entregas ? 'Mis entregas' : 'Mis pedidos',
+            tab:       app.vista,
+            chips:     opciones('#fEstado').map(e => (e.id === '' ? { id: '', valor: 'Todas' } : e)),
+            chip:      $('#fEstado').val() || '',
+            branches:  opciones('#branch_id'),
+            branch:    $('#branch_id').val() || '',
+            locked:    $('#branch_id').prop('disabled'),
+            showNew:   !entregas,
+            rangeText: `Pedidos del ${this.fechaCorta(app.rangeFi)} al ${this.fechaCorta(app.rangeFf)}`
+        });
+    }
+
+    // Captura del teléfono en una pantalla: pedido nuevo (quien pide es la sucursal del
+    // filtro) o, con `orden`, editarlo con sus datos y renglones. Se guarda con saveOrdenForm.
+    openOrdenMovil(orden = null) {
+        const sucursales  = (app.dataInit.sucursales || []).filter(s => s.id !== '');
+        const solicitante = orden ? orden.branch_id : this.sucursalSolicitante();
+        const actual      = sucursales.find(s => String(s.id) === String(solicitante));
+
+        this.ordenEditando = orden;
+        this.ordenMovilForm({
+            id:       'ordenMovilForm',
+            sucursal: orden ? (orden.branch_name || '') : (actual ? actual.valor : ''),
+            json:     app.dataInit.productos || [],
+            data: {
+                sucursales:  sucursales,
+                unidades:    app.dataInit.unidades || [],
+                destino:     orden ? (orden.destination_branch_id || '') : app.subId,
+                solicitante: solicitante
+            },
+            edit: orden ? {
+                id:        orden.id,
+                folio:     orden.folio,
+                fecha:     String(orden.date_order || '').slice(0, 10),
+                nota:      orden.note || '',
+                productos: this.lotePedido(orden, this.ordenFormInstance())
+            } : null,
+            onSave: (payload) => this.saveOrdenForm(payload)
         });
     }
 
@@ -932,6 +1057,9 @@ class OrdenesView extends Templates {
         const modalId = 'modalAprobacion';
         $(`#${modalId}`).remove();
 
+        // Teléfono: el modal ocupa la pantalla y cada producto va en tarjeta (tarjetaHtml).
+        const movil = !!(this.movil && this.movil.isActive());
+
         let stockMap    = {};
         let stockLoaded = false;
         // Renglón -> productos de su categoría con stock; se arma al cargar el stock.
@@ -954,10 +1082,23 @@ class OrdenesView extends Templates {
             { lbl: 'Lo necesita para',   icon: 'clock',       tone: 'text-amber-500', val: esc((necesita.today ? 'Hoy · ' : '') + (this.fechaConDia(orden.date_order) || necesita.text)), cls: necesita.today ? 'text-red-600' : 'text-gray-800' }
         ];
 
+        // Teléfono: todo lo de en medio se desplaza junto (un solo scroll) entre el encabezado y
+        // los botones, que quedan fijos; con bloques fijos la lista quedaba de unos renglones y
+        // con el teclado abierto se encimaban. En escritorio el envoltorio es `contents` y la tabla
+        // scrollea sola, como siempre. Márgenes de 16px: el px-5 de Bootstrap son 42px por lado.
+        const cuerpoCls = movil ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white' : 'contents';
+        const px        = movil ? 'px-[16px]' : 'px-5';
+        const ayuda     = movil
+            ? 'Toca un producto para marcarlo y elige cuánto vas a entregar. Lo que no marques se quita del pedido.'
+            : 'Marca lo que vas a entregar; en "Producto a entregar" puedes cambiarlo por otro de su categoría con stock. Al aprobar se descuenta del almacén con su "Cant. a entregar" y lo no marcado se quita del pedido; si algo queda en negativo, el sistema te pregunta si la salida es automática o manual.';
+
+        // En el teléfono los campos van a 16 px (compact.css los deja en 14 con !important):
+        // con menos, el iPhone hace zoom al tocarlos.
         const $modal = $(`
-            <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center md:p-4">
+                <style>@media (max-width: 767.98px) { #${modalId} :is(input, textarea) { font-size: 16px !important; } }</style>
                 <div class="absolute inset-0 bg-black/40"></div>
-                <div class="relative z-10 w-full max-w-[1080px] h-[90vh] bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+                <div class="relative z-10 w-full max-w-[1080px] h-full md:h-[90vh] bg-white md:rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
 
                     <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
                         <div class="flex items-center gap-3">
@@ -974,7 +1115,9 @@ class OrdenesView extends Templates {
                         </button>
                     </div>
 
-                    <div class="px-5 py-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
+                    <div id="${modalId}_cuerpo" class="${cuerpoCls}">
+
+                    <div class="${px} py-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
                             ${meta.map(m => `
                             <div class="min-w-0">
@@ -988,13 +1131,13 @@ class OrdenesView extends Templates {
                         <input type="hidden" id="${modalId}_warehouse_id" value="${almacen ? almacen.id : ''}">
                     </div>
 
-                    <p class="flex-shrink-0 px-5 py-2 flex items-start gap-1.5 text-[10px] leading-snug text-gray-500">
+                    <p class="flex-shrink-0 ${px} ${movil ? 'py-2.5 text-[12px]' : 'py-2 text-[10px]'} flex items-start gap-1.5 leading-snug text-gray-500">
                         <i data-lucide="info" class="w-3 h-3 mt-px flex-shrink-0" style="color:#15803D"></i>
-                        <span>Marca lo que vas a entregar; en "Producto a entregar" puedes cambiarlo por otro de su categoría con stock. Al aprobar se descuenta del almacén con su "Cant. a entregar" y lo no marcado se quita del pedido; si algo queda en negativo, el sistema te pregunta si la salida es automática o manual.</span>
+                        <span>${ayuda}</span>
                     </p>
 
                     <!-- Franja y tabla con el formato de la captura de Nueva entrada -->
-                    <div class="px-5 py-2.5 border-y border-gray-200 flex items-center gap-2 flex-shrink-0 bg-gray-50">
+                    <div class="${px} py-2.5 border-y border-gray-200 flex items-center gap-2 flex-shrink-0 bg-gray-50">
                         <div class="w-6 h-6 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center">
                             <i data-lucide="boxes" class="w-3.5 h-3.5 text-blue-600"></i>
                         </div>
@@ -1002,29 +1145,32 @@ class OrdenesView extends Templates {
                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold leading-none bg-blue-50 text-blue-700 border border-blue-200">${productos.length}</span>
                     </div>
 
-                    <div id="${modalId}_table" class="flex-1 min-h-0 overflow-y-auto cs-scroll"></div>
+                    <div id="${modalId}_table" class="${movil ? 'bg-gray-50' : 'flex-1 min-h-0 overflow-y-auto cs-scroll'}"></div>
 
                     ${orden.note ? `
-                    <div class="flex-shrink-0 px-5 pt-3 pb-3">
+                    <div class="flex-shrink-0 ${px} pt-3 pb-3">
                         <div class="flex items-start gap-2.5 rounded-[10px] border border-gray-200 bg-white px-3 py-2.5" style="border-left:3px solid rgb(var(--brand-600, 192 90 64))">
                             <i data-lucide="file-text" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:rgb(var(--brand-600, 192 90 64))"></i>
                             <p class="text-xs leading-relaxed text-gray-500"><b class="font-semibold text-gray-800">Nota de quien pidió:</b> «${esc(orden.note)}»</p>
                         </div>
                     </div>` : ''}
 
-                    <div class="flex-shrink-0 border-t border-gray-200 px-5 py-3 bg-gray-50">
+                    <div class="flex-shrink-0 border-t border-gray-200 ${px} py-3 bg-gray-50">
                         <p id="${modalId}_resumen" class="text-xs leading-relaxed text-gray-500 mb-2.5">Cargando disponibilidad...</p>
                         <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
                         <textarea id="${modalId}_note" rows="2" maxlength="255" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-md outline-none resize-none focus:border-blue-500 placeholder:text-gray-400" placeholder="Observaciones de la aprobación..."></textarea>
                     </div>
 
-                    <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                        <button id="${modalId}_cerrar" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cerrar</button>
-                        <div class="flex items-center gap-2">
-                            <button id="${modalId}_rechazar" class="px-3 py-1.5 text-xs font-semibold rounded-md border flex items-center gap-1.5 transition-all" style="border-color:#E02424;color:#E02424">
+                    </div>
+
+                    <!-- En el teléfono: Cerrar es la X de arriba; Rechazar y Aprobar a lo ancho, de 44px -->
+                    <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0"${movil ? ' style="padding-bottom:max(12px, env(safe-area-inset-bottom))"' : ''}>
+                        <button id="${modalId}_cerrar" class="${movil ? 'hidden' : ''} px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cerrar</button>
+                        <div class="flex items-center gap-2 ${movil ? 'w-full' : ''}">
+                            <button id="${modalId}_rechazar" class="${movil ? 'flex-1 h-[44px] text-[13px] justify-center' : 'px-3 py-1.5 text-xs'} font-semibold rounded-md border flex items-center gap-1.5 transition-all" style="border-color:#E02424;color:#E02424">
                                 <i data-lucide="x" class="w-3.5 h-3.5"></i><span>Rechazar</span>
                             </button>
-                            <button id="${modalId}_aprobar" class="px-3 py-1.5 text-xs font-bold text-white rounded-md hover:shadow-lg transition-all flex items-center gap-1.5" style="background:#3FC189">
+                            <button id="${modalId}_aprobar" class="${movil ? 'flex-[2] h-[44px] text-[14px] justify-center' : 'px-3 py-1.5 text-xs'} font-bold text-white rounded-md hover:shadow-lg transition-all flex items-center gap-1.5" style="background:#3FC189">
                                 <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Aprobar y surtir</span>
                             </button>
                         </div>
@@ -1111,7 +1257,7 @@ class OrdenesView extends Templates {
             const e    = entregaDe(p);
             const disp = dispDe(p);
             return `
-                <div data-entrega-box="${did}" class="relative">
+                <div data-entrega-box="${did}" class="relative scroll-mt-[60px]">
                     <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
                         <i data-lucide="search" class="w-3.5 h-3.5"></i>
                     </span>
@@ -1244,11 +1390,73 @@ class OrdenesView extends Templates {
                 </tr>`;
         };
 
+        // Teléfono: el mismo renglón en tarjeta, con los mismos data-* (marcar, producto a
+        // entregar, cantidad y ¿Alcanza?). Arriba casilla, nombre, lo pedido y ¿Alcanza?; solo
+        // esa parte marca o desmarca (un toque entre los campos no la quita). Sin marcar no
+        // lleva campos; marcada abre producto a entregar, cantidad y unidad.
+        const tarjetaHtml = (p) => {
+            const did     = String(p.detailId);
+            const qty     = cantidades[did];
+            const marcado = elegidos.has(did);
+            const dec     = decDe(p);
+            const cat     = porId[String(p.product_id)] || {};
+            const datos   = [p.sku, cat.categoria && cat.categoria !== 'Sin categoría' ? cat.categoria : ''].filter(Boolean).map(esc).join(' &middot; ');
+            const lbl     = 'text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1';
+            return `
+                <div class="bg-white rounded-[12px] border-[1.5px] overflow-hidden ${marcado ? '' : 'border-gray-200'}"${marcado ? ' style="border-color:#3FC189"' : ''}>
+                    <div class="flex items-start gap-3 px-[14px] py-[12px] cursor-pointer" data-row="1">
+                        <span class="pt-0.5">${casilla(marcado, `data-elegir="${did}"`)}</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[14px] font-semibold leading-snug text-gray-800">${esc(p.nombre)}</p>
+                            <p class="text-[12px] text-gray-500 mt-0.5">Pidió <b class="text-gray-800">${fmtNum(pendiente(p))}${p.unidad ? ` ${esc(p.unidad)}` : ''}</b></p>
+                            ${datos ? `<p class="text-[11px] text-gray-400 mt-0.5 truncate">${datos}</p>` : ''}
+                            ${p.nota ? `<p class="text-[11px] text-gray-500 italic leading-tight flex items-start gap-1 mt-1"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}
+                            ${marcado ? '' : '<p class="text-[11px] mt-1" style="color:#15803D">Toca para marcarlo y elegir cuánto entregar</p>'}
+                        </div>
+                        <span data-alcanza="${did}" class="flex-shrink-0">${alcanzaCell(dispDe(p), qty, dec)}</span>
+                    </div>
+                    ${marcado ? `
+                    <div class="border-t border-gray-100 bg-gray-50 px-[14px] py-[12px] space-y-3">
+                        <div>
+                            <p class="${lbl}">Producto a entregar</p>
+                            ${entregaCell(p, marcado)}
+                        </div>
+                        <div class="flex items-end gap-3">
+                            <div class="flex-1">
+                                <p class="${lbl}">Cant. a entregar</p>
+                                <input type="number" data-cantidad="${did}" value="${qty}" min="0" max="${topeDe(p)}" step="${dec ? '0.01' : '1'}" inputmode="${dec ? 'decimal' : 'numeric'}"
+                                    class="no-spin w-full px-3 py-2 font-bold text-center text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all">
+                            </div>
+                            <div class="w-[96px] flex-shrink-0">
+                                <p class="${lbl}">Unidad</p>
+                                <div class="min-h-[40px] flex flex-col justify-center">${unidadCell(p)}</div>
+                            </div>
+                        </div>
+                    </div>` : ''}
+                </div>`;
+        };
+
         // Encabezado como el de Nueva entrada (una sola línea); anchos fijos para que las columnas
-        // no se muevan al marcar, al cambiar de producto ni al capturar.
+        // no se muevan al marcar, al cambiar de producto ni al capturar. En el teléfono, tarjetas
+        // con "Marcar todos" arriba.
         const renderRows = () => {
             const todos = productos.length > 0 && productos.every(p => elegidos.has(String(p.detailId)));
             const th    = 'py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold whitespace-nowrap';
+
+            if (movil) {
+                $(`#${modalId}_table`).html(`
+                    <div id="${modalId}_todos" class="sticky top-0 z-10 flex items-center gap-3 px-[16px] py-[10px] bg-white border-b border-gray-200 cursor-pointer">
+                        ${casilla(todos, '')}
+                        <span class="text-[13px] font-semibold text-gray-700">Marcar todos</span>
+                        <span class="ml-auto text-[12px] text-gray-400">${elegidos.size} de ${productos.length}</span>
+                    </div>
+                    <div class="p-3 space-y-3">
+                        ${productos.map(tarjetaHtml).join('') || '<p class="py-6 text-center text-xs text-gray-400">Este pedido no tiene productos</p>'}
+                    </div>`);
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
             $(`#${modalId}_table`).html(`
                 <table id="${tableId}" class="w-full border-collapse table-fixed">
                     <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
@@ -1302,7 +1510,8 @@ class OrdenesView extends Templates {
                     <span>Mostrando ${n} de ${total}</span>
                 </div>`;
 
-            $picker.html(head + body + foot);
+            // En el teléfono no hay teclas: sin el pie de atajos.
+            $picker.html(head + body + (movil ? '' : foot));
             marcarSelector();
             if (window.lucide) lucide.createIcons();
         };
@@ -1319,6 +1528,16 @@ class OrdenesView extends Templates {
             if (!$inp.length) return;
             const panel = $panel[0].getBoundingClientRect();
             const r     = $inp[0].getBoundingClientRect();
+
+            // Teléfono: a lo ancho y siempre debajo del campo (el campo sube arriba al
+            // tocarlo); la lista se acorta a lo que deja libre el teclado.
+            if (movil) {
+                const libre = (window.visualViewport ? window.visualViewport.height : window.innerHeight) - r.bottom - 56;
+                $picker.css({ left: 8, width: panel.width - 16, top: r.bottom - panel.top + 6, bottom: 'auto' }).removeClass('hidden');
+                $picker.find('.cs-scroll').css('max-height', `${Math.max(150, Math.min(340, libre))}px`);
+                return;
+            }
+
             const width = Math.min(Math.max(r.width, 560), panel.width - 16);
             const left  = Math.max(8, Math.min(r.left - panel.left, panel.width - width - 8));
             $picker.css({ left: left, width: width, top: r.bottom - panel.top + 6, bottom: 'auto' }).removeClass('hidden');
@@ -1375,8 +1594,8 @@ class OrdenesView extends Templates {
 
         $(`#${modalId}_rechazar`).on('click', () => self.doRejectOrden(orden, closeModal));
 
-        // Clic en cualquier parte del renglón marca o desmarca (menos en sus campos activos).
-        $modal.on('click', 'tbody tr[data-row]', function (ev) {
+        // Clic en cualquier parte del renglón (o la tarjeta) marca o desmarca (menos en sus campos activos).
+        $modal.on('click', '[data-row]', function (ev) {
             if ($(ev.target).closest('input:not(:disabled)').length) return;
             const did = String($(this).find('[data-elegir]').attr('data-elegir'));
             if (elegidos.has(did)) elegidos.delete(did); else elegidos.add(did);
@@ -1393,9 +1612,16 @@ class OrdenesView extends Templates {
         // "Producto a entregar" se busca como en Entradas: al entrar al campo se abre la lista,
         // al escribir se filtra, flechas y Enter eligen, Escape o salir del campo la cierran.
         // La lista no le quita el foco al campo (mousedown), así el clic en un producto sí cuenta.
+        // En el teléfono el campo sube arriba del cuerpo para que la lista quepa debajo, y se
+        // vuelve a colocar cuando termina de abrir el teclado.
         $modal.on('focus', '[data-entrega-input]', function () {
+            const did = String($(this).attr('data-entrega-input'));
             this.select();
-            abrirSelector(String($(this).attr('data-entrega-input')));
+            if (movil) {
+                this.closest('[data-entrega-box]').scrollIntoView({ block: 'start' });
+                setTimeout(() => { if (picker && picker.did === did) colocarSelector(); }, 350);
+            }
+            abrirSelector(did);
         });
         $modal.on('input', '[data-entrega-input]', function () {
             if (!picker) return;
@@ -1425,7 +1651,7 @@ class OrdenesView extends Templates {
         $picker.on('click', '[data-entrega-id]', function () {
             if (picker) elegirEntrega(picker.did, $(this).attr('data-entrega-id'));
         });
-        $(`#${modalId}_table`).on('scroll', () => { if (picker) colocarSelector(); });
+        $(`#${modalId}_table, #${modalId}_cuerpo`).on('scroll', () => { if (picker) colocarSelector(); });
 
         // "Cant. a entregar" va de 0 a lo pedido, entera salvo litro o gramo; recalcula el
         // disponible, el "¿Alcanza?" y el resumen.
@@ -1849,7 +2075,8 @@ class OrdenesView extends Templates {
 
         if (orden && orden.id) {
             if (orden.status === 'Solicitada' && !(await this.askEditPassword(orden.id))) return;
-            this.openEditOrden(form, orden);
+            if (this.movil && this.movil.isActive()) this.openOrdenMovil(orden);
+            else this.openEditOrden(form, orden);
             return;
         }
 
@@ -1891,10 +2118,8 @@ class OrdenesView extends Templates {
         });
     }
 
-    // Editar = el mismo modal del alta con los datos de la orden. Un renglón sin costo
-    // (lo capturó el solicitante) se siembra con el último costo del catálogo.
+    // Editar = el mismo modal del alta con los datos de la orden.
     openEditOrden(form, orden) {
-        const catalogo = app.dataInit.productos || [];
         this.ordenEditando = orden;
 
         form.openEdit({
@@ -1904,27 +2129,35 @@ class OrdenesView extends Templates {
             branch_id:    orden.destination_branch_id || '',
             fecha:        String(orden.date_order || '').slice(0, 10),
             nota:         orden.note || '',
-            productos: (orden.productos || []).map(p => {
-                const prod  = catalogo.find(c => String(c.id) === String(p.product_id)) || {};
-                const costo = p.cost != null
-                    ? { costo: p.cost, tax: p.tax, costoSinTax: p.price_without_tax != null ? p.price_without_tax : form.baseFromCost(p.cost, p.tax) }
-                    : form.seedTax(prod);
-                return Object.assign({
-                    id:        String(p.product_id),
-                    nombre:    p.nombre,
-                    sku:       p.sku || '',
-                    categoria: prod.categoria || 'Sin categoría',
-                    unit_id:   p.unit_id,
-                    presentacion: prod.presentacion || '',
-                    cantidad:  p.quantity_ordered,
-                    nota:      p.nota,
-                    stock:     0,
-                    image:     p.image || '',
-                    icon:      'package',
-                    bg:        'bg-gray-100',
-                    color:     'text-gray-500'
-                }, costo);
-            })
+            productos:    this.lotePedido(orden, form)
+        });
+    }
+
+    // Renglones del pedido como los arma la captura (escritorio y teléfono). Un renglón sin
+    // costo (lo capturó el solicitante) se siembra con el último costo del catálogo.
+    lotePedido(orden, form) {
+        const catalogo = app.dataInit.productos || [];
+
+        return (orden.productos || []).map(p => {
+            const prod  = catalogo.find(c => String(c.id) === String(p.product_id)) || {};
+            const costo = p.cost != null
+                ? { costo: p.cost, tax: p.tax, costoSinTax: p.price_without_tax != null ? p.price_without_tax : form.baseFromCost(p.cost, p.tax) }
+                : form.seedTax(prod);
+            return Object.assign({
+                id:        String(p.product_id),
+                nombre:    p.nombre,
+                sku:       p.sku || '',
+                categoria: prod.categoria || 'Sin categoría',
+                unit_id:   p.unit_id,
+                presentacion: prod.presentacion || '',
+                cantidad:  p.quantity_ordered,
+                nota:      p.nota,
+                stock:     0,
+                image:     p.image || '',
+                icon:      'package',
+                bg:        'bg-gray-100',
+                color:     'text-gray-500'
+            }, costo);
         });
     }
 
@@ -1974,9 +2207,11 @@ class OrdenesView extends Templates {
                 // Pedido recién creado: se abre su detalle.
                 setTimeout(() => app.selectOrden(r.folio, r.id), 300);
             }
-        } else {
-            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el pedido' });
+            return true;
         }
+
+        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el pedido' });
+        return false;
     }
 
     // Pedido enviado: folio, a quién se le pidió, para cuándo y qué lleva. Se queda
@@ -2944,7 +3179,7 @@ class OrdenesView extends Templates {
 
                 ${actionsHtml ? `
                 <!-- Barra de acciones -->
-                <div class="px-4 py-3 border-t border-gray-200 flex-shrink-0">
+                <div class="cs-orden-actions px-4 py-3 border-t border-gray-200 flex-shrink-0">
                     ${roleScoped ? `
                     <p class="text-[10px] uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1">
                         <i data-lucide="${esOrigen ? 'building' : 'building-2'}" class="w-3 h-3"></i>

@@ -1,0 +1,158 @@
+[ 2026-10-17 13:43:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT a.id, a.created_at, a.action, a.entity, a.entity_id, a.label, a.detail, a.user_id, a.user_name, a.ip
+            FROM fayxzvov_erp.audit_log a
+            WHERE a.company_id = ? AND a.created_at >= ? AND a.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+            ORDER BY a.created_at DESC, a.id DESC
+            LIMIT 1000
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.audit_log' doesn't exist
+
+
+[ 2026-10-17 13:43:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT a.user_id AS id, MAX(a.user_name) AS valor
+            FROM fayxzvov_erp.audit_log a
+            WHERE a.company_id = ? AND a.user_id IS NOT NULL
+            GROUP BY a.user_id
+            ORDER BY valor ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.audit_log' doesn't exist
+
+
+[ 2026-10-17 13:43:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COUNT(*) AS total,
+                SUM(a.action IN ('iniciar-sesion', 'cerrar-sesion', 'entrar-empresa'))           AS sesiones,
+                SUM(a.action IN ('crear', 'editar', 'permisos', 'contrasena', 'activar'))        AS cambios,
+                SUM(a.action IN ('eliminar', 'desactivar'))                                      AS bajas
+            FROM fayxzvov_erp.audit_log a
+            WHERE a.company_id = ? AND a.created_at >= ? AND a.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.audit_log' doesn't exist
+
+
+[ 2026-10-17 13:43:55 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id, b.name, b.ubication, b.phone, b.email, b.manager_id, b.logo, b.is_active, b.company_id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS manager_name
+            FROM fayxzvov_erp.branches b
+            LEFT JOIN fayxzvov_erp.users u ON u.id = b.manager_id
+            WHERE b.company_id = ? AND b.is_active = ?
+            ORDER BY b.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.phone' in 'field list'
+
+
+[ 2026-10-17 13:43:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id, b.name, b.ubication, b.phone, b.email, b.manager_id, b.logo, b.is_active, b.company_id,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS manager_name
+            FROM fayxzvov_erp.branches b
+            LEFT JOIN fayxzvov_erp.users u ON u.id = b.manager_id
+            WHERE b.company_id = ? AND b.is_active = ?
+            ORDER BY b.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.phone' in 'field list'
+
+
+[ 2026-10-17 13:43:53 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                r.id, r.code, r.name, r.description,
+                (
+                    SELECT COUNT(DISTINCT ub.user_id)
+                    FROM fayxzvov_erp.users_braches ub
+                    JOIN fayxzvov_erp.users u ON u.id = ub.user_id AND u.status = 'active'
+                    WHERE ub.role_id = r.id
+                ) AS users,
+                (SELECT COUNT(DISTINCT ub.user_id) FROM fayxzvov_erp.users_braches ub WHERE ub.role_id = r.id) AS assignments,
+                (
+                    SELECT COUNT(*)
+                    FROM fayxzvov_erp.permissions_roles pr
+                    JOIN fayxzvov_erp.permissions p       ON p.id = pr.permission_id AND p.is_active = 1
+                    JOIN fayxzvov_erp.type_permissions tp ON tp.id = p.type_permission_id AND tp.is_active = 1
+                    JOIN fayxzvov_erp.sections s          ON s.id = p.section_id AND s.is_active = 1
+                    JOIN fayxzvov_erp.modules m           ON m.id = s.module_id AND m.is_active = 1 AND m.code NOT IN ('dev', 'root', 'tenant')
+                    WHERE pr.role_id = r.id
+                ) AS actions
+            FROM fayxzvov_erp.roles r
+            WHERE r.company_id = ? AND r.is_system = 0 AND r.is_active = 1
+            ORDER BY r.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.description' in 'field list'
+
+
+[ 2026-10-17 13:43:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                r.id, r.code, r.name, r.description,
+                (
+                    SELECT COUNT(DISTINCT ub.user_id)
+                    FROM fayxzvov_erp.users_braches ub
+                    JOIN fayxzvov_erp.users u ON u.id = ub.user_id AND u.status = 'active'
+                    WHERE ub.role_id = r.id
+                ) AS users,
+                (SELECT COUNT(DISTINCT ub.user_id) FROM fayxzvov_erp.users_braches ub WHERE ub.role_id = r.id) AS assignments,
+                (
+                    SELECT COUNT(*)
+                    FROM fayxzvov_erp.permissions_roles pr
+                    JOIN fayxzvov_erp.permissions p       ON p.id = pr.permission_id AND p.is_active = 1
+                    JOIN fayxzvov_erp.type_permissions tp ON tp.id = p.type_permission_id AND tp.is_active = 1
+                    JOIN fayxzvov_erp.sections s          ON s.id = p.section_id AND s.is_active = 1
+                    JOIN fayxzvov_erp.modules m           ON m.id = s.module_id AND m.is_active = 1 AND m.code NOT IN ('dev', 'root', 'tenant')
+                    WHERE pr.role_id = r.id
+                ) AS actions
+            FROM fayxzvov_erp.roles r
+            WHERE r.company_id = ? AND r.is_system = 0 AND r.is_active = 1
+            ORDER BY r.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.description' in 'field list'
+
+
+[ 2026-10-17 13:43:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT a.id, a.created_at, a.action, a.entity, a.label, a.user_name
+            FROM fayxzvov_erp.audit_log a
+            WHERE a.company_id = ?
+            ORDER BY a.created_at DESC, a.id DESC
+            LIMIT 8
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.audit_log' doesn't exist
+
+
+[ 2026-10-17 13:43:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                (SELECT COUNT(*) FROM fayxzvov_erp.users u WHERE u.company_id = ? AND u.status = 'active') AS usuarios_activos,
+                (SELECT COUNT(*) FROM fayxzvov_erp.users u WHERE u.company_id = ?)                         AS usuarios_total,
+                (SELECT COUNT(*) FROM fayxzvov_erp.roles r
+                  WHERE r.company_id = ? AND r.is_system = 0 AND r.is_active = 1)                         AS roles,
+                (SELECT COUNT(*) FROM fayxzvov_erp.branches b WHERE b.company_id = ? AND b.is_active = 1)  AS sucursales,
+                (SELECT COUNT(*) FROM fayxzvov_erp.audit_log a
+                  WHERE a.company_id = ? AND a.created_at >= CURDATE())                                   AS movimientos_hoy
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.audit_log' doesn't exist
+
+
