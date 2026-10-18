@@ -5,10 +5,12 @@ require_once '../../conf/_Utileria.php';
 class MAccess extends CRUD {
     protected $util;
     public $bd;
+    public $bdInv;
 
     public function __construct() {
-        $this->util = new Utileria;
-        $this->bd = "fayxzvov_erp.";
+        $this->util  = new Utileria;
+        $this->bd    = "fayxzvov_erp.";
+        $this->bdInv = "fayxzvov_inventory.";
     }
 
     function getUserByData($array) {
@@ -381,6 +383,33 @@ class MAccess extends CRUD {
             WHERE t.is_active = 1
                 AND (t.is_default = 1 OR ct.id IS NOT NULL)
             ORDER BY t.orden ASC, t.id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Avisos de la campana: pedidos que le piden a la sucursal y siguen Solicitada (nadie los
+    // ha revisado), también los que hizo el mismo usuario. Hace cuánto se mide con el reloj de
+    // MySQL, el mismo que llena created_at (PHP corre en UTC). Las compras (CP-) no cuentan.
+    function getPedidosPorSurtir($array) {
+        // [companies_id, destination_branch_id]
+        $query = "
+            SELECT
+                po.id,
+                po.folio,
+                po.total_products,
+                s.name AS branch_name,
+                TIMESTAMPDIFF(MINUTE, po.created_at, NOW()) AS minutos,
+                DATEDIFF(CURDATE(), DATE(po.created_at))    AS dias
+            FROM {$this->bdInv}purchase_order po
+            LEFT JOIN {$this->bd}branches s ON s.id = po.branch_id
+            WHERE po.active = 1
+                AND po.companies_id = ?
+                AND po.destination_branch_id = ?
+                AND po.status = 'Solicitada'
+                AND po.folio NOT LIKE 'CP-%'
+            ORDER BY po.created_at DESC, po.id DESC
+            LIMIT 20
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];

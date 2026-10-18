@@ -997,6 +997,14 @@ class ctrl extends mdl {
              . "</div>";
     }
 
+    function showProductosSucursal() {
+        $map = [];
+        foreach ($this->getBranchProductCounts([$this->companiesId]) as $registro) {
+            $map[(string) $registro['branch_id']] = (int) $registro['productos'];
+        }
+        return ['status' => 200, 'sucursales' => $map];
+    }
+
     function stockByWarehouse() {
         $_POST += ['warehouse_id' => 0];
 

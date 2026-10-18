@@ -633,6 +633,18 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    function getBranchProductCounts($array) {
+        $query = "
+            SELECT w.branch_id, COUNT(DISTINCT s.item_id) AS productos
+            FROM {$this->bd}warehouse w
+            INNER JOIN {$this->bd}stock s ON s.warehouse_id = w.id AND s.active = 1 AND s.quantity > 0
+            WHERE w.active = 1 AND w.companies_id = ?
+            GROUP BY w.branch_id
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     // -----------------------------------------------------------------------
     // CoffeeIA: eliminar pedidos desde el chat
     // -----------------------------------------------------------------------

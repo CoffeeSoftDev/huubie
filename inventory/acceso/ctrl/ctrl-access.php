@@ -7,6 +7,7 @@ $opc = $_POST['opc'];
 require_once('../mdl/mdl-access.php');
 require_once('../../conf/_Message.php');
 require_once __DIR__ . '/../../conf/_Auditoria.php';
+require_once __DIR__ . '/../../conf/_Permissions.php';
 
 class Access extends MAccess {
 
@@ -679,6 +680,36 @@ class Access extends MAccess {
         }
 
         return $this->getThemesByCompany([(int) ($_SESSION['company_id'] ?? 0)]);
+    }
+
+    // -- Avisos de la campana --
+
+    // Solicitudes de pedido que le llegaron a la sucursal de la sesión y siguen sin revisar
+    // (Solicitada, el punto verde de Mis entregas). Solo para quien puede entrar a Pedidos;
+    // sin sesión o sin sucursal, ninguna. `url` abre el pedido en Mis entregas.
+    function lsAvisos() {
+        $companyId = (int) ($_SESSION['company_id'] ?? 0);
+        $branchId  = (int) ($_SESSION['branch_id'] ?? 0);
+
+        if ($companyId <= 0 || $branchId <= 0 || empty(Permissions::actions('ordenes'))) {
+            return ['status' => 200, 'items' => []];
+        }
+
+        $items = array_map(function ($pedido) {
+            $materiales = (int) $pedido['total_products'];
+
+            return [
+                'id'      => (int) $pedido['id'],
+                'folio'   => $pedido['folio'],
+                'titulo'  => 'Nueva solicitud de pedido',
+                'detalle' => ($pedido['branch_name'] ?: 'Una sucursal') . " pide {$materiales} " . ($materiales === 1 ? 'material' : 'materiales'),
+                'minutos' => (int) $pedido['minutos'],
+                'dias'    => (int) $pedido['dias'],
+                'url'     => 'operacion/almacen/ordenes.php?pedido=' . (int) $pedido['id'] . '&folio=' . rawurlencode($pedido['folio'])
+            ];
+        }, $this->getPedidosPorSurtir([$companyId, $branchId]));
+
+        return ['status' => 200, 'items' => $items];
     }
 
     // SESSION

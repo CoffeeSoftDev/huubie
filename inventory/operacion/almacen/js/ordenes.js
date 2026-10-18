@@ -55,9 +55,12 @@ class App extends Templates {
             };
         }
         this.subId = this.dataInit.branch_id;
-        // El admin aprueba y surte: arranca en lo que le piden.
-        this.vista = this.dataInit.is_admin ? 'entregas' : 'pedidos';
+        // El admin aprueba y surte: arranca en lo que le piden. Desde la campana de la barra
+        // (?pedido=id&folio=...) se abre ese pedido en Mis entregas.
+        const aviso = new URLSearchParams(window.location.search);
+        this.vista = (aviso.get('pedido') || this.dataInit.is_admin) ? 'entregas' : 'pedidos';
         this.render();
+        if (aviso.get('pedido')) this.selectOrden(aviso.get('folio') || aviso.get('pedido'), Number(aviso.get('pedido')));
 
         if (this.dataInit.coffeeia) {
             asistentePedidos = new AsistentePedidos(apiOrdenes, 'root');
@@ -643,7 +646,6 @@ class Ordenes extends Templates {
                 </div>
             </div>
             <div class="info-grid">
-                <div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(o.supplier_name||'Sin asignar')}</span></div>
                 <div class="info-item"><span class="k">Fecha solicitud</span><span class="v">${esc(fmtFecha(o.date_order))}</span></div>
                 <div class="info-item"><span class="k">Solicita</span><span class="v">${esc(o.branch_name||'-')}</span></div>
                 <div class="info-item"><span class="k">Abastecer en</span><span class="v">${surtir||'-'}</span></div>
@@ -701,9 +703,24 @@ class Ordenes extends Templates {
             return acc;
         }, { uds: 0, recib: 0 });
 
+        // Recibida: el documento muestra solo lo que llegó, con su unidad.
+        const soloRecibido = o.status === 'Recibida';
+
         const rowsHtml = productos.map(p => {
             const recibido  = p.quantity_received;
             const pendiente = Math.max(0, p.quantity_ordered - recibido);
+            if (soloRecibido) {
+                const unidad = p.delivered_id ? (p.delivered_unidad || p.unidad) : p.unidad;
+                return `<tr>
+                <td class="prod">
+                    <span class="prod-name">${esc(p.nombre)}</span>
+                    ${p.sku ? `<span class="sku">${esc(p.sku)}</span>` : ''}
+                    ${p.delivered_id ? `<div class="sku" style="margin-left:0">Se entregó: ${esc(p.delivered_nombre)}</div>` : ''}
+                </td>
+                <td class="c">${esc(unidad || '-')}</td>
+                <td class="c">${esc(recibido)}</td>
+            </tr>`;
+            }
             return `<tr>
                 <td class="prod">
                     <span class="prod-name">${esc(p.nombre)}</span>
@@ -733,7 +750,7 @@ class Ordenes extends Templates {
             </div>
             ${o.reject_reason?`<div class="reject-box"><strong style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#E02424;display:block;margin-bottom:3px">Motivo de rechazo</strong>${esc(o.reject_reason)}</div>`:''}
             <div class="info-grid">
-                <div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(o.supplier_name||'Sin asignar')}</span></div>
+                ${soloRecibido ? '' : `<div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(o.supplier_name||'Sin asignar')}</span></div>`}
                 <div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(o.branch_name||'-')}</span></div>
                 <div class="info-item"><span class="k">Fecha solicitud</span><span class="v">${esc(fmtFecha(o.date_order))}</span></div>
                 ${o.expected_date?`<div class="info-item"><span class="k">Fecha esperada</span><span class="v">${esc(fmtFecha(o.expected_date))}</span></div>`:''}
@@ -744,17 +761,18 @@ class Ordenes extends Templates {
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th class="c">Pedido</th>
+                        ${soloRecibido ? `<th class="c">Unidad</th>
+                        <th class="c">Recibido</th>` : `<th class="c">Pedido</th>
                         <th class="c">Recibido</th>
-                        <th class="c">Pendiente</th>
+                        <th class="c">Pendiente</th>`}
                     </tr>
                 </thead>
-                <tbody>${rowsHtml||'<tr><td colspan="4" class="c">Sin productos</td></tr>'}</tbody>
+                <tbody>${rowsHtml||`<tr><td colspan="${soloRecibido ? 3 : 4}" class="c">Sin productos</td></tr>`}</tbody>
             </table>
             <div class="totals">
                 <div class="totals-box">
                     <div class="totals-row"><span>Tipos de material</span><span>${productos.length}</span></div>
-                    <div class="totals-row"><span>Unidades pedidas</span><span>${totals.uds}</span></div>
+                    ${soloRecibido ? '' : `<div class="totals-row"><span>Unidades pedidas</span><span>${totals.uds}</span></div>`}
                     <div class="totals-row"><span>Unidades recibidas</span><span>${totals.recib}</span></div>
                 </div>
             </div>
@@ -1983,8 +2001,11 @@ class OrdenesView extends Templates {
     // de la sesión) y la fecha en que se necesitan los insumos. El almacén no: lo elige
     // quien surte al aprobar. El ctrl los revisa (verifyNuevaOrden) y la captura abre con
     // ellos; ahí se pueden seguir cambiando.
-    openNuevaOrden() {
-        this.createModalForm({
+    async openNuevaOrden() {
+        const conteo = await useFetch({ url: apiOrdenes, data: { opc: 'showProductosSucursal' } }).catch(() => null);
+        this.productosPorSucursal = (conteo && conteo.sucursales) || {};
+
+        this.modalNuevaOrden = this.createModalForm({
             id: 'formNuevaOrden',
             data: { opc: 'verifyNuevaOrden' },
             theme: 'light',
@@ -1996,13 +2017,21 @@ class OrdenesView extends Templates {
                 size: 'small',
                 closeButton: true
             },
-            json: this.jsonNuevaOrden(app.subId),
+            json: this.jsonNuevaOrden(this.sucursalSiguiente()),
             success: (response) => {
                 if (response && response.status === 200) {
                     this.openOrdenForm(null, response.data);
                 } else {
                     this.alertBox({ type: 'warning', title: (response && response.message) || 'No se pudo abrir el pedido' });
                 }
+            }
+        });
+
+        // Enter en un campo equivale a Aceptar (cfModal): sin productos tampoco envía.
+        this.modalNuevaOrden.el.on('keydown', 'input, select', (e) => {
+            if (e.key === 'Enter' && this.nuevaOrdenSinProductos) {
+                e.preventDefault();
+                e.stopPropagation();
             }
         });
 
@@ -2061,6 +2090,23 @@ class OrdenesView extends Templates {
     syncNuevaOrdenAviso() {
         const misma = String($('#no_branch_id').val()) === String(this.sucursalSolicitante());
         $('#no_branch_id_hint').toggleClass('hidden', !misma);
+
+        // Sin productos con existencia en los almacenes de la sucursal elegida no hay qué pedir.
+        // Aceptar vive en el pie del cfModal (fuera del form y sin id): es su último botón.
+        const conProductos = (this.productosPorSucursal || {})[String($('#no_branch_id').val())] > 0;
+        this.nuevaOrdenSinProductos = !conProductos;
+        this.modalNuevaOrden.footer.find('button').last()
+            .prop('disabled', !conProductos)
+            .toggleClass('opacity-50 cursor-not-allowed', !conProductos)
+            .attr('title', conProductos ? '' : 'Esta sucursal no tiene productos');
+    }
+
+    // La siguiente sucursal de la lista después de la que pide (da la vuelta al final).
+    sucursalSiguiente() {
+        const lista = (app.dataInit.sucursales || []).filter(s => s.id !== '');
+        const i     = lista.findIndex(s => String(s.id) === String(this.sucursalSolicitante()));
+        const next  = lista.length ? lista[(i + 1) % lista.length] : null;
+        return next ? next.id : app.subId;
     }
 
     // Quien pide: la sucursal del filtro o, con "Todas", la de la sesión.

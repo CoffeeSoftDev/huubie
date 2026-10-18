@@ -1,3 +1,33 @@
+[ 2026-10-17 15:52:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT a.id, a.created_at, a.action, a.entity, a.label, a.user_name
+            FROM fayxzvov_erp.audit_log a
+            WHERE a.company_id = ? AND (? = 1 OR a.is_superadmin = 0)
+            ORDER BY a.created_at DESC, a.id DESC
+            LIMIT 8
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'a.is_superadmin' in 'where clause'
+
+
+[ 2026-10-17 15:52:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                (SELECT COUNT(*) FROM fayxzvov_erp.users u WHERE u.company_id = ? AND u.status = 'active') AS usuarios_activos,
+                (SELECT COUNT(*) FROM fayxzvov_erp.users u WHERE u.company_id = ?)                         AS usuarios_total,
+                (SELECT COUNT(*) FROM fayxzvov_erp.roles r
+                  WHERE r.company_id = ? AND r.is_system = 0 AND r.is_active = 1)                         AS roles,
+                (SELECT COUNT(*) FROM fayxzvov_erp.branches b WHERE b.company_id = ? AND b.is_active = 1)  AS sucursales,
+                (SELECT COUNT(*) FROM fayxzvov_erp.audit_log a
+                  WHERE a.company_id = ? AND a.created_at >= CURDATE()
+                    AND (? = 1 OR a.is_superadmin = 0))                                                   AS movimientos_hoy
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'a.is_superadmin' in 'where clause'
+
+
 [ 2026-10-17 13:43:56 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

@@ -394,6 +394,21 @@ class Navbar {
             .nav-panel-body { padding:12px 14px; }
             .nav-panel-empty { display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; color:#9CA3AF; font-size:12px; padding:24px 14px; }
             .nav-panel-empty b { color:#4B5563; font-size:12.5px; }
+            /* Avisos: ícono en el acento, qué pasó, el detalle y hace cuánto; el punto
+               verde es el de "solicitud nueva" de Mis entregas. Al llegar uno nuevo la
+               campana se sacude una vez (.nav-ring). */
+            .nav-notif-list { max-height:360px; overflow-y:auto; }
+            .nav-notif { display:flex; align-items:flex-start; gap:10px; padding:11px 14px; border-bottom:1px solid #F3F4F6; color:inherit; text-decoration:none; transition:background .15s ease; }
+            .nav-notif:last-child { border-bottom:none; }
+            .nav-notif:hover { background:#F9FAFB; }
+            .nav-notif-ico { width:32px; height:32px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--nav-accent-tint); color:var(--nav-accent); }
+            .nav-notif-ico svg { width:16px; height:16px; }
+            .nav-notif-tit { display:block; font-size:12.5px; font-weight:700; color:#111827; }
+            .nav-notif-txt { display:block; font-size:12px; color:#4B5563; margin-top:1px; }
+            .nav-notif-time { display:block; font-size:11px; color:#9CA3AF; margin-top:2px; }
+            .nav-notif-dot { width:8px; height:8px; border-radius:9999px; background:#22C55E; flex-shrink:0; margin-top:6px; }
+            @keyframes nav-ring { 0%, 100% { transform:rotate(0); } 15% { transform:rotate(14deg); } 30% { transform:rotate(-12deg); } 45% { transform:rotate(9deg); } 60% { transform:rotate(-6deg); } 75% { transform:rotate(3deg); } }
+            .nav-ring svg { animation:nav-ring .9s ease; transform-origin:50% 3px; }
             .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
             .cal-mes { font-size:12.5px; font-weight:700; color:#111827; }
             .cal-mv { border:none; background:transparent; color:#6B7280; cursor:pointer; padding:4px; border-radius:8px; display:flex; }
@@ -497,6 +512,11 @@ class Navbar {
             body.dark-mode .cal-mes,
             body.dark-mode .cal-d { color:var(--dk-text, #F9FAFB); }
             body.dark-mode .cal-mv:hover { background:var(--dk-hover, #1a2332); color:var(--dk-text, #F9FAFB); }
+            body.dark-mode .nav-notif { border-color:var(--dk-line, #374151); }
+            body.dark-mode .nav-notif:hover { background:var(--dk-hover, #1a2332); }
+            body.dark-mode .nav-notif-tit { color:var(--dk-text, #F9FAFB); }
+            body.dark-mode .nav-notif-txt { color:var(--dk-muted, #9CA3AF); }
+            body.dark-mode .nav-count { box-shadow:0 0 0 2px var(--dk-card, #1F2A37); }
             body.dark-mode .nav-divider { background:var(--dk-line, #374151); }
             body.dark-mode .nav-head-name,
             body.dark-mode .nav-color-name,
@@ -881,8 +901,8 @@ class Navbar {
 
     // -- Calendario y notificaciones --
     // Rápido y sencillo: el calendario es el mes (sin eventos todavía) y la
-    // campana avisa que no hay notificaciones. El contador (#navNotifCount) se
-    // queda oculto mientras no haya de dónde contarlas.
+    // campana lleva los avisos de loadAvisos(). El contador (#navNotifCount) se
+    // queda oculto mientras no haya avisos.
 
     toolPanels() {
         return {
@@ -953,21 +973,77 @@ class Navbar {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
+    // Cada aviso lleva a su pedido (Mis entregas, con el detalle abierto).
     renderNotifs() {
+        const avisos = this.avisos || [];
+        const base   = window.location.pathname.split('/inventory/')[0] + '/inventory/';
+
+        const lista = avisos.map((a) => `
+            <a class="nav-notif" href="${base}${this.escapeText(a.url)}">
+                <span class="nav-notif-ico"><i data-lucide="clipboard-list"></i></span>
+                <span class="flex-1 min-w-0">
+                    <span class="nav-notif-tit">${this.escapeText(a.titulo)}</span>
+                    <span class="nav-notif-txt"><b>${this.escapeText(a.folio)}</b> &middot; ${this.escapeText(a.detalle)}</span>
+                    <span class="nav-notif-time">${this.haceCuanto(a.minutos, a.dias)}</span>
+                </span>
+                <span class="nav-notif-dot"></span>
+            </a>`).join('');
+
         $('#navNotifPanel').html(`
             <div class="nav-panel-head">
                 <div>
                     <p class="nav-panel-title">Notificaciones</p>
-                    <p class="nav-panel-sub">Avisos del sistema</p>
+                    <p class="nav-panel-sub">${avisos.length ? `${avisos.length} ${avisos.length === 1 ? 'solicitud por revisar' : 'solicitudes por revisar'}` : 'Avisos del sistema'}</p>
                 </div>
             </div>
+            ${avisos.length ? `<div class="nav-notif-list">${lista}</div>` : `
             <div class="nav-panel-empty">
                 <i data-lucide="bell-off" class="w-8 h-8"></i>
                 <b>No tienes notificaciones</b>
                 <span>Aquí aparecerán los avisos del sistema.</span>
-            </div>`);
+            </div>`}`);
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // -- Avisos --
+    // Por ahora, las solicitudes de pedido que le llegaron a la sucursal (ctrl-access
+    // lsAvisos). Se consultan al abrir la página y cada minuto; si llega una que no
+    // estaba, la campana se sacude una vez.
+
+    async loadAvisos() {
+        const base = window.location.pathname.split('/inventory/')[0];
+        const r    = await useFetch({ url: `${base}/inventory/acceso/ctrl/ctrl-access.php`, data: { opc: 'lsAvisos' } }).catch(() => null);
+        if (!r || r.status !== 200) return;
+
+        const avisos = r.items || [];
+        const antes  = this.avisos ? this.avisos.map((a) => a.id) : null;
+        this.avisos  = avisos;
+
+        $('#navNotifCount').text(avisos.length > 9 ? '9+' : avisos.length).toggleClass('hidden', !avisos.length);
+        if (antes && avisos.some((a) => !antes.includes(a.id))) this.ringBell();
+        if (!$('#navNotifPanel').hasClass('hidden')) this.renderNotifs();
+    }
+
+    ringBell() {
+        const $btn = $('#btnNotifs').removeClass('nav-ring');
+        void $btn[0].offsetWidth;
+        $btn.addClass('nav-ring');
+    }
+
+    // "hace 20 min", "hace 2 h", "ayer", "hace 3 días", "hace 1 semana" (minutos y días de MySQL).
+    haceCuanto(minutos, dias) {
+        const m = Math.max(0, Number(minutos) || 0);
+        const d = Math.max(0, Number(dias) || 0);
+
+        if (m < 1)   return 'ahora';
+        if (m < 60)  return `hace ${m} min`;
+        if (d === 0) return `hace ${Math.floor(m / 60)} h`;
+        if (d === 1) return 'ayer';
+        if (d < 7)   return `hace ${d} días`;
+        if (d < 30)  { const s = Math.floor(d / 7);  return `hace ${s} ${s === 1 ? 'semana' : 'semanas'}`; }
+        const meses = Math.floor(d / 30);
+        return `hace ${meses} ${meses === 1 ? 'mes' : 'meses'}`;
     }
 
     // Colores de los avisos de la navbar según el tema de la página. No pueden
@@ -1048,4 +1124,8 @@ $(async () => {
     // La barra nace asíncrona: quien quiera agregarle un botón (el Catálogo pone el
     // de CoffeeIA a la derecha de Módulos) espera este aviso si llegó antes que ella.
     document.dispatchEvent(new CustomEvent('navbarReady'));
+
+    // Avisos de la campana: al abrir y cada minuto, solo con la pestaña a la vista.
+    navbar.loadAvisos();
+    setInterval(() => { if (!document.hidden) navbar.loadAvisos(); }, 60000);
 });

@@ -624,6 +624,7 @@ class IaChat {
         this.pildora   = null;
         this.cara      = null;
         this.caraRaf   = 0;
+        this.piensaRaf = 0;
 
         this.ensureStyles();
         this.ensureSkin();
@@ -670,6 +671,7 @@ class IaChat {
 
         clearInterval(this.ticker);
         cancelAnimationFrame(this.caraRaf);
+        cancelAnimationFrame(this.piensaRaf);
         this.stopBot();
         if (this.pildora) this.pildora.destroy();
         $(document).off(`mousedown.${o.id}`);
@@ -1017,6 +1019,8 @@ class IaChat {
         $(`#${o.id}_cara`).toggleClass('is-activo', !!on);
 
         clearInterval(this.ticker);
+        cancelAnimationFrame(this.piensaRaf);
+        this.piensaRaf = 0;
         $(`#${o.id}_typing`).remove();
 
         if (!on) return;
@@ -1156,23 +1160,75 @@ class IaChat {
         this.scrollBottom();
     }
 
-    // Sin archivo, la espera de erp-pro (cargaHTML con 'puntos'): los tres puntitos
-    // y al lado la frase de lo que hace. La burbuja nace una vez; los pasos solo
-    // cambian la frase, así los puntos no reinician su compás.
+    // Sin archivo, la espera de erp-pro: coffeeIA pensando dentro de la burbuja y al
+    // lado la frase de lo que hace (sin el motor, los tres puntitos de cargaHTML). La
+    // burbuja nace una vez; los pasos solo cambian la frase, así el muñeco no
+    // reinicia su vuelta.
     renderPensando() {
         const o = this.opts;
 
         if (!$(`#${o.id}_typing`).length) {
+            const motor  = !!(window.Bloub && window.Bloub.cuadro && window.Bloub.ANIMS && window.Bloub.ANIMS.p_piensa);
+            const espera = motor
+                ? `<span id="${o.id}_piensa" class="iac-bot block w-14 h-14 -my-[14px] -ml-[10px] flex-shrink-0"><svg viewBox="0 0 320 320" class="block w-full h-full" aria-hidden="true"></svg></span>`
+                : '<span class="iac-puntos"><span></span><span></span><span></span></span>';
+
             this.frase = null;
             this.appendNode(`
                 <div id="${o.id}_typing" class="flex">
                     <div class="bg-[#F1F5F9] rounded-[13px] rounded-bl-[4px] px-3 py-[9px] text-[12.5px] leading-[1.5] max-w-[92%]">
-                        <span id="${o.id}_pensando" class="iac-carga" role="status"><span class="iac-puntos"><span></span><span></span><span></span></span></span>
+                        <span id="${o.id}_pensando" class="iac-carga" role="status">${espera}</span>
                     </div>
                 </div>`);
+
+            if (motor) this.startPiensa();
         }
 
         this.tickPensando();
+    }
+
+    // El «Pensando» de coffeeIA en erp-pro (p_piensa, que reaccion.js pone en bucle con
+    // enBucle de vestidor.js): ladea la cabeza y le sale la píldora morada con los tres
+    // puntos de «escribiendo». A 30 cuadros y con la píldora fija (cargaFija), que en
+    // bucle no se apague al final de cada vuelta. Con el chat cerrado no repinta; con
+    // movimiento reducido queda quieto en su pose.
+    startPiensa() {
+        const A    = window.Bloub.ANIMS.p_piensa;
+        const svg  = $(`#${this.opts.id}_piensa svg`)[0];
+        const t0   = performance.now();
+        let ultimo = 0;
+
+        cancelAnimationFrame(this.piensaRaf);
+
+        if (this.faceStill()) {
+            svg.innerHTML = this.piensaFrame(A.per * A.fase, true);
+            return;
+        }
+
+        const cuadro = (now) => {
+            if (!svg.isConnected) {
+                this.piensaRaf = 0;
+                return;
+            }
+
+            this.piensaRaf = requestAnimationFrame(cuadro);
+            if (now - ultimo < 33 || !this.isOpen()) return;
+
+            ultimo = now;
+            svg.innerHTML = this.piensaFrame((now - t0) / 1000, false);
+        };
+
+        this.piensaRaf = requestAnimationFrame(cuadro);
+    }
+
+    // El blob Base de la cabecera (misma piel y pose de frente) haciendo p_piensa en el
+    // instante `t`; `quieto` congela el cuadro en ese punto de la vuelta.
+    piensaFrame(t, quieto) {
+        return window.Bloub.cuadro(
+            { forma: 'gota', gesto: 'calma', accesorio: 'ninguno', anim: 'p_piensa', color: IA_BASE.color },
+            t, null,
+            { margen: 30, clases: IA_BOT.clases, pose: IA_BOT.pose, cargaFija: true, quieto: quieto, fase: quieto ? t : null }
+        );
     }
 
     // Como en erp-pro: el «Pensando…» genérico sale a los 4 s y cambia a los 15; un
