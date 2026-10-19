@@ -53,6 +53,24 @@ class ctrl extends mdl {
             ];
         }, $this->qProductsForTransfer([$this->companiesId]));
 
+        // Los paquetes (Caja 24...) se piden como un producto más; al guardar pasan a su
+        // base (renglonesABase). Aquí `presentacion` es la unidad que se pinta junto al nombre.
+        foreach ($this->listPresentacionesCaptura([$this->companiesId]) as $p) {
+            $tax  = (float) $p['iva_compra'];
+            $base = (float) $p['cost_unit'];
+
+            $productos[] = array_merge($this->presentacionCatalogo($p), [
+                'costo'             => round($base * (1 + $tax / 100), 2),
+                'price_without_tax' => $base,
+                'tax'               => $tax,
+                'descripcion'       => '',
+                'stock_max'         => 0,
+                'presentacion'      => $p['unidad'] ?? '',
+                'bg'                => 'bg-gray-100',
+                'color'             => 'text-gray-500'
+            ]);
+        }
+
         $almacenes = $this->lsWarehouses(['companies_id' => $this->companiesId]) ?: [];
         $principal = current(array_filter($almacenes, function ($w) { return (int) ($w['is_main'] ?? 0) === 1; })) ?: null;
 
@@ -298,6 +316,11 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
 
+        // Caja 24 × 2 se pide como 48 piezas de su base, a costo ÷ 24.
+        $aBase = $this->renglonesABase($productos, $this->companiesId, ['cost', 'price_without_tax']);
+        if ($aBase['error']) return ['status' => 400, 'message' => $aBase['error']];
+        $productos = $aBase['productos'];
+
         $submit = !empty($payload['submit']);
         $status = $submit ? 'Solicitada' : 'Borrador';
         // El folio es de la serie de la sucursal que pide.
@@ -419,6 +442,11 @@ class ctrl extends mdl {
         if (empty($productos)) {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
+
+        // Antes de quitar los renglones viejos: una presentación inactiva no borra nada.
+        $aBase = $this->renglonesABase($productos, $this->companiesId, ['cost', 'price_without_tax']);
+        if ($aBase['error']) return ['status' => 400, 'message' => $aBase['error']];
+        $productos = $aBase['productos'];
 
         $this->softDeleteOrdenDetails([$id]);
 

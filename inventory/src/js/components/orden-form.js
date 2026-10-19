@@ -257,7 +257,7 @@ class OrdenForm extends EntradaForm {
                         <th class="hidden lg:table-cell text-right px-2 ${th} w-24">Costo s/imp</th>
                         <th class="hidden lg:table-cell text-center px-2 ${th} w-16">Imp. %</th>
                         <th class="text-right px-2 md:px-3 ${th} w-28 md:w-36">Subtotal</th>` : `
-                        <th class="text-center px-2 ${th} w-20 md:w-24">Unidad</th>`}
+                        <th class="text-center px-2 ${th} w-28 md:w-32">Unidad</th>`}
                         <th class="${m ? 'w-10' : 'w-20 lg:w-auto'} px-2 py-2"></th>
                     </tr>
                 </thead>
@@ -275,7 +275,7 @@ class OrdenForm extends EntradaForm {
     }
 
     // Celda de la unidad del producto (columna Unidad del pedido); sin unidad, un guion.
-    // Campo chico donde se escribe para buscar la unidad o se elige de la lista (flecha),
+    // Campo donde se escribe para buscar la unidad o se elige de la lista (flecha),
     // con la misma lista flotante que el Impuesto de Entradas. La letra va en línea con
     // !important: compact.css le pone 1rem con !important a todo input[type="text"].
     renderUnidadCell(p, i) {
@@ -284,10 +284,10 @@ class OrdenForm extends EntradaForm {
             return `
             <td class="px-1 py-2 align-middle">
                 <div class="relative" title="Unidad: escribe o elige">
-                    <input type="text" autocomplete="off" value="${this.esc(this.unidadTexto(p.unit_id))}" placeholder="-" data-unit-idx="${i}" style="font-size:12px !important"
-                        class="w-full pl-2 pr-6 py-1 font-semibold uppercase text-gray-700 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all placeholder:text-gray-300">
-                    <button type="button" tabindex="-1" class="absolute right-0.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100" data-unit-toggle="${i}">
-                        <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                    <input type="text" autocomplete="off" value="${this.esc(this.unidadTexto(p.unit_id))}" placeholder="-" data-unit-idx="${i}" style="font-size:13px !important"
+                        class="w-full pl-2.5 pr-7 py-1.5 font-semibold uppercase text-gray-700 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all placeholder:text-gray-300">
+                    <button type="button" tabindex="-1" class="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100" data-unit-toggle="${i}">
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
             </td>`;
@@ -326,9 +326,9 @@ class OrdenForm extends EntradaForm {
             items:    items,
             active:   Math.max(0, cur),
             $anchor:  $inp.closest('.relative'),
-            minWidth: 150
-        }, `<div class="max-h-[220px] overflow-y-auto cs-scroll ef-scroll">${items.map((u, k) => `
-            <div class="ef-cat-item px-3 py-1.5 cursor-pointer text-xs font-semibold uppercase text-gray-800 hover:bg-blue-50/60 border-b border-gray-100 last:border-b-0 transition-all" data-unit-val="${this.esc(u.id)}" data-cat-idx="${k}">${this.esc(u.code || u.valor || '')}</div>`).join('')}
+            minWidth: 180
+        }, `<div class="max-h-[260px] overflow-y-auto cs-scroll ef-scroll">${items.map((u, k) => `
+            <div class="ef-cat-item px-3 py-2 cursor-pointer text-[13px] font-semibold uppercase text-gray-800 hover:bg-blue-50/60 border-b border-gray-100 last:border-b-0 transition-all" data-unit-val="${this.esc(u.id)}" data-cat-idx="${k}">${this.esc(u.code || u.valor || '')}</div>`).join('')}
         </div>`);
     }
 
@@ -387,6 +387,7 @@ class OrdenForm extends EntradaForm {
                         <div class="min-w-0">
                             <p class="text-xs font-semibold text-gray-800 leading-tight line-clamp-2 sm:line-clamp-none sm:truncate">${this.nombreVista(p)}</p>
                             ${p.categoria ? `<p class="text-[10px] text-gray-400 truncate mt-0.5">${this.esc(p.categoria)}</p>` : ''}
+                            ${this.equivaleHtml(p)}
                         </div>
                     </div>
                 </td>
@@ -520,6 +521,7 @@ class OrdenForm extends EntradaForm {
                     <p class="text-[10px] text-gray-500 truncate mt-0.5">
                         <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}
                     </p>
+                    ${this.equivaleHtml(p)}
                     ${this.coincidenciaHtml(p, term)}
                 </div>
                 ${m ? `

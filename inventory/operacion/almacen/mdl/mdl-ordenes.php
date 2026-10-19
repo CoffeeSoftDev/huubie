@@ -2,6 +2,7 @@
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
 require_once __DIR__ . '/mdl-borrado.php';
+require_once __DIR__ . '/mdl-presentaciones.php';
 require_once __DIR__ . '/mdl-visibilidad.php';
 require_once __DIR__ . '/mdl-folios.php';
 
@@ -9,6 +10,9 @@ class mdl extends CRUD {
 
     // Folio por sucursal: nextFolio (OC-KAF-0001, REAB-, SI-, ENT-).
     use FolioSucursal;
+
+    // Presentaciones (paquetes) en la captura del pedido: se guardan como su producto base.
+    use PresentacionesCaptura;
 
     // Borrado real con su stock (CoffeeIA): deletePedidoFullById y compañía.
     use BorradoInventario;
