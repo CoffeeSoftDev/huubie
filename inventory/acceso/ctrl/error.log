@@ -1,3 +1,143 @@
+[ 2026-10-18 12:13:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active,
+                b.logo
+            FROM fayxzvov_erp.users_braches ub
+            INNER JOIN fayxzvov_erp.branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ?
+                AND b.company_id = ?
+                AND b.is_active = 1
+            ORDER BY b.`order` IS NULL, b.`order` ASC, b.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.order' in 'order clause'
+
+
+[ 2026-10-18 12:13:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active,
+                b.logo
+            FROM fayxzvov_erp.users_braches ub
+            INNER JOIN fayxzvov_erp.branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ?
+                AND b.company_id = ?
+                AND b.is_active = 1
+            ORDER BY b.`order` IS NULL, b.`order` ASC, b.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.order' in 'order clause'
+
+
+[ 2026-10-18 12:13:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active,
+                b.logo
+            FROM fayxzvov_erp.users_braches ub
+            INNER JOIN fayxzvov_erp.branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ?
+                AND b.company_id = ?
+                AND b.is_active = 1
+            ORDER BY b.`order` IS NULL, b.`order` ASC, b.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.order' in 'order clause'
+
+
+[ 2026-10-18 06:34:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active,
+                b.logo
+            FROM fayxzvov_erp.users_braches ub
+            INNER JOIN fayxzvov_erp.branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ?
+                AND b.company_id = ?
+                AND b.is_active = 1
+            ORDER BY b.`order` IS NULL, b.`order` ASC, b.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.order' in 'order clause'
+
+
+[ 2026-10-18 06:34:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active,
+                b.logo
+            FROM fayxzvov_erp.users_braches ub
+            INNER JOIN fayxzvov_erp.branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ?
+                AND b.company_id = ?
+                AND b.is_active = 1
+            ORDER BY b.`order` IS NULL, b.`order` ASC, b.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.order' in 'order clause'
+
+
+[ 2026-10-18 06:34:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active,
+                b.logo
+            FROM fayxzvov_erp.users_braches ub
+            INNER JOIN fayxzvov_erp.branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ?
+                AND b.company_id = ?
+                AND b.is_active = 1
+            ORDER BY b.`order` IS NULL, b.`order` ASC, b.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.order' in 'order clause'
+
+
+[ 2026-10-18 06:34:00 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active,
+                b.logo
+            FROM fayxzvov_erp.users_braches ub
+            INNER JOIN fayxzvov_erp.branches b ON b.id = ub.branch_id
+            WHERE ub.user_id = ?
+                AND b.company_id = ?
+                AND b.is_active = 1
+            ORDER BY b.`order` IS NULL, b.`order` ASC, b.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.order' in 'order clause'
+
+
 [ 2026-10-17 23:14:05 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

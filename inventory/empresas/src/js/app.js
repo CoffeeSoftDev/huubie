@@ -95,13 +95,27 @@ class App extends Templates {
         this.enterCompany(item);
     }
 
+    // El aviso "Cargando empresa" (el mismo de "Aplicando tema") entra antes de
+    // pedir la empresa y sigue en modulos/ hasta que la página termina de cargar.
     async enterCompany(item) {
+        const loader  = window.InventoryPalette && InventoryPalette.loader;
+        const title   = 'Cargando empresa';
+        const started = Date.now();
+
+        if (loader) loader.show(item.title, false, title);
+
         const res = await useFetch({ url: this._link, data: { opc: 'enterCompany', id: item.id } });
 
         if (res && res.status === 200) {
+            // Tiempo mínimo en pantalla: con el servidor rápido el aviso apenas parpadeaba.
+            await new Promise((resolve) => setTimeout(resolve, Math.max(0, 900 - (Date.now() - started))));
+
+            if (loader) loader.carry(item.title, title);
             this.openRoute('modulos/');
             return;
         }
+
+        if (loader) loader.hide();
 
         Swal.fire({
             ...swalTheme(),

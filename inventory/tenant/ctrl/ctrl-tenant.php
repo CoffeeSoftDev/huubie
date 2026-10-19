@@ -231,6 +231,10 @@ class ctrl extends mdl {
             $status
         ]);
 
+        // Nace con sus orígenes, motivos y estados de traspaso: Entradas, Salidas y
+        // Traspasos los buscan por code dentro de la empresa.
+        if ($ok) $this->qSeedInventoryCatalogs([$name]);
+
         return [
             'status'  => $ok ? 200 : 500,
             'message' => $ok ? 'Empresa creada correctamente' : 'No se pudo crear la empresa'

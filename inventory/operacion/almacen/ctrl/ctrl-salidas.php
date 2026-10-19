@@ -66,7 +66,7 @@ class ctrl extends mdl {
             'coffeeia'        => IaOllama::activo($this),
             'sucursales'      => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'       => $this->lsWarehouses(['companies_id' => $this->companiesId]),
-            'motivos_salida'   => $this->lsShrinkageReasons(),
+            'motivos_salida'   => $this->lsShrinkageReasons([$this->companiesId]),
             'productos'       => $productos
         ];
     }

@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock y conteo por presentación - Huubie Inventarios</title>
+
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema de inventory: blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            },
+                            main: '#292524'
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <!-- Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; }
+        .chip { display:inline-flex; align-items:center; gap:4px; border-radius:999px; padding:2px 9px; font-size:11px; font-weight:600; white-space:nowrap; }
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
+        .cnt { width:52px; height:30px; border:1px solid #E5E7EB; border-radius:7px; text-align:center; font-size:13px; font-weight:600; color:#1F2937; outline:none; }
+        .cnt:focus { border-color:#C05A40; box-shadow:0 0 0 2px #FBF3EF; }
+        .th { font-size:9px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; color:#6B7280; }
+        .tbl td { padding:9px 10px; border-bottom:1px solid #F3F4F6; font-size:12px; vertical-align:middle; }
+        .tbl th { padding:8px 10px; border-bottom:1px solid #E5E7EB; background:#fff; }
+    </style>
+</head>
+
+<body class="min-h-screen text-gray-800">
+
+<div class="max-w-6xl mx-auto px-4 py-5 flex flex-col gap-4">
+
+    <!-- ============================================================
+         BANNER DEL TEMPLATE (no va en el modulo real)
+         ============================================================ -->
+    <div class="rounded-lg border border-dashed border-gray-300 bg-white px-4 py-2.5 text-xs text-gray-500 flex items-center gap-2">
+        <i data-lucide="info" class="w-4 h-4 text-gray-400"></i>
+        Template · Visor de Stock con presentaciones. No va en el módulo. Datos de ejemplo: Coca cola lata con Reja 12 y Six pack (como quedó en el template del formulario: 208 piezas).
+    </div>
+
+    <!-- ============================================================
+         1. STOCK ACTUAL
+         ============================================================ -->
+    <section class="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                <h2 class="text-sm font-semibold text-gray-900">Stock actual: se guarda en piezas, se lee también en empaques</h2>
+            </div>
+            <div class="flex items-center gap-1 rounded-lg bg-gray-200 p-1 text-xs font-medium" role="tablist" aria-label="Ver stock en">
+                <span class="px-2 text-gray-500">Ver stock en</span>
+                <button type="button" data-ver="base" class="ver rounded px-2.5 py-1">Pieza</button>
+                <button type="button" data-ver="empaque" class="ver rounded px-2.5 py-1">Empaques + sueltas</button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-gray-200">
+            <table class="tbl w-full min-w-[820px]">
+                <thead>
+                    <tr>
+                        <th class="text-left"><span class="th">Producto</span></th>
+                        <th class="text-left"><span class="th">Área</span></th>
+                        <th class="text-center"><span class="th">Unidad</span></th>
+                        <th class="text-right"><span class="th">Stock</span></th>
+                        <th class="text-right"><span class="th">Valor</span></th>
+                        <th class="text-center"><span class="th">Nivel</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="bg-gray-50/60">
+                        <td>
+                            <div class="flex items-center gap-2">
+                                <button type="button" id="btnEquiv" aria-expanded="true" aria-label="Ver equivalencias" class="w-6 h-6 rounded-md text-gray-400 hover:text-blue-600 flex items-center justify-center"><i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+                                <div><div class="text-gray-900 font-medium">Coca cola lata</div><div class="text-[10px] text-gray-400 font-mono">47003</div></div>
+                                <span class="chip bg-blue-50 text-blue-700"><i data-lucide="boxes" class="w-3 h-3"></i>2 presentaciones</span>
+                            </div>
+                        </td>
+                        <td><span class="chip bg-fuchsia-100 text-fuchsia-700">Refrigerador</span></td>
+                        <td class="text-center text-gray-500">Pieza</td>
+                        <td class="text-right"><div id="stockLata" class="font-semibold text-gray-900"></div><div id="stockLataSub" class="text-[10px] text-gray-400"></div></td>
+                        <td class="text-right">$3,369.60</td>
+                        <td class="text-center"><span class="chip bg-green-100 text-green-700">Óptimo</span></td>
+                    </tr>
+                    <tr id="filaEquiv">
+                        <td colspan="6" class="!bg-gray-50 !py-2.5">
+                            <div class="pl-8 flex flex-col gap-1.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">208 piezas equivalen a</span>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs"><i data-lucide="boxes" class="w-3.5 h-3.5 text-gray-400"></i><b>17 rejas 12</b><span class="text-gray-400">y sobran 4 piezas</span></span>
+                                    <span class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs"><i data-lucide="package-open" class="w-3.5 h-3.5 text-gray-400"></i><b>34 six pack</b><span class="text-gray-400">y sobran 4 piezas</span></span>
+                                </div>
+                                <span class="text-[11px] text-gray-400">Es la misma existencia vista de tres formas: no se suman entre sí.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><div class="flex items-center gap-2 pl-8"><div><div class="text-gray-900 font-medium">Coca cola 3lt</div><div class="text-[10px] text-gray-400 font-mono">47011</div></div></div></td>
+                        <td><span class="chip bg-sky-100 text-sky-700">Almacén</span></td>
+                        <td class="text-center text-gray-500">Litro</td>
+                        <td class="text-right font-semibold text-gray-900">45 litros</td>
+                        <td class="text-right">$2,291.85</td>
+                        <td class="text-center"><span class="chip bg-green-100 text-green-700">Óptimo</span></td>
+                    </tr>
+                    <tr>
+                        <td><div class="flex items-center gap-2 pl-8"><div><div class="text-gray-900 font-medium">Sabritas original 45g</div><div class="text-[10px] text-gray-400 font-mono">47030</div></div></div></td>
+                        <td><span class="chip bg-sky-100 text-sky-700">Almacén</span></td>
+                        <td class="text-center text-gray-500">Pieza</td>
+                        <td class="text-right font-semibold text-gray-900">230 piezas</td>
+                        <td class="text-right">$3,735.20</td>
+                        <td class="text-center"><span class="chip bg-green-100 text-green-700">Óptimo</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-500">Los productos sin presentaciones se ven igual que hoy. El valor sale de las piezas × su costo ($16.20), no de las presentaciones.</p>
+    </section>
+
+    <!-- ============================================================
+         2. CONTEO FISICO (como la hoja del modal de conteo)
+         ============================================================ -->
+    <section class="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+                <h2 class="text-sm font-semibold text-gray-900">Conteo físico: cuentas como está en el anaquel</h2>
+            </div>
+            <span class="chip bg-gray-100 text-gray-600"><i data-lucide="clipboard-list" class="w-3 h-3"></i>AJU-0002 · Borrador</span>
+        </div>
+
+        <div class="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-900 flex items-start gap-2">
+            <i data-lucide="lightbulb" class="w-4 h-4 text-blue-600 flex-shrink-0 mt-px"></i>
+            <span>Si el producto tiene presentaciones, «Contado» abre una casilla por empaque y otra para las sueltas. El sistema lo convierte a piezas y compara contra lo que dice el stock. Cambia los números para ver el cálculo.</span>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-gray-200">
+            <table class="tbl w-full min-w-[920px] table-fixed">
+                <colgroup><col style="width:22%"><col style="width:11%"><col style="width:7%"><col style="width:9%"><col style="width:31%"><col style="width:10%"><col style="width:10%"></colgroup>
+                <thead>
+                    <tr>
+                        <th class="text-left"><span class="th">Producto</span></th>
+                        <th class="text-left"><span class="th">Área</span></th>
+                        <th class="text-center"><span class="th">Unidad</span></th>
+                        <th class="text-right"><span class="th">Sistema</span></th>
+                        <th class="text-center"><span class="th">Contado</span></th>
+                        <th class="text-right"><span class="th">Diferencia</span></th>
+                        <th class="text-right"><span class="th">Valor</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="7" class="!bg-gray-200 !py-1.5 text-[11px] font-semibold text-gray-700">Refrigerador · 1 producto</td></tr>
+                    <tr>
+                        <td><div class="text-[11px] text-gray-800 font-medium">Coca cola lata</div><div class="text-[9px] text-gray-400 font-mono">47003</div></td>
+                        <td><span class="chip bg-fuchsia-100 text-fuchsia-700">Refrigerador</span></td>
+                        <td class="text-center text-gray-500">PZ</td>
+                        <td class="text-right text-gray-600">208</td>
+                        <td>
+                            <div class="flex flex-col gap-1.5">
+                                <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                                    <label class="flex flex-col items-center gap-0.5"><input type="number" min="0" class="cnt no-spin" data-factor="12" value="15" aria-label="Rejas 12 contadas"><span class="text-[9px] text-gray-500">rejas 12</span></label>
+                                    <span class="text-gray-300 pb-3">+</span>
+                                    <label class="flex flex-col items-center gap-0.5"><input type="number" min="0" class="cnt no-spin" data-factor="6" value="2" aria-label="Six pack contados"><span class="text-[9px] text-gray-500">six pack</span></label>
+                                    <span class="text-gray-300 pb-3">+</span>
+                                    <label class="flex flex-col items-center gap-0.5"><input type="number" min="0" class="cnt no-spin" data-factor="1" value="7" aria-label="Piezas sueltas contadas"><span class="text-[9px] text-gray-500">sueltas</span></label>
+                                    <span class="text-gray-300 pb-3">=</span>
+                                    <span class="flex flex-col items-center gap-0.5"><b id="totalLata" class="h-[30px] min-w-[52px] px-2 rounded-[7px] bg-gray-100 flex items-center justify-center text-[13px]"></b><span class="text-[9px] text-gray-500">piezas</span></span>
+                                </div>
+                                <div id="formulaLata" class="text-center text-[10px] text-gray-400"></div>
+                            </div>
+                        </td>
+                        <td class="text-right font-semibold" id="difLata"></td>
+                        <td class="text-right" id="valLata"></td>
+                    </tr>
+                    <tr><td colspan="7" class="!bg-gray-200 !py-1.5 text-[11px] font-semibold text-gray-700">Almacén · 2 productos</td></tr>
+                    <tr>
+                        <td><div class="text-[11px] text-gray-800 font-medium">Coca cola 3lt</div><div class="text-[9px] text-gray-400 font-mono">47011</div></td>
+                        <td><span class="chip bg-sky-100 text-sky-700">Almacén</span></td>
+                        <td class="text-center text-gray-500">LT</td>
+                        <td class="text-right text-gray-600">45</td>
+                        <td class="text-center"><input type="number" min="0" class="cnt no-spin" value="45" aria-label="Coca cola 3lt contados"></td>
+                        <td class="text-right text-gray-300">0</td>
+                        <td class="text-right text-gray-300">—</td>
+                    </tr>
+                    <tr>
+                        <td><div class="text-[11px] text-gray-800 font-medium">Sabritas original 45g</div><div class="text-[9px] text-gray-400 font-mono">47030</div></td>
+                        <td><span class="chip bg-sky-100 text-sky-700">Almacén</span></td>
+                        <td class="text-center text-gray-500">PZ</td>
+                        <td class="text-right text-gray-600">230</td>
+                        <td class="text-center"><input type="number" min="0" class="cnt no-spin" value="230" aria-label="Sabritas contadas"></td>
+                        <td class="text-right text-gray-300">0</td>
+                        <td class="text-right text-gray-300">—</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-500">Productos sin presentaciones (Coca cola 3lt, Sabritas): una sola casilla, como hoy.</p>
+    </section>
+
+    <!-- ============================================================
+         3. QUE SE GUARDA
+         ============================================================ -->
+    <section class="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+        <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+            <h2 class="text-sm font-semibold text-gray-900">Qué queda guardado al aplicar el ajuste</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="rounded-lg border border-gray-200 p-3 flex flex-col gap-1">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Stock de Coca cola lata</span>
+                <span class="text-sm"><b>208</b> → <b id="resNuevo"></b> piezas</span>
+                <span class="text-[11px] text-gray-500">Siempre en la unidad del producto (pieza).</span>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-3 flex flex-col gap-1">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Kárdex</span>
+                <span class="text-sm">AJUSTE <b id="resDif"></b> piezas</span>
+                <span class="text-[11px] text-gray-500">Un solo movimiento, como cualquier conteo.</span>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-3 flex flex-col gap-1">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Cómo se contó</span>
+                <span class="text-sm" id="resDesglose"></span>
+                <span class="text-[11px] text-gray-500">Queda en el renglón del conteo para revisarlo después.</span>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+const $  = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+const SISTEMA = 208;
+const COSTO   = 16.20;
+const money   = (n) => (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const st = { ver: 'empaque' };
+
+// Stock actual: en piezas, o en el empaque más grande + las sueltas.
+function pintarStock() {
+    const rejas = Math.floor(SISTEMA / 12);
+    const resto = SISTEMA - rejas * 12;
+
+    $('#stockLata').textContent    = st.ver === 'base' ? SISTEMA + ' piezas' : rejas + ' rejas 12 + ' + resto + ' piezas';
+    $('#stockLataSub').textContent = st.ver === 'base' ? '= ' + rejas + ' rejas 12 + ' + resto + ' sueltas' : '= ' + SISTEMA + ' piezas';
+
+    $$('.ver').forEach((b) => {
+        const on = b.dataset.ver === st.ver;
+        b.className = 'ver rounded px-2.5 py-1 ' + (on ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-white');
+    });
+}
+
+// Conteo: cada casilla × su factor, todo a piezas.
+function pintarConteo() {
+    const partes = [...$$('[data-factor]')].map((i) => ({ n: Math.max(0, parseFloat(i.value) || 0), f: Number(i.dataset.factor) }));
+    const total  = partes.reduce((s, p) => s + p.n * p.f, 0);
+    const dif    = total - SISTEMA;
+    const nom    = { 12: 'rejas 12', 6: 'six pack', 1: 'sueltas' };
+
+    $('#totalLata').textContent   = total;
+    $('#formulaLata').textContent = partes.map((p) => p.n + '×' + p.f).join(' + ') + ' = ' + total + ' piezas';
+    $('#difLata').textContent     = (dif > 0 ? '+' : '') + dif;
+    $('#difLata').className       = 'text-right font-semibold ' + (dif < 0 ? 'text-red-600' : dif > 0 ? 'text-green-600' : 'text-gray-400');
+    $('#valLata').textContent     = dif ? money(dif * COSTO) : '—';
+    $('#valLata').className       = 'text-right ' + (dif < 0 ? 'text-red-600' : dif > 0 ? 'text-green-600' : 'text-gray-300');
+
+    $('#resNuevo').textContent    = total;
+    $('#resDif').textContent      = (dif > 0 ? '+' : '') + dif;
+    $('#resDesglose').textContent = partes.filter((p) => p.n).map((p) => p.n + ' ' + nom[p.f]).join(' + ') || 'Nada contado';
+}
+
+$$('.ver').forEach((b) => b.addEventListener('click', () => { st.ver = b.dataset.ver; pintarStock(); }));
+$$('[data-factor]').forEach((i) => i.addEventListener('input', pintarConteo));
+$('#btnEquiv').addEventListener('click', () => {
+    const abierto = !$('#filaEquiv').classList.toggle('hidden');
+    $('#btnEquiv').setAttribute('aria-expanded', abierto);
+    $('#btnEquiv').querySelector('svg, i').style.transform = abierto ? '' : 'rotate(-90deg)';
+});
+
+pintarStock();
+pintarConteo();
+if (window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>

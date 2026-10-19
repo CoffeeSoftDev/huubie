@@ -433,10 +433,11 @@ class mdl extends CRUD {
     // Entradas:
 
     function getInflowOriginByCode($array) {
+        // [code, companies_id]
         $query = "
             SELECT id
             FROM {$this->bd}inflow_origin
-            WHERE code = ?
+            WHERE code = ? AND companies_id = ?
             LIMIT 1
         ";
         $result = $this->_Read($query, $array);

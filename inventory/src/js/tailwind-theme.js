@@ -263,8 +263,11 @@
     // cambia de tema. Vive aquí y no en navbar.js porque, si el tema pasa de
     // claro a oscuro, la página se recarga y el aviso tiene que reaparecer en
     // la carga nueva desde el <head>, antes de que se pinte nada.
-    var LOADER_KEY = 'inventory:theme-loading';
-    var loaderEl   = null;
+    // El mismo aviso sirve con otro título: "Cargando empresa" al entrar a una
+    // empresa desde empresas/, que también cambia de página.
+    var LOADER_KEY   = 'inventory:theme-loading';
+    var LOADER_TITLE = 'Aplicando tema';
+    var loaderEl     = null;
 
     var LOADER_CSS =
         '.inv-theme-loader{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(243,244,246,.72);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;transition:opacity .18s ease;}' +
@@ -280,10 +283,11 @@
         '.inv-theme-loader__text small:empty{display:none;}' +
         '@keyframes inv-theme-spin{to{transform:rotate(360deg);}}' +
         '@keyframes inv-theme-dots{0%{content:"";}25%{content:".";}50%{content:"..";}75%{content:"...";}}' +
-        'html.dark .inv-theme-loader{background:color-mix(in srgb,var(--dk-bg,#111928) 72%,transparent);}' +
-        'html.dark .inv-theme-loader__card{background:var(--dk-card,#1F2A37);border-color:var(--dk-line,#374151);box-shadow:0 16px 40px rgba(0,0,0,.45);}' +
-        'html.dark .inv-theme-loader__text strong{color:var(--dk-text,#F9FAFB);}' +
-        'html.dark .inv-theme-loader__text small{color:var(--dk-muted,#9CA3AF);}' +
+        // body.dark-mode: empresas/ tiene su propio claro/oscuro, sin html.dark.
+        'html.dark .inv-theme-loader,body.dark-mode .inv-theme-loader{background:color-mix(in srgb,var(--dk-bg,#111928) 72%,transparent);}' +
+        'html.dark .inv-theme-loader__card,body.dark-mode .inv-theme-loader__card{background:var(--dk-card,#1F2A37);border-color:var(--dk-line,#374151);box-shadow:0 16px 40px rgba(0,0,0,.45);}' +
+        'html.dark .inv-theme-loader__text strong,body.dark-mode .inv-theme-loader__text strong{color:var(--dk-text,#F9FAFB);}' +
+        'html.dark .inv-theme-loader__text small,body.dark-mode .inv-theme-loader__text small{color:var(--dk-muted,#9CA3AF);}' +
         '@media (prefers-reduced-motion:reduce){.inv-theme-loader__ring{animation-duration:2s;}.inv-theme-loader__text strong::after{animation:none;content:"…";}}';
 
     function loaderCss() {
@@ -309,7 +313,8 @@
 
     // `instant`: aparece ya visible, sin el fundido de entrada (la carga nueva
     // tras la recarga, que debe verse igual que la página que se fue).
-    function showLoader(label, instant) {
+    // `title`: el texto grande; sin él, "Aplicando tema".
+    function showLoader(label, instant, title) {
         loaderCss();
 
         whenBody(function () {
@@ -318,9 +323,10 @@
                 loaderEl.className = 'inv-theme-loader';
                 loaderEl.setAttribute('role', 'status');
                 loaderEl.setAttribute('aria-live', 'polite');
-                loaderEl.innerHTML = '<div class="inv-theme-loader__card"><span class="inv-theme-loader__ring"></span><span class="inv-theme-loader__text"><strong>Aplicando tema</strong><small></small></span></div>';
+                loaderEl.innerHTML = '<div class="inv-theme-loader__card"><span class="inv-theme-loader__ring"></span><span class="inv-theme-loader__text"><strong></strong><small></small></span></div>';
             }
 
+            loaderEl.querySelector('strong').textContent = title || LOADER_TITLE;
             loaderEl.querySelector('small').textContent = label || '';
             loaderEl.classList.toggle('is-instant', !!instant);
             document.body.appendChild(loaderEl);
@@ -342,9 +348,9 @@
     }
 
     // Deja dicho a la próxima carga que siga mostrando el aviso.
-    function carryLoader(label) {
+    function carryLoader(label, title) {
         try {
-            sessionStorage.setItem(LOADER_KEY, label || '');
+            sessionStorage.setItem(LOADER_KEY, JSON.stringify({ label: label || '', title: title || '' }));
         } catch (e) { /* sin sessionStorage: la carga nueva entra sin aviso */ }
     }
 
@@ -384,7 +390,13 @@
 
         if (pending !== null) {
             sessionStorage.removeItem(LOADER_KEY);
-            showLoader(pending, true);
+
+            // Antes se guardaba solo el nombre del tema, en texto.
+            var aviso;
+            try { aviso = JSON.parse(pending); } catch (e) { aviso = null; }
+            if (!aviso || typeof aviso !== 'object') aviso = { label: pending };
+
+            showLoader(aviso.label, true, aviso.title);
 
             window.addEventListener('load', function () { setTimeout(hideLoader, 250); }, { once: true });
             setTimeout(hideLoader, 5000);

@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presentaciones de producto - Huubie Inventarios</title>
+
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema de inventory: blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            },
+                            main: '#292524'
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <!-- Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; }
+        .chip { display:inline-flex; align-items:center; gap:4px; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600; white-space:nowrap; }
+    </style>
+</head>
+
+<body class="min-h-screen text-gray-800">
+
+<div class="max-w-5xl mx-auto px-4 py-6 flex flex-col gap-5">
+
+    <!-- ============================================================
+         BANNER DEL TEMPLATE (no va en el modulo real)
+         ============================================================ -->
+    <div class="rounded-lg border border-dashed border-gray-300 bg-white px-4 py-2.5 text-xs text-gray-500 flex items-center gap-2">
+        <i data-lucide="info" class="w-4 h-4 text-gray-400"></i>
+        Template de explicación · Catálogo &gt; Productos · no va en el módulo. Datos de ejemplo: COCA COLA LATA ($16.20 por pieza) de la BD local.
+    </div>
+
+    <!-- Encabezado -->
+    <header class="flex flex-col gap-1">
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-blue-600">Presentaciones de producto</span>
+        <h1 class="text-2xl font-bold text-gray-900">Qué es una presentación y qué pasa con los productos que ya existen</h1>
+        <p class="text-sm text-gray-500">Para decidir dos cosas antes de construir: qué campos lleva una presentación y qué se hace con el stock de un producto que se convierte.</p>
+    </header>
+
+    <!-- ============================================================
+         1. PRODUCTO VS PRESENTACION
+         ============================================================ -->
+    <section class="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+            <h2 class="text-base font-semibold text-gray-900">Una presentación es el mismo producto en otro empaque</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1.4fr] gap-4 items-center">
+            <!-- Producto base -->
+            <div class="rounded-xl border-2 border-blue-600 bg-blue-50 p-4 flex flex-col gap-2">
+                <span class="chip bg-blue-600 text-white w-fit">PRODUCTO BASE</span>
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-lg bg-white border border-blue-200 flex items-center justify-center"><i data-lucide="cup-soda" class="w-6 h-6 text-blue-600"></i></div>
+                    <div>
+                        <div class="font-semibold text-gray-900">COCA COLA LATA</div>
+                        <div class="text-xs text-gray-500">Unidad: pieza · $16.20</div>
+                    </div>
+                </div>
+                <div class="rounded-lg bg-white border border-blue-200 px-3 py-2 flex items-center justify-between">
+                    <span class="text-xs text-gray-500">Stock</span>
+                    <span class="font-bold text-gray-900">148 piezas</span>
+                </div>
+                <p class="text-xs text-blue-800">Aquí, y solo aquí, se cuenta el inventario.</p>
+            </div>
+
+            <div class="hidden md:flex flex-col items-center gap-1 text-gray-400">
+                <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                <span class="text-[11px] font-semibold">equivale a</span>
+            </div>
+
+            <!-- Presentaciones -->
+            <div class="flex flex-col gap-2">
+                <div class="rounded-xl border border-gray-200 p-3 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center"><i data-lucide="package" class="w-5 h-5 text-gray-500"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-gray-900">Reja 12</div>
+                        <div class="text-xs text-gray-500">SKU 47003-12 · $194.40</div>
+                    </div>
+                    <span class="chip bg-blue-50 text-blue-700">1 reja 12 = 12 piezas</span>
+                </div>
+                <div class="rounded-xl border border-gray-200 p-3 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center"><i data-lucide="package-open" class="w-5 h-5 text-gray-500"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-gray-900">Six pack</div>
+                        <div class="text-xs text-gray-500">SKU 47003-S · $97.20</div>
+                    </div>
+                    <span class="chip bg-blue-50 text-blue-700">1 six pack = 6 piezas</span>
+                </div>
+                <p class="text-xs text-gray-500 pl-1">No tienen stock propio: «tengo 12 rejas» se calcula de las 148 piezas (148 ÷ 12 = 12 rejas completas).</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         2. CAMPOS
+         ============================================================ -->
+    <section class="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+            <h2 class="text-base font-semibold text-gray-900">Qué campos lleva cada uno</h2>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm border border-gray-200 rounded-lg border-separate border-spacing-0">
+                <thead>
+                    <tr class="bg-gray-100 text-gray-600 text-xs">
+                        <th class="text-left font-semibold px-3 py-2 rounded-tl-lg">Campo</th>
+                        <th class="text-center font-semibold px-3 py-2">Producto</th>
+                        <th class="text-center font-semibold px-3 py-2 rounded-tr-lg">Presentación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="px-3 py-2 border-t border-gray-200">Nombre, SKU, unidad, costo</td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center"><span class="chip bg-green-100 text-green-700">Propio</span></td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center"><span class="chip bg-green-100 text-green-700">Propio</span></td>
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="px-3 py-2 border-t border-gray-200">Factor («trae 12 piezas»)</td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center text-gray-400">No aplica</td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center"><span class="chip bg-green-100 text-green-700">Propio</span></td>
+                    </tr>
+                    <tr>
+                        <td class="px-3 py-2 border-t border-gray-200">Categoría, área, foto</td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center"><span class="chip bg-green-100 text-green-700">Propio</span></td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center"><span class="chip bg-gray-100 text-gray-600">Del producto base</span></td>
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="px-3 py-2 border-t border-gray-200">Mínimo, máximo, vida útil, descripción</td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center"><span class="chip bg-green-100 text-green-700">Propio</span></td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center"><span class="chip bg-gray-100 text-gray-600">Del producto base</span></td>
+                    </tr>
+                    <tr>
+                        <td class="px-3 py-2 border-t border-gray-200 font-semibold">Stock</td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center"><span class="chip bg-green-100 text-green-700">Propio</span></td>
+                        <td class="px-3 py-2 border-t border-gray-200 text-center"><span class="chip bg-blue-50 text-blue-700">Se cuenta en el base</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Por que no lleva todos los campos -->
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 flex flex-col gap-3">
+            <div class="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                <i data-lucide="triangle-alert" class="w-4 h-4"></i>
+                Si la presentación llevara todos los campos de un producto, sería otro producto con su propio stock
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-center">
+                <div class="rounded-lg bg-white border border-amber-200 px-3 py-2">
+                    <div class="text-xs text-gray-500">COCA COLA LATA</div>
+                    <div class="font-bold text-gray-900">148 piezas</div>
+                </div>
+                <div class="rounded-lg bg-white border border-amber-200 px-3 py-2">
+                    <div class="text-xs text-gray-500">COCA COLA REJA 12 (como producto)</div>
+                    <div class="font-bold text-gray-900">5 rejas</div>
+                </div>
+                <div class="text-sm text-amber-900">¿Cuántas latas hay?<br><b>Nadie lo sabe sin sumar a mano</b> (148 + 60).</div>
+            </div>
+            <p class="text-xs text-amber-800">Ese es el problema que resuelven las presentaciones: hoy una reja se da de alta como producto aparte y «el stock nunca sabe que una cosa es la otra».</p>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         3. CONVERTIR UN PRODUCTO QUE YA EXISTE
+         ============================================================ -->
+    <section class="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+            <h2 class="text-base font-semibold text-gray-900">Pasar a presentación un producto que ya existe</h2>
+            <span class="chip bg-gray-100 text-gray-600">Nuevo: el plano lo dejó fuera</span>
+        </div>
+
+        <!-- Recorrido -->
+        <ol class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <li class="rounded-xl border border-gray-200 p-3 flex flex-col gap-2">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Paso 1</span>
+                <div class="flex items-center gap-2 font-semibold text-gray-900"><i data-lucide="mouse-pointer-click" class="w-4 h-4 text-blue-600"></i>En la fila del producto</div>
+                <p class="text-xs text-gray-500">«COCA COLA REJA 12» → acción <b class="text-gray-700">Convertir en presentación</b>.</p>
+            </li>
+            <li class="rounded-xl border border-gray-200 p-3 flex flex-col gap-2">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Paso 2</span>
+                <div class="flex items-center gap-2 font-semibold text-gray-900"><i data-lucide="link" class="w-4 h-4 text-blue-600"></i>Elige base y factor</div>
+                <p class="text-xs text-gray-500">Base: COCA COLA LATA · trae <b class="text-gray-700">12</b> piezas.</p>
+            </li>
+            <li class="rounded-xl border border-gray-200 p-3 flex flex-col gap-2">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Paso 3</span>
+                <div class="flex items-center gap-2 font-semibold text-gray-900"><i data-lucide="layers" class="w-4 h-4 text-blue-600"></i>Nace la presentación</div>
+                <p class="text-xs text-gray-500">Con el nombre, SKU, unidad y costo que ya tenía el producto.</p>
+            </li>
+            <li class="rounded-xl border border-gray-200 p-3 flex flex-col gap-2">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Paso 4</span>
+                <div class="flex items-center gap-2 font-semibold text-gray-900"><i data-lucide="archive" class="w-4 h-4 text-blue-600"></i>El producto viejo se desactiva</div>
+                <p class="text-xs text-gray-500">No se borra: sus entradas y salidas son historia y la BD no deja borrarlo.</p>
+            </li>
+        </ol>
+
+        <!-- Decision de stock -->
+        <div class="text-sm font-semibold text-gray-900 pt-1">¿Y las 5 rejas que tenía en stock?</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="rounded-xl border-2 border-blue-600 p-4 flex flex-col gap-3 relative">
+                <span class="chip bg-blue-600 text-white absolute -top-3 right-3">Recomendada</span>
+                <div class="font-semibold text-gray-900">A · Se pasan al producto base</div>
+                <div class="flex items-center gap-2 flex-wrap text-sm">
+                    <span class="rounded-lg bg-gray-100 px-2.5 py-1 font-semibold">5 rejas</span>
+                    <span class="text-gray-400">×</span>
+                    <span class="rounded-lg bg-gray-100 px-2.5 py-1 font-semibold">12</span>
+                    <span class="text-gray-400">=</span>
+                    <span class="rounded-lg bg-blue-50 text-blue-700 px-2.5 py-1 font-semibold">+60 piezas</span>
+                    <span class="text-gray-500">→ COCA COLA LATA queda en 208</span>
+                </div>
+                <ul class="text-xs text-gray-600 flex flex-col gap-1">
+                    <li class="flex gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0"></i>Se hace en un paso, sin perder inventario.</li>
+                    <li class="flex gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0"></i>Queda un ajuste registrado: quién, cuándo y por qué.</li>
+                    <li class="flex gap-1.5"><i data-lucide="minus" class="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0"></i>Si el factor está mal, el ajuste también: hay que confirmar antes.</li>
+                </ul>
+            </div>
+            <div class="rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+                <div class="font-semibold text-gray-900">B · Solo si su stock está en 0</div>
+                <div class="flex items-center gap-2 flex-wrap text-sm">
+                    <span class="rounded-lg bg-gray-100 px-2.5 py-1 font-semibold">5 rejas</span>
+                    <span class="text-gray-400">→</span>
+                    <span class="text-gray-500">primero una salida o ajuste a mano hasta</span>
+                    <span class="rounded-lg bg-gray-100 px-2.5 py-1 font-semibold">0</span>
+                </div>
+                <ul class="text-xs text-gray-600 flex flex-col gap-1">
+                    <li class="flex gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0"></i>Más simple de construir: no mueve inventario.</li>
+                    <li class="flex gap-1.5"><i data-lucide="minus" class="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0"></i>Más trabajo para quien convierte: dos pasos y dos movimientos.</li>
+                    <li class="flex gap-1.5"><i data-lucide="minus" class="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0"></i>Se puede olvidar sumar las piezas al base.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         4. LO QUE HAY HOY EN LA BASE
+         ============================================================ -->
+    <section class="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">4</span>
+            <h2 class="text-base font-semibold text-gray-900">Lo que hay hoy en tu base (local)</h2>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="rounded-xl bg-gray-50 border border-gray-200 p-3">
+                <div class="text-2xl font-bold text-gray-900">43</div>
+                <div class="text-xs text-gray-500">productos que suenan a empaque (por nombre o por unidad: caja, paquete, reja…)</div>
+            </div>
+            <div class="rounded-xl bg-gray-50 border border-gray-200 p-3">
+                <div class="text-2xl font-bold text-gray-900">21</div>
+                <div class="text-xs text-gray-500">son «CAJA DE / PARA …»: la caja es el producto (para cupcakes, pasteles), no una presentación</div>
+            </div>
+            <div class="rounded-xl bg-gray-50 border border-gray-200 p-3">
+                <div class="text-2xl font-bold text-gray-900">33</div>
+                <div class="text-xs text-gray-500">de los 43 tienen stock: la decisión A o B les aplica</div>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-2 text-sm">
+            <div class="flex items-center gap-3 rounded-lg border border-gray-200 px-3 py-2">
+                <span class="flex-1">CAJA DE 12 CUPCAKE <span class="text-xs text-gray-400">· pieza · 10 en stock</span></span>
+                <span class="chip bg-gray-100 text-gray-600">Es un producto: la caja vacía</span>
+            </div>
+            <div class="flex items-center gap-3 rounded-lg border border-gray-200 px-3 py-2">
+                <span class="flex-1">Bimbueñuelos 6pzs <span class="text-xs text-gray-400">· paquete · sin stock ni movimientos</span></span>
+                <span class="chip bg-blue-50 text-blue-700">Candidata a presentación</span>
+            </div>
+        </div>
+        <p class="text-xs text-gray-400">Conteo de las consultas a fayxzvov_inventory del 18/10/2026. No se revisaron los 43 uno por uno.</p>
+    </section>
+
+    <!-- ============================================================
+         5. DECISIONES
+         ============================================================ -->
+    <section class="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-main text-white text-xs font-bold flex items-center justify-center">?</span>
+            <h2 class="text-base font-semibold text-gray-900">Lo que falta decidir</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="rounded-xl border border-gray-200 p-4 flex flex-col gap-2">
+                <div class="font-semibold text-gray-900">1 · Stock del producto que se convierte</div>
+                <label class="flex items-start gap-2 text-sm"><input type="radio" name="d1" checked class="mt-1 accent-blue-600"><span><b>A</b> · Se pasa al base × factor, con ajuste registrado <span class="chip bg-blue-50 text-blue-700 ml-1">recomendada</span></span></label>
+                <label class="flex items-start gap-2 text-sm"><input type="radio" name="d1" class="mt-1 accent-blue-600"><span><b>B</b> · Solo se convierte si su stock está en 0</span></label>
+            </div>
+            <div class="rounded-xl border border-gray-200 p-4 flex flex-col gap-2">
+                <div class="font-semibold text-gray-900">2 · Campos de la presentación</div>
+                <label class="flex items-start gap-2 text-sm"><input type="radio" name="d2" checked class="mt-1 accent-blue-600"><span><b>A</b> · Hereda todo del base, como hoy <span class="chip bg-blue-50 text-blue-700 ml-1">recomendada</span></span></label>
+                <label class="flex items-start gap-2 text-sm"><input type="radio" name="d2" class="mt-1 accent-blue-600"><span><b>B</b> · Además lleva su propia foto (y área, si se guarda en otro lugar)</span></label>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<script>
+    if (window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>

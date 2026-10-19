@@ -79,6 +79,48 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    // Orígenes de entrada, motivos de salida y estados de traspaso del inventario son por
+    // empresa (2026-10-18_catalogos-por-empresa.sql). La empresa con ese nombre que aún no
+    // tiene los de una tabla recibe la copia de la plantilla (filas sin companies_id).
+    // Se puede repetir: la que ya los tiene no recibe otra copia.
+    function qSeedInventoryCatalogs($array) {
+        // [company name]
+        $inv = 'fayxzvov_inventory.';
+
+        $this->_CUD("
+            INSERT INTO {$inv}inflow_origin
+                (code, name, description, icon, color_hex, bg_hex, requires_supplier, sort_order, active, companies_id)
+            SELECT t.code, t.name, t.description, t.icon, t.color_hex, t.bg_hex, t.requires_supplier, t.sort_order, t.active, c.id
+            FROM {$inv}inflow_origin t
+            CROSS JOIN {$this->bd}companies c
+            WHERE t.companies_id IS NULL
+            AND c.name = ?
+            AND NOT EXISTS (SELECT 1 FROM {$inv}inflow_origin x WHERE x.companies_id = c.id)
+        ", $array);
+
+        $this->_CUD("
+            INSERT INTO {$inv}shrinkage_reason
+                (code, name, icon, color_hex, bg_hex, sort_order, active, companies_id)
+            SELECT t.code, t.name, t.icon, t.color_hex, t.bg_hex, t.sort_order, t.active, c.id
+            FROM {$inv}shrinkage_reason t
+            CROSS JOIN {$this->bd}companies c
+            WHERE t.companies_id IS NULL
+            AND c.name = ?
+            AND NOT EXISTS (SELECT 1 FROM {$inv}shrinkage_reason x WHERE x.companies_id = c.id)
+        ", $array);
+
+        return $this->_CUD("
+            INSERT INTO {$inv}transfer_status
+                (code, name, name_out, name_in, order_index, is_terminal, color_hex, bg_hex, active, companies_id)
+            SELECT t.code, t.name, t.name_out, t.name_in, t.order_index, t.is_terminal, t.color_hex, t.bg_hex, t.active, c.id
+            FROM {$inv}transfer_status t
+            CROSS JOIN {$this->bd}companies c
+            WHERE t.companies_id IS NULL
+            AND c.name = ?
+            AND NOT EXISTS (SELECT 1 FROM {$inv}transfer_status x WHERE x.companies_id = c.id)
+        ", $array);
+    }
+
     /* ===== Planes (plans) ===== */
 
     function qPlans($array) {

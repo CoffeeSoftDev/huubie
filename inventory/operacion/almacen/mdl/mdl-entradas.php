@@ -109,14 +109,15 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function lsInflowOrigins() {
+    function lsInflowOrigins($array) {
+        // [companies_id]
         $query = "
             SELECT id, code, name, name AS valor, description, icon, color_hex, requires_supplier
             FROM {$this->bd}inflow_origin
-            WHERE active = 1
+            WHERE active = 1 AND companies_id = ?
             ORDER BY sort_order ASC, id ASC
         ";
-        $r = $this->_Read($query, null);
+        $r = $this->_Read($query, $array);
         if (!is_array($r)) return [];
         foreach ($r as &$o) {
             // requires_supplier se administra por dato en la tabla inflow_origin,
@@ -181,10 +182,11 @@ class mdl extends CRUD {
     }
 
     function getInflowOrigin($array) {
+        // [id, companies_id]
         $query = "
             SELECT id, code, name, color_hex, requires_supplier
             FROM {$this->bd}inflow_origin
-            WHERE id = ?
+            WHERE id = ? AND companies_id = ?
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);

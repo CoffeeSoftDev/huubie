@@ -541,7 +541,7 @@ class ctrl extends mdl {
             'message' => $delete ? 'Unidad eliminada' : 'No se pudo eliminar la unidad'
         ];
     }
-    // Origen de entradas -- (catalogo global)
+    // Origen de entradas -- (por empresa)
 
     function lsInflow() {
         $active = $_POST['active'] ?? 1;
@@ -601,8 +601,9 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear origen';
 
-        $_POST['active']     = 1;
-        $_POST['sort_order'] = $this->getMaxInflowSort() + 10;
+        $_POST['active']       = 1;
+        $_POST['sort_order']   = $this->getMaxInflowSort() + 10;
+        $_POST['companies_id'] = $_SESSION['company_id'];
 
         $exists = $this->existsInflowByName([$_POST['name']]);
 
@@ -692,7 +693,7 @@ class ctrl extends mdl {
         $id     = (int) ($_POST['id'] ?? 0);
         $inflow = $this->getInflowById([$id]);
 
-        if (!$inflow) {
+        if (!$inflow || (int) $inflow['companies_id'] !== (int) $_SESSION['company_id']) {
             return [
                 'status'  => 404,
                 'message' => 'Origen no encontrado'
@@ -716,7 +717,7 @@ class ctrl extends mdl {
         ];
     }
 
-    // Motivos de salida -- (catalogo global)
+    // Motivos de salida -- (por empresa)
 
     function lsShrinkage() {
         $active = $_POST['active'] ?? 1;
@@ -775,8 +776,9 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear motivo';
 
-        $_POST['active']     = 1;
-        $_POST['sort_order'] = $this->getMaxShrinkageSort() + 10;
+        $_POST['active']       = 1;
+        $_POST['sort_order']   = $this->getMaxShrinkageSort() + 10;
+        $_POST['companies_id'] = $_SESSION['company_id'];
 
         $exists = $this->existsShrinkageByName([$_POST['name']]);
 
@@ -866,7 +868,7 @@ class ctrl extends mdl {
         $id        = (int) ($_POST['id'] ?? 0);
         $shrinkage = $this->getShrinkageById([$id]);
 
-        if (!$shrinkage) {
+        if (!$shrinkage || (int) $shrinkage['companies_id'] !== (int) $_SESSION['company_id']) {
             return [
                 'status'  => 404,
                 'message' => 'Motivo no encontrado'

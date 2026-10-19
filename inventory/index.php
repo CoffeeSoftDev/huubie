@@ -1,14 +1,7 @@
 <?php
-if(isset($_COOKIE['IDU'])){
-    echo '<script>
-        let ruta = localStorage.getItem("url");
-        if (ruta) {
-            // Redirección relativa a la ubicación del login (inventory/), igual que en index.js:
-            // funciona sin importar la subcarpeta donde esté montado el proyecto.
-            window.location.href = ruta.replace(/^\/+/, "");
-        }
-    </script>';
-}
+/*  Sin salto automático por la cookie IDU + localStorage "url": inventory no
+    escribe esa llave. Por Hamachi erp-pro comparte la misma dirección (IP) y
+    dejaba las dos: el login mandaba a app/home/index.php, que aquí es 404. */
 ?>
 <!DOCTYPE html>
 <html lang="es">

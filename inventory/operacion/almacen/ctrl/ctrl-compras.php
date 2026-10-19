@@ -631,7 +631,7 @@ class ctrl extends mdl {
         }
 
         $folio  = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId);
-        $origin = $this->getInflowOriginByCode([$supplierId ? 'COMPRA' : 'COMPRA_SP']) ?: $this->getInflowOriginByCode(['COMPRA']);
+        $origin = $this->getInflowOriginByCode([$supplierId ? 'COMPRA' : 'COMPRA_SP', $this->companiesId]) ?: $this->getInflowOriginByCode(['COMPRA', $this->companiesId]);
         $nota   = joinNotes('Compra ' . $compra['folio'] . ' · ' . $compra['name'], $payload['note']);
 
         $this->createInflow($this->util->sql([

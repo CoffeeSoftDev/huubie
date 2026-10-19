@@ -70,14 +70,15 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function lsShrinkageReasons() {
+    function lsShrinkageReasons($array) {
+        // [companies_id]
         $query = "
             SELECT id, code, name, name AS valor, icon, color_hex
             FROM {$this->bd}shrinkage_reason
-            WHERE active = 1
+            WHERE active = 1 AND companies_id = ?
             ORDER BY sort_order ASC, id ASC
         ";
-        $r = $this->_Read($query, null);
+        $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
     }
 

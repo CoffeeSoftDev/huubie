@@ -717,15 +717,19 @@ class ctrl extends mdl {
     // Además de ser quien abrió el conteo, el rol debe tener la acción en Stock:
     // de aquí salen los botones del conteo y los permisos de editConteo,
     // statusConteo y cancelConteo.
+    // Los ajustes que deja Catálogo al pasar un producto a presentación (tipo
+    // 'presentacion') no se cancelan aquí: revertir el stock dejaría la
+    // presentación hecha y el producto desactivado.
     private function _conteoPerms($header) {
+        $fisico    = ($header['adjustment_type'] ?? 'fisico') === 'fisico';
         $owner     = $this->userId > 0 && (int) $header['registered_user_id'] === $this->userId;
-        $editable  = $owner && in_array($header['status'], ['Borrador', 'Pendiente'], true);
+        $editable  = $fisico && $owner && in_array($header['status'], ['Borrador', 'Pendiente'], true);
         $canCount  = Permissions::can('stock', 'agregar-conteo');
         $canCancel = Permissions::can('stock', 'cancelar-conteo');
         return [
             'edit'   => $editable && $canCount,
             'apply'  => $editable && $canCount,
-            'cancel' => $canCancel && ($editable || ($owner && $this->_cancelVigente($header)))
+            'cancel' => $fisico && $canCancel && ($editable || ($owner && $this->_cancelVigente($header)))
         ];
     }
 
@@ -748,6 +752,9 @@ class ctrl extends mdl {
         $quien = $header['authorized_name'] ?: 'el usuario';
         $fecha = $header['authorized_at'] ? date('d/m/Y H:i', strtotime($header['authorized_at'])) : '';
 
+        if (($header['adjustment_type'] ?? 'fisico') === 'presentacion') {
+            return ['tone' => 'emerald', 'text' => "Ajuste automático del {$fecha}: " . ($header['note'] ?: 'un producto pasó a ser presentación de otro') . '. Su stock pasó al producto base. No se cancela desde aquí.'];
+        }
         if ($header['status'] === 'Aplicado') {
             $limite = $this->_cancelVigente($header)
                 ? ' Se puede cancelar hasta el ' . date('d/m/Y H:i', $this->_cancelLimite($header)) . '.'

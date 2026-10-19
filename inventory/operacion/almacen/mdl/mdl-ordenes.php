@@ -159,14 +159,27 @@ class mdl extends CRUD {
     }
 
     function getInflowOrigin($array) {
+        // [id, companies_id]
         $query = "
             SELECT id, code, name, color_hex, requires_supplier
             FROM {$this->bd}inflow_origin
-            WHERE id = ?
+            WHERE id = ? AND companies_id = ?
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    function getInflowOriginId($array) {
+        // [code, companies_id]
+        $query = "
+            SELECT id
+            FROM {$this->bd}inflow_origin
+            WHERE code = ? AND companies_id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['id'] : null;
     }
 
     // -----------------------------------------------------------------------
@@ -591,10 +604,11 @@ class mdl extends CRUD {
     // -----------------------------------------------------------------------
 
     function getShrinkageReasonId($array) {
+        // [code, companies_id]
         $query = "
             SELECT id
             FROM {$this->bd}shrinkage_reason
-            WHERE code = ?
+            WHERE code = ? AND companies_id = ?
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);

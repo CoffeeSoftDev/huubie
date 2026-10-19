@@ -26,6 +26,8 @@ class ctrl extends mdl {
         'statusMaterial'     => 'cancelar',
         'deleteMaterial'     => 'cancelar',
         'deleteProducto'     => 'eliminar',
+        'editPresentacion'   => 'editar',
+        'statusPresentacion' => 'cancelar',
         'applyAsistente'     => ['agregar', 'editar', 'cancelar'],
         'readArchivo'        => ['administrador' => '*', 'entradas' => '*', 'salidas' => '*']
     ];
@@ -35,7 +37,8 @@ class ctrl extends mdl {
         'add'        => 'agregar',
         'edit'       => 'editar',
         'deactivate' => 'cancelar',
-        'activate'   => 'cancelar'
+        'activate'   => 'cancelar',
+        'present'    => 'editar'
     ];
 
     function init() {
@@ -61,6 +64,7 @@ class ctrl extends mdl {
             'areas'       => $areas,
             'proveedores' => $this->lsProveedores(),
             'almacenes'   => $this->lsWarehouses(),
+            'productos'   => $this->lsProductos(),
             'superadmin'  => $this->esSuperAdminIA(),
             'coffeeia'    => IaOllama::activo($this)
         ];
@@ -101,6 +105,7 @@ class ctrl extends mdl {
                     'class' => 'justify-center px-2 py-2',
                     'html'  => renderProductImage($item['image'] ?? '', $item['name'])
                 ],
+                'Unidad'     => !empty($item['unidad_nombre']) ? $item['unidad_nombre'] : '-',
                 'Categoría'  => $item['categoria'] ?? '-',
                 'Área'       => renderArea($item['area_id'] ?? null, $item['area'] ?? null, $item['area_color'] ?? null),
 
@@ -121,11 +126,59 @@ class ctrl extends mdl {
             if ($showStatus) $row['Estado'] = renderStatus($item['active']);
 
             $row['a'] = Permissions::rowActions('administrador', $a);
-            $rows[]   = $row;
+            $rows[]   = ['alta' => (string) $item['created_at'], 'row' => $row];
         }
 
+        // Las presentaciones van como un producto más, con la nota de a cuánto equivalen
+        // de su base. Su stock son los empaques completos que da el del base (40 piezas
+        // ÷ 24 = 1 caja): no suman al valor del inventario, ya se cuenta en el base.
+        foreach ($this->listPresentacionesTabla($filters) ?: [] as $p) {
+            $factor = (float) $p['factor'];
+            $unidad = $this->pluralIA($p['base_unit']);
+            $cajas  = $factor > 0 ? max(0, floor((float) $p['base_stock'] / $factor)) : 0;
+
+            $a = [
+                [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
+                    'onclick' => 'products.editPresentacion(' . $p['id'] . ')'
+                ],
+                statusSwitch('products.statusPresentacion', $p['id'], $p['active'])
+            ];
+
+            $row = [
+                'id'         => 'p' . $p['id'],
+                'Insumo'     => [
+                    'class' => 'justify-center px-2 py-2',
+                    'html'  => renderProductImage($p['image'] ?? '', $p['name'], 'Equivale a ' . $this->numeroIA($factor) . ' ' . $unidad . ' de ' . $p['base_name'])
+                ],
+                'Unidad'     => !empty($p['unidad_nombre']) ? $p['unidad_nombre'] : '-',
+                'Categoría'  => $p['categoria'] ?? '-',
+                'Área'       => renderArea($p['area_id'] ?? null, $p['area'] ?? null, $p['area_color'] ?? null),
+                'Último costo' => [
+                    'html'  => '$' . number_format((float) $p['cost_unit'], 2),
+                    'class' => 'text-end'
+                ],
+                'Stock'      => $cajas > 0
+                    ? '<span title="' . htmlspecialchars($this->numeroIA($p['base_stock']) . ' ' . $unidad . ' ÷ ' . $this->numeroIA($factor)) . '">' . $this->numeroIA($cajas) . '</span>'
+                    : '-',
+                'Mín'        => '-',
+                'Máx'        => '-',
+                'Vida útil'  => '-'
+            ];
+
+            if ($showStatus) $row['Estado'] = renderStatus($p['active']);
+
+            $row['a'] = Permissions::rowActions('administrador', $a);
+            $rows[]   = ['alta' => (string) $p['created_at'], 'row' => $row];
+        }
+
+        // Del último agregado al más viejo, productos y presentaciones juntos. Con la misma
+        // hora (cargas masivas) se queda el orden de la consulta: usort es estable.
+        usort($rows, function ($x, $y) { return strcmp($y['alta'], $x['alta']); });
+
         return [
-            'row'         => $rows,
+            'row'         => array_column($rows, 'row'),
             'total_value' => '$' . number_format($totalValue, 2)
         ];
     }
@@ -138,10 +191,14 @@ class ctrl extends mdl {
 
         $material = $this->getMaterialById($id);
 
+        // Stock y movimientos: los enseña el formulario si el producto pasa a presentación.
         if ($material) {
             $status  = 200;
             $message = 'Insumo encontrado';
-            $data    = $material;
+            $data    = $material + [
+                'stock'       => $this->getMaterialStock([$id]),
+                'movimientos' => (int) $this->getMaterialCounts([$id])['movimientos']
+            ];
         }
 
         return [
@@ -159,6 +216,9 @@ class ctrl extends mdl {
     function addMaterial() {
         $status  = 500;
         $message = 'No se pudo agregar el insumo';
+
+        // Con el selector en Presentación no nace un producto: se liga el empaque a su base.
+        if (($_POST['is_presentacion'] ?? '') === '1') return $this->addPresentacion();
 
         // Solo el nombre es obligatorio. El costo lo van dejando las entradas.
         if (trim($_POST['name'] ?? '') === '') {
@@ -399,6 +459,9 @@ class ctrl extends mdl {
         $message = 'Error al editar el insumo';
 
         $id = $_POST['id'];
+
+        // Con el selector en Presentación el producto deja de serlo: pasa a ser el empaque de otro.
+        if (($_POST['is_presentacion'] ?? '') === '1') return $this->pasarAPresentacion((int) $id);
 
         // SKU tecleado; si cambió, no puede repetir el de otro producto.
         $sku      = mb_substr(trim($_POST['sku'] ?? ''), 0, 40);
@@ -777,6 +840,428 @@ class ctrl extends mdl {
         ];
     }
 
+    // -- Presentaciones --
+    /*  El empaque de un producto que ya existe: «Reja 12» es 12 piezas de COCA COLA
+        LATA. Se da de alta desde «Nuevo Producto» con el interruptor (addMaterial) y
+        la tabla de Productos la pinta como un producto más, con la nota de a cuánto
+        equivale (lsMateriales). El stock sigue contándose en el base: aquí no se mueve
+        inventario. */
+
+    // Todas las de la empresa, o las de un producto con `item_id`, con los datos de su base.
+    // Su área va con los colores del badge, como la columna Área de los productos.
+    function lsPresentaciones() {
+        $itemId = (int) ($_POST['item_id'] ?? 0);
+
+        $rows = array_map(function ($p) {
+            $tone = $p['warehouse_area_id'] ? areaColors($p['warehouse_area_id'], $p['area_color']) : ['fg' => '', 'bg' => ''];
+
+            return $p + ['area_fg' => $tone['fg'], 'area_bg' => $tone['bg']];
+        }, $this->listPresentaciones([$_SESSION['company_id'], $itemId, $itemId]) ?: []);
+
+        return [
+            'status' => 200,
+            'row'    => $rows
+        ];
+    }
+
+    function editPresentacion() {
+        $presentacion = $this->getPresentacionById([(int) ($_POST['id'] ?? 0)]);
+
+        if (!$presentacion || (int) $presentacion['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 404,
+                'message' => 'Presentación no encontrada'
+            ];
+        }
+
+        $fields = $this->presentacionFields($this->getMaterialById($presentacion['item_id']), (string) $presentacion['sku']);
+
+        if (isset($fields['status'])) return $fields;
+
+        if ($this->existsPresentacionByName([$presentacion['item_id'], $_SESSION['company_id'], $fields['name'], $presentacion['id']])) {
+            return [
+                'status'  => 409,
+                'message' => 'Ese producto ya tiene una presentación con ese nombre'
+            ];
+        }
+
+        $update = $this->updatePresentacion([
+            'values' => 'name = ?, sku = ?, factor = ?, unit_id = ?, warehouse_area_id = ?, cost_unit = ?',
+            'where'  => 'id = ?',
+            'data'   => [
+                $fields['name'],
+                $fields['sku'],
+                $fields['factor'],
+                $fields['unit_id'],
+                $fields['warehouse_area_id'],
+                $fields['cost_unit'],
+                $presentacion['id']
+            ]
+        ]);
+
+        if ($update) $this->fotoPresentacion($presentacion['id'], $fields);
+
+        return [
+            'status'  => $update ? 200 : 500,
+            'message' => $update ? 'Presentación editada correctamente' : 'No se pudo editar la presentación'
+        ];
+    }
+
+    // El switch de la sub-fila. El producto base se sigue dando de baja desde su propia fila.
+    function statusPresentacion() {
+        $presentacion = $this->getPresentacionById([(int) ($_POST['id'] ?? 0)]);
+
+        if (!$presentacion || (int) $presentacion['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 404,
+                'message' => 'Presentación no encontrada'
+            ];
+        }
+
+        $update = $this->updatePresentacion([
+            'values' => 'active = ?',
+            'where'  => 'id = ?',
+            'data'   => [
+                ($_POST['active'] ?? '') === '1' ? 1 : 0,
+                $presentacion['id']
+            ]
+        ]);
+
+        return [
+            'status'  => $update ? 200 : 500,
+            'message' => $update ? 'Estado actualizado correctamente' : 'No se pudo actualizar el estado'
+        ];
+    }
+
+    // La rama de addMaterial: no crea item ni item_attribute. Si el producto base ya tiene
+    // una presentación con ese nombre, se actualiza (y se reactiva) en vez de duplicarse.
+    private function addPresentacion() {
+        $base = $this->getMaterialById((int) ($_POST['base_item_id'] ?? 0));
+
+        if (!$base || (int) $base['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 400,
+                'message' => 'Elige el producto al que equivale la presentación'
+            ];
+        }
+
+        $fields = $this->presentacionFields($base);
+
+        if (isset($fields['status'])) return $fields;
+
+        $exists = $this->existsPresentacionByName([$base['id'], $_SESSION['company_id'], $fields['name'], 0]);
+
+        if ($exists) {
+            $this->updatePresentacion([
+                'values' => 'name = ?, sku = ?, factor = ?, unit_id = ?, warehouse_area_id = ?, cost_unit = ?, active = ?',
+                'where'  => 'id = ?',
+                'data'   => [
+                    $fields['name'],
+                    $fields['sku'],
+                    $fields['factor'],
+                    $fields['unit_id'],
+                    $fields['warehouse_area_id'],
+                    $fields['cost_unit'],
+                    1,
+                    $exists
+                ]
+            ]);
+
+            $this->fotoPresentacion($exists, $fields);
+
+            return [
+                'status'  => 409,
+                'updated' => true,
+                'message' => '«' . htmlspecialchars($fields['name']) . '» ya era presentación de «' . htmlspecialchars($base['name']) . '»: se actualizó con estos datos.'
+            ];
+        }
+
+        // created_at con el reloj de PHP, igual que item.created_at (addMaterial): la tabla
+        // de Productos los ordena juntos por fecha de alta.
+        $create = $this->createPresentacion([
+            'values' => ['item_id', 'name', 'sku', 'factor', 'unit_id', 'warehouse_area_id', 'cost_unit', 'active', 'companies_id', 'created_at'],
+            'data'   => [
+                $base['id'],
+                $fields['name'],
+                $fields['sku'],
+                $fields['factor'],
+                $fields['unit_id'],
+                $fields['warehouse_area_id'],
+                $fields['cost_unit'],
+                1,
+                $_SESSION['company_id'],
+                date('Y-m-d H:i:s')
+            ]
+        ]);
+
+        // La foto lleva el id en el nombre: se guarda ya creada la presentación.
+        if ($create) $this->fotoPresentacion($this->existsPresentacionByName([$base['id'], $_SESSION['company_id'], $fields['name'], 0]), $fields);
+
+        return [
+            'status'  => $create ? 200 : 500,
+            'message' => $create ? 'Presentación agregada' : 'No se pudo agregar la presentación'
+        ];
+    }
+
+    // Lo que trae el formulario para una presentación, validado contra su base. El factor
+    // es de 2 o más; el SKU vacío se deriva del base (47003-12) y el costo vacío se sugiere
+    // del factor (12 × $16.20 = $194.40). Área y foto son suyas, no del base: llegan en
+    // los mismos campos del producto (warehouse_area_id, image_b64, image_remove), que el
+    // formulario mueve a la sección de la presentación. Con error devuelve la respuesta
+    // (lleva `status`).
+    private function presentacionFields($base, $skuActual = '') {
+        $name   = mb_substr(trim($_POST['pres_name'] ?? ''), 0, 160);
+        $sku    = mb_substr(trim($_POST['pres_sku'] ?? ''), 0, 40);
+        $factor = (float) ($_POST['factor'] ?? 0);
+
+        if ($name === '') {
+            return [
+                'status'  => 400,
+                'message' => 'El nombre de la presentación es obligatorio'
+            ];
+        }
+
+        if ($factor == 1) {
+            return [
+                'status'  => 400,
+                'message' => 'Con 1 sería el producto base, no una presentación'
+            ];
+        }
+
+        if ($factor < 2) {
+            return [
+                'status'  => 400,
+                'message' => 'El factor es cuántas unidades del producto base trae: tiene que ser 2 o más'
+            ];
+        }
+
+        if (($_POST['pres_unit_id'] ?? '') === '') {
+            return [
+                'status'  => 400,
+                'message' => 'Elige la unidad del empaque (reja, caja, paquete…)'
+            ];
+        }
+
+        if ($sku !== '' && $sku !== $skuActual && $this->existsItemBySku([$sku])) {
+            return [
+                'status'  => 409,
+                'message' => 'Ese código ya lo usa otro producto'
+            ];
+        }
+
+        $photo = $_POST['image_b64'] ?? '';
+
+        if ($photo !== '' && !$this->decodeProductImage($photo)) {
+            return [
+                'status'  => 400,
+                'message' => 'La foto debe ser una imagen JPG, PNG o WEBP de hasta 4 MB'
+            ];
+        }
+
+        if ($sku === '' && ($base['sku'] ?? '') !== '') $sku = $base['sku'] . '-' . $this->numeroIA($factor);
+
+        return [
+            'name'              => $name,
+            'sku'               => $sku === '' ? null : $sku,
+            'factor'            => $factor,
+            'unit_id'           => ($_POST['pres_unit_id'] ?? '') === '' ? null : (int) $_POST['pres_unit_id'],
+            'warehouse_area_id' => ($_POST['warehouse_area_id'] ?? '') === '' ? null : (int) $_POST['warehouse_area_id'],
+            'image_b64'         => $photo,
+            'image_remove'      => ($_POST['image_remove'] ?? '') === '1',
+            'cost_unit'         => ($_POST['pres_cost_unit'] ?? '') === ''
+                ? round($factor * (float) ($base['cost_unit'] ?? 0), 2)
+                : (float) $_POST['pres_cost_unit']
+        ];
+    }
+
+    // Foto nueva: reemplaza la anterior. «Quitar»: la borra. Sin tocarla, se queda la que
+    // tenía; y si es un producto que pasa a presentación (`$copia` = su item.image), se
+    // le copia la del producto, así cada uno conserva la suya.
+    private function fotoPresentacion($id, $fields, $copia = '') {
+        if (!$id) return;
+
+        $nueva = ($fields['image_b64'] ?? '') !== ''
+            ? $this->decodeProductImage($fields['image_b64'])
+            : (empty($fields['image_remove']) && $copia !== '' ? $this->productImageFile($copia) : null);
+
+        if ($nueva) {
+            $this->savePresentacionImage($id, $nueva);
+        } elseif (!empty($fields['image_remove'])) {
+            $this->dropPresentacionImage($id);
+            $this->updatePresentacion([
+                'values' => 'image = ?',
+                'where'  => 'id = ?',
+                'data'   => [null, $id]
+            ]);
+        }
+    }
+
+    // Como saveProductImage: uploads/presentaciones/{id}_{único}.{ext} en item_presentation.image.
+    private function savePresentacionImage($id, $image) {
+        $dir = __DIR__ . '/../../../uploads/presentaciones/';
+        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+
+        $name = (int) $id . '_' . substr(md5(uniqid('', true)), 0, 8) . '.' . $image['ext'];
+
+        $this->dropPresentacionImage($id);
+        if (@file_put_contents($dir . $name, $image['data']) === false) return false;
+
+        return $this->updatePresentacion([
+            'values' => 'image = ?',
+            'where'  => 'id = ?',
+            'data'   => ['uploads/presentaciones/' . $name, $id]
+        ]);
+    }
+
+    // La foto guardada de un producto (item.image), leída del disco para copiarla.
+    private function productImageFile($ruta) {
+        if (!preg_match('#^uploads/productos/[\w.-]+\.(jpg|png|webp)$#i', (string) $ruta, $m)) return null;
+
+        $data = @file_get_contents(__DIR__ . '/../../../' . $ruta);
+
+        return $data === false ? null : ['ext' => strtolower($m[1]), 'data' => $data];
+    }
+
+    private function dropPresentacionImage($id) {
+        foreach (glob(__DIR__ . '/../../../uploads/presentaciones/' . (int) $id . '_*') ?: [] as $old) @unlink($old);
+    }
+
+    // Editar > Presentación: el producto deja de serlo y pasa a ser el empaque de su
+    // base. Todo en una transacción: nace la presentación (con su nombre, SKU, unidad,
+    // área, foto y costo), su stock pasa al base × factor con un ajuste AJU- ya aplicado por
+    // almacén (5 rejas = +60 piezas, sale en el kárdex) y el producto se desactiva;
+    // su historial se queda con él.
+    private function pasarAPresentacion($id) {
+        $material = $this->getMaterialById($id);
+        $base     = $this->getMaterialById((int) ($_POST['base_item_id'] ?? 0));
+
+        if (!$material || (int) $material['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 404,
+                'message' => 'Producto no encontrado'
+            ];
+        }
+
+        if (!$base || (int) $base['companies_id'] !== (int) $_SESSION['company_id'] || (int) $base['id'] === (int) $id) {
+            return [
+                'status'  => 400,
+                'message' => 'Elige el producto al que equivale la presentación'
+            ];
+        }
+
+        // Sus propias presentaciones se quedarían colgando de un producto inactivo.
+        if ($this->listPresentaciones([$_SESSION['company_id'], $id, $id])) {
+            return [
+                'status'  => 409,
+                'message' => 'Este producto tiene presentaciones: no puede ser presentación de otro.'
+            ];
+        }
+
+        $fields = $this->presentacionFields($base, (string) $material['sku']);
+
+        if (isset($fields['status'])) return $fields;
+
+        if (!$this->getAdjustmentReasonByCode(['PRESENTACION'])) {
+            return [
+                'status'  => 500,
+                'message' => 'Falta el motivo PRESENTACION (docs/sql/2026-10-18_motivo-paso-a-presentacion.sql)'
+            ];
+        }
+
+        try {
+            $folios = $this->transaction(function () use ($material, $base, $fields) {
+                return $this->moverAPresentacion($material, $base, $fields);
+            });
+        } catch (\Throwable $e) {
+            return [
+                'status'  => 500,
+                'message' => 'No se pudo pasar a presentación; nada cambió'
+            ];
+        }
+
+        return [
+            'status'  => 200,
+            'message' => '«' . htmlspecialchars($material['name']) . '» ahora es presentación de «' . htmlspecialchars($base['name']) . '»'
+                       . ($folios ? '. Su stock pasó al producto base (' . implode(', ', $folios) . ').' : '.')
+        ];
+    }
+
+    // El paso en sí, sin transacción propia: lo envuelve quien llama (pasarAPresentacion,
+    // o applyAsistente con todo lo que marcó la persona). Devuelve los folios AJU-.
+    private function moverAPresentacion($material, $base, $fields) {
+        $reason = $this->getAdjustmentReasonByCode(['PRESENTACION']);
+
+        if (!$reason) throw new Exception('Falta el motivo PRESENTACION (docs/sql/2026-10-18_motivo-paso-a-presentacion.sql).');
+
+        $id      = (int) $material['id'];
+        $factor  = $fields['factor'];
+        $userId  = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0) ?: null;
+        $company = (int) $_SESSION['company_id'];
+        $nota    = mb_substr('«' . $material['name'] . '» pasó a presentación de «' . $base['name'] . '» (×' . $this->numeroIA($factor) . ')', 0, 255);
+        $folios  = [];
+
+        foreach ($this->listStockByItem([$id]) as $stock) {
+            $cantidad = (float) $stock['quantity'];
+            $suma     = round($cantidad * $factor, 4);
+            $baseRow  = $this->getStockByItemWarehouse([$base['id'], $stock['warehouse_id']]);
+            $basePrev = $baseRow ? (float) $baseRow['quantity'] : 0;
+            $basePost = round($basePrev + $suma, 4);
+            $folio    = $this->siguienteFolioAjuste($company);
+
+            $this->createAdjustment([$folio, $nota, $reason['id'], $userId, $userId, $stock['warehouse_id'], $stock['branch_id'], $company]);
+            $ajuste = $this->getAdjustmentByFolio([$folio, $company]);
+
+            if (!$ajuste) throw new Exception('Sin id del ajuste');
+
+            $this->createAdjustmentDetail([$ajuste, $id, $cantidad, 0, -$cantidad, (float) $material['cost_unit'], round(-$cantidad * (float) $material['cost_unit'], 4), $cantidad, 0, 'Su stock pasó al producto base']);
+            $this->createAdjustmentDetail([$ajuste, $base['id'], $basePrev, $basePost, $suma, (float) $base['cost_unit'], round($suma * (float) $base['cost_unit'], 4), $basePrev, $basePost, 'Recibe el stock de la presentación']);
+            $this->updateAdjustmentTotals([$ajuste, $ajuste]);
+            $this->createAdjustmentHistory(['Aplicado', $nota, $userId, $ajuste]);
+
+            $this->updateStock([0, $stock['id']]);
+
+            if ($baseRow) $this->updateStock([$basePost, $baseRow['id']]);
+            else $this->createStock([$basePost, $stock['warehouse_id'], $base['id'], $company]);
+
+            $folios[] = $folio;
+        }
+
+        // Si el base ya tenía una con ese nombre, se actualiza en vez de duplicarla.
+        $existe = $this->existsPresentacionByName([$base['id'], $company, $fields['name'], 0]);
+        $area   = $fields['warehouse_area_id'] ?? null;
+
+        if ($existe) {
+            $this->updatePresentacion([
+                'values' => 'name = ?, sku = ?, factor = ?, unit_id = ?, warehouse_area_id = ?, cost_unit = ?, active = ?',
+                'where'  => 'id = ?',
+                'data'   => [$fields['name'], $fields['sku'], $factor, $fields['unit_id'], $area, $fields['cost_unit'], 1, $existe]
+            ]);
+        } else {
+            $this->createPresentacion([
+                'values' => ['item_id', 'name', 'sku', 'factor', 'unit_id', 'warehouse_area_id', 'cost_unit', 'active', 'companies_id', 'created_at'],
+                'data'   => [$base['id'], $fields['name'], $fields['sku'], $factor, $fields['unit_id'], $area, $fields['cost_unit'], 1, $company, date('Y-m-d H:i:s')]
+            ]);
+        }
+
+        // Su foto: la del formulario, o la copia de la que tenía como producto.
+        $this->fotoPresentacion($existe ?: $this->existsPresentacionByName([$base['id'], $company, $fields['name'], 0]), $fields, (string) ($material['image'] ?? ''));
+
+        $this->updateMaterial([
+            'values' => 'active = ?',
+            'where'  => 'id = ?',
+            'data'   => [0, $id]
+        ]);
+
+        return $folios;
+    }
+
+    // El que sigue al último AJU- de la empresa (lo comparten los conteos de Stock).
+    private function siguienteFolioAjuste($company) {
+        $ultimo = (int) preg_replace('/[^0-9]/', '', substr($this->getAdjustmentFolio([$company]), 4));
+
+        return 'AJU-' . str_pad($ultimo + 1, 4, '0', STR_PAD_LEFT);
+    }
+
     // -- Asistente IA --
     /*  Chat flotante del catálogo del almacén: altas, cambios, bajas y
         reactivaciones de productos, categorías, unidades, áreas, almacenes,
@@ -789,10 +1274,17 @@ class ctrl extends mdl {
 
         El comportamiento (tono y reglas del negocio) vive en ia/asistente-catalogo.md
         y se edita sin tocar PHP. Lo que no se puede romper desde ese archivo --qué
-        entidades y campos existen, el formato JSON y los datos vivos-- lo arma promptIA(). */
+        entidades y campos existen, las herramientas y los datos vivos-- lo arma promptIA().
 
-    const IA_MAX_CAMBIOS  = 150;
-    const IA_MAX_CATALOGO = 1500;
+        Desde el 18/10/2026 trabaja en un bucle con herramientas (como el de Pedidos):
+        consulta, opina y pregunta en texto libre, y solo propone con proponer_cambios o
+        proponer_presentaciones. Una petición por vuelta; el hilo vive en la sesión y el
+        navegador repite con `turno` mientras haya herramientas que usar. */
+
+    const IA_MAX_CAMBIOS        = 150;
+    const IA_MAX_CATALOGO       = 1500;
+    const IA_MAX_RONDAS         = 8;
+    const IA_MAX_PRESENTACIONES = 60;
 
     // Entidades que toca el asistente y los campos que el modelo puede mandar en
     // "set" (clave => etiqueta de la vista previa). El orden importa: los
@@ -965,45 +1457,98 @@ class ctrl extends mdl {
 
         if (!IaOllama::activo($this)) return ['status' => 403, 'message' => 'CoffeeIA está apagado. Se enciende en Administrador > CoffeeIA.'];
 
-        $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 4000);
-        $adjuntos  = json_decode((string) ($_POST['adjuntos'] ?? '[]'), true);
-        $historial = json_decode((string) ($_POST['historial'] ?? '[]'), true);
-        $adjuntos  = is_array($adjuntos) ? $adjuntos : [];
-        $historial = is_array($historial) ? $historial : [];
-
-        if ($mensaje === '' && empty($adjuntos)) {
-            return ['status' => 400, 'message' => 'Escríbeme qué quieres hacer o adjunta un archivo.'];
-        }
-
         $ia = IaOllama::desdeCredenciales($this);
 
         if ($ia === null) return ['status' => 503, 'message' => 'El asistente no está configurado: falta la llave de Ollama.'];
 
-        $ctx   = $this->contextoIA();
         $super = $this->esSuperAdminIA();
+        $turno = (string) ($_POST['turno'] ?? '');
+
+        if ($turno === '') {
+            $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 4000);
+            $adjuntos  = json_decode((string) ($_POST['adjuntos'] ?? '[]'), true);
+            $historial = json_decode((string) ($_POST['historial'] ?? '[]'), true);
+            $adjuntos  = is_array($adjuntos) ? $adjuntos : [];
+            $historial = is_array($historial) ? $historial : [];
+
+            if ($mensaje === '' && empty($adjuntos)) {
+                return ['status' => 400, 'message' => 'Escríbeme qué quieres hacer o adjunta un archivo.'];
+            }
+
+            // El system no viaja en el hilo: se arma en cada vuelta con los datos de ese momento.
+            $hilo = [
+                'id'             => bin2hex(random_bytes(6)),
+                'mensajes'       => $this->mensajesIA($mensaje, $adjuntos, $historial),
+                'rondas'         => 0,
+                'cierre'         => false,
+                'cambios'        => [],
+                'presentaciones' => []
+            ];
+        } else {
+            $hilo = $_SESSION['iaProductosHilo'] ?? null;
+
+            if (!is_array($hilo) || !hash_equals((string) $hilo['id'], $turno)) {
+                return ['status' => 409, 'message' => 'Perdí el hilo de esta respuesta. Pregúntame otra vez.'];
+            }
+        }
+
+        $ctx = $this->contextoIA();
 
         // Sin esto la sesión queda bloqueada mientras el modelo piensa y las tablas
-        // del almacén no pueden recargar en ese rato. Se reabre para guardar la propuesta.
+        // del almacén no pueden recargar en ese rato. Se reabre para guardar el hilo.
         session_write_close();
         set_time_limit(180);
 
-        $respuesta = $ia->chatJson($this->mensajesIA($mensaje, $adjuntos, $historial, $ctx, $super));
+        // En la última vuelta ya no hay herramientas: tiene que contestar con lo que tiene.
+        $ultima   = $hilo['rondas'] >= self::IA_MAX_RONDAS - 1;
+        $mensajes = array_merge([['role' => 'system', 'content' => $this->promptIA($ctx, $super)]], $hilo['mensajes']);
+        $r        = $ia->chatRonda($mensajes, $ultima ? [] : $this->herramientasIA($super));
 
-        if (!$respuesta['ok']) return ['status' => 502, 'message' => $respuesta['error']];
+        if (!$r['ok']) return ['status' => 502, 'message' => $r['error']];
 
-        $cambios = isset($respuesta['data']['changes']) && is_array($respuesta['data']['changes']) ? $respuesta['data']['changes'] : [];
-        $reply   = $this->textoIA($respuesta['data']['reply'] ?? '');
-        $vista   = $this->vaciadoIA($cambios, $super) ?? $this->validarCambiosIA($cambios, $ctx);
-        $token   = '';
+        $hilo['rondas']++;
 
-        if (!empty($vista['validos'])) {
-            $token = bin2hex(random_bytes(8));
+        if (!empty($r['tool_calls']) && !$ultima) {
+            $hilo['mensajes'][] = ['role' => 'assistant', 'content' => $r['content'], 'tool_calls' => $r['tool_calls']];
+            $pasos              = [];
+
+            foreach ($r['tool_calls'] as $llamada) {
+                $nombre = (string) ($llamada['function']['name'] ?? '');
+                $args   = $llamada['function']['arguments'] ?? [];
+                $args   = is_array($args) ? $args : (json_decode((string) $args, true) ?: []);
+                $hecho  = $this->usarHerramientaIA($nombre, $args, $ctx, $super, $hilo);
+
+                $hilo['mensajes'][] = ['role' => 'tool', 'tool_name' => $nombre, 'content' => json_encode($hecho['resultado'], JSON_UNESCAPED_UNICODE)];
+                $pasos[]            = $hecho['paso'];
+            }
 
             session_start();
-            $_SESSION['iaProductos'] = ['token' => $token, 'cambios' => $vista['validos']];
+            $_SESSION['iaProductosHilo'] = $hilo;
+
+            return ['status' => 200, 'turno' => $hilo['id'], 'pasos' => $pasos];
         }
 
-        if ($reply === '') $reply = empty($vista['row']) ? 'No encontré cambios que proponer.' : 'Revisa la vista previa y confirma.';
+        // Vuelta vacía (todo se le fue en pensar): una sola vuelta más pidiéndole el cierre.
+        if (trim((string) $r['content']) === '' && !$hilo['cierre']) {
+            $hilo['cierre']     = true;
+            $hilo['mensajes'][] = ['role' => 'system', 'content' => 'No escribiste respuesta. Redacta ahora la respuesta final para la persona con lo que ya averiguaste.'];
+
+            session_start();
+            $_SESSION['iaProductosHilo'] = $hilo;
+
+            return ['status' => 200, 'turno' => $hilo['id'], 'pasos' => ['Redactando la respuesta']];
+        }
+
+        // Respuesta final: la vista previa sale de lo último que propuso, validado otra vez.
+        $vista = $this->vistaPropuestaIA($hilo, $ctx, $super);
+        $token = empty($vista['validos']) ? '' : bin2hex(random_bytes(8));
+        $reply = $this->textoIA($r['content']);
+
+        session_start();
+        unset($_SESSION['iaProductosHilo']);
+        if ($token !== '') $_SESSION['iaProductos'] = ['token' => $token, 'cambios' => $vista['validos']];
+
+        if ($reply === '') $reply = empty($vista['row']) ? 'No pude redactar una respuesta. Pregúntame otra vez, con otras palabras.' : 'Revisa la vista previa y confirma.';
 
         return [
             'status'  => 200,
@@ -1038,7 +1583,7 @@ class ctrl extends mdl {
         if (in_array('purge', array_column($selecciones, 'entity'), true) && !$this->esSuperAdminIA()) {
             return ['status' => 403, 'message' => 'Solo el Super Admin puede vaciar la base de datos.'];
         }
-        $verbos = ['add' => 'dar de alta', 'edit' => 'editar', 'deactivate' => 'dar de baja', 'activate' => 'reactivar'];
+        $verbos = ['add' => 'dar de alta', 'edit' => 'editar', 'deactivate' => 'dar de baja', 'activate' => 'reactivar', 'present' => 'pasar productos a presentación'];
         foreach ($selecciones as $c) {
             $accion = self::IA_PERMISSIONS[$c['action']] ?? null;
             if ($accion !== null && !Permissions::can('administrador', $accion)) {
@@ -1094,8 +1639,9 @@ class ctrl extends mdl {
 
     private function contextoIA() {
         $ctx = [
-            'product' => $this->listMateriales([]),
-            'branch'  => $this->lsBranches()
+            'product'      => $this->listMateriales([]),
+            'branch'       => $this->lsBranches(),
+            'presentacion' => $this->listPresentaciones([$_SESSION['company_id'], 0, 0])
         ];
 
         foreach (array_diff(array_keys(self::IA_ENTIDADES), ['product']) as $entidad) {
@@ -1109,8 +1655,8 @@ class ctrl extends mdl {
         return $ctx;
     }
 
-    private function mensajesIA($mensaje, $adjuntos, $historial, $ctx, $super) {
-        $mensajes = [['role' => 'system', 'content' => $this->promptIA($ctx, $super)]];
+    private function mensajesIA($mensaje, $adjuntos, $historial) {
+        $mensajes = [];
 
         foreach (array_slice($historial, -8) as $h) {
             $rol   = is_array($h) ? ($h['role'] ?? '') : '';
@@ -1196,7 +1742,7 @@ class ctrl extends mdl {
         return implode("\n", [
             $reglas !== '' ? $reglas : 'Eres CoffeeIA, el asistente del catálogo del almacén. Hablas español, en frases cortas.',
             '',
-            '== CONTRATO (lo que el sistema acepta) ==',
+            '== CONTRATO DE proponer_cambios (lo que el sistema acepta) ==',
             'Entidades ("entity") y los campos que puedes mandar en "set":',
             '- product: name, category, unit, area, price (venta con IVA), base (venta sin IVA), tax (0, 8 o 16), cost (último costo sin IVA), stock_min, stock_max, shelf_life_days (días), description',
             '- category: name',
@@ -1218,15 +1764,31 @@ class ctrl extends mdl {
                 ? '- VACIAR (esta persona es Super Admin): si pide vaciar, limpiar o borrar TODO un bloque, manda un solo cambio {"entity": "purge", "action": "purge", "scope": "..."} y ningún otro. scope: "movements" (entradas, salidas, ajustes, traspasos, órdenes de compra y existencias), "products" (todos los productos, con sus movimientos) o "catalogs" (categorías, áreas y proveedores, con productos y movimientos). Unidades, almacenes y sucursales no se vacían. Para quitar registros sueltos usa "deactivate", nunca "purge".'
                 : '- VACIAR la base de datos es solo para el Super Admin. Si esta persona lo pide, dile que no tiene permiso y no mandes cambios.',
             '',
-            'Responde SOLO con un objeto JSON, sin texto antes ni después. Ejemplo de la forma:',
-            '{"reply": "Te propongo 4 cambios. Revísalos y confirma.", "changes": [',
+            'Ejemplo de "changes" para proponer_cambios:',
+            '[',
             '  {"entity": "category", "action": "add", "set": {"name": "Bebidas"}},',
             '  {"entity": "product", "action": "add", "set": {"name": "Agua natural 1 L", "category": "Bebidas", "unit": "Pieza", "price": 18, "tax": 16}},',
             '  {"entity": "product", "action": "edit", "id": 45, "ref": "refresco de cola", "set": {"price": 24.5, "stock_min": 6}},',
             '  {"entity": "supplier", "action": "deactivate", "id": 9, "ref": "Distribuidora Norte"},',
             '  {"entity": "inflow", "action": "edit", "id": 3, "ref": "compra", "set": {"requires_supplier": true, "color_hex": "#166534", "bg_hex": "#DCFCE7"}}',
-            ']}',
-            'Si no hay cambios, "changes" va vacío y en "reply" explicas o preguntas lo que falte.',
+            ']',
+            '',
+            '== CÓMO TRABAJAS ==',
+            '- Tienes herramientas: úsalas con libertad y las veces que haga falta antes de contestar. ver_producto (existencia por almacén, presentaciones y últimos movimientos de un producto), resumen_catalogo (cómo está el catálogo: conteos, productos sin costo, sin unidad o sin área, valor del inventario) y buscar_posibles_presentaciones (productos que parecen el empaque de otro).',
+            '- Contesta cualquier pregunta sobre el catálogo y su inventario, da tu opinión y sugiere mejoras con lo que veas: duplicados, nombres parecidos, productos sin costo o sin unidad, presentaciones. Si algo no está claro, pregunta.',
+            '- Los datos salen de las listas de abajo o de una herramienta. Nunca inventes ids, precios ni existencias.',
+            '- Proponer: cuando la persona pide un cambio usa proponer_cambios (con el contrato de arriba) o proponer_presentaciones. Tú no aplicas nada: al terminar tu respuesta ella ve la vista previa, marca y confirma. Si lo que sugieres no lo pidió, pregúntale antes de proponerlo.',
+            '- Cada llamada a proponer_cambios o a proponer_presentaciones reemplaza la propuesta anterior de esa misma herramienta: manda todo junto. La herramienta te dice qué entró y qué no, y por qué: corrige y vuelve a llamarla si hace falta.',
+            '',
+            '== PRESENTACIONES ==',
+            '- Una presentación es el empaque de un producto que ya existe: una reja de 12 latas, un six pack, una caja de 24. No tiene stock propio: se cuenta en el producto base. Tiene su propia área y su propia foto; la categoría es la del base.',
+            '- Para revisar el catálogo usa buscar_posibles_presentaciones y juzga cada caso: que de verdad sea el mismo producto en otro empaque y cuántas unidades del base trae.',
+            '- Una caja para pastel, una caja de cupcake o una bolsa de empaque son productos que se usan (el empaque vacío), no presentaciones.',
+            '- Pasar un producto a presentación (proponer_presentaciones) mueve inventario: su stock pasa al base multiplicado por el factor (5 rejas × 12 = +60 latas) con un ajuste registrado, y el producto se desactiva; su historial se queda. La presentación se queda con el área y la foto que tenía el producto. Si no sabes el factor, pregúntalo, no lo adivines. Avisa cuando el producto tenga stock.',
+            '',
+            '== CÓMO RESPONDES ==',
+            '- Texto plano, sin markdown (nada de **, # ni tablas) y sin emojis. Listas con guiones. Frases cortas.',
+            '- Si propusiste algo, di cuántos cambios son y que revise la vista previa.',
             '',
             '== DATOS DE LA EMPRESA ==',
             $this->tablaIA('CATEGORÍAS', ['id', 'nombre', 'estado'], $filas['category'] ?? []),
@@ -1247,7 +1809,11 @@ class ctrl extends mdl {
             '',
             $this->tablaIA('ESTADOS DE TRASPASO', ['id', 'nombre', 'lo ve quien envía', 'lo ve quien recibe', 'color texto', 'color fondo', 'estado'], $filas['transfer_status'] ?? []),
             '',
-            $this->tablaIA('PRODUCTOS' . $recorte, ['id', 'sku', 'nombre', 'categoría', 'unidad', 'área', 'precio con IVA', 'IVA %', 'último costo', 'mín', 'máx', 'vida útil días', 'estado'], $filas['product'] ?? [])
+            $this->tablaIA('PRODUCTOS' . $recorte, ['id', 'sku', 'nombre', 'categoría', 'unidad', 'área', 'precio con IVA', 'IVA %', 'último costo', 'mín', 'máx', 'vida útil días', 'estado'], $filas['product'] ?? []),
+            '',
+            $this->tablaIA('PRESENTACIONES', ['id', 'producto base (id)', 'nombre', 'trae', 'estado'], array_map(function ($p) use ($estado) {
+                return [$p['id'], $p['base_name'] . ' (' . $p['item_id'] . ')', $p['name'], $this->numeroIA($p['factor']) . ' ' . ($p['base_unit'] ?: 'unidades'), $estado($p)];
+            }, $ctx['presentacion']))
         ]);
     }
 
@@ -1263,6 +1829,424 @@ class ctrl extends mdl {
     }
 
     // -- Asistente IA · validación --
+
+    // -- Asistente IA · herramientas --
+
+    // Las herramientas que ve el modelo (formato tools de Ollama). Las de consulta solo
+    // leen; proponer_cambios y proponer_presentaciones solo dejan en el hilo lo que irá a
+    // la vista previa: nada se aplica hasta que la persona marca y confirma.
+    private function herramientasIA($super) {
+        $fn = function ($nombre, $descripcion, $propiedades = [], $requeridos = []) {
+            return [
+                'type'     => 'function',
+                'function' => [
+                    'name'        => $nombre,
+                    'description' => $descripcion,
+                    'parameters'  => ['type' => 'object', 'properties' => (object) $propiedades, 'required' => $requeridos]
+                ]
+            ];
+        };
+
+        return [
+            $fn('ver_producto', 'Abre un producto: sus datos, existencia por almacén, sus presentaciones, cuántos movimientos tiene y los últimos 10 (entradas, salidas, ajustes y traspasos).', [
+                'id' => ['type' => 'integer', 'description' => 'id del producto (de la lista PRODUCTOS)']
+            ], ['id']),
+            $fn('resumen_catalogo', 'Cuenta cómo está el catálogo: productos activos y de baja, sin costo, sin unidad, sin área o sin categoría, con existencia o en negativo, cuántos hay por categoría, valor del inventario a último costo y presentaciones.'),
+            $fn('buscar_posibles_presentaciones', 'Revisa los productos activos y devuelve los que parecen el empaque de otro (reja, caja, six pack, paquete, "x12", "6 pzs"...), con hasta 3 productos base parecidos, el factor que se lee en el nombre y su stock. Son pistas: tú decides cuáles sí lo son.'),
+            $fn('proponer_cambios', 'Deja en la vista previa altas, cambios, bajas o reactivaciones' . ($super ? ' (o un vaciado)' : '') . ' del catálogo, con el contrato del system. No aplica nada. Llamarla otra vez reemplaza su propuesta anterior: manda todos los cambios juntos. Devuelve cuáles entraron y por qué no los demás.', [
+                'changes' => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Lista de cambios: {entity, action, id, ref, set}']
+            ], ['changes']),
+            $fn('proponer_presentaciones', 'Deja en la vista previa productos que pasan a ser presentación de otro: su stock pasa al base multiplicado por el factor y el producto se desactiva. No aplica nada. Llamarla otra vez reemplaza su propuesta anterior. Devuelve cuáles entraron y por qué no los demás.', [
+                'items' => [
+                    'type'  => 'array',
+                    'items' => [
+                        'type'       => 'object',
+                        'properties' => [
+                            'product_id' => ['type' => 'integer', 'description' => 'id del producto que pasa a ser presentación'],
+                            'base_id'    => ['type' => 'integer', 'description' => 'id del producto base'],
+                            'factor'     => ['type' => 'number', 'description' => 'Cuántas unidades del base trae (2 o más)']
+                        ],
+                        'required'   => ['product_id', 'base_id', 'factor']
+                    ]
+                ]
+            ], ['items'])
+        ];
+    }
+
+    // Ejecuta lo que pidió el modelo, siempre dentro de la empresa de la sesión. Devuelve
+    // el resultado que vuelve al modelo y el paso que ve la persona mientras espera.
+    private function usarHerramientaIA($nombre, $args, $ctx, $super, &$hilo) {
+        switch ($nombre) {
+            case 'ver_producto':
+                $producto = $this->verProductoIA((int) ($args['id'] ?? 0), $ctx);
+
+                return [
+                    'resultado' => $producto ?? ['error' => 'No encontré ese producto.'],
+                    'paso'      => $producto ? 'Revisando «' . $producto['nombre'] . '»' : 'Buscando un producto'
+                ];
+
+            case 'resumen_catalogo':
+                return [
+                    'resultado' => $this->resumenCatalogoIA($ctx),
+                    'paso'      => 'Contando el catálogo'
+                ];
+
+            case 'buscar_posibles_presentaciones':
+                $candidatos = $this->posiblesPresentacionesIA($ctx);
+                $n          = count($candidatos);
+
+                return [
+                    'resultado' => ['total' => $n, 'candidatos' => $candidatos],
+                    'paso'      => 'Buscando posibles presentaciones · ' . ($n === 1 ? '1 encontrada' : "{$n} encontradas")
+                ];
+
+            case 'proponer_cambios':
+                $hilo['cambios'] = isset($args['changes']) && is_array($args['changes']) ? $args['changes'] : [];
+                $vista           = $this->vaciadoIA($hilo['cambios'], $super) ?? $this->validarCambiosIA($hilo['cambios'], $ctx);
+                $n               = count($vista['validos']);
+
+                return [
+                    'resultado' => $this->devolucionVistaIA($vista),
+                    'paso'      => 'Armando la vista previa · ' . ($n === 1 ? '1 cambio' : "{$n} cambios")
+                ];
+
+            case 'proponer_presentaciones':
+                $hilo['presentaciones'] = isset($args['items']) && is_array($args['items']) ? array_slice($args['items'], 0, self::IA_MAX_PRESENTACIONES) : [];
+                $vista                  = $this->validarPresentacionesIA($hilo['presentaciones'], $ctx);
+                $n                      = count($vista['validos']);
+
+                return [
+                    'resultado' => $this->devolucionVistaIA($vista),
+                    'paso'      => 'Armando la vista previa · ' . ($n === 1 ? '1 presentación' : "{$n} presentaciones")
+                ];
+        }
+
+        return [
+            'resultado' => ['error' => 'No conozco la herramienta «' . $nombre . '».'],
+            'paso'      => 'Pensando'
+        ];
+    }
+
+    // Lo que vuelve al modelo de una propuesta: qué entró y qué no, con el motivo.
+    private function devolucionVistaIA($vista) {
+        return [
+            'entran' => count($vista['validos']),
+            'filas'  => array_map(function ($r) {
+                $fila = [
+                    'nombre' => $r['name'],
+                    'accion' => $r['action'] ?? '',
+                    'entra'  => !empty($r['valid'])
+                ];
+
+                if (($r['note'] ?? '') !== '') $fila['motivo'] = $r['note'];
+                if (($r['warn'] ?? '') !== '') $fila['aviso']  = $r['warn'];
+
+                return $fila;
+            }, $vista['row'])
+        ];
+    }
+
+    // La vista previa final: lo último de proponer_cambios y, detrás, lo último de
+    // proponer_presentaciones, validado otra vez con los datos de este momento. Un
+    // vaciado va solo.
+    private function vistaPropuestaIA($hilo, $ctx, $super) {
+        $vaciado = $this->vaciadoIA($hilo['cambios'], $super);
+
+        if ($vaciado !== null) return $vaciado;
+
+        $vista = $this->validarCambiosIA($hilo['cambios'], $ctx);
+        $pres  = $this->validarPresentacionesIA($hilo['presentaciones'], $ctx);
+
+        foreach ($pres['row'] as $j => $fila) {
+            $i = count($vista['row']);
+
+            $fila['idx']     = $i;
+            $vista['row'][]  = $fila;
+
+            if (isset($pres['validos'][$j])) $vista['validos'][$i] = $pres['validos'][$j];
+        }
+
+        $vista['resumen']['present']  = count($pres['validos']);
+        $vista['resumen']['invalid'] += $pres['resumen']['invalid'];
+
+        return $vista;
+    }
+
+    // Cada producto propuesto como presentación de otro, revisado contra el catálogo:
+    // activo, con base activa y distinta, sin presentaciones propias y factor de 2 o más.
+    private function validarPresentacionesIA($items, $ctx) {
+        $productos = [];
+        $conPres   = [];
+        $row       = [];
+        $validos   = [];
+        $vistos    = [];
+        $invalidos = 0;
+
+        foreach ($ctx['product'] as $p) $productos[(int) $p['id']] = $p;
+        foreach ($ctx['presentacion'] as $x) $conPres[(int) $x['item_id']] = true;
+
+        foreach ($items as $it) {
+            $it     = is_array($it) ? $it : [];
+            $id     = (int) ($it['product_id'] ?? 0);
+            $baseId = (int) ($it['base_id'] ?? 0);
+            $factor = (float) ($it['factor'] ?? 0);
+            $p      = $productos[$id] ?? null;
+            $b      = $productos[$baseId] ?? null;
+            $motivo = '';
+
+            if (!$p)                                $motivo = 'No encontré ese producto.';
+            elseif ((int) $p['active'] !== 1)       $motivo = 'Está dado de baja.';
+            elseif (!$b)                            $motivo = 'No encontré el producto base.';
+            elseif ($id === $baseId)                $motivo = 'No puede ser presentación de sí mismo.';
+            elseif ((int) $b['active'] !== 1)       $motivo = 'El producto base está dado de baja.';
+            elseif (isset($conPres[$id]))           $motivo = 'Tiene presentaciones propias: no puede ser presentación de otro.';
+            elseif ($factor == 1)                   $motivo = 'Con 1 sería el mismo producto.';
+            elseif ($factor < 2)                    $motivo = 'Falta cuántas unidades del base trae (2 o más).';
+            elseif (isset($vistos[$id]))            $motivo = 'Ya viene en esta propuesta.';
+
+            $fila = ['name' => $p ? $p['name'] : 'Producto ' . $id, 'sku' => $p['sku'] ?? ''];
+
+            if ($motivo !== '') {
+                $f = $this->filaIA($fila + ['note' => $motivo]);
+            } else {
+                $stock  = (float) $p['quantity'];
+                $unidad = $this->pluralIA($b['unidad_nombre'] ?? '');
+                $f      = $this->filaIA($fila + [
+                    'changes' => [
+                        ['label' => 'Presentación de', 'before' => '', 'after' => $b['name']],
+                        ['label' => 'Trae',            'before' => '', 'after' => $this->numeroIA($factor) . ' ' . $unidad]
+                    ],
+                    'warn'    => $stock != 0
+                        ? 'Su stock (' . $this->numeroIA($stock) . ') pasa al base como ' . $this->numeroIA($stock * $factor) . ' ' . $unidad . ' y se desactiva.'
+                        : 'No tiene stock. Se desactiva.'
+                ], ['id' => $id, 'base_id' => $baseId, 'factor' => $factor]);
+
+                $vistos[$id] = true;
+            }
+
+            $i = count($row);
+
+            $f['row']['idx']    = $i;
+            $f['row']['action'] = 'present';
+            $f['row']['tag']    = self::IA_ENTIDADES['product']['tag'];
+            $f['row']['valid']  = $f['cambio'] !== null;
+
+            if ($f['cambio'] !== null) $validos[$i] = $f['cambio'] + ['entity' => 'product', 'action' => 'present', 'nombre' => $fila['name']];
+            else                       $invalidos++;
+
+            $row[] = $f['row'];
+        }
+
+        return [
+            'row'     => $row,
+            'validos' => $validos,
+            'resumen' => ['present' => count($validos), 'invalid' => $invalidos]
+        ];
+    }
+
+    private function verProductoIA($id, $ctx) {
+        $p = null;
+
+        foreach ($ctx['product'] as $r) {
+            if ((int) $r['id'] === $id) {
+                $p = $r;
+                break;
+            }
+        }
+
+        if (!$p) return null;
+
+        $presentaciones = array_values(array_filter($ctx['presentacion'], function ($x) use ($id) {
+            return (int) $x['item_id'] === $id;
+        }));
+
+        return [
+            'id'                  => $id,
+            'nombre'              => $p['name'],
+            'sku'                 => $p['sku'],
+            'categoria'           => $p['categoria'],
+            'unidad'              => $p['unidad_nombre'] ?: $p['unidad'],
+            'area'                => $p['area'],
+            'precio_venta'        => (float) $p['price'],
+            'ultimo_costo'        => (float) $p['cost_unit'],
+            'minimo'              => (float) $p['stock_min'],
+            'maximo'              => (float) $p['stock_max'],
+            'vida_util_dias'      => $p['shelf_life_days'],
+            'descripcion'         => $p['description'],
+            'estado'              => (int) $p['active'] === 1 ? 'activo' : 'baja',
+            'existencia_total'    => (float) $p['quantity'],
+            'por_almacen'         => array_map(function ($s) use ($ctx) {
+                return ['almacen' => $this->nombreAlmacenIA($s['warehouse_id'], $ctx), 'cantidad' => (float) $s['quantity']];
+            }, $this->listStockByItem([$id])),
+            'movimientos'         => (int) $this->getMaterialCounts([$id])['movimientos'],
+            'ultimos_movimientos' => array_map(function ($m) {
+                return ['fecha' => $m['occurred_at'], 'tipo' => $m['movement_type'], 'folio' => $m['folio'], 'cantidad' => (float) $m['quantity'], 'quedo' => (float) $m['stock_post']];
+            }, $this->listMovimientosItem([$id, $_SESSION['company_id']])),
+            'presentaciones'      => array_map(function ($x) {
+                return ['nombre' => $x['name'], 'trae' => (float) $x['factor'], 'costo' => (float) $x['cost_unit'], 'activa' => (int) $x['active'] === 1];
+            }, $presentaciones)
+        ];
+    }
+
+    private function resumenCatalogoIA($ctx) {
+        $activos = array_values(array_filter($ctx['product'], function ($p) {
+            return (int) $p['active'] === 1;
+        }));
+        $cuenta  = function ($filtro) use ($activos) {
+            return count(array_filter($activos, $filtro));
+        };
+        $porCategoria = [];
+        $valor        = 0;
+
+        foreach ($activos as $p) {
+            $categoria                = $p['categoria'] ?: 'Sin categoría';
+            $porCategoria[$categoria] = ($porCategoria[$categoria] ?? 0) + 1;
+            $valor                   += max(0, (float) $p['quantity']) * (float) $p['cost_unit'];
+        }
+
+        arsort($porCategoria);
+
+        $activosDe = function ($entidad) use ($ctx) {
+            return count(array_filter($ctx[$entidad], function ($r) {
+                return (int) $r['active'] === 1;
+            }));
+        };
+
+        return [
+            'productos'             => count($ctx['product']),
+            'activos'               => count($activos),
+            'de_baja'               => count($ctx['product']) - count($activos),
+            'sin_costo'             => $cuenta(function ($p) { return (float) $p['cost_unit'] <= 0; }),
+            'sin_unidad'            => $cuenta(function ($p) { return empty($p['unidad_nombre']); }),
+            'sin_area'              => $cuenta(function ($p) { return empty($p['area_id']); }),
+            'sin_categoria'         => $cuenta(function ($p) { return empty($p['categoria']); }),
+            'con_existencia'        => $cuenta(function ($p) { return (float) $p['quantity'] > 0; }),
+            'en_negativo'           => $cuenta(function ($p) { return (float) $p['quantity'] < 0; }),
+            'valor_inventario'      => $this->pesosIA($valor),
+            'por_categoria'         => array_slice($porCategoria, 0, 20, true),
+            'presentaciones'        => count($ctx['presentacion']),
+            'categorias_activas'    => $activosDe('category'),
+            'unidades_activas'      => $activosDe('unit'),
+            'areas_activas'         => $activosDe('area'),
+            'almacenes_activos'     => $activosDe('warehouse'),
+            'proveedores_activos'   => $activosDe('supplier')
+        ];
+    }
+
+    // Productos activos que suenan a empaque de otro: por una palabra del nombre (reja,
+    // caja, six pack...), por su unidad o por un número de piezas en el nombre. Para
+    // cada uno, hasta 3 productos parecidos que podrían ser su base. Son pistas para el
+    // modelo, no una decisión: «caja para pastel» sale aquí y no es presentación.
+    private function posiblesPresentacionesIA($ctx) {
+        $empaque = ['reja', 'rejas', 'caja', 'cajas', 'cja', 'six', 'sixpack', 'pack', 'paquete', 'paquetes', 'paq', 'pqt', 'bulto', 'bultos',
+                    'costal', 'costales', 'charola', 'charolas', 'docena', 'docenas', 'carton', 'display', 'fardo', 'tira', 'tarima'];
+        $conPres = [];
+        $info    = [];
+
+        foreach ($ctx['presentacion'] as $x) $conPres[(int) $x['item_id']] = true;
+
+        foreach ($ctx['product'] as $p) {
+            if ((int) $p['active'] !== 1) continue;
+
+            $clave  = $this->normalizarIA($p['name']);
+            $tokens = explode(' ', $clave);
+
+            $info[(int) $p['id']] = [
+                'p'       => $p,
+                'clave'   => $clave,
+                'empaque' => array_values(array_intersect($tokens, $empaque)),
+                'nucleo'  => array_values(array_diff($this->nameWords($clave), $empaque))
+            ];
+        }
+
+        $candidatos = [];
+
+        foreach ($info as $id => $x) {
+            if (isset($conPres[$id])) continue;
+
+            $p      = $x['p'];
+            $unidad = $this->normalizarIA($p['unidad_nombre'] ?? '');
+            $factor = $this->factorEnNombreIA($x['clave']);
+            $pistas = [];
+
+            if ($x['empaque'])                     $pistas[] = 'el nombre dice «' . $x['empaque'][0] . '»';
+            if (in_array($unidad, $empaque, true)) $pistas[] = 'su unidad es ' . $p['unidad_nombre'];
+            if ($factor)                           $pistas[] = 'el nombre trae ' . $factor;
+
+            if (!$pistas || !$x['nucleo']) continue;
+
+            $bases = [];
+
+            foreach ($info as $baseId => $y) {
+                if ($baseId === $id || $y['empaque'] || !$y['nucleo']) continue;
+
+                $comunes = count(array_filter($x['nucleo'], function ($w) use ($y) {
+                    return $this->hasWord($y['nucleo'], $w);
+                }));
+
+                if ($comunes === 0 || ($comunes < count($x['nucleo']) && $comunes < 2)) continue;
+
+                $bases[] = [
+                    'id'     => $baseId,
+                    'nombre' => $y['p']['name'],
+                    'unidad' => $y['p']['unidad_nombre'] ?: '-',
+                    'stock'  => (float) $y['p']['quantity'],
+                    'score'  => $comunes / (count($x['nucleo']) + count($y['nucleo']) - $comunes)
+                ];
+            }
+
+            usort($bases, function ($a, $b) {
+                return $b['score'] <=> $a['score'];
+            });
+
+            $candidatos[] = [
+                'producto'          => ['id' => $id, 'nombre' => $p['name'], 'unidad' => $p['unidad_nombre'] ?: '-', 'stock' => (float) $p['quantity']],
+                'bases_parecidas'   => array_map(function ($b) {
+                    unset($b['score']);
+                    return $b;
+                }, array_slice($bases, 0, 3)),
+                'factor_en_nombre'  => $factor,
+                'pistas'            => $pistas
+            ];
+        }
+
+        // Primero los que tienen con quién emparejarse.
+        usort($candidatos, function ($a, $b) {
+            return (count($b['bases_parecidas']) > 0) <=> (count($a['bases_parecidas']) > 0);
+        });
+
+        return array_slice($candidatos, 0, self::IA_MAX_PRESENTACIONES);
+    }
+
+    // «Pieza» → «piezas», «Paquete» → «paquetes»; abreviaturas («kg») y lo que ya
+    // termina en s se quedan igual (como pluralUnidad de almacen.js).
+    private function pluralIA($unidad) {
+        $u = mb_strtolower(trim((string) $unidad), 'UTF-8');
+
+        if ($u === '') return 'unidades';
+        if (mb_strlen($u) <= 3 || mb_substr($u, -1) === 's') return $u;
+
+        return preg_match('/[aeiouáéíóú]$/u', $u) ? $u . 's' : $u . 'es';
+    }
+
+    // El número de piezas que trae según su nombre: «x12», «c/12», «6 pzs», «reja de 24»,
+    // «12 pack», «docena», «six pack». Null si no se lee ninguno de 2 o más.
+    private function factorEnNombreIA($clave) {
+        $patrones = [
+            '/\b(?:x|c)\s?(\d{1,3})\b/',
+            '/\b(\d{1,3})\s?(?:pz|pzs|pza|pzas|piezas|pk|pack|unidades|uds|latas|botellas|sobres|bolsas)\b/',
+            '/\b(?:reja|caja|paquete|pack|bulto|charola|display|costal)\s(?:de\s|con\s)?(\d{1,3})\b/'
+        ];
+
+        foreach ($patrones as $patron) {
+            if (preg_match($patron, $clave, $m) && (int) $m[1] >= 2) return (int) $m[1];
+        }
+
+        if (preg_match('/\bdocenas?\b/', $clave)) return 12;
+        if (preg_match('/\bsix\s?pack\b|\bsixpack\b/', $clave)) return 6;
+
+        return null;
+    }
 
     /*  Convierte lo que propuso el modelo en filas de vista previa. Las que no se
         pueden aplicar (no existe, no cambia nada, ya está dado de baja) se enseñan
@@ -2054,6 +3038,7 @@ class ctrl extends mdl {
         $entidad = $c['entity'];
 
         if ($entidad === 'product') {
+            if ($c['action'] === 'present') return $this->presentarIA($c, $companies_id);
             if ($c['action'] === 'add')  return $this->altaProductoIA($c, $companies_id, $branch_id, $now, $creados);
             if ($c['action'] === 'edit') return $this->editarProductoIA($c, $companies_id, $creados);
 
@@ -2068,8 +3053,8 @@ class ctrl extends mdl {
 
     private function altaCatalogoIA($c, $companies_id, $branch_id, $now, &$creados) {
         $entidad = $c['entity'];
-        $global  = in_array($entidad, self::GLOBAL_CATALOGS, true);
-        $valores = $c['values'] + ($global ? [] : ['companies_id' => $companies_id, 'created_at' => $now]) + ['active' => 1];
+        $coded   = in_array($entidad, self::CODE_CATALOGS, true);
+        $valores = $c['values'] + ['companies_id' => $companies_id] + ($coded ? [] : ['created_at' => $now]) + ['active' => 1];
 
         if ($entidad === 'warehouse') $valores += ['branch_id' => $branch_id, 'is_default' => 0];
 
@@ -2077,7 +3062,7 @@ class ctrl extends mdl {
         // aquí (dentro de la transacción) para que dos altas seguidas no empaten.
         if (in_array($entidad, ['unit', 'inflow', 'shrinkage'], true)) $valores['sort_order'] = $this->getNextCatalogSort($entidad, $companies_id);
 
-        if ($global) $valores['code'] = $this->codigoIA($entidad, $valores['name']);
+        if ($coded) $valores['code'] = $this->codigoIA($entidad, $valores['name']);
 
         if ($this->createCatalog($entidad, $this->sqlIA($valores)) !== true) {
             throw new Exception('No pude dar de alta ' . self::IA_ENTIDADES[$entidad]['uno'] . ' «' . $valores['name'] . '».');
@@ -2108,6 +3093,38 @@ class ctrl extends mdl {
         $update = $entidad === 'product' ? $this->updateMaterial($datos) : $this->updateCatalog($entidad, $datos);
 
         if ($update !== true) throw new Exception('No pude cambiar el estado de ' . self::IA_ENTIDADES[$entidad]['uno'] . ' «' . $c['nombre'] . '».');
+    }
+
+    // Igual que Editar > Presentación: la presentación toma el nombre, SKU, unidad y costo
+    // que ya tenía el producto (costo vacío: factor × costo del base). Se vuelve a revisar
+    // aquí porque pudo cambiar desde la vista previa.
+    private function presentarIA($c, $companies_id) {
+        $material = $this->getMaterialById($c['id']);
+        $base     = $this->getMaterialById($c['base_id']);
+        $factor   = (float) $c['factor'];
+
+        if (!$material || (int) $material['companies_id'] !== (int) $companies_id || (int) $material['active'] !== 1) {
+            throw new Exception('«' . $c['nombre'] . '» ya no está activo.');
+        }
+
+        if (!$base || (int) $base['companies_id'] !== (int) $companies_id || (int) $base['active'] !== 1) {
+            throw new Exception('El producto base de «' . $c['nombre'] . '» ya no está activo.');
+        }
+
+        if ($this->listPresentaciones([$companies_id, $c['id'], $c['id']])) {
+            throw new Exception('«' . $c['nombre'] . '» tiene presentaciones propias: no puede ser presentación de otro.');
+        }
+
+        $costo = (float) $material['cost_unit'];
+
+        $this->moverAPresentacion($material, $base, [
+            'name'              => $material['name'],
+            'sku'               => ($material['sku'] ?? '') !== '' ? $material['sku'] : null,
+            'factor'            => $factor,
+            'unit_id'           => $material['unit_id'] ?: null,
+            'warehouse_area_id' => $material['warehouse_area_id'] ?: null,
+            'cost_unit'         => $costo > 0 ? $costo : round($factor * (float) $base['cost_unit'], 2)
+        ]);
     }
 
     // Misma alta que addMaterial, con los datos ya validados.
@@ -2187,10 +3204,8 @@ class ctrl extends mdl {
         return [$item, $attr];
     }
 
-    // WHERE de un registro: los catálogos globales no tienen companies_id.
+    // WHERE de un registro: siempre dentro de la empresa de la sesión.
     private function dondeIA($entidad, $id, $companies_id) {
-        if (in_array($entidad, self::GLOBAL_CATALOGS, true)) return ['where' => ['id = ?'], 'data' => [$id]];
-
         return ['where' => ['id = ?', 'companies_id = ?'], 'data' => [$id, $companies_id]];
     }
 
@@ -2229,7 +3244,7 @@ class ctrl extends mdl {
             return empty($n['purge']['borrados']) ? 'Listo. Ya estaba vacío.' : 'Listo. Se borró: ' . $this->listaIA($n['purge']['borrados']) . '.';
         }
 
-        $verbos = ['add' => 'Altas', 'edit' => 'Cambios', 'deactivate' => 'Bajas', 'activate' => 'Reactivados'];
+        $verbos = ['add' => 'Altas', 'edit' => 'Cambios', 'deactivate' => 'Bajas', 'activate' => 'Reactivados', 'present' => 'Pasaron a presentación'];
         $partes = [];
 
         foreach ($verbos as $accion => $verbo) {
@@ -2408,7 +3423,8 @@ class ctrl extends mdl {
 
 // La foto se guarda relativa a inventory/ (uploads/productos/...) y la tabla se pinta
 // en operacion/almacen/. Una URL completa o absoluta se respeta tal cual.
-function renderProductImage($foto, $nombre) {
+// `$nota` va debajo del nombre (la equivalencia de una presentación).
+function renderProductImage($foto, $nombre, $nota = '') {
     $src = '';
     if (!empty($foto)) $src = preg_match('#^(https?:)?//|^/#', $foto) ? $foto : '../../' . $foto;
 
@@ -2423,10 +3439,17 @@ function renderProductImage($foto, $nombre) {
     // compact.css lo fija con !important y eso le gana al estilo del <td>.
     // La tabla va en minusculas (lowercase); first-letter devuelve la mayuscula inicial.
     // min-w-0 + break-words: la columna tiene ancho fijo y un nombre largo se parte.
+    $texto = $nota === ''
+        ? '<div class="min-w-0 break-words first-letter:uppercase">' . htmlspecialchars($nombre) . '</div>'
+        : '<div class="min-w-0 break-words text-left">'
+            . '<div class="first-letter:uppercase">' . htmlspecialchars($nombre) . '</div>'
+            . '<div class="mt-0.5 flex items-center gap-1 text-[11px] normal-case text-blue-600"><i data-lucide="boxes" class="w-3 h-3 flex-shrink-0"></i><span>' . htmlspecialchars($nota) . '</span></div>'
+        . '</div>';
+
     return '
         <div class="flex items-center justify-start gap-2 py-1 text-center">
             ' . $img . '
-            <div class="min-w-0 break-words first-letter:uppercase">' . htmlspecialchars($nombre) . '</div>
+            ' . $texto . '
         </div>';
 }
 

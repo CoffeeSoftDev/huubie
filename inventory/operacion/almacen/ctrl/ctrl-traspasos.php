@@ -30,7 +30,7 @@ class ctrl extends mdl {
             'user_id'          => $this->userId,
             'sucursales'       => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
-            'estados_traspaso' => $this->lsTransferStatuses()
+            'estados_traspaso' => $this->lsTransferStatuses([$this->companiesId])
         ];
     }
 
@@ -164,7 +164,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
 
-        $statusReq = $this->getTransferStatusByCode(['REQUESTED']);
+        $statusReq = $this->getTransferStatusByCode(['REQUESTED', $this->companiesId]);
         if (!$statusReq) return ['status' => 500, 'message' => 'Catalogo transfer_status sin REQUESTED'];
 
         $totalProducts = count($productos);
@@ -236,7 +236,7 @@ class ctrl extends mdl {
     function confirmTraspaso() {
         $id         = (int) $_POST['id'];
         $receivedBy = trim($_POST['received_by'] ?? '');
-        $st = $this->getTransferStatusByCode(['RECEIVED']);
+        $st = $this->getTransferStatusByCode(['RECEIVED', $this->companiesId]);
 
         $header = $this->getTraspasoById([$id]);
         $detail = $this->listTraspasoDetail([$id]);
@@ -292,7 +292,7 @@ class ctrl extends mdl {
     function rejectTraspaso() {
         $id   = (int) $_POST['id'];
         $note = empty($_POST['note']) ? 'Traspaso rechazado' : $_POST['note'];
-        $st   = $this->getTransferStatusByCode(['REJECTED']);
+        $st   = $this->getTransferStatusByCode(['REJECTED', $this->companiesId]);
 
         try {
             return $this->transaction(function () use ($id, $note, $st) {

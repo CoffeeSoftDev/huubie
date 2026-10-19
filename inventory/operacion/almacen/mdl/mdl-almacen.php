@@ -71,6 +71,40 @@ class mdl extends CRUD {
         return $this->_Read($query, []);
     }
 
+    // Productos activos para el select «producto base» de una presentación: su costo y
+    // su unidad arman la equivalencia («1 reja 12 es 12 piezas de COCA COLA LATA»);
+    // la categoría es lo que la presentación hereda (área y foto son suyas), y el stock
+    // el que recibe cuando un producto pasa a ser presentación.
+    function lsProductos() {
+        $query = "
+            SELECT
+                i.id,
+                i.name AS valor,
+                i.category_id,
+                ic.name AS categoria,
+                wa.name AS area,
+                ia.sku,
+                ia.cost_unit,
+                u.name AS unidad,
+                COALESCE(st.qty, 0) AS stock
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
+            LEFT JOIN {$this->bd}unit           u  ON u.id  = ia.unit_id
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty
+                FROM {$this->bd}stock
+                WHERE active = 1
+                GROUP BY item_id
+            ) st ON st.item_id = i.id
+            WHERE i.active = 1
+            AND i.companies_id = ".$_SESSION['company_id']."
+            ORDER BY i.name ASC
+        ";
+        return $this->_Read($query, []);
+    }
+
     function getCompanyById($array) {
         $query = "
             SELECT name, rfc, ubication
@@ -102,6 +136,7 @@ class mdl extends CRUD {
                 ia.description,
                 ic.name AS categoria,
                 u.code  AS unidad,
+                u.name  AS unidad_nombre,
                 wa.id   AS area_id,
                 wa.name AS area,
                 wa.color_hex AS area_color,
@@ -149,8 +184,9 @@ class mdl extends CRUD {
             $params[] = $filters['estado'];
         }
 
-        // Por categoría y luego por nombre; los productos sin categoría van al final.
-        $query .= " ORDER BY ic.name IS NULL, ic.name ASC, i.name ASC";
+        // Del último agregado al más viejo: el id sigue el orden de alta (created_at puede
+        // venir igual o vacío en las cargas masivas).
+        $query .= " ORDER BY i.id DESC";
 
         return $this->_Read($query, $params);
     }
@@ -291,12 +327,337 @@ class mdl extends CRUD {
         ]);
     }
 
+    // Presentaciones (item_presentation): el empaque de un producto que ya existe.
+    // El producto base no tiene fila aquí.
+
+    // Las presentaciones como filas de la tabla de Productos, con los mismos filtros:
+    // la categoría es la de su base; el área y el estado, los suyos.
+    function listPresentacionesTabla($filters) {
+        $query = "
+            SELECT
+                p.id,
+                p.name,
+                p.sku,
+                p.factor,
+                p.image,
+                p.cost_unit,
+                p.active,
+                p.created_at,
+                pu.name      AS unidad_nombre,
+                wa.id        AS area_id,
+                wa.name      AS area,
+                wa.color_hex AS area_color,
+                i.name       AS base_name,
+                ic.name      AS categoria,
+                u.name       AS base_unit,
+                COALESCE(st.qty, 0) AS base_stock
+            FROM {$this->bd}item_presentation p
+            INNER JOIN {$this->bd}item           i  ON i.id = p.item_id
+            LEFT JOIN  {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN  {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT JOIN  {$this->bd}unit           u  ON u.id = ia.unit_id
+            LEFT JOIN  {$this->bd}unit           pu ON pu.id = p.unit_id
+            LEFT JOIN  {$this->bd}warehouse_area wa ON wa.id = p.warehouse_area_id
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty
+                FROM {$this->bd}stock
+                WHERE active = 1
+                GROUP BY item_id
+            ) st ON st.item_id = p.item_id
+            WHERE p.companies_id = ".$_SESSION['company_id']."
+        ";
+
+        $params = [];
+
+        if (!empty($filters['categoria'])) {
+            $query .= " AND i.category_id = ?";
+            $params[] = $filters['categoria'];
+        }
+
+        // Mismo checklist de área que listMateriales, sobre el área de la presentación.
+        if (($filters['area'] ?? '') !== '') {
+            $picked = explode(',', $filters['area']);
+            $ids    = array_values(array_filter($picked, 'ctype_digit'));
+            $or     = [];
+
+            if ($ids) {
+                $or[]   = "p.warehouse_area_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")";
+                $params = array_merge($params, $ids);
+            }
+
+            if (in_array('none', $picked, true)) $or[] = "p.warehouse_area_id IS NULL";
+
+            $query .= $or ? " AND (" . implode(' OR ', $or) . ")" : " AND 1 = 0";
+        }
+
+        if (isset($filters['estado']) && $filters['estado'] !== '') {
+            $query .= " AND p.active = ?";
+            $params[] = $filters['estado'];
+        }
+
+        $query .= " ORDER BY p.id DESC";
+
+        return $this->_Read($query, $params);
+    }
+
+    function listPresentaciones($array) {
+        // [companies_id, item_id (0 = todas), item_id]
+        $query = "
+            SELECT
+                p.id,
+                p.item_id,
+                p.name,
+                p.sku,
+                p.factor,
+                p.unit_id,
+                p.warehouse_area_id,
+                p.image,
+                p.cost_unit,
+                p.active,
+                wa.name       AS area,
+                wa.color_hex  AS area_color,
+                i.name        AS base_name,
+                i.category_id AS base_category_id,
+                ia.sku        AS base_sku,
+                ia.cost_unit  AS base_cost,
+                u.name        AS base_unit,
+                COALESCE(st.qty, 0) AS base_stock
+            FROM {$this->bd}item_presentation p
+            INNER JOIN {$this->bd}item           i  ON i.id = p.item_id
+            LEFT JOIN  {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN  {$this->bd}unit           u  ON u.id = ia.unit_id
+            LEFT JOIN  {$this->bd}warehouse_area wa ON wa.id = p.warehouse_area_id
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty
+                FROM {$this->bd}stock
+                WHERE active = 1
+                GROUP BY item_id
+            ) st ON st.item_id = p.item_id
+            WHERE p.companies_id = ?
+            AND (? = 0 OR p.item_id = ?)
+            ORDER BY p.item_id ASC, p.factor ASC, p.name ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function getPresentacionById($array) {
+        // [id]
+        $query = "
+            SELECT *
+            FROM {$this->bd}item_presentation
+            WHERE id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0] ?? null;
+    }
+
+    // Id de la presentación de ese producto que ya se llama así (sin importar
+    // mayúsculas ni espacios de más); 0 si no hay. `except` = la que se edita.
+    function existsPresentacionByName($array) {
+        // [item_id, companies_id, name, except id]
+        $query = "
+            SELECT id
+            FROM {$this->bd}item_presentation
+            WHERE item_id = ?
+            AND companies_id = ?
+            AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+            AND id <> ?
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return (int) ($result[0]['id'] ?? 0);
+    }
+
+    function createPresentacion($data) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}item_presentation",
+            'values' => $data['values'],
+            'data'   => $data['data']
+        ]);
+    }
+
+    function updatePresentacion($data) {
+        return $this->_Update([
+            'table'  => "{$this->bd}item_presentation",
+            'values' => $data['values'],
+            'where'  => $data['where'],
+            'data'   => $data['data']
+        ]);
+    }
+
+    // Pasar un producto a presentación: su stock va al base con un ajuste AJU- ya
+    // aplicado (tipo 'presentacion'), uno por almacén, como los del conteo físico
+    // de Stock (mdl-stock), para que salga en el kárdex.
+
+    // Los últimos 10 movimientos de un producto (la vista del kárdex): para CoffeeIA.
+    function listMovimientosItem($array) {
+        // [item_id, companies_id]
+        $query = "
+            SELECT movement_type, folio, quantity, stock_post, occurred_at
+            FROM {$this->bd}inventory_movement
+            WHERE item_id = ? AND companies_id = ?
+            ORDER BY created_at DESC
+            LIMIT 10
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Lo que tiene un producto en todo el almacén (con signo: puede ser negativo).
+    function getMaterialStock($array) {
+        // [item_id]
+        $query = "
+            SELECT COALESCE(SUM(quantity), 0) AS stock
+            FROM {$this->bd}stock
+            WHERE item_id = ? AND active = 1
+        ";
+        $result = $this->_Read($query, $array);
+        return (float) ($result[0]['stock'] ?? 0);
+    }
+
+    function listStockByItem($array) {
+        // [item_id]
+        $query = "
+            SELECT s.id, s.warehouse_id, s.quantity, w.branch_id
+            FROM {$this->bd}stock s
+            INNER JOIN {$this->bd}warehouse w ON w.id = s.warehouse_id
+            WHERE s.item_id = ? AND s.active = 1 AND s.quantity <> 0
+            ORDER BY s.warehouse_id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function getStockByItemWarehouse($array) {
+        // [item_id, warehouse_id]
+        $query = "
+            SELECT id, quantity
+            FROM {$this->bd}stock
+            WHERE item_id = ? AND warehouse_id = ? AND active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0] ?? null;
+    }
+
+    function createStock($array) {
+        // [quantity, warehouse_id, item_id, companies_id]
+        $query = "
+            INSERT INTO {$this->bd}stock (quantity, last_movement_at, warehouse_id, item_id, companies_id)
+            VALUES (?, NOW(), ?, ?, ?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function updateStock($array) {
+        // [quantity, id]
+        $query = "
+            UPDATE {$this->bd}stock
+            SET quantity = ?, last_movement_at = NOW(), updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function getAdjustmentReasonByCode($array) {
+        // [code]
+        $query = "
+            SELECT id
+            FROM {$this->bd}adjustment_reason
+            WHERE code = ? AND active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0] ?? null;
+    }
+
+    // El último AJU- de la empresa: el folio lo comparten los conteos de Stock.
+    function getAdjustmentFolio($array) {
+        // [companies_id]
+        $query = "
+            SELECT folio
+            FROM {$this->bd}inventory_adjustment
+            WHERE companies_id = ? AND folio LIKE 'AJU-%'
+            ORDER BY id DESC
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['folio'] ?? '';
+    }
+
+    function createAdjustment($array) {
+        // [folio, note, adjustment_reason_id, registered_user_id, authorized_user_id, warehouse_id, branch_id, companies_id]
+        $query = "
+            INSERT INTO {$this->bd}inventory_adjustment
+                (folio, note, adjustment_type, status, date_adjustment, time_adjustment, authorized_at,
+                 adjustment_reason_id, registered_user_id, authorized_user_id, warehouse_id, branch_id, companies_id)
+            VALUES (?, ?, 'presentacion', 'Aplicado', CURDATE(), CURTIME(), NOW(), ?, ?, ?, ?, ?, ?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function getAdjustmentByFolio($array) {
+        // [folio, companies_id]
+        $query = "
+            SELECT id
+            FROM {$this->bd}inventory_adjustment
+            WHERE folio = ? AND companies_id = ?
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return (int) ($result[0]['id'] ?? 0);
+    }
+
+    function createAdjustmentDetail($array) {
+        // [inventory_adjustment_id, item_id, system_quantity, physical_quantity, difference, cost, cost_diff, previous_stock, resulting_stock, note]
+        $query = "
+            INSERT INTO {$this->bd}detail_inventory_adjustment
+                (inventory_adjustment_id, item_id, system_quantity, physical_quantity, difference,
+                 cost, cost_diff, previous_stock, resulting_stock, note, counted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function updateAdjustmentTotals($array) {
+        // [inventory_adjustment_id, inventory_adjustment_id]
+        $query = "
+            UPDATE {$this->bd}inventory_adjustment r
+            INNER JOIN (
+                SELECT
+                    inventory_adjustment_id,
+                    COUNT(*)                     AS total_products,
+                    COUNT(*)                     AS total_counted,
+                    SUM(difference <> 0)         AS total_differences,
+                    COALESCE(SUM(difference), 0) AS total_diff_units,
+                    COALESCE(SUM(cost_diff), 0)  AS total_diff_cost
+                FROM {$this->bd}detail_inventory_adjustment
+                WHERE inventory_adjustment_id = ? AND active = 1
+                GROUP BY inventory_adjustment_id
+            ) t ON t.inventory_adjustment_id = r.id
+            SET r.total_products    = t.total_products,
+                r.total_counted     = t.total_counted,
+                r.total_differences = t.total_differences,
+                r.total_diff_units  = t.total_diff_units,
+                r.total_diff_cost   = t.total_diff_cost
+            WHERE r.id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function createAdjustmentHistory($array) {
+        // [status, note, user_id, inventory_adjustment_id]
+        $query = "
+            INSERT INTO {$this->bd}inventory_adjustment_history (status, note, user_id, inventory_adjustment_id)
+            VALUES (?, ?, ?, ?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
     // Catálogos que toca el asistente IA (categoría, unidad, área, almacén, proveedor,
     // origen de entrada, motivo de salida y estado de traspaso)
 
-    // Orígenes, motivos y estados de traspaso son de todas las empresas: sus tablas
-    // no tienen companies_id ni created_at.
-    const GLOBAL_CATALOGS = ['inflow', 'shrinkage', 'transfer_status'];
+    // Orígenes, motivos y estados de traspaso llevan code (la clave fija que busca el
+    // flujo) y no tienen created_at. Son por empresa desde 2026-10-18_catalogos-por-empresa.sql.
+    const CODE_CATALOGS = ['inflow', 'shrinkage', 'transfer_status'];
 
     // Lista blanca entidad -> tabla: el nombre de la tabla nunca sale de lo que
     // proponga el modelo ni de lo que mande el navegador.
@@ -320,10 +681,6 @@ class mdl extends CRUD {
     // Activos e inactivos: el asistente también reactiva.
     function listCatalog($entity) {
         $table = $this->catalogTable($entity);
-
-        if (in_array($entity, self::GLOBAL_CATALOGS, true)) {
-            return $this->_Read("SELECT * FROM {$table} ORDER BY name ASC", []);
-        }
 
         $query = "
             SELECT *
@@ -372,21 +729,19 @@ class mdl extends CRUD {
     }
 
     // Lugar al final de una lista que se ordena a mano (unidades, orígenes, motivos):
-    // de 10 en 10, como el arrastre de su pestaña. Las unidades se ordenan por empresa.
+    // de 10 en 10, como el arrastre de su pestaña. Cada empresa lleva su propio orden.
     function getNextCatalogSort($entity, $companies_id) {
-        $table = $this->catalogTable($entity);
-
-        $result = in_array($entity, self::GLOBAL_CATALOGS, true)
-            ? $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$table}", [])
-            : $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$table} WHERE companies_id = ?", [$companies_id]);
+        $table  = $this->catalogTable($entity);
+        $result = $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$table} WHERE companies_id = ?", [$companies_id]);
 
         return (int) ($result[0]['total'] ?? 0) + 10;
     }
 
-    // El código de orígenes y motivos lo genera el servidor: se revisa contra activos e inactivos.
+    // El código de orígenes y motivos lo genera el servidor: se revisa contra activos e
+    // inactivos de la empresa.
     function existsCatalogCode($entity, $code) {
         $table  = $this->catalogTable($entity);
-        $result = $this->_Read("SELECT COUNT(*) AS total FROM {$table} WHERE code = ?", [$code]);
+        $result = $this->_Read("SELECT COUNT(*) AS total FROM {$table} WHERE code = ? AND companies_id = ?", [$code, $_SESSION['company_id']]);
         return (int) ($result[0]['total'] ?? 0);
     }
 

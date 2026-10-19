@@ -84,7 +84,7 @@ class ctrl extends mdl {
             'categorias'       => $this->lsCategorias([$this->companiesId]),
             'unidades'         => $this->lsUnidades([$this->companiesId]),
             'proveedores'      => $this->lsSuppliers([$this->companiesId]),
-            'origenes_entrada' => $this->lsInflowOrigins(),
+            'origenes_entrada' => $this->lsInflowOrigins([$this->companiesId]),
             'estados_entrada'  => [
                 ['id' => '',          'valor' => 'Todos los estados'],
                 ['id' => 'Activas',   'valor' => 'Activas (sin Cancelada)'],
@@ -249,7 +249,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => $errorNeg];
         }
 
-        $origin       = $this->getInflowOrigin([(int) $payload['inflow_origin_id']]);
+        $origin       = $this->getInflowOrigin([(int) $payload['inflow_origin_id'], $this->companiesId]);
         $isProduction = $origin && strtoupper($origin['code']) === 'PRODUCCION';
         $status       = $isProduction ? 'Pendiente' : 'Aplicada';
 
@@ -432,7 +432,7 @@ class ctrl extends mdl {
         $errorFecha = $this->fechaInvalida($fecha);
         if ($errorFecha) return ['status' => 400, 'message' => $errorFecha];
 
-        $tipo       = $this->getInflowOrigin([$origen]);
+        $tipo       = $this->getInflowOrigin([$origen, $this->companiesId]);
         $supplierId = (int) ($_POST['supplier_id'] ?? 0);
         $exige      = $tipo && (int) ($tipo['requires_supplier'] ?? 0) === 1;
         if ($exige && $supplierId <= 0) return ['status' => 400, 'message' => 'Este tipo de entrada requiere elegir un proveedor'];
@@ -496,7 +496,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => $errorNeg];
         }
 
-        $origin = $this->getInflowOrigin([(int) $payload['inflow_origin_id']]);
+        $origin = $this->getInflowOrigin([(int) $payload['inflow_origin_id'], $this->companiesId]);
         if ($origin && (int) ($origin['requires_supplier'] ?? 0) === 1 && empty($payload['supplier_id'])) {
             return ['status' => 400, 'message' => 'Este origen requiere seleccionar un proveedor'];
         }

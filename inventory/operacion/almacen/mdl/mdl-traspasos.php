@@ -74,22 +74,24 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function lsTransferStatuses() {
+    function lsTransferStatuses($array) {
+        // [companies_id]
         $query = "
             SELECT id, code, name, name AS valor, order_index, is_terminal, color_hex
             FROM {$this->bd}transfer_status
-            WHERE active = 1
+            WHERE active = 1 AND companies_id = ?
             ORDER BY order_index ASC
         ";
-        $r = $this->_Read($query);
+        $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
     }
 
     function getTransferStatusByCode($array) {
+        // [code, companies_id]
         $query = "
             SELECT id, code, name, is_terminal
             FROM {$this->bd}transfer_status
-            WHERE code = ?
+            WHERE code = ? AND companies_id = ?
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);

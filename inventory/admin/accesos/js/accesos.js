@@ -83,13 +83,13 @@ function compressAvatar(file, cb) {
     reader.readAsDataURL(file);
 }
 
-// Notificación: éxito se cierra solo (sin botón => respeta el timer de alert()),
+// Notificación: éxito se cierra solo (con timer el alertBox no pinta botón),
 // error mantiene botón para que el mensaje pueda leerse.
 function notify(r) {
     if (r && r.status == 200) {
-        alert({ icon: 'success', text: r.message, timer: 1400 });
+        app.alertBox({ type: 'success', title: r.message, timer: 1400 });
     } else {
-        alert({ icon: 'error', text: (r && r.message) || 'Ocurrió un error', btn1: true });
+        app.alertBox({ type: 'error', title: (r && r.message) || 'Ocurrió un error' });
     }
 }
 
@@ -616,7 +616,7 @@ class Users extends App {
             this.refreshCatalogs()
         ]);
         if (request.status !== 200) {
-            alert({ icon: 'error', text: request.message || 'No se pudo cargar el usuario', btn1: true });
+            this.alertBox({ type: 'error', title: request.message || 'No se pudo cargar el usuario' });
             return;
         }
 
@@ -840,7 +840,10 @@ class Users extends App {
             if (!msg) return;
             e.preventDefault();
             e.stopPropagation();
-            alert({ icon: 'error', text: msg, btn1: true });
+            this.alertBox({ id: 'alertUserForm', type: 'error', title: msg });
+            // Con el foco en Entendido, Enter cierra el aviso; en el input volvía
+            // a enviar y apilaba otro aviso encima.
+            $('#alertUserForm [data-ab-ok]').trigger('focus');
         };
 
         modal.el[0].addEventListener('click', (e) => {
@@ -897,15 +900,17 @@ class Users extends App {
     }
 
     toggleUser(id, active) {
-        const action = active == 1 ? 'activar' : 'desactivar';
-        this.swalQuestion({
-            opts: {
-                title: `¿${active == 1 ? 'Activar' : 'Desactivar'} usuario?`,
-                text: `¿Deseas ${action} este usuario?`,
-                icon: 'warning'
-            },
-            data: { opc: 'toggleUser', id: id, active: active },
-            methods: { send: (r) => this.afterSave(r) }
+        const activar = active == 1;
+
+        this.alertBox({
+            type:       activar ? 'confirm' : 'cancel',
+            title:      `¿${activar ? 'Activar' : 'Desactivar'} usuario?`,
+            detailHtml: `¿Deseas ${activar ? 'activar' : 'desactivar'} este usuario?`,
+            okLabel:    activar ? 'Activar' : 'Desactivar',
+            onOk: async () => {
+                const r = await useFetch({ url: this._link, data: { opc: 'toggleUser', id: id, active: active } });
+                this.afterSave(r);
+            }
         });
     }
 
@@ -1220,24 +1225,22 @@ class Roles extends App {
 
     deleteRole(role) {
         if (role.deleteLock) {
-            alert({ icon: 'info', text: role.deleteLock, btn1: true });
+            this.alertBox({ type: 'message', title: role.deleteLock });
             return;
         }
 
-        this.swalQuestion({
-            opts: {
-                title: `¿Eliminar el rol «${role.name}»?`,
-                text: 'Se borra el rol con todos sus permisos. Esta acción no se puede deshacer.',
-                icon: 'warning'
-            },
-            data: { opc: 'deleteRole', id: role.id },
-            methods: {
-                send: (r) => {
-                    notify(r);
-                    if (r && r.status == 200) {
-                        this.activeId = null;
-                        this.lsRoles();
-                    }
+        this.alertBox({
+            type:       'cancel',
+            title:      `¿Eliminar el rol «${role.name}»?`,
+            detailHtml: 'Se borra el rol con todos sus permisos. Esta acción no se puede deshacer.',
+            okLabel:    'Eliminar',
+            okBg:       'bg-red-600 hover:bg-red-700',
+            onOk: async () => {
+                const r = await useFetch({ url: this._link, data: { opc: 'deleteRole', id: role.id } });
+                notify(r);
+                if (r && r.status == 200) {
+                    this.activeId = null;
+                    this.lsRoles();
                 }
             }
         });
@@ -1436,7 +1439,7 @@ class Subsidiaries extends App {
     planFull(kind) {
         if (!this.plan || this.plan.canCreate) return false;
 
-        alert({ icon: 'info', text: (this.plan.denied && this.plan.denied[kind]) || this.plan.message, btn1: true });
+        this.alertBox({ type: 'message', title: (this.plan.denied && this.plan.denied[kind]) || this.plan.message });
         return true;
     }
 
@@ -1462,7 +1465,7 @@ class Subsidiaries extends App {
             this.refreshCatalogs()
         ]);
         if (request.status !== 200) {
-            alert({ icon: 'error', text: request.message || 'No se pudo cargar la sucursal', btn1: true });
+            this.alertBox({ type: 'error', title: request.message || 'No se pudo cargar la sucursal' });
             return;
         }
 
@@ -1493,15 +1496,17 @@ class Subsidiaries extends App {
     toggleSubsidiary(id, active) {
         if (active == 1 && this.planFull('activar')) return;
 
-        const action = active == 1 ? 'activar' : 'desactivar';
-        this.swalQuestion({
-            opts: {
-                title: `¿${active == 1 ? 'Activar' : 'Desactivar'} sucursal?`,
-                text: `¿Deseas ${action} esta sucursal?`,
-                icon: 'warning'
-            },
-            data: { opc: 'toggleBranch', id: id, active: active },
-            methods: { send: (r) => this.afterSave(r) }
+        const activar = active == 1;
+
+        this.alertBox({
+            type:       activar ? 'confirm' : 'cancel',
+            title:      `¿${activar ? 'Activar' : 'Desactivar'} sucursal?`,
+            detailHtml: `¿Deseas ${activar ? 'activar' : 'desactivar'} esta sucursal?`,
+            okLabel:    activar ? 'Activar' : 'Desactivar',
+            onOk: async () => {
+                const r = await useFetch({ url: this._link, data: { opc: 'toggleBranch', id: id, active: active } });
+                this.afterSave(r);
+            }
         });
     }
 

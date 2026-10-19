@@ -555,7 +555,7 @@ class ctrl extends mdl {
         }
 
         $conSalida = $salida === 'auto';
-        $reasonId  = $this->getShrinkageReasonId(['SURTIDO_SUC']);
+        $reasonId  = $this->getShrinkageReasonId(['SURTIDO_SUC', $this->companiesId]);
         if ($conSalida && !$reasonId) return ['status' => 500, 'message' => 'Falta configurar el motivo de salida (SURTIDO_SUC)'];
 
         $note        = mb_substr(trim($_POST['note']), 0, 255) ?: null;
@@ -731,7 +731,9 @@ class ctrl extends mdl {
             $totalBase  += $linea['qty_now'] * $base;
         }
 
-        $originId = 1; // inflow_origin COMPRA
+        // Origen COMPRA de la empresa: cada una tiene el suyo (2026-10-18_catalogos-por-empresa.sql).
+        $originId = $this->getInflowOriginId(['COMPRA', $this->companiesId]);
+        if (!$originId) return ['status' => 500, 'message' => 'Falta configurar el origen de entrada (COMPRA)'];
 
         $okInflow = $this->insertInflowFromOrden([
             $entFolio,
@@ -1054,7 +1056,7 @@ class ctrl extends mdl {
         $detalle = $this->qGetOrdenDetail([$id]);
         if (empty($detalle)) return ['status' => 400, 'message' => 'La solicitud no tiene renglones'];
 
-        $reasonId = $this->getShrinkageReasonId(['SURTIDO_SUC']);
+        $reasonId = $this->getShrinkageReasonId(['SURTIDO_SUC', $this->companiesId]);
         if (!$reasonId) return ['status' => 500, 'message' => 'Falta configurar el motivo de salida (SURTIDO_SUC)'];
 
         $byId = [];

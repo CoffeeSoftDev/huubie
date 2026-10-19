@@ -282,7 +282,8 @@ class mdl extends CRUD {
         ]);
     }
 
-    // Origen de entradas -> inflow_origin (catalogo global, sin companies_id)
+    // Origen de entradas -> inflow_origin (por empresa desde 2026-10-18_catalogos-por-empresa.sql;
+    // las filas con companies_id NULL son la plantilla de las empresas nuevas y no se listan)
 
     function listInflow($array) {
         $query = "
@@ -298,13 +299,14 @@ class mdl extends CRUD {
                 active
             FROM {$this->bd}inflow_origin
             WHERE active = ?
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY sort_order ASC, id ASC
         ";
         return $this->_Read($query, $array);
     }
 
     function getMaxInflowSort() {
-        $result = $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$this->bd}inflow_origin", null);
+        $result = $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$this->bd}inflow_origin WHERE companies_id = ".$_SESSION['company_id'], null);
         return (int) ($result[0]['total'] ?? 0);
     }
 
@@ -341,6 +343,7 @@ class mdl extends CRUD {
             FROM {$this->bd}inflow_origin
             WHERE LOWER(name) = LOWER(?)
             AND active = 1
+            AND companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
@@ -352,6 +355,7 @@ class mdl extends CRUD {
             SELECT COUNT(*) as total
             FROM {$this->bd}inflow_origin
             WHERE code = ?
+            AND companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
@@ -375,7 +379,7 @@ class mdl extends CRUD {
         ]);
     }
 
-    // Motivos de salida -> shrinkage_reason (catalogo global, sin companies_id)
+    // Motivos de salida -> shrinkage_reason (por empresa, igual que inflow_origin)
 
     function listShrinkage($array) {
         $query = "
@@ -390,13 +394,14 @@ class mdl extends CRUD {
                 active
             FROM {$this->bd}shrinkage_reason
             WHERE active = ?
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY sort_order ASC, id ASC
         ";
         return $this->_Read($query, $array);
     }
 
     function getMaxShrinkageSort() {
-        $result = $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$this->bd}shrinkage_reason", null);
+        $result = $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$this->bd}shrinkage_reason WHERE companies_id = ".$_SESSION['company_id'], null);
         return (int) ($result[0]['total'] ?? 0);
     }
 
@@ -433,6 +438,7 @@ class mdl extends CRUD {
             FROM {$this->bd}shrinkage_reason
             WHERE LOWER(name) = LOWER(?)
             AND active = 1
+            AND companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
@@ -443,6 +449,7 @@ class mdl extends CRUD {
             SELECT COUNT(*) as total
             FROM {$this->bd}shrinkage_reason
             WHERE code = ?
+            AND companies_id = ".$_SESSION['company_id']."
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
@@ -466,7 +473,7 @@ class mdl extends CRUD {
         ]);
     }
 
-    // Estados de traspaso -> transfer_status
+    // Estados de traspaso -> transfer_status (por empresa, igual que inflow_origin)
     // Catalogo de sistema: los codigos (code) son fijos y referenciados por el flujo,
     // por eso el admin es solo edicion (nombres/colores/etiquetas relativas), sin alta.
     // order_index se acomoda arrastrando filas (sortTransferStatus).
@@ -485,6 +492,7 @@ class mdl extends CRUD {
                 active
             FROM {$this->bd}transfer_status
             WHERE active = ?
+            AND companies_id = ".$_SESSION['company_id']."
             ORDER BY order_index ASC, id ASC
         ";
         $result = $this->_Read($query, $array);

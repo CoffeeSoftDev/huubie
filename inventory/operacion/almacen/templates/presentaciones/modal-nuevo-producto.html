@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuevo Producto con presentaciones - Huubie Inventarios</title>
+
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema de inventory: blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            },
+                            main: '#292524'
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <!-- Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; }
+        .lbl { display:block; font-size:12px; font-weight:600; color:#4B5563; margin-bottom:6px; }
+        .req { color:#F87171; margin-left:2px; }
+        .inp { width:100%; height:36px; border:1px solid #E5E7EB; border-radius:8px; padding:0 12px; font-size:14px; color:#1F2937; background:#fff; outline:none; }
+        .inp:focus { border-color:#C05A40; }
+        .inp::placeholder { color:#9CA3AF; }
+        textarea.inp { height:auto; padding:8px 12px; }
+        .sec { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#6B7280; }
+        .hint { font-size:11px; color:#6B7280; margin-top:4px; }
+        .chip { display:inline-flex; align-items:center; gap:4px; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600; white-space:nowrap; }
+        .ctl { border:1px solid #E5E7EB; background:#fff; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:600; color:#4B5563; }
+        .ctl.on { background:#C05A40; border-color:#C05A40; color:#fff; }
+        .opt { border:1px solid #E5E7EB; border-radius:12px; padding:14px; text-align:left; background:#fff; transition:border-color .15s, background .15s; }
+        .opt.on { border:2px solid #C05A40; padding:13px; background:#FDF8F6; }
+        .pasado { animation: pasado 1.2s ease-out; }
+        @keyframes pasado { from { background:#FBF3EF; border-color:#C05A40; } to { background:#fff; } }
+        #tbProductos td { padding:10px 8px; border-bottom:1px solid #E5E7EB; font-size:12px; }
+        #tbProductos tbody tr.zebra td { background:#F3F4F6; }
+        #tbHerencia td { padding:7px 10px; border-top:1px solid #F3F4F6; font-size:12px; vertical-align:middle; }
+    </style>
+</head>
+
+<body class="min-h-screen text-gray-800">
+
+<div class="max-w-6xl mx-auto px-4 py-5 flex flex-col gap-3">
+
+    <!-- ============================================================
+         BANNER DEL TEMPLATE (no va en el modulo real)
+         ============================================================ -->
+    <div class="rounded-lg border border-dashed border-gray-300 bg-white px-4 py-3 flex flex-col gap-2">
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+            <i data-lucide="info" class="w-4 h-4 text-gray-400"></i>
+            Template · Formulario de producto (todo en una vista). Un producto que ya existe pasa a presentación desde Editar. No va en el módulo. COCA COLA REJA 12 es un producto de ejemplo.
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mr-1">Abrir</span>
+            <button type="button" class="ctl" data-open="producto">Nuevo producto</button>
+            <button type="button" class="ctl" data-open="presentacion">Nueva presentación</button>
+            <button type="button" class="ctl" data-open="editar">Editar «Coca cola reja 12»</button>
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 ml-3 mr-1">Regla de stock</span>
+            <button type="button" class="ctl on" data-regla="A">A</button>
+            <button type="button" class="ctl" data-regla="B">B</button>
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 ml-3 mr-1">Hereda</span>
+            <button type="button" class="ctl on" data-herencia="A">A</button>
+            <button type="button" class="ctl" data-herencia="B">B</button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         CATALOGO > PRODUCTOS (fondo, como en el modulo)
+         ============================================================ -->
+    <div class="bg-white rounded-lg border border-gray-200 p-3 flex flex-col gap-3">
+        <div class="flex flex-wrap items-end gap-3">
+            <div class="w-40"><span class="lbl">Categoría</span><select class="inp"><option>Todas</option></select></div>
+            <div class="w-40"><span class="lbl">Estado</span><select class="inp"><option>Activos</option></select></div>
+            <button type="button" data-open="producto" class="h-9 px-4 rounded-lg bg-main text-white text-sm font-medium">Nuevo Producto</button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table id="tbProductos" class="w-full min-w-[900px] border border-gray-200 rounded-lg border-separate border-spacing-0">
+                <thead>
+                    <tr class="bg-gray-200 text-gray-600 text-xs">
+                        <th class="text-left px-2 py-2 font-semibold">Insumo</th>
+                        <th class="px-2 py-2 font-semibold">Categoría</th>
+                        <th class="px-2 py-2 font-semibold">Área</th>
+                        <th class="text-right px-2 py-2 font-semibold">Último costo</th>
+                        <th class="px-2 py-2 font-semibold">Stock</th>
+                        <th class="px-2 py-2 font-semibold w-28"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="zebra">
+                        <td><div class="flex items-center gap-2 pl-8"><button type="button" id="chevronBase" aria-label="Ver presentaciones" class="hidden w-6 h-6 -ml-8 rounded-md text-gray-400 hover:text-blue-600 items-center justify-center"><i data-lucide="chevron-down" class="w-4 h-4"></i></button><span class="w-9 h-9 rounded bg-gray-200 flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-gray-500"></i></span>Coca cola lata</div></td>
+                        <td class="text-center">bebidas</td>
+                        <td class="text-center"><span class="chip bg-fuchsia-100 text-fuchsia-700">Refrigerador</span></td>
+                        <td class="text-right">$16.20</td>
+                        <td class="text-center" id="stockBase">148</td>
+                        <td class="text-center"><i data-lucide="pencil" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                    <tr class="subfila hidden">
+                        <td colspan="6" class="!bg-gray-50 !py-1.5 !pl-12 text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Presentaciones · cada una declara de cuánto del base es</td>
+                    </tr>
+                    <tr class="subfila hidden">
+                        <td class="!bg-gray-50 !pl-12"><div class="font-medium">Pieza <span class="chip bg-blue-50 text-blue-600 !px-1.5 !text-[10px]">BASE</span></div><div class="text-[11px] text-gray-400">la que se cuenta en stock</div></td>
+                        <td colspan="2" class="!bg-gray-50 text-center text-gray-500">factor 1</td>
+                        <td class="!bg-gray-50 text-right">$16.20</td>
+                        <td class="!bg-gray-50 text-center" id="stockBaseSub">148</td>
+                        <td class="!bg-gray-50 text-center text-[11px] text-gray-400">base</td>
+                    </tr>
+                    <tr id="filaPresentacion" class="hidden">
+                        <td class="!bg-gray-50 !pl-12"><div class="font-medium" id="tpNombre">—</div><div class="text-[11px] text-gray-400" id="tpSku"></div></td>
+                        <td colspan="2" class="!bg-gray-50 text-center"><span class="chip bg-blue-50 text-blue-700" id="tpChip">—</span></td>
+                        <td class="!bg-gray-50 text-right" id="tpCosto">—</td>
+                        <td class="!bg-gray-50 text-center" id="tpStock">—</td>
+                        <td class="!bg-gray-50 text-center"><span class="chip bg-green-100 text-green-700">Activo</span></td>
+                    </tr>
+                    <tr id="filaProductoViejo" class="zebra">
+                        <td><div class="flex items-center gap-2 pl-8"><span class="w-9 h-9 rounded bg-gray-200 flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-gray-500"></i></span>Coca cola reja 12</div></td>
+                        <td class="text-center">bebidas</td>
+                        <td class="text-center"><span class="chip bg-amber-100 text-amber-700">Bodega</span></td>
+                        <td class="text-right">$194.40</td>
+                        <td class="text-center">5</td>
+                        <td class="text-center">
+                            <button type="button" data-open="editar" aria-label="Editar Coca cola reja 12" class="w-8 h-8 rounded-md text-gray-400 hover:text-blue-600 inline-flex items-center justify-center"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><div class="flex items-center gap-2 pl-8"><span class="w-9 h-9 rounded bg-gray-200 flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-gray-500"></i></span>Sabritas original 45g</div></td>
+                        <td class="text-center">botanas</td>
+                        <td class="text-center"><span class="chip bg-sky-100 text-sky-700">Almacén</span></td>
+                        <td class="text-right">$16.24</td>
+                        <td class="text-center">230</td>
+                        <td class="text-center"><i data-lucide="pencil" class="w-4 h-4 text-gray-400 inline"></i></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         LAS DOS DECISIONES (explicacion del template, no va en el modulo)
+         ============================================================ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+
+        <!-- Regla de stock -->
+        <section class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col gap-3">
+            <div>
+                <div class="flex items-center gap-2"><i data-lucide="arrow-right-left" class="w-4 h-4 text-blue-600"></i><h2 class="text-sm font-semibold text-gray-900">Regla de stock</h2></div>
+                <p class="text-xs text-gray-500 mt-1">Qué pasa con el stock de un producto que ya existe cuando lo editas y lo pasas a presentación. Ejemplo: <b class="text-gray-700">Coca cola reja 12</b> tiene <b class="text-gray-700">5</b> en stock y trae <b class="text-gray-700">12</b> piezas de Coca cola lata (148 en stock).</p>
+            </div>
+
+            <button type="button" class="opt flex flex-col gap-2" data-regla="A">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-semibold text-gray-900">A · Se pasa al producto base</span>
+                    <span class="chip bg-blue-50 text-blue-700">recomendada</span>
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap text-sm">
+                    <span class="rounded-md bg-gray-100 px-2 py-0.5 font-semibold">5 rejas</span><span class="text-gray-400">×</span>
+                    <span class="rounded-md bg-gray-100 px-2 py-0.5 font-semibold">12</span><span class="text-gray-400">=</span>
+                    <span class="rounded-md bg-blue-50 text-blue-700 px-2 py-0.5 font-semibold">+60 piezas</span>
+                    <i data-lucide="arrow-right" class="w-4 h-4 text-gray-400"></i>
+                    <span class="text-gray-600">Coca cola lata: <b>148 → 208</b></span>
+                </div>
+                <ul class="text-xs text-gray-600 flex flex-col gap-1">
+                    <li class="flex gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-green-600 flex-shrink-0 mt-px"></i>En un solo paso, al guardar. No se pierde inventario.</li>
+                    <li class="flex gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-green-600 flex-shrink-0 mt-px"></i>Queda un ajuste registrado: quién, cuándo y «Pasó a presentación».</li>
+                    <li class="flex gap-1.5"><i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-px"></i>Si el factor está mal, el ajuste también: hay que revisarlo antes de guardar.</li>
+                </ul>
+            </button>
+
+            <button type="button" class="opt flex flex-col gap-2" data-regla="B">
+                <span class="text-sm font-semibold text-gray-900">B · Solo si su stock está en 0</span>
+                <div class="flex items-center gap-1.5 flex-wrap text-sm">
+                    <span class="rounded-md bg-gray-100 px-2 py-0.5 font-semibold">5 rejas</span>
+                    <i data-lucide="arrow-right" class="w-4 h-4 text-gray-400"></i>
+                    <span class="text-gray-600">salida o ajuste a mano</span>
+                    <i data-lucide="arrow-right" class="w-4 h-4 text-gray-400"></i>
+                    <span class="rounded-md bg-gray-100 px-2 py-0.5 font-semibold">0</span>
+                    <i data-lucide="arrow-right" class="w-4 h-4 text-gray-400"></i>
+                    <span class="text-gray-600">ya se puede pasar</span>
+                </div>
+                <ul class="text-xs text-gray-600 flex flex-col gap-1">
+                    <li class="flex gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5 text-green-600 flex-shrink-0 mt-px"></i>Más simple: guardar no mueve inventario.</li>
+                    <li class="flex gap-1.5"><i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-px"></i>Dos pasos a mano, y hay que acordarse de sumar las 60 piezas a Coca cola lata.</li>
+                </ul>
+            </button>
+        </section>
+
+        <!-- Que hereda la presentacion -->
+        <section class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col gap-3">
+            <div>
+                <div class="flex items-center gap-2"><i data-lucide="git-branch" class="w-4 h-4 text-blue-600"></i><h2 class="text-sm font-semibold text-gray-900">¿Qué hereda la presentación del producto base?</h2></div>
+                <p class="text-xs text-gray-500 mt-1">«Heredar» = la presentación no guarda ese dato: usa el del base. Si cambias la categoría de Coca cola lata, Reja 12 cambia sola.</p>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 overflow-hidden">
+                <table id="tbHerencia" class="w-full">
+                    <thead>
+                        <tr class="bg-gray-100 text-[11px] text-gray-600">
+                            <th class="text-left font-semibold px-2.5 py-2">Dato</th>
+                            <th class="text-left font-semibold px-2.5 py-2"><span class="inline-flex items-center gap-1"><i data-lucide="box" class="w-3.5 h-3.5"></i>Coca cola lata</span></th>
+                            <th class="text-left font-semibold px-2.5 py-2"><span class="inline-flex items-center gap-1"><i data-lucide="boxes" class="w-3.5 h-3.5"></i>Reja 12</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="text-gray-500">Nombre · SKU</td><td>Coca cola lata · 47003</td><td><span class="chip bg-green-100 text-green-700">propio</span> Reja 12 · 47003-12</td></tr>
+                        <tr><td class="text-gray-500">Unidad · costo</td><td>Pieza · $16.20</td><td><span class="chip bg-green-100 text-green-700">propio</span> Caja · $194.40</td></tr>
+                        <tr><td class="text-gray-500">Factor</td><td class="text-gray-400">—</td><td><span class="chip bg-green-100 text-green-700">propio</span> 12 piezas</td></tr>
+                        <tr><td class="text-gray-500">Categoría</td><td>Bebidas</td><td><span class="chip bg-gray-100 text-gray-500"><i data-lucide="corner-down-right" class="w-3 h-3"></i>del base</span> Bebidas</td></tr>
+                        <tr><td class="text-gray-500">Área</td><td>Refrigerador</td><td id="hArea"></td></tr>
+                        <tr><td class="text-gray-500">Foto</td><td><span class="inline-flex items-center gap-1.5"><span class="w-6 h-6 rounded bg-gray-200 flex items-center justify-center"><i data-lucide="cup-soda" class="w-3.5 h-3.5 text-gray-500"></i></span>lata</span></td><td id="hFoto"></td></tr>
+                        <tr><td class="text-gray-500">Mínimo · máximo</td><td>20 · 200 piezas</td><td><span class="chip bg-gray-100 text-gray-500"><i data-lucide="corner-down-right" class="w-3 h-3"></i>del base</span> se cuentan en piezas</td></tr>
+                        <tr><td class="text-gray-500">Vida útil · descripción</td><td>— · otros nombres</td><td><span class="chip bg-gray-100 text-gray-500"><i data-lucide="corner-down-right" class="w-3 h-3"></i>del base</span></td></tr>
+                        <tr><td class="text-gray-500 font-semibold">Stock</td><td class="font-semibold">148 piezas</td><td><span class="chip bg-blue-50 text-blue-700">se calcula</span> 148 ÷ 12 = 12 rejas</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button type="button" class="opt flex flex-col gap-1" data-herencia="A">
+                    <span class="flex items-center justify-between"><span class="text-sm font-semibold text-gray-900">A · Hereda todo</span><span class="chip bg-blue-50 text-blue-700">recomendada</span></span>
+                    <span class="text-xs text-gray-500">Solo nombre, SKU, unidad, costo y factor son suyos. Un solo lugar para cambiar lo demás.</span>
+                </button>
+                <button type="button" class="opt flex flex-col gap-1" data-herencia="B">
+                    <span class="text-sm font-semibold text-gray-900">B · Área y foto propias</span>
+                    <span class="text-xs text-gray-500">Para cuando la reja se guarda en otro lugar (Bodega) y se ve distinta de la lata. Dos campos más en su formulario.</span>
+                </button>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- ============================================================
+     MODAL (mismo marco que cfModal: velo negro 50 %, panel max-w-2xl)
+     ============================================================ -->
+<!-- Controles del template con el modal abierto (no va en el modulo) -->
+<div id="ctlFlotante" class="hidden fixed bottom-4 left-4 z-[60] rounded-xl border border-dashed border-gray-300 bg-white px-3 py-2 shadow-lg flex items-center gap-2">
+    <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Regla de stock</span>
+    <button type="button" class="ctl" data-regla="A">A</button>
+    <button type="button" class="ctl" data-regla="B">B</button>
+    <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 ml-2">Hereda</span>
+    <button type="button" class="ctl" data-herencia="A">A</button>
+    <button type="button" class="ctl" data-herencia="B">B</button>
+</div>
+
+<div id="velo" class="hidden fixed inset-0 z-50 bg-black/50 overflow-y-auto p-4 flex items-start justify-center">
+<div class="w-full max-w-2xl my-8 bg-white rounded-xl p-6">
+
+    <div class="flex items-start justify-between mb-4">
+        <div>
+            <h3 id="mTitulo" class="text-base font-semibold text-gray-800">Nuevo Producto</h3>
+            <p id="mSub" class="hidden text-xs text-gray-500 mt-0.5"></p>
+        </div>
+        <button type="button" data-close aria-label="Cerrar" class="text-2xl leading-none text-gray-400 hover:text-gray-600">&times;</button>
+    </div>
+
+    <!-- Producto o presentación: en el alta y también al editar -->
+    <fieldset class="mb-4 border-0 p-0">
+        <legend id="mLegend" class="lbl">¿Qué das de alta?</legend>
+        <div class="grid grid-cols-2 gap-2">
+            <label data-modo="producto" class="modo flex items-center gap-3 rounded-[10px] border px-3 py-2.5 cursor-pointer">
+                <input type="radio" name="modo" value="producto" class="sr-only">
+                <span data-ico class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"><i data-lucide="box" class="w-5 h-5"></i></span>
+                <span><span class="block text-[13px] font-semibold text-gray-800">Producto</span><span class="block text-[11px] text-gray-500">Una cosa que se cuenta en stock: una lata, un kilo</span></span>
+            </label>
+            <label data-modo="presentacion" class="modo flex items-center gap-3 rounded-[10px] border px-3 py-2.5 cursor-pointer">
+                <input type="radio" name="modo" value="presentacion" class="sr-only">
+                <span data-ico class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"><i data-lucide="boxes" class="w-5 h-5"></i></span>
+                <span><span class="block text-[13px] font-semibold text-gray-800">Presentación</span><span class="block text-[11px] text-gray-500">Un empaque con varias de un producto: reja, caja, six pack</span></span>
+            </label>
+        </div>
+    </fieldset>
+
+    <!-- ==================== PRODUCTO (todo en una vista) ==================== -->
+    <div id="vistaProducto">
+        <div class="grid grid-cols-3 gap-x-4 gap-y-3">
+            <div class="sec col-span-3">Identificación</div>
+            <div class="col-span-2"><label class="lbl" for="fNombre">Nombre del producto<span class="req">*</span></label><input id="fNombre" class="inp" placeholder="Ej. Agua natural 1 L"></div>
+            <div><label class="lbl" for="fSku">Código (SKU)</label><input id="fSku" class="inp" placeholder="Auto"></div>
+            <div><label class="lbl" for="fCategoria">Categoría<span class="req">*</span></label><select id="fCategoria" class="inp"><option>Bebidas</option><option>Botanas</option></select></div>
+            <div><div class="flex justify-between"><label class="lbl" for="fUnidad">Unidad de medida<span class="req">*</span></label><span class="text-[11px] font-semibold text-blue-600">+ Nueva</span></div><select id="fUnidad" class="inp"><option>Pieza</option><option>Litro</option><option>Caja</option><option>Paquete</option></select></div>
+            <div><div class="flex justify-between"><label class="lbl" for="fArea">Área</label><span class="text-[11px] font-semibold text-blue-600">+ Nueva</span></div><select id="fArea" class="inp"><option>Refrigerador</option><option>Almacén</option><option>Bodega</option></select></div>
+            <div class="sec col-span-3 pt-1">Costo</div>
+            <div><label class="lbl" for="fCostoIva">Costo c/impuesto</label><input id="fCostoIva" class="inp text-right" placeholder="0.00"></div>
+            <div><label class="lbl" for="fIva">IVA<span class="req">*</span></label><select id="fIva" class="inp"><option>0%</option><option>8%</option><option>16%</option></select></div>
+            <div><label class="lbl" for="fCosto">Último costo</label><input id="fCosto" class="inp text-right" placeholder="0.00"><div class="hint">Se actualiza con cada entrada.</div></div>
+            <div class="col-span-3 flex items-center gap-3">
+                <span class="lbl !mb-0 w-28">Foto</span>
+                <span class="w-10 h-10 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center"><i data-lucide="image" class="w-5 h-5 text-gray-400"></i></span>
+                <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600"><i data-lucide="upload" class="w-4 h-4"></i>Subir foto</button>
+            </div>
+            <div class="sec col-span-3 pt-1">Inventario</div>
+            <div><label class="lbl" for="fInv">Inventariable</label><select id="fInv" class="inp"><option>Sí</option><option>No</option></select></div>
+            <div><label class="lbl" for="fMin">Mínimo</label><input id="fMin" class="inp"></div>
+            <div><label class="lbl" for="fMax">Máximo</label><input id="fMax" class="inp"></div>
+            <div><label class="lbl" for="fVida">Vida útil</label><input id="fVida" class="inp"></div>
+            <div><label class="lbl" for="fPeriodo">Periodo</label><select id="fPeriodo" class="inp"><option>Días</option><option>Semanas (7 días)</option><option>Meses (30 días)</option></select></div>
+            <div></div>
+            <div class="col-span-3"><label class="lbl" for="fDesc">Descripción</label><textarea id="fDesc" class="inp" rows="2" placeholder="Notas y otros nombres con que se conoce el producto (opcional)"></textarea></div>
+        </div>
+    </div>
+
+    <!-- ==================== PRESENTACION ==================== -->
+    <div id="vistaPresentacion" class="hidden flex flex-col gap-3">
+
+        <!-- Solo al editar un producto que ya existe -->
+        <div id="cardViejo" class="hidden rounded-[10px] border border-gray-200 bg-gray-50 px-3 py-2.5 flex items-center gap-3">
+            <span class="w-10 h-10 rounded bg-gray-200 flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-gray-500"></i></span>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold text-gray-800">Coca cola reja 12</div>
+                <div class="text-[11px] text-gray-500"><b class="text-gray-700">5 en stock</b> · 3 movimientos (entradas, salidas, pedidos)</div>
+            </div>
+            <span class="chip bg-gray-200 text-gray-600"><i data-lucide="box" class="w-3 h-3"></i>Hoy es producto</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-x-4 gap-y-3">
+            <div class="sec col-span-3">Equivale a</div>
+            <div class="col-span-2">
+                <label class="lbl" for="base">Producto base<span class="req">*</span></label>
+                <select id="base" class="inp">
+                    <option value="">Elige el producto base</option>
+                    <option value="0">Coca cola lata · $16.20 por pieza</option>
+                    <option value="1">Coca cola 3lt · $50.93 por litro</option>
+                    <option value="2">Sabritas original 45g · $16.24 por pieza</option>
+                </select>
+            </div>
+            <div><label class="lbl" for="factor">¿Cuántas <span class="uniBase">unidades</span> trae?<span class="req">*</span></label><input id="factor" class="inp text-center" placeholder="12"></div>
+
+            <div class="sec col-span-3 pt-1 flex items-center gap-2">La presentación <span id="pasadoNota" class="hidden normal-case tracking-normal font-medium text-blue-600">· datos pasados del producto</span></div>
+            <div class="col-span-2"><label class="lbl" for="pNombre">Nombre<span class="req">*</span></label><input id="pNombre" class="inp pp" placeholder="Ej. Reja 12"></div>
+            <div><div class="flex justify-between"><label class="lbl" for="pUnidad">Unidad del empaque<span class="req">*</span></label><span class="text-[11px] font-semibold text-blue-600">+ Nueva</span></div><select id="pUnidad" class="inp pp"><option>Pieza</option><option>Litro</option><option>Caja</option><option>Paquete</option></select></div>
+            <div><label class="lbl" for="pSku">Código (SKU)</label><input id="pSku" class="inp pp"><div id="hSku" class="hint"></div></div>
+            <div><label class="lbl" for="pCosto">Costo</label><input id="pCosto" class="inp pp text-right"><div id="hCosto" class="hint"></div></div>
+            <div class="propioB hidden"><label class="lbl" for="pArea">Área</label><select id="pArea" class="inp pp"><option>Refrigerador</option><option>Almacén</option><option>Bodega</option></select></div>
+            <div class="propioB hidden col-span-3 flex items-center gap-3">
+                <span class="lbl !mb-0 w-28">Foto</span>
+                <span class="w-10 h-10 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center"><i data-lucide="image" class="w-5 h-5 text-gray-400"></i></span>
+                <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600"><i data-lucide="upload" class="w-4 h-4"></i>Subir foto</button>
+            </div>
+        </div>
+
+        <!-- Lo que hereda del base: no se captura aqui -->
+        <div class="rounded-[10px] border border-gray-200 px-3 py-2.5 flex flex-col gap-1.5">
+            <div class="flex items-center gap-1.5 text-xs font-semibold text-gray-600"><i data-lucide="corner-down-right" class="w-3.5 h-3.5"></i>Hereda del producto base (no se captura aquí)</div>
+            <div id="herencia" class="flex flex-wrap gap-1.5 text-xs text-gray-500">Elige el producto base.</div>
+        </div>
+
+        <!-- Solo al editar: que pasa con su stock -->
+        <div id="cardStock" class="hidden rounded-[10px] px-3 py-2.5 flex flex-col gap-1.5"></div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs text-gray-500">En Productos sale debajo de <b id="prevBase" class="text-gray-700">…</b> como</span>
+            <span id="prevChip" class="chip bg-blue-50 text-blue-700">…</span>
+        </div>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-5">
+        <button type="button" data-close class="rounded-lg px-4 py-2 text-sm font-medium bg-gray-100 text-gray-800 hover:bg-gray-200">Cancelar</button>
+        <button type="button" id="btnOk" class="rounded-lg px-4 py-2 text-sm font-medium bg-main text-white disabled:opacity-40 disabled:cursor-not-allowed">Aceptar</button>
+    </div>
+</div>
+</div>
+
+<script>
+// Productos base de ejemplo (los del plano PL-261018-01).
+const BASES = [
+    { nombre: 'Coca cola lata',        unidad: 'pieza', costo: 16.20, sku: '47003', categoria: 'Bebidas', area: 'Refrigerador', stock: 148 },
+    { nombre: 'Coca cola 3lt',         unidad: 'litro', costo: 50.93, sku: '47011', categoria: 'Bebidas', area: 'Almacén',      stock: 45 },
+    { nombre: 'Sabritas original 45g', unidad: 'pieza', costo: 16.24, sku: '47030', categoria: 'Botanas', area: 'Almacén',      stock: 230 }
+];
+// El producto que ya existe y se edita.
+const VIEJO = { nombre: 'Coca cola reja 12', sku: '47020', categoria: 'Bebidas', unidad: 'Caja', area: 'Bodega', costo: 194.40, stock: 5 };
+
+// Lo que viaja de un modo al otro: nombre, SKU, unidad, costo y área (si la presentación lleva la suya).
+const PAR = [['#fNombre', '#pNombre'], ['#fSku', '#pSku'], ['#fUnidad', '#pUnidad'], ['#fCosto', '#pCosto'], ['#fArea', '#pArea']];
+
+const st = { abierto: null, modo: 'producto', regla: 'A', herencia: 'A' };
+const $  = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+const plural = (u) => (/[aeiou]$/.test(u) ? u + 's' : u + 'es');
+const money  = (n) => '$' + Number(n).toFixed(2);
+const DEL_BASE = '<span class="chip bg-gray-100 text-gray-500"><i data-lucide="corner-down-right" class="w-3 h-3"></i>del base</span> ';
+const PROPIO   = '<span class="chip bg-green-100 text-green-700">propio</span> ';
+
+function abrir(que) {
+    const editar = que === 'editar';
+
+    st.abierto = que;
+    st.modo    = que === 'presentacion' ? 'presentacion' : 'producto';
+
+    $('#fNombre').value    = editar ? VIEJO.nombre : '';
+    $('#fSku').value       = editar ? VIEJO.sku : '';
+    $('#fCategoria').value = editar ? VIEJO.categoria : 'Bebidas';
+    $('#fUnidad').value    = editar ? VIEJO.unidad : 'Pieza';
+    $('#fArea').value      = editar ? VIEJO.area : 'Refrigerador';
+    $('#fCosto').value     = editar ? VIEJO.costo.toFixed(2) : '';
+    $('#fCostoIva').value  = editar ? VIEJO.costo.toFixed(2) : '';
+
+    $('#base').value    = que === 'presentacion' ? '0' : '';
+    $('#factor').value  = que === 'presentacion' ? '12' : '';
+    $('#pNombre').value = que === 'presentacion' ? 'Reja 12' : '';
+    $('#pSku').value    = '';
+    $('#pUnidad').value = 'Caja';
+    $('#pCosto').value  = '';
+    $('#pArea').value   = 'Bodega';
+    $('#pasadoNota').classList.add('hidden');
+
+    $('#velo').classList.remove('hidden');
+    $('#ctlFlotante').classList.remove('hidden');
+    pintar();
+}
+
+function cerrar() {
+    $('#velo').classList.add('hidden');
+    $('#ctlFlotante').classList.add('hidden');
+    st.abierto = null;
+}
+
+// Al cambiar de Producto a Presentación (o de regreso) lo capturado pasa al otro lado.
+function cambiarModo(modo) {
+    if (modo === st.modo) return;
+
+    PAR.forEach(([prod, pres]) => {
+        const de = modo === 'presentacion' ? $(prod) : $(pres);
+        const a  = modo === 'presentacion' ? $(pres) : $(prod);
+        if (de.value) a.value = de.value;
+    });
+
+    st.modo = modo;
+    pintar();
+
+    if (modo === 'presentacion') {
+        $('#pasadoNota').classList.toggle('hidden', !$('#pNombre').value);
+        $$('.pp').forEach((el) => {
+            el.classList.remove('pasado');
+            void el.offsetWidth;
+            if (el.value && el.offsetParent) el.classList.add('pasado');
+        });
+    }
+}
+
+// La tabla de la explicación: área y foto son propias o del base según la decisión 2.
+function pintarExplicacion() {
+    const b = st.herencia === 'B';
+    $('#hArea').innerHTML = b ? PROPIO + 'Bodega' : DEL_BASE + 'Refrigerador';
+    $('#hFoto').innerHTML = b ? PROPIO + 'foto de la reja' : DEL_BASE + 'la misma de la lata';
+    $$('[data-regla]').forEach((x) => x.classList.toggle('on', x.dataset.regla === st.regla));
+    $$('[data-herencia]').forEach((x) => x.classList.toggle('on', x.dataset.herencia === st.herencia));
+    if (window.lucide) lucide.createIcons();
+}
+
+function pintar() {
+    const editar = st.abierto === 'editar';
+    const presen = st.modo === 'presentacion';
+    const cambia = editar && presen;
+    const b      = st.herencia === 'B';
+
+    $('#mTitulo').textContent  = editar ? 'Editar Producto' : 'Nuevo Producto';
+    $('#mLegend').textContent  = editar ? '¿Qué es?' : '¿Qué das de alta?';
+    $('#mSub').textContent     = 'Al guardar deja de ser producto: pasa a ser el empaque de otro. Su historial se queda con él.';
+    $('#mSub').classList.toggle('hidden', !cambia);
+    $('#vistaProducto').classList.toggle('hidden', presen);
+    $('#vistaPresentacion').classList.toggle('hidden', !presen);
+    $('#cardViejo').classList.toggle('hidden', !cambia);
+    $('#cardStock').classList.toggle('hidden', !cambia);
+    $$('.propioB').forEach((el) => el.classList.toggle('hidden', !b));
+
+    $$('.modo').forEach((l) => {
+        const on = l.dataset.modo === st.modo;
+        l.querySelector('input').checked = on;
+        l.className = 'modo flex items-center gap-3 rounded-[10px] px-3 py-2.5 cursor-pointer ' + (on ? 'border-[1.5px] border-blue-600 bg-blue-50' : 'border border-gray-200 bg-white');
+        l.querySelector('[data-ico]').className = 'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ' + (on ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500');
+    });
+
+    const base   = BASES[$('#base').value];
+    const factor = parseFloat($('#factor').value) || 0;
+    const nombre = $('#pNombre').value.trim() || 'presentación';
+    const uni    = base ? plural(base.unidad) : 'unidades';
+
+    $$('.uniBase').forEach((s) => (s.textContent = uni));
+    $('#pSku').placeholder   = base && factor ? base.sku + '-' + factor : 'Auto';
+    $('#hSku').textContent   = 'Vacío: el SKU del base + factor';
+    $('#pCosto').placeholder = base && factor ? (factor * base.costo).toFixed(2) : '0.00';
+    $('#hCosto').textContent = base && factor ? 'Vacío: ' + factor + ' × ' + money(base.costo) : 'Vacío: factor × costo del base';
+    $('#prevBase').textContent = base ? base.nombre : '…';
+    $('#prevChip').textContent = '1 ' + nombre.toLowerCase() + ' = ' + (factor || '?') + ' ' + uni;
+
+    const heredados = base
+        ? ['Categoría: ' + base.categoria].concat(b ? [] : ['Área: ' + base.area, 'Foto del producto']).concat(['Mínimo y máximo', 'Vida útil', 'Descripción'])
+        : [];
+    $('#herencia').innerHTML = base
+        ? heredados.map((t) => '<span class="chip bg-gray-100 text-gray-600 !font-medium">' + t + '</span>').join('')
+        : 'Elige el producto base.';
+
+    // Editar → presentación: lo que pasa con su stock según la regla.
+    let bloqueado = !base || factor < 2;
+    if (cambia) {
+        const card = $('#cardStock');
+        const suma = VIEJO.stock * factor;
+
+        if (st.regla === 'A') {
+            card.className = 'rounded-[10px] border border-blue-200 bg-blue-50 px-3 py-2.5 flex flex-col gap-1.5';
+            card.innerHTML =
+                '<div class="text-xs font-semibold text-blue-800">Regla A · su stock pasa al producto base</div>' +
+                '<div class="flex items-center gap-2 flex-wrap text-sm">' +
+                '<span class="rounded-md bg-white px-2 py-0.5 font-semibold">' + VIEJO.stock + ' en stock</span><span class="text-gray-400">×</span>' +
+                '<span class="rounded-md bg-white px-2 py-0.5 font-semibold">' + (factor || '?') + '</span><span class="text-gray-400">=</span>' +
+                '<span class="rounded-md bg-white px-2 py-0.5 font-semibold text-blue-700">+' + (factor ? suma : '?') + ' ' + uni + '</span>' +
+                '<span class="text-gray-600">→ ' + (base && factor ? base.nombre + ' pasa de ' + base.stock + ' a ' + (base.stock + suma) : 'elige el base y el factor') + '</span></div>' +
+                '<div class="text-[11px] text-blue-800">Queda un ajuste registrado (quién, cuándo y «Pasó a presentación»). Revisa el factor: el ajuste sale de él.</div>';
+        } else {
+            card.className = 'rounded-[10px] border border-red-200 bg-red-50 px-3 py-2.5 flex flex-col gap-1';
+            card.innerHTML =
+                '<div class="text-xs font-semibold text-red-700">Regla B · tiene ' + VIEJO.stock + ' en stock: todavía no puede ser presentación</div>' +
+                '<div class="text-[11px] text-red-700">Primero déjalo en 0 con una salida o un ajuste, y suma las piezas a ' + (base ? base.nombre : 'su base') + ' a mano.</div>';
+            bloqueado = true;
+        }
+    }
+
+    const ok = $('#btnOk');
+    ok.textContent = cambia ? 'Guardar como presentación' : (presen ? 'Guardar presentación' : (editar ? 'Guardar' : 'Aceptar'));
+    ok.disabled    = presen && bloqueado;
+
+    if (window.lucide) lucide.createIcons();
+}
+
+// Editar → presentación: la tabla de fondo queda como quedaría de verdad.
+function confirmar() {
+    const base = BASES[$('#base').value];
+
+    if (st.abierto === 'editar' && st.modo === 'presentacion' && base) {
+        const factor = parseFloat($('#factor').value) || 0;
+        const nuevo  = base.stock + VIEJO.stock * factor;
+        const nombre = $('#pNombre').value.trim();
+
+        $('#filaProductoViejo').classList.add('hidden');
+
+        if ($('#base').value === '0') {
+            $$('.subfila').forEach((tr) => tr.classList.remove('hidden'));
+            $('#filaPresentacion').classList.remove('hidden');
+            $('#chevronBase').classList.replace('hidden', 'flex');
+            $('#stockBase').textContent    = nuevo;
+            $('#stockBaseSub').textContent = nuevo;
+            $('#tpNombre').textContent = nombre;
+            $('#tpSku').textContent    = 'SKU ' + ($('#pSku').value || $('#pSku').placeholder);
+            $('#tpChip').textContent   = '1 ' + nombre.toLowerCase() + ' = ' + factor + ' ' + plural(base.unidad);
+            $('#tpCosto').textContent  = money($('#pCosto').value || $('#pCosto').placeholder);
+            $('#tpStock').textContent  = Math.floor(nuevo / factor);
+        }
+    }
+    cerrar();
+}
+
+$$('[data-open]').forEach((b) => b.addEventListener('click', () => abrir(b.dataset.open)));
+$$('[data-close]').forEach((b) => b.addEventListener('click', cerrar));
+$$('.modo').forEach((l) => l.addEventListener('click', (e) => { e.preventDefault(); cambiarModo(l.dataset.modo); }));
+$$('[data-regla]').forEach((b) => b.addEventListener('click', () => {
+    st.regla = b.dataset.regla;
+    pintarExplicacion();
+    if (st.abierto) pintar();
+}));
+$$('[data-herencia]').forEach((b) => b.addEventListener('click', () => {
+    st.herencia = b.dataset.herencia;
+    pintarExplicacion();
+    if (st.abierto) pintar();
+}));
+['#base', '#factor', '#pNombre'].forEach((s) => $(s).addEventListener('input', pintar));
+$('#base').addEventListener('change', pintar);
+$('#btnOk').addEventListener('click', confirmar);
+
+pintarExplicacion();
+</script>
+</body>
+</html>

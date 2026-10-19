@@ -1187,16 +1187,14 @@ class IaChat {
         this.tickPensando();
     }
 
-    // El «Pensando» de coffeeIA en erp-pro (p_piensa, que reaccion.js pone en bucle con
-    // enBucle de vestidor.js): ladea la cabeza y le sale la píldora morada con los tres
-    // puntos de «escribiendo». A 30 cuadros y con la píldora fija (cargaFija), que en
-    // bucle no se apague al final de cada vuelta. Con el chat cerrado no repinta; con
-    // movimiento reducido queda quieto en su pose.
+    // El «Pensando» de coffeeIA en erp-pro: cabeza ladeada hacia arriba y la píldora
+    // morada con los tres puntos de «escribiendo», fija (cargaFija) para que no parpadee
+    // entre vueltas. A 60 cuadros, como la cara de la cabecera (IaBot). Con el chat
+    // cerrado no repinta; con movimiento reducido queda quieto en su pose.
     startPiensa() {
-        const A    = window.Bloub.ANIMS.p_piensa;
-        const svg  = $(`#${this.opts.id}_piensa svg`)[0];
-        const t0   = performance.now();
-        let ultimo = 0;
+        const A   = this.piensaAnim();
+        const svg = $(`#${this.opts.id}_piensa svg`)[0];
+        const t0  = performance.now();
 
         cancelAnimationFrame(this.piensaRaf);
 
@@ -1212,20 +1210,45 @@ class IaChat {
             }
 
             this.piensaRaf = requestAnimationFrame(cuadro);
-            if (now - ultimo < 33 || !this.isOpen()) return;
-
-            ultimo = now;
-            svg.innerHTML = this.piensaFrame((now - t0) / 1000, false);
+            if (this.isOpen()) svg.innerHTML = this.piensaFrame((now - t0) / 1000, false);
         };
 
+        // El primer cuadro va ya: la burbuja no nace vacía esperando al repintado.
+        svg.innerHTML  = this.piensaFrame(0, false);
         this.piensaRaf = requestAnimationFrame(cuadro);
     }
 
-    // El blob Base de la cabecera (misma piel y pose de frente) haciendo p_piensa en el
-    // instante `t`; `quieto` congela el cuadro en ese punto de la vuelta.
+    // p_piensa ladea la cabeza y la regresa al frente cada 1.5 s; como la espera dura lo
+    // que tarde el modelo, en bucle se veía un cabeceo que se repite. Esta se queda
+    // pensando hacia arriba y se mece despacio, un ocho de 6 s que nunca vuelve al
+    // frente. La píldora es la de p_piensa, con su ola de puntos cada 1.5 s (cuatro por
+    // vuelta). Se registra una vez en el motor y oculta, así el azar de la forja
+    // (Object.keys(ANIMS)) no la elige.
+    piensaAnim() {
+        const A = window.Bloub.ANIMS;
+
+        if (!A.iac_piensa) {
+            const base = A.p_piensa;
+            const ola  = 2 * Math.PI;
+
+            Object.defineProperty(A, 'iac_piensa', {
+                enumerable: false,
+                value: {
+                    nom: 'Pensando (chat)', per: 6, fase: 0.375, grupo: 'proceso',
+                    f: u => ({ yaw: 15 + 4 * Math.sin(ola * u), pitch: 13 + 2.5 * Math.sin(ola * 2 * u), roll: 2 * Math.sin(ola * u) }),
+                    utileria: (u, r, mov, o) => base.utileria((u * 4) % 1, r, mov, o)
+                }
+            });
+        }
+
+        return A.iac_piensa;
+    }
+
+    // El blob Base de la cabecera (misma piel y pose de frente) pensando en el instante
+    // `t`; `quieto` congela el cuadro en ese punto de la vuelta.
     piensaFrame(t, quieto) {
         return window.Bloub.cuadro(
-            { forma: 'gota', gesto: 'calma', accesorio: 'ninguno', anim: 'p_piensa', color: IA_BASE.color },
+            { forma: 'gota', gesto: 'calma', accesorio: 'ninguno', anim: 'iac_piensa', color: IA_BASE.color },
             t, null,
             { margen: 30, clases: IA_BOT.clases, pose: IA_BOT.pose, cargaFija: true, quieto: quieto, fase: quieto ? t : null }
         );

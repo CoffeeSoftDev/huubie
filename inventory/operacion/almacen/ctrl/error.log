@@ -1,3 +1,75 @@
+[ 2026-10-18 15:17:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT *
+            FROM fayxzvov_inventory.transfer_status
+            WHERE companies_id = ?
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'companies_id' in 'where clause'
+
+
+[ 2026-10-18 15:17:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT *
+            FROM fayxzvov_inventory.shrinkage_reason
+            WHERE companies_id = ?
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'companies_id' in 'where clause'
+
+
+[ 2026-10-18 15:17:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT *
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE companies_id = ?
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'companies_id' in 'where clause'
+
+
+[ 2026-10-18 15:17:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT *
+            FROM fayxzvov_inventory.transfer_status
+            WHERE companies_id = ?
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'companies_id' in 'where clause'
+
+
+[ 2026-10-18 15:17:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT *
+            FROM fayxzvov_inventory.shrinkage_reason
+            WHERE companies_id = ?
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'companies_id' in 'where clause'
+
+
+[ 2026-10-18 15:17:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT *
+            FROM fayxzvov_inventory.inflow_origin
+            WHERE companies_id = ?
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'companies_id' in 'where clause'
+
+
 [ 2026-10-17 17:59:17 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
