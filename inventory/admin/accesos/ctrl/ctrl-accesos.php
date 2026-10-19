@@ -211,6 +211,7 @@ class ctrl extends mdl {
                 $fields['phone'],
                 $fields['email'],
                 $fields['manager_id'],
+                $fields['folio_code'],
                 $this->companiesId
             ]);
 
@@ -253,6 +254,7 @@ class ctrl extends mdl {
                 $fields['phone'],
                 $fields['email'],
                 $fields['manager_id'],
+                $fields['folio_code'],
                 $id,
                 $this->companiesId
             ]);
@@ -267,7 +269,8 @@ class ctrl extends mdl {
             'ubication'  => $current['ubication'],
             'phone'      => $current['phone'],
             'email'      => $current['email'],
-            'manager_id' => $current['manager_id']
+            'manager_id' => $current['manager_id'],
+            'folio_code' => $current['folio_code']
         ], '');
         $after = $this->branchSnapshot($fields, $logoTouched ? (($_POST['logo_clear'] ?? '') === '1' ? 'Se quitó' : 'Se cambió') : '');
 
@@ -365,9 +368,11 @@ class ctrl extends mdl {
         'phone'     => 'Teléfono',
         'email'     => 'Correo',
         'manager'   => 'Responsable',
+        'folio_code'=> 'Clave de folios',
         'logo'      => 'Logo'
     ];
 
+    // folio_code vacío = la arma Almacén del nombre la primera vez que saca un folio.
     private function branchFields() {
         $phone = trim((string) ($_POST['phone'] ?? ''));
 
@@ -376,13 +381,16 @@ class ctrl extends mdl {
             'ubication'  => trim((string) ($_POST['ubication'] ?? '')) ?: null,
             'phone'      => $phone !== '' ? mb_substr($phone, 0, 20) : null,
             'email'      => trim((string) ($_POST['email'] ?? '')) ?: null,
-            'manager_id' => (int) ($_POST['manager_id'] ?? 0) ?: null
+            'manager_id' => (int) ($_POST['manager_id'] ?? 0) ?: null,
+            'folio_code' => strtoupper(trim((string) ($_POST['folio_code'] ?? ''))) ?: null
         ];
     }
 
     private function branchError($fields, $id) {
         if ($fields['name'] === '') return 'El nombre de la sucursal es obligatorio';
         if ($this->qBranchNameExists([$fields['name'], $this->companiesId, $id])) return 'Ya existe una sucursal con ese nombre';
+        if ($fields['folio_code'] !== null && !preg_match('/^[A-Z0-9]{2,5}$/', $fields['folio_code'])) return 'La clave de folios lleva de 2 a 5 letras o números, sin espacios';
+        if ($fields['folio_code'] !== null && $this->qBranchFolioCodeExists([$fields['folio_code'], $this->companiesId, $id])) return 'Otra sucursal ya usa esa clave de folios';
         if ($fields['email'] !== null && !filter_var($fields['email'], FILTER_VALIDATE_EMAIL)) return 'El correo de la sucursal no es válido';
         if ($fields['phone'] !== null && !preg_match('/^[0-9+()\s.-]{7,20}$/', $fields['phone'])) return 'El teléfono solo lleva números, espacios, +, ( ) y guiones';
 
@@ -408,6 +416,7 @@ class ctrl extends mdl {
             'phone'     => (string) ($fields['phone'] ?? ''),
             'email'     => (string) ($fields['email'] ?? ''),
             'manager'   => $manager,
+            'folio_code'=> (string) ($fields['folio_code'] ?? ''),
             'logo'      => $logo
         ];
     }

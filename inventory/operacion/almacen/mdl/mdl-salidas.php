@@ -2,11 +2,23 @@
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
 require_once __DIR__ . '/mdl-borrado.php';
+require_once __DIR__ . '/mdl-presentaciones.php';
+require_once __DIR__ . '/mdl-visibilidad.php';
+require_once __DIR__ . '/mdl-folios.php';
 
 class mdl extends CRUD {
 
     // Borrado real con su stock (CoffeeIA): deleteSalidaFullById.
     use BorradoInventario;
+
+    // Folio por sucursal: nextFolio (S-KAF-0001).
+    use FolioSucursal;
+
+    // Presentaciones en la captura: se guardan como su producto base.
+    use PresentacionesCaptura;
+
+    // Qué productos ve la sucursal: los suyos y los de Matriz.
+    use VisibilidadProductos;
 
     public $util;
     public $bd;
@@ -18,6 +30,7 @@ class mdl extends CRUD {
         $this->bdErp = 'fayxzvov_erp.';
     }
 
+    // La Matriz (sucursal del almacén principal) va primero; las demás, por nombre.
     function lsSucursales($array) {
         $companyId = $array['company_id'];
         $userId    = $array['user_id'];
@@ -28,7 +41,7 @@ class mdl extends CRUD {
                 SELECT id, name AS valor, company_id AS companies_id
                 FROM {$this->bdErp}branches
                 WHERE company_id = ? AND is_active = 1
-                ORDER BY name ASC
+                ORDER BY id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
             ";
             $r = $this->_Read($query, [$companyId]);
         } else {
@@ -37,7 +50,7 @@ class mdl extends CRUD {
                 FROM {$this->bdErp}branches b
                 INNER JOIN {$this->bdErp}users_braches ub ON ub.branch_id = b.id
                 WHERE b.company_id = ? AND b.is_active = 1 AND ub.user_id = ?
-                ORDER BY b.name ASC
+                ORDER BY b.id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, b.name ASC
             ";
             $r = $this->_Read($query, [$companyId, $userId]);
         }
@@ -97,11 +110,17 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}unit            iu ON iu.id = ia.unit_id
             LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
-            WHERE i.active = 1 AND i.companies_id = ?
+            WHERE i.active = 1 AND i.companies_id = ? {$this->filtroProductosPropios('i')}
             ORDER BY i.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
+    }
+
+    // Presentaciones de la captura (mdl-presentaciones): de una sucursal solo sale lo suyo
+    // y lo que tiene en sus almacenes, igual que sus productos.
+    function filtroCapturaProductos($alias) {
+        return $this->filtroProductosPropios($alias);
     }
 
     function qStockByWarehouse($array) {
@@ -314,9 +333,13 @@ class mdl extends CRUD {
                 i.category_id,
                 ic.name AS category_name,
                 wa.name AS area_name,
-                COALESCE(iu.code, '') AS unit
+                COALESCE(iu.code, '') AS unit,
+                d.item_presentation_id  AS presentation_id,
+                d.presentation_quantity AS presentation_qty,
+                ip.name                 AS presentation_name
             FROM {$this->bd}detail_inventory_shrinkage d
             INNER JOIN {$this->bd}item i ON i.id = d.item_id
+            LEFT  JOIN {$this->bd}item_presentation ip ON ip.id = d.item_presentation_id
             LEFT  JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
             LEFT  JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
             LEFT  JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
@@ -343,8 +366,8 @@ class mdl extends CRUD {
         $query = "
             INSERT INTO {$this->bd}detail_inventory_shrinkage
                 (quantity, cost, subtotal, previous_stock, resulting_stock,
-                 item_id, inventory_shrinkage_id)
-            VALUES (?,?,?,?,?,?,?)
+                 item_id, item_presentation_id, presentation_quantity, inventory_shrinkage_id)
+            VALUES (?,?,?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
     }
@@ -377,6 +400,19 @@ class mdl extends CRUD {
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);
+    }
+
+    // Fecha del último conteo físico aplicado del almacén: nada anterior a ella se edita.
+    // Los ajustes automáticos (un producto que pasa a presentación) no cuentan.
+    function qLastAdjustmentDate($array) {
+        // [warehouse_id, companies_id]
+        $query = "
+            SELECT MAX(date_adjustment) AS last_date
+            FROM {$this->bd}inventory_adjustment
+            WHERE status = 'Aplicado' AND adjustment_type = 'fisico' AND active = 1 AND warehouse_id = ? AND companies_id = ?
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) && !empty($r[0]['last_date']) ? $r[0]['last_date'] : null;
     }
 
     // Credenciales del usuario en sesión para reconfirmar su contraseña al cancelar.
@@ -439,34 +475,17 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function nextFolio($prefix, $tabla, $companies_id) {
-        $query = "
-            SELECT folio
-            FROM {$this->bd}{$tabla}
-            WHERE companies_id = ? AND folio LIKE ?
-            ORDER BY id DESC
-            LIMIT 1
-        ";
-        $r    = $this->_Read($query, [$companies_id, $prefix . '%']);
-        $next = 1;
-        if (!empty($r)) {
-            $folio = $r[0]['folio'];
-            $num   = (int) preg_replace('/[^0-9]/', '', substr($folio, strlen($prefix)));
-            $next  = $num + 1;
-        }
-        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
-    }
-
     // -- CoffeeIA: eliminar --
 
     // Las salidas que CoffeeIA puede eliminar, también las inactivas (cuentan para el
-    // folio). Como la lista del módulo, son las de toda la empresa. `pedido` es el folio
-    // del pedido que la generó al surtirse: esa se borra en Pedidos.
+    // folio). Como la lista del módulo, son las de toda la empresa; `branch_ids` la
+    // acota a una sucursal (reiniciar su folio). `pedido` es el folio del pedido que la
+    // generó al surtirse: esa se borra en Pedidos.
     function listSalidasIA($array) {
         $where = 's.companies_id = ?';
         $data  = [$array['companies_id']];
 
-        foreach (['ids' => 's.id', 'folios' => 's.folio'] as $campo => $columna) {
+        foreach (['branch_ids' => 's.branch_id', 'ids' => 's.id', 'folios' => 's.folio'] as $campo => $columna) {
             if (empty($array[$campo])) continue;
             $where .= " AND {$columna} IN (" . implode(',', array_fill(0, count($array[$campo]), '?')) . ')';
             $data   = array_merge($data, $array[$campo]);
@@ -476,6 +495,7 @@ class mdl extends CRUD {
             SELECT
                 s.id,
                 s.folio,
+                s.branch_id,
                 s.status,
                 s.active,
                 s.date_shrinkage,

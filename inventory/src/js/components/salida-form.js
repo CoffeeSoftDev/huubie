@@ -303,6 +303,7 @@ class SalidaForm {
                                 ${p.origen === 'ia' ? `<span class="${cls.iaTag}" title="${this.esc(this.opts.labels.iaTag)}"><i data-lucide="sparkles" class="w-2.5 h-2.5"></i>IA</span>` : ''}
                             </div>
                             ${p.categoria ? `<p class="text-[10px] text-gray-400 truncate mt-0.5">${this.esc(p.categoria)}</p>` : ''}
+                            ${this.equivaleHtml(p)}
                         </div>
                     </div>
                 </td>
@@ -333,6 +334,13 @@ class SalidaForm {
                     </button>
                 </td>
             </tr>`;
+    }
+
+    // Presentación (Caja 24): a cuánto equivale de su base. Al guardar, el servidor la
+    // saca de ese producto base (cantidad × factor).
+    equivaleHtml(p) {
+        if (!p.equivale) return '';
+        return `<p class="flex items-center gap-1 text-[10px] font-medium text-blue-600 truncate mt-0.5"><i data-lucide="boxes" class="w-3 h-3 flex-shrink-0"></i><span class="truncate">${this.esc(p.equivale)}</span></p>`;
     }
 
     renderProductsTable() {
@@ -394,6 +402,7 @@ class SalidaForm {
                     <p class="text-[10px] text-gray-500 truncate mt-0.5">
                         <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}${p.unidad ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.unidad)}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
                     </p>
+                    ${this.equivaleHtml(p)}
                 </div>
                 <div class="text-right flex-shrink-0">
                     <p class="text-[10px] text-gray-400 leading-none">${this.esc(o.labels.costoRefLbl)}</p>
@@ -512,12 +521,13 @@ class SalidaForm {
         this.highlightActive();
     }
 
-    // Todo el catálogo: un producto que ya está en el lote puede entrar otra vez.
+    // Todo el catálogo: un producto que ya está en el lote puede entrar otra vez. Con el
+    // nombre del base también salen sus presentaciones (en `equivale`).
     matchCatalogo(term) {
         const t = String(term || '').trim().toLowerCase();
         if (!t) return [];
         return (this.opts.json || []).filter(p =>
-            (p.nombre || '').toLowerCase().includes(t) || (p.sku || '').toLowerCase().includes(t)
+            (p.nombre || '').toLowerCase().includes(t) || (p.sku || '').toLowerCase().includes(t) || (p.equivale || '').toLowerCase().includes(t)
         );
     }
 

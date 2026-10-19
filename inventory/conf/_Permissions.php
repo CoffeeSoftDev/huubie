@@ -18,6 +18,7 @@
       can()         donde se arman botones.
       rowActions()  quita de una fila los botones que el rol no puede usar.
       superAdmin()  ¿el usuario en sesión es Super Admin? (elige empresa).
+      sectionOn()   ¿la sección está encendida? Apagada no entra nadie (Traspasos).
 */
 require_once __DIR__ . '/_CRUD.php';
 
@@ -54,6 +55,12 @@ class Permissions extends CRUD {
         }
 
         return $actions;
+    }
+
+    // ¿La sección y su módulo están encendidos (Accesos)? page() deja pasar al Super Admin
+    // aunque la sección esté apagada; esto no: apagada, nadie la usa.
+    public static function sectionOn($section) {
+        return self::db()->isSectionOn([$section]);
     }
 
     public static function script($actions) {
@@ -159,6 +166,18 @@ class Permissions extends CRUD {
             JOIN fayxzvov_erp.roles r ON r.id = ub.role_id AND r.is_active = 1
             WHERE ub.user_id = ?
                 AND r.code = 'superadmin'
+            LIMIT 1
+        ";
+        return !empty($this->_Read($query, $array));
+    }
+
+    private function isSectionOn($array) {
+        // [section_code]
+        $query = "
+            SELECT 1
+            FROM fayxzvov_erp.sections s
+            JOIN fayxzvov_erp.modules m ON m.id = s.module_id AND m.is_active = 1
+            WHERE s.code = ? AND s.is_active = 1
             LIMIT 1
         ";
         return !empty($this->_Read($query, $array));

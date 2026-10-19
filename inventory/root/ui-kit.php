@@ -35,6 +35,6 @@ require_once('layout/core-libraries.php');
 
     <!-- Navbar y sidebar del módulo root -->
     <script src="../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../acceso/src/js/navbar.js'); ?>"></script>
-    <script src="../acceso/src/js/sidebar.js"></script>
+    <script src="../acceso/src/js/sidebar.js?v=<?php echo filemtime(__DIR__ . '/../acceso/src/js/sidebar.js'); ?>"></script>
 </body>
 </html>

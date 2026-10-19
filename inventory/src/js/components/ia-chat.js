@@ -1001,7 +1001,7 @@ class IaChat {
         this.appendNode(`
             <div class="flex ${esUser ? 'justify-end' : ''} min-w-0" data-msg="${role}"${turn}>
                 <div class="group flex flex-col ${esUser ? 'items-end' : 'items-start'} min-w-0 max-w-[92%]">
-                    <div class="max-w-full ${tone} px-3 py-[9px] text-[12.5px] leading-[1.5] whitespace-pre-wrap break-words">${files ? `<div class="flex flex-wrap gap-1 ${text ? 'mb-[5px]' : ''}">${files}</div>` : ''}${this.esc(text)}</div>
+                    <div class="max-w-full ${tone} px-3 py-[9px] text-[12.5px] leading-[1.5] whitespace-pre-wrap break-words">${files ? `<div class="flex flex-wrap gap-1 ${text ? 'mb-[5px]' : ''}">${files}</div>` : ''}${role === 'assistant' ? this.richText(text) : this.esc(text)}</div>
                     <div class="mt-[3px] px-[3px] flex items-center gap-1.5 ${esUser ? 'flex-row-reverse' : ''}">
                         <span class="text-[10px] text-[#94A3B8] tabular-nums tracking-[.02em]">${this.hora()}</span>
                         ${copy}${regen}${edit}
@@ -1681,7 +1681,7 @@ class IaChat {
     // Copia el texto crudo del mensaje. navigator.clipboard pide https o localhost;
     // en la red interna por http queda el respaldo con execCommand.
     copy(btn) {
-        const text = this.texts[Number($(btn).data('copy'))] || '';
+        const text = (this.texts[Number($(btn).data('copy'))] || '').replace(/\*\*(.+?)\*\*/g, '$1');
         const ok   = () => {
             $(btn).addClass('!text-emerald-600 !bg-emerald-50 !opacity-100');
             setTimeout(() => $(btn).removeClass('!text-emerald-600 !bg-emerald-50 !opacity-100'), 1500);
@@ -2211,6 +2211,12 @@ class IaChat {
     esc(s) {
         return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
+
+    // Respuesta de la IA: escapa todo y solo convierte **dato** en negritas (el prompt
+    // le pide marcar así cifras y nombres clave). Nada más de markdown pasa a HTML.
+    richText(s) {
+        return this.esc(s).replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-[#0F172A]">$1</strong>');
+    }
 }
 
 
@@ -2232,6 +2238,16 @@ Templates.prototype.iaChat = function (options) {
 Templates.prototype.iaIcon = function () {
     return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-coffee-ia" aria-hidden="true">'
          + '<path d="M13.74 21.85A10 10 0 1 1 21.66 14.59"/>'
+         + '<path d="M9 8v2"/>'
+         + '<path d="M15 8v2"/>'
+         + '</svg>';
+};
+
+// La misma cara con el contorno cerrado, para donde no se le monta el "IA" encima
+// (el botón CoffeeIA del Catálogo).
+Templates.prototype.iaIconPlain = function () {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-coffee-ia" aria-hidden="true">'
+         + '<circle cx="12" cy="12" r="10"/>'
          + '<path d="M9 8v2"/>'
          + '<path d="M15 8v2"/>'
          + '</svg>';

@@ -75,7 +75,7 @@ require_once('layout/core-libraries.php');
 
     <!-- Importación navbar y sidebar -->
     <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
-    <script src="../../acceso/src/js/sidebar.js"></script>
+    <script src="../../acceso/src/js/sidebar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/sidebar.js'); ?>"></script>
 
     <!-- Navegación de Configuración y lista de roles (csNavList) y la matriz de permisos del rol -->
     <script src="../../src/js/components/cs-grouped-list.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/cs-grouped-list.js'); ?>"></script>

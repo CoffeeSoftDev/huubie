@@ -65,11 +65,30 @@ class ctrl extends mdl {
                 // 0 o vacío = sin máximo; la captura avisa si la entrada lo rebasa.
                 'stock_max' => (float) ($p['stock_max'] ?? 0),
                 'image'     => $p['image'] ?? '',
+                // Uno de Matriz (u otra sucursal) se captura pero no se edita desde aquí.
+                'editable'  => $this->puedeEditarProducto($p['branch_id'] ?? null),
                 'icon'      => 'package',
                 'bg'        => 'bg-gray-100',
                 'color'     => 'text-gray-500'
             ];
         }, $this->qProductsForTransfer([$this->companiesId]));
+
+        // Las presentaciones (Caja 24...) se capturan como un producto más: su costo es
+        // el del empaque y al guardar pasan a su base (renglonesABase).
+        foreach ($this->listPresentacionesCaptura([$this->companiesId]) as $p) {
+            $tax  = (float) $p['iva_compra'];
+            $base = (float) $p['cost_unit'];
+
+            $productos[] = $this->presentacionCatalogo($p) + [
+                'costo'             => round($base * (1 + $tax / 100), 4),
+                'price_without_tax' => $base,
+                'tax'               => $tax,
+                'descripcion'       => '',
+                'stock_max'         => 0,
+                'bg'                => 'bg-gray-100',
+                'color'             => 'text-gray-500'
+            ];
+        }
 
         return [
             'status'           => 200,
@@ -85,6 +104,7 @@ class ctrl extends mdl {
             'unidades'         => $this->lsUnidades([$this->companiesId]),
             'proveedores'      => $this->lsSuppliers([$this->companiesId]),
             'origenes_entrada' => $this->lsInflowOrigins([$this->companiesId]),
+            'ajustes'          => array_column($this->qLastAdjustments([$this->companiesId]), 'last_date', 'warehouse_id'),
             'estados_entrada'  => [
                 ['id' => '',          'valor' => 'Todos los estados'],
                 ['id' => 'Activas',   'valor' => 'Activas (sin Cancelada)'],
@@ -103,6 +123,7 @@ class ctrl extends mdl {
             foreach ($this->qStockByWarehouse([$warehouseId, $this->companiesId]) as $row) {
                 $map[(string) $row['item_id']] = (float) $row['quantity'];
             }
+            $map = $this->stockConPresentaciones($map, $this->companiesId);
         }
         return ['status' => 200, 'stock' => $map];
     }
@@ -189,6 +210,7 @@ class ctrl extends mdl {
         if (!$header) return ['status' => 404, 'message' => 'Entrada no encontrada'];
         // Badge del origen con la misma formula y color (color_hex) que el catalogo y la tabla.
         $header['origin_badge'] = badge($header['origin_name'] ?? '', $header['origin_color'] ?? '#9CA3AF', 100, $header['origin_bg'] ?? null, $header['origin_icon'] ?? null);
+        $header['adjustment_date'] = $this->qLastAdjustmentDate([(int) $header['warehouse_id'], $this->companiesId]);
         $detail = $this->qGetEntradaDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
@@ -241,13 +263,22 @@ class ctrl extends mdl {
         if (empty($productos)) {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
+        if ($ajeno = $this->almacenAjeno($payload['warehouse_id'] ?? 0)) return $ajeno;
 
         if (!empty($payload['date_inflow']) && ($errorFecha = $this->fechaInvalida($payload['date_inflow']))) {
             return ['status' => 400, 'message' => $errorFecha];
         }
+        if ($errorAjuste = $this->ajusteBloquea($payload['warehouse_id'] ?? 0, !empty($payload['date_inflow']) ? $payload['date_inflow'] : date('Y-m-d'))) {
+            return ['status' => 400, 'message' => $errorAjuste];
+        }
         if ($errorNeg = $this->renglonesNegativos($productos)) {
             return ['status' => 400, 'message' => $errorNeg];
         }
+
+        // Caja 24 × 2 entra como 48 piezas de su base, a costo ÷ 24.
+        $aBase = $this->renglonesABase($productos, $this->companiesId, ['cost', 'price_without_tax']);
+        if ($aBase['error']) return ['status' => 400, 'message' => $aBase['error']];
+        $productos = $aBase['productos'];
 
         $origin       = $this->getInflowOrigin([(int) $payload['inflow_origin_id'], $this->companiesId]);
         $isProduction = $origin && strtoupper($origin['code']) === 'PRODUCCION';
@@ -258,8 +289,9 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Este origen requiere seleccionar un proveedor'];
         }
 
-        $folio = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId);
-        $norm  = $this->renglonesEntrada($productos);
+        $branchId = (int) ($payload['branch_id'] ?? $this->branchId);
+        $folio    = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId, $branchId);
+        $norm     = $this->renglonesEntrada($productos);
 
         $totalProducts = count($norm);
         $totalUnits    = 0;
@@ -283,7 +315,7 @@ class ctrl extends mdl {
             (int) $payload['warehouse_id'],
             !empty($payload['warehouse_area_id']) ? (int) $payload['warehouse_area_id'] : null,
             !empty($payload['supplier_id']) ? (int) $payload['supplier_id'] : null,
-            (int) ($payload['branch_id'] ?? $this->branchId),
+            $branchId,
             $this->userId,
             $this->companiesId,
             !empty($payload['date_inflow']) ? $payload['date_inflow'] : date('Y-m-d')
@@ -345,6 +377,8 @@ class ctrl extends mdl {
             }
         }
 
+        $this->costoPresentaciones($aBase['usadas']);
+
         return [
             'status'  => 200,
             'message' => $isProduction ? 'Orden de produccion registrada (pendiente de confirmar)' : 'Entrada registrada',
@@ -352,6 +386,15 @@ class ctrl extends mdl {
             'id'      => $inflowId,
             'pending' => $isProduction
         ];
+    }
+
+    // El costo sin impuesto con que entró cada presentación queda como su último costo,
+    // igual que el del producto (updateItemCost). Sin costo (producción) no se toca.
+    private function costoPresentaciones($usadas) {
+        foreach ($usadas as $u) {
+            $base = (float) ($u['price_without_tax'] ?? 0);
+            if ($base > 0) $this->updatePresentacionCosto([round($base, 4), $u['id'], $this->companiesId]);
+        }
     }
 
     // Mensaje si algún renglón trae un número negativo (cantidad, costo, base o impuesto); null si no.
@@ -429,7 +472,7 @@ class ctrl extends mdl {
         $almacenes = array_map('intval', array_column($this->lsWarehouses(['companies_id' => $this->companiesId, 'branch_id' => $branchId]) ?: [], 'id'));
         if (!in_array($almacen, $almacenes, true)) return ['status' => 400, 'message' => 'Elige un almacén de esa sucursal'];
 
-        $errorFecha = $this->fechaInvalida($fecha);
+        $errorFecha = $this->fechaInvalida($fecha) ?: $this->ajusteBloquea($almacen, $fecha);
         if ($errorFecha) return ['status' => 400, 'message' => $errorFecha];
 
         $tipo       = $this->getInflowOrigin([$origen, $this->companiesId]);
@@ -466,9 +509,32 @@ class ctrl extends mdl {
         return ['status' => 200, 'message' => 'OK'];
     }
 
+    // Con un ajuste aplicado en el almacén, lo anterior a su fecha ya no se toca: ni
+    // editar una entrada de esos días, ni pasarla a una fecha previa al ajuste, ni dar
+    // de alta una nueva con esa fecha (el conteo dejaría de cuadrar).
+    private function ajusteBloquea($warehouseId, $fecha) {
+        $ajuste = $this->qLastAdjustmentDate([(int) $warehouseId, $this->companiesId]);
+        $fecha  = substr((string) $fecha, 0, 10);
+        if (!$ajuste || $fecha === '' || $fecha >= $ajuste) return null;
+
+        return 'El almacén tuvo un ajuste el ' . date('d/m/Y', strtotime($ajuste))
+             . ': no se puede usar una fecha anterior (' . date('d/m/Y', strtotime($fecha)) . ')';
+    }
+
     private function editAuthorized($id) {
         $at = (int) ($_SESSION['inflow_edit'][$id] ?? 0);
         return $at > 0 && (time() - $at) <= self::EDIT_WINDOW;
+    }
+
+    // Una sucursal no mete stock en el almacén de otra: 403 si alguno de los almacenes no es
+    // de las sucursales del usuario (el dueño pasa siempre). null si puede.
+    private function almacenAjeno(...$almacenes) {
+        foreach ($almacenes as $almacen) {
+            if (!$this->almacenDeSusSucursales((int) $almacen)) {
+                return ['status' => 403, 'message' => 'Ese almacén no es de tus sucursales: solo puedes registrar entradas en el tuyo'];
+            }
+        }
+        return null;
     }
 
     function updateEntrada() {
@@ -483,18 +549,26 @@ class ctrl extends mdl {
         if (!$this->editAuthorized($id)) {
             return ['status' => 403, 'message' => 'Confirma tu contraseña para editar la entrada'];
         }
+        if ($ajeno = $this->almacenAjeno($header['warehouse_id'], $payload['warehouse_id'] ?? $header['warehouse_id'])) return $ajeno;
         if ($header['status'] === 'Cancelada') {
             return ['status' => 400, 'message' => 'No se puede editar una entrada cancelada'];
         }
         if (!empty($payload['date_inflow']) && ($errorFecha = $this->fechaInvalida($payload['date_inflow']))) {
             return ['status' => 400, 'message' => $errorFecha];
         }
+        $errorAjuste = $this->ajusteBloquea($header['warehouse_id'], $header['date_inflow'])
+            ?: $this->ajusteBloquea($payload['warehouse_id'] ?? $header['warehouse_id'], !empty($payload['date_inflow']) ? $payload['date_inflow'] : date('Y-m-d'));
+        if ($errorAjuste) return ['status' => 400, 'message' => $errorAjuste];
         if (empty($productos)) {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
         if ($errorNeg = $this->renglonesNegativos($productos)) {
             return ['status' => 400, 'message' => $errorNeg];
         }
+
+        $aBase = $this->renglonesABase($productos, $this->companiesId, ['cost', 'price_without_tax']);
+        if ($aBase['error']) return ['status' => 400, 'message' => $aBase['error']];
+        $productos = $aBase['productos'];
 
         $origin = $this->getInflowOrigin([(int) $payload['inflow_origin_id'], $this->companiesId]);
         if ($origin && (int) ($origin['requires_supplier'] ?? 0) === 1 && empty($payload['supplier_id'])) {
@@ -592,6 +666,8 @@ class ctrl extends mdl {
             return ['status' => 500, 'message' => 'No se guardó ningún cambio: la base de datos rechazó la edición'];
         }
 
+        $this->costoPresentaciones($aBase['usadas']);
+
         if (!empty($payload['voucher_b64'])) {
             $url = $this->storeVoucher($header['folio'], $payload['voucher_b64']);
             if ($url) $this->updateEntradaVoucher([$url, $id]);
@@ -611,6 +687,7 @@ class ctrl extends mdl {
         if ($header['status'] !== 'Pendiente') {
             return ['status' => 400, 'message' => 'La entrada no esta pendiente de confirmar'];
         }
+        if ($ajeno = $this->almacenAjeno($header['warehouse_id'])) return $ajeno;
 
         $quantities = json_decode($_POST['quantities'] ?? '{}', true);
         if (!is_array($quantities)) $quantities = [];
@@ -675,6 +752,10 @@ class ctrl extends mdl {
         }
         if ($header['status'] !== 'Aplicada') {
             return ['status' => 400, 'message' => 'Solo se puede editar una entrada aplicada'];
+        }
+        if ($ajeno = $this->almacenAjeno($header['warehouse_id'])) return $ajeno;
+        if ($errorAjuste = $this->ajusteBloquea($header['warehouse_id'], $header['date_inflow'])) {
+            return ['status' => 400, 'message' => $errorAjuste];
         }
 
         $quantities = json_decode($_POST['quantities'] ?? '{}', true);
@@ -753,6 +834,7 @@ class ctrl extends mdl {
         if (!$this->editAuthorized($id)) {
             return ['status' => 403, 'message' => 'Confirma tu contraseña para cancelar la entrada'];
         }
+        if ($ajeno = $this->almacenAjeno($header['warehouse_id'])) return $ajeno;
 
         $warehouse = (int) $header['warehouse_id'];
         $detail    = [];
@@ -952,11 +1034,21 @@ class ctrl extends mdl {
         if ($aplicadas > 0) $message .= $aplicadas === 1 ? ' Resté del stock lo que sumó la aplicada.' : " Resté del stock lo que sumaron las {$aplicadas} aplicadas.";
         if ($faltan > 0)    $message .= $faltan === 1 ? ' 1 ya no estaba.' : " {$faltan} ya no estaban.";
 
+        // Cada sucursal lleva su serie: el siguiente de cada una de las que se tocaron.
+        $siguientes = array_map(function ($b) {
+            return $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId, $b);
+        }, array_values(array_unique(array_map('intval', array_column($vigentes, 'branch_id')))));
+
         return [
             'status'  => 200,
-            'message' => $message . ' Siguiente folio: ' . $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId) . '.',
+            'message' => $message . (count($siguientes) === 1 ? ' Siguiente folio: ' : ' Siguientes folios: ') . implode(', ', $siguientes) . '.',
             'data'    => ['folios' => $folios]
         ];
+    }
+
+    // Folio con el que la serie de la sucursal de sesión vuelve a empezar.
+    private function primerFolioEntrada() {
+        return 'ENT-' . $this->claveFolio($this->branchId, $this->companiesId) . '-0001';
     }
 
     private function esAdminIA() {
@@ -1052,12 +1144,13 @@ class ctrl extends mdl {
 
         return implode("\n", [
             '== ELIMINAR Y REINICIAR EL FOLIO (eres administrador) ==',
-            '- Si la persona pide ELIMINAR entradas, pon sus folios en "eliminar", ej. ["ENT-0003"]. Tómalos de la lista ENTRADAS; "la 3" es ENT-0003. No inventes folios.',
-            '- Si pide REINICIAR EL FOLIO (que la siguiente sea ENT-0001), pon "reiniciar": true. Eso arma la vista previa con TODAS las entradas: el folio solo vuelve a empezar si se eliminan todas.',
+            '- Cada sucursal tiene su propia serie de folios con su clave: ENT-KAF-0003 es la 3 de la sucursal con clave KAF.',
+            '- Si la persona pide ELIMINAR entradas, pon sus folios completos en "eliminar", ej. ["' . $this->primerFolioEntrada() . '"]. Tómalos de la lista ENTRADAS; "la 3" es la 3 de la sucursal en la que está. No inventes folios.',
+            '- Si pide REINICIAR EL FOLIO (que la siguiente vuelva a ' . $this->primerFolioEntrada() . '), pon "reiniciar": true. Es la serie de la sucursal en la que está: la vista previa trae TODAS sus entradas y el folio solo vuelve a empezar si se eliminan todas.',
             '- Al eliminar, "items" y "missing" van vacíos. Tú no eliminas: la persona revisa la vista previa y confirma con su contraseña. En "reply" di cuántas y que revise la vista previa; no digas que ya se eliminaron.',
             '- Eliminar borra la entrada de verdad y, si estaba aplicada, resta del stock lo que sumó. Una entrada que viene de un pedido (columna pedido) no se elimina aquí: va en Pedidos, junto con su pedido.',
             '- Si no queda claro cuáles, pregunta en "reply" y deja "eliminar" vacío.',
-            'La forma al eliminar: {"reply": "Te preparo 2 entradas para eliminar.", "items": [], "missing": [], "eliminar": ["ENT-0003", "ENT-0004"], "reiniciar": false}',
+            'La forma al eliminar: {"reply": "Te preparo 2 entradas para eliminar.", "items": [], "missing": [], "eliminar": ["ENT-KAF-0003", "ENT-KAF-0004"], "reiniciar": false}',
             '',
             'ENTRADAS (folio | fecha | estado | tipo | sucursal | almacén | proveedor | total | pedido | nota), las ' . count($filas) . ' más recientes de ' . count($entradas) . ':',
             $filas ? implode("\n", $filas) : '(ninguna)'
@@ -1070,25 +1163,25 @@ class ctrl extends mdl {
         $reiniciar = is_array($data) && ($data['reiniciar'] ?? false) === true;
         $folios    = [];
 
+        // ENT-KAF-0003 tal cual; sin clave ("3", "ENT-3") es de la sucursal de sesión.
+        $clave = $this->claveFolio($this->branchId, $this->companiesId);
         foreach ((array) (is_array($data) ? ($data['eliminar'] ?? []) : []) as $v) {
             $v = strtoupper(preg_replace('/\s+/', '', is_scalar($v) ? (string) $v : ''));
-            if (preg_match('/^(?:ENT)?-?(\d+)$/', $v, $m)) $folios[] = 'ENT-' . str_pad((string) (int) $m[1], 4, '0', STR_PAD_LEFT);
+            if (preg_match('/^ENT-([A-Z0-9]+)-(\d+)$/', $v, $m) || preg_match('/^(?:ENT-?)?()(\d+)$/', $v, $m)) {
+                $folios[] = 'ENT-' . ($m[1] !== '' ? $m[1] : $clave) . '-' . str_pad((string) (int) $m[2], 4, '0', STR_PAD_LEFT);
+            }
         }
 
         if (!$reiniciar && !$folios) return null;
 
-        $alcance = ['companies_id' => $this->companiesId, 'branch_ids' => $this->_userBranchIds()];
+        // Reiniciar es la serie de la sucursal de sesión: solo sus entradas.
+        $alcance = ['companies_id' => $this->companiesId, 'branch_ids' => $reiniciar ? [$this->branchId] : $this->_userBranchIds()];
         $reply   = $this->textoEntradaIA($data['reply'] ?? '');
-
-        // La serie es de la empresa: sin todas las entradas, el folio no vuelve a empezar.
-        if ($reiniciar && $alcance['branch_ids'] && ($ajenas = $this->getEntradasAjenasCount($alcance)) > 0) {
-            return ['reply' => "No puedo reiniciar el folio: hay {$ajenas} entradas de sucursales que no manejas. Eso lo hace el dueño.", 'token' => '', 'row' => [], 'ids' => []];
-        }
 
         $entradas = $this->listEntradasIA($alcance + ($reiniciar ? [] : ['folios' => array_values(array_unique($folios))]));
 
         if (!$entradas) {
-            return ['reply' => $reiniciar ? 'No hay entradas: el siguiente folio ya es ' . $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId) . '.' : 'No encontré esas entradas.', 'token' => '', 'row' => [], 'ids' => []];
+            return ['reply' => $reiniciar ? 'No hay entradas en esta sucursal: el siguiente folio ya es ' . $this->primerFolioEntrada() . '.' : 'No encontré esas entradas.', 'token' => '', 'row' => [], 'ids' => []];
         }
         if (count($entradas) > self::IA_MAX_BORRAR) {
             return ['reply' => 'Son ' . count($entradas) . ' entradas; de una vez solo puedo eliminar ' . self::IA_MAX_BORRAR . '. Pídemelas por partes.', 'token' => '', 'row' => [], 'ids' => []];
@@ -1130,11 +1223,11 @@ class ctrl extends mdl {
             $reply = 'Ninguna se puede eliminar aquí: ' . ($ligadas === 1 ? 'viene de un pedido' : 'vienen de pedidos') . '. Se eliminan en Pedidos, junto con su pedido.';
         } elseif ($reply === '') {
             $reply = $reiniciar
-                ? 'Para que el folio vuelva a ENT-0001 hay que eliminar ' . ($libres === 1 ? 'la entrada' : "las {$libres} entradas") . '. Revisa la vista previa.'
+                ? 'Para que el folio vuelva a ' . $this->primerFolioEntrada() . ' hay que eliminar ' . ($libres === 1 ? 'la entrada' : "las {$libres} entradas") . '. Revisa la vista previa.'
                 : ($libres === 1 ? 'Te preparé 1 entrada para eliminar. Revísala.' : "Te preparé {$libres} entradas para eliminar. Revísalas.");
         }
         if ($reiniciar && $ligadas > 0 && $libres > 0) {
-            $reply .= "\n" . ($ligadas === 1 ? '1 viene de un pedido' : "{$ligadas} vienen de pedidos") . ': se eliminan en Pedidos, y mientras queden el folio no vuelve a ENT-0001.';
+            $reply .= "\n" . ($ligadas === 1 ? '1 viene de un pedido' : "{$ligadas} vienen de pedidos") . ': se eliminan en Pedidos, y mientras queden el folio no vuelve a ' . $this->primerFolioEntrada() . '.';
         }
 
         return ['reply' => $reply, 'token' => $libres ? bin2hex(random_bytes(8)) : '', 'row' => $row, 'ids' => $ids];
@@ -1377,9 +1470,15 @@ class ctrl extends mdl {
         $formatId = $this->qLastFormatoId([$this->companiesId, $this->userId]);
         if (!$formatId) return ['status' => 500, 'message' => 'No se pudo recuperar el formato creado'];
 
-        foreach ($productos as $p) {
-            $itemId = (int) ($p['id'] ?? $p['product_id'] ?? 0);
-            $qty    = (float) ($p['cantidad'] ?? $p['quantity'] ?? 0);
+        // Una presentación del lote se guarda como su base (2 cajas de 24 = 48 piezas).
+        $renglones = array_map(function ($p) {
+            return ['product_id' => (string) ($p['id'] ?? $p['product_id'] ?? ''), 'quantity' => (float) ($p['cantidad'] ?? $p['quantity'] ?? 0)];
+        }, $productos);
+        $aBase = $this->renglonesABase($renglones, $this->companiesId, []);
+
+        foreach ($aBase['productos'] as $p) {
+            $itemId = (int) $p['product_id'];
+            $qty    = (float) $p['quantity'];
             if ($itemId <= 0 || $qty <= 0) continue;
             $this->insertFormatoItem([$qty, $itemId, $formatId]);
         }

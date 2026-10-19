@@ -38,7 +38,7 @@ require_once('layout/core-libraries.php');
 
     <!-- Importación navbar y sidebar -->
     <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
-    <script src="../../acceso/src/js/sidebar.js"></script>
+    <script src="../../acceso/src/js/sidebar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/sidebar.js'); ?>"></script>
 
     <!-- Captura con el formato de Órdenes: compra-form extiende orden-form, que extiende entrada-form -->
     <script src="../../src/js/components/entrada-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/entrada-form.js'); ?>"></script>

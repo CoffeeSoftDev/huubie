@@ -560,8 +560,9 @@ class ctrl extends mdl {
     }
 
     private function createCompraWithDetail($payload, $productos, $fecha) {
-        $folio   = $this->nextFolio('CP-', 'purchase_order', $this->companiesId);
-        $totales = totalsProductos($productos);
+        $branchId = (int) ($payload['branch_id'] ?: $this->branchId);
+        $folio    = $this->nextFolio('CP-', 'purchase_order', $this->companiesId, $branchId);
+        $totales  = totalsProductos($productos);
 
         $this->createCompra($this->util->sql([
             'folio'                    => $folio,
@@ -580,7 +581,7 @@ class ctrl extends mdl {
             'origin_purchase_order_id' => $payload['origin_purchase_order_id'] ?: null,
             'warehouse_id'             => $payload['warehouse_id'] ?: null,
             'user_id'                  => $this->userId,
-            'branch_id'                => $payload['branch_id'] ?: $this->branchId,
+            'branch_id'                => $branchId,
             'companies_id'             => $this->companiesId
         ]));
 
@@ -630,7 +631,7 @@ class ctrl extends mdl {
             }
         }
 
-        $folio  = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId);
+        $folio  = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId, (int) $compra['branch_id']);
         $origin = $this->getInflowOriginByCode([$supplierId ? 'COMPRA' : 'COMPRA_SP', $this->companiesId]) ?: $this->getInflowOriginByCode(['COMPRA', $this->companiesId]);
         $nota   = joinNotes('Compra ' . $compra['folio'] . ' · ' . $compra['name'], $payload['note']);
 

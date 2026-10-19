@@ -472,7 +472,8 @@ class Salidas extends Templates {
                 unidad:      d.unit          || '',
                 qty:         Number(d.quantity || 0),
                 costo_unit:  Number(d.cost || 0),
-                costo_total: Number(d.subtotal_loss != null ? d.subtotal_loss : Number(d.quantity || 0) * Number(d.cost || 0))
+                costo_total: Number(d.subtotal_loss != null ? d.subtotal_loss : Number(d.quantity || 0) * Number(d.cost || 0)),
+                presentacion: d.presentation_id ? { nombre: d.presentation_name || 'Presentación', cantidad: Number(d.presentation_qty || 0) } : null
             })),
             total_unidades: Number(h.total_units     || 0),
             total_costo:    Number(h.total_cost_loss || 0)
@@ -529,10 +530,12 @@ class Salidas extends Templates {
                         data: { opc: 'saveSalida', payload: JSON.stringify(backendPayload) }
                     });
 
+                    // La salida recién creada se abre en el visor, como al editarla.
                     if (r && r.status === 200) {
                         app.alertBox({ type: 'success', title: r.message || ('Salida ' + r.folio + ' registrada'), timer: 2200 });
                         this.lsSalidas();
                         this.lsKpis();
+                        if (r.id) this.getSalida(r.id);
                     } else {
                         app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la salida' });
                     }
@@ -878,13 +881,14 @@ class Salidas extends Templates {
 
         const rowsHtml = items.map(it => {
             const cu = Number(it.costo_unit || 0);
-            return `<tr><td class="prod"><span class="prod-name">${esc(it.name)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">-${fmtUds(it.qty)}</td><td class="r">${fmtMoney(cu)}</td><td class="r">-${fmtMoney(subOf(it))}</td><td class="c">${esc(it.unidad || '-')}</td></tr>`;
+            const pres = it.presentacion ? `<div class="pres">Salió como presentación: ${+it.presentacion.cantidad.toFixed(2)} × ${esc(it.presentacion.nombre)}</div>` : '';
+            return `<tr><td class="prod"><span class="prod-name">${esc(it.name)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}${pres}</td><td class="c">-${fmtUds(it.qty)}</td><td class="r">${fmtMoney(cu)}</td><td class="r">-${fmtMoney(subOf(it))}</td><td class="c">${esc(it.unidad || '-')}</td></tr>`;
         }).join('');
 
         const reg = m.registrado_por && m.registrado_por.name ? m.registrado_por.name : '-';
 
         const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Salida ${esc(m.folio||'')}</title>
-        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.firmas{display:flex;justify-content:space-between;gap:64px;margin-top:72px;page-break-inside:avoid}.firma{flex:1;text-align:center;font-size:11px;color:#000}.firma .linea{border-top:1px solid #000;margin-bottom:6px}.firma .rol{font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px}.firma .sub{color:#777;font-size:10px;margin-top:2px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
+        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.pres{color:#555;font-size:10px;font-style:italic;margin-top:1px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.firmas{display:flex;justify-content:space-between;gap:64px;margin-top:72px;page-break-inside:avoid}.firma{flex:1;text-align:center;font-size:11px;color:#000}.firma .linea{border-top:1px solid #000;margin-bottom:6px}.firma .rol{font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px}.firma .sub{color:#777;font-size:10px;margin-top:2px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
         </head><body>
         <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
         <div class="sheet">
@@ -947,16 +951,29 @@ class Salidas extends Templates {
     // Editar = abrir la salida en el mismo modal del alta, con sus datos. Antes pide
     // la contraseña de quien está en sesión.
     async openEditSalida(id) {
-        const ok = await this.askCancelPassword(id, false, 'verifyEditPassword', 'Para editar una salida ya registrada escribe tu contraseña.');
-        if (!ok) return;
-
         const r = await useFetch({ url: apiSalidas, data: { opc: 'getSalida', id: id } });
         if (!(r && r.status === 200)) {
             app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo abrir la salida' });
             return;
         }
 
-        const h        = r.header || {};
+        const h = r.header || {};
+
+        // Con un ajuste aplicado en el almacén no se edita lo anterior a su fecha (el ctrl también lo revisa).
+        const fechaSalida = String(h.date_shrinkage || h.created_at || '').slice(0, 10);
+        const fechaAjuste = String(h.adjustment_date || '').slice(0, 10);
+        if (fechaAjuste && fechaSalida && fechaSalida < fechaAjuste) {
+            app.alertBox({
+                type:       'warning',
+                title:      'Salida bloqueada',
+                detailHtml: `El almacén tuvo un ajuste el ${moment(fechaAjuste).format('DD/MM/YYYY')}. Una salida del ${moment(fechaSalida).format('DD/MM/YYYY')} ya no se puede editar.`
+            });
+            return;
+        }
+
+        const ok = await this.askCancelPassword(id, false, 'verifyEditPassword', 'Para editar una salida ya registrada escribe tu contraseña.');
+        if (!ok) return;
+
         const catalogo = app.dataInit.productos || [];
 
         this.salidaFormInstance().openEdit({
@@ -1205,6 +1222,7 @@ class SalidasView extends Templates {
                 cant:        'Cant',
                 costo:       'Costo',
                 subtotal:    'Subtot',
+                comoPresentacion: 'Salió como presentación:',
                 imprimir:    'Imprimir',
                 cancelar:    'Cancelar',
                 editar:      'Editar',
@@ -1295,6 +1313,9 @@ class SalidasView extends Templates {
         // datos, tabla compacta, totales, registro/nota/evidencia y acciones.
         const infoRow = (label, value) => `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-24 flex-shrink-0">${esc(label)}</span>${value}</div>`;
 
+        // Salió como presentación: la cantidad del renglón va en piezas del base; aquí se ve lo capturado.
+        const presentacionRow = (it) => it.presentacion ? `<p class="flex items-center gap-1 text-[10px] font-medium text-blue-600 mt-0.5"><i data-lucide="boxes" class="w-3 h-3 flex-shrink-0"></i>${esc(opts.labels.comoPresentacion)} ${+it.presentacion.cantidad.toFixed(2)} × ${esc(it.presentacion.nombre)}</p>` : '';
+
         // Cancelada: eliminar; aplicada: cancelar. Sin esa acción en el rol, no hay barra.
         const actionsBar = (cancelled) => {
             if (cancelled ? !opts.actions.delete : !opts.actions.cancel) return '';
@@ -1321,6 +1342,7 @@ class SalidasView extends Templates {
                     <tr class="border-b border-gray-100 last:border-b-0 align-top">
                         <td class="!py-1 !pl-2 !pr-2">
                             <p class="text-[11px] font-medium text-gray-700 leading-tight">${esc(it.name)}${it.sku ? ` <span class="text-[10px] font-normal text-gray-400">${esc(it.sku)}</span>` : ''}</p>
+                            ${presentacionRow(it)}
                         </td>
                         <td class="!py-1 !px-1 text-right text-[11px] text-gray-500 whitespace-nowrap">${fmtMoney(cu)}</td>
                         <td class="!py-1 !px-1 text-center text-[11px]"><span class="font-semibold text-gray-800">-${it.qty}</span></td>

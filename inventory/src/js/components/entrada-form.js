@@ -100,8 +100,9 @@ class EntradaForm {
                 prodCatPh:    'Sin categoría',
                 prodUnit:     'Unidad',
                 prodUnitPh:   'Sin unidad',
-                prodCosto:    'Costo c/imp',
-                prodTax:      'Impuesto',
+                prodCosto:    'Costo c/impuesto',
+                prodTax:      'IVA',
+                prodUltimoCosto: 'Último costo',
                 prodHint:     'El SKU se genera solo. El precio de venta se captura después.',
                 prodGuardar:  'Crear y agregar',
                 prodModalEdit:'Editar producto',
@@ -245,7 +246,7 @@ class EntradaForm {
                             <select id="${o.id}_selOrigen" class="${cls.select} !pl-10">
                                 ${(o.data.origenes || []).map(it => this.optionTag(it)).join('')}
                             </select>
-                        `, 'log-in')}
+                        `, this.iconoOrigen(this.firstOrigenId()), `${o.id}_icoOrigen`)}
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.sucursal)}</label>
@@ -302,6 +303,28 @@ class EntradaForm {
         return ['COMPRA', 'PROVEEDOR'].includes(String(o.code || '').toUpperCase());
     }
 
+    // Ícono (Catálogo > Origen entradas) del tipo elegido; sin ícono o con uno que
+    // Lucide no conoce cae a 'log-in'.
+    iconoOrigen(originId) {
+        const o     = this.origenMap[String(originId)];
+        const icon  = o && o.icon ? String(o.icon) : '';
+        const lista = window.CS_ICONS;
+        if (!icon || (Array.isArray(lista) && !lista.includes(icon))) return 'log-in';
+        return icon;
+    }
+
+    firstOrigenId() {
+        const l = this.opts.data.origenes || [];
+        return l.length ? l[0].id : '';
+    }
+
+    syncOrigenIcon() {
+        const $ico = $(`#${this.opts.id}_icoOrigen`);
+        if (!$ico.length) return;
+        $ico.html(`<i data-lucide="${this.esc(this.iconoOrigen($(`#${this.opts.id}_selOrigen`).val()))}" class="w-4 h-4"></i>`);
+        if (window.lucide) lucide.createIcons();
+    }
+
     syncProveedorVisibility() {
         const o      = this.opts;
         const origen = $(`#${o.id}_selOrigen`).val();
@@ -310,6 +333,7 @@ class EntradaForm {
         $(`#${o.id}_configGrid`)
             .toggleClass('grid-cols-6', show)
             .toggleClass('grid-cols-5', !show);
+        this.syncOrigenIcon();
     }
 
     addSupplierOption(sup) {
@@ -445,7 +469,7 @@ class EntradaForm {
         const html = `
             <div id="${modalId}" class="fixed inset-0 z-[120] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" data-prod-backdrop></div>
-                <div class="relative w-full max-w-sm bg-white border border-gray-200 rounded-xl shadow-2xl shadow-black/30 overflow-hidden">
+                <div class="relative w-full max-w-md bg-white border border-gray-200 rounded-xl shadow-2xl shadow-black/30 overflow-hidden">
                     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
                         <p class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
                             <i data-lucide="${edit ? 'pencil' : 'package-plus'}" class="w-3.5 h-3.5 text-emerald-600"></i>${this.esc(edit ? o.labels.prodModalEdit : o.labels.prodModalTit)}
@@ -470,7 +494,7 @@ class EntradaForm {
                                 <select id="${modalId}_unit" class="${selCls}">${options(o.data.unidades, o.labels.prodUnitPh)}</select>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-3 gap-3">
                             <div class="flex flex-col gap-1">
                                 <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${this.esc(o.labels.prodCosto)}</label>
                                 <input id="${modalId}_cost" type="number" min="0" step="0.01" value="0.00"
@@ -479,6 +503,11 @@ class EntradaForm {
                             <div class="flex flex-col gap-1">
                                 <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${this.esc(o.labels.prodTax)}</label>
                                 <select id="${modalId}_tax" class="${selCls}">${(o.data.impuestos || []).map(it => this.optionTag(it)).join('')}</select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${this.esc(o.labels.prodUltimoCosto)}</label>
+                                <input id="${modalId}_base" type="number" min="0" step="0.01" value="0.00"
+                                    class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-right text-gray-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all">
                             </div>
                         </div>
                         ${edit ? `
@@ -515,15 +544,31 @@ class EntradaForm {
             selectValue($(`#${modalId}_unit`), current.unit_id);
             $(`#${modalId}_cost`).val(Number(current.costo || 0).toFixed(2));
             selectValue($(`#${modalId}_tax`), Number(current.tax || 0));
+            $(`#${modalId}_base`).val(this.baseFromCost(Number(current.costo || 0), Number(current.tax || 0)).toFixed(2));
         }
 
         if (window.lucide) lucide.createIcons();
         setTimeout(() => $(`#${modalId}_name`).trigger('focus').trigger('select'), 50);
 
         const closeModal = () => $(`#${modalId}`).remove();
-        $(`#${modalId}_cost`)
+        // Mismo enlace que el modal del catálogo: lo último que se teclea manda.
+        let anclaBase = false;
+        const desdeBase = () => {
+            const base = Math.max(0, parseFloat($(`#${modalId}_base`).val()) || 0);
+            const tax  = this.parseTax($(`#${modalId}_tax`).val());
+            $(`#${modalId}_cost`).val((base * (1 + tax / 100)).toFixed(2));
+        };
+        const desdeCosto = () => {
+            const costo = Math.max(0, parseFloat($(`#${modalId}_cost`).val()) || 0);
+            const tax   = this.parseTax($(`#${modalId}_tax`).val());
+            $(`#${modalId}_base`).val(this.baseFromCost(costo, tax).toFixed(2));
+        };
+        $(`#${modalId}_cost, #${modalId}_base`)
             .on('keydown', (e) => this.bloquearSigno(e))
             .on('input',   (e) => this.limpiarNegativo($(e.currentTarget)));
+        $(`#${modalId}_cost`).on('input', () => { anclaBase = false; desdeCosto(); });
+        $(`#${modalId}_base`).on('input', () => { anclaBase = true;  desdeBase(); });
+        $(`#${modalId}_tax`).on('change', () => { if (anclaBase) desdeBase(); else desdeCosto(); });
         $(`#${modalId}`).on('click', '[data-prod-backdrop]', closeModal);
         $(`#${modalId}_close`).on('click', closeModal);
         $(`#${modalId}_cancel`).on('click', closeModal);
@@ -537,6 +582,9 @@ class EntradaForm {
 
             const costo = Math.max(0, parseFloat($(`#${modalId}_cost`).val()) || 0);
             const tax   = this.parseTax($(`#${modalId}_tax`).val());
+            const base  = anclaBase
+                ? Math.max(0, parseFloat($(`#${modalId}_base`).val()) || 0)
+                : this.baseFromCost(costo, tax);
 
             const $btn = $(`#${modalId}_confirm`).prop('disabled', true).addClass('opacity-60');
 
@@ -548,7 +596,7 @@ class EntradaForm {
                     category_id: $(`#${modalId}_cat`).val()  || '',
                     unit_id:     $(`#${modalId}_unit`).val() || '',
                     costo:       costo,
-                    cost_unit:   this.baseFromCost(costo, tax),
+                    cost_unit:   base,
                     cost_tax:    tax
                 }, modalId, $btn);
                 return;
@@ -560,7 +608,7 @@ class EntradaForm {
                 unit_id:     $(`#${modalId}_unit`).val() || '',
                 // Costo como lo guarda una entrada: base sin impuesto + tasa.
                 costo:       costo,
-                cost_unit:   this.baseFromCost(costo, tax),
+                cost_unit:   base,
                 cost_tax:    tax
             };
 
@@ -580,7 +628,7 @@ class EntradaForm {
 
         $(`#${modalId}_confirm`).on('click', confirmar);
         // La descripción es textarea: ahí Enter hace salto de línea, no guarda.
-        $(`#${modalId}_name, #${modalId}_cost`).on('keydown', (e) => {
+        $(`#${modalId}_name, #${modalId}_cost, #${modalId}_base`).on('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); confirmar(); }
         });
     }
@@ -854,6 +902,7 @@ class EntradaForm {
                                 ${this.renderProductName(p)}
                             </div>
                             ${(p.categoria || this.unitOf(p)) ? `<p class="text-[10px] text-gray-400 truncate mt-0.5">${[p.categoria, this.unitOf(p)].filter(Boolean).map(x => this.esc(x)).join(' &middot; ')}</p>` : ''}
+                            ${this.equivaleHtml(p)}
                         </div>
                     </div>
                 </td>
@@ -900,9 +949,11 @@ class EntradaForm {
     // Nombre del producto en el renglón. Con onEditProduct es un enlace que abre la edición: se ve
     // azul y subrayado al pasar el cursor por el producto (group/prod) o con foco de teclado.
     // Con "!": Bootstrap 5 pisa color y subrayado con !important.
+    // Una presentación se edita en Catálogo > Productos, y uno de otra sucursal (de Matriz)
+    // no se edita: los dos van sin enlace.
     renderProductName(p) {
         const base = 'text-xs font-semibold truncate leading-tight';
-        if (typeof this.opts.onEditProduct !== 'function') {
+        if (typeof this.opts.onEditProduct !== 'function' || p.presentacion || p.editable === false) {
             return `<p class="${base} text-gray-800">${this.esc(p.nombre)}</p>`;
         }
         return `
@@ -912,6 +963,13 @@ class EntradaForm {
     // Al final del subtotal; lo usa la captura de pedidos (orden-form) para la nota.
     renderSubtotalExtra() {
         return '';
+    }
+
+    // Presentación (Caja 24): a cuánto equivale de su base. Al guardar, el servidor la
+    // registra como ese producto base (cantidad × factor).
+    equivaleHtml(p) {
+        if (!p.equivale) return '';
+        return `<p class="flex items-center gap-1 text-[10px] font-medium text-blue-600 truncate mt-0.5"><i data-lucide="boxes" class="w-3 h-3 flex-shrink-0"></i><span class="truncate">${this.esc(p.equivale)}</span></p>`;
     }
 
     renderProductsTable() {
@@ -998,6 +1056,7 @@ class EntradaForm {
                     <p class="text-[10px] text-gray-500 truncate mt-0.5">
                         <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}${this.unitOf(p) ? `<span class="text-gray-300"> &middot; </span>${this.esc(this.unitOf(p))}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
                     </p>
+                    ${this.equivaleHtml(p)}
                     ${this.coincidenciaHtml(p, term)}
                 </div>
                 <div class="text-right flex-shrink-0">
@@ -1153,8 +1212,9 @@ class EntradaForm {
         return this.productosDisponibles().filter(p => this.textoProducto(p).includes(t));
     }
 
+    // Con el nombre del base también salen sus presentaciones (en `equivale`).
     textoProducto(p) {
-        return this.normTxt(`${p.nombre || ''} ${p.sku || ''} ${p.descripcion || ''}`);
+        return this.normTxt(`${p.nombre || ''} ${p.sku || ''} ${p.descripcion || ''} ${p.equivale || ''}`);
     }
 
     // Sin acentos (la ñ queda n), minúsculas y solo letras y números.
@@ -1331,7 +1391,8 @@ class EntradaForm {
         if (!el || !list) return;
         const r = el.getBoundingClientRect();
         const l = list.getBoundingClientRect();
-        if (r.top >= l.top && r.bottom <= l.bottom - r.height) return;
+        // Debajo del renglón siempre queda al menos un renglón y medio libre para seguir escribiendo.
+        if (r.top >= l.top && r.bottom <= l.bottom - r.height * 1.5) return;
         list.scrollTop += (r.top - l.top) - (list.clientHeight - r.height) / 2;
     }
 
@@ -2302,10 +2363,12 @@ class EntradaForm {
         wrap.on('click', '[data-edit-product]',       (e) => { e.stopPropagation(); this.openNuevoProducto('', $(e.currentTarget).attr('data-edit-product')); });
         wrap.on('change', `#${id}_selSucursal`, (e) => {
             this.refreshAlmacenes(e.target.value);
+            this.syncFechaMin();
             this.refreshDestinos($(`#${id}_selAlmacen`).val());
             this.reloadStock($(`#${id}_selAlmacen`).val());
         });
         wrap.on('change', `#${id}_selAlmacen`, (e) => {
+            this.syncFechaMin();
             this.refreshDestinos(e.target.value);
             this.reloadStock(e.target.value);
         });
@@ -2419,6 +2482,7 @@ class EntradaForm {
     // El modal se arma una vez: el tope de la fecha se renueva al abrir (pudo pasar la medianoche).
     open() {
         $(`#${this.opts.id}_inpFecha`).attr('max', this.hoy());
+        this.syncFechaMin();
         this.wrap.removeClass('hidden');
         this.refreshFormatos();
         this.syncProveedorVisibility();
@@ -2448,6 +2512,7 @@ class EntradaForm {
         $(`#${id}_selProveedor`).val(entrada.supplier_id ? String(entrada.supplier_id) : '');
         $(`#${id}_inpFecha`).val(entrada.fecha || '').attr('max', this.hoy());
         $(`#${id}_inpNota`).val(entrada.nota || '');
+        this.syncFechaMin();
 
         this.lote  = (entrada.productos || []).map(p => Object.assign({}, p));
         this.draft = null;
@@ -2472,7 +2537,19 @@ class EntradaForm {
             $(`#${id}_selDestino`).val('');
             $(`#${id}_selProveedor`).val('');
             $(`#${id}_inpNota`).val('');
+            $(`#${id}_inpFecha`).removeAttr('min');
         }
+    }
+
+    // Al dar de alta o editar, la fecha no baja del último ajuste del almacén elegido
+    // (data.ajustes: { warehouse_id: 'AAAA-MM-DD' }, lo manda el servidor). El ctrl lo
+    // vuelve a revisar.
+    syncFechaMin() {
+        const id    = this.opts.id;
+        const $date = $(`#${id}_inpFecha`);
+        const min   = String(((this.opts.data.ajustes || {})[$(`#${id}_selAlmacen`).val()]) || '').slice(0, 10);
+        if (min) $date.attr('min', min); else $date.removeAttr('min');
+        if (min && $date.val() && $date.val() < min) $date.val(min);
     }
 
     // `origen` (Tipo de entrada) y `warehouse_id` (Origen) los manda el formulario
@@ -2544,9 +2621,9 @@ class EntradaForm {
 
     // Con icon, un cuadro con el tinte del acento a la izquierda, igual que en
     // la captura de Salidas (salida-form).
-    selectWrap(selectHtml, icon) {
+    selectWrap(selectHtml, icon, iconId) {
         const badge = icon
-            ? `<span class="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
+            ? `<span ${iconId ? `id="${this.esc(iconId)}" ` : ''}class="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
                     <i data-lucide="${this.esc(icon)}" class="w-4 h-4"></i>
                </span>`
             : '';

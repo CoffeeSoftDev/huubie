@@ -1457,6 +1457,7 @@ class Subsidiaries extends App {
             success: (r) => this.afterSave(r)
         });
         this.renderLogoPicker('formSubsidiaryAdd', '');
+        this.folioCodeInput('formSubsidiaryAdd');
     }
 
     async editSubsidiary(id) {
@@ -1480,6 +1481,7 @@ class Subsidiaries extends App {
             success: (r) => this.afterSave(r)
         });
         this.renderLogoPicker('formSubsidiaryEdit', request.data.logo_url || '');
+        this.folioCodeInput('formSubsidiaryEdit');
     }
 
     renderLogoPicker(formId, url) {
@@ -1551,11 +1553,27 @@ class Subsidiaries extends App {
                 opc: 'select',
                 id: 'manager_id',
                 lbl: 'Responsable',
-                class: 'col-12 mb-3',
+                class: 'col-12 col-md-6 mb-3',
                 required: false,
                 data: [{ id: '', valor: 'Sin responsable' }].concat(usuariosData)
+            },
+            {
+                opc: 'input',
+                id: 'folio_code',
+                lbl: 'Clave de folios',
+                placeholder: 'Ej. KAF → ENT-KAF-0001',
+                class: 'col-12 col-md-6 mb-3',
+                required: false
             }
         ];
+    }
+
+    // Clave de folios: de 2 a 5 letras o números, en mayúsculas mientras se escribe.
+    folioCodeInput(formId) {
+        $(`#${formId} [name="folio_code"]`)
+            .attr({ maxlength: 5, autocomplete: 'off' })
+            .addClass('uppercase')
+            .on('input', function () { this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
     }
 }
 

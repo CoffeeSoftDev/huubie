@@ -1112,14 +1112,15 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    // Sucursales activas de una empresa, para selects de asignación.
+    // Sucursales activas de una empresa, para selects de asignación. La Matriz
+    // (sucursal del almacén principal, en la BD de inventario) va primero.
     function qBranchesForSelect($array) {
         // [company_id]
         $query = "
             SELECT id, name AS valor
             FROM {$this->bd}branches
             WHERE company_id = ? AND is_active = 1
-            ORDER BY name ASC
+            ORDER BY id IN (SELECT branch_id FROM fayxzvov_inventory.warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];

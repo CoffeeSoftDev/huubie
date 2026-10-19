@@ -1,8 +1,12 @@
 <?php
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
+require_once __DIR__ . '/mdl-visibilidad.php';
 
 class mdl extends CRUD {
+
+    // Los selectores de Área y Categoría (filtroAreasVisibles, filtroCatalogoSucursal).
+    use VisibilidadProductos;
 
     public $util;
     public $bd;
@@ -31,6 +35,7 @@ class mdl extends CRUD {
 
     // -- Catalogos --
 
+    // La Matriz (sucursal del almacén principal) va primero; las demás, por nombre.
     function lsSucursales($array) {
         $companyId = $array['company_id'];
         $userId    = $array['user_id'];
@@ -41,7 +46,7 @@ class mdl extends CRUD {
                 SELECT id, name AS valor
                 FROM {$this->bdErp}branches
                 WHERE company_id = ? AND is_active = 1
-                ORDER BY name ASC
+                ORDER BY id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
             ";
             $result = $this->_Read($query, [$companyId]);
         } else {
@@ -50,7 +55,7 @@ class mdl extends CRUD {
                 FROM {$this->bdErp}branches b
                 INNER JOIN {$this->bdErp}users_braches ub ON ub.branch_id = b.id
                 WHERE b.company_id = ? AND b.is_active = 1 AND ub.user_id = ?
-                ORDER BY b.name ASC
+                ORDER BY b.id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, b.name ASC
             ";
             $result = $this->_Read($query, [$companyId, $userId]);
         }
@@ -75,25 +80,29 @@ class mdl extends CRUD {
         return is_array($result) ? $result : [];
     }
 
+    // Cada sucursal ve las áreas de su almacén; Matriz y el dueño, todas.
     function lsAreas($array) {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}warehouse_area
-            WHERE active = 1
-            AND companies_id = ?
-            ORDER BY name ASC
+            SELECT wa.id, wa.name AS valor
+            FROM {$this->bd}warehouse_area wa
+            WHERE wa.active = 1
+            AND wa.companies_id = ?
+            {$this->filtroAreasVisibles('wa')}
+            ORDER BY wa.name ASC
         ";
         $result = $this->_Read($query, $array);
         return is_array($result) ? $result : [];
     }
 
+    // Las de la sucursal; el administrador, todas.
     function lsCategories($array) {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}item_category
-            WHERE active = 1
-            AND companies_id = ?
-            ORDER BY name ASC
+            SELECT ic.id, ic.name AS valor
+            FROM {$this->bd}item_category ic
+            WHERE ic.active = 1
+            AND ic.companies_id = ?
+            {$this->filtroCatalogoSucursal('ic')}
+            ORDER BY ic.name ASC
         ";
         $result = $this->_Read($query, $array);
         return is_array($result) ? $result : [];

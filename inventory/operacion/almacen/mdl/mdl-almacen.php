@@ -2,8 +2,17 @@
 
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
+require_once __DIR__ . '/mdl-visibilidad.php';
+require_once __DIR__ . '/mdl-folios.php';
 
 class mdl extends CRUD {
+
+    // Qué productos ve y edita la sucursal: los suyos y los de Matriz (solo verlos).
+    use VisibilidadProductos;
+
+    // Folio por sucursal: nextFolio (AJU-KAF-0001 al pasar un producto a presentación).
+    use FolioSucursal;
+
     protected $util;
     public $bd;
 
@@ -14,13 +23,15 @@ class mdl extends CRUD {
 
     // Selects para filtros / formularios
 
+    // Categorías, proveedores y almacenes: los de la sucursal; el administrador, todos.
     function lsCategories() {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}item_category
-            WHERE active = 1
-            AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY name ASC
+            SELECT ic.id, ic.name AS valor
+            FROM {$this->bd}item_category ic
+            WHERE ic.active = 1
+            AND ic.companies_id = ".$_SESSION['company_id']."
+            {$this->filtroCatalogoSucursal('ic')}
+            ORDER BY ic.name ASC
         ";
         return $this->_Read($query, []);
     }
@@ -37,28 +48,45 @@ class mdl extends CRUD {
         return $this->_Read($query, []);
     }
 
+    // Cada sucursal ve las áreas de su almacén; Matriz y el dueño, todas.
     function lsAreas() {
         $query = "
-            SELECT id, name AS valor, color_hex, description
-            FROM {$this->bd}warehouse_area
-            WHERE active = 1
-            AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY name ASC
+            SELECT wa.id, wa.name AS valor, wa.color_hex, wa.description
+            FROM {$this->bd}warehouse_area wa
+            WHERE wa.active = 1
+            AND wa.companies_id = ".$_SESSION['company_id']."
+            {$this->filtroAreasVisibles('wa')}
+            ORDER BY wa.name ASC
         ";
         return $this->_Read($query, []);
     }
 
     function lsProveedores() {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}supplier
-            WHERE active = 1
-            AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY name ASC
+            SELECT s.id, s.name AS valor
+            FROM {$this->bd}supplier s
+            WHERE s.active = 1
+            AND s.companies_id = ".$_SESSION['company_id']."
+            {$this->filtroCatalogoSucursal('s')}
+            ORDER BY s.name ASC
         ";
         return $this->_Read($query, []);
     }
 
+    // Producto que cambia de sucursal: sus presentaciones pierden el área que sea de un
+    // almacén de otra sucursal. [item_id, branch_id nuevo]
+    function quitarAreasAjenasPresentaciones($array) {
+        $query = "
+            UPDATE {$this->bd}item_presentation p
+            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = p.warehouse_area_id
+            LEFT JOIN {$this->bd}warehouse w ON w.id = wa.warehouse_id
+            SET p.warehouse_area_id = NULL
+            WHERE p.item_id = ? AND p.warehouse_area_id IS NOT NULL AND (w.branch_id IS NULL OR w.branch_id <> ?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // El select «Almacén» de «Nueva área».
     function lsWarehouses() {
         $query = "
             SELECT w.id, CONCAT(w.name, IFNULL(CONCAT(' - ', b.name), '')) AS valor
@@ -66,6 +94,7 @@ class mdl extends CRUD {
             LEFT JOIN fayxzvov_erp.branches b ON b.id = w.branch_id
             WHERE w.active = 1
             AND w.companies_id = ".$_SESSION['company_id']."
+            {$this->filtroCatalogoSucursal('w')}
             ORDER BY b.name ASC, w.is_default DESC, w.name ASC
         ";
         return $this->_Read($query, []);
@@ -99,7 +128,7 @@ class mdl extends CRUD {
                 GROUP BY item_id
             ) st ON st.item_id = i.id
             WHERE i.active = 1
-            AND i.companies_id = ".$_SESSION['company_id']."
+            AND i.companies_id = ".$_SESSION['company_id']." {$this->filtroProductosEditables('i')}
             ORDER BY i.name ASC
         ";
         return $this->_Read($query, []);
@@ -117,7 +146,11 @@ class mdl extends CRUD {
 
     // Insumos (item + item_attribute + stock)
 
+    // `branch_id` en los filtros: el stock es solo de los almacenes de esa sucursal;
+    // sin él (o vacío) es el de toda la empresa.
     function listMateriales($filters) {
+        $sucursal = $this->stockDeSucursal($filters['branch_id'] ?? '');
+
         $query = "
             SELECT
                 i.id,
@@ -134,28 +167,38 @@ class mdl extends CRUD {
                 ia.stock_max,
                 ia.shelf_life_days,
                 ia.description,
+                i.category_id,
                 ic.name AS categoria,
                 u.code  AS unidad,
                 u.name  AS unidad_nombre,
                 wa.id   AS area_id,
                 wa.name AS area,
                 wa.color_hex AS area_color,
-                COALESCE(st.qty, 0) AS quantity
+                COALESCE(st.qty, 0) AS quantity,
+                i.branch_id,
+                b.name  AS sucursal
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
-            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id {$this->filtroCatalogoSucursal('ic')}
             LEFT JOIN {$this->bd}unit           u  ON u.id  = ia.unit_id
-            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
+            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id {$this->filtroAreasCatalogo('wa')}
+            LEFT JOIN fayxzvov_erp.branches     b  ON b.id  = i.branch_id
             LEFT JOIN (
                 SELECT item_id, SUM(quantity) AS qty
                 FROM {$this->bd}stock
-                WHERE active = 1
+                WHERE active = 1 {$sucursal}
                 GROUP BY item_id
             ) st ON st.item_id = i.id
-            WHERE i.companies_id = ".$_SESSION['company_id']."
+            WHERE i.companies_id = ".$_SESSION['company_id']." {$this->filtroProductosPropios('i')}
         ";
 
         $params = [];
+
+        // Selector de sucursal del dueño: solo los productos de esa sucursal.
+        if (($filters['propietario'] ?? '') !== '') {
+            $query .= " AND i.branch_id = ?";
+            $params[] = $filters['propietario'];
+        }
 
         if (!empty($filters['categoria'])) {
             $query .= " AND i.category_id = ?";
@@ -189,6 +232,27 @@ class mdl extends CRUD {
         $query .= " ORDER BY i.id DESC";
 
         return $this->_Read($query, $params);
+    }
+
+    // Condición para la subconsulta de stock: solo los almacenes de la sucursal. El id va
+    // como entero, así que puede ir en el texto de la consulta.
+    private function stockDeSucursal($branchId) {
+        if ($branchId === '' || $branchId === null) return '';
+
+        return " AND warehouse_id IN (SELECT id FROM {$this->bd}warehouse WHERE branch_id = " . (int) $branchId . ")";
+    }
+
+    // Sucursales activas de la empresa: el dueño elige de cuál ver el stock en Productos.
+    // La Matriz (sucursal del almacén principal) va primero.
+    function lsSucursales($array) {
+        // [company_id]
+        $query = "
+            SELECT id, name AS valor
+            FROM fayxzvov_erp.branches
+            WHERE company_id = ? AND is_active = 1
+            ORDER BY id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
+        ";
+        return $this->_Read($query, $array);
     }
 
     function getMaterialById($id) {
@@ -333,6 +397,8 @@ class mdl extends CRUD {
     // Las presentaciones como filas de la tabla de Productos, con los mismos filtros:
     // la categoría es la de su base; el área y el estado, los suyos.
     function listPresentacionesTabla($filters) {
+        $sucursal = $this->stockDeSucursal($filters['branch_id'] ?? '');
+
         $query = "
             SELECT
                 p.id,
@@ -348,26 +414,33 @@ class mdl extends CRUD {
                 wa.name      AS area,
                 wa.color_hex AS area_color,
                 i.name       AS base_name,
+                i.branch_id  AS base_branch_id,
                 ic.name      AS categoria,
                 u.name       AS base_unit,
                 COALESCE(st.qty, 0) AS base_stock
             FROM {$this->bd}item_presentation p
             INNER JOIN {$this->bd}item           i  ON i.id = p.item_id
             LEFT JOIN  {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
-            LEFT JOIN  {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT JOIN  {$this->bd}item_category  ic ON ic.id = i.category_id {$this->filtroCatalogoSucursal('ic')}
             LEFT JOIN  {$this->bd}unit           u  ON u.id = ia.unit_id
             LEFT JOIN  {$this->bd}unit           pu ON pu.id = p.unit_id
-            LEFT JOIN  {$this->bd}warehouse_area wa ON wa.id = p.warehouse_area_id
+            LEFT JOIN  {$this->bd}warehouse_area wa ON wa.id = p.warehouse_area_id {$this->filtroAreasCatalogo('wa')}
             LEFT JOIN (
                 SELECT item_id, SUM(quantity) AS qty
                 FROM {$this->bd}stock
-                WHERE active = 1
+                WHERE active = 1 {$sucursal}
                 GROUP BY item_id
             ) st ON st.item_id = p.item_id
-            WHERE p.companies_id = ".$_SESSION['company_id']."
+            WHERE p.companies_id = ".$_SESSION['company_id']." {$this->filtroProductosPropios('i')}
         ";
 
         $params = [];
+
+        // Selector de sucursal del dueño: las presentaciones de los productos de esa sucursal.
+        if (($filters['propietario'] ?? '') !== '') {
+            $query .= " AND i.branch_id = ?";
+            $params[] = $filters['propietario'];
+        }
 
         if (!empty($filters['categoria'])) {
             $query .= " AND i.category_id = ?";
@@ -569,20 +642,6 @@ class mdl extends CRUD {
         return $result[0] ?? null;
     }
 
-    // El último AJU- de la empresa: el folio lo comparten los conteos de Stock.
-    function getAdjustmentFolio($array) {
-        // [companies_id]
-        $query = "
-            SELECT folio
-            FROM {$this->bd}inventory_adjustment
-            WHERE companies_id = ? AND folio LIKE 'AJU-%'
-            ORDER BY id DESC
-            LIMIT 1
-        ";
-        $result = $this->_Read($query, $array);
-        return $result[0]['folio'] ?? '';
-    }
-
     function createAdjustment($array) {
         // [folio, note, adjustment_reason_id, registered_user_id, authorized_user_id, warehouse_id, branch_id, companies_id]
         $query = "
@@ -678,15 +737,20 @@ class mdl extends CRUD {
         return $this->bd . $tables[$entity];
     }
 
-    // Activos e inactivos: el asistente también reactiva.
+    // Activos e inactivos: el asistente también reactiva. Categorías, proveedores,
+    // almacenes y áreas: los de la sucursal (el administrador, todos).
     function listCatalog($entity) {
-        $table = $this->catalogTable($entity);
+        $table  = $this->catalogTable($entity);
+        $filtro = '';
+
+        if (in_array($entity, ['category', 'supplier', 'warehouse'], true)) $filtro = $this->filtroCatalogoSucursal('c');
+        if ($entity === 'area') $filtro = $this->filtroAreasCatalogo('c');
 
         $query = "
-            SELECT *
-            FROM {$table}
-            WHERE companies_id = ?
-            ORDER BY name ASC
+            SELECT c.*
+            FROM {$table} c
+            WHERE c.companies_id = ? {$filtro}
+            ORDER BY c.name ASC
         ";
         return $this->_Read($query, [$_SESSION['company_id']]);
     }

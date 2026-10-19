@@ -24,7 +24,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="shortcut icon" href="src/img/logos/coffee_icon.png" type="image/x-icon">
+    <link rel="icon" href="src/img/logos/favicon.svg" type="image/svg+xml">
     <title>Coffee Inventory - Recuperar contraseña</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">

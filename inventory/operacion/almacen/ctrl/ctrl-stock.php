@@ -38,6 +38,7 @@ class ctrl extends mdl {
         return [
             'status'          => 200,
             'branch_id'       => $this->branchId,
+            'movement_days'   => self::MOVEMENT_DAYS,
             'sucursales'      => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'categorias'      => $this->lsCategories([$this->companiesId]),
             'areas'           => $this->lsAreas([$this->companiesId]),
@@ -78,7 +79,7 @@ class ctrl extends mdl {
                 'Máx'       => $max > 0 ? $this->_qty($max) : '-',
                 'Unidad'    => $r['unit_code'] ?: '-',
                 'Estado'    => $this->_levelBadge($qty, $min, $max),
-                'Últ. Mov'  => $this->_lastMovBadge($r['last_movement_type'] ?? ''),
+                'Últ. Mov'  => $this->_lastMovBadge($r['last_movement_type'] ?? '', $r['last_movement_occurred_at'] ?? ''),
                 'a'         => [
                     [
                         'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
@@ -121,11 +122,10 @@ class ctrl extends mdl {
             $dot   = $newId && (int) $r['id'] === $newId
                 ? "<span title='Nuevo' class='inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5 align-middle'></span>"
                 : '';
-            $hora  = $r['time_adjustment'] ? ' ' . substr($r['time_adjustment'], 0, 5) : '';
             $row[] = [
                 'id'          => $r['id'],
                 'Folio'       => ['html' => $dot . "<span class='font-mono font-semibold text-gray-800'>" . htmlspecialchars($r['folio'], ENT_QUOTES) . '</span>'],
-                'Fecha'       => ($r['date_adjustment'] ? date('d/m/Y', strtotime($r['date_adjustment'])) : '-') . $hora,
+                'Fecha'       => $r['date_adjustment'] ? $this->_fechaLarga($r['date_adjustment'] . ' ' . ($r['time_adjustment'] ?: '')) : '-',
                 'Almacén'     => $r['warehouse_name'] ?: '-',
                 'Estado'      => $this->_adjustBadge($r['status']),
                 'Contados'    => (int) $r['total_counted'] . ' / ' . (int) $r['total_products'],
@@ -138,6 +138,11 @@ class ctrl extends mdl {
                         'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                         'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                         'onclick' => "stockCount.render({$r['id']})"
+                    ],
+                    [
+                        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+                        'html'    => '<i data-lucide="printer" class="w-4 h-4"></i>',
+                        'onclick' => "ajustes.printAjuste({$r['id']})"
                     ]
                 ]
             ];
@@ -159,7 +164,7 @@ class ctrl extends mdl {
         $reason = $this->getReasonByCode(['CONTEO_FISICO']);
         if (!$reason) return ['status' => 500, 'message' => 'Falta el motivo CONTEO_FISICO (migración 2026-10-01_conteo-fisico.sql)'];
 
-        $folio  = $this->nextFolio('AJU-', 'inventory_adjustment', $this->companiesId);
+        $folio  = $this->nextFolio('AJU-', 'inventory_adjustment', $this->companiesId, $branchId);
         $userId = $this->userId ?: null;
 
         try {
@@ -170,7 +175,7 @@ class ctrl extends mdl {
                 $id  = (int) ($row['id'] ?? 0);
                 if (!$id) throw new Exception('Sin id del conteo');
 
-                $this->createConteoDetail([$id, $this->companiesId]);
+                $this->createConteoDetail([$id, $this->companiesId], $branchId);
                 $this->createConteoHistory(['Borrador', 'Conteo abierto', $userId, $id]);
                 $this->updateConteoTotals([$id, $id]);
 
@@ -250,7 +255,7 @@ class ctrl extends mdl {
                 'status'   => $header['status'],
                 'badge'    => $this->_adjustBadge($header['status']),
                 'subtitle' => ($header['warehouse_name'] ?: 'Almacén') . ' · '
-                            . date('d/m/Y', strtotime($header['date_adjustment'])) . ' · Folio ' . $header['folio'],
+                            . $this->_fechaLarga($header['date_adjustment'] . ' ' . ($header['time_adjustment'] ?? '')) . ' · Folio ' . $header['folio'],
                 'is_blind' => (int) $header['is_blind'],
                 'info'     => $this->_conteoInfo($header)
             ],
@@ -259,6 +264,83 @@ class ctrl extends mdl {
             'row'    => $row,
             'areas'  => $areas,
             'sheet'  => $sheet
+        ];
+    }
+
+    // Datos de la hoja impresa del conteo: productos por área con lo que ya se contó
+    // (`counted`) y, los que faltan, con la casilla en blanco para anotarlo a mano. En
+    // conteo ciego no sale lo que dice el sistema.
+    function printConteo() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $header = $this->getConteoById([$id, $this->companiesId]);
+        if (!$header) return ['status' => 404, 'message' => 'Conteo no encontrado'];
+
+        $areaId = (string) ($_POST['area_id'] ?? '');
+        $blind  = (int) $header['is_blind'] === 1;
+        $items  = [];
+        foreach ($this->listConteoDetail([(int) $header['warehouse_id'], $id]) as $it) {
+            if ($areaId !== '' && (string) $it['area_id'] !== $areaId) continue;
+            $items[] = [
+                'id'      => (int) $it['item_id'],
+                'area'    => $it['area_name'] ?: 'Sin área',
+                'name'    => $it['item_name'],
+                'sku'     => $it['sku'] ?: '',
+                'unit'    => $it['unit_code'] ?: '',
+                'system'  => $blind ? null : $this->_qty($this->_conteoSystem($it)),
+                'counted' => $it['physical_quantity'] === null ? null : $this->_qty($it['physical_quantity'])
+            ];
+        }
+
+        return [
+            'status' => 200,
+            'header' => [
+                'folio'     => $header['folio'],
+                'status'    => $header['status'],
+                'warehouse' => $header['warehouse_name'] ?: 'Almacén',
+                'date'      => $this->_fechaLarga($header['date_adjustment'] . ' ' . ($header['time_adjustment'] ?? '')),
+                'blind'     => $blind,
+                'area'      => $areaId === '' ? 'Todas las áreas' : ''
+            ],
+            'items'  => $items
+        ];
+    }
+
+    // Comprobante del ajuste: solo los productos que se ajustaron (contados y con diferencia).
+    function getAjuste() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $header = $this->getConteoById([$id, $this->companiesId]);
+        if (!$header) return ['status' => 404, 'message' => 'Ajuste no encontrado'];
+
+        $items = [];
+        foreach ($this->listConteoDetail([(int) $header['warehouse_id'], $id]) as $it) {
+            if ($it['physical_quantity'] === null || abs((float) $it['difference']) < 0.00001) continue;
+            $items[] = [
+                'name'       => $it['item_name'],
+                'sku'        => $it['sku'] ?: '',
+                'unit'       => $it['unit_code'] ?: '',
+                'system'     => (float) $it['system_quantity'],
+                'counted'    => (float) $it['physical_quantity'],
+                'difference' => (float) $it['difference'],
+                'cost'       => (float) $it['cost'],
+                'cost_diff'  => (float) $it['cost_diff']
+            ];
+        }
+
+        return [
+            'status' => 200,
+            'header' => [
+                'folio'      => $header['folio'],
+                'status'     => $header['status'] === 'Pendiente' ? 'Borrador' : $header['status'],
+                'reason'     => $header['reason_name'] ?: 'Conteo físico',
+                'branch'     => $header['branch_name'] ?: '',
+                'warehouse'  => $header['warehouse_name'] ?: 'Almacén',
+                'date'       => $this->_fechaLarga($header['date_adjustment'] . ' ' . ($header['time_adjustment'] ?? '')),
+                'registered' => $header['registered_name'] ?: '',
+                'authorized' => $header['authorized_name'] ?: '',
+                'applied_at' => $header['authorized_at'] ? $this->_fechaLarga($header['authorized_at']) : '',
+                'note'       => $header['note'] ?: ''
+            ],
+            'items'  => $items
         ];
     }
 
@@ -427,7 +509,7 @@ class ctrl extends mdl {
                 'qty'   => $qty >= 0 ? '+' . $qty : (string) $qty,
                 'prev'   => $m['stock_prev'] !== null ? $this->_qty($m['stock_prev']) : null,
                 'post'   => $m['stock_post'] !== null ? $this->_qty($m['stock_post']) : null,
-                'when'   => ($m['occurred_at'] ?? '') . ' · ' . ($m['warehouse_name'] ?? '-'),
+                'when'   => $this->_fechaLarga($m['occurred_datetime'] ?? $m['occurred_at'] ?? '') . ' · ' . ($m['warehouse_name'] ?? '-'),
                 'branch' => $m['branch_name'] ?? ''
             ];
         }
@@ -656,6 +738,17 @@ class ctrl extends mdl {
             'salidas'   => $sumSal,
             'delta'     => $delta
         ];
+    }
+
+    // Las fechas del visor: "lunes 18 de oct 2026 11:00 am".
+    private function _fechaLarga($fecha) {
+        $ts = strtotime((string) $fecha);
+        if (!$ts) return (string) $fecha;
+
+        $dias  = ['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+        $meses = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+        return $dias[(int) date('N', $ts)] . ' ' . date('j', $ts) . ' de ' . $meses[(int) date('n', $ts)] . ' ' . date('Y g:i a', $ts);
     }
 
     private function _qty($n) {
@@ -927,7 +1020,7 @@ class ctrl extends mdl {
         }
     }
 
-    private function _lastMovBadge($type) {
+    private function _lastMovBadge($type, $at = '') {
         if (empty($type)) {
             return "<span class='text-[10px] text-gray-300'>Sin movimiento</span>";
         }
@@ -938,7 +1031,8 @@ class ctrl extends mdl {
             'AJUSTE'        => ['bg' => 'rgba(167,139,250,0.15)','fg' => '#7C3AED', 'lbl' => 'Ajuste']
         ];
         $c = $map[$type] ?? ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#6B7280', 'lbl' => $type];
-        return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>{$c['lbl']}</span>";
+        $cuando = $at && strtotime($at) ? "<span class='block mt-0.5 text-[10px] text-gray-400 whitespace-nowrap'>" . $this->_fechaLarga($at) . "</span>" : '';
+        return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c['bg']};color:{$c['fg']};'>{$c['lbl']}</span>{$cuando}";
     }
 
     private function _levelBadge($qty, $min, $max) {

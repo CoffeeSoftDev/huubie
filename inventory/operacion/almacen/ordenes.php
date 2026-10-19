@@ -22,6 +22,9 @@ require_once('layout/core-libraries.php');
 
 <link rel="stylesheet" href="../../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/dark-mode.css'); ?>">
 
+<!-- FULL CALENDAR (pestaña Calendario): misma versión que Compras y alpha/pedidos -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js"></script>
+
 <body>
     <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
     <main>
@@ -35,7 +38,7 @@ require_once('layout/core-libraries.php');
 
     <!-- Importación navbar y sidebar -->
     <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
-    <script src="../../acceso/src/js/sidebar.js"></script>
+    <script src="../../acceso/src/js/sidebar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/sidebar.js'); ?>"></script>
 
     <!-- Captura con el formato de Entradas: orden-form extiende entrada-form -->
     <script src="../../src/js/components/entrada-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/entrada-form.js'); ?>"></script>

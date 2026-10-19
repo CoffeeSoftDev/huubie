@@ -2,11 +2,19 @@
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
 require_once __DIR__ . '/mdl-borrado.php';
+require_once __DIR__ . '/mdl-visibilidad.php';
+require_once __DIR__ . '/mdl-folios.php';
 
 class mdl extends CRUD {
 
+    // Folio por sucursal: nextFolio (OC-KAF-0001, REAB-, SI-, ENT-).
+    use FolioSucursal;
+
     // Borrado real con su stock (CoffeeIA): deletePedidoFullById y compañía.
     use BorradoInventario;
+
+    // Qué productos ve la sucursal: los suyos y los de Matriz.
+    use VisibilidadProductos;
 
     public $util;
     public $bd;
@@ -22,6 +30,7 @@ class mdl extends CRUD {
     // Catalogos compartidos (copiados de mdl-entradas, modulo independiente)
     // -----------------------------------------------------------------------
 
+    // La Matriz (sucursal del almacén principal) va primero; las demás, por nombre.
     function lsSucursales($array) {
         $companyId = $array['company_id'];
         $userId    = $array['user_id'];
@@ -32,7 +41,7 @@ class mdl extends CRUD {
                 SELECT id, name AS valor, company_id AS companies_id
                 FROM {$this->bdErp}branches
                 WHERE company_id = ? AND is_active = 1
-                ORDER BY name ASC
+                ORDER BY id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
             ";
             $r = $this->_Read($query, [$companyId]);
         } else {
@@ -41,7 +50,7 @@ class mdl extends CRUD {
                 FROM {$this->bdErp}branches b
                 INNER JOIN {$this->bdErp}users_braches ub ON ub.branch_id = b.id
                 WHERE b.company_id = ? AND b.is_active = 1 AND ub.user_id = ?
-                ORDER BY b.name ASC
+                ORDER BY b.id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, b.name ASC
             ";
             $r = $this->_Read($query, [$companyId, $userId]);
         }
@@ -63,6 +72,8 @@ class mdl extends CRUD {
                 w.name,
                 w.name AS valor,
                 w.is_default,
+                w.is_main,
+                w.supply_moves_stock,
                 w.branch_id,
                 w.warehouse_area_id,
                 wa.name AS area_name,
@@ -78,12 +89,13 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    // Categorías y proveedores: los de la sucursal; el administrador, todos.
     function lsSuppliers($array) {
         $query = "
-            SELECT id, name, name AS valor
-            FROM {$this->bd}supplier
-            WHERE active = 1 AND companies_id = ?
-            ORDER BY name ASC
+            SELECT s.id, s.name, s.name AS valor
+            FROM {$this->bd}supplier s
+            WHERE s.active = 1 AND s.companies_id = ? {$this->filtroCatalogoSucursal('s')}
+            ORDER BY s.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -91,10 +103,10 @@ class mdl extends CRUD {
 
     function lsCategorias($array) {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}item_category
-            WHERE active = 1 AND companies_id = ?
-            ORDER BY name ASC
+            SELECT ic.id, ic.name AS valor
+            FROM {$this->bd}item_category ic
+            WHERE ic.active = 1 AND ic.companies_id = ? {$this->filtroCatalogoSucursal('ic')}
+            ORDER BY ic.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -114,22 +126,23 @@ class mdl extends CRUD {
 
     function findSupplierByName($array) {
         $query = "
-            SELECT id, name
-            FROM {$this->bd}supplier
-            WHERE active = 1 AND companies_id = ? AND LOWER(name) = LOWER(?)
+            SELECT s.id, s.name
+            FROM {$this->bd}supplier s
+            WHERE s.active = 1 AND s.companies_id = ? AND LOWER(s.name) = LOWER(?) {$this->filtroCatalogoSucursal('s')}
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
+    // El alta exprés queda de la sucursal de la sesión.
     function insertSupplier($array) {
         $query = "
             INSERT INTO {$this->bd}supplier
-                (name, contact_name, phone, email, companies_id)
-            VALUES (?, ?, ?, ?, ?)
+                (name, contact_name, phone, email, companies_id, branch_id)
+            VALUES (?, ?, ?, ?, ?, ?)
         ";
-        return $this->_CUD($query, $array);
+        return $this->_CUD($query, array_merge($array, [$this->sucursalNuevaCatalogo()]));
     }
 
     function qProductsForTransfer($array) {
@@ -151,7 +164,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
             LEFT JOIN {$this->bd}unit            u  ON u.id = ia.unit_id
-            WHERE i.active = 1 AND i.companies_id = ?
+            WHERE i.active = 1 AND i.companies_id = ? {$this->filtroProductosVisibles('i')}
             ORDER BY i.name ASC
         ";
         $r = $this->_Read($query, $array);
@@ -266,6 +279,10 @@ class mdl extends CRUD {
                    FROM {$this->bd}detail_purchase_order d
                    INNER JOIN {$this->bd}item i ON i.id = d.item_id
                   WHERE d.purchase_order_id = po.id AND d.active = 1) AS materiales,
+                (SELECT COUNT(*)
+                   FROM {$this->bd}inventory_inflow ii
+                   INNER JOIN {$this->bd}inflow_origin io ON io.id = ii.inflow_origin_id AND io.code = 'SURTIDO_SUC'
+                  WHERE ii.purchase_order_id = po.id AND ii.status = 'Aplicada' AND ii.confirmed_at IS NULL) AS surtidos_por_recibir,
                 TIMESTAMPDIFF(MINUTE, po.created_at, NOW()) AS minutos,
                 DATEDIFF(CURDATE(), DATE(po.created_at))    AS dias
             FROM {$this->bd}purchase_order po
@@ -277,6 +294,47 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bdErp}users         au ON au.id = po.approved_user_id
             WHERE {$where}
             ORDER BY po.created_at DESC, po.id DESC
+        ";
+        $r = $this->_Read($query, $data);
+        return is_array($r) ? $r : [];
+    }
+
+    // Calendario de Pedidos: lo que pide la sucursal y lo que le piden, en el día en que se
+    // necesita (date_order). Los borradores solo los ve quien los arma. Sin sucursal
+    // (dueño con «Todas») son los de toda la empresa.
+    function qOrdenesCalendario($array) {
+        $where = "po.active = 1 AND po.companies_id = ? AND po.folio NOT LIKE 'CP-%' AND po.date_order BETWEEN ? AND ?";
+        $data  = [$array['companies_id'], $array['fi'], $array['ff']];
+
+        if (!empty($array['branch_id'])) {
+            $where .= " AND (po.branch_id = ? OR (po.destination_branch_id = ? AND po.status <> 'Borrador'))";
+            $data[] = $array['branch_id'];
+            $data[] = $array['branch_id'];
+        }
+
+        if (($array['status'] ?? '') === 'Activas') {
+            $where .= " AND po.status NOT IN ('Cancelada', 'Rechazada')";
+        } elseif (!empty($array['status'])) {
+            $where .= ' AND po.status = ?';
+            $data[] = $array['status'];
+        }
+
+        $query = "
+            SELECT
+                po.id,
+                po.folio,
+                po.status,
+                po.date_order,
+                po.total_products,
+                po.branch_id,
+                s.name  AS branch_name,
+                po.destination_branch_id,
+                ds.name AS destination_branch_name
+            FROM {$this->bd}purchase_order po
+            LEFT JOIN {$this->bdErp}branches s  ON s.id  = po.branch_id
+            LEFT JOIN {$this->bdErp}branches ds ON ds.id = po.destination_branch_id
+            WHERE {$where}
+            ORDER BY po.date_order ASC, po.id ASC
         ";
         $r = $this->_Read($query, $data);
         return is_array($r) ? $r : [];
@@ -302,7 +360,16 @@ class mdl extends CRUD {
                 sp.name        AS supplier_name,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))   AS user_name,
                 TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
-                TRIM(CONCAT(COALESCE(cu.name, ''), ' ', COALESCE(cu.last_name, ''))) AS expected_date_user_name
+                TRIM(CONCAT(COALESCE(cu.name, ''), ' ', COALESCE(cu.last_name, ''))) AS expected_date_user_name,
+                TRIM(CONCAT(COALESCE(ru.name, ''), ' ', COALESCE(ru.last_name, ''))) AS received_confirmed_user_name,
+                (SELECT GROUP_CONCAT(ii.folio ORDER BY ii.id SEPARATOR ', ')
+                 FROM {$this->bd}inventory_inflow ii
+                 INNER JOIN {$this->bd}inflow_origin io ON io.id = ii.inflow_origin_id AND io.code = 'SURTIDO_SUC'
+                 WHERE ii.purchase_order_id = po.id AND ii.status = 'Aplicada')                     AS entradas_surtido,
+                (SELECT COUNT(*)
+                 FROM {$this->bd}inventory_inflow ii
+                 INNER JOIN {$this->bd}inflow_origin io ON io.id = ii.inflow_origin_id AND io.code = 'SURTIDO_SUC'
+                 WHERE ii.purchase_order_id = po.id AND ii.status = 'Aplicada' AND ii.confirmed_at IS NULL) AS surtidos_por_recibir
             FROM {$this->bd}purchase_order po
             LEFT JOIN {$this->bd}warehouse        w  ON w.id  = po.warehouse_id
             LEFT JOIN {$this->bdErp}branches      s  ON s.id  = po.branch_id
@@ -311,6 +378,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bdErp}users         u  ON u.id  = po.user_id
             LEFT JOIN {$this->bdErp}users         au ON au.id = po.approved_user_id
             LEFT JOIN {$this->bdErp}users         cu ON cu.id = po.expected_date_user_id
+            LEFT JOIN {$this->bdErp}users         ru ON ru.id = po.received_confirmed_user_id
             WHERE po.id = ?
             LIMIT 1
         ";
@@ -521,6 +589,51 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    // Almacén al que entra lo surtido a la sucursal que pidió: el principal, luego el
+    // predeterminado, luego el más antiguo. [branch_id, companies_id]
+    function qAlmacenSucursal($array) {
+        $query = "
+            SELECT id, name
+            FROM {$this->bd}warehouse
+            WHERE branch_id = ? AND companies_id = ? AND active = 1
+            ORDER BY is_main DESC, is_default DESC, id ASC
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    // ¿El almacén descuenta y da entrada al surtir a otra sucursal? (Catálogo › Almacenes)
+    function qMueveInventario($array) {
+        $r = $this->_Read("SELECT supply_moves_stock FROM {$this->bd}warehouse WHERE id = ? LIMIT 1", $array);
+        return !isset($r[0]) || (int) $r[0]['supply_moves_stock'] === 1;
+    }
+
+    // «Recibí» del pedido: [user_id, id]. Con [null, id] queda otra vez por confirmar
+    // (llegó un surtido nuevo).
+    function updateOrdenRecibi($array) {
+        $query = "
+            UPDATE {$this->bd}purchase_order
+            SET received_confirmed_user_id = ?,
+                received_confirmed_at = IF(? IS NULL, NULL, NOW()),
+                updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, [$array[0], $array[0], $array[1]]);
+    }
+
+    // Las entradas de surtido del pedido quedan confirmadas por quien dijo «Recibí».
+    // [user_id, purchase_order_id, companies_id]
+    function confirmEntradasSurtido($array) {
+        $query = "
+            UPDATE {$this->bd}inventory_inflow ii
+            INNER JOIN {$this->bd}inflow_origin io ON io.id = ii.inflow_origin_id AND io.code = 'SURTIDO_SUC'
+            SET ii.confirmed_user_id = ?, ii.confirmed_at = NOW(), ii.updated_at = NOW()
+            WHERE ii.purchase_order_id = ? AND ii.companies_id = ? AND ii.status = 'Aplicada' AND ii.confirmed_at IS NULL
+        ";
+        return $this->_CUD($query, $array);
+    }
+
     function insertInflowDetail($array) {
         $query = "
             INSERT INTO {$this->bd}detail_inventory_inflow
@@ -575,28 +688,6 @@ class mdl extends CRUD {
             WHERE item_id = ? AND companies_id = ?
         ";
         return $this->_CUD($query, $array);
-    }
-
-    // -----------------------------------------------------------------------
-    // Folio correlativo (copiado de mdl-entradas)
-    // -----------------------------------------------------------------------
-
-    function nextFolio($prefix, $tabla, $companies_id) {
-        $query = "
-            SELECT folio
-            FROM {$this->bd}{$tabla}
-            WHERE companies_id = ? AND folio LIKE ?
-            ORDER BY id DESC
-            LIMIT 1
-        ";
-        $r    = $this->_Read($query, [$companies_id, $prefix . '%']);
-        $next = 1;
-        if (!empty($r)) {
-            $folio = $r[0]['folio'];
-            $num   = (int) preg_replace('/[^0-9]/', '', substr($folio, strlen($prefix)));
-            $next  = $num + 1;
-        }
-        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
     // -----------------------------------------------------------------------
@@ -730,6 +821,7 @@ class mdl extends CRUD {
             SELECT
                 po.id,
                 po.folio,
+                po.branch_id,
                 po.status,
                 po.active,
                 po.date_order,
@@ -752,21 +844,6 @@ class mdl extends CRUD {
         ";
         $r = $this->_Read($query, $data);
         return is_array($r) ? $r : [];
-    }
-
-    // Pedidos y reabastos de la empresa (también los ocultos) que piden y surten fuera
-    // de `branch_ids`: si hay alguno, la serie no se puede reiniciar desde aquí.
-    function getPedidosAjenosCount($array) {
-        $in    = implode(',', array_fill(0, count($array['branch_ids']), '?'));
-        $query = "
-            SELECT COUNT(*) AS total
-            FROM {$this->bd}purchase_order
-            WHERE companies_id = ? AND folio NOT LIKE 'CP-%'
-              AND (branch_id IS NULL OR branch_id NOT IN ({$in}))
-              AND (destination_branch_id IS NULL OR destination_branch_id NOT IN ({$in}))
-        ";
-        $r = $this->_Read($query, array_merge([$array['companies_id']], $array['branch_ids'], $array['branch_ids']));
-        return (int) ($r[0]['total'] ?? 0);
     }
 
     // Credenciales del usuario en sesión para confirmar con su contraseña (como mdl-stock).

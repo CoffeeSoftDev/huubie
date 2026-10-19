@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pruebas por sucursal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        color-scheme: light;
+        --ink: #1C1917; --ink2: #44403C; --mut: #78716C; --soft: #A8A29E;
+        --line: #E7E5E4; --bg: #F5F5F4; --card: #FFFFFF;
+        --acc: #C05A40; --acc-soft: #FBEAE4; --graf: #292524;
+        --ok: #16A34A; --ok-soft: #DCFCE7; --bad: #DC2626; --bad-soft: #FEE2E2;
+        --warn: #D97706; --warn-soft: #FEF3C7; --info: #475569; --info-soft: #F1F5F9;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 Inter, system-ui, sans-serif; }
+    .page { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1 { font-size: 26px; margin: 0; letter-spacing: -.02em; }
+    h2 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+    h3 { font-size: 15px; margin: 0; }
+    p { margin: 0; }
+    code { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; background: var(--bg); padding: 1px 5px; border-radius: 4px; color: var(--ink2); }
+
+    /* -- Portada -- */
+    .top { background: var(--graf); color: #FAFAF9; border-radius: 18px; padding: 24px; }
+    .top .kick { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: #F3B9A8; font-weight: 700; }
+    .top p.sub { color: #D6D3D1; margin-top: 6px; max-width: 760px; }
+    .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 18px; }
+    .kpi { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 10px 12px; }
+    .kpi b { display: block; font-size: 24px; line-height: 1.1; }
+    .kpi span { font-size: 11px; color: #D6D3D1; }
+    .kpi.ok b { color: #86EFAC; } .kpi.bad b { color: #FCA5A5; } .kpi.dec b { color: #FCD34D; }
+    .nav { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+    .nav a { text-decoration: none; font-size: 12px; font-weight: 600; color: #FAFAF9; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 4px 10px 4px 4px; display: inline-flex; align-items: center; gap: 6px; }
+    .nav a:hover { background: rgba(255,255,255,.08); }
+
+    /* -- Pines y etiquetas -- */
+    .pin { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 12px; color: #fff; flex: none; }
+    .pin.sm { width: 22px; height: 22px; border-radius: 6px; font-size: 10px; }
+    .pin.ok { background: var(--ok); } .pin.bad { background: var(--bad); } .pin.dec { background: var(--warn); } .pin.gap { background: var(--info); }
+    .tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+    .tag.ok { background: var(--ok-soft); color: var(--ok); } .tag.bad { background: var(--bad-soft); color: var(--bad); }
+    .tag.dec { background: var(--warn-soft); color: var(--warn); } .tag.gap { background: var(--info-soft); color: var(--info); }
+    .tag.pri { background: var(--bg); color: var(--ink2); }
+
+    /* -- Láminas -- */
+    .lam { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px; margin-top: 18px; scroll-margin-top: 12px; }
+    .lam-n { font-size: 11px; font-weight: 800; color: var(--acc); letter-spacing: .1em; text-transform: uppercase; }
+    .lam-h { display: flex; gap: 12px; align-items: flex-start; }
+    .lam-h .tt { flex: 1; min-width: 0; }
+    .lam-h .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .lead { color: var(--ink2); margin-top: 10px; }
+    .lead b { color: var(--ink); }
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    figure { margin: 0; min-width: 0; }
+    figcaption { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    figcaption.hoy { color: var(--bad); } figcaption.deb { color: var(--ok); } figcaption.ant { color: var(--mut); }
+    .velo { background: #EFEDEB; border-radius: 14px; padding: 14px; height: calc(100% - 26px); }
+
+    /* -- Capturas (calco de inventory) -- */
+    .scr { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(28,25,23,.06); }
+    .scr + .scr { margin-top: 12px; }
+    .scr-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #FAFAF9; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--mut); }
+    .scr-bar b { color: var(--ink); font-weight: 700; }
+    .scr-bar .suc { margin-left: auto; background: var(--acc-soft); color: var(--acc); padding: 2px 8px; border-radius: 6px; font-weight: 700; white-space: nowrap; }
+    .scr-body { padding: 12px; }
+    .t { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .t th { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--soft); font-weight: 600; text-align: left; padding: 6px 8px; background: #FAFAF9; border-bottom: 1px solid var(--line); }
+    .t td { padding: 7px 8px; border-bottom: 1px solid #F5F5F4; vertical-align: top; }
+    .t tr:last-child td { border-bottom: 0; }
+    .t .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .t .c { text-align: center; }
+    .t tr.bad td { background: #FEF2F2; }
+    .t tr.ok td { background: #F0FDF4; }
+    .t .sm { font-size: 10.5px; color: var(--soft); display: block; }
+    .neg { color: var(--bad); font-weight: 700; }
+    .pos { color: var(--ok); font-weight: 700; }
+    .dim { color: var(--soft); }
+    .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+    .b-rec { background: #DCFCE7; color: #16A34A; } .b-sol { background: #FEF3C7; color: #D97706; } .b-bor { background: #F1F5F9; color: #475569; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 600; border-radius: 8px; padding: 7px 12px; border: 0; font-family: inherit; }
+    .btn.acc { background: var(--acc); color: #fff; } .btn.go { background: #3FC189; color: #fff; } .btn.off { background: #E7E5E4; color: var(--soft); }
+    .btn.w { width: 100%; }
+    .fld { margin-bottom: 10px; }
+    .fld label { font-size: 11px; color: var(--mut); display: block; margin-bottom: 4px; font-weight: 500; }
+    .sel { border: 1px solid #D6D3D1; border-radius: 8px; padding: 7px 10px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; background: #fff; }
+    .sel::after { content: "▾"; color: var(--soft); font-size: 11px; }
+    .drop { border: 1px solid #D6D3D1; border-top: 0; border-radius: 0 0 8px 8px; margin-top: -4px; padding: 4px 0; background: #fff; }
+    .drop div { padding: 6px 10px; font-size: 12px; display: flex; justify-content: space-between; gap: 8px; }
+    .drop div small { color: var(--soft); font-size: 10.5px; }
+    .kv { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; padding: 3px 0; }
+    .kv span:first-child { color: var(--mut); }
+    .srv { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; background: #1C1917; color: #E7E5E4; border-radius: 10px; padding: 10px 12px; line-height: 1.6; margin-top: 12px; }
+    .srv .k { color: #FCA5A5; } .srv .g { color: #86EFAC; } .srv .d { color: #A8A29E; }
+    .alert { border-radius: 8px; padding: 8px 10px; font-size: 12px; margin-top: 10px; }
+    .alert.bad { background: var(--bad-soft); color: #991B1B; } .alert.ok { background: var(--ok-soft); color: #166534; } .alert.warn { background: var(--warn-soft); color: #92400E; }
+
+    /* Marca de hallazgo sobre la captura */
+    .mark { outline: 2px dashed var(--bad); outline-offset: 3px; border-radius: 8px; position: relative; }
+    .mark > .ml { position: absolute; top: -11px; right: 8px; background: var(--bad); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; z-index: 1; }
+    .mark.ok { outline-color: var(--ok); } .mark.ok > .ml { background: var(--ok); }
+
+    /* Propuesta de mejora */
+    .note { border: 1px solid #F3D3C8; border-left: 4px solid var(--acc); background: #FFF8F5; border-radius: 10px; padding: 12px 14px; margin-top: 16px; font-size: 13px; }
+    .note h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--acc); }
+    .note ul { margin: 0; padding-left: 18px; } .note li { margin: 3px 0; }
+    .note.done { border-color: #BBF7D0; border-left-color: var(--ok); background: #F7FEF9; }
+    .note.done h4 { color: var(--ok); }
+    .q { color: var(--warn); font-weight: 700; }
+
+    /* -- Mapa -- */
+    .map { display: grid; grid-template-columns: 1fr 190px 1.15fr 190px 1fr; gap: 10px; align-items: stretch; margin-top: 16px; }
+    .br { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: #FAFAF9; display: flex; flex-direction: column; gap: 10px; }
+    .br.me { border: 2px solid var(--acc); background: #fff; }
+    .br-h { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; }
+    .br-h .ic { width: 28px; height: 28px; border-radius: 8px; background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; font-size: 14px; flex: none; }
+    .br-h small { display: block; font-weight: 500; color: var(--mut); font-size: 11px; }
+    .star { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--acc); background: var(--acc-soft); padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+    .wh { border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 8px 10px; }
+    .wh-h { font-size: 11px; font-weight: 700; color: var(--ink2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+    .wh .r { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 3px 0; border-top: 1px solid #F5F5F4; }
+    .wh .r:first-of-type { border-top: 0; }
+    .pins { display: flex; flex-direction: column; gap: 6px; }
+    .pins a { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink2); text-decoration: none; }
+    .pins a:hover { color: var(--acc); }
+    .flows { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+    .flow { font-size: 11px; border-radius: 10px; padding: 7px 9px; border: 1px solid var(--line); background: #fff; display: flex; align-items: center; gap: 6px; }
+    .flow .arr { font-size: 16px; font-weight: 800; color: var(--mut); flex: none; }
+    .flow.ok { border-color: #BBF7D0; background: #F0FDF4; } .flow.ok .arr { color: var(--ok); }
+    .flow.bad { border-color: #FECACA; background: #FEF2F2; border-style: dashed; } .flow.bad .arr { color: var(--bad); }
+    .flow .tx { flex: 1; min-width: 0; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 12px; color: var(--ink2); }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+    /* -- Huecos y tareas -- */
+    .gaps { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+    .gaps th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+    .gaps td { padding: 10px; border-bottom: 1px solid #F5F5F4; vertical-align: top; }
+    .gaps tr:last-child td { border-bottom: 0; }
+    .todo-sec { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .todo-sec h3 { background: #FAFAF9; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .todo-sec ul { list-style: none; margin: 0; padding: 0; }
+    .todo-sec li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid #F5F5F4; font-size: 13px; }
+    .todo-sec li:first-child { border-top: 0; }
+    .todo-sec li .tx { flex: 1; }
+    .todo-sec li .pin { margin-right: 2px; }
+    .cp { font: 600 11px Inter, sans-serif; color: var(--acc); background: var(--acc-soft); border: 0; border-radius: 6px; padding: 4px 9px; cursor: pointer; white-space: nowrap; }
+    .cp:hover { background: #F6D5CA; }
+    .cp.all { font-size: 12px; padding: 7px 12px; background: var(--acc); color: #fff; }
+    .cp.done { background: var(--ok-soft); color: var(--ok); }
+
+    @media (max-width: 980px) {
+        .map { grid-template-columns: 1fr; }
+        .flows { flex-direction: row; flex-wrap: wrap; }
+        .flow { flex: 1 1 220px; }
+    }
+    @media (max-width: 860px) {
+        .pair { grid-template-columns: 1fr; }
+        .kpis { grid-template-columns: repeat(2, 1fr); }
+        .gaps thead { display: none; }
+        .gaps td { display: block; padding: 4px 10px; border: 0; }
+        .gaps tr { display: block; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    }
+</style>
+</head>
+<body>
+<div class="page">
+
+    <!-- Portada -->
+    <header class="top">
+        <p class="kick">Coffee Inventory · Almacén por sucursal · Plano de pruebas</p>
+        <h1 style="margin-top:6px">Qué falla cuando cada sucursal tiene su almacén</h1>
+        <p class="sub">Prueba de funcionamiento del 19/10/2026 con Café Ligero: Matriz (almacén principal), Tuxtla y Centro. La sesión de prueba es <b>Tuxtla</b>. Cada lámina muestra lo que pasa hoy, lo que debería pasar y la propuesta de mejora.</p>
+        <div class="kpis">
+            <div class="kpi"><b>49</b><span>casos probados</span></div>
+            <div class="kpi ok"><b>42</b><span>funcionan</span></div>
+            <div class="kpi bad"><b>6</b><span>fallas abiertas</span></div>
+            <div class="kpi ok"><b>1</b><span>resuelta hoy (P1)</span></div>
+            <div class="kpi dec"><b>1 + 8</b><span>decisión y huecos de revisión</span></div>
+        </div>
+        <nav class="nav">
+            <a href="#mapa"><span class="pin sm gap">00</span>Mapa</a>
+            <a href="#P1"><span class="pin sm ok">P1</span>Surtido entra</a>
+            <a href="#P2"><span class="pin sm bad">P2</span>Pedir sin existencia</a>
+            <a href="#S1"><span class="pin sm bad">S1</span>Salida sin stock</a>
+            <a href="#E1"><span class="pin sm bad">E1</span>Almacén ajeno</a>
+            <a href="#C1"><span class="pin sm bad">C1</span>Conteo físico</a>
+            <a href="#T1"><span class="pin sm bad">T1</span>Traspasos</a>
+            <a href="#A1"><span class="pin sm bad">A1</span>Áreas</a>
+            <a href="#A2"><span class="pin sm dec">A2</span>Mín/máx por sucursal</a>
+            <a href="#huecos"><span class="pin sm gap">H</span>Huecos</a>
+            <a href="#tareas"><span class="pin sm gap">✓</span>Tareas</a>
+        </nav>
+    </header>
+
+    <!-- 00 Mapa -->
+    <section class="lam" id="mapa">
+        <p class="lam-n">Lámina 00 · Dónde pasa cada cosa</p>
+        <h2 style="margin-top:4px">Las tres sucursales, sus almacenes y lo que se mueve entre ellas</h2>
+        <p class="lead">Matriz comparte sus productos con todas. Tuxtla y Centro tienen los suyos, que solo ven ellas, Matriz y el dueño. Cada flecha es algo que se probó.</p>
+
+        <div class="map">
+            <div class="br">
+                <div class="br-h"><span class="ic">▣</span><div>Cafe Ligero Matriz<small>sucursal 3</small></div><span class="star">★ Principal</span></div>
+                <div class="wh">
+                    <p class="wh-h">Almacén General</p>
+                    <div class="r"><span>Coca Cola prueba</span><b>24 → 18</b></div>
+                    <div class="r"><span class="dim">5 áreas</span><span class="dim">Vitrina, Refrigerador…</span></div>
+                </div>
+                <div class="pins">
+                    <a href="#A1"><span class="pin sm bad">A1</span>Sus áreas le salen a Tuxtla</a>
+                    <a href="#A2"><span class="pin sm dec">A2</span>Su mín/máx vale para todas</a>
+                </div>
+            </div>
+
+            <div class="flows">
+                <div class="flow"><span class="arr">←</span><span class="tx">Tuxtla pide 6 Cocas <b>OC-0001</b></span></div>
+                <div class="flow ok"><span class="tx">Matriz surte: sale <b>SI-0001</b>, entra <b>ENT-0003</b></span><span class="arr">→</span><span class="pin sm ok">P1</span></div>
+                <div class="flow bad"><span class="arr">←</span><span class="tx">Tuxtla mete y saca en el almacén de Matriz</span><span class="pin sm bad">E1</span></div>
+            </div>
+
+            <div class="br me">
+                <div class="br-h"><span class="ic">▣</span><div>Cafe Ligero Tuxtla<small>sucursal 7 · sesión de prueba</small></div></div>
+                <div class="wh">
+                    <p class="wh-h">Almacén kafeto</p>
+                    <div class="r"><span>Coca Cola prueba</span><b class="pos">0 → 6</b></div>
+                    <div class="r"><span>Salida de 2 sin existencia</span><b class="neg">no se mueve</b></div>
+                    <div class="r"><span>Pan Tuxtla prueba</span><span class="dim">propio</span></div>
+                </div>
+                <div class="pins">
+                    <a href="#P1"><span class="pin sm ok">P1</span>Ya le entra lo surtido y dice «Recibí»</a>
+                    <a href="#S1"><span class="pin sm bad">S1</span>Sacar sin existencia no mueve el stock</a>
+                    <a href="#C1"><span class="pin sm bad">C1</span>Su conteo trae productos de Centro</a>
+                </div>
+            </div>
+
+            <div class="flows">
+                <div class="flow bad"><span class="tx">Le pide 3 Cocas a Centro, que tiene 0: el servidor lo guarda</span><span class="arr">→</span><span class="pin sm bad">P2</span></div>
+                <div class="flow bad"><span class="arr">←</span><span class="tx">Ve el pan de Centro al traspasar y al contar</span><span class="pin sm bad">T1</span></div>
+            </div>
+
+            <div class="br">
+                <div class="br-h"><span class="ic">▣</span><div>Cafe Ligero Centro<small>sucursal 8</small></div></div>
+                <div class="wh">
+                    <p class="wh-h">Almacén cuarta</p>
+                    <div class="r"><span>Coca Cola prueba</span><b class="dim">0</b></div>
+                    <div class="r"><span>Pan Centro prueba</span><span class="dim">propio</span></div>
+                </div>
+                <div class="pins">
+                    <a href="#P2"><span class="pin sm bad">P2</span>Le pueden pedir lo que no tiene</a>
+                    <a href="#T1"><span class="pin sm bad">T1</span>Su pan se ve en Tuxtla</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <span><span class="pin sm ok">✓</span>Resuelto</span>
+            <span><span class="pin sm bad">✗</span>Falla abierta</span>
+            <span><span class="pin sm dec">?</span>Necesita tu decisión</span>
+            <span><span class="pin sm gap">H</span>Hueco de revisión (no se probó o falta)</span>
+        </div>
+    </section>
+
+    <!-- P1 Resuelto -->
+    <section class="lam" id="P1">
+        <div class="lam-h">
+            <span class="pin ok">P1</span>
+            <div class="tt">
+                <p class="lam-n">Lámina 01 · Pedidos</p>
+                <h2>Lo que Matriz surte ya entra al almacén de quien pidió</h2>
+                <div class="tags"><span class="tag ok">Resuelto hoy</span><span class="tag pri">Prioridad alta</span><span class="tag pri">11 casos nuevos, todos bien</span></div>
+            </div>
+        </div>
+        <p class="lead">Tuxtla pidió 6 Cocas a Matriz. Matriz aprobó y surtió. <b>Antes</b> salían de Matriz y no entraban a ningún lado: el almacén de Tuxtla seguía vacío.</p>
+
+        <div class="pair">
+            <figure>
+                <figcaption class="ant">✗ Antes</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Visor de stock</b> · Coca Cola prueba<span class="suc">Todas</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Almacén</th><th>Movimiento</th><th class="num">Stock</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Almacén General<span class="sm">Matriz</span></td><td>SI-0001 · Surtido de solicitud</td><td class="num">24 → 18</td></tr>
+                                    <tr class="bad"><td>Almacén kafeto<span class="sm">Tuxtla</span></td><td class="dim">— nada —</td><td class="num neg">sin registro</td></tr>
+                                </tbody>
+                            </table>
+                            <div class="alert bad">Las 6 Cocas salieron de Matriz y se perdieron: Tuxtla no las tiene en su inventario.</div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+            <figure>
+                <figcaption class="deb">✓ Ahora</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Visor de stock</b> · Coca Cola prueba<span class="suc">Todas</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Almacén</th><th>Movimiento</th><th class="num">Stock</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Almacén General<span class="sm">Matriz</span></td><td>SI-0001 · Surtido de solicitud</td><td class="num">24 → 18</td></tr>
+                                    <tr class="ok"><td>Almacén kafeto<span class="sm">Tuxtla</span></td><td>ENT-0003 · Surtido de sucursal</td><td class="num pos">0 → 6</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="scr">
+                        <div class="scr-bar"><b>Pedidos</b> · Mis pedidos · OC-0001<span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <div class="kv"><span>Estado</span><span class="badge b-rec">RECIBIDA</span></div>
+                            <div class="kv"><span>Surte</span><span>Cafe Ligero Matriz</span></div>
+                            <div class="kv"><span>Entró con</span><span>ENT-0003</span></div>
+                            <div class="kv"><span>Recibido por</span><span style="color:var(--warn);font-weight:700">Falta confirmar «Recibí»</span></div>
+                            <div class="mark ok" style="margin-top:14px"><span class="ml">Nuevo</span><button class="btn go w">Recibí</button></div>
+                            <div class="kv" style="margin-top:10px"><span>Después del clic</span><span>Rosy · 19/OCT/2026 03:20 PM</span></div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+        </div>
+
+        <div class="note done">
+            <h4>Qué se hizo</h4>
+            <ul>
+                <li>Al surtir a otra sucursal nace la entrada <b>ENT-</b> ya aplicada en el almacén de quien pidió (el principal de esa sucursal, si no el predeterminado). Origen nuevo: <b>Surtido de sucursal</b>. No cambia el último costo del producto: no es una compra.</li>
+                <li>Botón <b>Recibí</b> en Mis pedidos: solo la sucursal que pidió lo ve y lo puede usar. Guarda quién y cuándo en el pedido y en la entrada (en Entradas sale como «Confirmó»).</li>
+                <li>En la lista, bajo el estado: <b>Falta tu «Recibí»</b> (Mis pedidos) o <b>Sin «Recibí»</b> (Mis entregas).</li>
+                <li>Si la sucursal que pidió no tiene almacén, el surtido se detiene con el aviso «… no tiene almacén activo: dale uno en Catálogo › Almacenes».</li>
+                <li>Archivos: <code>ctrl-ordenes.php</code> (<code>entradaSurtido()</code>, <code>confirmRecepcion()</code>), <code>mdl-ordenes.php</code>, <code>ordenes.js</code>. Migración <code>docs/sql/2026-10-19_surtido-entrada-recibi.sql</code>: corrida en local, <b>pendiente en prod antes del código</b>.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- P2 -->
+    <section class="lam" id="P2">
+        <div class="lam-h">
+            <span class="pin bad">P2</span>
+            <div class="tt">
+                <p class="lam-n">Lámina 02 · Pedidos › Nuevo pedido</p>
+                <h2>Se le puede pedir a una sucursal lo que no tiene</h2>
+                <div class="tags"><span class="tag bad">Falla</span><span class="tag pri">Prioridad media</span></div>
+            </div>
+        </div>
+        <p class="lead">Tuxtla le pide 3 Cocas a Centro, que tiene 0. La pantalla apaga <b>Aceptar</b>, pero el servidor no revisa: si la petición llega por otro lado (CoffeeIA, un clic doble, otra pestaña), el pedido se guarda.</p>
+
+        <div class="pair">
+            <figure>
+                <figcaption class="hoy">✗ Hoy pasa</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Nuevo pedido</b><span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <div class="fld"><label>Solicitar a</label><div class="sel">Cafe Ligero Centro</div></div>
+                            <table class="t">
+                                <thead><tr><th>Producto</th><th class="num">Existencia en Centro</th><th class="num">Cant</th></tr></thead>
+                                <tbody><tr><td>Coca Cola prueba</td><td class="num neg">0</td><td class="num">3</td></tr></tbody>
+                            </table>
+                            <div style="margin-top:12px;text-align:right"><button class="btn off">Aceptar</button></div>
+                        </div>
+                    </div>
+                    <div class="mark"><span class="ml">El servidor lo acepta</span>
+                        <div class="srv"><span class="d">POST ctrl-ordenes.php · opc=saveOrden</span><br>destino = Centro · Coca × 3<br><span class="k">→ 200 · OC-0002 · Solicitada</span></div>
+                    </div>
+                </div>
+            </figure>
+            <figure>
+                <figcaption class="deb">✓ Debería pasar</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Nuevo pedido</b><span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <div class="fld"><label>Solicitar a</label><div class="sel">Cafe Ligero Centro</div></div>
+                            <table class="t">
+                                <thead><tr><th>Producto</th><th class="num">Existencia en Centro</th><th class="num">Cant</th></tr></thead>
+                                <tbody><tr><td>Coca Cola prueba</td><td class="num neg">0</td><td class="num">3</td></tr></tbody>
+                            </table>
+                            <div class="alert warn">Centro no tiene Coca Cola prueba. Pídesela a Matriz.</div>
+                        </div>
+                    </div>
+                    <div class="srv"><span class="d">POST ctrl-ordenes.php · opc=saveOrden</span><br>destino = Centro · Coca × 3<br><span class="g">→ 400 · «Centro no tiene Coca Cola prueba (0)»</span></div>
+                </div>
+            </figure>
+        </div>
+
+        <div class="note">
+            <h4>Propuesta de mejora</h4>
+            <ul>
+                <li>En <code>saveOrden</code> y <code>editOrden</code> de <code>ctrl-ordenes.php</code>, revisar la existencia en los almacenes de la sucursal a la que se pide, con la misma regla que la pantalla.</li>
+                <li>El mensaje nombra el producto y sugiere pedírselo a Matriz.</li>
+                <li><span class="q">Pregunta:</span> ¿se vale pedirle a una sucursal lo que no tiene para que ella lo compre? Hoy la pantalla dice que no.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- S1 -->
+    <section class="lam" id="S1">
+        <div class="lam-h">
+            <span class="pin bad">S1</span>
+            <div class="tt">
+                <p class="lam-n">Lámina 03 · Salidas › Registrar salida</p>
+                <h2>Sacar un producto que el almacén nunca tuvo no mueve el stock</h2>
+                <div class="tags"><span class="tag bad">Falla</span><span class="tag pri">Prioridad alta</span></div>
+            </div>
+        </div>
+        <p class="lead">Tuxtla saca 2 Cocas de su almacén, donde la Coca no tenía renglón de stock. La salida se guarda y su detalle dice <b>«Quedó −2»</b>, pero el stock no cambia: el visor sigue sin ese producto.</p>
+
+        <div class="pair">
+            <figure>
+                <figcaption class="hoy">✗ Hoy pasa</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Salidas</b> · SI-0002 · Almacén kafeto<span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Producto</th><th class="num">Cant</th><th class="num">Antes</th><th class="num">Quedó</th></tr></thead>
+                                <tbody><tr><td>Coca Cola prueba</td><td class="num">2</td><td class="num">0</td><td class="num neg">−2</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="scr mark" style="margin-top:16px"><span class="ml">No se movió</span>
+                        <div class="scr-bar"><b>Visor de stock</b> · Almacén kafeto<span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Producto</th><th class="num">Stock</th><th>Ult. mov</th></tr></thead>
+                                <tbody><tr class="bad"><td>Coca Cola prueba</td><td class="num dim">—</td><td class="dim">sin movimientos</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+            <figure>
+                <figcaption class="deb">✓ Debería pasar</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Salidas</b> · SI-0002 · Almacén kafeto<span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Producto</th><th class="num">Cant</th><th class="num">Antes</th><th class="num">Quedó</th></tr></thead>
+                                <tbody><tr><td>Coca Cola prueba</td><td class="num">2</td><td class="num">0</td><td class="num neg">−2</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="scr" style="margin-top:16px">
+                        <div class="scr-bar"><b>Visor de stock</b> · Almacén kafeto<span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Producto</th><th class="num">Stock</th><th>Ult. mov</th></tr></thead>
+                                <tbody><tr><td>Coca Cola prueba</td><td class="num neg">−2 · déficit</td><td>domingo 19 de oct 2026 3:20 pm</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+        </div>
+
+        <div class="note">
+            <h4>Propuesta de mejora</h4>
+            <ul>
+                <li>En <code>saveSalida</code> y <code>updateSalida</code> (<code>ctrl-salidas.php:270</code> y <code>:430</code>), si el producto no tiene renglón de stock, crearlo con lo que quedó, como ya lo hace el surtido de Pedidos.</li>
+                <li>Así el detalle de la salida y el visor dicen lo mismo.</li>
+                <li><span class="q">Pregunta:</span> ¿se permite sacar lo que no hay (queda en negativo) o se bloquea la salida?</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- E1 -->
+    <section class="lam" id="E1">
+        <div class="lam-h">
+            <span class="pin bad">E1</span>
+            <div class="tt">
+                <p class="lam-n">Lámina 04 · Entradas y Salidas</p>
+                <h2>Una sucursal puede meter y sacar en el almacén de otra</h2>
+                <div class="tags"><span class="tag bad">Falla</span><span class="tag pri">Prioridad alta</span><span class="tag pri">2 casos</span></div>
+            </div>
+        </div>
+        <p class="lead">La pantalla de Tuxtla solo le ofrece su almacén. Pero el servidor no revisa de quién es el almacén que llega: con el id del Almacén General registra la entrada y la salida <b>en el inventario de Matriz</b>.</p>
+
+        <div class="pair">
+            <figure>
+                <figcaption class="hoy">✗ Hoy pasa</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Nueva entrada</b><span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <div class="fld"><label>Almacén</label><div class="sel">Almacén kafeto</div></div>
+                            <p class="dim" style="font-size:11.5px">La pantalla está bien: solo ofrece el almacén de Tuxtla.</p>
+                        </div>
+                    </div>
+                    <div class="mark" style="margin-top:16px"><span class="ml">Se registra en Matriz</span>
+                        <div class="srv" style="margin-top:0"><span class="d">POST ctrl-entradas.php · saveEntrada</span><br>sesión = Tuxtla · almacén = 1 (Almacén General)<br>Pan Tuxtla prueba × 1<br><span class="k">→ 200 · entra al almacén de Matriz</span><br><br><span class="d">POST ctrl-salidas.php · saveSalida</span><br>sesión = Tuxtla · almacén = 1<br>Coca Cola prueba × 1<br><span class="k">→ 200 · sale del almacén de Matriz</span></div>
+                    </div>
+                </div>
+            </figure>
+            <figure>
+                <figcaption class="deb">✓ Debería pasar</figcaption>
+                <div class="velo">
+                    <div class="srv" style="margin-top:0"><span class="d">POST ctrl-entradas.php · saveEntrada</span><br>sesión = Tuxtla · almacén = 1<br>Pan Tuxtla prueba × 1<br><span class="g">→ 403 · «Ese almacén no es de tus sucursales»</span><br><br><span class="d">POST ctrl-salidas.php · saveSalida</span><br>sesión = Tuxtla · almacén = 1<br>Coca Cola prueba × 1<br><span class="g">→ 403 · «Ese almacén no es de tus sucursales»</span></div>
+                    <div class="alert ok">El dueño sigue pudiendo registrar en cualquier almacén.</div>
+                </div>
+            </figure>
+        </div>
+
+        <div class="note">
+            <h4>Propuesta de mejora</h4>
+            <ul>
+                <li>Un solo candado para guardar y editar en <code>ctrl-entradas.php</code> y <code>ctrl-salidas.php</code>: el almacén debe ser de una sucursal del usuario (<code>users_braches</code>). El dueño pasa siempre.</li>
+                <li>El mismo candado sirve para la entrada que nace del surtido (P1) y para CoffeeIA, que guarda por el mismo camino.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- C1 -->
+    <section class="lam" id="C1">
+        <div class="lam-h">
+            <span class="pin bad">C1</span>
+            <div class="tt">
+                <p class="lam-n">Lámina 05 · Visor de stock › Conteo físico</p>
+                <h2>La hoja de conteo de Tuxtla trae productos de Centro</h2>
+                <div class="tags"><span class="tag bad">Falla</span><span class="tag pri">Prioridad media</span></div>
+            </div>
+        </div>
+        <p class="lead">Tuxtla abre su conteo físico. La hoja trae <b>26 productos</b>: todos los de la empresa, también el pan de Centro, que Tuxtla no puede ver en ningún otro lado.</p>
+
+        <div class="pair">
+            <figure>
+                <figcaption class="hoy">✗ Hoy pasa</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Conteo físico</b> · AJU-0002 · Almacén kafeto<span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Producto</th><th>De</th><th class="num">Sistema</th><th class="c">Contado</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Azúcar refinada</td><td class="dim">Matriz</td><td class="num">0</td><td class="c dim">—</td></tr>
+                                    <tr><td>Coca Cola prueba</td><td class="dim">Matriz</td><td class="num">6</td><td class="c dim">—</td></tr>
+                                    <tr class="bad"><td>Pan Centro prueba</td><td class="neg">Centro</td><td class="num">0</td><td class="c dim">—</td></tr>
+                                    <tr><td>Pan Tuxtla prueba</td><td class="dim">Tuxtla</td><td class="num">0</td><td class="c dim">—</td></tr>
+                                    <tr><td colspan="4" class="dim">… 22 más · 26 productos</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+            <figure>
+                <figcaption class="deb">✓ Debería pasar</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Conteo físico</b> · AJU-0002 · Almacén kafeto<span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Producto</th><th>De</th><th class="num">Sistema</th><th class="c">Contado</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Azúcar refinada</td><td class="dim">Matriz</td><td class="num">0</td><td class="c dim">—</td></tr>
+                                    <tr><td>Coca Cola prueba</td><td class="dim">Matriz</td><td class="num">6</td><td class="c dim">—</td></tr>
+                                    <tr><td>Pan Tuxtla prueba</td><td class="dim">Tuxtla</td><td class="num">0</td><td class="c dim">—</td></tr>
+                                    <tr><td colspan="4" class="dim">… solo los de Tuxtla y los de Matriz</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+        </div>
+
+        <div class="note">
+            <h4>Propuesta de mejora</h4>
+            <ul>
+                <li>Al crear la hoja (<code>addConteo</code> en <code>ctrl-stock.php</code>, detalle en <code>mdl-stock.php</code>) usar la misma regla de visibilidad: productos de la sucursal + los de Matriz.</li>
+                <li>La regla toma la sucursal <b>del conteo</b>, no la de la sesión: el dueño puede abrir el conteo de Tuxtla estando en Matriz.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- T1 -->
+    <section class="lam" id="T1">
+        <div class="lam-h">
+            <span class="pin bad">T1</span>
+            <div class="tt">
+                <p class="lam-n">Lámina 06 · Traspasos</p>
+                <h2>Al traspasar, Tuxtla ve los productos de Centro</h2>
+                <div class="tags"><span class="tag bad">Falla</span><span class="tag pri">Prioridad media</span></div>
+            </div>
+        </div>
+        <p class="lead">Traspasos es el único módulo que no recibió la regla por sucursal. Al buscar «pan» salen los panes de todas.</p>
+
+        <div class="pair">
+            <figure>
+                <figcaption class="hoy">✗ Hoy pasa</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Nuevo traspaso</b><span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <div class="fld"><label>Producto</label><div class="sel" style="border-radius:8px 8px 0 0">pan</div>
+                                <div class="drop">
+                                    <div>Pan Tuxtla prueba <small>Tuxtla</small></div>
+                                    <div class="mark" style="margin:6px 4px;background:#FEF2F2"><span class="ml">No es suyo</span>Pan Centro prueba <small>Centro</small></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+            <figure>
+                <figcaption class="deb">✓ Debería pasar</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Nuevo traspaso</b><span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <div class="fld"><label>Producto</label><div class="sel" style="border-radius:8px 8px 0 0">pan</div>
+                                <div class="drop">
+                                    <div>Pan Tuxtla prueba <small>Tuxtla</small></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+        </div>
+
+        <div class="note">
+            <h4>Propuesta de mejora</h4>
+            <ul>
+                <li><code>listItemsForTransfer</code> (<code>mdl-traspasos.php:112</code>) usa el trait <code>VisibilidadProductos</code>, como Entradas, Salidas, Pedidos y Stock.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- A1 -->
+    <section class="lam" id="A1">
+        <div class="lam-h">
+            <span class="pin bad">A1</span>
+            <div class="tt">
+                <p class="lam-n">Lámina 07 · Catálogo › Productos</p>
+                <h2>El selector de Área le muestra a Tuxtla las áreas de Matriz</h2>
+                <div class="tags"><span class="tag bad">Falla</span><span class="tag pri">Prioridad baja</span></div>
+            </div>
+        </div>
+        <p class="lead">Las 5 áreas de Café Ligero son del Almacén General (Matriz). Cuando Tuxtla da de alta un producto, el selector se las ofrece igual, aunque su almacén no tiene ninguna.</p>
+
+        <div class="pair">
+            <figure>
+                <figcaption class="hoy">✗ Hoy pasa</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Nuevo producto</b><span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <div class="fld"><label>Área</label><div class="sel" style="border-radius:8px 8px 0 0">Selecciona un área</div>
+                                <div class="drop mark"><span class="ml">Son de Matriz</span>
+                                    <div>Estante derecho <small>Almacén General</small></div>
+                                    <div>Estante izquierdo <small>Almacén General</small></div>
+                                    <div>Mostrador <small>Almacén General</small></div>
+                                    <div>Refrigerador <small>Almacén General</small></div>
+                                    <div>Vitrina <small>Almacén General</small></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+            <figure>
+                <figcaption class="deb">✓ Debería pasar</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Nuevo producto</b><span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <div class="fld"><label>Área</label><div class="sel" style="border-radius:8px 8px 0 0">Selecciona un área</div>
+                                <div class="drop">
+                                    <div class="dim">Tu almacén aún no tiene áreas</div>
+                                    <div style="color:var(--acc);font-weight:600">+ Nueva área en Almacén kafeto</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+        </div>
+
+        <div class="note">
+            <h4>Propuesta de mejora</h4>
+            <ul>
+                <li><code>lsAreas</code> (<code>mdl-almacen.php:45</code>) filtra por <code>warehouse_area.warehouse_id</code> = almacenes de la sucursal de la sesión. Matriz y el dueño ven todas.</li>
+                <li>Lo mismo en los selectores de Área de Entradas, Stock y Reportes, que usan su propia copia de <code>lsAreas</code>.</li>
+                <li>Va de la mano con A2: si el área es por sucursal, este selector cambia de lugar.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- A2 -->
+    <section class="lam" id="A2">
+        <div class="lam-h">
+            <span class="pin dec">A2</span>
+            <div class="tt">
+                <p class="lam-n">Lámina 08 · Catálogo › Productos</p>
+                <h2>Área, mínimo y máximo son del producto, no de cada sucursal</h2>
+                <div class="tags"><span class="tag dec">Necesita tu decisión</span><span class="tag pri">Prioridad media</span></div>
+            </div>
+        </div>
+        <p class="lead">La Coca es de Matriz y la usan las tres. Su área, mínimo, máximo y vida útil viven en el producto: hay <b>un solo juego para todas</b>. Tuxtla no puede ponerle su propio máximo, porque el producto es de Matriz y está bloqueado para ella.</p>
+
+        <div class="pair">
+            <figure>
+                <figcaption class="hoy">✗ Hoy pasa</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Coca Cola prueba</b> · De Cafe Ligero Matriz<span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Sucursal</th><th>Área</th><th class="num">Mín</th><th class="num">Máx</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Matriz</td><td>Refrigerador</td><td class="num">6</td><td class="num">24</td></tr>
+                                    <tr class="bad"><td>Tuxtla</td><td>Refrigerador</td><td class="num">6</td><td class="num">24</td></tr>
+                                    <tr class="bad"><td>Centro</td><td>Refrigerador</td><td class="num">6</td><td class="num">24</td></tr>
+                                </tbody>
+                            </table>
+                            <div class="alert bad">Tuxtla vende poco y querría máx 8, pero es el mismo dato de Matriz y no lo puede editar.</div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+            <figure>
+                <figcaption class="deb">✓ Debería pasar</figcaption>
+                <div class="velo">
+                    <div class="scr">
+                        <div class="scr-bar"><b>Coca Cola prueba</b> · De Cafe Ligero Matriz<span class="suc">Cafe Ligero Tuxtla</span></div>
+                        <div class="scr-body">
+                            <table class="t">
+                                <thead><tr><th>Sucursal</th><th>Área</th><th class="num">Mín</th><th class="num">Máx</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Matriz</td><td>Refrigerador</td><td class="num">6</td><td class="num">24</td></tr>
+                                    <tr class="ok"><td>Tuxtla <span class="badge b-rec">editable</span></td><td>Vitrina</td><td class="num">2</td><td class="num">8</td></tr>
+                                    <tr><td>Centro</td><td class="dim">sin definir</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+                                </tbody>
+                            </table>
+                            <div class="alert ok">Nombre, unidad y costo siguen siendo de Matriz. Lo de cada almacén lo pone cada sucursal.</div>
+                        </div>
+                    </div>
+                </div>
+            </figure>
+        </div>
+
+        <div class="note">
+            <h4>Propuesta de mejora</h4>
+            <ul>
+                <li>Tabla nueva por producto y sucursal (o por almacén) con área, mínimo y máximo. El producto se queda con lo común: nombre, unidad, costo y vida útil.</li>
+                <li>Cada sucursal edita su renglón aunque el producto sea de Matriz. Las alertas de mínimo y el «máx» de Pedidos leen ese renglón.</li>
+                <li><span class="q">Pregunta:</span> ¿mínimo y máximo van por sucursal o por almacén? (Hoy cada sucursal tiene un almacén.)</li>
+                <li><span class="q">Pregunta:</span> ¿la vida útil es igual en todas las sucursales?</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Huecos -->
+    <section class="lam" id="huecos">
+        <p class="lam-n">Lámina 09 · Lo que le hizo falta</p>
+        <h2 style="margin-top:4px">Huecos de revisión: no fallaron en la prueba, pero faltan o no se probaron</h2>
+        <table class="gaps">
+            <thead><tr><th style="width:56px"></th><th>Qué falta</th><th>Por qué importa</th><th>Propuesta</th></tr></thead>
+            <tbody>
+                <tr><td><span class="pin sm gap">H1</span></td><td>Una entrada de Tuxtla cambia el último costo de la Coca de Matriz</td><td>El costo es uno por producto. Si Tuxtla compra más caro, Matriz y Centro ven ese costo.</td><td><span class="q">Pregunta:</span> ¿el último costo es por sucursal? Si sí, va en la tabla de A2.</td></tr>
+                <tr><td><span class="pin sm gap">H2</span></td><td>Compras y Reportes no usan la regla por sucursal</td><td>Ahí Tuxtla ve productos de Centro.</td><td>Aplicar <code>VisibilidadProductos</code> en sus consultas de productos.</td></tr>
+                <tr><td><span class="pin sm gap">H3</span></td><td>Nombre y SKU son únicos en toda la empresa</td><td>Tuxtla recibe «ya existe» por un producto de Centro que no puede ver.</td><td>El aviso dice de qué sucursal es, o la regla se vuelve por sucursal.</td></tr>
+                <tr><td><span class="pin sm gap">H4</span></td><td>Si nadie marca el almacén principal, todos ven todo</td><td>Es el respaldo para no esconder productos. En prod puede pasar el día que se suba.</td><td>Marcar el principal en Catálogo › Almacenes justo después de la migración.</td></tr>
+                <tr><td><span class="pin sm gap">H5</span></td><td>CoffeeIA de Entradas, Salidas y Pedidos no se probó con la regla</td><td>Guarda por los mismos caminos, pero sus búsquedas no se revisaron.</td><td>Repetir la prueba con CoffeeIA en la sesión de Tuxtla.</td></tr>
+                <tr><td><span class="pin sm gap">H6</span></td><td>La entrada del surtido se puede editar o cancelar en Entradas</td><td>Si Tuxtla la cancela, el stock baja pero el pedido sigue «Recibida».</td><td>Bloquear editar y cancelar las entradas «Surtido de sucursal»; un faltante se reporta en el pedido.</td></tr>
+                <tr><td><span class="pin sm gap">H7</span></td><td>En prod, los productos ya existentes no tienen dueño revisado</td><td>La regla usa <code>item.branch_id</code>. Si en prod está vacío o mal, se esconden productos.</td><td>Consultar el reparto de <code>item.branch_id</code> en prod antes de subir.</td></tr>
+                <tr><td><span class="pin sm gap">H8</span></td><td>Todo se probó con sesión simulada</td><td>No hubo prueba con usuarios reales de Tuxtla y Centro.</td><td>Una vuelta en el navegador con Rosy en cada sucursal.</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Tareas -->
+    <section class="lam" id="tareas">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+            <div>
+                <p class="lam-n">Lámina 10 · Pasarlas a tu TODO</p>
+                <h2 style="margin-top:4px">Tareas por pantalla</h2>
+                <p class="lead" style="margin-top:4px">Copia una o todas. Van como <code>- [ ]</code> bajo su pantalla.</p>
+            </div>
+            <button class="cp all" data-all>Copiar todas</button>
+        </div>
+
+        <div class="todo-sec" data-sec="Pedidos * Nuevo pedido">
+            <h3>Pedidos * Nuevo pedido</h3>
+            <ul>
+                <li><span class="pin sm bad">P2</span><span class="tx">No me deja pedirle a una sucursal un producto que no tiene, aunque se salte la pantalla</span><button class="cp">Copiar</button></li>
+                <li><span class="pin sm bad">P2</span><span class="tx">Pregunta: ¿se vale pedirle a una sucursal lo que no tiene para que ella lo compre?</span><button class="cp">Copiar</button></li>
+            </ul>
+        </div>
+        <div class="todo-sec" data-sec="Salidas * Registrar salida">
+            <h3>Salidas * Registrar salida</h3>
+            <ul>
+                <li><span class="pin sm bad">S1</span><span class="tx">Si saco un producto que el almacén no tenía, el stock queda en negativo como dice la salida</span><button class="cp">Copiar</button></li>
+                <li><span class="pin sm bad">S1</span><span class="tx">Pregunta: ¿se permite sacar lo que no hay o se bloquea la salida?</span><button class="cp">Copiar</button></li>
+                <li><span class="pin sm bad">E1</span><span class="tx">Solo puedo sacar de los almacenes de mis sucursales</span><button class="cp">Copiar</button></li>
+            </ul>
+        </div>
+        <div class="todo-sec" data-sec="Entradas * Nueva entrada">
+            <h3>Entradas * Nueva entrada</h3>
+            <ul>
+                <li><span class="pin sm bad">E1</span><span class="tx">Solo puedo registrar entradas en los almacenes de mis sucursales</span><button class="cp">Copiar</button></li>
+                <li><span class="pin sm gap">H6</span><span class="tx">La entrada que llega de un pedido no se puede editar ni cancelar desde Entradas</span><button class="cp">Copiar</button></li>
+                <li><span class="pin sm gap">H1</span><span class="tx">Pregunta: ¿el último costo de un producto es por sucursal?</span><button class="cp">Copiar</button></li>
+            </ul>
+        </div>
+        <div class="todo-sec" data-sec="Visor de stock * Conteo fisico">
+            <h3>Visor de stock * Conteo fisico</h3>
+            <ul>
+                <li><span class="pin sm bad">C1</span><span class="tx">La hoja de conteo solo trae los productos de mi sucursal y los de Matriz</span><button class="cp">Copiar</button></li>
+            </ul>
+        </div>
+        <div class="todo-sec" data-sec="Traspasos">
+            <h3>Traspasos</h3>
+            <ul>
+                <li><span class="pin sm bad">T1</span><span class="tx">Al traspasar solo veo los productos de mi sucursal y los de Matriz</span><button class="cp">Copiar</button></li>
+            </ul>
+        </div>
+        <div class="todo-sec" data-sec="Catalogo * Productos">
+            <h3>Catalogo * Productos</h3>
+            <ul>
+                <li><span class="pin sm bad">A1</span><span class="tx">El selector de área solo muestra las áreas de mi almacén</span><button class="cp">Copiar</button></li>
+                <li><span class="pin sm dec">A2</span><span class="tx">Cada sucursal pone su área, mínimo y máximo aunque el producto sea de Matriz</span><button class="cp">Copiar</button></li>
+                <li><span class="pin sm dec">A2</span><span class="tx">Pregunta: ¿mínimo y máximo van por sucursal o por almacén?</span><button class="cp">Copiar</button></li>
+                <li><span class="pin sm gap">H3</span><span class="tx">Si el nombre ya existe en otra sucursal, el aviso me dice en cuál</span><button class="cp">Copiar</button></li>
+            </ul>
+        </div>
+        <div class="todo-sec" data-sec="Compras y Reportes">
+            <h3>Compras y Reportes</h3>
+            <ul>
+                <li><span class="pin sm gap">H2</span><span class="tx">Solo muestran los productos de mi sucursal y los de Matriz, igual que Entradas</span><button class="cp">Copiar</button></li>
+            </ul>
+        </div>
+    </section>
+</div>
+
+<script>
+    // -- Copiar al TODO --
+    // Una fila: «- [ ] texto». Todas: cada pantalla con sus tareas debajo.
+    const copiar = async (texto, boton) => {
+        try {
+            await navigator.clipboard.writeText(texto);
+        } catch (e) {
+            const area = document.createElement('textarea');
+            area.value = texto;
+            document.body.appendChild(area);
+            area.select();
+            try { document.execCommand('copy'); } catch (_) {}
+            area.remove();
+        }
+        const antes = boton.textContent;
+        boton.textContent = 'Copiado';
+        boton.classList.add('done');
+        setTimeout(() => { boton.textContent = antes; boton.classList.remove('done'); }, 1400);
+    };
+
+    document.querySelectorAll('.todo-sec li .cp').forEach(boton => {
+        boton.addEventListener('click', () => copiar('- [ ] ' + boton.parentElement.querySelector('.tx').textContent.trim(), boton));
+    });
+
+    document.querySelector('[data-all]').addEventListener('click', (ev) => {
+        const texto = [...document.querySelectorAll('.todo-sec')].map(sec =>
+            sec.dataset.sec + '\n' + [...sec.querySelectorAll('.tx')].map(t => '- [ ] ' + t.textContent.trim()).join('\n')
+        ).join('\n\n');
+        copiar(texto, ev.currentTarget);
+    });
+</script>
+</body>
+</html>

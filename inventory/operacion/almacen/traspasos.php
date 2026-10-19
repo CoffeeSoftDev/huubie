@@ -6,6 +6,13 @@ if (empty($_SESSION["IDU"])) {
     exit();
 }
 
+// Traspasos está desactivado (sección apagada en Accesos): de regreso a Inicio, para todos.
+require_once __DIR__ . '/../../conf/_Permissions.php';
+if (!Permissions::sectionOn('traspasos')) {
+    header('Location: ../../modulos/');
+    exit();
+}
+
 require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>
@@ -28,7 +35,7 @@ require_once('layout/core-libraries.php');
 
     <!-- Importacion navbar y sidebar -->
     <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
-    <script src="../../acceso/src/js/sidebar.js"></script>
+    <script src="../../acceso/src/js/sidebar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/sidebar.js'); ?>"></script>
 
     <!-- Componentes -->
     <script src="../../src/js/components/traspaso-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/traspaso-form.js'); ?>"></script>

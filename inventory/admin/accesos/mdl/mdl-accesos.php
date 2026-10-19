@@ -52,7 +52,7 @@ class mdl extends CRUD {
         // [company_id, is_active]
         $query = "
             SELECT
-                b.id, b.name, b.ubication, b.phone, b.email, b.manager_id, b.logo, b.is_active, b.company_id,
+                b.id, b.name, b.ubication, b.phone, b.email, b.manager_id, b.logo, b.is_active, b.company_id, b.folio_code,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS manager_name
             FROM {$this->bd}branches b
             LEFT JOIN {$this->bd}users u ON u.id = b.manager_id
@@ -63,14 +63,15 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    // Sucursales activas de la empresa en formato {id, valor} para selects.
+    // Sucursales activas de la empresa en formato {id, valor} para selects. La Matriz
+    // (sucursal del almacén principal, en la BD de inventario) va primero.
     function qBranchesForSelect($array) {
         // [company_id]
         $query = "
             SELECT id, name AS valor
             FROM {$this->bd}branches
             WHERE company_id = ? AND is_active = 1
-            ORDER BY name ASC
+            ORDER BY id IN (SELECT branch_id FROM fayxzvov_inventory.warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -80,7 +81,7 @@ class mdl extends CRUD {
         // [id, company_id]
         $query = "
             SELECT
-                b.id, b.name, b.ubication, b.phone, b.email, b.manager_id, b.logo, b.is_active, b.company_id,
+                b.id, b.name, b.ubication, b.phone, b.email, b.manager_id, b.logo, b.is_active, b.company_id, b.folio_code,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS manager_name
             FROM {$this->bd}branches b
             LEFT JOIN {$this->bd}users u ON u.id = b.manager_id
@@ -92,22 +93,30 @@ class mdl extends CRUD {
     }
 
     function qInsertBranch($array) {
-        // [name, ubication, phone, email, manager_id, company_id]
+        // [name, ubication, phone, email, manager_id, folio_code, company_id]
         $query = "
-            INSERT INTO {$this->bd}branches (name, ubication, phone, email, manager_id, company_id, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+            INSERT INTO {$this->bd}branches (name, ubication, phone, email, manager_id, folio_code, company_id, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())
         ";
         return $this->_CUD($query, $array);
     }
 
     function qUpdateBranch($array) {
-        // [name, ubication, phone, email, manager_id, id, company_id]
+        // [name, ubication, phone, email, manager_id, folio_code, id, company_id]
         $query = "
             UPDATE {$this->bd}branches
-            SET name = ?, ubication = ?, phone = ?, email = ?, manager_id = ?
+            SET name = ?, ubication = ?, phone = ?, email = ?, manager_id = ?, folio_code = ?
             WHERE id = ? AND company_id = ?
         ";
         return $this->_CUD($query, $array);
+    }
+
+    // La clave de folios no se repite en la empresa: así tampoco se repiten los folios.
+    function qBranchFolioCodeExists($array) {
+        // [folio_code, company_id, id que se excluye (0 = ninguno)]
+        $query = "SELECT id FROM {$this->bd}branches WHERE folio_code = ? AND company_id = ? AND id <> ? LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r);
     }
 
     function qUpdateBranchLogo($array) {

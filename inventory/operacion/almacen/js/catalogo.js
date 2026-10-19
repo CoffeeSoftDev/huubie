@@ -43,6 +43,34 @@ class Catalogo extends Templates {
     }
 }
 
+// -- Sucursal de los catálogos --
+// Categorías, proveedores, almacenes y áreas son por sucursal. Solo el administrador
+// (init de ctrl-almacen manda `sucursales`) ve este selector: arranca en su sucursal y con
+// «Todas» la tabla trae los de todas y su columna Sucursal. `id` es la clave que lee el ctrl.
+function sucursalFiltro(id, onchange) {
+    if (!sucursales.length) return [];
+
+    return [{
+        opc: "select",
+        id: id,
+        lbl: "Sucursal",
+        class: "col-12 col-md-2",
+        value: String(sucursalSesion || ''),
+        data: [{ id: '', valor: 'Todas las sucursales' }, ...sucursales],
+        onchange: onchange
+    }];
+}
+
+// '' = todas. Sin selector (no es administrador) el ctrl usa la sucursal de la sesión.
+function sucursalElegida(id) {
+    return sucursales.length ? String($(`#${id}`).val() ?? sucursalSesion ?? '') : '';
+}
+
+// Con «Todas» la tabla lleva la columna Sucursal en la posición 2: lo centrado se recorre.
+function centradoConSucursal(id, center) {
+    return sucursales.length && sucursalElegida(id) === '' ? center.map(i => i + 1) : center;
+}
+
 class Category extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
@@ -57,6 +85,7 @@ class Category extends Templates {
         this.createfilterBar({
             parent: "filterbar-category",
             data: [
+                ...sucursalFiltro("sucursal_categoria", "category.lsCategory()"),
                 {
                     opc: "select",
                     id: "active",
@@ -95,7 +124,7 @@ class Category extends Templates {
                 striped: true,
                 title: "Categorías de productos",
                 subtitle: "Clasificación de los productos del almacén",
-                center: [2, 3]
+                center: centradoConSucursal("sucursal_categoria", [2, 3])
             }
         });
     }
@@ -103,7 +132,8 @@ class Category extends Templates {
     addCategory() {
         this.createModalForm({
             id: "formCategoryAdd",
-            data: { opc: "addCategory" },
+            // Nace en la sucursal del selector (con «Todas», en la de la sesión).
+            data: { opc: "addCategory", sucursal_categoria: sucursalElegida("sucursal_categoria") },
             theme: 'light',
             coffeesoft: true,
             bootbox: {
@@ -231,6 +261,7 @@ class Area extends Templates {
         this.createfilterBar({
             parent: "filterbar-area",
             data: [
+                ...sucursalFiltro("sucursal_area", "area.lsArea()"),
                 {
                     opc: "select",
                     id: "active",
@@ -633,6 +664,7 @@ class Warehouse extends Templates {
         this.createfilterBar({
             parent: "filterbar-warehouse",
             data: [
+                ...sucursalFiltro("sucursal_almacen", "warehouse.lsWarehouse()"),
                 {
                     opc: "select",
                     id: "active",
@@ -670,8 +702,8 @@ class Warehouse extends Templates {
                 class: "w-full text-sm table-fixed min-w-[640px]",
                 striped: true,
                 title: "Almacenes",
-                subtitle: "Almacenes físicos de la sucursal",
-                center: [3, 4]
+                subtitle: "Cada sucursal con su almacén. El principal es al que las sucursales le piden material en Pedidos",
+                center: [3, 4, 5, 6]
             }
         });
     }
@@ -810,6 +842,30 @@ class Warehouse extends Templates {
                 data: [
                     { id: "0", valor: "No" },
                     { id: "1", valor: "Sí" }
+                ]
+            },
+            // Uno por empresa: al marcar este, los demás dejan de serlo (ctrl-catalogo). Decide
+            // quién es Matriz: solo el administrador lo ve (el ctrl lo ignora de los demás).
+            ...(sucursales.length ? [{
+                opc: "select",
+                id: "is_main",
+                lbl: "Almacén principal (le piden material las sucursales)",
+                class: "col-12 mb-3",
+                data: [
+                    { id: "0", valor: "No" },
+                    { id: "1", valor: "Sí" }
+                ]
+            }] : []),
+            // Pedidos de otra sucursal surtidos desde aquí: Sí descuenta de este almacén y da
+            // entrada a quien pidió (con «Recibí»); No solo marca el pedido como surtido.
+            {
+                opc: "select",
+                id: "supply_moves_stock",
+                lbl: "Surtir pedidos de otra sucursal mueve inventario",
+                class: "col-12 mb-3",
+                data: [
+                    { id: "1", valor: "Sí: descuenta aquí y entra a quien pidió" },
+                    { id: "0", valor: "No: solo queda surtido" }
                 ]
             }
         ];
@@ -1285,6 +1341,7 @@ class Supplier extends Templates {
         this.createfilterBar({
             parent: "filterbar-supplier",
             data: [
+                ...sucursalFiltro("sucursal_proveedor", "supplier.lsSupplier()"),
                 {
                     opc: "select",
                     id: "active",
@@ -1322,8 +1379,8 @@ class Supplier extends Templates {
                 class: "w-full text-sm table-fixed min-w-[1040px]",
                 striped: true,
                 title: "Proveedores",
-                subtitle: "Maestro de proveedores de la empresa",
-                center: [5]
+                subtitle: "Proveedores de la sucursal",
+                center: centradoConSucursal("sucursal_proveedor", [5])
             }
         });
     }
@@ -1331,7 +1388,8 @@ class Supplier extends Templates {
     addSupplier() {
         this.createModalForm({
             id: "formSupplierAdd",
-            data: { opc: "addSupplier" },
+            // Nace en la sucursal del selector (con «Todas», en la de la sesión).
+            data: { opc: "addSupplier", sucursal_proveedor: sucursalElegida("sucursal_proveedor") },
             theme: 'light',
             coffeesoft: true,
             bootbox: { title: "Agregar proveedor", size: 'small', closeButton: true },
@@ -1665,6 +1723,8 @@ const CATALOG_WIDTHS = {
     "productos":          "13%",
     "código":             "20%",
     "por defecto":        "14%",
+    "principal":          "14%",
+    "mueve inventario":   "14%",
     "requiere proveedor": "20%",
     "teléfono":           "14%",
     "email":              "22%",

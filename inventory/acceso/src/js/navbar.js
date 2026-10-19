@@ -1074,6 +1074,8 @@ class Navbar {
             allowEscapeKey: false,
         }).then((result) => {
             if (result.isConfirmed) {
+                // El menú que la sidebar guardó en la pestaña es de este usuario.
+                if (typeof Sidebar !== 'undefined') Sidebar.olvidarMenus();
                 const base = window.location.pathname.split('/inventory/')[0];
                 window.location.href = `${base}/inventory/salir`;
             }

@@ -1,8 +1,13 @@
 <?php
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
+require_once __DIR__ . '/mdl-visibilidad.php';
 
 class mdl extends CRUD {
+
+    // Categorías, proveedores, almacenes y áreas por sucursal (filtroCatalogoSucursal).
+    use VisibilidadProductos;
+
     protected $util;
     public $bd;
 
@@ -13,17 +18,21 @@ class mdl extends CRUD {
 
     // Categoría -> item_category
 
+    // Las de la sucursal (selector `sucursal_categoria` del administrador).
     function listCategory($array) {
         $query = "
             SELECT
                 ic.id,
                 ic.name as valor,
+                b.name as sucursal,
                 DATE_FORMAT(ic.created_at, '%d/%m/%Y') as date_creation,
                 ic.active,
                 (SELECT COUNT(*) FROM {$this->bd}item i WHERE i.category_id = ic.id AND i.active = 1) as total_items
             FROM {$this->bd}item_category ic
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = ic.branch_id
             WHERE ic.active = ?
             AND ic.companies_id = ".$_SESSION['company_id']."
+            {$this->filtroCatalogoSucursal('ic', 'sucursal_categoria')}
             ORDER BY ic.id DESC
         ";
         return $this->_Read($query, $array);
@@ -56,11 +65,13 @@ class mdl extends CRUD {
         ]);
     }
 
+    // El nombre no se repite dentro de la sucursal. [name, branch_id]
     function existsCategoryByName($array) {
         $query = "
             SELECT COUNT(*) as total
             FROM {$this->bd}item_category
             WHERE LOWER(name) = LOWER(?)
+            AND (branch_id = ? OR branch_id IS NULL)
             AND active = 1
             AND companies_id = ".$_SESSION['company_id']."
         ";
@@ -107,6 +118,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}warehouse w ON w.id = wa.warehouse_id
             WHERE wa.active = ?
             AND wa.companies_id = ".$_SESSION['company_id']."
+            {$this->filtroAreasCatalogo('wa', 'sucursal_area')}
             ORDER BY wa.id DESC
         ";
         return $this->_Read($query, $array);
@@ -520,12 +532,21 @@ class mdl extends CRUD {
 
     // Almacenes -> warehouse
 
-    function listWarehouse($array) {
+    // $branchIds: solo los almacenes de esas sucursales (las del usuario); null = todas.
+    function listWarehouse($array, $branchIds = null) {
+        $where = '';
+        if (is_array($branchIds)) {
+            $ids   = array_map('intval', $branchIds) ?: [0];
+            $where = ' AND w.branch_id IN (' . implode(',', $ids) . ')';
+        }
+
         $query = "
             SELECT
                 w.id,
                 w.name as valor,
                 w.is_default,
+                w.is_main,
+                w.supply_moves_stock,
                 b.name as branch_name,
                 DATE_FORMAT(w.created_at, '%d/%m/%Y') as date_creation,
                 w.active
@@ -533,9 +554,33 @@ class mdl extends CRUD {
             LEFT JOIN branches b ON b.id = w.branch_id
             WHERE w.active = ?
             AND w.companies_id = ".$_SESSION['company_id']."
-            ORDER BY w.id DESC
+            {$where}
+            ORDER BY w.is_main DESC, b.name ASC, w.id DESC
         ";
         return $this->_Read($query, $array);
+    }
+
+    // Sucursales asignadas al usuario (users_braches) en la empresa.
+    function listUserBranchIds($array) {
+        // [user_id, company_id]
+        $query = "
+            SELECT b.id
+            FROM fayxzvov_erp.branches b
+            INNER JOIN fayxzvov_erp.users_braches ub ON ub.branch_id = b.id
+            WHERE ub.user_id = ? AND b.company_id = ? AND b.is_active = 1
+        ";
+        return array_map('intval', array_column($this->_Read($query, $array) ?: [], 'id'));
+    }
+
+    // Deja un solo almacén principal en la empresa: apaga los demás.
+    function updateMainWarehouseOff($array) {
+        // [companies_id, id que se queda]
+        $query = "
+            UPDATE {$this->bd}warehouse
+            SET is_main = 0
+            WHERE companies_id = ? AND id <> ? AND is_main = 1
+        ";
+        return $this->_CUD($query, $array);
     }
 
     function getWarehouseById($array) {
@@ -565,11 +610,13 @@ class mdl extends CRUD {
         ]);
     }
 
+    // El nombre no se repite dentro de la sucursal. [name, branch_id]
     function existsWarehouseByName($array) {
         $query = "
             SELECT COUNT(*) as total
             FROM {$this->bd}warehouse
             WHERE LOWER(name) = LOWER(?)
+            AND branch_id = ?
             AND active = 1
             AND companies_id = ".$_SESSION['company_id']."
         ";
@@ -612,20 +659,24 @@ class mdl extends CRUD {
 
     // Proveedores -> supplier
 
+    // Los de la sucursal (selector `sucursal_proveedor` del administrador).
     function listSupplier($array) {
         $query = "
             SELECT
-                id,
-                name as valor,
-                contact_name,
-                phone,
-                email,
-                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
-                active
-            FROM {$this->bd}supplier
-            WHERE active = ?
-            AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY id DESC
+                s.id,
+                s.name as valor,
+                s.contact_name,
+                s.phone,
+                s.email,
+                b.name as sucursal,
+                DATE_FORMAT(s.created_at, '%d/%m/%Y') as date_creation,
+                s.active
+            FROM {$this->bd}supplier s
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = s.branch_id
+            WHERE s.active = ?
+            AND s.companies_id = ".$_SESSION['company_id']."
+            {$this->filtroCatalogoSucursal('s', 'sucursal_proveedor')}
+            ORDER BY s.id DESC
         ";
         return $this->_Read($query, $array);
     }
@@ -657,11 +708,13 @@ class mdl extends CRUD {
         ]);
     }
 
+    // El nombre no se repite dentro de la sucursal. [name, branch_id]
     function existsSupplierByName($array) {
         $query = "
             SELECT COUNT(*) as total
             FROM {$this->bd}supplier
             WHERE LOWER(name) = LOWER(?)
+            AND (branch_id = ? OR branch_id IS NULL)
             AND active = 1
             AND companies_id = ".$_SESSION['company_id']."
         ";
@@ -703,6 +756,7 @@ class mdl extends CRUD {
     }
 
     // Sucursales activas de la compañía para selects de formularios (cada almacén pertenece a una sucursal).
+    // La Matriz (sucursal del almacén principal) va primero.
     // Params: [company_id]
     function listBranchesSelect($array) {
         $query = "
@@ -710,7 +764,7 @@ class mdl extends CRUD {
             FROM branches b
             WHERE b.company_id = ?
             AND b.is_active = 1
-            ORDER BY b.name ASC
+            ORDER BY b.id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, b.name ASC
         ";
         return $this->_Read($query, $array);
     }

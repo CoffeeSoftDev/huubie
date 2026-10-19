@@ -37,7 +37,8 @@ class App extends Templates {
                 sucursales:      r.sucursales      || [],
                 categorias:      r.categorias      || [],
                 areas:           r.areas           || [],
-                estadosAjuste:   r.estados_ajuste  || []
+                estadosAjuste:   r.estados_ajuste  || [],
+                movimientoDias:  r.movement_days   || 30
             };
         } else {
             this.dataInit = {
@@ -81,9 +82,18 @@ class App extends Templates {
         stockView.renderHeader({
             title:     'Visor de Stock',
             titleHtml: titleHtml,
-            subtitle:  'Control de existencias por sucursal, categoría y nivel',
+            subtitle:  this.rangoConsultado(),
             // back:      { href: 'index.php', title: 'Regresar al inicio' }
         });
+    }
+
+    // Lo que consulta el visor: las existencias de hoy y los movimientos (Últ. mov. y el
+    // filtro "Con movimientos") de los últimos N días, que manda el servidor.
+    rangoConsultado() {
+        const dias = Number(this.dataInit.movimientoDias) || 30;
+        const fin  = moment();
+        const ini  = moment().subtract(dias, 'days');
+        return `Existencias al ${fin.format('DD/MM/YYYY')} · Movimientos del ${ini.format('DD/MM/YYYY')} al ${fin.format('DD/MM/YYYY')} (últimos ${dias} días)`;
     }
 
     renderTabs() {
@@ -408,7 +418,8 @@ class Stock extends Templates {
                 theme:        'light',
                 striped:      true,
                 f_size:       12,
-                center:       [2, 5, 6, 7, 8],
+                // Stock, Mín, Máx, Unidad, Estado y Últ. Mov al centro.
+                center:       [2, 3, 4, 5, 6, 7, 8],
                 emptyMessage: 'No se encontraron productos con los filtros aplicados',
                 emptyIcon:    'icon-cube'
             }
@@ -1792,7 +1803,13 @@ class StockCount extends Templates {
     }
 
     jsonActions(perms) {
-        const actions = [];
+        const actions = [{
+            id:      'btnConteoImprimir',
+            text:    'Imprimir',
+            icon:    'printer',
+            kind:    'ghost',
+            onClick: () => this.printConteo()
+        }];
 
         if (perms.cancel) {
             actions.push({
@@ -1821,6 +1838,50 @@ class StockCount extends Templates {
         }
 
         return actions;
+    }
+
+    // Formato del conteo: producto, unidad, sistema (si no es ciego) y lo contado. Lo
+    // capturado y aún sin guardar gana sobre lo que trae la base; lo que no se ha contado
+    // queda con la casilla en blanco para anotarlo a mano. Respeta la pestaña de área abierta.
+    async printConteo() {
+        const r = await useFetch({
+            url:  apiStock,
+            data: { opc: 'printConteo', id: this.id, area_id: this.areaId }
+        });
+        if (!r || r.status !== 200) {
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo preparar el formato de conteo' });
+            return;
+        }
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const h   = r.header;
+        const cols = h.blind ? 4 : 5;
+
+        let grupo = null;
+        const rows = (r.items || []).map(it => {
+            const cab = it.area !== grupo
+                ? `<tr class="grp"><td colspan="${cols}">${esc(it.area)}</td></tr>`
+                : '';
+            grupo = it.area;
+            const local   = Object.prototype.hasOwnProperty.call(this.counts || {}, it.id) ? this.counts[it.id] : null;
+            const contado = local !== null && local !== '' ? local : it.counted;
+            return `${cab}<tr><td>${esc(it.name)}${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">${esc(it.unit || '-')}</td>${h.blind ? '' : `<td class="c">${esc(it.system)}</td>`}<td class="box">${contado === null || contado === undefined ? '' : esc(contado)}</td><td class="obs"></td></tr>`;
+        }).join('');
+
+        const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Conteo físico ${esc(h.folio)}</title>
+        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:14px}.doc-title{font-size:22px;font-weight:800}.folio{font-size:20px;font-weight:800;text-align:right}.meta{font-size:12px;color:#555;margin-top:3px}.firma{display:flex;gap:40px;margin-bottom:14px;font-size:12px}.firma div{flex:1;border-bottom:1px solid #000;padding-bottom:2px;min-height:22px}table{width:100%;border-collapse:collapse}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.c{text-align:center}tbody td{padding:5px 8px;font-size:11px;border-bottom:1px solid #ccc}td.c{text-align:center;white-space:nowrap}td.box{width:90px;border-left:1px solid #000;border-right:1px solid #000;text-align:center;font-weight:700;font-size:12px}td.obs{width:130px}tr.grp td{background:#e5e5e5;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px}.sku{color:#777;font-size:10px}tr{page-break-inside:avoid}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;box-shadow:none;padding:0}thead{display:table-header-group}}</style>
+        </head><body>
+        <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
+        <div class="sheet">
+            <div class="doc-header"><div><div class="doc-title">Formato de conteo físico</div><div class="meta">${esc(h.warehouse)} &middot; ${esc(h.date)}${h.blind ? ' &middot; Conteo ciego' : ''}</div></div><div class="folio">${esc(h.folio)}</div></div>
+            <div class="firma"><div>Contó:</div><div>Revisó:</div><div>Fecha y hora:</div></div>
+            <table><thead><tr><th>Producto</th><th class="c">Unidad</th>${h.blind ? '' : '<th class="c">Sistema</th>'}<th class="c">Contado</th><th>Observaciones</th></tr></thead><tbody>${rows || `<tr><td colspan="${cols}" class="c">Sin productos</td></tr>`}</tbody></table>
+        </div></body></html>`;
+
+        const w = window.open('', '_blank', 'width=900,height=1000');
+        if (!w) { this.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el formato.' }); return; }
+        w.document.write(html);
+        w.document.close();
     }
 
     // -- Complements --
@@ -2029,5 +2090,61 @@ class Ajustes extends Templates {
                 emptyIcon:    'icon-clipboard'
             }
         });
+    }
+
+    // Mismo formato que el comprobante de entrada (entradas.js::_renderEntradaDoc).
+    async printAjuste(id) {
+        const r = await useFetch({
+            url:  apiStock,
+            data: {
+                opc: 'getAjuste',
+                id:  id
+            }
+        });
+        if (!r || r.status !== 200) {
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cargar el ajuste para imprimir' });
+            return;
+        }
+
+        const esc    = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const fmtNum = (n) => Math.abs(Number(n || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const sign   = (n) => n > 0 ? '+' : n < 0 ? '-' : '';
+        const h      = r.header || {};
+        const items  = r.items || [];
+        const totals = items.reduce((acc, it) => {
+            if (it.cost_diff > 0) acc.sobrante += it.cost_diff;
+            else acc.faltante += it.cost_diff;
+            return acc;
+        }, { sobrante: 0, faltante: 0 });
+        const neto = Math.round((totals.sobrante + totals.faltante) * 100) / 100;
+
+        const info = [
+            ['Tipo de ajuste', h.reason],
+            ['Fecha', h.date],
+            ['Sucursal', h.branch || '-'],
+            ['Almacén', h.warehouse],
+            ['Registrado por', h.registered || '-'],
+            ['Aplicado por', h.authorized ? h.authorized + (h.applied_at ? ' · ' + h.applied_at : '') : '-']
+        ].map(([k, v]) => `<div class="info-item"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>`).join('');
+
+        const rowsHtml = items.map(it => `<tr><td class="prod"><span class="prod-name">${esc(it.name)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">${fmtNum(it.system)}</td><td class="c">${fmtNum(it.counted)}</td><td class="c b">${sign(it.difference)}${fmtNum(it.difference)}</td><td class="r">$${fmtNum(it.cost)}</td><td class="r">${sign(it.cost_diff)}$${fmtNum(it.cost_diff)}</td><td class="c">${esc(it.unit || '-')}</td></tr>`).join('');
+
+        const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ajuste ${esc(h.folio)}</title>
+        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}tbody td.b{font-weight:700}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
+        </head><body>
+        <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
+        <div class="sheet">
+            <div class="doc-header"><div><div class="doc-title">Comprobante de Ajuste</div><div style="font-size:12px;color:#555;margin-top:3px">${esc(h.branch)}${h.branch ? ' &middot; ' : ''}${esc(h.warehouse)}</div></div><div><div class="folio">${esc(h.folio || '-')}</div>${h.status ? `<span class="status">${esc(h.status)}</span>` : ''}</div></div>
+            <div class="info-grid">${info}</div>
+            <table><thead><tr><th>Producto</th><th class="c">Sistema</th><th class="c">Contado</th><th class="c">Ajuste</th><th class="r">Costo unit.</th><th class="r">Importe</th><th class="c">Unidad</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="7" class="c">Sin diferencias: no se ajustó ningún producto</td></tr>'}</tbody></table>
+            <div class="totals"><div class="totals-box"><div class="totals-row"><span>Productos ajustados</span><span>${items.length}</span></div><div class="totals-row"><span>Sobrantes</span><span>${sign(totals.sobrante)}$${fmtNum(totals.sobrante)}</span></div><div class="totals-row"><span>Faltantes</span><span>${sign(totals.faltante)}$${fmtNum(totals.faltante)}</span></div><div class="totals-row grand"><span>Ajuste neto</span><span>${sign(neto)}$${fmtNum(neto)}</span></div></div></div>
+            ${h.note ? `<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;color:#222"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(h.note)}</div>` : ''}
+        </div></body></html>`;
+
+        const w = window.open('', '_blank', 'width=900,height=1000');
+        if (!w) { this.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el documento.' }); return; }
+        w.document.write(html);
+        w.document.close();
+        w.focus();
     }
 }

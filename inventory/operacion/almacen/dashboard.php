@@ -35,7 +35,7 @@ require_once('layout/core-libraries.php');
 
     <!-- Importación navbar y sidebar -->
     <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
-    <script src="../../acceso/src/js/sidebar.js"></script>
+    <script src="../../acceso/src/js/sidebar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/sidebar.js'); ?>"></script>
 
     <!-- Dashboard del almacén -->
     <script src="js/dashboard.js?t=<?php echo time(); ?>"></script>

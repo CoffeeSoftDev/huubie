@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-almacen.php';
 let main, products, asistente;
-let categorias, unidades, areas, proveedores, almacenes, productos, superAdmin, coffeeIA;
+let categorias, unidades, areas, proveedores, almacenes, productos, superAdmin, coffeeIA, sucursales, sucursalSesion;
 
 // Vida útil: cuántos días vale cada periodo del selector.
 const PERIODOS_VIDA = [
@@ -24,6 +24,8 @@ $(async () => {
     productos      = data.productos   || [];
     superAdmin     = !!data.superadmin;
     coffeeIA       = data.coffeeia !== false;
+    sucursales     = data.sucursales  || [];
+    sucursalSesion = String(data.branch_id || '');
 
     main = new Main(api, "root");
     main.render();
@@ -183,17 +185,33 @@ class Productos extends Templates {
         });
     }
 
+    // `this.filtroSucursal`: la sucursal elegida en el selector (administrador) con sus
+    // categorías y áreas (cambiarSucursal). Sin elegir, la de la sesión.
     filterBar() {
+        const f = this.filtroSucursal || { sucursal: sucursalSesion, categorias: categorias, areas: areas };
+
         this.createfilterBar({
             parent: `filterBar${this.PROJECT_NAME}`,
             data: [
+                // El stock es el de la sucursal de la navbar. Solo el administrador recibe la
+                // lista de sucursales (init): al elegir una salen solo los productos de esa
+                // sucursal con su stock, y sus categorías y áreas; con "Todas", todo y la suma.
+                ...(sucursales.length ? [{
+                    opc: "select",
+                    id: "sucursal",
+                    lbl: "Sucursal",
+                    class: "col-12 col-md-2",
+                    value: f.sucursal,
+                    data: [{ id: '', valor: 'Todas las sucursales' }, ...sucursales],
+                    onchange: 'products.cambiarSucursal()'
+                }] : []),
                 // Mismo orden que las columnas de la tabla: primero qué es, luego dónde está.
                 {
                     opc: "select",
                     id: "categoria",
                     lbl: "Categoría",
                     class: "col-12 col-md-2",
-                    data: [{ id: '', valor: 'Todas' }, ...categorias],
+                    data: [{ id: '', valor: 'Todas' }, ...f.categorias],
                     onchange: 'products.lsMateriales()'
                 },
                 // Área = dónde está dentro del almacén (anaquel, refrigerador...).
@@ -208,7 +226,7 @@ class Productos extends Templates {
                     badge: true,
                     data: [
                         { id: '', valor: 'Todas las áreas' },
-                        ...areas,
+                        ...f.areas,
                         { id: 'none', valor: 'Sin área' }
                     ]
                 },
@@ -239,8 +257,8 @@ class Productos extends Templates {
                     opc: "button",
                     id: "btnCoffeeIA",
                     text: "CoffeeIA",
-                    // El .bg-white de Bootstrap trae !important y le gana al hover de btnOutline.
-                    className: 'group w-100 inline-flex items-center justify-center gap-2 !border-blue-600 hover:!bg-blue-600 active:!bg-blue-700',
+                    // Sus colores los pone mountCoffeeIAIcon (los del botón CoffeeIA de Salidas).
+                    className: 'w-100 inline-flex items-center justify-center gap-2',
                     class: "col-12 col-md-2",
                     color_btn: "outline",
                     onClick: () => asistente.render()
@@ -252,19 +270,91 @@ class Productos extends Templates {
         this.mountCoffeeIAIcon();
     }
 
-    // La cara de coffeeIA con su "IA" morado, como el ícono de la navbar. El texto va en
-    // dos tonos: "Coffee" en negro e "IA" en el color del tema; con el hover, los dos en blanco.
+    // El administrador cambia de sucursal: los filtros de Categoría y Área se rehacen con
+    // las de esa sucursal (o las de todas) y la tabla se vuelve a consultar. El estado se queda.
+    async cambiarSucursal() {
+        const $bar     = $(`#filterBar${this.PROJECT_NAME}`);
+        const sucursal = String($bar.find('#sucursal').val() ?? '');
+        const estado   = $bar.find('#estado').val();
+        const r        = await useFetch({ url: this._link, data: { opc: 'lsCatalogoSucursal', sucursal: sucursal } }).catch(() => null);
+
+        this.filtroSucursal = {
+            sucursal:   sucursal,
+            categorias: (r && r.categorias) || [],
+            areas:      (r && r.areas) || []
+        };
+        this.filterBar();
+        $bar.find('#estado').val(estado);
+        this.lsMateriales();
+    }
+
+    // Formulario del producto: el área elegida va en una píldora chica (la de la lista se
+    // queda a 13 px, cfBadgeOption) y las listas de Categoría y Unidad no pasan de 240 px.
+    // El "_" de Tailwind es espacio: & .select2-selection .cs-badge-soft.
+    compactarSelectsProducto(formId) {
+        $(`#${formId}`).addClass([
+            '[&_.select2-selection_.cs-badge-soft]:!text-[11px]',
+            '[&_.select2-selection_.cs-badge-soft]:!py-0',
+            '[&_.select2-selection_.cs-badge-soft]:!px-2',
+            '[&_.select2-selection_.cs-badge-soft]:!leading-5'
+        ].join(' '));
+
+        $(`#${formId}`).find('#unit_id, #category_id').on('select2:open', () => {
+            $('.select2-container--open .select2-results__options').css('max-height', '240px');
+        });
+    }
+
+    // Formulario del producto: al cambiar la Sucursal (solo el administrador la ve), los
+    // selects de Categoría y Área se rehacen con las de esa sucursal; lo elegido se queda si
+    // existe allá. El reset del alta en serie regresa a la sucursal de la sesión.
+    mountSucursalProducto(formId) {
+        const $form = $(`#${formId}`);
+        const $suc  = $form.find('#branch_id');
+        if (!$suc.length) return;
+
+        const llenar = ($sel, lista, primera = null) => {
+            const actual = String($sel.val() ?? '');
+            $sel.empty();
+            if (primera) $sel.append($('<option>', { value: primera.id, text: primera.valor }));
+            lista.forEach(it => $sel.append($('<option>', {
+                value: it.id,
+                text: it.valor,
+                'data-color': it.color,
+                'data-bg': it.bg,
+                'data-description': it.description
+            })));
+            const sigue = lista.some(it => String(it.id) === actual);
+            $sel.val(sigue ? actual : (primera ? primera.id : (lista[0] ? String(lista[0].id) : ''))).trigger('change');
+        };
+
+        $suc.on('change', async () => {
+            const r = await useFetch({ url: this._link, data: { opc: 'lsCatalogoSucursal', sucursal: $suc.val() || '' } }).catch(() => null);
+            if (!r || r.status !== 200) return;
+            llenar($form.find('#category_id'), r.categorias || []);
+            llenar($form.find('#warehouse_area_id'), r.areas || [], { id: '', valor: 'Sin área' });
+        });
+
+        $form.on('reset', () => setTimeout(() => $suc.val(String(sucursalSesion || '')).trigger('change'), 0));
+    }
+
+    // Con el aspecto del botón CoffeeIA de la captura de Salidas (btnIA de salida-form.js):
+    // borde violeta con su sombra, texto en negritas y el "IA" en violeta, sobre el gris de
+    // los botones claros (btnLight: gray-100, gray-200 al pasar el mouse). El ícono es la
+    // cara de coffeeIA (iaIconPlain) en ese violeta. Se le quitan los colores de
+    // btnOutline (el .bg-white de Bootstrap trae !important).
     mountCoffeeIAIcon() {
-        $(`#filterBar${this.PROJECT_NAME} #btnCoffeeIA`).empty().append(
-            $('<span>', { class: 'relative block' }).append(
-                $(this.iaIcon()).addClass('block w-5 h-5'),
-                $('<span>', { class: 'absolute right-[-4px] bottom-[-1px] text-[8px] font-extrabold leading-none pointer-events-none text-[#7C3AED] group-hover:text-white', text: 'IA' })
-            ),
-            $('<span>').append(
-                $('<span>', { class: 'text-gray-900 group-hover:text-white', text: 'Coffee' }),
-                $('<span>', { class: 'text-blue-600 group-hover:text-white', text: 'IA' })
-            )
-        );
+        $(`#filterBar${this.PROJECT_NAME} #btnCoffeeIA`)
+            .removeClass('bg-white border-blue-600 text-blue-600 font-semibold hover:bg-blue-600 hover:text-white active:bg-blue-600 focus:ring-blue-600')
+            .addClass('bg-gray-100 !border-violet-300 text-gray-800 font-bold shadow-sm shadow-violet-500/25 hover:bg-gray-200 hover:!border-violet-500 focus:ring-violet-500 transition-all')
+            .empty()
+            .attr({ title: 'CoffeeIA', 'aria-label': 'CoffeeIA' })
+            .append(
+                $(this.iaIconPlain()).addClass('block w-5 h-5 text-violet-600'),
+                $('<span>', { class: 'whitespace-nowrap' }).append(
+                    document.createTextNode('Coffee'),
+                    $('<span>', { class: 'text-violet-600', text: 'IA' })
+                )
+            );
     }
 
     // La lista del filtro va más holgada que el select2 de siempre: alcanzan todas las
@@ -308,7 +398,7 @@ class Productos extends Templates {
                 theme: 'light',
                 class: 'w-100 lowercase table-fixed min-w-[1080px]',
                 striped:true,
-                center: [2,3,4,6,7,8,10],
+                center: [2,4,6,7,8,10],
                 right: [5],
                 f_size: 12
             },
@@ -370,7 +460,9 @@ class Productos extends Templates {
     // pasa al contenedor (cfToTailwindGrid borra mt-N / p-N, por eso se usa pt-/pb-).
     // Arriba va el selector Producto | Presentación y al final los campos de la
     // presentación (mountPresentacion): en ese modo los del producto se esconden.
-    jsonMaterial() {
+    // `cats` / `ars`: las categorías y áreas de los selects (por omisión, las de la sucursal
+    // de la sesión; al editar, las de la sucursal del producto).
+    jsonMaterial(cats = categorias, ars = areas) {
         const section = "col-12 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500";
 
         return [
@@ -402,14 +494,17 @@ class Productos extends Templates {
                 lbl: "Categoría",
                 class: "col-12 col-md-4",
                 select2: true,
-                data: categorias,
+                data: cats || categorias,
                 required: true
             },
+            // select2: con muchas unidades la lista nativa llenaba la pantalla; así trae
+            // buscador y una lista de alto fijo, como Categoría.
             {
                 opc: "select",
                 id: "unit_id",
                 lbl: "Unidad de medida",
                 class: "col-12 col-md-4",
+                select2: true,
                 data: unidades,
                 required: true
             },
@@ -423,12 +518,23 @@ class Productos extends Templates {
                 placeholder: "Auto",
                 required: false
             },
+            // Solo el administrador (init manda `sucursales`): de qué sucursal es el producto.
+            // Cambiarla lo mueve de sucursal; vacío al dar de alta = la de la sesión.
+            ...(sucursales.length ? [{
+                opc: "select",
+                id: "branch_id",
+                lbl: "Sucursal",
+                class: "col-12 col-md-4",
+                data: sucursales,
+                value: String(sucursalSesion || ''),
+                required: false
+            }] : []),
             // Lo llena mountProductPhoto: vista previa, subir/cambiar y quitar.
             {
                 opc: "div",
                 id: "photoField",
                 lbl: "Foto",
-                class: "col-12 col-md-8",
+                class: sucursales.length ? "col-12 col-md-4" : "col-12 col-md-8",
                 required: false
             },
 
@@ -526,7 +632,7 @@ class Productos extends Templates {
                         id: '',
                         valor: 'Sin área'
                     },
-                    ...areas
+                    ...(ars || areas)
                 ],
                 required: false
             },
@@ -864,7 +970,8 @@ class Productos extends Templates {
             paint('');
         });
 
-        $field.addClass('flex items-center gap-3').append($thumb, $pick, $drop, $file, $b64, $remove);
+        // flex-wrap: con el campo Sucursal (administrador) la foto ocupa un tercio y "Quitar" baja.
+        $field.addClass('flex flex-wrap items-center gap-x-3 gap-y-1').append($thumb, $pick, $drop, $file, $b64, $remove);
         paint(inventoryFileUrl(image));
     }
 
@@ -1217,6 +1324,8 @@ class Productos extends Templates {
         this.mountCatalogShortcuts('formMaterialAdd');
         this.mountProductPhoto('formMaterialAdd');
         this.mountPresentacion('formMaterialAdd');
+        this.mountSucursalProducto('formMaterialAdd');
+        this.compactarSelectsProducto('formMaterialAdd');
     }
 
     async editMaterial(id) {
@@ -1246,7 +1355,8 @@ class Productos extends Templates {
                     escapeClose: false
                 },
                 autofill: request.data,
-                json: this.jsonMaterialEdit(),
+                // Las categorías y áreas de la sucursal del producto (getMaterial).
+                json: this.jsonMaterialEdit(request.data.categorias, request.data.areas),
                 success: (response) => {
                     if (response.status === 200) {
                         this.alertBox({
@@ -1276,12 +1386,14 @@ class Productos extends Templates {
                     movimientos: Number(request.data.movimientos || 0)
                 }
             });
+            this.mountSucursalProducto('formMaterialEdit');
+            this.compactarSelectsProducto('formMaterialEdit');
         }
     }
 
-    jsonMaterialEdit() {
+    jsonMaterialEdit(cats, ars) {
         // Mismos campos que el alta: las claves de getMaterialById coinciden con los id del form (autofill).
-        return this.jsonMaterial();
+        return this.jsonMaterial(cats, ars);
     }
 
     // Confirmación con alertBox (el diálogo de alpha/pedidos) en vez de SweetAlert:

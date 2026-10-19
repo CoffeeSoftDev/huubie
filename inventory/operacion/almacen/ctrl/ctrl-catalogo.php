@@ -35,9 +35,13 @@ class ctrl extends mdl {
                 $a[] = deleteButton('category.deleteCategory', $item['id']);
             }
 
-            $rows[] = [
+            $row = [
                 'id'              => $item['id'],
-                'Categoría'       => $item['valor'],
+                'Categoría'       => $item['valor']
+            ];
+            // De quién es: solo cuando el administrador ve todas las sucursales.
+            if ($this->sucursalDeCatalogo('sucursal_categoria') === null) $row['Sucursal'] = $item['sucursal'] ?? '-';
+            $rows[] = $row + [
                 'Productos'       => (int) $item['total_items'],
                 'Estado'          => renderStatus($item['active']),
                 'a'               => Permissions::rowActions('administrador', $a)
@@ -46,8 +50,7 @@ class ctrl extends mdl {
 
         return [
             'row' => $rows,
-            'ls'  => $ls,
-            'ses'=>$_SESSION
+            'ls'  => $ls
         ];
     }
 
@@ -76,16 +79,21 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear categoría';
 
+        // De la sucursal elegida en el selector (administrador) o de la sesión.
+        $sucursal = $this->sucursalNuevaCatalogo('sucursal_categoria');
+        unset($_POST['sucursal_categoria']);
+
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
         $_POST['companies_id'] = $_SESSION['company_id'];
+        $_POST['branch_id']    = $sucursal;
 
-        $exists = $this->existsCategoryByName([$_POST['name']]);
+        $exists = $this->existsCategoryByName([$_POST['name'], $sucursal]);
 
         if ($exists > 0) {
             return [
                 'status'  => 409,
-                'message' => 'Ya existe una categoría con ese nombre'
+                'message' => 'Ya existe una categoría con ese nombre en esta sucursal'
             ];
         }
 
@@ -252,6 +260,7 @@ class ctrl extends mdl {
                 'message' => 'Elige el almacén al que pertenece el área'
             ];
         }
+        if ($ajeno = $this->almacenAjenoCatalogo($_POST['warehouse_id'])) return $ajeno;
 
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
@@ -286,6 +295,8 @@ class ctrl extends mdl {
     function editArea() {
         $status  = 500;
         $message = 'Error al editar área';
+
+        if (!empty($_POST['warehouse_id']) && ($ajeno = $this->almacenAjenoCatalogo($_POST['warehouse_id']))) return $ajeno;
 
         $_POST['color_hex'] = $this->colorHex($_POST['color_hex']);
 
@@ -1000,9 +1011,11 @@ class ctrl extends mdl {
 
     // Almacenes --
 
+    // Cada quien ve los almacenes de sus sucursales; el dueño (is_owner), los de todas.
+    // El principal sale primero: es al que las sucursales le piden material en Pedidos.
     function lsWarehouse() {
         $active = $_POST['active'] ?? 1;
-        $ls     = $this->listWarehouse([$active]);
+        $ls     = $this->listWarehouse([$active], $this->sucursalesDelUsuario());
         $rows   = [];
 
         foreach ($ls as $item) {
@@ -1025,6 +1038,11 @@ class ctrl extends mdl {
                 'Almacén'     => renderWarehouse($item['valor']),
                 'Sucursal'    => $item['branch_name'] ?? '—',
                 'Por defecto' => ($item['is_default'] == 1 ? 'Sí' : 'No'),
+                'Principal'   => (int) ($item['is_main'] ?? 0) === 1
+                    ? "<span class='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700'><i data-lucide='star' class='w-3 h-3'></i>Principal</span>"
+                    : '-',
+                // Al surtir pedidos de otra sucursal: descuenta aquí y entra a quien pidió.
+                'Mueve inventario' => (int) ($item['supply_moves_stock'] ?? 1) === 1 ? 'Sí' : 'No',
                 'Estado'      => renderStatus($item['active']),
                 'a'           => Permissions::rowActions('administrador', $a)
             ];
@@ -1069,19 +1087,21 @@ class ctrl extends mdl {
         if (($_POST['branch_id'] ?? '') === '') {
             $_POST['branch_id'] = $_SESSION['branch_id'];
         }
+        $this->almacenDeSuSucursal();
 
-        $exists = $this->existsWarehouseByName([$_POST['name']]);
+        $exists = $this->existsWarehouseByName([$_POST['name'], (int) $_POST['branch_id']]);
 
         if ($exists > 0) {
             return [
                 'status'  => 409,
-                'message' => 'Ya existe un almacén con ese nombre'
+                'message' => 'Esa sucursal ya tiene un almacén con ese nombre'
             ];
         }
 
         $create = $this->createWarehouse($this->util->sql($_POST));
 
         if ($create) {
+            $this->unSoloPrincipal($_POST['name']);
             $status  = 200;
             $message = 'Almacén creado exitosamente';
         }
@@ -1096,6 +1116,8 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al editar almacén';
 
+        $this->almacenDeSuSucursal();
+
         // Regla CoffeeSoft: sql(,1) usa el ULTIMO campo como WHERE.
         $id = $_POST['id'];
         unset($_POST['id']);
@@ -1104,6 +1126,7 @@ class ctrl extends mdl {
         $edit = $this->updateWarehouse($this->util->sql($_POST, 1));
 
         if ($edit) {
+            if (($_POST['is_main'] ?? '') === '1') $this->updateMainWarehouseOff([$_SESSION['company_id'], (int) $id]);
             $status  = 200;
             $message = 'Almacén actualizado correctamente';
         }
@@ -1112,6 +1135,45 @@ class ctrl extends mdl {
             'status'  => $status,
             'message' => $message
         ];
+    }
+
+    // Un área va en un almacén de la sucursal; el administrador, en cualquiera. null si puede.
+    private function almacenAjenoCatalogo($warehouseId) {
+        if ($this->esAdministrador()) return null;
+
+        $almacen = $this->getWarehouseById([(int) $warehouseId]);
+        if ($almacen && (int) $almacen['branch_id'] === (int) ($_SESSION['branch_id'] ?? 0)) return null;
+
+        return ['status' => 403, 'message' => 'Ese almacén no es de tu sucursal'];
+    }
+
+    // Quien no es administrador da de alta y edita almacenes solo de su sucursal, y no
+    // decide cuál es el principal (eso cambia quién es Matriz para toda la empresa).
+    private function almacenDeSuSucursal() {
+        if ($this->esAdministrador()) return;
+
+        $_POST['branch_id'] = (int) ($_SESSION['branch_id'] ?? 0);
+        unset($_POST['is_main']);
+    }
+
+    // Al marcar un almacén nuevo como principal, los demás de la empresa dejan de serlo.
+    private function unSoloPrincipal($name) {
+        if (($_POST['is_main'] ?? '') !== '1') return;
+
+        foreach ($this->listWarehouse([1]) ?: [] as $w) {
+            if (mb_strtolower($w['valor']) === mb_strtolower($name)) {
+                $this->updateMainWarehouseOff([$_SESSION['company_id'], (int) $w['id']]);
+                return;
+            }
+        }
+    }
+
+    // Las sucursales que se ven en Catálogo › Almacenes: la de la sesión; el administrador,
+    // todas (null) o la que elija en el selector `sucursal_almacen`.
+    private function sucursalesDelUsuario() {
+        $sucursal = $this->sucursalDeCatalogo('sucursal_almacen');
+
+        return $sucursal === null ? null : [$sucursal];
     }
 
     function statusWarehouse() {
@@ -1191,9 +1253,13 @@ class ctrl extends mdl {
                 $a[] = deleteButton('supplier.deleteSupplier', $item['id']);
             }
 
-            $rows[] = [
+            $row = [
                 'id'        => $item['id'],
-                'Proveedor' => $item['valor'],
+                'Proveedor' => $item['valor']
+            ];
+            // De quién es: solo cuando el administrador ve todas las sucursales.
+            if ($this->sucursalDeCatalogo('sucursal_proveedor') === null) $row['Sucursal'] = $item['sucursal'] ?? '-';
+            $rows[] = $row + [
                 'Contacto'  => $item['contact_name'] ?? '—',
                 'Teléfono'  => $item['phone'] ?? '—',
                 'Email'     => $item['email'] ?? '—',
@@ -1240,16 +1306,21 @@ class ctrl extends mdl {
             ];
         }
 
+        // De la sucursal elegida en el selector (administrador) o de la sesión.
+        $sucursal = $this->sucursalNuevaCatalogo('sucursal_proveedor');
+        unset($_POST['sucursal_proveedor']);
+
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
         $_POST['companies_id'] = $_SESSION['company_id'];
+        $_POST['branch_id']    = $sucursal;
 
-        $exists = $this->existsSupplierByName([$_POST['name']]);
+        $exists = $this->existsSupplierByName([$_POST['name'], $sucursal]);
 
         if ($exists > 0) {
             return [
                 'status'  => 409,
-                'message' => 'Ya existe un proveedor con ese nombre'
+                'message' => 'Ya existe un proveedor con ese nombre en esta sucursal'
             ];
         }
 
@@ -1342,12 +1413,20 @@ class ctrl extends mdl {
     }
 
     // Catalogos auxiliares para selects de formularios
+    // Select «Sucursal» del almacén: el administrador elige cualquiera; los demás, solo la suya.
     function lsBranchesSelect() {
-        $companyId = $_SESSION['company_id'] ?? 0;
+        $companyId  = $_SESSION['company_id'] ?? 0;
+        $sucursales = $this->listBranchesSelect([$companyId]) ?: [];
+
+        if (!$this->esAdministrador()) {
+            $sucursales = array_values(array_filter($sucursales, function ($b) {
+                return (int) $b['id'] === (int) ($_SESSION['branch_id'] ?? 0);
+            }));
+        }
 
         return [
             'status' => 200,
-            'data'   => $this->listBranchesSelect([$companyId])
+            'data'   => $sucursales
         ];
     }
 

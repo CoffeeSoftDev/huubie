@@ -28,7 +28,7 @@ require_once('layout/core-libraries.php');
 
     <!-- Importacion navbar y sidebar -->
     <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
-    <script src="../../acceso/src/js/sidebar.js"></script>
+    <script src="../../acceso/src/js/sidebar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/sidebar.js'); ?>"></script>
 
     <!-- Modulo de Movimientos -->
     <script src="js/movimientos.js?t=<?php echo time(); ?>"></script>

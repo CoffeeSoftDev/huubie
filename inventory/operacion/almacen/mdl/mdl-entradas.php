@@ -2,11 +2,23 @@
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
 require_once __DIR__ . '/mdl-borrado.php';
+require_once __DIR__ . '/mdl-presentaciones.php';
+require_once __DIR__ . '/mdl-visibilidad.php';
+require_once __DIR__ . '/mdl-folios.php';
 
 class mdl extends CRUD {
 
     // Borrado real con su stock (CoffeeIA): deleteEntradaFullById.
     use BorradoInventario;
+
+    // Folio por sucursal: nextFolio (ENT-KAF-0001).
+    use FolioSucursal;
+
+    // Presentaciones en la captura: se guardan como su producto base.
+    use PresentacionesCaptura;
+
+    // Qué productos ve la sucursal: los suyos y los de Matriz.
+    use VisibilidadProductos;
 
     public $util;
     public $bd;
@@ -18,6 +30,7 @@ class mdl extends CRUD {
         $this->bdErp = 'fayxzvov_erp.';
     }
 
+    // La Matriz (sucursal del almacén principal) va primero; las demás, por nombre.
     function lsSucursales($array) {
         $companyId = $array['company_id'];
         $userId    = $array['user_id'];
@@ -28,7 +41,7 @@ class mdl extends CRUD {
                 SELECT id, name AS valor, company_id AS companies_id
                 FROM {$this->bdErp}branches
                 WHERE company_id = ? AND is_active = 1
-                ORDER BY name ASC
+                ORDER BY id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
             ";
             $r = $this->_Read($query, [$companyId]);
         } else {
@@ -37,7 +50,7 @@ class mdl extends CRUD {
                 FROM {$this->bdErp}branches b
                 INNER JOIN {$this->bdErp}users_braches ub ON ub.branch_id = b.id
                 WHERE b.company_id = ? AND b.is_active = 1 AND ub.user_id = ?
-                ORDER BY b.name ASC
+                ORDER BY b.id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, b.name ASC
             ";
             $r = $this->_Read($query, [$companyId, $userId]);
         }
@@ -74,12 +87,13 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    // Categorías y proveedores: los de la sucursal; el administrador, todos.
     function lsCategorias($array) {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}item_category
-            WHERE active = 1 AND companies_id = ?
-            ORDER BY name ASC
+            SELECT ic.id, ic.name AS valor
+            FROM {$this->bd}item_category ic
+            WHERE ic.active = 1 AND ic.companies_id = ? {$this->filtroCatalogoSucursal('ic')}
+            ORDER BY ic.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -98,12 +112,13 @@ class mdl extends CRUD {
     }
 
     // warehouse_id: el Destino del form solo ofrece las áreas del almacén elegido.
+    // Cada sucursal ve las áreas de su almacén; Matriz y el dueño, todas.
     function lsAreas($array) {
         $query = "
-            SELECT id, name AS valor, warehouse_id
-            FROM {$this->bd}warehouse_area
-            WHERE active = 1 AND companies_id = ?
-            ORDER BY name ASC
+            SELECT wa.id, wa.name AS valor, wa.warehouse_id
+            FROM {$this->bd}warehouse_area wa
+            WHERE wa.active = 1 AND wa.companies_id = ? {$this->filtroAreasVisibles('wa')}
+            ORDER BY wa.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -129,10 +144,10 @@ class mdl extends CRUD {
 
     function lsSuppliers($array) {
         $query = "
-            SELECT id, name, name AS valor
-            FROM {$this->bd}supplier
-            WHERE active = 1 AND companies_id = ?
-            ORDER BY name ASC
+            SELECT s.id, s.name, s.name AS valor
+            FROM {$this->bd}supplier s
+            WHERE s.active = 1 AND s.companies_id = ? {$this->filtroCatalogoSucursal('s')}
+            ORDER BY s.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -140,22 +155,23 @@ class mdl extends CRUD {
 
     function findSupplierByName($array) {
         $query = "
-            SELECT id, name
-            FROM {$this->bd}supplier
-            WHERE active = 1 AND companies_id = ? AND LOWER(name) = LOWER(?)
+            SELECT s.id, s.name
+            FROM {$this->bd}supplier s
+            WHERE s.active = 1 AND s.companies_id = ? AND LOWER(s.name) = LOWER(?) {$this->filtroCatalogoSucursal('s')}
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
+    // El alta exprés queda de la sucursal de la sesión.
     function insertSupplier($array) {
         $query = "
             INSERT INTO {$this->bd}supplier
-                (name, contact_name, phone, email, companies_id)
-            VALUES (?, ?, ?, ?, ?)
+                (name, contact_name, phone, email, companies_id, branch_id)
+            VALUES (?, ?, ?, ?, ?, ?)
         ";
-        return $this->_CUD($query, $array);
+        return $this->_CUD($query, array_merge($array, [$this->sucursalNuevaCatalogo()]));
     }
 
     function qProductsForTransfer($array) {
@@ -170,11 +186,12 @@ class mdl extends CRUD {
                 {$this->ultimoCostoCols()},
                 i.image                                    AS image,
                 ia.description                             AS descripcion,
-                ia.stock_max                               AS stock_max
+                ia.stock_max                               AS stock_max,
+                i.branch_id                                AS branch_id
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
-            WHERE i.active = 1 AND i.companies_id = ?
+            WHERE i.active = 1 AND i.companies_id = ? {$this->filtroProductosVisibles('i')}
             ORDER BY i.name ASC
         ";
         $r = $this->_Read($query, $array);
@@ -460,6 +477,32 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    // Fecha del último conteo físico aplicado de cada almacén: nada anterior a ella se
+    // captura ni se edita. Los ajustes automáticos (un producto que pasa a presentación)
+    // no cuentan: no fijan el stock contra lo contado.
+    function qLastAdjustments($array) {
+        // [companies_id]
+        $query = "
+            SELECT warehouse_id, MAX(date_adjustment) AS last_date
+            FROM {$this->bd}inventory_adjustment
+            WHERE status = 'Aplicado' AND adjustment_type = 'fisico' AND active = 1 AND companies_id = ?
+            GROUP BY warehouse_id
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function qLastAdjustmentDate($array) {
+        // [warehouse_id, companies_id]
+        $query = "
+            SELECT MAX(date_adjustment) AS last_date
+            FROM {$this->bd}inventory_adjustment
+            WHERE status = 'Aplicado' AND adjustment_type = 'fisico' AND active = 1 AND warehouse_id = ? AND companies_id = ?
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) && !empty($r[0]['last_date']) ? $r[0]['last_date'] : null;
+    }
+
     // Credenciales del usuario en sesión para reconfirmar su contraseña al editar.
     function qUserPassword($array) {
         // [user_id]
@@ -688,24 +731,6 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function nextFolio($prefix, $tabla, $companies_id) {
-        $query = "
-            SELECT folio
-            FROM {$this->bd}{$tabla}
-            WHERE companies_id = ? AND folio LIKE ?
-            ORDER BY id DESC
-            LIMIT 1
-        ";
-        $r    = $this->_Read($query, [$companies_id, $prefix . '%']);
-        $next = 1;
-        if (!empty($r)) {
-            $folio = $r[0]['folio'];
-            $num   = (int) preg_replace('/[^0-9]/', '', substr($folio, strlen($prefix)));
-            $next  = $num + 1;
-        }
-        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
-    }
-
     // -- CoffeeIA: eliminar --
 
     // Las entradas que CoffeeIA puede eliminar, también las inactivas (cuentan para el
@@ -725,6 +750,7 @@ class mdl extends CRUD {
             SELECT
                 i.id,
                 i.folio,
+                i.branch_id,
                 i.status,
                 i.active,
                 i.date_inflow,
@@ -748,18 +774,5 @@ class mdl extends CRUD {
         ";
         $r = $this->_Read($query, $data);
         return is_array($r) ? $r : [];
-    }
-
-    // Entradas de la empresa de sucursales fuera de `branch_ids`: con alguna, el folio
-    // no puede volver a ENT-0001 desde aquí.
-    function getEntradasAjenasCount($array) {
-        $query = "
-            SELECT COUNT(*) AS total
-            FROM {$this->bd}inventory_inflow
-            WHERE companies_id = ?
-              AND (branch_id IS NULL OR branch_id NOT IN (" . implode(',', array_fill(0, count($array['branch_ids']), '?')) . "))
-        ";
-        $r = $this->_Read($query, array_merge([$array['companies_id']], $array['branch_ids']));
-        return (int) ($r[0]['total'] ?? 0);
     }
 }

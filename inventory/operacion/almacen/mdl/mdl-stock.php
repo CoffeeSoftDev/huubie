@@ -1,8 +1,16 @@
 <?php
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
+require_once __DIR__ . '/mdl-visibilidad.php';
+require_once __DIR__ . '/mdl-folios.php';
 
 class mdl extends CRUD {
+
+    // Qué productos ve la sucursal: los suyos y los de Matriz.
+    use VisibilidadProductos;
+
+    // Folio por sucursal: nextFolio (AJU-KAF-0001 del conteo).
+    use FolioSucursal;
 
     // Días que mira el filtro "Con movimientos" del visor de stock; el texto de la opción
     // (MOVIMIENTOS_STOCK en stock.js) dice el mismo número.
@@ -18,6 +26,7 @@ class mdl extends CRUD {
         $this->bdErp = 'fayxzvov_erp.';
     }
 
+    // La Matriz (sucursal del almacén principal) va primero; las demás, por nombre.
     function lsSucursales($array) {
         $companyId = $array['company_id'];
         $userId    = $array['user_id'];
@@ -28,7 +37,7 @@ class mdl extends CRUD {
                 SELECT id, name AS valor, company_id AS companies_id
                 FROM {$this->bdErp}branches
                 WHERE company_id = ? AND is_active = 1
-                ORDER BY name ASC
+                ORDER BY id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
             ";
             $r = $this->_Read($query, [$companyId]);
         } else {
@@ -37,30 +46,32 @@ class mdl extends CRUD {
                 FROM {$this->bdErp}branches b
                 INNER JOIN {$this->bdErp}users_braches ub ON ub.branch_id = b.id
                 WHERE b.company_id = ? AND b.is_active = 1 AND ub.user_id = ?
-                ORDER BY b.name ASC
+                ORDER BY b.id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, b.name ASC
             ";
             $r = $this->_Read($query, [$companyId, $userId]);
         }
         return is_array($r) ? $r : [];
     }
 
+    // Las de la sucursal; el administrador, todas.
     function lsCategories($array) {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}item_category
-            WHERE companies_id = ? AND active = 1
-            ORDER BY name ASC
+            SELECT ic.id, ic.name AS valor
+            FROM {$this->bd}item_category ic
+            WHERE ic.companies_id = ? AND ic.active = 1 {$this->filtroCatalogoSucursal('ic')}
+            ORDER BY ic.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
     }
 
+    // Cada sucursal ve las áreas de su almacén; Matriz y el dueño, todas.
     function lsAreas($array) {
         $query = "
-            SELECT id, name AS valor, color_hex, warehouse_id
-            FROM {$this->bd}warehouse_area
-            WHERE companies_id = ? AND active = 1
-            ORDER BY name ASC
+            SELECT wa.id, wa.name AS valor, wa.color_hex, wa.warehouse_id
+            FROM {$this->bd}warehouse_area wa
+            WHERE wa.companies_id = ? AND wa.active = 1 {$this->filtroAreasVisibles('wa')}
+            ORDER BY wa.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -74,7 +85,8 @@ class mdl extends CRUD {
             $stockParams[] = $array['branch_id'];
         }
 
-        $where       = 'i.active = 1 AND i.companies_id = ?';
+        // Solo sus productos y los que tiene en sus almacenes (VisibilidadProductos).
+        $where       = 'i.active = 1 AND i.companies_id = ?' . $this->filtroProductosPropios('i');
         $whereParams = [$array['companies_id']];
 
         if (!empty($array['category_id'])) {
@@ -134,8 +146,12 @@ class mdl extends CRUD {
             $lastMovParams[]  = $array['branch_id'];
         }
         $lastMovSub .= ' ORDER BY lm.occurred_at DESC, lm.created_at DESC LIMIT 1';
+        // Fecha y hora de ese mismo movimiento: misma subconsulta, otra columna. En la vista
+        // occurred_at es solo la fecha (la del documento: date_inflow, date_shrinkage...) y
+        // daba siempre 12:00 am; la hora sale de cuando se registró (created_at).
+        $lastMovAtSub = str_replace('SELECT lm.movement_type', "SELECT CONCAT(DATE(lm.occurred_at), ' ', TIME(lm.created_at))", $lastMovSub);
 
-        $data = array_merge($lastMovParams, $stockParams, $whereParams);
+        $data = array_merge($lastMovParams, $lastMovParams, $stockParams, $whereParams);
 
         $query = "
             SELECT
@@ -155,12 +171,13 @@ class mdl extends CRUD {
                 wa.color_hex        AS area_color,
                 IFNULL(s.quantity_total, 0) AS quantity_total,
                 s.last_movement_at          AS last_movement_at,
-                ({$lastMovSub})             AS last_movement_type
+                ({$lastMovSub})             AS last_movement_type,
+                ({$lastMovAtSub})           AS last_movement_occurred_at
             FROM {$this->bd}item i
-            LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id {$this->filtroCatalogoSucursal('ic')}
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}unit            u  ON u.id  = ia.unit_id
-            LEFT JOIN {$this->bd}warehouse_area  wa ON wa.id = ia.warehouse_area_id
+            LEFT JOIN {$this->bd}warehouse_area  wa ON wa.id = ia.warehouse_area_id {$this->filtroAreasCatalogo('wa')}
             LEFT JOIN (
                 SELECT
                     st.item_id,
@@ -188,7 +205,7 @@ class mdl extends CRUD {
             $stockParams[] = $array['branch_id'];
         }
 
-        $where       = 'i.active = 1 AND i.companies_id = ?';
+        $where       = 'i.active = 1 AND i.companies_id = ?' . $this->filtroProductosPropios('i');
         $whereParams = [$array['companies_id']];
 
         if (!empty($array['category_id'])) {
@@ -308,10 +325,10 @@ class mdl extends CRUD {
                 u.name              AS unit_name,
                 wa.name             AS area_name
             FROM {$this->bd}item i
-            LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}item_category   ic ON ic.id = i.category_id {$this->filtroCatalogoSucursal('ic')}
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}unit            u  ON u.id  = ia.unit_id
-            LEFT JOIN {$this->bd}warehouse_area  wa ON wa.id = ia.warehouse_area_id
+            LEFT JOIN {$this->bd}warehouse_area  wa ON wa.id = ia.warehouse_area_id {$this->filtroAreasCatalogo('wa')}
             WHERE i.id = ?
             LIMIT 1
         ";
@@ -332,6 +349,8 @@ class mdl extends CRUD {
                 mv.stock_post,
                 mv.occurred_at,
                 mv.created_at,
+                -- Fecha del documento con la hora en que se registró (occurred_at no trae hora).
+                CONCAT(DATE(mv.occurred_at), ' ', TIME(mv.created_at)) AS occurred_datetime,
                 mv.warehouse_id,
                 w.name AS warehouse_name,
                 mv.branch_id,
@@ -409,23 +428,6 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
-    function nextFolio($prefix, $tabla, $companies_id) {
-        $query = "
-            SELECT folio
-            FROM {$this->bd}{$tabla}
-            WHERE companies_id = ? AND folio LIKE ?
-            ORDER BY id DESC
-            LIMIT 1
-        ";
-        $r    = $this->_Read($query, [$companies_id, $prefix . '%']);
-        $next = 1;
-        if (!empty($r)) {
-            $num  = (int) preg_replace('/[^0-9]/', '', substr($r[0]['folio'], strlen($prefix)));
-            $next = $num + 1;
-        }
-        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
-    }
-
     function createConteo($array) {
         // [folio, adjustment_reason_id, registered_user_id, warehouse_id, branch_id, companies_id]
         $query = "
@@ -450,14 +452,17 @@ class mdl extends CRUD {
     }
 
     // Un renglon por producto activo; el costo es el ultimo de compra.
-    function createConteoDetail($array) {
+    // La hoja de una sucursal que no es Matriz trae solo sus productos y los que tiene en
+    // sus almacenes; la de Matriz, todos (filtroProductosPropios con la sucursal del conteo).
+    function createConteoDetail($array, $branchId = null) {
         // [inventory_adjustment_id, companies_id]
-        $query = "
+        $filtro = $branchId !== null ? $this->filtroProductosPropios('i', (int) $branchId) : '';
+        $query  = "
             INSERT INTO {$this->bd}detail_inventory_adjustment (inventory_adjustment_id, item_id, cost)
             SELECT ?, i.id, MAX(ia.cost_unit)
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
-            WHERE i.active = 1 AND i.companies_id = ?
+            WHERE i.active = 1 AND i.companies_id = ? {$filtro}
             GROUP BY i.id
         ";
         return $this->_CUD($query, $array);
@@ -478,11 +483,13 @@ class mdl extends CRUD {
             SELECT
                 r.*,
                 w.name AS warehouse_name,
+                b.name AS branch_name,
                 ar.name AS reason_name,
                 CONCAT_WS(' ', ur.name, ur.last_name) AS registered_name,
                 CONCAT_WS(' ', ua.name, ua.last_name) AS authorized_name
             FROM {$this->bd}inventory_adjustment r
             LEFT JOIN {$this->bd}warehouse         w  ON w.id  = r.warehouse_id
+            LEFT JOIN {$this->bdErp}branches       b  ON b.id  = r.branch_id
             LEFT JOIN {$this->bd}adjustment_reason ar ON ar.id = r.adjustment_reason_id
             LEFT JOIN {$this->bdErp}users          ur ON ur.id = r.registered_user_id
             LEFT JOIN {$this->bdErp}users          ua ON ua.id = r.authorized_user_id
@@ -533,7 +540,7 @@ class mdl extends CRUD {
             INNER JOIN {$this->bd}item           i  ON i.id  = d.item_id
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}unit            u  ON u.id  = ia.unit_id
-            LEFT JOIN {$this->bd}warehouse_area  wa ON wa.id = ia.warehouse_area_id AND wa.active = 1
+            LEFT JOIN {$this->bd}warehouse_area  wa ON wa.id = ia.warehouse_area_id AND wa.active = 1 {$this->filtroAreasCatalogo('wa')}
             LEFT JOIN {$this->bd}stock           st ON st.item_id = d.item_id AND st.warehouse_id = ? AND st.active = 1
             WHERE d.inventory_adjustment_id = ? AND d.active = 1
             GROUP BY d.id

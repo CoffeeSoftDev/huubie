@@ -1,8 +1,16 @@
 <?php
 require_once '../../../conf/_CRUD.php';
 require_once '../../../conf/_Utileria.php';
+require_once __DIR__ . '/mdl-visibilidad.php';
+require_once __DIR__ . '/mdl-folios.php';
 
 class mdl extends CRUD {
+
+    // Una sucursal compra lo suyo y lo de Matriz (filtroProductosVisibles).
+    use VisibilidadProductos;
+
+    // Folio por sucursal: nextFolio (CP-KAF-0001, ENT-).
+    use FolioSucursal;
 
     public $util;
     public $bd;
@@ -16,13 +24,14 @@ class mdl extends CRUD {
 
     // Catalogos:
 
+    // La Matriz (sucursal del almacén principal) va primero; las demás, por nombre.
     function lsSucursales($array) {
         if ((int) $array['is_owner'] === 1) {
             $query = "
                 SELECT id, name AS valor
                 FROM {$this->bdErp}branches
                 WHERE company_id = ? AND is_active = 1
-                ORDER BY name ASC
+                ORDER BY id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
             ";
             return $this->_Read($query, [$array['company_id']]);
         }
@@ -32,7 +41,7 @@ class mdl extends CRUD {
             FROM {$this->bdErp}branches b
             INNER JOIN {$this->bdErp}users_braches ub ON ub.branch_id = b.id
             WHERE b.company_id = ? AND b.is_active = 1 AND ub.user_id = ?
-            ORDER BY b.name ASC
+            ORDER BY b.id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, b.name ASC
         ";
         return $this->_Read($query, [$array['company_id'], $array['user_id']]);
     }
@@ -47,22 +56,23 @@ class mdl extends CRUD {
         return $this->_Read($query, $array);
     }
 
+    // Proveedores y categorías: los de la sucursal; el administrador, todos.
     function lsSuppliers($array) {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}supplier
-            WHERE active = 1 AND companies_id = ?
-            ORDER BY name ASC
+            SELECT s.id, s.name AS valor
+            FROM {$this->bd}supplier s
+            WHERE s.active = 1 AND s.companies_id = ? {$this->filtroCatalogoSucursal('s')}
+            ORDER BY s.name ASC
         ";
         return $this->_Read($query, $array);
     }
 
     function lsCategorias($array) {
         $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}item_category
-            WHERE active = 1 AND companies_id = ?
-            ORDER BY name ASC
+            SELECT ic.id, ic.name AS valor
+            FROM {$this->bd}item_category ic
+            WHERE ic.active = 1 AND ic.companies_id = ? {$this->filtroCatalogoSucursal('ic')}
+            ORDER BY ic.name ASC
         ";
         return $this->_Read($query, $array);
     }
@@ -96,7 +106,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
             LEFT JOIN {$this->bd}unit           u  ON u.id = ia.unit_id
-            WHERE i.active = 1 AND i.companies_id = ?
+            WHERE i.active = 1 AND i.companies_id = ? {$this->filtroProductosVisibles('i')}
             ORDER BY i.name ASC
         ";
         return $this->_Read($query, $array);
@@ -412,22 +422,6 @@ class mdl extends CRUD {
               AND status = 'Pendiente' AND date_order >= ?
         ";
         return $this->_CUD($query, $array);
-    }
-
-    function nextFolio($prefix, $tabla, $companiesId) {
-        $query = "
-            SELECT folio
-            FROM {$this->bd}{$tabla}
-            WHERE companies_id = ? AND folio LIKE ?
-            ORDER BY id DESC
-            LIMIT 1
-        ";
-        $result = $this->_Read($query, [$companiesId, $prefix . '%']);
-        $next   = 1;
-        if (!empty($result)) {
-            $next = (int) preg_replace('/[^0-9]/', '', substr($result[0]['folio'], strlen($prefix))) + 1;
-        }
-        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
     // Entradas:

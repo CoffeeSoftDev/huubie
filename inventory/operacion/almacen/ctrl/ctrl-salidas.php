@@ -57,6 +57,17 @@ class ctrl extends mdl {
             ];
         }, $this->qProductsForTransfer([$this->companiesId]));
 
+        // Las presentaciones (Caja 24...) salen como un producto más, al costo del
+        // empaque; al guardar pasan a su base (renglonesABase).
+        foreach ($this->listPresentacionesCaptura([$this->companiesId]) as $p) {
+            $productos[] = $this->presentacionCatalogo($p) + [
+                'costo'  => (float) $p['cost_unit'],
+                'precio' => 0,
+                'bg'     => 'bg-gray-700/40',
+                'color'  => 'text-gray-300'
+            ];
+        }
+
         return [
             'status'          => 200,
             'companies_id'    => $this->companiesId,
@@ -78,6 +89,7 @@ class ctrl extends mdl {
             foreach ($this->qStockByWarehouse([$warehouseId]) as $row) {
                 $map[(string) $row['item_id']] = (float) $row['quantity'];
             }
+            $map = $this->stockConPresentaciones($map, $this->companiesId);
         }
         return ['status' => 200, 'stock' => $map];
     }
@@ -160,8 +172,19 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetSalida([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Salida no encontrada'];
+        $header['adjustment_date'] = $this->qLastAdjustmentDate([(int) $header['warehouse_id'], $this->companiesId]);
         $detail = $this->getSalidaDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
+    }
+
+    // Con un ajuste aplicado en el almacén no se edita una salida de fecha anterior a él.
+    private function ajusteBloquea($warehouseId, $fecha) {
+        $ajuste = $this->qLastAdjustmentDate([(int) $warehouseId, $this->companiesId]);
+        $fecha  = substr((string) $fecha, 0, 10);
+        if (!$ajuste || $fecha === '' || $fecha >= $ajuste) return null;
+
+        return 'El almacén tuvo un ajuste el ' . date('d/m/Y', strtotime($ajuste))
+             . ': no se puede editar una salida con fecha anterior (' . date('d/m/Y', strtotime($fecha)) . ')';
     }
 
     function saveSalida() {
@@ -171,8 +194,15 @@ class ctrl extends mdl {
         if (empty($productos)) {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
+        if ($ajeno = $this->almacenAjeno($payload['warehouse_id'] ?? 0)) return $ajeno;
 
-        $folio         = $this->nextFolio('S-', 'inventory_shrinkage', $this->companiesId);
+        // Caja 24 × 2 sale como 48 piezas de su base, a costo ÷ 24.
+        $aBase = $this->renglonesABase($productos, $this->companiesId, ['cost']);
+        if ($aBase['error']) return ['status' => 400, 'message' => $aBase['error']];
+        $productos = $aBase['productos'];
+
+        $branchId      = (int) ($payload['branch_id'] ?? $this->branchId);
+        $folio         = $this->nextFolio('S-', 'inventory_shrinkage', $this->companiesId, $branchId);
         $totalProducts = count($productos);
         $totalUnits    = 0;
         $totalLoss     = 0;
@@ -206,7 +236,7 @@ class ctrl extends mdl {
             $payload['status']       ?? 'Aplicada',
             (int) $payload['shrinkage_reason_id'],
             (int) $payload['warehouse_id'],
-            (int) ($payload['branch_id'] ?? $this->branchId),
+            $branchId,
             $this->userId,
             $this->companiesId
         ]);
@@ -236,11 +266,17 @@ class ctrl extends mdl {
                 $prev,
                 $post,
                 $productId,
+                $producto['presentation_id']  ?? null,
+                $producto['presentation_qty'] ?? null,
                 $salidaId
             ]);
 
+            // Sin renglón de stock en el almacén se crea con lo que quedó: sacar lo que no
+            // hay deja el producto en negativo, igual que dice el detalle.
             if ($stockRow) {
                 $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+            } else {
+                $this->insertStockRow([$post, $warehouse, $productId, $this->companiesId]);
             }
         }
 
@@ -272,6 +308,17 @@ class ctrl extends mdl {
     private function cancelAuthorized($id) {
         $at = (int) ($_SESSION['shrinkage_cancel'][$id] ?? 0);
         return $at > 0 && (time() - $at) <= self::CANCEL_WINDOW;
+    }
+
+    // Una sucursal no saca del almacén de otra: 403 si alguno de los almacenes no es de las
+    // sucursales del usuario (el dueño pasa siempre). null si puede.
+    private function almacenAjeno(...$almacenes) {
+        foreach ($almacenes as $almacen) {
+            if (!$this->almacenDeSusSucursales((int) $almacen)) {
+                return ['status' => 403, 'message' => 'Ese almacén no es de tus sucursales: solo puedes registrar salidas del tuyo'];
+            }
+        }
+        return null;
     }
 
     // -- Editar --
@@ -326,12 +373,20 @@ class ctrl extends mdl {
         if (!$this->editSalidaAuthorized($id)) {
             return ['status' => 403, 'message' => 'Confirma tu contraseña para editar la salida'];
         }
+        if ($ajeno = $this->almacenAjeno($header['warehouse_id'], $payload['warehouse_id'] ?? $header['warehouse_id'])) return $ajeno;
         if ($header['status'] === 'Cancelada') {
             return ['status' => 400, 'message' => 'No se puede editar una salida cancelada'];
+        }
+        if ($errorAjuste = $this->ajusteBloquea($header['warehouse_id'], $header['date_shrinkage'] ?: $header['created_at'])) {
+            return ['status' => 400, 'message' => $errorAjuste];
         }
         if (empty($productos)) {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
+
+        $aBase = $this->renglonesABase($productos, $this->companiesId, ['cost']);
+        if ($aBase['error']) return ['status' => 400, 'message' => $aBase['error']];
+        $productos = $aBase['productos'];
 
         $totalUnits = 0;
         $totalLoss  = 0;
@@ -390,10 +445,12 @@ class ctrl extends mdl {
                     $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
                     $post     = $prev - $qty;
 
-                    $this->insertSalidaDetail([$qty, $cost, $qty * $cost, $prev, $post, $productId, $id]);
+                    $this->insertSalidaDetail([$qty, $cost, $qty * $cost, $prev, $post, $productId, $p['presentation_id'] ?? null, $p['presentation_qty'] ?? null, $id]);
 
                     if ($stockRow) {
                         $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                    } else {
+                        $this->insertStockRow([$post, $warehouse, $productId, $this->companiesId]);
                     }
                 }
 
@@ -425,6 +482,7 @@ class ctrl extends mdl {
         if (!$this->cancelAuthorized($id)) {
             return ['status' => 403, 'message' => 'Confirma tu contraseña para cancelar la salida'];
         }
+        if ($ajeno = $this->almacenAjeno($header['warehouse_id'])) return $ajeno;
 
         $warehouse = (int) $header['warehouse_id'];
         $detail    = $this->getSalidaDetail([$id]);
@@ -620,12 +678,23 @@ class ctrl extends mdl {
         if ($aplicadas > 0) $message .= $aplicadas === 1 ? ' Regresé al stock lo que sacó la aplicada.' : " Regresé al stock lo que sacaron las {$aplicadas} aplicadas.";
         if ($faltan > 0)    $message .= $faltan === 1 ? ' 1 ya no estaba.' : " {$faltan} ya no estaban.";
 
+        // Cada sucursal lleva su serie: el siguiente de cada una de las que se tocaron.
+        $siguientes = [];
+        foreach (array_unique(array_map('intval', array_column($vigentes, 'branch_id'))) as $b) {
+            $siguientes[] = $this->nextFolio('S-', 'inventory_shrinkage', $this->companiesId, $b);
+            $siguientes[] = $this->nextFolio('SI-', 'inventory_shrinkage', $this->companiesId, $b);
+        }
+
         return [
             'status'  => 200,
-            'message' => $message . ' Siguientes folios: ' . $this->nextFolio('S-', 'inventory_shrinkage', $this->companiesId)
-                       . ' y ' . $this->nextFolio('SI-', 'inventory_shrinkage', $this->companiesId) . '.',
+            'message' => $message . ' Siguientes folios: ' . implode(', ', $siguientes) . '.',
             'data'    => ['folios' => $folios, 'ids' => array_map('intval', array_column($vigentes, 'id'))]
         ];
+    }
+
+    // Folio con el que la serie de la sucursal de sesión vuelve a empezar.
+    private function primerFolioSalida($prefix = 'S-') {
+        return $prefix . $this->claveFolio($this->branchId, $this->companiesId) . '-0001';
     }
 
     private function esAdminIA() {
@@ -715,13 +784,13 @@ class ctrl extends mdl {
 
         return implode("\n", [
             '== ELIMINAR Y REINICIAR LOS FOLIOS (eres administrador) ==',
-            '- Folios: S-0001 es una salida capturada aquí; SI-0001 es la salida que se genera al surtir un pedido. "La 3" es S-0003.',
-            '- Si la persona pide ELIMINAR salidas, pon sus folios en "eliminar", ej. ["S-0003"]. Tómalos de la lista SALIDAS. No inventes folios.',
-            '- Si pide REINICIAR LOS FOLIOS (que la siguiente sea S-0001), pon "reiniciar": true. Eso arma la vista previa con TODAS las salidas: el folio solo vuelve a empezar si se eliminan todas.',
+            '- Folios: S-KAF-0001 es una salida capturada aquí; SI-KAF-0001 es la salida que se genera al surtir un pedido. KAF es la clave de la sucursal: cada sucursal tiene su propia serie. "La 3" es la S- 3 de la sucursal en la que está.',
+            '- Si la persona pide ELIMINAR salidas, pon sus folios completos en "eliminar", ej. ["' . $this->primerFolioSalida() . '"]. Tómalos de la lista SALIDAS. No inventes folios.',
+            '- Si pide REINICIAR LOS FOLIOS (que la siguiente vuelva a ' . $this->primerFolioSalida() . '), pon "reiniciar": true. Es la serie de la sucursal en la que está: la vista previa trae TODAS sus salidas y el folio solo vuelve a empezar si se eliminan todas.',
             '- Al eliminar, "items" y "missing" van vacíos. Tú no eliminas: la persona revisa la vista previa y confirma con su contraseña. En "reply" di cuántas y que revise la vista previa; no digas que ya se eliminaron.',
             '- Eliminar borra la salida de verdad y, si estaba aplicada, regresa al stock lo que sacó. Una salida que viene de un pedido (columna pedido) no se elimina aquí: va en Pedidos, junto con su pedido.',
             '- Si no queda claro cuáles, pregunta en "reply" y deja "eliminar" vacío.',
-            'La forma al eliminar: {"reply": "Te preparo 2 salidas para eliminar.", "items": [], "missing": [], "eliminar": ["S-0003", "S-0004"], "reiniciar": false}',
+            'La forma al eliminar: {"reply": "Te preparo 2 salidas para eliminar.", "items": [], "missing": [], "eliminar": ["S-KAF-0003", "S-KAF-0004"], "reiniciar": false}',
             '',
             'SALIDAS (folio | fecha | estado | tipo | sucursal | almacén | total | pedido | nota), las ' . count($filas) . ' más recientes de ' . count($salidas) . ':',
             $filas ? implode("\n", $filas) : '(ninguna)'
@@ -734,18 +803,23 @@ class ctrl extends mdl {
         $reiniciar = is_array($data) && ($data['reiniciar'] ?? false) === true;
         $folios    = [];
 
+        // S-KAF-0003 tal cual; sin clave ("3", "SI-3") es de la sucursal de sesión.
+        $clave = $this->claveFolio($this->branchId, $this->companiesId);
         foreach ((array) (is_array($data) ? ($data['eliminar'] ?? []) : []) as $v) {
             $v = strtoupper(preg_replace('/\s+/', '', is_scalar($v) ? (string) $v : ''));
-            if (preg_match('/^(SI|S)?-?(\d+)$/', $v, $m)) $folios[] = ($m[1] ?: 'S') . '-' . str_pad((string) (int) $m[2], 4, '0', STR_PAD_LEFT);
+            if (preg_match('/^(SI|S)-([A-Z0-9]+)-(\d+)$/', $v, $m) || preg_match('/^(SI|S)?-?()(\d+)$/', $v, $m)) {
+                $folios[] = ($m[1] ?: 'S') . '-' . ($m[2] !== '' ? $m[2] : $clave) . '-' . str_pad((string) (int) $m[3], 4, '0', STR_PAD_LEFT);
+            }
         }
 
         if (!$reiniciar && !$folios) return null;
 
+        // Reiniciar es la serie de la sucursal de sesión: solo sus salidas.
         $reply   = $this->textoSalidaIA($data['reply'] ?? '');
-        $salidas = $this->listSalidasIA(['companies_id' => $this->companiesId] + ($reiniciar ? [] : ['folios' => array_values(array_unique($folios))]));
+        $salidas = $this->listSalidasIA(['companies_id' => $this->companiesId] + ($reiniciar ? ['branch_ids' => [$this->branchId]] : ['folios' => array_values(array_unique($folios))]));
 
         if (!$salidas) {
-            return ['reply' => $reiniciar ? 'No hay salidas: el siguiente folio ya es ' . $this->nextFolio('S-', 'inventory_shrinkage', $this->companiesId) . '.' : 'No encontré esas salidas.', 'token' => '', 'row' => [], 'ids' => []];
+            return ['reply' => $reiniciar ? 'No hay salidas en esta sucursal: el siguiente folio ya es ' . $this->primerFolioSalida() . '.' : 'No encontré esas salidas.', 'token' => '', 'row' => [], 'ids' => []];
         }
         if (count($salidas) > self::IA_MAX_BORRAR) {
             return ['reply' => 'Son ' . count($salidas) . ' salidas; de una vez solo puedo eliminar ' . self::IA_MAX_BORRAR . '. Pídemelas por partes.', 'token' => '', 'row' => [], 'ids' => []];
@@ -786,11 +860,11 @@ class ctrl extends mdl {
             $reply = 'Ninguna se puede eliminar aquí: ' . ($ligadas === 1 ? 'viene de un pedido' : 'vienen de pedidos') . '. Se eliminan en Pedidos, junto con su pedido.';
         } elseif ($reply === '') {
             $reply = $reiniciar
-                ? 'Para que el folio vuelva a S-0001 hay que eliminar ' . ($libres === 1 ? 'la salida' : "las {$libres} salidas") . '. Revisa la vista previa.'
+                ? 'Para que el folio vuelva a ' . $this->primerFolioSalida() . ' hay que eliminar ' . ($libres === 1 ? 'la salida' : "las {$libres} salidas") . '. Revisa la vista previa.'
                 : ($libres === 1 ? 'Te preparé 1 salida para eliminar. Revísala.' : "Te preparé {$libres} salidas para eliminar. Revísalas.");
         }
         if ($reiniciar && $ligadas > 0 && $libres > 0) {
-            $reply .= "\n" . ($ligadas === 1 ? '1 viene de un pedido' : "{$ligadas} vienen de pedidos") . ': se eliminan en Pedidos, y mientras queden el folio SI- no vuelve a SI-0001.';
+            $reply .= "\n" . ($ligadas === 1 ? '1 viene de un pedido' : "{$ligadas} vienen de pedidos") . ': se eliminan en Pedidos, y mientras queden el folio SI- no vuelve a ' . $this->primerFolioSalida('SI-') . '.';
         }
 
         return ['reply' => $reply, 'token' => $libres ? bin2hex(random_bytes(8)) : '', 'row' => $row, 'ids' => $ids];

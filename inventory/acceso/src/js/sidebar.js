@@ -1,17 +1,67 @@
 class Sidebar {
+    // Menú dinámico: las opciones salen de las secciones a las que el usuario tiene
+    // permiso (endpoint menu), debajo del Inicio fijo. Fail-closed: si no hay permisos o
+    // falla la carga, solo queda Inicio.
+    // El rail se pinta de inmediato con el menú que ya trajo otra página del mismo módulo
+    // en esta pestaña (sessionStorage) y se corrige cuando responde el servidor: antes
+    // quedaba vacío hasta que llegaba la respuesta.
     async init(options) {
         this.injectStyles();
-        // Menú dinámico: las opciones salen de las secciones a las que el usuario
-        // tiene permiso (endpoint menu), debajo del Inicio fijo. Fail-closed: si no
-        // hay permisos o falla la carga, solo queda Inicio.
-        const menuItems = await this.fetchMenu();
-        this.render(Object.assign({ menuItems }, options));
+
+        const guardado = this.menuGuardado();
+        this.render(Object.assign({ menuItems: guardado || [] }, options));
         this.renderOverlay();
         this.initEvents();
         this.highlightCurrentRoute();
         this.loadDarkMode();
         this.handleResize();
+        this.paintIcons();
+
+        const menuItems = await this.fetchMenu();
+        this.guardarMenu(menuItems);
+        if (JSON.stringify(menuItems) === JSON.stringify(guardado)) return;
+
+        this.render(Object.assign({ menuItems }, options));
+        this.highlightCurrentRoute();
+        this.paintIcons();
+    }
+
+    paintIcons() {
         if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // -- Menú guardado --
+    // Una clave por módulo (la carpeta de la página): todas sus páginas comparten el menú.
+    // sessionStorage vive lo que la pestaña; al cerrar sesión se borra (navbar.logout).
+
+    claveMenu() {
+        return Sidebar.CLAVE_MENU + this.currentModulePath().replace(/[^/]*$/, '');
+    }
+
+    menuGuardado() {
+        try {
+            const items = JSON.parse(sessionStorage.getItem(this.claveMenu()) || 'null');
+            return Array.isArray(items) ? items : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    guardarMenu(items) {
+        try {
+            if (items.length) sessionStorage.setItem(this.claveMenu(), JSON.stringify(items));
+            else sessionStorage.removeItem(this.claveMenu());
+        } catch (e) { /* sin almacenamiento: se pinta igual, solo que sin adelanto */ }
+    }
+
+    static olvidarMenus() {
+        try {
+            Object.keys(sessionStorage).filter(k => k.startsWith(Sidebar.CLAVE_MENU)).forEach(k => sessionStorage.removeItem(k));
+        } catch (e) { /* nada que borrar */ }
+    }
+
+    static get CLAVE_MENU() {
+        return 'inv:sidebar:';
     }
 
     // Base del host hasta /inventory/ (ej. "/huubie/inventory" o "/inventory").
@@ -220,7 +270,11 @@ class Sidebar {
     }
 }
 
-$(async () => {
-    let sidebar = new Sidebar();
-    sidebar.init({});
-});
+// Arranca en cuanto se carga el script (va al final del body, cuando #menu-sidebar ya
+// existe): la consulta del menú sale antes que las del módulo, que esperan al DOM, y no
+// se forma detrás de ellas por el candado de la sesión. Sin el contenedor, espera al DOM.
+(() => {
+    const sidebar = new Sidebar();
+    if (document.getElementById('menu-sidebar')) sidebar.init({});
+    else $(() => sidebar.init({}));
+})();

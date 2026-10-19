@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="shortcut icon" href="src/img/logos/coffee_icon.png" type="image/x-icon">
+    <link rel="icon" href="src/img/logos/favicon.svg" type="image/svg+xml">
     <title>Coffee Inventory - Iniciar sesión</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="src/js/tailwind-theme.js?v=<?php echo filemtime(__DIR__ . '/src/js/tailwind-theme.js'); ?>"></script>

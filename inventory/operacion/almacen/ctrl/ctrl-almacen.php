@@ -42,10 +42,31 @@ class ctrl extends mdl {
     ];
 
     function init() {
-        // Cada área lleva los colores de su badge para que el select la pinte igual que la
-        // tabla, y su descripción para el badge. Una descripción sin letras ni números
-        // ("*", "-") es relleno de captura y no se manda.
-        $areas = array_map(function ($area) {
+        // Categorías y áreas de la sucursal de la sesión, también para el administrador: su
+        // selector de sucursal arranca en ella (lsCatalogoSucursal trae las de otra).
+        $sucursal = (int) ($_SESSION['branch_id'] ?? 0);
+
+        return [
+            'categorias'  => $this->categoriasDeSucursal($sucursal),
+            'unidades'    => $this->lsUnits(),
+            'areas'       => $this->areasConColor($this->areasDeSucursal($sucursal)),
+            'proveedores' => $this->lsProveedores(),
+            'almacenes'   => $this->lsWarehouses(),
+            'productos'   => $this->lsProductos(),
+            'superadmin'  => $this->esSuperAdminIA(),
+            'coffeeia'    => IaOllama::activo($this),
+            // El stock de Productos es el de la sucursal de la navbar. Solo el administrador
+            // ve el selector (una sucursal o todas) y el campo Sucursal del producto.
+            'branch_id'   => (int) ($_SESSION['branch_id'] ?? 0),
+            'sucursales'  => $this->esAdministrador() ? ($this->lsSucursales([$_SESSION['company_id']]) ?: []) : []
+        ];
+    }
+
+    // Cada área lleva los colores de su badge para que el select la pinte igual que la
+    // tabla, y su descripción para el badge. Una descripción sin letras ni números
+    // ("*", "-") es relleno de captura y no se manda.
+    private function areasConColor($lista) {
+        return array_map(function ($area) {
             $tone = areaColors($area['id'], $area['color_hex']);
             $note = trim((string) $area['description']);
 
@@ -56,26 +77,35 @@ class ctrl extends mdl {
                 'bg'          => $tone['bg'],
                 'description' => preg_match('/[\p{L}\p{N}]/u', $note) ? $note : ''
             ];
-        }, $this->lsAreas() ?: []);
+        }, $lista ?: []);
+    }
+
+    // Categorías y áreas de una sucursal para los filtros de Productos y el formulario de
+    // un producto. El administrador pide la que quiera ('' = las de todas); los demás
+    // reciben siempre las de su sucursal.
+    function lsCatalogoSucursal() {
+        $sucursal = $this->esAdministrador() ? (string) ($_POST['sucursal'] ?? '') : (string) ($_SESSION['branch_id'] ?? '');
+
+        if ($sucursal === '') {
+            return ['status' => 200, 'categorias' => $this->lsCategories() ?: [], 'areas' => $this->areasConColor($this->lsAreas())];
+        }
 
         return [
-            'categorias'  => $this->lsCategories(),
-            'unidades'    => $this->lsUnits(),
-            'areas'       => $areas,
-            'proveedores' => $this->lsProveedores(),
-            'almacenes'   => $this->lsWarehouses(),
-            'productos'   => $this->lsProductos(),
-            'superadmin'  => $this->esSuperAdminIA(),
-            'coffeeia'    => IaOllama::activo($this)
+            'status'     => 200,
+            'categorias' => $this->categoriasDeSucursal((int) $sucursal),
+            'areas'      => $this->areasConColor($this->areasDeSucursal((int) $sucursal))
         ];
     }
 
     function lsMateriales() {
 
         $filters = [
-            'categoria' => $_POST['categoria'] ?? '',
-            'area'      => $_POST['area'] ?? '',
-            'estado'    => $_POST['estado'] ?? ''
+            'categoria'   => $_POST['categoria'] ?? '',
+            'area'        => $_POST['area'] ?? '',
+            'estado'      => $_POST['estado'] ?? '',
+            'branch_id'   => $this->sucursalDeStock(),
+            // Con el selector del administrador en una sucursal: solo los productos de esa sucursal.
+            'propietario' => $this->esAdministrador() && ($_POST['sucursal'] ?? '') !== '' ? (int) $_POST['sucursal'] : ''
         ];
 
         $data = $this->listMateriales($filters);
@@ -85,25 +115,30 @@ class ctrl extends mdl {
         // Con "Activos" o "Inactivos" el estado ya lo dice el filtro: la columna solo sale con "Todos".
         $showStatus = $filters['estado'] === '';
 
+        // «De {sucursal}» bajo el nombre: solo el administrador con «Todas las sucursales».
+        $verDueno = $this->esAdministrador() && ($_POST['sucursal'] ?? '') === '';
+
         foreach ($data as $item) {
             // El inventario se valúa al último costo de compra, no al precio de venta.
             $value = floatval($item['quantity']) * floatval($item['cost_unit']);
             $totalValue += $value;
 
-            $a = [
+            // Un producto de otra sucursal (los de Matriz, para las sucursales) se ve con
+            // su candado: se usa, no se edita (VisibilidadProductos).
+            $a = $this->puedeEditarProducto($item['branch_id'] ?? null) ? [
                 [
                     'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'products.editMaterial(' . $item['id'] . ')'
                 ],
                 statusSwitch('products.statusMaterial', $item['id'], $item['active'])
-            ];
+            ] : [$this->candadoProducto($item['sucursal'] ?? '')];
 
             $row = [
                 'id'         => $item['id'],
                 'Insumo'     => [
                     'class' => 'justify-center px-2 py-2',
-                    'html'  => renderProductImage($item['image'] ?? '', $item['name'])
+                    'html'  => renderProductImage($item['image'] ?? '', $item['name'], $verDueno && !empty($item['sucursal']) ? 'De ' . $item['sucursal'] : '', 'building-2')
                 ],
                 'Unidad'     => !empty($item['unidad_nombre']) ? $item['unidad_nombre'] : '-',
                 'Categoría'  => $item['categoria'] ?? '-',
@@ -112,7 +147,7 @@ class ctrl extends mdl {
                 // Inventario = costo (como Soft Restaurant con sus insumos). El precio de
                 // venta solo vive en el formulario, para lo que se revende tal cual.
                 'Último costo' => [
-                    'html'  => '$' . number_format((float) $item['cost_unit'], 2),
+                    'html'  => costoCelda($item['cost_unit']),
                     'class' => 'text-end'
                 ],
                 'Stock'      => renderQuantity($item['quantity']),
@@ -137,14 +172,15 @@ class ctrl extends mdl {
             $unidad = $this->pluralIA($p['base_unit']);
             $cajas  = $factor > 0 ? max(0, floor((float) $p['base_stock'] / $factor)) : 0;
 
-            $a = [
+            // La presentación se edita con su producto base.
+            $a = $this->puedeEditarProducto($p['base_branch_id'] ?? null) ? [
                 [
                     'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'products.editPresentacion(' . $p['id'] . ')'
                 ],
                 statusSwitch('products.statusPresentacion', $p['id'], $p['active'])
-            ];
+            ] : [$this->candadoProducto('')];
 
             $row = [
                 'id'         => 'p' . $p['id'],
@@ -156,7 +192,7 @@ class ctrl extends mdl {
                 'Categoría'  => $p['categoria'] ?? '-',
                 'Área'       => renderArea($p['area_id'] ?? null, $p['area'] ?? null, $p['area_color'] ?? null),
                 'Último costo' => [
-                    'html'  => '$' . number_format((float) $p['cost_unit'], 2),
+                    'html'  => costoCelda($p['cost_unit']),
                     'class' => 'text-end'
                 ],
                 'Stock'      => $cajas > 0
@@ -183,6 +219,48 @@ class ctrl extends mdl {
         ];
     }
 
+    // De qué sucursal es el stock de Productos: la de la navbar (sesión). El administrador
+    // puede pedir otra con el selector (`sucursal`) o '' para la suma de todas; con una
+    // sucursal elegida, la lista trae solo los productos de esa sucursal (`propietario`).
+    private function sucursalDeStock() {
+        if ($this->esAdministrador() && isset($_POST['sucursal'])) {
+            return $_POST['sucursal'] === '' ? '' : (int) $_POST['sucursal'];
+        }
+
+        return (int) ($_SESSION['branch_id'] ?? 0);
+    }
+
+    // Sucursal dueña que manda el formulario de Productos (campo `branch_id`): solo la toma
+    // del administrador y si es una sucursal activa de la empresa. null = no se cambia.
+    private function sucursalDelProducto() {
+        if (!$this->esAdministrador() || ($_POST['branch_id'] ?? '') === '') return null;
+
+        $id = (int) $_POST['branch_id'];
+        $ok = in_array($id, array_map('intval', array_column($this->lsSucursales([$_SESSION['company_id']]) ?: [], 'id')), true);
+        return $ok ? $id : null;
+    }
+
+    // El candado de la columna de acciones en lugar del lápiz y el switch. El aviso va en
+    // `attr`: la tabla arma <a> con jQuery y este proyecto tiene $.fn.title.
+    private function candadoProducto($sucursal) {
+        return [
+            'class' => 'inline-flex items-center justify-center w-9 h-9 p-2 text-gray-300 cursor-default bg-transparent border-0',
+            'html'  => '<i data-lucide="lock" class="w-4 h-4"></i>',
+            'attr'  => ['title' => 'Es de ' . ($sucursal ?: 'otra sucursal') . ': lo usas, pero solo su sucursal, Matriz o el administrador lo editan']
+        ];
+    }
+
+    // Candado de VisibilidadProductos: un producto de otra sucursal (los de Matriz, para
+    // las sucursales) se usa pero no se edita. 403 con el aviso; null si se puede.
+    private function productoAjeno($material) {
+        if (!$material || $this->puedeEditarProducto($material['branch_id'] ?? null)) return null;
+
+        return [
+            'status'  => 403,
+            'message' => 'Este producto es de otra sucursal: lo puedes usar, pero solo su sucursal, Matriz o el administrador lo editan'
+        ];
+    }
+
     function getMaterial() {
         $id      = $_POST['id'];
         $status  = 404;
@@ -199,6 +277,13 @@ class ctrl extends mdl {
                 'stock'       => $this->getMaterialStock([$id]),
                 'movimientos' => (int) $this->getMaterialCounts([$id])['movimientos']
             ];
+
+            // El formulario ofrece las categorías y áreas de la sucursal del producto, no las
+            // de quien lo edita (Matriz o el administrador editan productos de otras).
+            if (!empty($material['branch_id'])) {
+                $data['categorias'] = $this->categoriasDeSucursal($material['branch_id']);
+                $data['areas']      = $this->areasConColor($this->areasDeSucursal($material['branch_id']));
+            }
         }
 
         return [
@@ -253,7 +338,8 @@ class ctrl extends mdl {
 
         $now          = date('Y-m-d H:i:s');
         $companies_id = $_SESSION['company_id'];
-        $branch_id    = $_SESSION['branch_id'];
+        // De la sesión, salvo que el administrador elija otra sucursal en el formulario.
+        $branch_id    = $this->sucursalDelProducto() ?? $_SESSION['branch_id'];
 
         $item = [
             'name'            => $_POST['name'] ?? '',
@@ -395,6 +481,8 @@ class ctrl extends mdl {
             return ['status' => 404, 'message' => 'Producto no encontrado'];
         }
 
+        if ($bloqueo = $this->productoAjeno($material)) return $bloqueo;
+
         $name = trim($_POST['name']);
 
         if ($name === '') {
@@ -460,6 +548,8 @@ class ctrl extends mdl {
 
         $id = $_POST['id'];
 
+        if ($bloqueo = $this->productoAjeno($this->getMaterialById($id))) return $bloqueo;
+
         // Con el selector en Presentación el producto deja de serlo: pasa a ser el empaque de otro.
         if (($_POST['is_presentacion'] ?? '') === '1') return $this->pasarAPresentacion((int) $id);
 
@@ -490,6 +580,20 @@ class ctrl extends mdl {
             ];
         }
 
+        // El administrador lo cambia de sucursal (campo Sucursal del formulario). Su stock no
+        // se mueve: sigue en el almacén donde está. La categoría y el área que sean de otra
+        // sucursal se le quitan (el área también a sus presentaciones).
+        $sucursal  = $this->sucursalDelProducto();
+        $mueve     = $sucursal !== null && $sucursal !== (int) ($material['branch_id'] ?? 0);
+        $categoria = ($_POST['category_id'] ?? '') === '' ? null : $_POST['category_id'];
+        $area      = ($_POST['warehouse_area_id'] ?? '') === '' ? null : $_POST['warehouse_area_id'];
+
+        $quitados = [];
+        if ($mueve) {
+            if (!$this->categoriaEsDeSucursal($categoria, $sucursal)) { $categoria = null; $quitados[] = 'categoría'; }
+            if (!$this->areaEsDeSucursal($area, $sucursal))           { $area      = null; $quitados[] = 'área'; }
+        }
+
         // price / price_without_tax / tax no se tocan: el formulario ya no los trae y
         // se conserva lo que haya en la BD. La foto va aparte (abajo).
         $editItem = $this->updateMaterial([
@@ -497,7 +601,7 @@ class ctrl extends mdl {
             'where'  => 'id = ?',
             'data'   => [
                 $_POST['name'] ?? '',
-                $_POST['category_id'] ?? null,
+                $categoria,
                 $id
             ]
         ]);
@@ -514,6 +618,15 @@ class ctrl extends mdl {
             ]);
         }
 
+        if ($mueve) {
+            $this->updateMaterial([
+                'values' => 'branch_id = ?',
+                'where'  => 'id = ?',
+                'data'   => [$sucursal, $id]
+            ]);
+            $this->quitarAreasAjenasPresentaciones([$id, $sucursal]);
+        }
+
         $this->updateItemAttribute([
             'values' => 'description = ?, cost_unit = ?, cost_tax = ?, is_inventoriable = ?, stock_min = ?, stock_max = ?, shelf_life_days = ?, warehouse_area_id = ?, unit_id = ?',
             'where'  => 'item_id = ?',
@@ -525,7 +638,7 @@ class ctrl extends mdl {
                 ($_POST['stock_min'] ?? '') === '' ? 0 : $_POST['stock_min'],
                 ($_POST['stock_max'] ?? '') === '' ? 0 : $_POST['stock_max'],
                 ($_POST['shelf_life_days'] ?? '') === '' ? null : $_POST['shelf_life_days'],
-                ($_POST['warehouse_area_id'] ?? '') === '' ? null : $_POST['warehouse_area_id'],
+                $area,
                 $_POST['unit_id'] ?? null,
                 $id
             ]
@@ -546,6 +659,7 @@ class ctrl extends mdl {
         if ($editItem) {
             $status  = 200;
             $message = 'Insumo editado correctamente';
+            if ($quitados) $message .= '. Quedó sin ' . implode(' ni ', $quitados) . (count($quitados) === 1 ? ': era' : ': eran') . ' de otra sucursal';
         }
 
         return [
@@ -754,6 +868,8 @@ class ctrl extends mdl {
         $nuevoEstado = $_POST['active'];
         $message     = $nuevoEstado == 1 ? 'No se pudo activar el insumo' : 'No se pudo desactivar el insumo';
 
+        if ($bloqueo = $this->productoAjeno($this->getMaterialById((int) $_POST['id']))) return $bloqueo;
+
         $update = $this->updateMaterial([
             'values' => 'active = ?',
             'where'  => 'id = ?',
@@ -783,6 +899,8 @@ class ctrl extends mdl {
                 'message' => 'Producto no encontrado'
             ];
         }
+
+        if ($bloqueo = $this->productoAjeno($material)) return $bloqueo;
 
         $uso = $this->getMaterialCounts([$id]);
 
@@ -822,6 +940,8 @@ class ctrl extends mdl {
     function statusMaterial() {
         $status  = 500;
         $message = 'No se pudo actualizar el estado';
+
+        if ($bloqueo = $this->productoAjeno($this->getMaterialById((int) $_POST['id']))) return $bloqueo;
 
         $update = $this->updateMaterial([
             'values' => 'active = ?',
@@ -874,7 +994,10 @@ class ctrl extends mdl {
             ];
         }
 
-        $fields = $this->presentacionFields($this->getMaterialById($presentacion['item_id']), (string) $presentacion['sku']);
+        $base = $this->getMaterialById($presentacion['item_id']);
+        if ($bloqueo = $this->productoAjeno($base)) return $bloqueo;
+
+        $fields = $this->presentacionFields($base, (string) $presentacion['sku']);
 
         if (isset($fields['status'])) return $fields;
 
@@ -918,6 +1041,8 @@ class ctrl extends mdl {
             ];
         }
 
+        if ($bloqueo = $this->productoAjeno($this->getMaterialById($presentacion['item_id']))) return $bloqueo;
+
         $update = $this->updatePresentacion([
             'values' => 'active = ?',
             'where'  => 'id = ?',
@@ -944,6 +1069,9 @@ class ctrl extends mdl {
                 'message' => 'Elige el producto al que equivale la presentación'
             ];
         }
+
+        // Una presentación nueva cambia el catálogo del producto base: solo quien lo edita.
+        if ($bloqueo = $this->productoAjeno($base)) return $bloqueo;
 
         $fields = $this->presentacionFields($base);
 
@@ -1149,6 +1277,9 @@ class ctrl extends mdl {
             ];
         }
 
+        // El base recibe stock y una presentación nueva: tiene que poder editarlo.
+        if ($bloqueo = $this->productoAjeno($base)) return $bloqueo;
+
         // Sus propias presentaciones se quedarían colgando de un producto inactivo.
         if ($this->listPresentaciones([$_SESSION['company_id'], $id, $id])) {
             return [
@@ -1206,7 +1337,7 @@ class ctrl extends mdl {
             $baseRow  = $this->getStockByItemWarehouse([$base['id'], $stock['warehouse_id']]);
             $basePrev = $baseRow ? (float) $baseRow['quantity'] : 0;
             $basePost = round($basePrev + $suma, 4);
-            $folio    = $this->siguienteFolioAjuste($company);
+            $folio    = $this->nextFolio('AJU-', 'inventory_adjustment', $company, (int) $stock['branch_id']);
 
             $this->createAdjustment([$folio, $nota, $reason['id'], $userId, $userId, $stock['warehouse_id'], $stock['branch_id'], $company]);
             $ajuste = $this->getAdjustmentByFolio([$folio, $company]);
@@ -1255,13 +1386,6 @@ class ctrl extends mdl {
         return $folios;
     }
 
-    // El que sigue al último AJU- de la empresa (lo comparten los conteos de Stock).
-    private function siguienteFolioAjuste($company) {
-        $ultimo = (int) preg_replace('/[^0-9]/', '', substr($this->getAdjustmentFolio([$company]), 4));
-
-        return 'AJU-' . str_pad($ultimo + 1, 4, '0', STR_PAD_LEFT);
-    }
-
     // -- Asistente IA --
     /*  Chat flotante del catálogo del almacén: altas, cambios, bajas y
         reactivaciones de productos, categorías, unidades, áreas, almacenes,
@@ -1283,6 +1407,7 @@ class ctrl extends mdl {
 
     const IA_MAX_CAMBIOS        = 150;
     const IA_MAX_CATALOGO       = 1500;
+    const IA_MAX_FILTRO         = 150;   // productos por respuesta de filtrar_productos
     const IA_MAX_RONDAS         = 8;
     const IA_MAX_PRESENTACIONES = 60;
 
@@ -1329,7 +1454,8 @@ class ctrl extends mdl {
             'stock_min'       => 'Mínimo',
             'stock_max'       => 'Máximo',
             'shelf_life_days' => 'Vida útil',
-            'description'     => 'Descripción'
+            'description'     => 'Descripción',
+            'branch'          => 'Sucursal'
         ]]
     ];
 
@@ -1733,6 +1859,7 @@ class ctrl extends mdl {
                 $this->numeroIA($p['stock_min']),
                 $this->numeroIA($p['stock_max']),
                 $this->numeroIA($p['shelf_life_days']),
+                $p['sucursal'] ?? '',
                 $estado($p)
             ];
         }
@@ -1744,7 +1871,7 @@ class ctrl extends mdl {
             '',
             '== CONTRATO DE proponer_cambios (lo que el sistema acepta) ==',
             'Entidades ("entity") y los campos que puedes mandar en "set":',
-            '- product: name, category, unit, area, price (venta con IVA), base (venta sin IVA), tax (0, 8 o 16), cost (último costo sin IVA), stock_min, stock_max, shelf_life_days (días), description',
+            '- product: name, category, unit, area, price (venta con IVA), base (venta sin IVA), tax (0, 8 o 16), cost (último costo sin IVA), stock_min, stock_max, shelf_life_days (días), description, branch (nombre de una SUCURSAL: de quién es el producto)',
             '- category: name',
             '- unit: code, name',
             '- area: name, description, warehouse (nombre de un ALMACÉN de su lista; si hay dos con el mismo nombre, su id). Un alta sin warehouse va al almacén por defecto.',
@@ -1759,6 +1886,9 @@ class ctrl extends mdl {
             '- En edit manda en "set" SOLO los campos que cambian.',
             '- En un producto, "category", "unit" y "area" van con el NOMBRE tal como está en su lista. Si la das de alta en esta misma respuesta, usa el mismo nombre.',
             '- Números sin signo de pesos ni separador de miles: 1250.5',
+            $this->esAdministrador()
+                ? '- MOVER DE SUCURSAL (esta persona es administrador): si dice que un producto es de otra sucursal ("el domo C15 no es de Guadalupe, es de Kafeto"), manda un edit con "branch" y el nombre de la sucursal tal como está en SUCURSALES. Solo cambia de quién es el producto: su existencia se queda en el almacén donde está; dilo en "reply".'
+                : '- Cambiar un producto de sucursal es solo para el administrador. Si esta persona lo pide, dile que no tiene permiso y no mandes "branch".',
             '- Como mucho ' . self::IA_MAX_CAMBIOS . ' cambios por respuesta; si hay más, propone los primeros y avísalo en "reply".',
             $super
                 ? '- VACIAR (esta persona es Super Admin): si pide vaciar, limpiar o borrar TODO un bloque, manda un solo cambio {"entity": "purge", "action": "purge", "scope": "..."} y ningún otro. scope: "movements" (entradas, salidas, ajustes, traspasos, órdenes de compra y existencias), "products" (todos los productos, con sus movimientos) o "catalogs" (categorías, áreas y proveedores, con productos y movimientos). Unidades, almacenes y sucursales no se vacían. Para quitar registros sueltos usa "deactivate", nunca "purge".'
@@ -1774,7 +1904,8 @@ class ctrl extends mdl {
             ']',
             '',
             '== CÓMO TRABAJAS ==',
-            '- Tienes herramientas: úsalas con libertad y las veces que haga falta antes de contestar. ver_producto (existencia por almacén, presentaciones y últimos movimientos de un producto), resumen_catalogo (cómo está el catálogo: conteos, productos sin costo, sin unidad o sin área, valor del inventario) y buscar_posibles_presentaciones (productos que parecen el empaque de otro).',
+            '- Tienes herramientas: úsalas con libertad y las veces que haga falta antes de contestar. ver_producto (existencia por almacén, presentaciones y últimos movimientos de un producto), resumen_catalogo (cómo está el catálogo: conteos, productos sin costo, sin unidad o sin área, valor del inventario), filtrar_productos (la lista exacta de los que cumplen algo: sin área, sin categoría, sin costo, de una sucursal, de una categoría...) y buscar_posibles_presentaciones (productos que parecen el empaque de otro).',
+            '- Para CONTAR o LISTAR productos que cumplen algo usa filtrar_productos y da su total tal cual. Nunca los cuentes ni los escojas leyendo la tabla PRODUCTOS: es larga y te equivocas. La tabla es para ubicar ids y nombres.',
             '- Contesta cualquier pregunta sobre el catálogo y su inventario, da tu opinión y sugiere mejoras con lo que veas: duplicados, nombres parecidos, productos sin costo o sin unidad, presentaciones. Si algo no está claro, pregunta.',
             '- Los datos salen de las listas de abajo o de una herramienta. Nunca inventes ids, precios ni existencias.',
             '- Proponer: cuando la persona pide un cambio usa proponer_cambios (con el contrato de arriba) o proponer_presentaciones. Tú no aplicas nada: al terminar tu respuesta ella ve la vista previa, marca y confirma. Si lo que sugieres no lo pidió, pregúntale antes de proponerlo.',
@@ -1787,7 +1918,8 @@ class ctrl extends mdl {
             '- Pasar un producto a presentación (proponer_presentaciones) mueve inventario: su stock pasa al base multiplicado por el factor (5 rejas × 12 = +60 latas) con un ajuste registrado, y el producto se desactiva; su historial se queda. La presentación se queda con el área y la foto que tenía el producto. Si no sabes el factor, pregúntalo, no lo adivines. Avisa cuando el producto tenga stock.',
             '',
             '== CÓMO RESPONDES ==',
-            '- Texto plano, sin markdown (nada de **, # ni tablas) y sin emojis. Listas con guiones. Frases cortas.',
+            '- Texto plano: sin #, sin tablas y sin emojis. Listas con guiones. Frases cortas.',
+            '- Remarca con **negritas** los datos clave: cifras, nombres de productos, áreas, almacenes y sucursales, y lo que la persona tiene que hacer. Solo eso: si todo va en negritas, nada resalta.',
             '- Si propusiste algo, di cuántos cambios son y que revise la vista previa.',
             '',
             '== DATOS DE LA EMPRESA ==',
@@ -1809,7 +1941,7 @@ class ctrl extends mdl {
             '',
             $this->tablaIA('ESTADOS DE TRASPASO', ['id', 'nombre', 'lo ve quien envía', 'lo ve quien recibe', 'color texto', 'color fondo', 'estado'], $filas['transfer_status'] ?? []),
             '',
-            $this->tablaIA('PRODUCTOS' . $recorte, ['id', 'sku', 'nombre', 'categoría', 'unidad', 'área', 'precio con IVA', 'IVA %', 'último costo', 'mín', 'máx', 'vida útil días', 'estado'], $filas['product'] ?? []),
+            $this->tablaIA('PRODUCTOS' . $recorte, ['id', 'sku', 'nombre', 'categoría', 'unidad', 'área', 'precio con IVA', 'IVA %', 'último costo', 'mín', 'máx', 'vida útil días', 'sucursal', 'estado'], $filas['product'] ?? []),
             '',
             $this->tablaIA('PRESENTACIONES', ['id', 'producto base (id)', 'nombre', 'trae', 'estado'], array_map(function ($p) use ($estado) {
                 return [$p['id'], $p['base_name'] . ' (' . $p['item_id'] . ')', $p['name'], $this->numeroIA($p['factor']) . ' ' . ($p['base_unit'] ?: 'unidades'), $estado($p)];
@@ -1852,6 +1984,17 @@ class ctrl extends mdl {
                 'id' => ['type' => 'integer', 'description' => 'id del producto (de la lista PRODUCTOS)']
             ], ['id']),
             $fn('resumen_catalogo', 'Cuenta cómo está el catálogo: productos activos y de baja, sin costo, sin unidad, sin área o sin categoría, con existencia o en negativo, cuántos hay por categoría, valor del inventario a último costo y presentaciones.'),
+            $fn('filtrar_productos', 'Lista EXACTA de los productos que cumplen todo lo que pidas (se combinan): sin área, sin categoría, sin costo o sin unidad; de una sucursal, una categoría o un área; o con un texto en el nombre. Devuelve cuántos son y cada uno con id, nombre, categoría, área y sucursal. Úsala siempre para contar o listar productos: no los cuentes en la tabla PRODUCTOS.', [
+                'sin_area'      => ['type' => 'boolean', 'description' => 'Solo los que no tienen área'],
+                'sin_categoria' => ['type' => 'boolean', 'description' => 'Solo los que no tienen categoría'],
+                'sin_costo'     => ['type' => 'boolean', 'description' => 'Solo los de último costo en 0'],
+                'sin_unidad'    => ['type' => 'boolean', 'description' => 'Solo los que no tienen unidad'],
+                'sucursal'      => ['type' => 'string', 'description' => 'Nombre de la sucursal dueña tal como está en SUCURSALES'],
+                'categoria'     => ['type' => 'string', 'description' => 'Nombre de la categoría'],
+                'area'          => ['type' => 'string', 'description' => 'Nombre del área'],
+                'texto'         => ['type' => 'string', 'description' => 'Parte del nombre o SKU'],
+                'incluir_baja'  => ['type' => 'boolean', 'description' => 'También los dados de baja (por omisión solo activos)']
+            ]),
             $fn('buscar_posibles_presentaciones', 'Revisa los productos activos y devuelve los que parecen el empaque de otro (reja, caja, six pack, paquete, "x12", "6 pzs"...), con hasta 3 productos base parecidos, el factor que se lee en el nombre y su stock. Son pistas: tú decides cuáles sí lo son.'),
             $fn('proponer_cambios', 'Deja en la vista previa altas, cambios, bajas o reactivaciones' . ($super ? ' (o un vaciado)' : '') . ' del catálogo, con el contrato del system. No aplica nada. Llamarla otra vez reemplaza su propuesta anterior: manda todos los cambios juntos. Devuelve cuáles entraron y por qué no los demás.', [
                 'changes' => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Lista de cambios: {entity, action, id, ref, set}']
@@ -1889,6 +2032,14 @@ class ctrl extends mdl {
                 return [
                     'resultado' => $this->resumenCatalogoIA($ctx),
                     'paso'      => 'Contando el catálogo'
+                ];
+
+            case 'filtrar_productos':
+                $lista = $this->filtrarProductosIA(is_array($args) ? $args : [], $ctx);
+
+                return [
+                    'resultado' => $lista,
+                    'paso'      => 'Filtrando productos · ' . ($lista['total'] === 1 ? '1 encontrado' : "{$lista['total']} encontrados")
                 ];
 
             case 'buscar_posibles_presentaciones':
@@ -2088,6 +2239,52 @@ class ctrl extends mdl {
         ];
     }
 
+    // filtrar_productos: el modelo contaba a ojo la tabla PRODUCTOS del prompt (cientos de
+    // renglones) y se equivocaba: con «sin área» metía productos cuya área se llama igual
+    // que su categoría. Aquí se filtra con los mismos datos y el conteo es exacto. Los
+    // nombres de sucursal, categoría y área valen completos o como parte del nombre.
+    private function filtrarProductosIA($args, $ctx) {
+        $si    = function ($clave) use ($args) { return filter_var($args[$clave] ?? false, FILTER_VALIDATE_BOOLEAN); };
+        $texto = function ($clave) use ($args) { return $this->normalizarIA($this->textoIA($args[$clave] ?? '')); };
+        $tiene = function ($valor, $buscado) {
+            $valor = $this->normalizarIA((string) $valor);
+            return $buscado === '' || ($valor !== '' && strpos($valor, $buscado) !== false);
+        };
+
+        $sucursal  = $texto('sucursal');
+        $categoria = $texto('categoria');
+        $area      = $texto('area');
+        $nombre    = $texto('texto');
+
+        $filas = array_values(array_filter($ctx['product'], function ($p) use ($si, $tiene, $sucursal, $categoria, $area, $nombre) {
+            if (!$si('incluir_baja') && (int) $p['active'] !== 1) return false;
+            if ($si('sin_area')      && !empty($p['area_id']))                 return false;
+            if ($si('sin_categoria') && !empty($p['categoria']))               return false;
+            if ($si('sin_costo')     && (float) $p['cost_unit'] > 0)           return false;
+            if ($si('sin_unidad')    && !empty($p['unidad_nombre']))           return false;
+
+            return $tiene($p['sucursal'] ?? '', $sucursal)
+                && $tiene($p['categoria'] ?? '', $categoria)
+                && $tiene($p['area'] ?? '', $area)
+                && ($nombre === '' || $tiene($p['name'], $nombre) || $tiene($p['sku'] ?? '', $nombre));
+        }));
+
+        return [
+            'total'     => count($filas),
+            'recortado' => count($filas) > self::IA_MAX_FILTRO,
+            'productos' => array_map(function ($p) {
+                return [
+                    'id'        => (int) $p['id'],
+                    'nombre'    => $p['name'],
+                    'categoria' => $p['categoria'] ?: 'sin categoría',
+                    'area'      => $p['area'] ?: 'sin área',
+                    'sucursal'  => $p['sucursal'] ?: '-',
+                    'estado'    => (int) $p['active'] === 1 ? 'activo' : 'baja'
+                ];
+            }, array_slice($filas, 0, self::IA_MAX_FILTRO))
+        ];
+    }
+
     private function resumenCatalogoIA($ctx) {
         $activos = array_values(array_filter($ctx['product'], function ($p) {
             return (int) $p['active'] === 1;
@@ -2258,6 +2455,8 @@ class ctrl extends mdl {
         misma respuesta. Ese orden es también el de aplicación. */
     private function validarCambiosIA($cambios, $ctx) {
         $idx     = $this->indicesIA($ctx);
+        // Las sucursales no son entidad del catálogo: van aparte para el campo branch del producto.
+        $idx['branch'] = $ctx['branch'];
         $nuevos  = [];
         $vistos  = [];
         $row     = [];
@@ -2855,6 +3054,36 @@ class ctrl extends mdl {
             }
         }
 
+        // Sucursal dueña: como el campo Sucursal del formulario, solo el administrador la
+        // cambia. El stock no se mueve: sigue en el almacén donde está.
+        $texto = array_key_exists('branch', $set) ? $this->textoIA($set['branch']) : '';
+
+        if ($texto !== '') {
+            $sucursal = $this->buscarSucursalIA($texto, ['branch' => $idx['branch'] ?? []]);
+
+            if (!$this->esAdministrador()) {
+                $out['warn'][] = 'Cambiar un producto de sucursal es solo para el administrador: no se cambia.';
+            } elseif ($sucursal === null) {
+                $out['warn'][] = 'Sucursal «' . $texto . '» no existe: no se cambia.';
+            } elseif ($actual === null || (int) $sucursal['id'] !== (int) ($actual['branch_id'] ?? 0)) {
+                $out['item']['branch_id'] = (int) $sucursal['id'];
+                $out['changes'][]         = ['label' => 'Sucursal', 'before' => $actual !== null ? ($actual['sucursal'] ?? '') : '', 'after' => $sucursal['valor']];
+
+                // La categoría y el área de otra sucursal se le quitan, como en el formulario.
+                $categoria = $out['item']['category_id'] ?? ($actual['category_id'] ?? null);
+                if (!isset($out['refs']['category']) && !$this->categoriaEsDeSucursal($categoria, (int) $sucursal['id'])) {
+                    $out['item']['category_id'] = null;
+                    $out['changes'][] = ['label' => 'Categoría', 'before' => $actual['categoria'] ?? '', 'after' => '(sin categoría: es de otra sucursal)'];
+                }
+
+                $area = $out['attr']['warehouse_area_id'] ?? ($actual['area_id'] ?? null);
+                if (!isset($out['refs']['area']) && !$this->areaEsDeSucursal($area, (int) $sucursal['id'])) {
+                    $out['attr']['warehouse_area_id'] = null;
+                    $out['changes'][] = ['label' => 'Área', 'before' => $actual['area'] ?? '', 'after' => '(sin área: es de otra sucursal)'];
+                }
+            }
+        }
+
         return $out;
     }
 
@@ -3057,6 +3286,8 @@ class ctrl extends mdl {
         $valores = $c['values'] + ['companies_id' => $companies_id] + ($coded ? [] : ['created_at' => $now]) + ['active' => 1];
 
         if ($entidad === 'warehouse') $valores += ['branch_id' => $branch_id, 'is_default' => 0];
+        // Categorías y proveedores son de la sucursal que los da de alta.
+        if (in_array($entidad, ['category', 'supplier'], true)) $valores += ['branch_id' => $this->sucursalNuevaCatalogo()];
 
         // Al final de la lista que se ordena a mano, como el alta de su pestaña. Se calcula
         // aquí (dentro de la transacción) para que dos altas seguidas no empaten.
@@ -3082,7 +3313,16 @@ class ctrl extends mdl {
         if ($update !== true) throw new Exception('No pude cambiar ' . self::IA_ENTIDADES[$c['entity']]['uno'] . ' «' . $c['nombre'] . '».');
     }
 
+    // Lo mismo que productoAjeno para CoffeeIA: un producto de otra sucursal no se cambia.
+    private function bloqueoProductoIA($id, $nombre) {
+        if ($this->productoAjeno($this->getMaterialById((int) $id))) {
+            throw new Exception('«' . $nombre . '» es de otra sucursal: solo su sucursal o Matriz lo editan.');
+        }
+    }
+
     private function estadoIA($entidad, $c, $companies_id) {
+        if ($entidad === 'product') $this->bloqueoProductoIA($c['id'], $c['nombre']);
+
         $donde = $this->dondeIA($entidad, $c['id'], $companies_id);
         $datos = [
             'values' => ['active'],
@@ -3115,6 +3355,9 @@ class ctrl extends mdl {
             throw new Exception('«' . $c['nombre'] . '» tiene presentaciones propias: no puede ser presentación de otro.');
         }
 
+        $this->bloqueoProductoIA($c['id'], $c['nombre']);
+        $this->bloqueoProductoIA($c['base_id'], $base['name']);
+
         $costo = (float) $material['cost_unit'];
 
         $this->moverAPresentacion($material, $base, [
@@ -3130,6 +3373,9 @@ class ctrl extends mdl {
     // Misma alta que addMaterial, con los datos ya validados.
     private function altaProductoIA($c, $companies_id, $branch_id, $now, $creados) {
         [$item, $attr] = $this->resolverRefsIA($c, $creados);
+
+        // La sucursal que eligió el administrador gana a la de la sesión.
+        if (isset($item['branch_id']) && !$this->esAdministrador()) unset($item['branch_id']);
 
         $datos = $item + [
             'image'        => '',
@@ -3153,7 +3399,14 @@ class ctrl extends mdl {
     }
 
     private function editarProductoIA($c, $companies_id, $creados) {
+        $this->bloqueoProductoIA($c['id'], $c['nombre']);
+
         [$item, $attr] = $this->resolverRefsIA($c, $creados);
+
+        if (isset($item['branch_id']) && !$this->esAdministrador()) {
+            throw new Exception('Cambiar «' . $c['nombre'] . '» de sucursal es solo para el administrador.');
+        }
+        if (isset($item['branch_id'])) $this->quitarAreasAjenasPresentaciones([$c['id'], $item['branch_id']]);
 
         if (!empty($item)) {
             $update = $this->updateMaterial([
@@ -3423,8 +3676,9 @@ class ctrl extends mdl {
 
 // La foto se guarda relativa a inventory/ (uploads/productos/...) y la tabla se pinta
 // en operacion/almacen/. Una URL completa o absoluta se respeta tal cual.
-// `$nota` va debajo del nombre (la equivalencia de una presentación).
-function renderProductImage($foto, $nombre, $nota = '') {
+// `$nota` va debajo del nombre con su ícono: la equivalencia de una presentación (cajas)
+// o de qué sucursal es el producto (edificio).
+function renderProductImage($foto, $nombre, $nota = '', $icono = 'boxes') {
     $src = '';
     if (!empty($foto)) $src = preg_match('#^(https?:)?//|^/#', $foto) ? $foto : '../../' . $foto;
 
@@ -3443,7 +3697,7 @@ function renderProductImage($foto, $nombre, $nota = '') {
         ? '<div class="min-w-0 break-words first-letter:uppercase">' . htmlspecialchars($nombre) . '</div>'
         : '<div class="min-w-0 break-words text-left">'
             . '<div class="first-letter:uppercase">' . htmlspecialchars($nombre) . '</div>'
-            . '<div class="mt-0.5 flex items-center gap-1 text-[11px] normal-case text-blue-600"><i data-lucide="boxes" class="w-3 h-3 flex-shrink-0"></i><span>' . htmlspecialchars($nota) . '</span></div>'
+            . '<div class="mt-0.5 flex items-center gap-1 text-[11px] normal-case text-gray-500"><i data-lucide="' . htmlspecialchars($icono) . '" class="w-3 h-3 flex-shrink-0"></i><span>' . htmlspecialchars($nota) . '</span></div>'
         . '</div>';
 
     return '
@@ -3451,6 +3705,11 @@ function renderProductImage($foto, $nombre, $nota = '') {
             ' . $img . '
             ' . $texto . '
         </div>';
+}
+
+// Último costo de la tabla de Productos: sin costo (0) va un guion, como Mín y Máx.
+function costoCelda($costo) {
+    return (float) $costo > 0 ? '$' . number_format((float) $costo, 2) : '-';
 }
 
 // Badge del área: el color elegido en Catálogo > Área, o el automático por id

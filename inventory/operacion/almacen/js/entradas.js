@@ -39,6 +39,7 @@ class App extends Templates {
                 unidades:        r.unidades          || [],
                 proveedores:     r.proveedores       || [],
                 productos:       r.productos         || [],
+                ajustes:         r.ajustes           || {},
                 is_admin:        Number(r.is_admin || 0),
                 coffeeia:        r.coffeeia !== false
             };
@@ -778,6 +779,8 @@ class EntradasView extends Templates {
         });
 
         $('#ne_date_inflow').attr('max', hoy);
+        $('#ne_warehouse_id').on('change', () => this.syncNuevaEntradaFechaMin());
+        this.syncNuevaEntradaFechaMin();
         this.mountNuevaEntradaIconos();
         this.mountNuevaEntradaProveedor();
         this.syncNuevaEntradaTipo();
@@ -884,7 +887,7 @@ class EntradasView extends Templates {
 
         $.each(iconos, (id, icon) => {
             $('#' + id).addClass('!pl-10').before(
-                $('<span>', { class: 'pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center' })
+                $('<span>', { id: id + '_ico', class: 'pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center' })
                     .append($('<i>', { 'data-lucide': icon, class: 'w-4 h-4' }))
             );
         });
@@ -908,6 +911,12 @@ class EntradasView extends Templates {
         const tipo = (app.dataInit.origenes || []).find(o => String(o.id) === id);
         const desc = (tipo && tipo.description) || '';
 
+        // Ícono del tipo (Catálogo > Origen entradas); uno que Lucide no conoce cae a 'log-in'.
+        const lista = window.CS_ICONS;
+        const icono = (tipo && tipo.icon && (!Array.isArray(lista) || lista.includes(tipo.icon))) ? tipo.icon : 'log-in';
+        $('#ne_inflow_origin_id_ico').html($('<i>', { 'data-lucide': icono, class: 'w-4 h-4' }));
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
         $('#ne_inflow_origin_hint_text').text(desc);
         $('#ne_inflow_origin_hint').toggleClass('hidden', !desc);
 
@@ -921,6 +930,17 @@ class EntradasView extends Templates {
     syncNuevaEntradaOrigen() {
         const almacenes = this.almacenesDe($('#ne_branch_id').val());
         $('#ne_warehouse_id').empty().append(almacenes.map(a => $('<option>', { value: a.id, text: a.valor })));
+        this.syncNuevaEntradaFechaMin();
+    }
+
+    // La fecha no baja del último ajuste aplicado del almacén elegido (como en la captura,
+    // EntradaForm.syncFechaMin). verifyNuevaEntrada lo vuelve a revisar.
+    syncNuevaEntradaFechaMin() {
+        const $fecha = $('#ne_date_inflow');
+        const min    = String((app.dataInit.ajustes || {})[$('#ne_warehouse_id').val()] || '').slice(0, 10);
+
+        if (min) $fecha.attr('min', min); else $fecha.removeAttr('min');
+        if (min && $fecha.val() && $fecha.val() < min) $fecha.val(min);
     }
 
     // Almacenes activos de la sucursal, en el mismo orden que el select de la captura.
@@ -940,15 +960,28 @@ class EntradasView extends Templates {
     // Editar = abrir la orden de entrada en el mismo modal del alta, con sus datos.
     // Antes pide la contraseña de quien está en sesión.
     async openEditEntrada(id) {
-        if (!(await this.askEditPassword(id))) return;
-
         const r = await useFetch({ url: apiEntradas, data: { opc: 'getEntrada', id: id } });
         if (!(r && r.status === 200)) {
             this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo abrir la entrada' });
             return;
         }
 
-        const h        = r.header || {};
+        const h = r.header || {};
+
+        // Con un ajuste aplicado en el almacén no se edita lo anterior a su fecha (el ctrl también lo revisa).
+        const fechaEntrada = String(h.date_inflow || '').slice(0, 10);
+        const fechaAjuste  = String(h.adjustment_date || '').slice(0, 10);
+        if (fechaAjuste && fechaEntrada && fechaEntrada < fechaAjuste) {
+            this.alertBox({
+                type:       'warning',
+                title:      'Entrada bloqueada',
+                detailHtml: `El almacén tuvo un ajuste el ${moment(fechaAjuste).format('DD/MM/YYYY')}. Una entrada del ${moment(fechaEntrada).format('DD/MM/YYYY')} ya no se puede editar.`
+            });
+            return;
+        }
+
+        if (!(await this.askEditPassword(id))) return;
+
         const catalogo = app.dataInit.productos || [];
 
         this.entradaFormInstance().openEdit({
@@ -1054,6 +1087,7 @@ class EntradasView extends Templates {
                     categorias:      app.dataInit.categorias  || [],
                     unidades:        app.dataInit.unidades    || [],
                     proveedores:     app.dataInit.proveedores || [],
+                    ajustes:         app.dataInit.ajustes     || {},
                     fecha:           moment().format('YYYY-MM-DD'),
                     branch_id: curSub
                 },

@@ -8,6 +8,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 
 require_once '../mdl/mdl-traspasos.php';
 require_once '../../../conf/coffeSoft.php';
+require_once '../../../conf/_Permissions.php';
 
 class ctrl extends mdl {
 
@@ -177,7 +178,7 @@ class ctrl extends mdl {
 
         try {
             return $this->transaction(function () use ($productos, $payload, $statusReq, $totalProducts, $totalUnits, $totalCost) {
-                $folio = $this->getNextFolio('TRA-', $this->companiesId);
+                $folio = $this->nextFolio('TRA-', 'inventory_transfer', $this->companiesId, (int) $payload['origin_branch_id']);
 
                 $this->createTraspaso([
                     $folio,
@@ -359,6 +360,12 @@ function sucChipCell($branchId, $branchName, $whName, $withArrow) {
          . "<i data-lucide='store' class='w-4 h-4 {$p['icon']}'></i></div>"
          . "<div class='min-w-0'><div class='font-semibold text-gray-800 truncate leading-tight'>{$name}</div>{$wh}</div>"
          . "{$arrow}</div>";
+}
+
+// Traspasos está desactivado (sección apagada en Accesos): no responde a nadie.
+if (!Permissions::sectionOn('traspasos')) {
+    echo json_encode(['status' => 403, 'message' => 'Traspasos está desactivado']);
+    exit(0);
 }
 
 $obj = new ctrl();

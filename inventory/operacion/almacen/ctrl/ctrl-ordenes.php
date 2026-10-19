@@ -53,6 +53,9 @@ class ctrl extends mdl {
             ];
         }, $this->qProductsForTransfer([$this->companiesId]));
 
+        $almacenes = $this->lsWarehouses(['companies_id' => $this->companiesId]) ?: [];
+        $principal = current(array_filter($almacenes, function ($w) { return (int) ($w['is_main'] ?? 0) === 1; })) ?: null;
+
         return [
             'status'        => 200,
             'companies_id'  => $this->companiesId,
@@ -62,7 +65,11 @@ class ctrl extends mdl {
             // CoffeeIA de Pedidos puede eliminar: el ícono es para el administrador.
             'coffeeia'      => $this->esAdminIA() && IaOllama::activo($this),
             'sucursales'    => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
-            'almacenes'     => $this->lsWarehouses(['companies_id' => $this->companiesId]),
+            // A quién se le puede pedir: cualquier sucursal de la empresa, no solo las del
+            // usuario. Por defecto, la del almacén principal (Catálogo › Almacenes).
+            'destinos'      => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => 1]),
+            'almacenes'     => $almacenes,
+            'principal'     => $principal ? (int) $principal['branch_id'] : null,
             // Para el alta exprés de producto del formulario.
             'categorias'    => $this->lsCategorias([$this->companiesId]),
             'unidades'      => $this->lsUnidades([$this->companiesId]),
@@ -114,7 +121,7 @@ class ctrl extends mdl {
                 'Entrega para'     => $this->entregaParaCell($orden['date_order']),
                 'Solicita → Surte' => $this->rutaCell($orden),
                 'Materiales'       => (int) $orden['total_products'],
-                'Estado'           => $this->statusBadge($orden['status'])
+                'Estado'           => $this->statusBadge($orden['status']) . $this->faltaRecibi($orden, $entregas)
             ];
             // $fila['Total']      = evaluar((float) $orden['total_cost']);
             $fila['a'] = [
@@ -131,6 +138,37 @@ class ctrl extends mdl {
         }
 
         return ['status' => 200, 'row' => $__row, 'thead' => '', 'cards' => $cards];
+    }
+
+    // Pestaña Calendario: un evento por pedido en el día en que se necesita. `pide` = lo
+    // pide la sucursal del filtro; si no, se lo piden a ella (entrega).
+    function lsCalendario() {
+        $_POST += ['branch_id' => '', 'status' => '', 'fi' => date('Y-m-01'), 'ff' => date('Y-m-t')];
+
+        $sucursal = $_POST['branch_id'] !== '' ? (int) $_POST['branch_id'] : 0;
+        $eventos  = array_map(function ($o) use ($sucursal) {
+            return [
+                'id'            => (int) $o['id'],
+                'title'         => $o['branch_name'] ?: 'Sin sucursal',
+                'start'         => substr((string) $o['date_order'], 0, 10),
+                'allDay'        => true,
+                'extendedProps' => [
+                    'folio'          => $o['folio'],
+                    'status'         => $o['status'],
+                    'total_products' => (int) $o['total_products'],
+                    'surte'          => $o['destination_branch_name'] ?: '',
+                    'pide'           => !$sucursal || (int) $o['branch_id'] === $sucursal
+                ]
+            ];
+        }, $this->qOrdenesCalendario([
+            'companies_id' => $this->companiesId,
+            'branch_id'    => $sucursal,
+            'status'       => $_POST['status'],
+            'fi'           => $_POST['fi'],
+            'ff'           => $_POST['ff']
+        ]));
+
+        return ['status' => 200, 'events' => $eventos];
     }
 
     // Tarjeta del teléfono: folio, hace cuánto, estado, los dos primeros materiales y
@@ -225,13 +263,15 @@ class ctrl extends mdl {
 
     // Formulario previo de "Nuevo pedido": Solicitar a (obligatoria) y la fecha en que se
     // necesitan los insumos (sin tope hacia adelante). El almacén lo elige quien surte al aprobar.
+    // `branch_id` = a quién se le pide: cualquier sucursal activa de la empresa (las
+    // sucursales le piden material al almacén principal aunque no sea suya).
     function verifyNuevaOrden() {
         $branchId   = (int) ($_POST['branch_id'] ?? 0);
         $fecha      = trim((string) ($_POST['date_order'] ?? ''));
-        $sucursales = $this->_userBranchIds();
+        $sucursales = array_map('intval', array_column($this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => 1]) ?: [], 'id'));
 
-        if ($branchId <= 0 || ($sucursales && !in_array($branchId, $sucursales, true))) {
-            return ['status' => 400, 'message' => 'Elige una de tus sucursales'];
+        if ($branchId <= 0 || !in_array($branchId, $sucursales, true)) {
+            return ['status' => 400, 'message' => 'Elige a qué sucursal le pides'];
         }
 
         if ($fecha === '') return ['status' => 400, 'message' => 'Selecciona la fecha en que necesitas tus insumos'];
@@ -260,7 +300,9 @@ class ctrl extends mdl {
 
         $submit = !empty($payload['submit']);
         $status = $submit ? 'Solicitada' : 'Borrador';
-        $folio  = $this->nextFolio('OC-', 'purchase_order', $this->companiesId);
+        // El folio es de la serie de la sucursal que pide.
+        $branchId = (int) ($payload['branch_id'] ?? $this->branchId);
+        $folio    = $this->nextFolio('OC-', 'purchase_order', $this->companiesId, $branchId);
 
         // El costo con impuesto es el pivote; la base sin impuesto se deriva.
         // Si el solicitante no manda costo, los campos de costo quedan null.
@@ -305,7 +347,7 @@ class ctrl extends mdl {
         $ok = $this->insertOrden([
             $folio,
             !empty($payload['supplier_id'])   ? (int) $payload['supplier_id']   : null,
-            (int) ($payload['branch_id']       ?? $this->branchId),
+            $branchId,
             !empty($payload['destination_branch_id']) ? (int) $payload['destination_branch_id'] : null,
             !empty($payload['warehouse_id'])  ? (int) $payload['warehouse_id']  : null,
             !empty($payload['date_order'])    ? $payload['date_order']           : date('Y-m-d'),
@@ -716,7 +758,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'No hay cantidades válidas a recibir o todos los renglones ya están completos'];
         }
 
-        $entFolio = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId);
+        $entFolio = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId, (int) $header['branch_id']);
         $note     = trim($_POST['note']) ?: 'Recepción de OC ' . $header['folio'];
 
         $totalProds = count($toReceive);
@@ -892,6 +934,14 @@ class ctrl extends mdl {
         $interSucursal = $dest > 0 && $dest !== $orig;
         if (!$interSucursal || $this->branchId <= 0) return true;
         return $this->branchId === $dest;
+    }
+
+    // Bajo el estado: lo surtido ya entró, pero quien pidió no ha dicho «Recibí».
+    private function faltaRecibi($orden, $entregas) {
+        if ((int) ($orden['surtidos_por_recibir'] ?? 0) === 0) return '';
+
+        $texto = $entregas ? 'Sin «Recibí»' : 'Falta tu «Recibí»';
+        return "<p class='text-[10px] font-semibold text-amber-600 mt-0.5 whitespace-nowrap'>{$texto}</p>";
     }
 
     private function statusBadge($status) {
@@ -1078,8 +1128,12 @@ class ctrl extends mdl {
     // llama (fulfillOrden o approveOrden). `$items` = {renglón: cantidad a entregar}.
     // Sin `$conReabasto` también se entrega todo lo marcado (el stock queda en negativo),
     // pero no se genera la orden de reabasto.
+    // Si el almacén tiene apagado «Surtir pedidos mueve inventario» (Catálogo › Almacenes) y el
+    // pedido es de otra sucursal, solo se marca lo entregado: sin SI-, sin ENT- y sin REAB-.
     private function surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, $note, $conReabasto = true) {
         if (empty($header['warehouse_id'])) $this->updateOrdenWarehouse([$warehouseId, $id]);
+
+        $mueve = !$this->esInterSucursal($header) || $this->qMueveInventario([$warehouseId]);
 
         // Se surte el pendiente completo aunque el stock no alcance: el almacen
         // queda en deficit (negativo) y el faltante (qtyNow - disponible) genera una
@@ -1110,12 +1164,15 @@ class ctrl extends mdl {
             $stockCache[$pid]['qty'] = $post;
 
             $faltante = $qtyNow - $avail;          // lo que no se tenia -> a comprar
-            if ($conReabasto && $faltante > 0) $faltantes[] = ['detail' => $renglon, 'qty' => $faltante];
+            if ($conReabasto && $mueve && $faltante > 0) $faltantes[] = ['detail' => $renglon, 'qty' => $faltante];
 
             $toSupply[] = [
                 'detail_row_id' => (int) $renglon['id'],
                 'product_id'    => $pid,
+                'unit_id'       => $renglon['unit_id'] ?: null,
                 'cost'          => $renglon['cost'] !== null ? (float) $renglon['cost'] : 0.0,
+                'base'          => $renglon['price_without_tax'] !== null ? (float) $renglon['price_without_tax'] : 0.0,
+                'tax'           => $renglon['tax'] !== null ? (float) $renglon['tax'] : 0.0,
                 'qty'           => $qtyNow,
                 'prev'          => $prev,
                 'post'          => $post,
@@ -1130,40 +1187,52 @@ class ctrl extends mdl {
             throw new Exception('Elige la fecha compromiso del reabasto');
         }
 
-        $siFolio  = $this->nextFolio('SI-', 'inventory_shrinkage', $this->companiesId);
-        $totProds = count($toSupply);
-        $totUnits = 0;
-        $totCost  = 0.0;
-        foreach ($toSupply as $linea) {
-            $totUnits += $linea['qty'];
-            $totCost  += $linea['qty'] * $linea['cost'];
-        }
+        $siFolio   = null;
+        $entrada   = null;
+        $reabFolio = null;
+        $totProds  = count($toSupply);
 
-        $this->insertShrinkageFromOrden([
-            $siFolio, $note, $totProds, $totUnits, $totCost,
-            'Aplicada', $reasonId, $warehouseId,
-            $header['branch_id'], $this->userId, $this->companiesId, date('Y-m-d'), $id
-        ]);
-        $shrRow = $this->_Read(
-            "SELECT id FROM {$this->bd}inventory_shrinkage WHERE folio = ? AND companies_id = ? LIMIT 1",
-            [$siFolio, $this->companiesId]
-        );
-        $shrId = (int) ($shrRow[0]['id'] ?? 0);
-        if ($shrId <= 0) throw new Exception('No se pudo generar la salida de surtido');
+        if (!$mueve) {
+            foreach ($toSupply as $linea) $this->updateDetailReceived([$linea['qty'], $linea['detail_row_id']]);
+        } else {
+            // La serie es la de la sucursal con que se guarda la salida (branch_id del pedido).
+            $siFolio  = $this->nextFolio('SI-', 'inventory_shrinkage', $this->companiesId, (int) $header['branch_id']);
+            $totUnits = 0;
+            $totCost  = 0.0;
+            foreach ($toSupply as $linea) {
+                $totUnits += $linea['qty'];
+                $totCost  += $linea['qty'] * $linea['cost'];
+            }
 
-        foreach ($toSupply as $linea) {
-            $this->insertShrinkageDetail([
-                $linea['qty'], $linea['cost'], $linea['qty'] * $linea['cost'], $linea['prev'], $linea['post'], $linea['product_id'], $shrId
+            $this->insertShrinkageFromOrden([
+                $siFolio, $note, $totProds, $totUnits, $totCost,
+                'Aplicada', $reasonId, $warehouseId,
+                $header['branch_id'], $this->userId, $this->companiesId, date('Y-m-d'), $id
             ]);
-            // Si el producto no tenia fila de stock en el almacen, se crea con el
-            // valor resultante (que puede ser negativo: refleja el deficit a cubrir).
-            if ($linea['stock_id'] > 0) $this->updateStockQuantity([$linea['post'], $linea['stock_id']]);
-            else                        $this->insertStockRow([$linea['post'], $warehouseId, $linea['product_id'], $this->companiesId]);
-            $this->updateDetailReceived([$linea['qty'], $linea['detail_row_id']]);
-        }
+            $shrRow = $this->_Read(
+                "SELECT id FROM {$this->bd}inventory_shrinkage WHERE folio = ? AND companies_id = ? LIMIT 1",
+                [$siFolio, $this->companiesId]
+            );
+            $shrId = (int) ($shrRow[0]['id'] ?? 0);
+            if ($shrId <= 0) throw new Exception('No se pudo generar la salida de surtido');
 
-        // El faltante genera una OC de reabasto pendiente (la compra a registrar).
-        $reabFolio = $this->createReabastoOrden($header, $warehouseId, $faltantes, $compromiso);
+            foreach ($toSupply as $linea) {
+                $this->insertShrinkageDetail([
+                    $linea['qty'], $linea['cost'], $linea['qty'] * $linea['cost'], $linea['prev'], $linea['post'], $linea['product_id'], $shrId
+                ]);
+                // Si el producto no tenia fila de stock en el almacen, se crea con el
+                // valor resultante (que puede ser negativo: refleja el deficit a cubrir).
+                if ($linea['stock_id'] > 0) $this->updateStockQuantity([$linea['post'], $linea['stock_id']]);
+                else                        $this->insertStockRow([$linea['post'], $warehouseId, $linea['product_id'], $this->companiesId]);
+                $this->updateDetailReceived([$linea['qty'], $linea['detail_row_id']]);
+            }
+
+            // Lo que sale de una sucursal entra al almacén de la que pidió (ENT-).
+            $entrada = $this->esInterSucursal($header) ? $this->entradaSurtido($id, $header, $toSupply) : null;
+
+            // El faltante genera una OC de reabasto pendiente (la compra a registrar).
+            $reabFolio = $this->createReabastoOrden($header, $warehouseId, $faltantes, $compromiso);
+        }
 
         $detailUpdated = $this->qGetOrdenDetail([$id]);
         $allDone = true;
@@ -1175,7 +1244,10 @@ class ctrl extends mdl {
         $newStatus = $allDone ? 'Recibida' : ($anyDone ? 'Parcial' : $header['status']);
         $this->updateOrdenStatus([$newStatus, $id]);
 
-        $msg = "Surtido registrado: salida {$siFolio}, {$totProds} materiales.";
+        $msg = $mueve
+            ? "Surtido registrado: salida {$siFolio}, {$totProds} materiales."
+            : "Surtido registrado sin mover inventario, {$totProds} materiales: el almacén tiene apagado «Surtir pedidos mueve inventario» (Catálogo › Almacenes).";
+        if ($entrada)   $msg .= " Entró al {$entrada['almacen']} de {$header['branch_name']} con la entrada {$entrada['folio']}.";
         if ($reabFolio) $msg .= " Se generó la orden de reabasto {$reabFolio} (pendiente de compra).";
         $msg .= " Solicitud ahora {$newStatus}.";
 
@@ -1183,9 +1255,106 @@ class ctrl extends mdl {
             'status'         => 200,
             'message'        => $msg,
             'salida_folio'   => $siFolio,
+            'entrada_folio'  => $entrada ? $entrada['folio'] : null,
             'reabasto_folio' => $reabFolio,
             'orden_status'   => $newStatus
         ];
+    }
+
+    private function esInterSucursal($header) {
+        $dest = (int) ($header['destination_branch_id'] ?? 0);
+        return $dest > 0 && $dest !== (int) ($header['branch_id'] ?? 0);
+    }
+
+    // Entrada ENT- (origen SURTIDO_SUC, ya aplicada) en el almacén de la sucursal que pidió,
+    // con lo que acaba de salir en la SI-. No toca el último costo del producto: no es una
+    // compra. El pedido vuelve a quedar por confirmar con «Recibí». Va dentro de la
+    // transacción de surtir().
+    private function entradaSurtido($id, $header, $lineas) {
+        $almacen = $this->qAlmacenSucursal([(int) $header['branch_id'], $this->companiesId]);
+        if (!$almacen) throw new Exception("{$header['branch_name']} no tiene almacén activo: dale uno en Catálogo › Almacenes para que le entre lo surtido");
+
+        $originId = $this->getInflowOriginId(['SURTIDO_SUC', $this->companiesId]);
+        if (!$originId) throw new Exception('Falta configurar el origen de entrada (SURTIDO_SUC)');
+
+        $almacenId = (int) $almacen['id'];
+        $folio     = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId, (int) $header['branch_id']);
+        $unidades  = 0;
+        $costo     = 0.0;
+        $base      = 0.0;
+        foreach ($lineas as $linea) {
+            $unidades += $linea['qty'];
+            $costo    += $linea['qty'] * $linea['cost'];
+            $base     += $linea['qty'] * $linea['base'];
+        }
+
+        $this->insertInflowFromOrden([
+            $folio, 'Surtido del pedido ' . $header['folio'] . ' por ' . ($header['destination_branch_name'] ?: 'otra sucursal'),
+            count($lineas), $unidades, $costo, $base, 'Aplicada',
+            $originId, $almacenId, null,
+            $header['branch_id'], $this->userId, $this->companiesId, date('Y-m-d'), $id
+        ]);
+        $fila     = $this->_Read("SELECT id FROM {$this->bd}inventory_inflow WHERE folio = ? AND companies_id = ? LIMIT 1", [$folio, $this->companiesId]);
+        $inflowId = (int) ($fila[0]['id'] ?? 0);
+        if ($inflowId <= 0) throw new Exception('No se pudo generar la entrada a la sucursal que pidió');
+
+        // Un mismo producto puede venir en dos renglones: el stock se lleva en memoria.
+        $stock = [];
+        foreach ($lineas as $linea) {
+            $pid = $linea['product_id'];
+            if (!isset($stock[$pid])) {
+                $sr = $this->getStockRow([$pid, $almacenId]);
+                $stock[$pid] = ['id' => $sr ? (int) $sr['id'] : 0, 'qty' => $sr ? (float) $sr['quantity'] : 0.0];
+            }
+
+            $prev = $stock[$pid]['qty'];
+            $post = $prev + $linea['qty'];
+
+            $this->insertInflowDetail([
+                $linea['qty'], $linea['cost'], $linea['qty'] * $linea['cost'], $linea['base'], $linea['tax'],
+                $prev, $post, $pid, $inflowId, $linea['unit_id']
+            ]);
+
+            if ($stock[$pid]['id'] > 0) {
+                $this->updateStockQuantity([$post, $stock[$pid]['id']]);
+            } else {
+                $this->insertStockRow([$post, $almacenId, $pid, $this->companiesId]);
+                $sr = $this->getStockRow([$pid, $almacenId]);
+                $stock[$pid]['id'] = $sr ? (int) $sr['id'] : 0;
+            }
+            $stock[$pid]['qty'] = $post;
+        }
+
+        $this->updateOrdenRecibi([null, $id]);
+
+        return ['folio' => $folio, 'almacen' => $almacen['name']];
+    }
+
+    // «Recibí»: la sucursal que pidió confirma que le llegó lo surtido. La entrada ENT- ya
+    // sumó a su almacén al surtirse; esto deja quién lo recibió y cuándo (en el pedido y en
+    // la entrada, que en Entradas muestra «Confirmó»).
+    function confirmRecepcion() {
+        $id     = (int) $_POST['id'];
+        $header = $this->qGetOrden([$id]);
+
+        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if ((int) $header['surtidos_por_recibir'] === 0) {
+            return ['status' => 400, 'message' => 'Este pedido no tiene un surtido por confirmar'];
+        }
+        if ($this->branchId > 0 && $this->branchId !== (int) $header['branch_id']) {
+            return ['status' => 403, 'message' => 'Solo la sucursal que hizo el pedido confirma que lo recibió'];
+        }
+
+        try {
+            $this->transaction(function () use ($id) {
+                if (!$this->confirmEntradasSurtido([$this->userId, $id, $this->companiesId])) throw new Exception('No se pudo confirmar la entrada');
+                if (!$this->updateOrdenRecibi([$this->userId, $id])) throw new Exception('No se pudo guardar el «Recibí»');
+            });
+        } catch (\Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo confirmar: ' . $e->getMessage()];
+        }
+
+        return ['status' => 200, 'message' => "Recepción confirmada. Lo surtido ya está en tu almacén ({$header['entradas_surtido']})."];
     }
 
     // El renglón con el producto que de verdad sale del almacén: el que se entrega en lugar
@@ -1227,7 +1396,7 @@ class ctrl extends mdl {
     private function createReabastoOrden($header, $warehouseId, $faltantes, $compromiso = '') {
         if (empty($faltantes)) return null;
 
-        $folio    = $this->nextFolio('REAB-', 'purchase_order', $this->companiesId);
+        $folio    = $this->nextFolio('REAB-', 'purchase_order', $this->companiesId, (int) $header['branch_id']);
         $totProds = count($faltantes);
         $totUnits = 0;
         $totCost  = 0.0;
@@ -1301,7 +1470,7 @@ class ctrl extends mdl {
     // ejecutan, el hilo queda en sesión y el chat vuelve a llamar con `turno` (así enseña
     // cada paso mientras trabaja). Eliminar sigue detrás de la vista previa y la
     // contraseña: borra el pedido de verdad con lo que movió (deletePedidoFullById), y
-    // al quedar la serie vacía el folio vuelve a OC-0001.
+    // al quedar vacía la serie de la sucursal su folio vuelve a OC-{clave}-0001.
     const IA_MAX_PEDIDOS = 100;
     const IA_MAX_LISTA   = 60;
     const IA_MAX_RONDAS  = 8;
@@ -1455,14 +1624,24 @@ class ctrl extends mdl {
         if ($borrado['movimientos']) $message .= ' También borré ' . implode(', ', $borrado['movimientos']) . ' y regresé su stock.';
         if ($faltan > 0)             $message .= $faltan === 1 ? ' 1 ya no estaba en la lista.' : " {$faltan} ya no estaban en la lista.";
 
-        $message .= ' Siguientes folios: ' . $this->nextFolio('OC-', 'purchase_order', $this->companiesId)
-                  . ' y ' . $this->nextFolio('REAB-', 'purchase_order', $this->companiesId) . '.';
+        // Cada sucursal lleva su serie: el siguiente de cada una de las que se tocaron.
+        $siguientes = [];
+        foreach (array_unique(array_map('intval', array_column($vigentes, 'branch_id'))) as $b) {
+            $siguientes[] = $this->nextFolio('OC-', 'purchase_order', $this->companiesId, $b);
+            $siguientes[] = $this->nextFolio('REAB-', 'purchase_order', $this->companiesId, $b);
+        }
+        $message .= ' Siguientes folios: ' . implode(', ', $siguientes) . '.';
 
         return [
             'status'  => 200,
             'message' => $message,
             'data'    => ['folios' => $folios]
         ];
+    }
+
+    // Folio con el que la serie de la sucursal de sesión vuelve a empezar.
+    private function primerFolioPedido($prefix = 'OC-') {
+        return $prefix . $this->claveFolio($this->branchId, $this->companiesId) . '-0001';
     }
 
     private function esAdminIA() {
@@ -1477,7 +1656,7 @@ class ctrl extends mdl {
 
         $sistema = implode("\n", [
             'Eres CoffeeIA, el asistente del módulo Pedidos del almacén. Hablas español, claro y en frases cortas.',
-            'Un pedido (también "solicitud" de materiales) es lo que una sucursal le pide al almacén de otra sucursal o de la suya. Folios: OC-0007 es un pedido; REAB-0002 es un reabasto (la compra que se genera por lo que faltó al surtir). Si dicen "el pedido 7", es OC-0007.',
+            'Un pedido (también "solicitud" de materiales) es lo que una sucursal le pide al almacén de otra sucursal o de la suya. Folios: OC-KAF-0007 es un pedido; REAB-KAF-0002 es un reabasto (la compra que se genera por lo que faltó al surtir). KAF es la clave de la sucursal que pide: cada sucursal tiene su propia serie. Si dicen "el pedido 7", es el 7 de la sucursal en la que está la persona (' . $this->claveFolio($this->branchId, $this->companiesId) . ').',
             'Estados: Borrador, Solicitada (enviada, espera aprobación), Aprobada, Parcial (surtida en parte), Recibida (surtida completa), Rechazada, Cancelada.',
             '',
             '== CÓMO TRABAJAS ==',
@@ -1494,11 +1673,12 @@ class ctrl extends mdl {
             '- Crear, aprobar, surtir o cancelar no se hace aquí: es en la pantalla de Pedidos.',
             '',
             '== REINICIAR FOLIOS ==',
-            '- Si piden reiniciar los folios (que el siguiente vuelva a OC-0001), usa proponer_reiniciar: arma la vista previa con TODOS los pedidos y reabastos, también los ocultos. El folio solo vuelve a empezar si se eliminan todos.',
+            '- Si piden reiniciar los folios (que el siguiente vuelva a ' . $this->primerFolioPedido() . '), usa proponer_reiniciar: arma la vista previa con TODOS los pedidos y reabastos de la sucursal en la que está la persona, también los ocultos. El folio solo vuelve a empezar si se eliminan todos.',
             '- Es lo más delicado que haces: di cuántos pedidos son y cuántos ya movieron inventario, y que revise la vista previa.',
             '',
             '== CÓMO RESPONDES ==',
-            '- Texto plano, sin markdown (nada de **, # ni tablas). Listas con guiones.',
+            '- Texto plano: sin # y sin tablas. Listas con guiones.',
+            '- Remarca con **negritas** los datos clave: folios, cantidades, sucursales y lo que la persona tiene que hacer. Solo eso: si todo va en negritas, nada resalta.',
             '- Si propusiste eliminar, di cuántos y por qué, y que revise la vista previa.',
             '',
             '== DATOS ==',
@@ -1535,7 +1715,8 @@ class ctrl extends mdl {
             ];
         };
 
-        $folios = ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Folios, ej. ["OC-0003", "REAB-0002"]. "7" = OC-0007.'];
+        $clave  = $this->claveFolio($this->branchId, $this->companiesId);
+        $folios = ['type' => 'array', 'items' => ['type' => 'string'], 'description' => "Folios completos, ej. [\"OC-{$clave}-0003\", \"REAB-{$clave}-0002\"]. \"7\" = OC-{$clave}-0007."];
 
         return [
             $fn('buscar_pedidos', 'Busca pedidos activos. Todos los filtros son opcionales; sin filtros trae los más recientes. Devuelve el total y hasta ' . self::IA_MAX_LISTA . ' pedidos con folio, estado, fecha, sucursal que pide y que surte, materiales, nota, quién lo capturó y si ya surtió material.', [
@@ -1552,13 +1733,13 @@ class ctrl extends mdl {
                 'ocultos'     => ['type' => 'boolean', 'description' => 'true = también los ocultos (eliminados antes, siguen contando para el folio)']
             ]),
             $fn('ver_pedido', 'Abre un pedido: estado, fechas, sucursales, almacén, quién lo capturó y lo aprobó, notas, motivo de rechazo, fecha compromiso y sus renglones (material, unidad, pedido, entregado, nota).', [
-                'folio' => ['type' => 'string', 'description' => 'Folio del pedido, ej. OC-0009']
+                'folio' => ['type' => 'string', 'description' => "Folio del pedido, ej. OC-{$clave}-0009"]
             ], ['folio']),
-            $fn('resumen_pedidos', 'Cuenta los pedidos activos por estado y por sucursal que pide, cuántos ya surtieron material, cuántos ocultos hay y cuáles serán los siguientes folios.'),
+            $fn('resumen_pedidos', 'Cuenta los pedidos activos por estado y por sucursal que pide, cuántos ya surtieron material, cuántos ocultos hay y cuáles serán los siguientes folios de la sucursal en la que está la persona.'),
             $fn('proponer_eliminar', 'Arma la vista previa para ELIMINAR esos pedidos (máximo ' . self::IA_MAX_PEDIDOS . '), activos u ocultos. Úsala solo si la persona pidió eliminar. No elimina: la persona marca y confirma con su contraseña. Llamarla otra vez reemplaza la propuesta anterior.', [
                 'folios' => $folios
             ], ['folios']),
-            $fn('proponer_reiniciar', 'Arma la vista previa para REINICIAR LOS FOLIOS: todos los pedidos y reabastos de la empresa, también los ocultos, para que el siguiente sea OC-0001 y REAB-0001. Úsala solo si la persona pidió reiniciar los folios. No elimina: la persona confirma con su contraseña.')
+            $fn('proponer_reiniciar', "Arma la vista previa para REINICIAR LOS FOLIOS de la sucursal en la que está la persona: todos sus pedidos y reabastos, también los ocultos, para que el siguiente sea OC-{$clave}-0001 y REAB-{$clave}-0001. Úsala solo si la persona pidió reiniciar los folios. No elimina: la persona confirma con su contraseña.")
         ];
     }
 
@@ -1633,15 +1814,15 @@ class ctrl extends mdl {
                         'por_sucursal'       => $porSucursal,
                         'surtieron'          => count(array_filter($activos, function ($p) { return (int) $p['movido'] > 0; })),
                         'ocultos'            => count($todos) - count($activos),
-                        'siguiente_pedido'   => $this->nextFolio('OC-', 'purchase_order', $this->companiesId),
-                        'siguiente_reabasto' => $this->nextFolio('REAB-', 'purchase_order', $this->companiesId)
+                        'siguiente_pedido'   => $this->nextFolio('OC-', 'purchase_order', $this->companiesId, $this->branchId),
+                        'siguiente_reabasto' => $this->nextFolio('REAB-', 'purchase_order', $this->companiesId, $this->branchId)
                     ],
                     'paso' => 'Contando pedidos'
                 ];
 
             case 'proponer_eliminar':
                 $pedidos = $this->filtroPedidoIA(['folios' => $args['folios'] ?? []], $sucursales)['folios'] ?? [];
-                if (!$pedidos) return ['resultado' => ['error' => 'Dame folios válidos, ej. OC-0003.'], 'paso' => 'Preparando la vista previa'];
+                if (!$pedidos) return ['resultado' => ['error' => 'Dame folios válidos, ej. ' . $this->primerFolioPedido() . '.'], 'paso' => 'Preparando la vista previa'];
 
                 $hallados          = $this->qPedidosIA($alcance + ['folios' => $pedidos, 'ocultos' => true]);
                 $folios            = array_column($hallados, 'folio');
@@ -1659,19 +1840,10 @@ class ctrl extends mdl {
                     'paso' => 'Preparando la vista previa · ' . (count($folios) === 1 ? '1 pedido' : count($folios) . ' pedidos')
                 ];
 
-            // La serie es de la empresa: si hay pedidos de sucursales que no maneja,
-            // borrar solo los suyos no regresaría el folio a OC-0001.
+            // La serie es de la sucursal que pide: se reinicia la de la sucursal de sesión.
             case 'proponer_reiniciar':
-                $ajenos = $alcance['branch_ids'] ? $this->getPedidosAjenosCount($alcance) : 0;
-                if ($ajenos > 0) {
-                    return [
-                        'resultado' => ['error' => "No se puede: hay {$ajenos} pedidos de sucursales que esta persona no maneja. Los folios solo vuelven a empezar si se eliminan todos; eso lo hace el dueño."],
-                        'paso'      => 'Revisando la serie de folios'
-                    ];
-                }
-
-                $todos = $this->qPedidosIA($alcance + ['ocultos' => true]);
-                if (!$todos) return ['resultado' => ['error' => 'No hay pedidos: el siguiente folio ya es ' . $this->nextFolio('OC-', 'purchase_order', $this->companiesId) . '.'], 'paso' => 'Revisando la serie de folios'];
+                $todos = $this->qPedidosIA($alcance + ['branch' => $this->branchId, 'ocultos' => true]);
+                if (!$todos) return ['resultado' => ['error' => 'No hay pedidos de esta sucursal: el siguiente folio ya es ' . $this->primerFolioPedido() . '.'], 'paso' => 'Revisando la serie de folios'];
 
                 if (count($todos) > self::IA_MAX_PEDIDOS) {
                     return ['resultado' => ['error' => 'Son ' . count($todos) . ' pedidos; de una vez solo puedo ' . self::IA_MAX_PEDIDOS . '. Propón eliminar por partes.'], 'paso' => 'Revisando la serie de folios'];
@@ -1685,7 +1857,7 @@ class ctrl extends mdl {
                         'en_vista_previa' => count($todos),
                         'ocultos'         => count(array_filter($todos, function ($p) { return (int) $p['active'] === 0; })),
                         'ya_surtieron'    => array_column(array_filter($todos, function ($p) { return (int) $p['movido'] > 0; }), 'folio'),
-                        'nota'            => 'La persona verá la vista previa cuando termines tu respuesta. Si los elimina todos, el siguiente folio será OC-0001. No digas que ya se eliminaron.'
+                        'nota'            => 'La persona verá la vista previa cuando termines tu respuesta. Si los elimina todos, el siguiente folio será ' . $this->primerFolioPedido() . '. No digas que ya se eliminaron.'
                     ],
                     'paso' => 'Preparando el reinicio · ' . (count($todos) === 1 ? '1 pedido' : count($todos) . ' pedidos')
                 ];
@@ -1718,11 +1890,14 @@ class ctrl extends mdl {
         $f      = [];
         $folios = [];
 
+        // OC-KAF-0007 tal cual; sin clave ("7", "REAB-2") es de la sucursal de sesión.
+        $clave = $this->claveFolio($this->branchId, $this->companiesId);
         foreach ((array) ($s['folios'] ?? []) as $v) {
             $v = strtoupper(preg_replace('/\s+/', '', $this->textoPedidoIA($v)));
 
-            if (preg_match('/^(OC|REAB)-?(\d+)$/', $v, $m)) $folios[] = $m[1] . '-' . str_pad((string) (int) $m[2], 4, '0', STR_PAD_LEFT);
-            elseif (preg_match('/^\d+$/', $v))              $folios[] = 'OC-' . str_pad((string) (int) $v, 4, '0', STR_PAD_LEFT);
+            if (preg_match('/^(OC|REAB)-([A-Z0-9]+)-(\d+)$/', $v, $m) || preg_match('/^(OC|REAB)?-?()(\d+)$/', $v, $m)) {
+                $folios[] = ($m[1] ?: 'OC') . '-' . ($m[2] !== '' ? $m[2] : $clave) . '-' . str_pad((string) (int) $m[3], 4, '0', STR_PAD_LEFT);
+            }
         }
         if ($folios) $f['folios'] = array_slice(array_values(array_unique($folios)), 0, self::IA_MAX_PEDIDOS);
 

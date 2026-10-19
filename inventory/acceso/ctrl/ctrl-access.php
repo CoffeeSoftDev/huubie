@@ -758,6 +758,11 @@ class Access extends MAccess {
     }
 }
 
+// Las consultas de la barra y el menú lateral solo leen la sesión: la sueltan desde ya.
+// PHP la deja bloqueada mientras corre la petición y las demás que la página lanza al
+// mismo tiempo (el init del módulo, los avisos) esperaban formadas detrás.
+if (in_array($opc, ['company', 'themes', 'branches', 'menu', 'lsAvisos'], true)) session_write_close();
+
 $obj    = new Access();
 $result = $obj->$opc();
 echo json_encode($result);
