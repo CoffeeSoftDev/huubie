@@ -1137,22 +1137,23 @@ class ctrl extends mdl {
         ];
     }
 
-    // Un área va en un almacén de la sucursal; el administrador, en cualquiera. null si puede.
+    // Un área va en un almacén de sus sucursales; el administrador, en cualquiera. null si puede.
     private function almacenAjenoCatalogo($warehouseId) {
         if ($this->esAdministrador()) return null;
 
         $almacen = $this->getWarehouseById([(int) $warehouseId]);
-        if ($almacen && (int) $almacen['branch_id'] === (int) ($_SESSION['branch_id'] ?? 0)) return null;
+        if ($almacen && $this->esDeMisSucursales($almacen['branch_id'])) return null;
 
         return ['status' => 403, 'message' => 'Ese almacén no es de tu sucursal'];
     }
 
-    // Quien no es administrador da de alta y edita almacenes solo de su sucursal, y no
-    // decide cuál es el principal (eso cambia quién es Matriz para toda la empresa).
+    // Quien no es administrador da de alta y edita almacenes solo de sus sucursales (la de
+    // la sesión si manda otra), y no decide cuál es el principal (eso cambia quién es
+    // Matriz para toda la empresa).
     private function almacenDeSuSucursal() {
         if ($this->esAdministrador()) return;
 
-        $_POST['branch_id'] = (int) ($_SESSION['branch_id'] ?? 0);
+        $_POST['branch_id'] = $this->sucursalPropiaElegida('branch_id');
         unset($_POST['is_main']);
     }
 
@@ -1413,14 +1414,14 @@ class ctrl extends mdl {
     }
 
     // Catalogos auxiliares para selects de formularios
-    // Select «Sucursal» del almacén: el administrador elige cualquiera; los demás, solo la suya.
+    // Select «Sucursal» del almacén: el administrador elige cualquiera; los demás, las suyas.
     function lsBranchesSelect() {
         $companyId  = $_SESSION['company_id'] ?? 0;
         $sucursales = $this->listBranchesSelect([$companyId]) ?: [];
 
         if (!$this->esAdministrador()) {
             $sucursales = array_values(array_filter($sucursales, function ($b) {
-                return (int) $b['id'] === (int) ($_SESSION['branch_id'] ?? 0);
+                return $this->esDeMisSucursales($b['id']);
             }));
         }
 

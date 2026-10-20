@@ -118,17 +118,24 @@ trait VisibilidadProductos {
     // elija en el selector de su pestaña (`$clave` del POST; '' = todas). Lo que no tiene
     // sucursal (empresa sin almacén principal) lo ven todas.
 
-    // null = todas (solo el administrador).
+    // null = todas (solo el administrador). Quien tiene varias sucursales elige una de las
+    // suyas en el selector; sin elegir, la de la sesión.
     function sucursalDeCatalogo($clave = null) {
-        if (!$this->esAdministrador()) return (int) ($_SESSION['branch_id'] ?? 0);
+        if (!$this->esAdministrador()) {
+            return $clave === null ? (int) ($_SESSION['branch_id'] ?? 0) : $this->sucursalPropiaElegida($clave);
+        }
 
         $elegida = $clave !== null ? (string) ($_POST[$clave] ?? '') : '';
         return $elegida === '' ? null : (int) $elegida;
     }
 
     function filtroCatalogoSucursal($alias, $clave = null) {
-        $suya = $this->sucursalDeCatalogo($clave);
-        return $suya === null ? '' : " AND ({$alias}.branch_id = {$suya} OR {$alias}.branch_id IS NULL)";
+        return $this->filtroCatalogoDe($alias, $this->sucursalDeCatalogo($clave));
+    }
+
+    // Lo de una sucursal fija (null = sin filtro).
+    function filtroCatalogoDe($alias, $suya) {
+        return $suya === null ? '' : " AND ({$alias}.branch_id = " . (int) $suya . " OR {$alias}.branch_id IS NULL)";
     }
 
     // A quién le nace lo que se da de alta: la sucursal elegida por el administrador o la
@@ -139,8 +146,53 @@ trait VisibilidadProductos {
 
     // Las áreas cuelgan de su almacén: las de los almacenes de esa sucursal.
     function filtroAreasCatalogo($alias, $clave = null) {
-        $suya = $this->sucursalDeCatalogo($clave);
-        return $suya === null ? '' : " AND ({$alias}.warehouse_id IN (SELECT id FROM {$this->bd}warehouse WHERE branch_id = {$suya}) OR {$alias}.warehouse_id IS NULL)";
+        return $this->filtroAreasDe($alias, $this->sucursalDeCatalogo($clave));
+    }
+
+    function filtroAreasDe($alias, $suya) {
+        return $suya === null ? '' : " AND ({$alias}.warehouse_id IN (SELECT id FROM {$this->bd}warehouse WHERE branch_id = " . (int) $suya . ") OR {$alias}.warehouse_id IS NULL)";
+    }
+
+    // -- Selector de quien tiene varias sucursales (19/10/2026) --
+    // Quien no es administrador pero tiene asignada más de una sucursal (users_braches) ve
+    // en Catálogo el selector con las suyas, sin «Todas»: consulta, da de alta y edita en
+    // la que elija. La de la sesión siempre cuenta como suya.
+
+    private $misSucursales = null;
+
+    // [id, valor] de sus sucursales activas; Matriz primero.
+    function misSucursales() {
+        if ($this->misSucursales === null) {
+            $r = $this->_Read("
+                SELECT b.id, b.name AS valor
+                FROM fayxzvov_erp.branches b
+                WHERE b.company_id = ? AND b.is_active = 1
+                  AND (b.id = ? OR b.id IN (SELECT branch_id FROM fayxzvov_erp.users_braches WHERE user_id = ?))
+                ORDER BY b.id IN (SELECT branch_id FROM {$this->bd}warehouse WHERE is_main = 1 AND active = 1) DESC, b.name ASC
+            ", [(int) ($_SESSION['company_id'] ?? 0), (int) ($_SESSION['branch_id'] ?? 0), (int) ($_SESSION['user_id'] ?? 0)]);
+
+            $this->misSucursales = is_array($r) ? $r : [];
+        }
+
+        return $this->misSucursales;
+    }
+
+    function esDeMisSucursales($branchId) {
+        return in_array((int) $branchId, array_map('intval', array_column($this->misSucursales(), 'id')), true);
+    }
+
+    // La que mandó el selector `$clave` si es una de las suyas; si no, la de la sesión.
+    function sucursalPropiaElegida($clave) {
+        $elegida = (int) ($_POST[$clave] ?? 0);
+        return $elegida && $this->esDeMisSucursales($elegida) ? $elegida : (int) ($_SESSION['branch_id'] ?? 0);
+    }
+
+    // Condición sobre el alias: lo de sus sucursales. '' para el administrador.
+    function filtroMisSucursales($alias, $columna = 'branch_id') {
+        if ($this->esAdministrador()) return '';
+
+        $ids = array_map('intval', array_column($this->misSucursales(), 'id')) ?: [(int) ($_SESSION['branch_id'] ?? 0)];
+        return " AND {$alias}.{$columna} IN (" . implode(',', $ids) . ")";
     }
 
     // ¿La categoría es de esa sucursal (o de toda la empresa)? Al mover un producto de

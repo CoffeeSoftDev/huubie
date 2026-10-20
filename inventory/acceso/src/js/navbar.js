@@ -409,6 +409,23 @@ class Navbar {
             .nav-notif-dot { width:8px; height:8px; border-radius:9999px; background:#22C55E; flex-shrink:0; margin-top:6px; }
             @keyframes nav-ring { 0%, 100% { transform:rotate(0); } 15% { transform:rotate(14deg); } 30% { transform:rotate(-12deg); } 45% { transform:rotate(9deg); } 60% { transform:rotate(-6deg); } 75% { transform:rotate(3deg); } }
             .nav-ring svg { animation:nav-ring .9s ease; transform-origin:50% 3px; }
+            .nav-limpiar { border:none; cursor:pointer; font-size:11px; font-weight:600; color:var(--nav-accent); background:var(--nav-accent-tint); border-radius:8px; padding:4px 10px; flex-shrink:0; }
+            /* Tarjetas de aviso: al llegar uno nuevo suena y queda una tarjeta fija bajo la
+               barra hasta su X o «Ver». Debajo de los modales (z 9999): no tapan sus botones. */
+            .nav-toasts { position:fixed; top:70px; right:16px; z-index:9990; display:flex; flex-direction:column; gap:10px; width:390px; max-width:calc(100vw - 32px); pointer-events:none; }
+            .nav-toast { pointer-events:auto; display:flex; align-items:center; gap:12px; padding:14px 12px 14px 14px; background:#FFFFFF; border:1px solid #E5E7EB; border-left:4px solid var(--nav-accent); border-radius:12px; box-shadow:0 10px 28px rgba(17,24,39,.16); animation:nav-toast-in .25s ease; }
+            @keyframes nav-toast-in { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+            .nav-toast-ico { width:38px; height:38px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--nav-accent-tint); color:var(--nav-accent); }
+            .nav-toast-ico svg { width:19px; height:19px; }
+            .nav-toast-body { flex:1; min-width:0; line-height:1.35; }
+            .nav-toast-tit { display:block; font-size:14px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .nav-toast-tit small { font-size:12px; font-weight:400; color:#9CA3AF; }
+            .nav-toast-txt { display:block; margin-top:2px; font-size:13px; color:#4B5563; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .nav-toast-ver { flex-shrink:0; font-size:13px; font-weight:600; color:var(--nav-accent); background:var(--nav-accent-tint); border-radius:8px; padding:6px 14px; text-decoration:none; }
+            .nav-toast-ver:hover { color:var(--nav-accent); filter:brightness(.96); }
+            .nav-toast-x { border:none; background:transparent; color:#9CA3AF; cursor:pointer; padding:4px; border-radius:8px; display:flex; flex-shrink:0; }
+            .nav-toast-x:hover { background:#F3F4F6; color:#111827; }
+            .nav-toast-mas { pointer-events:auto; align-self:flex-end; border:1px solid #E5E7EB; cursor:pointer; font-size:12px; color:#4B5563; background:#FFFFFF; border-radius:9999px; padding:4px 12px; box-shadow:0 4px 12px rgba(17,24,39,.08); }
             .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
             .cal-mes { font-size:12.5px; font-weight:700; color:#111827; }
             .cal-mv { border:none; background:transparent; color:#6B7280; cursor:pointer; padding:4px; border-radius:8px; display:flex; }
@@ -425,6 +442,7 @@ class Navbar {
                salía por la izquierda de la pantalla. */
             @media (max-width: 640px) {
                 .nav-panel { position:fixed; left:8px; right:8px; top:68px; width:auto; max-width:none; }
+                .nav-toasts { left:8px; right:8px; width:auto; max-width:none; }
             }
 
             /* ── Barra oscura (mode: dark) ──
@@ -605,6 +623,27 @@ class Navbar {
 
         $("#btnCalendar").on("click", () => this.toggleToolPanel('calendar'));
         $("#btnNotifs").on("click", () => this.toggleToolPanel('notifs'));
+
+        // Avisos: la X cierra su tarjeta; «Ver» (o el aviso en la campana) la cierra y abre
+        // la requisición; «+N más» abre la campana; «Limpiar todo» la vacía.
+        $(document).on("click", "[data-toast-x]", (e) => this.cerrarToast(Number(e.currentTarget.getAttribute("data-toast-x"))));
+        $(document).on("click", "[data-aviso]", (e) => this.cerrarToast(Number(e.currentTarget.getAttribute("data-aviso"))));
+        $(document).on("click", "[data-toast-mas]", () => this.toggleToolPanel('notifs'));
+        $(document).on("click", "#btnLimpiarAvisos", () => this.limpiarAvisos());
+
+        // El navegador no deja sonar una página en la que no se ha hecho clic: el primer
+        // clic o tecla prepara el sonido de los avisos que lleguen después.
+        $(document).one("pointerdown keydown", () => {
+            const ctx = this.audioAvisos();
+            if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
+        });
+
+        // Otra pestaña cerró una tarjeta o limpió la campana: aquí también.
+        window.addEventListener("storage", (e) => {
+            if (e.key !== this.avisosKey()) return;
+            const estado = this.leerEstadoAvisos();
+            if (estado) this.aplicarEstadoAvisos(estado);
+        });
         $(document).on("click", "#navCalendarPanel [data-cal]", (e) => {
             const step  = e.currentTarget.getAttribute("data-cal");
             const today = new Date();
@@ -636,7 +675,7 @@ class Navbar {
             // clic (las flechas del calendario). No es un clic afuera.
             if (!document.contains(e.target)) return;
 
-            if (!$(e.target).closest("#btnCalendar, #navCalendarPanel, #btnNotifs, #navNotifPanel").length) {
+            if (!$(e.target).closest("#btnCalendar, #navCalendarPanel, #btnNotifs, #navNotifPanel, #navToasts").length) {
                 this.closeToolPanels();
             }
             if (!$(e.target).closest("#btnTheme, #navColorMenu").length) {
@@ -923,6 +962,8 @@ class Navbar {
         tool.render();
         $(tool.panel).removeClass('hidden');
         $(tool.btn).attr('aria-expanded', 'true');
+        // Con la campana abierta las tarjetas de aviso se esconden: le caían encima.
+        if (name === 'notifs') $('#navToasts').hide();
     }
 
     closeToolPanels() {
@@ -930,6 +971,7 @@ class Navbar {
             $(tool.panel).addClass('hidden');
             $(tool.btn).attr('aria-expanded', 'false');
         });
+        $('#navToasts').show();
     }
 
     // El mes de calView (al abrir, el de hoy), con la semana empezando en lunes.
@@ -979,7 +1021,7 @@ class Navbar {
         const base   = window.location.pathname.split('/inventory/')[0] + '/inventory/';
 
         const lista = avisos.map((a) => `
-            <a class="nav-notif" href="${base}${this.escapeText(a.url)}">
+            <a class="nav-notif" href="${base}${this.escapeText(a.url)}" data-aviso="${Number(a.id)}">
                 <span class="nav-notif-ico"><i data-lucide="clipboard-list"></i></span>
                 <span class="flex-1 min-w-0">
                     <span class="nav-notif-tit">${this.escapeText(a.titulo)}</span>
@@ -995,6 +1037,7 @@ class Navbar {
                     <p class="nav-panel-title">Notificaciones</p>
                     <p class="nav-panel-sub">${avisos.length ? `${avisos.length} ${avisos.length === 1 ? 'solicitud por revisar' : 'solicitudes por revisar'}` : 'Avisos del sistema'}</p>
                 </div>
+                ${avisos.length ? '<button type="button" id="btnLimpiarAvisos" class="nav-limpiar">Limpiar todo</button>' : ''}
             </div>
             ${avisos.length ? `<div class="nav-notif-list">${lista}</div>` : `
             <div class="nav-panel-empty">
@@ -1007,22 +1050,171 @@ class Navbar {
     }
 
     // -- Avisos --
-    // Por ahora, las solicitudes de pedido que le llegaron a la sucursal (ctrl-access
-    // lsAvisos). Se consultan al abrir la página y cada minuto; si llega una que no
-    // estaba, la campana se sacude una vez.
+    // Por ahora, las requisiciones que le llegaron a la sucursal (ctrl-access lsAvisos).
+    // Se consultan al abrir la página y cada minuto. Si llega una que no había sonado:
+    // la campana se sacude, suena y sale su tarjeta fija (renderToasts).
+    //
+    // Lo que ya sonó, las tarjetas abiertas y lo que «Limpiar todo» quitó se guardan en
+    // este navegador, por usuario y sucursal (avisosKey), para que sigan igual al cambiar
+    // de página. La primera vez (sin nada guardado) lo que ya había no suena.
 
     async loadAvisos() {
         const base = window.location.pathname.split('/inventory/')[0];
         const r    = await useFetch({ url: `${base}/inventory/acceso/ctrl/ctrl-access.php`, data: { opc: 'lsAvisos' } }).catch(() => null);
         if (!r || r.status !== 200) return;
 
-        const avisos = r.items || [];
-        const antes  = this.avisos ? this.avisos.map((a) => a.id) : null;
-        this.avisos  = avisos;
+        const todos  = r.items || [];
+        const ids    = todos.map((a) => Number(a.id));
+        const antes  = this.leerEstadoAvisos();
+        // Tarjetas y limpiados solo de lo que sigue por revisar; lo que ya sonó se recuerda
+        // aunque hoy no venga (los últimos 300), para que no vuelva a sonar.
+        const estado = antes
+            ? {
+                anunciados: antes.anunciados.slice(-300),
+                abiertos:   (antes.abiertos  || []).filter((id) => ids.includes(id)),
+                limpiados:  (antes.limpiados || []).filter((id) => ids.includes(id))
+            }
+            : { anunciados: ids.slice(), abiertos: [], limpiados: [] };
+
+        const nuevos = antes ? ids.filter((id) => !estado.anunciados.includes(id)) : [];
+        nuevos.forEach((id) => {
+            estado.anunciados.push(id);
+            estado.abiertos.push(id);
+        });
+
+        this.todosAvisos = todos;
+        this.guardarEstadoAvisos(estado);
+        this.aplicarEstadoAvisos(estado);
+
+        if (nuevos.length) {
+            this.ringBell();
+            this.sonarAviso();
+        }
+    }
+
+    // La campana sin lo limpiado, el contador y las tarjetas abiertas.
+    aplicarEstadoAvisos(estado) {
+        const limpiados = estado.limpiados || [];
+        const avisos    = (this.todosAvisos || []).filter((a) => !limpiados.includes(Number(a.id)));
+        this.avisos     = avisos;
 
         $('#navNotifCount').text(avisos.length > 9 ? '9+' : avisos.length).toggleClass('hidden', !avisos.length);
-        if (antes && avisos.some((a) => !antes.includes(a.id))) this.ringBell();
+        this.renderToasts(estado.abiertos || []);
         if (!$('#navNotifPanel').hasClass('hidden')) this.renderNotifs();
+    }
+
+    // Tarjetas fijas bajo la barra, la más nueva arriba (lsAvisos las manda así). Hasta
+    // tres; las demás quedan en «+N más», que abre la campana.
+    renderToasts(abiertos) {
+        const avisos = (this.todosAvisos || []).filter((a) => abiertos.includes(Number(a.id)));
+        let $box     = $('#navToasts');
+
+        if (!avisos.length) {
+            $box.remove();
+            return;
+        }
+        if (!$box.length) $box = $('<div>', { id: 'navToasts', class: 'nav-toasts' }).appendTo('body');
+
+        const base  = window.location.pathname.split('/inventory/')[0] + '/inventory/';
+        const mas   = avisos.length - 3;
+        // Dos renglones: qué pasó y hace cuánto; folio y detalle (cortado con … si no cabe).
+        const cards = avisos.slice(0, 3).map((a) => `
+            <div class="nav-toast" role="alert" title="${this.escapeText(a.folio)} · ${this.escapeText(a.detalle)}">
+                <span class="nav-toast-ico"><i data-lucide="clipboard-list"></i></span>
+                <div class="nav-toast-body">
+                    <span class="nav-toast-tit">${this.escapeText(a.titulo)} <small>&middot; ${this.haceCuanto(a.minutos, a.dias)}</small></span>
+                    <span class="nav-toast-txt"><b>${this.escapeText(a.folio)}</b> &middot; ${this.escapeText(a.detalle)}</span>
+                </div>
+                <a class="nav-toast-ver" href="${base}${this.escapeText(a.url)}" data-aviso="${Number(a.id)}">Ver</a>
+                <button type="button" class="nav-toast-x" data-toast-x="${Number(a.id)}" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>`).join('');
+
+        $box.html(cards + (mas > 0 ? `<button type="button" class="nav-toast-mas" data-toast-mas>+${mas} más en la campana</button>` : ''));
+        $box.toggle($('#navNotifPanel').hasClass('hidden'));
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    cerrarToast(id) {
+        const estado = this.leerEstadoAvisos();
+        if (!estado) return;
+
+        estado.abiertos = (estado.abiertos || []).filter((x) => x !== id);
+        this.guardarEstadoAvisos(estado);
+        this.aplicarEstadoAvisos(estado);
+    }
+
+    // «Limpiar todo»: quita de la campana y de las tarjetas lo que hay ahora; solo vuelve
+    // a salir lo que llegue después.
+    limpiarAvisos() {
+        const estado = this.leerEstadoAvisos() || { anunciados: [], abiertos: [], limpiados: [] };
+        const ids    = (this.todosAvisos || []).map((a) => Number(a.id));
+
+        estado.limpiados  = [...new Set([...(estado.limpiados || []), ...ids])];
+        estado.anunciados = [...new Set([...estado.anunciados, ...ids])];
+        estado.abiertos   = [];
+        this.guardarEstadoAvisos(estado);
+        this.aplicarEstadoAvisos(estado);
+    }
+
+    avisosKey() {
+        const s = this.settings || {};
+        return `inventory:avisos:v1:${s.email || ''}:${(s.current && s.current.id) || ''}`;
+    }
+
+    // { anunciados, abiertos, limpiados } o null si no hay nada guardado (o el navegador
+    // no deja guardar: modo privado, datos bloqueados).
+    leerEstadoAvisos() {
+        try {
+            const v = JSON.parse(localStorage.getItem(this.avisosKey()) || 'null');
+            return v && Array.isArray(v.anunciados) ? v : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    guardarEstadoAvisos(estado) {
+        try {
+            localStorage.setItem(this.avisosKey(), JSON.stringify(estado));
+        } catch (e) {}
+    }
+
+    // -- Sonido --
+    // Dos notas cortas con Web Audio (sin archivo de sonido). Si la página aún no tiene
+    // un clic o una tecla, el navegador no deja sonar: la tarjeta sale igual, sin sonido.
+
+    audioAvisos() {
+        if (!this.ctxAudio) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return null;
+            this.ctxAudio = new Ctx();
+        }
+        return this.ctxAudio;
+    }
+
+    async sonarAviso() {
+        const ctx = this.audioAvisos();
+        if (!ctx) return;
+
+        // Sin permiso, resume() se queda esperando el primer clic: no se espera más de 300 ms.
+        if (ctx.state !== 'running') {
+            await Promise.race([ctx.resume().catch(() => {}), new Promise((ok) => setTimeout(ok, 300))]);
+        }
+        if (ctx.state !== 'running') return;
+
+        const t = ctx.currentTime;
+        [[880, 0], [1318.5, 0.16]].forEach(([frecuencia, desde]) => {
+            const osc = ctx.createOscillator();
+            const vol = ctx.createGain();
+
+            osc.type            = 'sine';
+            osc.frequency.value = frecuencia;
+            vol.gain.setValueAtTime(0.0001, t + desde);
+            vol.gain.exponentialRampToValueAtTime(0.25, t + desde + 0.02);
+            vol.gain.exponentialRampToValueAtTime(0.0001, t + desde + 0.45);
+            osc.connect(vol).connect(ctx.destination);
+            osc.start(t + desde);
+            osc.stop(t + desde + 0.5);
+        });
     }
 
     ringBell() {
@@ -1127,7 +1319,8 @@ $(async () => {
     // de CoffeeIA a la derecha de Módulos) espera este aviso si llegó antes que ella.
     document.dispatchEvent(new CustomEvent('navbarReady'));
 
-    // Avisos de la campana: al abrir y cada minuto, solo con la pestaña a la vista.
+    // Avisos de la campana: al abrir y cada minuto, también con la pestaña escondida, para
+    // que suene aunque se esté en otra pestaña.
     navbar.loadAvisos();
-    setInterval(() => { if (!document.hidden) navbar.loadAvisos(); }, 60000);
+    setInterval(() => navbar.loadAvisos(), 60000);
 });

@@ -310,7 +310,24 @@ class mdl extends CRUD {
         $where = "po.active = 1 AND po.companies_id = ? AND po.folio NOT LIKE 'CP-%' AND po.date_order BETWEEN ? AND ?";
         $data  = [$array['companies_id'], $array['fi'], $array['ff']];
 
-        if (!empty($array['branch_id'])) {
+        // Mismo criterio que qOrdenes: Despacho ('entregas') solo ve lo que le piden y sin
+        // borradores; Requisiciones ('pedidos'), lo que pide la sucursal. Sin lado, los dos.
+        $lado = $array['lado'] ?? '';
+
+        if ($lado === 'entregas') {
+            $where .= " AND po.status <> 'Borrador'";
+            if (!empty($array['branch_id'])) {
+                $where .= ' AND po.destination_branch_id = ?';
+                $data[] = $array['branch_id'];
+            } else {
+                $where .= ' AND po.destination_branch_id IS NOT NULL';
+            }
+        } elseif ($lado === 'pedidos') {
+            if (!empty($array['branch_id'])) {
+                $where .= ' AND po.branch_id = ?';
+                $data[] = $array['branch_id'];
+            }
+        } elseif (!empty($array['branch_id'])) {
             $where .= " AND (po.branch_id = ? OR (po.destination_branch_id = ? AND po.status <> 'Borrador'))";
             $data[] = $array['branch_id'];
             $data[] = $array['branch_id'];
@@ -574,6 +591,110 @@ class mdl extends CRUD {
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    // -- Revertir despacho --
+
+    // Deshace lo que movió el despacho: cancela su salida (SI-) y la entrada a quien pidió
+    // (ENT-) regresando el stock, cancela el reabasto (REAB-) que siga por recibir y deja los
+    // renglones como antes de aprobar: vuelven los que se quitaron (los de la última captura,
+    // porque editOrden reinserta todos) sin recibido ni producto a entregar.
+    // Devuelve los folios por tipo. Corre dentro de la transacción de quien llama.
+    function updateDespachoRevertido($id, $companiesId) {
+        $ligas = $this->getPedidoLinksById($id);
+        if ($ligas['compras']) throw new Exception("la compra {$ligas['compras'][0]} viene de este pedido");
+
+        $hecho = ['salidas' => [], 'entradas' => [], 'reabastos' => [], 'recibidos' => []];
+        $pares = [];
+
+        foreach ($ligas['salidas_ids'] as $salidaId) {
+            $h = $this->_Read("SELECT folio, status, warehouse_id FROM {$this->bd}inventory_shrinkage WHERE id = ? AND companies_id = ? LIMIT 1", [$salidaId, $companiesId]);
+            if (empty($h) || $h[0]['status'] !== 'Aplicada') continue;
+
+            $detalle = $this->_Read("
+                SELECT item_id, quantity AS qty
+                FROM {$this->bd}detail_inventory_shrinkage
+                WHERE inventory_shrinkage_id = ? AND active = 1
+            ", [$salidaId]);
+            foreach ($detalle as $d) {
+                $this->moverStockBorrado((int) $d['item_id'], (int) $h[0]['warehouse_id'], (float) $d['qty'], $companiesId);
+                $pares[] = [$d['item_id'], $h[0]['warehouse_id']];
+            }
+            $this->_CUD("UPDATE {$this->bd}inventory_shrinkage SET status = 'Cancelada', updated_at = NOW() WHERE id = ?", [$salidaId]);
+            $hecho['salidas'][] = $h[0]['folio'];
+        }
+
+        foreach ($ligas['entradas_ids'] as $entradaId) {
+            $h = $this->_Read("SELECT folio, status, warehouse_id FROM {$this->bd}inventory_inflow WHERE id = ? AND companies_id = ? LIMIT 1", [$entradaId, $companiesId]);
+            if (empty($h) || $h[0]['status'] !== 'Aplicada') continue;
+
+            $detalle = $this->_Read("
+                SELECT item_id, COALESCE(confirmed_quantity, quantity) AS qty
+                FROM {$this->bd}detail_inventory_inflow
+                WHERE inventory_inflow_id = ? AND active = 1
+            ", [$entradaId]);
+            foreach ($detalle as $d) {
+                $this->moverStockBorrado((int) $d['item_id'], (int) $h[0]['warehouse_id'], -(float) $d['qty'], $companiesId);
+                $pares[] = [$d['item_id'], $h[0]['warehouse_id']];
+            }
+            $this->_CUD("UPDATE {$this->bd}inventory_inflow SET status = 'Cancelada', updated_at = NOW() WHERE id = ?", [$entradaId]);
+            $hecho['entradas'][] = $h[0]['folio'];
+        }
+
+        // El reabasto ya recibido completo es una compra real: se queda.
+        foreach ($ligas['reabastos_ids'] as $reabId) {
+            $h = $this->_Read("SELECT folio, status FROM {$this->bd}purchase_order WHERE id = ? LIMIT 1", [$reabId]);
+            if (empty($h)) continue;
+
+            if (in_array($h[0]['status'], ['Aprobada', 'Parcial'], true)) {
+                $this->updateOrdenStatus(['Cancelada', $reabId]);
+                $hecho['reabastos'][] = $h[0]['folio'];
+            } elseif ($h[0]['status'] === 'Recibida') {
+                $hecho['recibidos'][] = $h[0]['folio'];
+            }
+        }
+
+        // Unos segundos de margen: una captura larga no se guarda en el mismo segundo.
+        $ultima = $this->_Read("SELECT MAX(created_at) AS ultima FROM {$this->bd}detail_purchase_order WHERE purchase_order_id = ?", [$id]);
+        if (!empty($ultima[0]['ultima'])) {
+            $this->_CUD("
+                UPDATE {$this->bd}detail_purchase_order
+                SET active = 1
+                WHERE purchase_order_id = ? AND active = 0 AND created_at >= ? - INTERVAL 5 SECOND
+            ", [$id, $ultima[0]['ultima']]);
+        }
+        $this->_CUD("
+            UPDATE {$this->bd}detail_purchase_order
+            SET quantity_received = 0, delivered_item_id = NULL
+            WHERE purchase_order_id = ? AND active = 1
+        ", [$id]);
+
+        $t = $this->_Read("
+            SELECT COUNT(*) AS prods,
+                   COALESCE(SUM(quantity_ordered), 0)                     AS uds,
+                   COALESCE(SUM(quantity_ordered * cost), 0)              AS costo,
+                   COALESCE(SUM(quantity_ordered * price_without_tax), 0) AS base
+            FROM {$this->bd}detail_purchase_order
+            WHERE purchase_order_id = ? AND active = 1
+        ", [$id]);
+        $this->updateOrdenTotals([(int) $t[0]['prods'], (float) $t[0]['uds'], (float) $t[0]['costo'], (float) $t[0]['base'], $id]);
+
+        $this->updateKardexChains($pares, $companiesId);
+
+        return $hecho;
+    }
+
+    // Pedido revertido: [status, id]. Pierde la aprobación y el «Recibí».
+    function updateOrdenRevertida($array) {
+        $query = "
+            UPDATE {$this->bd}purchase_order
+            SET status = ?,
+                approved_user_id = NULL, approval_note = NULL, approved_at = NULL,
+                received_confirmed_user_id = NULL, received_confirmed_at = NULL,
+                updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
     }
 
     // -----------------------------------------------------------------------

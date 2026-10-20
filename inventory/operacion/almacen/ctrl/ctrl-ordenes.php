@@ -80,8 +80,10 @@ class ctrl extends mdl {
             'branch_id'     => $this->branchId,
             'user_id'       => $this->userId,
             'is_admin'      => (int) ($_SESSION['is_admin'] ?? 0),
-            // CoffeeIA de Pedidos puede eliminar: el ícono es para el administrador.
-            'coffeeia'      => $this->esAdminIA() && IaOllama::activo($this),
+            // CoffeeIA de Pedidos puede eliminar: el ícono es para el administrador, con la
+            // casilla IA de su rol en el módulo que abrió (Requisiciones o Despacho).
+            'coffeeia'      => $this->esAdminIA() && IaOllama::activo($this)
+                               && Permissions::can(($_POST['modulo'] ?? '') === 'despacho' ? 'despacho' : 'ordenes', 'ia'),
             'sucursales'    => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             // A quién se le puede pedir: cualquier sucursal de la empresa, no solo las del
             // usuario. Por defecto, la del almacén principal (Catálogo › Almacenes).
@@ -159,9 +161,10 @@ class ctrl extends mdl {
     }
 
     // Pestaña Calendario: un evento por pedido en el día en que se necesita. `pide` = lo
-    // pide la sucursal del filtro; si no, se lo piden a ella (entrega).
+    // pide la sucursal del filtro; si no, se lo piden a ella (entrega). `lado` = qué módulo
+    // pregunta: Requisiciones ('pedidos') ve lo que pide; Despacho ('entregas'), lo que surte.
     function lsCalendario() {
-        $_POST += ['branch_id' => '', 'status' => '', 'fi' => date('Y-m-01'), 'ff' => date('Y-m-t')];
+        $_POST += ['branch_id' => '', 'status' => '', 'fi' => date('Y-m-01'), 'ff' => date('Y-m-t'), 'lado' => ''];
 
         $sucursal = $_POST['branch_id'] !== '' ? (int) $_POST['branch_id'] : 0;
         $eventos  = array_map(function ($o) use ($sucursal) {
@@ -181,6 +184,7 @@ class ctrl extends mdl {
         }, $this->qOrdenesCalendario([
             'companies_id' => $this->companiesId,
             'branch_id'    => $sucursal,
+            'lado'         => $_POST['lado'],
             'status'       => $_POST['status'],
             'fi'           => $_POST['fi'],
             'ff'           => $_POST['ff']
@@ -583,8 +587,10 @@ class ctrl extends mdl {
     // `salida` = 'manual' aprueba sin llamar a surtir(): sin salida SI-, sin descuento y sin REAB-;
     // el pedido queda Aprobada y se surte después con el botón Surtir. 'auto' (omisión) surte como siempre.
     // `subs` = {renglón: item_id} de lo que se entrega en lugar de lo pedido («Producto a entregar»).
+    // `mover` = '1' cuando hubo faltante en un almacén con «mueve inventario» en No: la opción que
+    // eligió el almacenista (salida automática u orden pendiente) sí mueve el inventario.
     function approveOrden() {
-        $_POST += ['items' => '{}', 'subs' => '{}', 'note' => '', 'warehouse_id' => 0, 'expected_date' => '', 'reabasto' => '1', 'salida' => 'auto', 'vista' => ''];
+        $_POST += ['items' => '{}', 'subs' => '{}', 'note' => '', 'warehouse_id' => 0, 'expected_date' => '', 'reabasto' => '1', 'salida' => 'auto', 'vista' => '', 'mover' => '0'];
 
         $salida = (string) $_POST['salida'];
         if (!in_array($salida, ['auto', 'manual'], true)) {
@@ -630,9 +636,10 @@ class ctrl extends mdl {
 
         $note        = mb_substr(trim($_POST['note']), 0, 255) ?: null;
         $conReabasto = $conSalida && (string) $_POST['reabasto'] !== '0';
+        $forzar      = $conSalida && (string) $_POST['mover'] === '1';
 
         try {
-            return $this->transaction(function () use ($id, $header, $detalle, $byId, $items, $subs, $warehouseId, $compromiso, $reasonId, $note, $conReabasto, $conSalida) {
+            return $this->transaction(function () use ($id, $header, $detalle, $byId, $items, $subs, $warehouseId, $compromiso, $reasonId, $note, $conReabasto, $conSalida, $forzar) {
                 $unidades = 0;
                 $costo    = 0.0;
                 $base     = 0.0;
@@ -669,7 +676,7 @@ class ctrl extends mdl {
                     ];
                 }
 
-                $r = $this->surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, 'Surtido de solicitud ' . $header['folio'], $conReabasto);
+                $r = $this->surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, 'Surtido de solicitud ' . $header['folio'], $conReabasto, $forzar);
                 // La salida SI- se consulta en Salidas: el aviso lo dice junto a su folio.
                 $r['message'] = 'Pedido aprobado. ' . str_replace("salida {$r['salida_folio']},", "salida {$r['salida_folio']} (en Salidas),", $r['message']);
                 return $r;
@@ -911,6 +918,55 @@ class ctrl extends mdl {
             'status'  => $ok ? 200 : 500,
             'message' => $ok ? 'Pedido cancelado' : 'No se pudo cancelar el pedido'
         ];
+    }
+
+    // Revertir el despacho desde el detalle: se cancelan la salida (SI-) y la entrada a quien
+    // pidió (ENT-) regresando el stock, se cancela el reabasto (REAB-) que siga por recibir y el
+    // pedido queda como antes de aprobarlo. `cancelar` = '1' lo deja Cancelada; si no, vuelve a
+    // Solicitada para revisarlo y aprobarlo otra vez.
+    function revertOrden() {
+        $_POST += ['cancelar' => '0', 'vista' => ''];
+
+        $id     = (int) $_POST['id'];
+        $header = $this->qGetOrden([$id]);
+
+        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (strpos((string) $header['folio'], 'REAB-') === 0) {
+            return ['status' => 400, 'message' => 'Un reabasto no se revierte: se cancela'];
+        }
+        if (!in_array($header['status'], ['Aprobada', 'Parcial', 'Recibida'], true)) {
+            return ['status' => 400, 'message' => 'Solo se revierte un pedido Aprobada, Parcial o Recibida'];
+        }
+        if (!$this->puedeGestionarDestino($header)) {
+            return ['status' => 403, 'message' => 'Solo la sucursal que surte puede revertir este pedido'];
+        }
+        if ($_POST['vista'] !== 'entregas' && $this->esCreadorPedido($header)) {
+            return ['status' => 403, 'message' => 'No puedes revertir un pedido que tú hiciste'];
+        }
+
+        $cancelar = (string) $_POST['cancelar'] === '1';
+        $estado   = $cancelar ? 'Cancelada' : 'Solicitada';
+
+        try {
+            $hecho = $this->transaction(function () use ($id, $estado) {
+                $hecho = $this->updateDespachoRevertido($id, $this->companiesId);
+                if (!$this->updateOrdenRevertida([$estado, $id])) throw new Exception('No se pudo regresar el pedido');
+                return $hecho;
+            });
+        } catch (\Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo revertir: ' . $e->getMessage()];
+        }
+
+        $partes = [];
+        if ($hecho['salidas'])   $partes[] = 'salida ' . implode(', ', $hecho['salidas']) . ' cancelada (el stock regresó al almacén)';
+        if ($hecho['entradas'])  $partes[] = 'entrada ' . implode(', ', $hecho['entradas']) . " cancelada en {$header['branch_name']}";
+        if ($hecho['reabastos']) $partes[] = 'reabasto ' . implode(', ', $hecho['reabastos']) . ' cancelado';
+        if ($hecho['recibidos']) $partes[] = 'el reabasto ' . implode(', ', $hecho['recibidos']) . ' ya se recibió y se queda';
+
+        $msg  = $cancelar ? "Pedido {$header['folio']} revertido y cancelado" : "Pedido {$header['folio']} revertido: vuelve a Solicitada";
+        $msg .= $partes ? ': ' . implode('; ', $partes) . '.' : '. No tenía movimientos de almacén.';
+
+        return ['status' => 200, 'message' => $msg, 'orden_status' => $estado];
     }
 
     function printOrden() {
@@ -1158,10 +1214,11 @@ class ctrl extends mdl {
     // pero no se genera la orden de reabasto.
     // Si el almacén tiene apagado «Surtir pedidos mueve inventario» (Catálogo › Almacenes) y el
     // pedido es de otra sucursal, solo se marca lo entregado: sin SI-, sin ENT- y sin REAB-.
-    private function surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, $note, $conReabasto = true) {
+    // `$forzarMover` = el almacenista eligió qué hacer con el faltante: se mueve como siempre.
+    private function surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, $note, $conReabasto = true, $forzarMover = false) {
         if (empty($header['warehouse_id'])) $this->updateOrdenWarehouse([$warehouseId, $id]);
 
-        $mueve = !$this->esInterSucursal($header) || $this->qMueveInventario([$warehouseId]);
+        $mueve = $forzarMover || !$this->esInterSucursal($header) || $this->qMueveInventario([$warehouseId]);
 
         // Se surte el pendiente completo aunque el stock no alcance: el almacen
         // queda en deficit (negativo) y el faltante (qtyNow - disponible) genera una
@@ -1508,6 +1565,7 @@ class ctrl extends mdl {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
         if (!$this->esAdminIA()) return ['status' => 403, 'message' => 'CoffeeIA de Pedidos es solo para administradores.'];
         if (!IaOllama::activo($this)) return ['status' => 403, 'message' => 'CoffeeIA está apagado. Se enciende en Administrador > CoffeeIA.'];
+        if (!$this->puedeIAPedidos()) return ['status' => 403, 'message' => 'Tu rol no tiene CoffeeIA en Requisiciones ni en Despacho. Se activa en Accesos › Roles, columna IA.'];
 
         $ia = IaOllama::desdeCredenciales($this);
         if ($ia === null) return ['status' => 503, 'message' => 'La IA no está configurada: falta la llave de Ollama.'];
@@ -1602,6 +1660,7 @@ class ctrl extends mdl {
     function applyPedidoIA() {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
         if (!$this->esAdminIA()) return ['status' => 403, 'message' => 'Solo un administrador puede eliminar pedidos.'];
+        if (!$this->puedeIAPedidos()) return ['status' => 403, 'message' => 'Tu rol no tiene CoffeeIA en Requisiciones ni en Despacho. Se activa en Accesos › Roles, columna IA.'];
 
         $pendiente = $_SESSION['iaPedidos'] ?? null;
         $token     = (string) ($_POST['token'] ?? '');
@@ -1674,6 +1733,12 @@ class ctrl extends mdl {
 
     private function esAdminIA() {
         return (int) ($_SESSION['is_admin'] ?? 0) === 1;
+    }
+
+    // El chat es el mismo en Requisiciones y Despacho: basta la casilla IA en uno de los dos
+    // (el ícono sí sale solo en el módulo que la tiene, ver init).
+    private function puedeIAPedidos() {
+        return Permissions::can('ordenes', 'ia') || Permissions::can('despacho', 'ia');
     }
 
     private function mensajesPedidoIA($mensaje, $historial, $sucursales) {
@@ -2016,6 +2081,7 @@ if (!method_exists($obj, $opc)) {
     echo json_encode(['status' => 405, 'message' => "opc '{$opc}' no implementado"]);
     exit(0);
 }
-// Compras sigue pendiente de definir sus acciones: por ahora basta con que el rol
-// tenga alguna en la sección (hoy, solo el Super Admin).
-echo json_encode(Permissions::guard('ordenes', $opc, []) ?: $obj->{$opc}());
+// Requisiciones ('ordenes') y Despacho ('despacho') comparten este ctrl: basta con que el
+// rol tenga alguna acción en cualquiera de las dos. Compras sigue pendiente de definir sus
+// acciones (hoy, solo el Super Admin).
+echo json_encode(Permissions::guard('ordenes', $opc, [$opc => ['ordenes' => '*', 'despacho' => '*']]) ?: $obj->{$opc}());

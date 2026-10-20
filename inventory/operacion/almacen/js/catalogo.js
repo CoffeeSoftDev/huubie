@@ -44,9 +44,10 @@ class Catalogo extends Templates {
 }
 
 // -- Sucursal de los catálogos --
-// Categorías, proveedores, almacenes y áreas son por sucursal. Solo el administrador
-// (init de ctrl-almacen manda `sucursales`) ve este selector: arranca en su sucursal y con
-// «Todas» la tabla trae los de todas y su columna Sucursal. `id` es la clave que lee el ctrl.
+// Categorías, proveedores, almacenes y áreas son por sucursal. El selector lo ven el
+// administrador y quien tiene más de una sucursal (init de ctrl-almacen manda
+// `sucursales`): arranca en su sucursal. Solo el administrador tiene «Todas», con la que la
+// tabla trae los de todas y su columna Sucursal. `id` es la clave que lee el ctrl.
 function sucursalFiltro(id, onchange) {
     if (!sucursales.length) return [];
 
@@ -56,12 +57,12 @@ function sucursalFiltro(id, onchange) {
         lbl: "Sucursal",
         class: "col-12 col-md-2",
         value: String(sucursalSesion || ''),
-        data: [{ id: '', valor: 'Todas las sucursales' }, ...sucursales],
+        data: [...(administrador ? [{ id: '', valor: 'Todas las sucursales' }] : []), ...sucursales],
         onchange: onchange
     }];
 }
 
-// '' = todas. Sin selector (no es administrador) el ctrl usa la sucursal de la sesión.
+// '' = todas. Sin selector el ctrl usa la sucursal de la sesión.
 function sucursalElegida(id) {
     return sucursales.length ? String($(`#${id}`).val() ?? sucursalSesion ?? '') : '';
 }
@@ -846,7 +847,7 @@ class Warehouse extends Templates {
             },
             // Uno por empresa: al marcar este, los demás dejan de serlo (ctrl-catalogo). Decide
             // quién es Matriz: solo el administrador lo ve (el ctrl lo ignora de los demás).
-            ...(sucursales.length ? [{
+            ...(administrador ? [{
                 opc: "select",
                 id: "is_main",
                 lbl: "Almacén principal (le piden material las sucursales)",

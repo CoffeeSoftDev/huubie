@@ -118,6 +118,126 @@ class mdl extends CRUD {
         return $result[0] ?? null;
     }
 
+    // -- Reporte de salidas (movimiento de almacén) --
+
+    // Las salidas aplicadas del rango en los almacenes del filtro, con cuántos renglones
+    // y cuánto suman. Con área o categoría solo cuentan (y solo salen) los renglones que
+    // las cumplen. Las canceladas no entran: no movieron el inventario.
+    function listSalidasReporte($filters) {
+        $ids    = $filters['warehouse_ids'];
+        $marks  = $ids ? implode(',', array_fill(0, count($ids), '?')) : 'NULL';
+        $params = array_merge([$filters['companies_id']], $ids, [$filters['fi'], $filters['ff']]);
+
+        $query = "
+            SELECT
+                m.id,
+                m.folio,
+                m.created_at,
+                sr.name          AS motivo,
+                w.name           AS almacen,
+                COUNT(d.id)      AS renglones,
+                SUM(d.quantity)  AS unidades,
+                SUM(d.subtotal)  AS importe
+            FROM {$this->bd}inventory_shrinkage m
+            INNER JOIN {$this->bd}detail_inventory_shrinkage d ON d.inventory_shrinkage_id = m.id AND d.active = 1
+            INNER JOIN {$this->bd}item i ON i.id = d.item_id
+            LEFT JOIN  {$this->bd}item_attribute   ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN  {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN  {$this->bd}warehouse        w  ON w.id  = m.warehouse_id
+            WHERE m.companies_id = ?
+            AND m.active = 1
+            AND m.status <> 'Cancelada'
+            AND m.warehouse_id IN ({$marks})
+            AND DATE(m.created_at) BETWEEN ? AND ?
+        ";
+
+        if (!empty($filters['category_id'])) {
+            $query   .= ' AND i.category_id = ?';
+            $params[] = $filters['category_id'];
+        }
+
+        if (!empty($filters['area_id'])) {
+            $query   .= ' AND ia.warehouse_area_id = ?';
+            $params[] = $filters['area_id'];
+        }
+
+        $query .= ' GROUP BY m.id ORDER BY m.created_at DESC, m.id DESC';
+
+        $result = $this->_Read($query, $params);
+        return is_array($result) ? $result : [];
+    }
+
+    function getSalidaReporte($array) {
+        // [id, companies_id]
+        $query = "
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.created_at,
+                m.warehouse_id,
+                sr.name        AS motivo,
+                w.name         AS almacen,
+                b.name         AS sucursal,
+                b.ubication    AS sucursal_ubicacion,
+                b.phone        AS sucursal_telefono,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS registro
+            FROM {$this->bd}inventory_shrinkage m
+            LEFT JOIN {$this->bd}shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN {$this->bd}warehouse        w  ON w.id  = m.warehouse_id
+            LEFT JOIN {$this->bdErp}branches      b  ON b.id  = m.branch_id
+            LEFT JOIN {$this->bdErp}users         u  ON u.id  = m.user_id
+            WHERE m.id = ?
+            AND m.companies_id = ?
+            AND m.active = 1
+            AND m.status <> 'Cancelada'
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0] ?? null;
+    }
+
+    // Hora de impresión con el reloj de MySQL, el mismo que llena created_at (PHP corre en UTC).
+    function getAhoraBd() {
+        $result = $this->_Read('SELECT NOW() AS ahora', []);
+        return $result[0]['ahora'] ?? date('Y-m-d H:i:s');
+    }
+
+    // Renglones de la salida en el orden en que se capturaron.
+    function listDetalleSalidaReporte($filters) {
+        $params = [$filters['id']];
+        $query  = "
+            SELECT
+                d.quantity,
+                d.cost,
+                d.subtotal,
+                ia.sku,
+                i.name,
+                COALESCE(u.code, '') AS unidad
+            FROM {$this->bd}detail_inventory_shrinkage d
+            INNER JOIN {$this->bd}item i ON i.id = d.item_id
+            LEFT JOIN  {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN  {$this->bd}unit           u  ON u.id = ia.unit_id
+            WHERE d.inventory_shrinkage_id = ?
+            AND d.active = 1
+        ";
+
+        if (!empty($filters['category_id'])) {
+            $query   .= ' AND i.category_id = ?';
+            $params[] = $filters['category_id'];
+        }
+
+        if (!empty($filters['area_id'])) {
+            $query   .= ' AND ia.warehouse_area_id = ?';
+            $params[] = $filters['area_id'];
+        }
+
+        $query .= ' ORDER BY d.id ASC';
+
+        $result = $this->_Read($query, $params);
+        return is_array($result) ? $result : [];
+    }
+
     // -- Reporte de inventario --
 
     // Activos e inventariables, por area y nombre, sin area al final. La existencia

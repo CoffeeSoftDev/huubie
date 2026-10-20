@@ -684,14 +684,14 @@ class Access extends MAccess {
 
     // -- Avisos de la campana --
 
-    // Solicitudes de pedido que le llegaron a la sucursal de la sesión y siguen sin revisar
-    // (Solicitada, el punto verde de Mis entregas). Solo para quien puede entrar a Pedidos;
-    // sin sesión o sin sucursal, ninguna. `url` abre el pedido en Mis entregas.
+    // Requisiciones que le llegaron a la sucursal de la sesión y siguen sin revisar
+    // (Solicitada, el punto verde de Despacho). Solo para quien puede entrar a Despacho;
+    // sin sesión o sin sucursal, ninguna. `url` abre la requisición en Despacho.
     function lsAvisos() {
         $companyId = (int) ($_SESSION['company_id'] ?? 0);
         $branchId  = (int) ($_SESSION['branch_id'] ?? 0);
 
-        if ($companyId <= 0 || $branchId <= 0 || empty(Permissions::actions('ordenes'))) {
+        if ($companyId <= 0 || $branchId <= 0 || empty(Permissions::actions('despacho'))) {
             return ['status' => 200, 'items' => []];
         }
 
@@ -701,11 +701,11 @@ class Access extends MAccess {
             return [
                 'id'      => (int) $pedido['id'],
                 'folio'   => $pedido['folio'],
-                'titulo'  => 'Nueva solicitud de pedido',
+                'titulo'  => 'Nueva requisición',
                 'detalle' => ($pedido['branch_name'] ?: 'Una sucursal') . " pide {$materiales} " . ($materiales === 1 ? 'material' : 'materiales'),
                 'minutos' => (int) $pedido['minutos'],
                 'dias'    => (int) $pedido['dias'],
-                'url'     => 'operacion/almacen/ordenes.php?pedido=' . (int) $pedido['id'] . '&folio=' . rawurlencode($pedido['folio'])
+                'url'     => 'operacion/almacen/despacho.php?pedido=' . (int) $pedido['id'] . '&folio=' . rawurlencode($pedido['folio'])
             ];
         }, $this->getPedidosPorSurtir([$companyId, $branchId]));
 

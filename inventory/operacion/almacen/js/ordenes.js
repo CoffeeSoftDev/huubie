@@ -18,13 +18,18 @@ class App extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'ordenes';
+        // Requisiciones (quien pide) o Despacho (quien surte): lo fija la página que carga
+        // este JS (ORDENES_MODULO en layout/ordenes-page.php). `lado` es la vista de su lista.
+        this.modulo       = window.ORDENES_MODULO === 'despacho' ? 'despacho' : 'requisiciones';
+        this.lado         = this.modulo === 'despacho' ? 'entregas' : 'pedidos';
         this.subId        = null;
         this.selectedId   = null;
-        this.vista        = 'pedidos';
+        this.vista        = this.lado;
     }
 
     async init() {
-        const r = await useFetch({ url: apiOrdenes, data: { opc: 'init' } });
+        // `modulo`: el ctrl revisa la casilla IA del rol en este módulo (ícono de CoffeeIA).
+        const r = await useFetch({ url: apiOrdenes, data: { opc: 'init', modulo: this.modulo } });
         if (r && r.status === 200) {
             this.dataInit = {
                 companies_id:  r.companies_id  || '',
@@ -62,10 +67,10 @@ class App extends Templates {
             };
         }
         this.subId = this.dataInit.branch_id;
-        // El admin aprueba y surte: arranca en lo que le piden. Desde la campana de la barra
-        // (?pedido=id&folio=...) se abre ese pedido en Mis entregas.
+        // Cada módulo arranca en su lista. Desde la campana de la barra (?pedido=id&folio=...)
+        // Despacho abre esa requisición con su detalle.
         const aviso = new URLSearchParams(window.location.search);
-        this.vista = (aviso.get('pedido') || this.dataInit.is_admin) ? 'entregas' : 'pedidos';
+        this.vista = this.lado;
         this.render();
         if (aviso.get('pedido')) this.selectOrden(aviso.get('folio') || aviso.get('pedido'), Number(aviso.get('pedido')));
 
@@ -79,9 +84,12 @@ class App extends Templates {
         this.layout();
         this.visorResize({ key: 'ordenes', label: 'Ancho del detalle del pedido' });
         this.filterBar();
-        ordenesView.renderHeader({
-            title:    'Pedidos',
-            subtitle: 'Solicitudes de materiales, aprobación y recepción por sucursal'
+        ordenesView.renderHeader(this.modulo === 'despacho' ? {
+            title:    'Despacho',
+            subtitle: 'Revisa, aprueba y surte las requisiciones que le hacen a tu sucursal'
+        } : {
+            title:    'Requisiciones',
+            subtitle: 'Pide materiales al almacén y sigue el estado de tus requisiciones'
         });
         this.renderTabs();
         ordenesView.renderDetail(null);
@@ -203,9 +211,10 @@ class App extends Templates {
 
     // -- Tabs --
 
-    // Mis pedidos = lo que pide mi sucursal; Mis entregas = lo que me piden a mí;
-    // Calendario = los dos, en el día en que se necesitan.
+    // Lista = en Requisiciones lo que pide mi sucursal y en Despacho lo que le piden;
+    // Calendario = esas mismas, en el día en que se necesitan.
     renderTabs() {
+        const despacho = this.modulo === 'despacho';
         this.tabLayout({
             parent:          'tabsRow',
             id:              'tabsOrdenes',
@@ -213,9 +222,8 @@ class App extends Templates {
             theme:           'light',
             renderContainer: false,
             json: [
-                { id: 'pedidos',    tab: 'Mis pedidos',  lucideIcon: 'list',          active: this.vista === 'pedidos'    },
-                { id: 'entregas',   tab: 'Mis entregas', lucideIcon: 'truck',         active: this.vista === 'entregas'   },
-                { id: 'calendario', tab: 'Calendario',   lucideIcon: 'calendar-days', active: this.vista === 'calendario' }
+                { id: this.lado,    tab: 'Lista',      lucideIcon: despacho ? 'truck' : 'list', active: this.vista === this.lado    },
+                { id: 'calendario', tab: 'Calendario', lucideIcon: 'calendar-days',             active: this.vista === 'calendario' }
             ],
             onChange: (tabId) => this.onChangeTab(tabId)
         });
@@ -228,15 +236,15 @@ class App extends Templates {
         ordenes.lsOrdenes();
     }
 
-    // "Nuevo pedido" en Mis pedidos y en el Calendario: en entregas se aprueba y surte.
-    // Mis entregas usa los estados agrupados (Por surtir, Aprobada, Rechazada y Cancelada);
-    // el Calendario arranca con todos los estados.
+    // "Nueva requisición" solo en Requisiciones (lista y calendario): Despacho aprueba y surte.
+    // La lista de Despacho usa los estados agrupados (Por surtir, Aprobada, Rechazada y
+    // Cancelada); el Calendario arranca con todos los estados.
     syncVista() {
         const entregas   = this.vista === 'entregas';
         const calendario = this.vista === 'calendario';
         const estados    = entregas ? this.dataInit.estados_entrega : this.dataInit.estados_orden;
 
-        $('#btnNuevaOrden').parent().toggleClass('hidden', entregas);
+        $('#btnNuevaOrden').parent().toggleClass('hidden', this.modulo === 'despacho');
         $('#fEstado').empty().append((estados || []).map(e => $('<option>', { value: e.id, text: e.valor })));
         $('#fEstado').val(entregas ? 'PorAtender' : (calendario ? '' : 'Activas'));
 
@@ -247,17 +255,10 @@ class App extends Templates {
         ordenesView.syncMovil();
     }
 
-    // En el Calendario conviven pedidos y entregas: el detalle de un pedido se porta como
-    // Mis entregas si a mi sucursal le toca surtirlo (y no lo hice yo), y si no, como Mis
-    // pedidos. Fuera del Calendario manda la pestaña.
-    vistaOrden(o) {
-        if (this.vista !== 'calendario' || !o) return this.vista;
-
-        const mia     = String(this.getFilters().branch_id || this.dataInit.branch_id || '');
-        const surte   = String(o.destination_branch_id || '') === mia;
-        const pideYo  = String(o.branch_id || '') === mia && String(o.user_id || '') === String(this.dataInit.user_id || '');
-
-        return surte && !pideYo ? 'entregas' : 'pedidos';
+    // El detalle se porta como el módulo: en Requisiciones como quien pide y en Despacho
+    // como quien surte, también en el Calendario (cada uno solo ve su lado).
+    vistaOrden() {
+        return this.lado;
     }
 
     // Solo en Mis entregas: qué significa el punto verde (bajo el título) y la línea de
@@ -357,7 +358,7 @@ class App extends Templates {
             {
                 opc:       'button',
                 id:        'btnNuevaOrden',
-                text:      'Nuevo pedido',
+                text:      'Nueva requisición',
                 color_btn: 'invernal',
                 className: 'w-100 h-[34px]',
                 class:     'col-12 col-md-4 col-lg-1',
@@ -873,7 +874,8 @@ class OrdenesView extends Templates {
             onRecibir:       (o) => (String(o && o.folio || '').startsWith('REAB-') ? this.openRecepcionModal(o) : this.openSurtidoModal(o)),
             onCancel:        (o) => this.doCancelOrden(o),
             onCompromiso:    (o) => this.editCompromiso(o),
-            onRecibi:        (o) => this.doConfirmRecepcion(o)
+            onRecibi:        (o) => this.doConfirmRecepcion(o),
+            onRevert:        (o) => this.doRevertOrden(o)
         });
 
         if (this.movil) this.movil.toggleDetail(enMovil);
@@ -883,8 +885,10 @@ class OrdenesView extends Templates {
 
     // Debajo de md se ve como app (ordenes-movil.js): tarjetas, estados en píldoras, botón
     // flotante y barra inferior. Los filtros son los de escritorio (#fEstado, #branch_id):
-    // el teléfono solo los cambia y vuelve a consultar.
+    // el teléfono solo los cambia y vuelve a consultar. La barra lleva Inicio y la lista del
+    // módulo (Requisiciones o Despacho).
     renderMovil() {
+        const despacho = app.modulo === 'despacho';
         this.movil = this.ordenesMovil({
             parent: 'ordenesMovil',
             id:     'ordenesMovilList',
@@ -896,16 +900,12 @@ class OrdenesView extends Templates {
                     href: '../../modulos/'
                 },
                 {
-                    id:   'pedidos',
-                    icon: 'clipboard-list',
-                    text: 'Mis pedidos'
-                },
-                {
-                    id:   'entregas',
-                    icon: 'truck',
-                    text: 'Mis entregas'
+                    id:   app.lado,
+                    icon: despacho ? 'truck' : 'clipboard-list',
+                    text: despacho ? 'Despacho' : 'Requisiciones'
                 }
             ],
+            labels: { nuevo: 'Nueva requisición' },
             onChip: (id) => {
                 $('#fEstado').val(id);
                 app.onChangeFilters();
@@ -926,11 +926,11 @@ class OrdenesView extends Templates {
     syncMovil() {
         if (!this.movil) return;
 
-        const entregas = app.vista === 'entregas';
+        const entregas = app.lado === 'entregas';
         const opciones = (sel) => $(sel).find('option').map((i, el) => ({ id: el.value, valor: el.textContent })).get();
 
         this.movil.setView({
-            title:     entregas ? 'Mis entregas' : 'Mis pedidos',
+            title:     entregas ? 'Despacho' : 'Mis requisiciones',
             tab:       app.vista,
             chips:     opciones('#fEstado').map(e => (e.id === '' ? { id: '', valor: 'Todas' } : e)),
             chip:      $('#fEstado').val() || '',
@@ -938,7 +938,7 @@ class OrdenesView extends Templates {
             branch:    $('#branch_id').val() || '',
             locked:    $('#branch_id').prop('disabled'),
             showNew:   !entregas,
-            rangeText: `Pedidos del ${this.fechaCorta(app.rangeFi)} al ${this.fechaCorta(app.rangeFf)}`
+            rangeText: `Requisiciones del ${this.fechaCorta(app.rangeFi)} al ${this.fechaCorta(app.rangeFf)}`
         });
     }
 
@@ -952,6 +952,7 @@ class OrdenesView extends Templates {
         this.ordenEditando = orden;
         this.ordenMovilForm({
             id:       'ordenMovilForm',
+            title:    'Nueva requisición',
             sucursal: orden ? (orden.branch_name || '') : (actual ? actual.valor : ''),
             json:     app.dataInit.productos || [],
             // A quién pedir: cualquier sucursal; por defecto la del almacén principal.
@@ -1734,9 +1735,10 @@ class OrdenesView extends Templates {
 
         // `salida` = 'manual' aprueba sin descuento; `reabasto` = false surte todo lo marcado sin
         // generar orden (el stock puede quedar en negativo); `compromiso` = fecha de la orden
-        // pendiente; `negativos` = lo que queda en negativo, para decirlo en el aviso final.
+        // pendiente; `negativos` = lo que queda en negativo, para decirlo en el aviso final;
+        // `mover` = mueve el inventario aunque el almacén tenga «mueve inventario» en No.
         // Regresa true si se guardó.
-        const aprobar = async ({ salida = 'auto', reabasto = true, compromiso = '', negativos = [] } = {}) => {
+        const aprobar = async ({ salida = 'auto', reabasto = true, compromiso = '', negativos = [], mover = false } = {}) => {
             // `subs` = lo marcado que se entrega en lugar de lo pedido.
             const items = {}, subs = {};
             productos.forEach(p => {
@@ -1758,7 +1760,8 @@ class OrdenesView extends Templates {
                     warehouse_id:  $(`#${modalId}_warehouse_id`).val() || '',
                     expected_date: compromiso,
                     reabasto:      reabasto ? 1 : 0,
-                    salida:        salida
+                    salida:        salida,
+                    mover:         mover ? 1 : 0
                 }
             }).catch(() => null);
             if (r && r.status === 200) {
@@ -1775,6 +1778,8 @@ class OrdenesView extends Templates {
         // Con faltante: cómo darle salida al almacén. Regresar en cualquier subpaso vuelve aquí.
         const askExit = (ctx) => {
             const { filas, faltantes, titulo, prods, quitadosTx } = ctx;
+            // Lo clave de cada opción, más oscuro que el gris de la explicación.
+            const enfasis = 'class="font-semibold text-gray-800"';
 
             this.csChoiceCards({
                 title:   titulo,
@@ -1784,16 +1789,16 @@ class OrdenesView extends Templates {
                 hint:    'Recomendada: el descuento se registra al momento y el faltante queda a la vista en el resumen.',
                 choices: [
                     { id: 'auto',    icon: 'zap',           tone: 'go',  title: 'Salida automática',       badge: 'Recomendada',
-                      text: 'El sistema descuenta el almacén al aceptar. El negativo se ajusta con una entrada después, desde Entradas.' },
+                      text: `El sistema <b ${enfasis}>descuenta el almacén al aceptar</b>. El negativo se ajusta con <b ${enfasis}>una entrada después</b>, desde Entradas.` },
                     { id: 'manual',  icon: 'hand',          tone: 'mut', title: 'Salida manual después',
-                      text: 'Queda aprobada sin descuento: la surtes después con el botón Surtir de su detalle. Hasta entonces el faltante sigue en la solicitud.' },
+                      text: `Queda <b ${enfasis}>aprobada sin descuento</b>: la surtes después con el botón <b ${enfasis}>Surtir</b> de su detalle. Hasta entonces <b ${enfasis}>el faltante sigue en la solicitud</b>.` },
                     { id: 'pending', icon: 'shopping-cart', tone: 'ac',  title: 'Generar orden pendiente',
-                      text: 'Lo que falta se compra: queda una orden pendiente que recibes en Mis entregas cuando llegue el producto.' }
+                      text: `Lo que falta <b ${enfasis}>se compra</b>: queda <b ${enfasis}>una orden pendiente</b> que recibes en Mis entregas cuando llegue el producto.` }
                 ],
                 onChoose: (id) => {
-                    if (id === 'auto')    aprobar({ reabasto: false, negativos: faltantes });
+                    if (id === 'auto')    aprobar({ reabasto: false, negativos: faltantes, mover: ctx.forzar });
                     if (id === 'manual')  askManual(ctx);
-                    if (id === 'pending') this.openPendingOrderModal(orden, faltantes, { total: filas.length, onConfirm: (fecha) => aprobar({ compromiso: fecha }), onBack: () => askExit(ctx) });
+                    if (id === 'pending') this.openPendingOrderModal(orden, faltantes, { total: filas.length, onConfirm: (fecha) => aprobar({ compromiso: fecha, mover: ctx.forzar }), onBack: () => askExit(ctx) });
                 }
             });
         };
@@ -1842,11 +1847,14 @@ class OrdenesView extends Templates {
                 faltantes:  filas.filter(f => f.falta > 0),
                 titulo:     `¿Aprobar y surtir la solicitud ${esc(orden.folio)}?`,
                 prods:      (n) => `<strong>${n}</strong> ${n === 1 ? 'producto' : 'productos'}`,
-                quitadosTx: quitados ? ` ${quitados === 1 ? 'El que no marcaste se quita' : `Los ${quitados} que no marcaste se quitan`} del pedido.` : ''
+                quitadosTx: quitados ? ` ${quitados === 1 ? 'El que no marcaste se quita' : `Los ${quitados} que no marcaste se quitan`} del pedido.` : '',
+                // Almacén con «mueve inventario» en No: con faltante salen las mismas opciones y
+                // la que se elija sí mueve el inventario de este despacho.
+                forzar:     !this.mueveInventario(orden, almacen.id)
             };
 
-            // Almacén que no mueve inventario al surtir a otra sucursal: no hay salida que preguntar.
-            if (!this.mueveInventario(orden, almacen.id)) {
+            // Almacén que no mueve inventario al surtir a otra sucursal y todo alcanza: no hay salida que preguntar.
+            if (ctx.forzar && !ctx.faltantes.length) {
                 this.csChoiceCards({
                     title:   ctx.titulo,
                     lead:    `Se van a surtir ${ctx.prods(filas.length)}. <b>${esc(almacen.valor || 'Este almacén')}</b> no mueve inventario al surtir a otra sucursal: no se descuenta ni entra nada, el pedido solo queda surtido.${ctx.quitadosTx}`,
@@ -2051,6 +2059,42 @@ class OrdenesView extends Templates {
         });
     }
 
+    // Revertir el despacho: regresa a revisión (Solicitada) o queda cancelado. En los dos se
+    // cancelan la salida, la entrada a quien pidió y el reabasto pendiente (ctrl revertOrden).
+    doRevertOrden(o) {
+        if (!o || !o.id) return;
+        const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const confirmo  = o.entradas_surtido && !(o.surtidos_por_recibir > 0);
+
+        const revertir = async (cancelar) => {
+            const r = await useFetch({
+                url:  this._link,
+                data: { opc: 'revertOrden', id: o.id, cancelar: cancelar ? 1 : 0, vista: app.vistaOrden(o) }
+            }).catch(() => null);
+            if (r && r.status === 200) {
+                this.alertBox({ type: 'success', title: cancelar ? 'Pedido revertido y cancelado' : 'Pedido revertido', detailHtml: esc(r.message), timer: 6500 });
+                this._refreshAfterAction(o.folio, o.id);
+            } else {
+                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo revertir el pedido' });
+            }
+        };
+
+        this.csChoiceCards({
+            icon:    'rotate-ccw',
+            title:   `¿Revertir el pedido ${esc(o.folio)}?`,
+            lead:    `Se deshace lo que movió el despacho: la salida regresa el stock al almacén, la entrada sale de <b>${esc(o.branch_name || 'la sucursal que pidió')}</b> y el reabasto pendiente se cancela. Los productos vuelven como se pidieron.`,
+            alerts:  confirmo ? [{ html: `<b>${esc(o.branch_name || 'La sucursal que pidió')}</b> ya confirmó «Recibí»: lo que se le quita puede dejar su stock en negativo.` }] : [],
+            ask:     '¿Cómo queda el pedido?',
+            choices: [
+                { id: 'revisar',  icon: 'rotate-ccw', tone: 'go',  title: 'Regresar a revisión', badge: 'Recomendada',
+                  text: 'Vuelve a Solicitada para revisarlo y aprobarlo otra vez con Aprobar y surtir.' },
+                { id: 'cancelar', icon: 'ban',        tone: 'mut', title: 'Revertir y cancelar',
+                  text: 'Se deshace igual y el pedido queda Cancelada.' }
+            ],
+            onChoose: (id) => revertir(id === 'cancelar')
+        });
+    }
+
     // «Recibí»: quien pidió confirma que le llegó lo surtido. El stock ya entró a su almacén
     // al surtirse (entrada ENT-); esto deja quién lo recibió y cuándo.
     doConfirmRecepcion(o) {
@@ -2103,7 +2147,7 @@ class OrdenesView extends Templates {
             prefijo: 'no_',
             closeOnError: false,
             bootbox: {
-                title: 'Nuevo pedido',
+                title: 'Nueva requisición',
                 size: 'small',
                 closeButton: true
             },
@@ -2324,6 +2368,7 @@ class OrdenesView extends Templates {
                 },
                 // El solicitante no ve costos ni importes (Compras, que usa el mismo formato, sí).
                 montos:   false,
+                labels:   { title: 'Nueva requisición' },
                 onAdd:    (payload) => this.saveOrdenForm(payload),
                 onUpdate: (payload) => this.saveOrdenForm(payload)
             });
@@ -3034,7 +3079,8 @@ class OrdenesView extends Templates {
             onRecibir: () => {},
             onCancel:  () => {},
             onCompromiso: () => {},
-            onRecibi:  () => {}
+            onRecibi:  () => {},
+            onRevert:  () => {}
         };
 
         const o    = options || {};
@@ -3217,6 +3263,10 @@ class OrdenesView extends Templates {
             actionsHtml = '';
         }
 
+        // Revertir: quien surte deshace el despacho (salida, entrada a quien pidió y reabasto).
+        const revertible = !esReabasto && ['Aprobada', 'Parcial', 'Recibida'].includes(status) && (esDestino || sinRestriccion) && !esCreador;
+        if (revertible) actionsHtml += btnSec('Revertir', 'rotate-ccw', 'revert');
+
         // «Recibí»: lo surtido por otra sucursal ya entró; quien pidió confirma que le llegó.
         const porRecibir = !enEntregas && (esOrigen || sinRestriccion) && e.surtidos_por_recibir > 0;
         if (porRecibir) actionsHtml += btnCls('#3FC189', 'Recibí', 'package-check', 'recibi');
@@ -3372,6 +3422,7 @@ class OrdenesView extends Templates {
         $parent.find(`#${opts.id}_cancel`).on('click',   () => opts.onCancel(e));
         $parent.find(`#${opts.id}_compromiso`).on('click', () => opts.onCompromiso(e));
         $parent.find(`#${opts.id}_recibi`).on('click',   () => opts.onRecibi(e));
+        $parent.find(`#${opts.id}_revert`).on('click',   () => opts.onRevert(e));
     }
 
     // ----------------------------------------------------------
@@ -3421,10 +3472,11 @@ class OrdenesView extends Templates {
 
 // -- Calendario --
 
-// Pestaña Calendario: los pedidos de la sucursal del filtro (los que hace y los que le
-// hacen) en el día en que se necesitan, con Mes, Semana y Agenda. Clic en un pedido abre su
-// detalle en el visor; clic en un día, un pedido nuevo para ese día. Mismo FullCalendar y
-// mismos ajustes de estilo que el calendario de Compras.
+// Pestaña Calendario: las requisiciones de la sucursal del filtro en el día en que se
+// necesitan, con Mes, Semana y Agenda. Requisiciones ve las que hace y Despacho las que le
+// hacen. Clic en una abre su detalle en el visor; en Requisiciones, clic en un día abre una
+// requisición nueva para ese día. Mismo FullCalendar y mismos ajustes de estilo que el
+// calendario de Compras.
 class CalendarioPedidos extends Templates {
 
     constructor(link, divModule) {
@@ -3465,7 +3517,7 @@ class CalendarioPedidos extends Templates {
             eventContent:  (arg) => this.renderEvent(arg),
             eventDidMount: () => this.paintIcons(),
             eventClick:    (info) => this.openEvent(info),
-            dateClick:     (info) => ordenesView.openNuevaOrden(info.dateStr),
+            dateClick:     (info) => { if (app.modulo === 'requisiciones') ordenesView.openNuevaOrden(info.dateStr); },
             datesSet:      () => this.paintIcons()
         });
         this.calendar.render();
@@ -3494,13 +3546,7 @@ class CalendarioPedidos extends Templates {
                     $('<span>', { class: 'w-2.5 h-2.5 rounded-full', css: { background: color } }),
                     $('<span>', { text: estado === 'Rechazada' ? 'Rechazada / Cancelada' : estado })
                 )),
-            $('<span>', { class: 'flex items-center gap-1.5' }).append(
-                $('<i>', { 'data-lucide': 'package', class: 'w-3.5 h-3.5' }), $('<span>', { text: 'Lo pide tu sucursal' })
-            ),
-            $('<span>', { class: 'flex items-center gap-1.5' }).append(
-                $('<i>', { 'data-lucide': 'truck', class: 'w-3.5 h-3.5' }), $('<span>', { text: 'Se lo piden a tu sucursal' })
-            ),
-            $('<span>', { class: 'ml-auto text-gray-400', text: 'Clic en un día para programar un pedido' })
+            app.modulo === 'requisiciones' ? $('<span>', { class: 'ml-auto text-gray-400', text: 'Clic en un día para programar una requisición' }) : null
         );
     }
 
@@ -3512,6 +3558,7 @@ class CalendarioPedidos extends Templates {
             url:  this._link,
             data: {
                 opc:       'lsCalendario',
+                lado:      app.lado,
                 branch_id: filters.branch_id,
                 status:    filters.status,
                 fi:        info.startStr.slice(0, 10),
@@ -3555,22 +3602,25 @@ class CalendarioPedidos extends Templates {
     }
 
     // En Mes y Semana la tarjeta va sobre el color del estado; en Agenda va sobre blanco y
-    // el estado lleva su color en la píldora.
+    // el estado lleva su color en la píldora. Tres renglones fijos para que todas midan lo
+    // mismo: sucursal, folio y estado con los materiales. Lo que no cabe se corta con «…».
     renderEvent(arg) {
         const p      = arg.event.extendedProps;
         const agenda = arg.view.type.startsWith('list');
         const pill   = agenda
-            ? $('<span>', { class: 'text-white px-1.5 py-px rounded-full text-[10px] leading-4 font-medium whitespace-nowrap', css: { background: CalendarioPedidos.ESTADOS[p.status] || '#475569' }, text: p.status })
-            : $('<span>', { class: 'bg-black/20 text-white px-1.5 py-px rounded-full text-[10px] leading-4 font-medium whitespace-nowrap', text: p.status });
-        const folio  = $('<span>', { class: `${agenda ? 'bg-gray-100 text-gray-700' : 'bg-black/25 text-white'} text-[10px] font-semibold px-1 py-px rounded whitespace-nowrap`, text: p.folio });
+            ? $('<span>', { class: 'text-white px-1.5 rounded-full text-[10px] leading-4 font-medium truncate min-w-0', css: { background: CalendarioPedidos.ESTADOS[p.status] || '#475569' }, text: p.status })
+            : $('<span>', { class: 'bg-black/20 text-white px-1.5 rounded-full text-[10px] leading-4 font-medium truncate min-w-0', text: p.status });
 
-        const card = $('<div>', { class: 'px-[8px] py-[6px] w-full' }).append(
-            $('<div>', { class: 'font-semibold text-[12px] leading-tight mb-0.5 line-clamp-2 whitespace-normal', text: arg.event.title }),
-            $('<div>', { class: 'flex items-center gap-1 text-[11px] opacity-90' }).append(
-                $('<i>', { 'data-lucide': p.pide ? 'package' : 'truck', class: 'w-3.5 h-3.5 flex-shrink-0' }),
-                $('<span>', { class: 'truncate', text: `${p.total_products} mat.` })
+        const card = $('<div>', { class: 'px-1.5 py-1 w-full min-w-0 overflow-hidden' }).append(
+            $('<div>', { class: 'font-semibold text-[11px] leading-4 truncate', text: arg.event.title }),
+            $('<div>', { class: 'flex items-center gap-1 text-[10px] leading-4 font-medium opacity-90 min-w-0' }).append(
+                $('<i>', { 'data-lucide': p.pide ? 'package' : 'truck', class: 'w-3 h-3 flex-shrink-0' }),
+                $('<span>', { class: 'truncate', text: p.folio })
             ),
-            $('<div>', { class: `mt-1 flex items-center gap-1 ${agenda ? '' : 'justify-between'}` }).append(pill, folio)
+            $('<div>', { class: `mt-0.5 flex items-center gap-1 min-w-0 ${agenda ? '' : 'justify-between'}` }).append(
+                pill,
+                $('<span>', { class: 'text-[10px] leading-4 opacity-90 whitespace-nowrap flex-shrink-0', text: `${p.total_products} mat.` })
+            )
         );
         return { domNodes: [card[0]] };
     }
@@ -3588,12 +3638,20 @@ class CalendarioPedidos extends Templates {
             text: `
                 ${c} { --fc-border-color:#e5e7eb; --fc-today-bg-color:rgb(var(--brand-50, 251 243 239)); --fc-page-bg-color:#fff; --fc-neutral-bg-color:#f9fafb; --fc-list-event-hover-bg-color:rgb(var(--brand-50, 251 243 239)); font-size:12px; }
                 ${c} thead { background:#f9fafb; }
-                ${c} .fc-col-header-cell { color:#6b7280; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; padding:6px 0; }
+                /* compact.css le pone padding con !important a toda celda de tabla: en la
+                   cuadrícula despegaba la rejilla del borde y metía las tarjetas. */
+                ${c} .fc-scrollgrid-section > td, ${c} .fc-scrollgrid-section > th, ${c} .fc-daygrid-day { padding:0 !important; }
+                ${c} .fc-col-header-cell { color:#6b7280; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; padding:5px 0 !important; }
                 ${c} .fc-col-header-cell-cushion, ${c} .fc-daygrid-day-number { color:#4b5563; text-decoration:none; }
-                ${c} .fc-day-today .fc-daygrid-day-number { background:rgb(var(--brand-600, 192 90 64)); color:#fff; border-radius:999px; min-width:22px; text-align:center; margin:3px; padding:1px 6px; font-weight:700; }
+                /* El número de hoy mide lo mismo que los demás: las tarjetas arrancan a la misma altura. */
+                ${c} .fc-daygrid-day-number { font-size:11px; line-height:18px; min-width:20px; padding:0 6px; margin:3px 4px; text-align:center; border-radius:999px; }
+                ${c} .fc-day-today .fc-daygrid-day-number { background:rgb(var(--brand-600, 192 90 64)); color:#fff; font-weight:700; }
                 ${c} .fc-daygrid-day { cursor:pointer; }
-                ${c} .fc-daygrid-day-frame { min-height:110px; }
-                ${c} .fc-toolbar-title { color:#1f2937; font-size:15px; font-weight:700; }
+                ${c} .fc-daygrid-day-frame { min-height:76px; }
+                ${c} .fc-daygrid-day-events { margin-bottom:3px; }
+                ${c} .fc-daygrid-event-harness, ${c} .fc-daygrid-event .fc-event-main { min-width:0; }
+                ${c} .fc-header-toolbar.fc-toolbar { margin-bottom:.75em; }
+                ${c} .fc-toolbar-title { color:#1f2937; font-size:14px; font-weight:700; }
                 ${c} .fc-toolbar-title::first-letter { text-transform:uppercase; }
                 ${c} .fc-button { background:#fff; border:1px solid #d1d5db; color:#374151; font-size:12px; font-weight:600; padding:4px 10px; box-shadow:none; text-transform:capitalize; }
                 ${c} .fc-button:hover { background:#f9fafb; color:#111827; }
@@ -3601,7 +3659,7 @@ class CalendarioPedidos extends Templates {
                 ${c} .fc-button:focus { box-shadow:0 0 0 2px rgb(var(--brand-600, 192 90 64) / .2) !important; }
                 ${c} .fc-event { cursor:pointer; border:none; border-radius:6px; transition:transform .2s, box-shadow .2s; }
                 ${c} .fc-event:hover { transform:translateY(-1px); box-shadow:0 4px 8px rgba(0,0,0,.15); }
-                ${c} .fc-daygrid-event { margin-bottom:2px !important; white-space:normal; }
+                ${c} .fc-daygrid-event { margin:0 4px 3px !important; white-space:normal; }
                 ${c} .fc-event.po-sel { outline:2px solid #1f2937; outline-offset:1px; }
                 ${c} .fc-event.po-done { opacity:.55; }
                 ${c} .fc-more-link { font-size:.7rem; padding:2px 6px; background:#f3f4f6; color:#4b5563; border-radius:4px; margin-top:2px; }

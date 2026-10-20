@@ -5,9 +5,10 @@ let branchId;
 
 const VIEW_HEADER_REPORTES = {
     title:    'Reportes de inventario',
-    subtitle: 'Inventario rápido y conteo físico · semanal y mensual'
+    subtitle: 'Inventario rápido y conteo físico · semanal y mensual · salidas de almacén'
 };
 
+// Salidas: un documento por folio con el formato del "Movimiento de almacén" de Soft.
 const TIPOS_REPORTE = [
     {
         id:    'semanal',
@@ -16,6 +17,10 @@ const TIPOS_REPORTE = [
     {
         id:    'mensual',
         valor: 'Mensual'
+    },
+    {
+        id:    'salidas',
+        valor: 'Salidas'
     }
 ];
 
@@ -303,6 +308,7 @@ class App extends Templates {
 
         // Los 7 filtros miden lo mismo: en pantalla grande la rejilla pasa de 12 a 7 columnas.
         $(`#filterBar${this.PROJECT_NAME}`).addClass('xl:grid-cols-7');
+        this.syncTipo();
 
         // Con una sola sucursal el select queda fijo (sin "Todas" y deshabilitado).
         const sucs = this.dataInit.sucursales || [];
@@ -366,7 +372,13 @@ class App extends Templates {
             picker.setStartDate(range.start);
             picker.setEndDate(range.end);
         }
+        this.syncTipo();
         reportes.lsReportes();
+    }
+
+    // En Salidas no aplica "Solo con movimiento": cada renglón ya es un movimiento.
+    syncTipo() {
+        $('#fProductos').prop('disabled', $('#fTipo').val() === 'salidas');
     }
 
     onChangeBranch() {
@@ -423,6 +435,13 @@ class App extends Templates {
     }
 
     defaultRange(tipo) {
+        if (tipo === 'salidas') {
+            return {
+                start: moment().subtract(6, 'days'),
+                end:   moment()
+            };
+        }
+
         if (tipo === 'mensual') {
             return {
                 start: moment().subtract(2, 'months').startOf('month'),
@@ -481,7 +500,7 @@ class Reportes extends Templates {
             loading: true
         });
         this.renderToolbar();
-        reportesView.renderLoading('Cargando periodos...');
+        reportesView.renderLoading(f.tipo === 'salidas' ? 'Cargando salidas...' : 'Cargando periodos...');
 
         const r = await useFetch({
             url:  api,
@@ -513,7 +532,7 @@ class Reportes extends Templates {
             return;
         }
 
-        reportesView.renderEmpty((r && r.message) || 'No hay periodos en el rango elegido. Selecciona un periodo de la lista.');
+        reportesView.renderEmpty((r && r.message) || 'No hay periodos en el rango elegido. Selecciona un periodo de la lista.', null, this.esSalidas());
     }
 
     async getReporte(key) {
@@ -528,13 +547,15 @@ class Reportes extends Templates {
         this.renderToolbar();
         reportesView.renderLoading(`Generando ${item.label}...`);
 
+        // En Salidas el documento es de un folio: viaja su id en vez del periodo.
         const r = await useFetch({
             url:  api,
             data: {
                 opc:             'getReporte',
                 tipo:            item.tipo || f.tipo,
-                fi:              item.fi,
-                ff:              item.ff,
+                id:              item.id || '',
+                fi:              item.fi || '',
+                ff:              item.ff || '',
                 branch_id:       f.branch_id,
                 warehouse_id:    f.warehouse_id,
                 area_id:         f.area_id,
@@ -545,18 +566,34 @@ class Reportes extends Templates {
         if (token !== this.sheetToken) return;
 
         if (!r || r.status !== 200 || !r.data) {
-            reportesView.renderEmpty((r && r.message) || 'No se pudo generar el reporte.', 'file-x');
+            reportesView.renderEmpty((r && r.message) || 'No se pudo generar el reporte.', 'file-x', this.esSalidas());
             return;
         }
 
         this.reporte = r.data;
         this.renderToolbar();
+        this.paintSheet();
+    }
+
+    // Salidas va en carta vertical (salidaSheet); el inventario, en horizontal.
+    paintSheet() {
+        if (!this.reporte) return;
+
+        if (this.reporte.tipo === 'salidas') {
+            reportesView.renderSalida(this.reporte, this.zoom);
+            return;
+        }
         reportesView.renderSheet(this.reporte, this.mode, this.zoom);
+    }
+
+    esSalidas() {
+        return app.getFilters().tipo === 'salidas';
     }
 
     printReporte() {
         const printed = !!this.reporte && reportesView.printSheet({
-            title: this.fileName('').replace(/_$/, '')
+            title: this.fileName('').replace(/_$/, ''),
+            page:  this.reporte.tipo === 'salidas' ? 'letter portrait' : 'letter landscape'
         });
         if (printed) return;
 
@@ -596,7 +633,8 @@ class Reportes extends Templates {
             const workbook = new ExcelJS.Workbook();
             workbook.creator = data.usuario || 'CoffeeSoft';
 
-            const hojas  = this.sheetReport(workbook, data, this.mode);
+            const salida = data.tipo === 'salidas';
+            const hojas  = salida ? this.sheetSalida(workbook, data) : this.sheetReport(workbook, data, this.mode);
             const buffer = await workbook.xlsx.writeBuffer();
             const link   = document.createElement('a');
 
@@ -610,7 +648,9 @@ class Reportes extends Templates {
             this.alertBox({
                 type:  'success',
                 theme: 'light',
-                title: `Reporte listo: ${(data.rows || []).length} productos en ${hojas} hojas`,
+                title: salida
+                    ? `Salida ${data.folio} lista: ${(data.rows || []).length} renglones`
+                    : `Reporte listo: ${(data.rows || []).length} productos en ${hojas} hojas`,
                 timer: 2000
             });
         } catch (e) {
@@ -629,6 +669,8 @@ class Reportes extends Templates {
     renderToolbar() {
         reportesView.renderToolbar({
             mode:    this.mode,
+            // Completo / Sencillo es del inventario; la salida tiene un solo formato.
+            modes:   !this.esSalidas(),
             zoom:    this.zoom,
             enabled: !!this.reporte,
             printable: can('imprimir'),
@@ -644,7 +686,7 @@ class Reportes extends Templates {
     setMode(mode) {
         this.mode = mode === 'sencillo' ? 'sencillo' : 'completo';
         this.renderToolbar();
-        if (this.reporte) reportesView.renderSheet(this.reporte, this.mode, this.zoom);
+        this.paintSheet();
     }
 
     // Zoom solo de la vista previa (50% a 200%); no cambia la impresión ni el Excel.
@@ -687,7 +729,132 @@ class Reportes extends Templates {
 
     fileName(ext) {
         const d = this.reporte || {};
+        if (d.tipo === 'salidas') return `Salida_${d.folio || ''}${ext}`;
         return `Inventario_${d.tipo || 'reporte'}_${d.fi || ''}_${d.ff || ''}${ext}`;
+    }
+
+    // -- Excel de la salida --
+
+    // Una hoja carta vertical: encabezado (renglones 1-6, se repiten al imprimir),
+    // renglones y al final registros, firmas y total, como el movimiento de Soft.
+    sheetSalida(workbook, data) {
+        const ws    = workbook.addWorksheet('Salida', {
+            views: [
+                {
+                    state:  'frozen',
+                    ySplit: 6
+                }
+            ]
+        });
+        const rows  = data.rows || [];
+        const money = '"$"#,##0.00;-"$"#,##0.00';
+        const gen   = String(data.generado || '');
+
+        ws.columns = [12, 12, 48, 9, 14, 14].map((w) => ({ width: w }));
+
+        this.mergeText(ws, 'A1:D1', data.empresa || '', {
+            bold: true,
+            size: 11
+        });
+        this.mergeText(ws, 'E1:F1', fmtDateShort(gen), { h: 'right' });
+        this.mergeText(ws, 'A2:D2', this.salidaCompanyLine(data, '   ·   '));
+        this.mergeText(ws, 'E2:F2', fmtTime12(gen), { h: 'right' });
+        this.mergeText(ws, 'A3:F3', this.salidaAddressLine(data), { color: 'FF4B5563' });
+        this.mergeText(ws, 'A4:F4', `MOVIMIENTO DE ALMACÉN · SALIDA${data.filtro ? `   ·   ${data.filtro}` : ''}`, {
+            bold: true,
+            size: 10
+        });
+        this.mergeText(ws, 'A5:F5', this.salidaDataLine(data, '     '), { bold: true });
+
+        ['CANTIDAD', 'CLAVE', 'DESCRIPCIÓN', 'UNIDAD', 'COSTO UNITARIO', 'IMPORTE'].forEach((t, i) => {
+            const cell = ws.getRow(6).getCell(i + 1);
+            cell.value = t;
+            this.paint(cell, {
+                bold:   true,
+                size:   8,
+                fill:   'FFE5E7EB',
+                h:      [0, 4, 5].includes(i) ? 'right' : (i === 2 ? 'left' : 'center'),
+                border: this.borders()
+            });
+        });
+
+        rows.forEach((p, k) => {
+            const r      = 7 + k;
+            const values = [p.cantidad, p.clave, p.descripcion, p.unidad, p.costo, p.importe];
+
+            values.forEach((v, i) => {
+                const cell = ws.getRow(r).getCell(i + 1);
+                cell.value = v;
+                this.paint(cell, {
+                    h:      [0, 4, 5].includes(i) ? 'right' : (i === 2 ? 'left' : 'center'),
+                    border: this.borders()
+                });
+            });
+            ws.getRow(r).getCell(1).numFmt = '#,##0.###;-#,##0.###';
+            ws.getRow(r).getCell(5).numFmt = money;
+            ws.getRow(r).getCell(6).numFmt = money;
+        });
+
+        const fin = 7 + rows.length;
+        this.mergeText(ws, `A${fin}:C${fin}`, `REGISTROS ${rows.length}`, { bold: true });
+        this.mergeText(ws, `A${fin + 3}:B${fin + 3}`, `ALMACENISTA: ${data.registro || ''}`, { size: 8 });
+        this.mergeText(ws, `C${fin + 3}:D${fin + 3}`, 'SUPERVISOR', {
+            size: 8,
+            h:    'center'
+        });
+        const etiqueta = ws.getCell(`E${fin + 3}`);
+        etiqueta.value = 'TOTAL:';
+        this.paint(etiqueta, {
+            bold: true,
+            h:    'right'
+        });
+        const total = ws.getCell(`F${fin + 3}`);
+        total.value = Number(data.total) || 0;
+        this.paint(total, {
+            bold: true,
+            h:    'right'
+        });
+        total.numFmt = money;
+
+        ws.pageSetup = {
+            paperSize:          1,
+            orientation:        'portrait',
+            fitToPage:          true,
+            fitToWidth:         1,
+            fitToHeight:        0,
+            horizontalCentered: true,
+            printTitlesRow:     '1:6',
+            margins:            {
+                left:   0.4,
+                right:  0.4,
+                top:    0.5,
+                bottom: 0.5,
+                header: 0.2,
+                footer: 0.2
+            }
+        };
+        ws.headerFooter.oddFooter = `&L&8${String(data.folio || '').replace(/&/g, '&&')}&C&8Hoja &P de &N`;
+
+        return 1;
+    }
+
+    // "Sucursal · RFC: XXX" (la razón social ya va arriba, en la empresa).
+    salidaCompanyLine(data, sep) {
+        return [data.sucursal, data.rfc ? `RFC: ${data.rfc}` : ''].filter(Boolean).join(sep);
+    }
+
+    salidaAddressLine(data) {
+        return [data.ubicacion, data.telefono ? `Tel. ${data.telefono}` : ''].filter(Boolean).join(', ');
+    }
+
+    salidaDataLine(data, sep) {
+        return [
+            `ALMACÉN: ${data.almacen || '-'}`,
+            `FOLIO: ${data.folio || '-'}`,
+            `${fmtDateShort(data.fecha)} ${fmtTime12(data.fecha)}`,
+            `CONCEPTO: ${data.motivo || '-'}`,
+            data.nota ? `NOTA: ${data.nota}` : ''
+        ].filter(Boolean).join(sep);
     }
 
     // Saltos de página a mano: cada área empieza en hoja nueva y ningún producto
@@ -1097,12 +1264,20 @@ class ReportesView extends Templates {
         });
     }
 
-    renderEmpty(message, icon) {
-        this.emptyState({
+    renderSalida(data, zoom) {
+        this.salidaSheet({
+            parent: 'reportPreview',
+            json:   data,
+            zoom:   zoom
+        });
+    }
+
+    renderEmpty(message, icon, salidas) {
+        this.emptyState(Object.assign({
             parent: 'reportPreview',
             icon:   icon || 'file-spreadsheet',
             title:  message || 'Selecciona un periodo de la lista'
-        });
+        }, salidas ? { hint: 'Cada salida se imprime como movimiento de almacén: renglones, registros y total.' } : {}));
     }
 
     renderLoading(message) {
@@ -1166,7 +1341,8 @@ class ReportesView extends Templates {
             grid:     'minmax(0,1fr) 78px 78px 86px',
             titles:   {
                 semanal: 'Reportes semanales',
-                mensual: 'Reportes mensuales'
+                mensual: 'Reportes mensuales',
+                salidas: 'Salidas de almacén'
             },
             labels: {
                 search:  'Buscar periodo...',
@@ -1194,6 +1370,22 @@ class ReportesView extends Templates {
         opts.dots   = Object.assign({}, defaults.dots,   o.dots   || {});
 
         const items = opts.items || [];
+
+        // Salidas: un renglón por folio con sus productos y su importe.
+        if (opts.tipo === 'salidas') {
+            opts.grid   = 'minmax(0,1fr) 64px 96px';
+            opts.labels = Object.assign(opts.labels, {
+                search:  'Buscar folio, concepto o almacén...',
+                empty:   'No hay salidas en el rango',
+                loading: 'Cargando salidas...',
+                footIn:  'Salidas del rango',
+                footOut: 'Importe del rango'
+            });
+        }
+
+        const salidas   = opts.tipo === 'salidas';
+        const unidad    = salidas ? ['salida', 'salidas'] : ['periodo', 'periodos'];
+        const contar    = (n) => `${n} ${n === 1 ? unidad[0] : unidad[1]}`;
         const gridStyle = `grid-template-columns:${opts.grid};column-gap:8px;`;
 
         const dotColor = (it) => {
@@ -1232,8 +1424,27 @@ class ReportesView extends Templates {
                 </button>`;
         };
 
-        const totalIn  = items.reduce((t, it) => t + (Number(it.entradas) || 0), 0);
-        const totalOut = items.reduce((t, it) => t + (Number(it.salidas)  || 0), 0);
+        const salidaHtml = (it) => {
+            const active = it.key === opts.selected;
+            const search = [it.label, it.motivo, it.almacen].join(' ').toLowerCase();
+
+            return `
+                <button type="button" data-key="${esc(it.key)}" data-search="${esc(search)}"
+                    class="${opts.rowClass} ${active ? opts.activeClass : opts.inactiveClass}" style="${gridStyle}">
+                    <div class="min-w-0">
+                        <div class="flex items-center" style="gap:6px;">
+                            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:#DC2626;"></span>
+                            <span class="text-sm font-bold text-gray-800 truncate">${esc(it.label)}</span>
+                        </div>
+                        <div class="text-[10px] text-gray-500 truncate mt-0.5 pl-3">${esc(it.motivo)} · ${esc(fmtDateShort(it.fecha))} ${esc(fmtTime12(it.fecha))} · ${esc(it.almacen)}</div>
+                    </div>
+                    ${numCell(fmtNum(it.productos), 'productos', 'text-gray-700')}
+                    ${numCell(fmtMoney(it.importe), 'importe', 'text-red-600')}
+                </button>`;
+        };
+
+        const totalIn  = salidas ? items.length : items.reduce((t, it) => t + (Number(it.entradas) || 0), 0);
+        const totalOut = items.reduce((t, it) => t + (Number(salidas ? it.importe : it.salidas) || 0), 0);
 
         const body = opts.loading
             ? `<div class="flex flex-col items-center justify-center text-gray-400 py-10">
@@ -1241,7 +1452,7 @@ class ReportesView extends Templates {
                     <p class="text-xs">${esc(opts.labels.loading)}</p>
                </div>`
             : (items.length
-                ? items.map(rowHtml).join('') + `<p id="${opts.id}_noMatch" class="hidden text-center text-xs text-gray-400 py-8">${esc(opts.labels.noMatch)}</p>`
+                ? items.map(salidas ? salidaHtml : rowHtml).join('') + `<p id="${opts.id}_noMatch" class="hidden text-center text-xs text-gray-400 py-8">${esc(opts.labels.noMatch)}</p>`
                 : `<p class="text-center text-xs text-gray-400 py-8">${esc(opts.labels.empty)}</p>`);
 
         const wrap = $('<div>', {
@@ -1251,9 +1462,9 @@ class ReportesView extends Templates {
         wrap.html(`
             <div class="px-3 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
                 <div class="flex items-center mb-2" style="gap:8px;">
-                    <i data-lucide="calendar-range" class="w-4 h-4" style="color:rgb(var(--brand-600, 192 90 64));"></i>
+                    <i data-lucide="${salidas ? 'arrow-up-from-line' : 'calendar-range'}" class="w-4 h-4" style="color:rgb(var(--brand-600, 192 90 64));"></i>
                     <span class="text-sm font-bold text-gray-800 flex-1">${esc(opts.titles[opts.tipo] || opts.titles.semanal)}</span>
-                    <span id="${opts.id}_count" class="text-[11px] text-gray-500">${items.length} periodo${items.length === 1 ? '' : 's'}</span>
+                    <span id="${opts.id}_count" class="text-[11px] text-gray-500">${contar(items.length)}</span>
                 </div>
                 <div class="relative">
                     <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute top-1/2 -translate-y-1/2" style="left:10px;"></i>
@@ -1262,20 +1473,24 @@ class ReportesView extends Templates {
                 </div>
             </div>
             <div class="grid py-2 border-b border-gray-200 text-[10px] font-semibold text-gray-500 uppercase tracking-wide flex-shrink-0" style="${gridStyle}padding-left:14px;padding-right:12px;">
+                ${salidas ? `
+                <span>Folio</span>
+                <span class="text-right">Productos</span>
+                <span class="text-right">Importe</span>` : `
                 <span>Periodo</span>
                 <span class="text-right">Entradas</span>
                 <span class="text-right">Salidas</span>
-                <span class="text-right">Ajustes</span>
+                <span class="text-right">Ajustes</span>`}
             </div>
             <div id="${opts.id}_rows" class="flex-1 min-h-0 overflow-y-auto">${body}</div>
             <div class="flex items-center justify-between px-3 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0" style="gap:12px;">
                 <div class="min-w-0">
                     <div class="text-[10px] font-bold uppercase tracking-wide text-gray-500">${esc(opts.labels.footIn)}</div>
-                    <div class="text-base font-bold text-green-600">+${fmtNum(totalIn)}</div>
+                    <div class="text-base font-bold ${salidas ? 'text-gray-800' : 'text-green-600'}">${salidas ? fmtNum(totalIn) : `+${fmtNum(totalIn)}`}</div>
                 </div>
                 <div class="min-w-0 text-right">
                     <div class="text-[10px] font-bold uppercase tracking-wide text-gray-500">${esc(opts.labels.footOut)}</div>
-                    <div class="text-base font-bold text-red-600">-${fmtNum(totalOut)}</div>
+                    <div class="text-base font-bold text-red-600">${salidas ? fmtMoney(totalOut) : `-${fmtNum(totalOut)}`}</div>
                 </div>
             </div>`);
 
@@ -1294,7 +1509,7 @@ class ReportesView extends Templates {
                 if (show) visible++;
             });
 
-            $(`#${opts.id}_count`).text(`${visible} periodo${visible === 1 ? '' : 's'}`);
+            $(`#${opts.id}_count`).text(contar(visible));
             $(`#${opts.id}_noMatch`).toggleClass('hidden', visible > 0 || !$rows.length);
         });
 
@@ -1315,6 +1530,8 @@ class ReportesView extends Templates {
             id:      'reportToolbarBox',
             class:   'flex flex-wrap items-center justify-between px-3 py-2.5',
             mode:    'completo',
+            // false: sin el selector Completo / Sencillo (la salida tiene un solo formato).
+            modes:   true,
             zoom:    100,
             step:    10,
             enabled: false,
@@ -1380,10 +1597,11 @@ class ReportesView extends Templates {
                         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
+                ${opts.modes ? `
                 <div class="inline-flex bg-white border border-gray-200 rounded-lg p-0.5">
                     ${segBtn('completo')}
                     ${segBtn('sencillo')}
-                </div>
+                </div>` : ''}
                 ${opts.printable ? `
                 <button type="button" id="${opts.id}_print" ${disabled}
                     class="inline-flex items-center rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors ${offClass}" style="gap:6px;padding:7px 12px;">
@@ -1626,6 +1844,173 @@ class ReportesView extends Templates {
         $(`#${opts.parent}`).html(sheet);
     }
 
+    // Movimiento de almacén (una salida) en carta vertical (8.5 × 11 in a 96 dpi), con el
+    // formato de Soft: empresa y datos de la salida arriba, renglones con cantidad e importe
+    // en negativo y al final registros, firmas y total. Los renglones se miden fuera de
+    // pantalla y se reparten por hoja; el encabezado se repite en cada una.
+    salidaSheet(options) {
+        const defaults = {
+            parent: 'root',
+            id:     'rptSheet',
+            json:   null,
+            zoom:   100,
+            page:   {
+                width:   816,
+                height:  1056,
+                padding: 40
+            },
+            labels: {
+                titulo:      'MOVIMIENTO DE ALMACÉN · SALIDA',
+                almacenista: 'ALMACENISTA',
+                supervisor:  'SUPERVISOR',
+                registros:   'REGISTROS',
+                total:       'TOTAL:',
+                empty:       'La salida no tiene renglones con estos filtros.'
+            }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.page   = Object.assign({}, defaults.page,   o.page   || {});
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+
+        this.sheetStyles();
+
+        const d = opts.json;
+        if (!d) {
+            this.renderEmpty();
+            return;
+        }
+
+        const rows = d.rows || [];
+        const gen  = String(d.generado || '');
+
+        const head = `
+            <div class="rpt-mv-head">
+                <div class="rpt-mv-top">
+                    <div>
+                        <div class="rpt-mv-company">${esc(d.empresa || '')}</div>
+                        <div>${esc(reportes.salidaCompanyLine(d, ' · '))}</div>
+                        <div class="rpt-mv-muted">${esc(reportes.salidaAddressLine(d))}</div>
+                    </div>
+                    <div class="rpt-mv-date">
+                        <div>${esc(fmtDateShort(gen))}</div>
+                        <div>${esc(fmtTime12(gen))}</div>
+                    </div>
+                </div>
+                <div class="rpt-mv-title">${esc(opts.labels.titulo)}</div>
+                <div class="rpt-mv-data">
+                    <span><b>ALMACÉN:</b> ${esc(d.almacen)}</span>
+                    <span><b>FOLIO:</b> ${esc(d.folio)}</span>
+                    <span>${esc(fmtDateShort(d.fecha))} ${esc(fmtTime12(d.fecha))}</span>
+                    <span><b>CONCEPTO:</b> ${esc(d.motivo)}</span>
+                    ${d.nota ? `<span><b>NOTA:</b> ${esc(d.nota)}</span>` : ''}
+                </div>
+                ${d.filtro ? `<div class="rpt-mv-muted">${esc(d.filtro)}</div>` : ''}
+            </div>`;
+
+        const colgroup = `<colgroup><col style="width:12%;"><col style="width:11%;"><col><col style="width:9%;"><col style="width:14%;"><col style="width:14%;"></colgroup>`;
+        const thead    = `
+            <thead>
+                <tr>
+                    <th class="rpt-mv-r">CANTIDAD</th>
+                    <th class="rpt-mv-c">CLAVE</th>
+                    <th>DESCRIPCIÓN</th>
+                    <th class="rpt-mv-c">UNIDAD</th>
+                    <th class="rpt-mv-r">COSTO UNITARIO</th>
+                    <th class="rpt-mv-r">IMPORTE</th>
+                </tr>
+            </thead>`;
+
+        const rowHtml = (p) => `
+            <tr>
+                <td class="rpt-mv-r">${fmtNum(p.cantidad)}</td>
+                <td class="rpt-mv-c">${esc(p.clave)}</td>
+                <td>${esc(p.descripcion)}</td>
+                <td class="rpt-mv-c">${esc(p.unidad)}</td>
+                <td class="rpt-mv-r">${fmtMoney(p.costo)}</td>
+                <td class="rpt-mv-r">${fmtMoney(p.importe)}</td>
+            </tr>`;
+
+        const empty  = `<tr><td colspan="6" class="rpt-mv-empty">${esc(opts.labels.empty)}</td></tr>`;
+        const cierre = `
+            <div class="rpt-mv-end">
+                <div class="rpt-mv-count">${esc(opts.labels.registros)} ${rows.length}</div>
+                <div class="rpt-mv-signs">
+                    <div class="rpt-mv-sign"><div class="rpt-mv-line"></div>${esc(opts.labels.almacenista)}: ${esc(d.registro || '')}</div>
+                    <div class="rpt-mv-sign"><div class="rpt-mv-line"></div>${esc(opts.labels.supervisor)}</div>
+                    <div class="rpt-mv-total"><span>${esc(opts.labels.total)}</span><b>${fmtMoney(d.total)}</b></div>
+                </div>
+            </div>`;
+        const table = (body) => `<table class="rpt-mv-table">${colgroup}${thead}<tbody>${body}</tbody></table>`;
+
+        // Medición fuera de pantalla con la misma CSS; 14 px quedan para el pie "Hoja X de N".
+        const anchoUtil = opts.page.width - opts.page.padding * 2;
+        const altoUtil  = opts.page.height - opts.page.padding * 2 - 14;
+
+        const probe = $('<div>', {
+            class: 'rpt-probe',
+            style: `width:${anchoUtil}px;`
+        });
+        probe.html(`${head}${table(rows.map(rowHtml).join('') || empty)}${cierre}`);
+        $('body').append(probe);
+
+        const altoHead   = probe.find('.rpt-mv-head').outerHeight(true) + probe.find('thead')[0].offsetHeight;
+        const altos      = probe.find('tbody tr').map((i, tr) => tr.offsetHeight).get();
+        const altoCierre = probe.find('.rpt-mv-end').outerHeight(true);
+        probe.remove();
+
+        // Un renglón nunca se parte; el cierre va en la última hoja (o en una nueva si no cabe).
+        const disponible = altoUtil * 0.98 - altoHead;
+        const paginas    = [];
+        let actual = {
+            html:  '',
+            usado: 0
+        };
+
+        rows.forEach((p, i) => {
+            if (actual.html && actual.usado + altos[i] > disponible) {
+                paginas.push(actual);
+                actual = {
+                    html:  '',
+                    usado: 0
+                };
+            }
+            actual.html  += rowHtml(p);
+            actual.usado += altos[i];
+        });
+
+        if (!rows.length) actual.html = empty;
+        if (actual.usado && actual.usado + altoCierre > disponible) {
+            paginas.push(actual);
+            actual = {
+                html:  '',
+                usado: 0
+            };
+        }
+        actual.cierre = true;
+        paginas.push(actual);
+
+        const sheet = $('<div>', {
+            id:    opts.id,
+            class: 'rpt-doc',
+            style: `zoom:${opts.zoom / 100};`
+        });
+        sheet.html(paginas.map((pg, k) => `
+            <div class="rpt-sheet rpt-portrait" style="width:${opts.page.width}px;height:${opts.page.height}px;padding:${opts.page.padding}px;">
+                ${head}
+                ${pg.html ? table(pg.html) : ''}
+                ${pg.cierre ? cierre : ''}
+                <div class="rpt-sheet-foot" style="left:${opts.page.padding}px;right:${opts.page.padding}px;">
+                    <span>${esc(d.folio || '')}</span>
+                    <span>Hoja ${k + 1} de ${paginas.length}</span>
+                    <span>Imprimió: ${esc(d.usuario || '-')}</span>
+                </div>
+            </div>`).join(''));
+
+        $(`#${opts.parent}`).html(sheet);
+    }
+
     // Imprime las páginas de la vista previa desde un iframe oculto con la misma CSS
     // .rpt-*. Las páginas ya vienen armadas a tamaño carta horizontal (inventorySheet),
     // así que cada .rpt-sheet es una hoja impresa; el zoom de la vista previa se anula.
@@ -1747,9 +2132,29 @@ class ReportesView extends Templates {
             .rpt-sum-item:last-child { border-right: none; }
             .rpt-sum-label { font-size: 8px; text-transform: uppercase; letter-spacing: .04em; color: #6B7280; }
             .rpt-sum-value { font-size: 10px; font-weight: 700; }
+            .rpt-mv-head { font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.3; color: #111827; margin-bottom: 8px; }
+            .rpt-mv-top { display: flex; justify-content: space-between; gap: 16px; }
+            .rpt-mv-company { font-size: 12px; font-weight: 700; }
+            .rpt-mv-muted { color: #4B5563; }
+            .rpt-mv-date { text-align: right; white-space: nowrap; }
+            .rpt-mv-title { font-size: 11px; font-weight: 700; margin-top: 10px; }
+            .rpt-mv-data { display: flex; flex-wrap: wrap; column-gap: 18px; margin-top: 3px; }
+            .rpt-mv-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-family: Arial, Helvetica, sans-serif; color: #111827; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .rpt-mv-table th { font-size: 8.5px; font-weight: 700; text-align: left; white-space: nowrap; padding: 4px 4px !important; border-top: 1px solid #374151; border-bottom: 1px solid #374151; }
+            .rpt-mv-table td { font-size: 9.5px; line-height: 1.25; vertical-align: top; padding: 3px 4px !important; border-bottom: 1px solid #E5E7EB; }
+            .rpt-mv-table .rpt-mv-r { text-align: right; white-space: nowrap; }
+            .rpt-mv-table .rpt-mv-c { text-align: center; white-space: nowrap; }
+            .rpt-mv-table .rpt-mv-empty { text-align: center; color: #6B7280; padding: 18px 4px !important; }
+            .rpt-mv-end { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #111827; margin-top: 6px; }
+            .rpt-mv-count { font-weight: 700; }
+            .rpt-mv-signs { display: flex; align-items: flex-end; gap: 28px; margin-top: 48px; }
+            .rpt-mv-sign { flex: 1 1 0; font-size: 9px; }
+            .rpt-mv-line { border-top: 1px solid #111827; margin-bottom: 4px; }
+            .rpt-mv-total { flex: 1 1 0; display: flex; justify-content: flex-end; gap: 18px; font-size: 11px; }
             @media print {
                 .rpt-doc { display: block; zoom: 1 !important; width: auto; margin: 0; }
                 .rpt-sheet { box-shadow: none; margin: 0; height: calc(8.5in - 2px) !important; break-after: page; page-break-after: always; }
+                .rpt-sheet.rpt-portrait { height: calc(11in - 2px) !important; }
                 .rpt-sheet:last-child { break-after: auto; page-break-after: auto; }
             }`;
         document.head.appendChild(style);
@@ -1788,6 +2193,19 @@ function fmtTime12(iso) {
 
     const h = Number(s.slice(11, 13));
     return `${h % 12 || 12}:${s.slice(14, 16)} ${h >= 12 ? 'pm' : 'am'}`;
+}
+
+// 'YYYY-MM-DD HH:MM:SS' -> '19/10/2026'.
+function fmtDateShort(iso) {
+    const s = String(iso || '');
+    if (s.length < 10) return s;
+    return `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}`;
+}
+
+// -230.48 -> '-$230.48' (dos decimales y separador de miles).
+function fmtMoney(n) {
+    const v = Number(n) || 0;
+    return `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // Hasta 3 decimales sin ceros sobrantes y con separador de miles.

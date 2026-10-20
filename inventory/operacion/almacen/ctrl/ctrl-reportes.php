@@ -52,6 +52,8 @@ class ctrl extends mdl {
     // reporte vacio sigue sirviendo como hoja de conteo.
     function lsReportes() {
         $filtros  = reporteFiltros($_POST);
+        if ($filtros['tipo'] === 'salidas') return $this->listaSalidas($filtros);
+
         $rango    = reporteRango($_POST['fi'] ?? '', $_POST['ff'] ?? '');
         $periodos = reportePeriodos($filtros['tipo'], $rango['fi'], $rango['ff']);
         $scope    = reporteScope($this->lsWarehouses([$this->companiesId]), $filtros);
@@ -125,6 +127,8 @@ class ctrl extends mdl {
     // hay existencias que no nacieron de un movimiento (cargas iniciales).
     function getReporte() {
         $filtros  = reporteFiltros($_POST);
+        if ($filtros['tipo'] === 'salidas') return $this->reporteSalida($filtros);
+
         $periodo  = reportePeriodo($filtros['tipo'], reporteFecha($_POST['fi'] ?? '') ?: date('Y-m-d'));
         $columnas = reporteColumnas($filtros['tipo'], $periodo['fi'], $periodo['ff']);
         $scope    = reporteScope($this->lsWarehouses([$this->companiesId]), $filtros);
@@ -240,6 +244,119 @@ class ctrl extends mdl {
             ]
         ];
     }
+
+    // -- Salidas (movimiento de almacén) --
+    // El formato del "Movimiento de almacén" de Soft: un documento por salida con sus
+    // renglones en negativo (cantidad e importe), cuántos registros y el total.
+
+    // Una por folio, la más reciente arriba. Área y categoría filtran sus renglones.
+    private function listaSalidas($filtros) {
+        $rango = reporteRango($_POST['fi'] ?? '', $_POST['ff'] ?? '');
+        $scope = reporteScope($this->lsWarehouses([$this->companiesId]), $filtros);
+
+        if (empty($scope['ids'])) {
+            return [
+                'status'  => 200,
+                'data'    => [],
+                'message' => 'No hay almacenes activos con esos filtros'
+            ];
+        }
+
+        $salidas = $this->listSalidasReporte([
+            'companies_id'  => $this->companiesId,
+            'warehouse_ids' => $scope['ids'],
+            'fi'            => $rango['fi'],
+            'ff'            => $rango['ff'],
+            'area_id'       => $filtros['area_id'],
+            'category_id'   => $filtros['category_id']
+        ]);
+
+        $data = array_map(function ($salida) {
+            return [
+                'key'       => 's' . $salida['id'],
+                'id'        => (int) $salida['id'],
+                'tipo'      => 'salidas',
+                'label'     => $salida['folio'],
+                'motivo'    => $salida['motivo'] ?: 'Sin motivo',
+                'almacen'   => $salida['almacen'] ?: '',
+                'fecha'     => $salida['created_at'],
+                'productos' => (int) $salida['renglones'],
+                'importe'   => round(-(float) $salida['importe'], 2)
+            ];
+        }, $salidas);
+
+        return [
+            'status'  => 200,
+            'data'    => $data,
+            'message' => 'No hay salidas en el rango con esos filtros'
+        ];
+    }
+
+    private function reporteSalida($filtros) {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $salida = $this->getSalidaReporte([$id, $this->companiesId]);
+
+        if (!$salida) {
+            return [
+                'status'  => 404,
+                'message' => 'La salida ya no existe o está cancelada'
+            ];
+        }
+
+        $detalle = $this->listDetalleSalidaReporte([
+            'id'          => $id,
+            'area_id'     => $filtros['area_id'],
+            'category_id' => $filtros['category_id']
+        ]);
+
+        $rows  = [];
+        $total = 0.0;
+        foreach ($detalle as $renglon) {
+            $importe = -(float) $renglon['subtotal'];
+            $total  += $importe;
+
+            $rows[] = [
+                'cantidad'    => reporteRedondeo(-(float) $renglon['quantity']),
+                'clave'       => $renglon['sku'] ?? '',
+                'descripcion' => $renglon['name'],
+                'unidad'      => $renglon['unidad'],
+                'costo'       => round((float) $renglon['cost'], 2),
+                'importe'     => round($importe, 2)
+            ];
+        }
+
+        $filtro = [];
+        if ($filtros['area_id'])     $filtro[] = 'Área: '      . reporteValor($this->lsAreas([$this->companiesId]), $filtros['area_id']);
+        if ($filtros['category_id']) $filtro[] = 'Categoría: ' . reporteValor($this->lsCategories([$this->companiesId]), $filtros['category_id']);
+
+        $empresa = $this->getCompanyById([$this->companiesId]);
+        $motivo  = $salida['motivo'] ?: 'Sin motivo';
+
+        return [
+            'status' => 200,
+            'data'   => [
+                'tipo'           => 'salidas',
+                'id'             => $id,
+                'folio'          => $salida['folio'],
+                'fecha'          => $salida['created_at'],
+                'motivo'         => $motivo,
+                'nota'           => $salida['note'] ?? '',
+                'almacen'        => $salida['almacen'] ?: '-',
+                'sucursal'       => $salida['sucursal'] ?: '',
+                'registro'       => $salida['registro'] ?: '',
+                'empresa'        => $empresa['name'] ?? ($_SESSION['company'] ?? ''),
+                'rfc'            => $empresa['rfc'] ?? '',
+                'ubicacion'      => $salida['sucursal_ubicacion'] ?: ($empresa['ubication'] ?? ''),
+                'telefono'       => $salida['sucursal_telefono'] ?? '',
+                'filtro'         => implode(' · ', $filtro),
+                'titulo_periodo' => $salida['folio'] . ' · ' . $motivo,
+                'generado'       => $this->getAhoraBd(),
+                'usuario'        => $_SESSION['user'] ?? '',
+                'rows'           => $rows,
+                'total'          => round($total, 2)
+            ]
+        ];
+    }
 }
 
 // Complements.
@@ -259,7 +376,7 @@ function reporteFiltros($post) {
     $tipo = $post['tipo'] ?? '';
 
     return [
-        'tipo'            => $tipo === 'mensual' ? 'mensual' : 'semanal',
+        'tipo'            => in_array($tipo, ['mensual', 'salidas'], true) ? $tipo : 'semanal',
         'branch_id'       => (int) ($post['branch_id']    ?? 0),
         'warehouse_id'    => (int) ($post['warehouse_id'] ?? 0),
         'area_id'         => (int) ($post['area_id']      ?? 0),

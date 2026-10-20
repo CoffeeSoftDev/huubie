@@ -86,7 +86,7 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    // El select «Almacén» de «Nueva área».
+    // El select «Almacén» de «Nueva área»: los de sus sucursales (el administrador, todos).
     function lsWarehouses() {
         $query = "
             SELECT w.id, CONCAT(w.name, IFNULL(CONCAT(' - ', b.name), '')) AS valor
@@ -94,7 +94,7 @@ class mdl extends CRUD {
             LEFT JOIN fayxzvov_erp.branches b ON b.id = w.branch_id
             WHERE w.active = 1
             AND w.companies_id = ".$_SESSION['company_id']."
-            {$this->filtroCatalogoSucursal('w')}
+            {$this->filtroMisSucursales('w')}
             ORDER BY b.name ASC, w.is_default DESC, w.name ASC
         ";
         return $this->_Read($query, []);
@@ -128,7 +128,7 @@ class mdl extends CRUD {
                 GROUP BY item_id
             ) st ON st.item_id = i.id
             WHERE i.active = 1
-            AND i.companies_id = ".$_SESSION['company_id']." {$this->filtroProductosEditables('i')}
+            AND i.companies_id = ".$_SESSION['company_id']." " . ($this->veTodosLosProductos() ? '' : $this->filtroMisSucursales('i')) . "
             ORDER BY i.name ASC
         ";
         return $this->_Read($query, []);
@@ -147,9 +147,13 @@ class mdl extends CRUD {
     // Insumos (item + item_attribute + stock)
 
     // `branch_id` en los filtros: el stock es solo de los almacenes de esa sucursal;
-    // sin él (o vacío) es el de toda la empresa.
+    // sin él (o vacío) es el de toda la empresa. `vista`: la sucursal que eligió en el
+    // selector quien tiene varias; se ve como si estuviera en ella.
     function listMateriales($filters) {
         $sucursal = $this->stockDeSucursal($filters['branch_id'] ?? '');
+        $vista    = $filters['vista'] ?? null;
+        $fCat     = $vista ? $this->filtroCatalogoDe('ic', $vista) : $this->filtroCatalogoSucursal('ic');
+        $fArea    = $vista ? $this->filtroAreasDe('wa', $vista) : $this->filtroAreasCatalogo('wa');
 
         $query = "
             SELECT
@@ -179,9 +183,9 @@ class mdl extends CRUD {
                 b.name  AS sucursal
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
-            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id {$this->filtroCatalogoSucursal('ic')}
+            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id {$fCat}
             LEFT JOIN {$this->bd}unit           u  ON u.id  = ia.unit_id
-            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id {$this->filtroAreasCatalogo('wa')}
+            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id {$fArea}
             LEFT JOIN fayxzvov_erp.branches     b  ON b.id  = i.branch_id
             LEFT JOIN (
                 SELECT item_id, SUM(quantity) AS qty
@@ -189,7 +193,7 @@ class mdl extends CRUD {
                 WHERE active = 1 {$sucursal}
                 GROUP BY item_id
             ) st ON st.item_id = i.id
-            WHERE i.companies_id = ".$_SESSION['company_id']." {$this->filtroProductosPropios('i')}
+            WHERE i.companies_id = ".$_SESSION['company_id']." {$this->filtroProductosPropios('i', $vista)}
         ";
 
         $params = [];
@@ -315,13 +319,15 @@ class mdl extends CRUD {
         return $result[0]['count'] > 0;
     }
 
+    // Solo los de esa sucursal: el mismo producto se puede dar de alta en otra.
     function listMaterialNames($array) {
-        // [companies_id, id que no se compara (el que se edita; 0 en un alta)]
+        // [companies_id, id que no se compara (el que se edita; 0 en un alta), branch_id]
         $query = "
             SELECT id, name, active
             FROM {$this->bd}item
             WHERE companies_id = ?
             AND id <> ?
+            AND (branch_id = ? OR branch_id IS NULL)
         ";
         return $this->_Read($query, $array);
     }
@@ -398,6 +404,9 @@ class mdl extends CRUD {
     // la categoría es la de su base; el área y el estado, los suyos.
     function listPresentacionesTabla($filters) {
         $sucursal = $this->stockDeSucursal($filters['branch_id'] ?? '');
+        $vista    = $filters['vista'] ?? null;
+        $fCat     = $vista ? $this->filtroCatalogoDe('ic', $vista) : $this->filtroCatalogoSucursal('ic');
+        $fArea    = $vista ? $this->filtroAreasDe('wa', $vista) : $this->filtroAreasCatalogo('wa');
 
         $query = "
             SELECT
@@ -421,17 +430,17 @@ class mdl extends CRUD {
             FROM {$this->bd}item_presentation p
             INNER JOIN {$this->bd}item           i  ON i.id = p.item_id
             LEFT JOIN  {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
-            LEFT JOIN  {$this->bd}item_category  ic ON ic.id = i.category_id {$this->filtroCatalogoSucursal('ic')}
+            LEFT JOIN  {$this->bd}item_category  ic ON ic.id = i.category_id {$fCat}
             LEFT JOIN  {$this->bd}unit           u  ON u.id = ia.unit_id
             LEFT JOIN  {$this->bd}unit           pu ON pu.id = p.unit_id
-            LEFT JOIN  {$this->bd}warehouse_area wa ON wa.id = p.warehouse_area_id {$this->filtroAreasCatalogo('wa')}
+            LEFT JOIN  {$this->bd}warehouse_area wa ON wa.id = p.warehouse_area_id {$fArea}
             LEFT JOIN (
                 SELECT item_id, SUM(quantity) AS qty
                 FROM {$this->bd}stock
                 WHERE active = 1 {$sucursal}
                 GROUP BY item_id
             ) st ON st.item_id = p.item_id
-            WHERE p.companies_id = ".$_SESSION['company_id']." {$this->filtroProductosPropios('i')}
+            WHERE p.companies_id = ".$_SESSION['company_id']." {$this->filtroProductosPropios('i', $vista)}
         ";
 
         $params = [];
@@ -480,6 +489,7 @@ class mdl extends CRUD {
                 p.id,
                 p.item_id,
                 p.name,
+                p.description,
                 p.sku,
                 p.factor,
                 p.unit_id,

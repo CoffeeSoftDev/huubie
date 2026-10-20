@@ -96,7 +96,8 @@ class ctrl extends mdl {
             'branch_id'        => $this->branchId,
             'user_id'          => $this->userId,
             'is_admin'         => (int) $this->esAdminIA(),
-            'coffeeia'         => IaOllama::activo($this),
+            // Encendido en Administrador › CoffeeIA y con la casilla IA del rol en Entradas.
+            'coffeeia'         => IaOllama::activo($this) && Permissions::can('entradas', 'ia'),
             'sucursales'       => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
             'areas'            => $this->lsAreas([$this->companiesId]),
@@ -943,6 +944,8 @@ class ctrl extends mdl {
 
         if (!IaOllama::activo($this)) return ['status' => 403, 'message' => 'CoffeeIA está apagado. Se enciende en Administrador > CoffeeIA.'];
 
+        if (!Permissions::can('entradas', 'ia')) return ['status' => 403, 'message' => 'Tu rol no tiene CoffeeIA en Entradas. Se activa en Accesos › Roles, columna IA.'];
+
         $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 4000);
         $adjuntos  = json_decode((string) ($_POST['adjuntos'] ?? '[]'), true);
         $historial = json_decode((string) ($_POST['historial'] ?? '[]'), true);
@@ -983,6 +986,7 @@ class ctrl extends mdl {
     function deleteEntradaIA() {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
         if (!$this->esAdminIA()) return ['status' => 403, 'message' => 'Solo un administrador puede eliminar entradas.'];
+        if (!Permissions::can('entradas', 'ia')) return ['status' => 403, 'message' => 'Tu rol no tiene CoffeeIA en Entradas. Se activa en Accesos › Roles, columna IA.'];
 
         $pendiente = $_SESSION['iaEntradasBorrar'] ?? null;
         $token     = (string) ($_POST['token'] ?? '');

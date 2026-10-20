@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-almacen.php';
 let main, products, asistente;
-let categorias, unidades, areas, proveedores, almacenes, productos, superAdmin, coffeeIA, sucursales, sucursalSesion;
+let categorias, unidades, areas, proveedores, almacenes, productos, superAdmin, coffeeIA, sucursales, sucursalSesion, administrador;
 
 // Vida útil: cuántos días vale cada periodo del selector.
 const PERIODOS_VIDA = [
@@ -26,6 +26,7 @@ $(async () => {
     coffeeIA       = data.coffeeia !== false;
     sucursales     = data.sucursales  || [];
     sucursalSesion = String(data.branch_id || '');
+    administrador  = !!data.administrador;
 
     main = new Main(api, "root");
     main.render();
@@ -185,24 +186,25 @@ class Productos extends Templates {
         });
     }
 
-    // `this.filtroSucursal`: la sucursal elegida en el selector (administrador) con sus
-    // categorías y áreas (cambiarSucursal). Sin elegir, la de la sesión.
+    // `this.filtroSucursal`: la sucursal elegida en el selector con sus categorías y áreas
+    // (cambiarSucursal). Sin elegir, la de la sesión.
     filterBar() {
         const f = this.filtroSucursal || { sucursal: sucursalSesion, categorias: categorias, areas: areas };
 
         this.createfilterBar({
             parent: `filterBar${this.PROJECT_NAME}`,
             data: [
-                // El stock es el de la sucursal de la navbar. Solo el administrador recibe la
-                // lista de sucursales (init): al elegir una salen solo los productos de esa
-                // sucursal con su stock, y sus categorías y áreas; con "Todas", todo y la suma.
+                // El stock es el de la sucursal de la navbar. init manda la lista al
+                // administrador (todas) y a quien tiene más de una sucursal (las suyas): al
+                // elegir una salen sus productos con su stock, categorías y áreas. Solo el
+                // administrador tiene "Todas", con todo y la suma.
                 ...(sucursales.length ? [{
                     opc: "select",
                     id: "sucursal",
                     lbl: "Sucursal",
                     class: "col-12 col-md-2",
                     value: f.sucursal,
-                    data: [{ id: '', valor: 'Todas las sucursales' }, ...sucursales],
+                    data: [...(administrador ? [{ id: '', valor: 'Todas las sucursales' }] : []), ...sucursales],
                     onchange: 'products.cambiarSucursal()'
                 }] : []),
                 // Mismo orden que las columnas de la tabla: primero qué es, luego dónde está.
@@ -270,7 +272,12 @@ class Productos extends Templates {
         this.mountCoffeeIAIcon();
     }
 
-    // El administrador cambia de sucursal: los filtros de Categoría y Área se rehacen con
+    // La sucursal del selector de la barra ('' sin selector o con "Todas").
+    sucursalElegida() {
+        return String($(`#filterBar${this.PROJECT_NAME} #sucursal`).val() ?? '');
+    }
+
+    // Cambio de sucursal en el selector: los filtros de Categoría y Área se rehacen con
     // las de esa sucursal (o las de todas) y la tabla se vuelve a consultar. El estado se queda.
     async cambiarSucursal() {
         const $bar     = $(`#filterBar${this.PROJECT_NAME}`);
@@ -518,9 +525,9 @@ class Productos extends Templates {
                 placeholder: "Auto",
                 required: false
             },
-            // Solo el administrador (init manda `sucursales`): de qué sucursal es el producto.
-            // Cambiarla lo mueve de sucursal; vacío al dar de alta = la de la sesión.
-            ...(sucursales.length ? [{
+            // Solo el administrador: de qué sucursal es el producto. Cambiarla lo mueve de
+            // sucursal; vacío al dar de alta = la de la sesión.
+            ...(administrador && sucursales.length ? [{
                 opc: "select",
                 id: "branch_id",
                 lbl: "Sucursal",
@@ -534,7 +541,7 @@ class Productos extends Templates {
                 opc: "div",
                 id: "photoField",
                 lbl: "Foto",
-                class: sucursales.length ? "col-12 col-md-4" : "col-12 col-md-8",
+                class: administrador && sucursales.length ? "col-12 col-md-4" : "col-12 col-md-8",
                 required: false
             },
 
@@ -818,7 +825,9 @@ class Productos extends Templates {
             timer = setTimeout(async () => {
                 const response = await useFetch({
                     url: this._link,
-                    data: { opc: 'lsSimilarMaterials', name: name, id: id }
+                    // Se compara solo con su sucursal: la del campo Sucursal (administrador)
+                    // o la del selector; el ctrl usa la del producto al editar.
+                    data: { opc: 'lsSimilarMaterials', name: name, id: id, branch_id: $form.find('#branch_id').val() || '', sucursal: this.sucursalElegida() }
                 });
 
                 if (mine === turn && $name.val().trim() === name) this.paintNameCheck(formId, response);
@@ -849,8 +858,8 @@ class Productos extends Templates {
         $name.addClass(exact ? 'pr-8 !border-red-400' : 'pr-8 !border-amber-400');
         $flag.removeClass('hidden').addClass(exact ? 'text-red-500' : 'text-amber-500');
         $tip.text(exact
-            ? `Ya existe un producto con este nombre: ${label(exact)}.`
-            : `Ya existe con un nombre similar: ${similar.map(label).join(', ')}${more}. Si es otro producto, puedes guardarlo.`
+            ? `Ya existe un producto con este nombre en esta sucursal: ${label(exact)}.`
+            : `Ya existe en esta sucursal con un nombre similar: ${similar.map(label).join(', ')}${more}. Si es otro producto, puedes guardarlo.`
         ).toggleClass('hidden', !$name.is(':focus'));
     }
 
@@ -977,8 +986,8 @@ class Productos extends Templates {
 
     // Producto o presentación: el selector de arriba y los campos de la presentación
     // (producto base, cuántas trae, nombre, unidad del empaque, SKU, costo, área y foto).
-    // Área y foto son suyas (decisión B): son las mismas celdas del producto, que en ese
-    // modo se mudan a la sección de la presentación. Lo demás lo hereda del base, así que
+    // Área, foto y descripción son suyas (decisión B): son las mismas celdas del producto, que
+    // en ese modo se mudan a la sección de la presentación. Lo demás lo hereda del base, así que
     // los otros campos del producto se esconden y dejan de ser obligatorios. Al cambiar
     // de modo lo capturado pasa al otro lado.
     // opts.producto (Editar): el producto que ya existe; en Presentación deja de serlo y
@@ -994,7 +1003,8 @@ class Productos extends Templates {
         const $campos = $form.find('#presentationField');
         const $cArea  = celda($form.find('#warehouse_area_id'));
         const $cFoto  = celda($form.find('#photoField'));
-        const $suyos  = $form.children().not(celda($modo)).not(celda($campos)).not($cArea).not($cFoto).not('.hidden');
+        const $cDesc  = celda($form.find('#description'));
+        const $suyos  = $form.children().not(celda($modo)).not(celda($campos)).not($cArea).not($cFoto).not($cDesc).not('.hidden');
         const $reqs   = $suyos.find('[required]');
         const $okBtn  = opts.modal ? opts.modal.footer.find('button').last() : $();
         const okText  = $okBtn.text();
@@ -1022,11 +1032,14 @@ class Productos extends Templates {
         const $hereda = $('<div>', { class: 'flex flex-wrap gap-1.5' });
         const $stock  = $('<div>', { class: 'hidden rounded-lg px-3 py-2.5 flex flex-col gap-1.5' });
         const $vista  = $('<div>', { class: 'flex flex-wrap items-center gap-2 text-xs text-gray-500' });
-        // Dónde caen las celdas de área y foto en cada modo (las marcas, su lugar en el producto).
+        // Dónde caen las celdas de área, foto y descripción en cada modo (las marcas, su lugar
+        // en el producto).
         const $lArea  = $('<div>', { class: 'col-span-3 sm:col-span-1' });
         const $lFoto  = $('<div>', { class: 'col-span-3' });
+        const $lDesc  = $('<div>', { class: 'col-span-3' });
         const $mArea  = $('<span>', { class: 'hidden' }).insertBefore($cArea);
         const $mFoto  = $('<span>', { class: 'hidden' }).insertBefore($cFoto);
+        const $mDesc  = $('<span>', { class: 'hidden' }).insertBefore($cDesc);
 
         const baseInfo = () => {
             const id = fijo ? fijo.item_id : $base.val();
@@ -1084,6 +1097,7 @@ class Productos extends Templates {
                 $('<div>', { class: 'col-span-3 sm:col-span-1' }).append(label($costo.attr('id'), 'Costo'), $costo, $hCosto),
                 $lArea,
                 $lFoto,
+                $lDesc,
                 $('<div>', { class: 'col-span-3 rounded-lg border border-gray-200 px-3 py-2.5 flex flex-col gap-1.5' }).append(
                     $('<div>', { class: 'flex items-center gap-1.5 text-xs font-semibold text-gray-600' }).append(
                         $('<i>', { 'data-lucide': 'corner-down-right', class: 'w-3.5 h-3.5' }),
@@ -1151,14 +1165,16 @@ class Productos extends Templates {
             $reqs.prop('required', !presen);
             celda($campos).toggleClass('hidden', !presen);
 
-            // Área y foto se mudan con el modo: lo elegido viaja con ellas.
+            // Área, foto y descripción se mudan con el modo: lo capturado viaja con ellas.
             if ($cArea.parent()[0] !== (presen ? $lArea : $form)[0]) {
                 if (presen) {
                     $lArea.append($cArea);
                     $lFoto.append($cFoto);
+                    $lDesc.append($cDesc);
                 } else {
                     $mArea.after($cArea);
                     $mFoto.after($cFoto);
+                    $mDesc.after($cDesc);
                 }
             }
             $okBtn.text(presen && prod ? 'Guardar como presentación' : okText);
@@ -1181,7 +1197,7 @@ class Productos extends Templates {
             $hCosto.text(base && factor ? `Vacío: ${factor} × $${base.costo.toFixed(2)}` : 'Vacío: factor × costo del base');
 
             $hereda.empty().append(
-                (base ? [base.categoria && `Categoría: ${base.categoria}`, 'Mínimo y máximo', 'Vida útil', 'Descripción'].filter(Boolean) : ['Elige el producto base'])
+                (base ? [base.categoria && `Categoría: ${base.categoria}`, 'Mínimo y máximo', 'Vida útil'].filter(Boolean) : ['Elige el producto base'])
                     .map(t => $('<span>', { class: 'rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600', text: t }))
             );
 
@@ -1238,6 +1254,7 @@ class Productos extends Templates {
             $sku.val(fijo.sku_propio || '');
             $costo.val(fijo.cost_unit);
             $form.find('#warehouse_area_id').val(String(fijo.area_id || '')).trigger('change');
+            $form.find('#description').val(fijo.description || '');
         }
 
         // Igual que los select2 de coffeeForm: el dropdown se ancla al modal.
@@ -1280,7 +1297,8 @@ class Productos extends Templates {
 
         this.createModalForm({
             id: 'formMaterialAdd',
-            data: { opc: 'addMaterial' },
+            // Quien tiene varias sucursales da de alta en la que ve en el selector.
+            data: { opc: 'addMaterial', sucursal: this.sucursalElegida() },
             theme:'light',
             coffeesoft:true,
             closeOnError: false,
@@ -1531,7 +1549,7 @@ class Productos extends Templates {
             }
         });
 
-        // Área y foto son de la presentación, no del base.
+        // Área, foto y descripción son de la presentación, no del base.
         this.mountCatalogShortcuts('formPresentacionEdit');
         this.mountProductPhoto('formPresentacionEdit', p.image);
         this.mountPresentacion('formPresentacionEdit', {
@@ -1546,7 +1564,8 @@ class Productos extends Templates {
                 unit_id: p.unit_id,
                 sku_propio: p.sku,
                 cost_unit: p.cost_unit,
-                area_id: p.warehouse_area_id
+                area_id: p.warehouse_area_id,
+                description: p.description
             }
         });
     }

@@ -17,7 +17,8 @@ class ctrl extends mdl {
     // piden poder entrar al Catálogo. deleteMaterial y statusMaterial solo cambian
     // active (dar de baja / reactivar); deleteProducto es el que borra de verdad.
     // Entradas y Programadas dan de alta productos al vuelo, y el chat de Entradas
-    // y Salidas lee sus adjuntos aquí.
+    // y Salidas lee sus adjuntos aquí: readArchivo pide la casilla IA (Accesos ›
+    // Roles) en cualquiera de las tres secciones.
     const PERMISSIONS = [
         'addMaterial'        => 'agregar',
         'addProductoRapido'  => ['administrador' => 'agregar', 'entradas' => 'agregar', 'programadas' => '*'],
@@ -29,7 +30,7 @@ class ctrl extends mdl {
         'editPresentacion'   => 'editar',
         'statusPresentacion' => 'cancelar',
         'applyAsistente'     => ['agregar', 'editar', 'cancelar'],
-        'readArchivo'        => ['administrador' => '*', 'entradas' => '*', 'salidas' => '*']
+        'readArchivo'        => ['administrador' => 'ia', 'entradas' => 'ia', 'salidas' => 'ia']
     ];
 
     // Cada cambio del asistente pide su propia acción al aplicarse.
@@ -54,12 +55,36 @@ class ctrl extends mdl {
             'almacenes'   => $this->lsWarehouses(),
             'productos'   => $this->lsProductos(),
             'superadmin'  => $this->esSuperAdminIA(),
-            'coffeeia'    => IaOllama::activo($this),
-            // El stock de Productos es el de la sucursal de la navbar. Solo el administrador
-            // ve el selector (una sucursal o todas) y el campo Sucursal del producto.
-            'branch_id'   => (int) ($_SESSION['branch_id'] ?? 0),
-            'sucursales'  => $this->esAdministrador() ? ($this->lsSucursales([$_SESSION['company_id']]) ?: []) : []
+            // Encendido en Administrador › CoffeeIA y con la casilla IA del rol en el Catálogo.
+            'coffeeia'    => IaOllama::activo($this) && Permissions::can('administrador', 'ia'),
+            // El stock de Productos es el de la sucursal de la navbar. El administrador ve el
+            // selector (una sucursal o todas) y el campo Sucursal del producto; quien tiene
+            // más de una sucursal, el selector con las suyas.
+            'branch_id'     => (int) ($_SESSION['branch_id'] ?? 0),
+            'sucursales'    => $this->sucursalesDelSelector(),
+            'administrador' => $this->esAdministrador()
         ];
+    }
+
+    // Las del selector de sucursal: todas para el administrador; las suyas si son 2 o más.
+    private function sucursalesDelSelector() {
+        if ($this->esAdministrador()) return $this->lsSucursales([$_SESSION['company_id']]) ?: [];
+
+        return count($this->misSucursales()) > 1 ? $this->misSucursales() : [];
+    }
+
+    // La sucursal que eligió en el selector quien tiene varias (`sucursal`). null si es la
+    // de la sesión o si es administrador (él tiene su propio camino).
+    private function sucursalVista() {
+        if ($this->esAdministrador() || !isset($_POST['sucursal'])) return null;
+
+        $elegida = $this->sucursalPropiaElegida('sucursal');
+        return $elegida === (int) ($_SESSION['branch_id'] ?? 0) ? null : $elegida;
+    }
+
+    // En Catálogo se editan los productos de cualquiera de sus sucursales.
+    private function puedeEditarEnCatalogo($itemBranchId) {
+        return $this->puedeEditarProducto($itemBranchId) || $this->esDeMisSucursales($itemBranchId);
     }
 
     // Cada área lleva los colores de su badge para que el select la pinte igual que la
@@ -81,10 +106,10 @@ class ctrl extends mdl {
     }
 
     // Categorías y áreas de una sucursal para los filtros de Productos y el formulario de
-    // un producto. El administrador pide la que quiera ('' = las de todas); los demás
-    // reciben siempre las de su sucursal.
+    // un producto. El administrador pide la que quiera ('' = las de todas); los demás,
+    // una de sus sucursales (la de la sesión si no es suya).
     function lsCatalogoSucursal() {
-        $sucursal = $this->esAdministrador() ? (string) ($_POST['sucursal'] ?? '') : (string) ($_SESSION['branch_id'] ?? '');
+        $sucursal = $this->esAdministrador() ? (string) ($_POST['sucursal'] ?? '') : (string) $this->sucursalPropiaElegida('sucursal');
 
         if ($sucursal === '') {
             return ['status' => 200, 'categorias' => $this->lsCategories() ?: [], 'areas' => $this->areasConColor($this->lsAreas())];
@@ -105,7 +130,8 @@ class ctrl extends mdl {
             'estado'      => $_POST['estado'] ?? '',
             'branch_id'   => $this->sucursalDeStock(),
             // Con el selector del administrador en una sucursal: solo los productos de esa sucursal.
-            'propietario' => $this->esAdministrador() && ($_POST['sucursal'] ?? '') !== '' ? (int) $_POST['sucursal'] : ''
+            'propietario' => $this->esAdministrador() && ($_POST['sucursal'] ?? '') !== '' ? (int) $_POST['sucursal'] : '',
+            'vista'       => $this->sucursalVista()
         ];
 
         $data = $this->listMateriales($filters);
@@ -125,7 +151,7 @@ class ctrl extends mdl {
 
             // Un producto de otra sucursal (los de Matriz, para las sucursales) se ve con
             // su candado: se usa, no se edita (VisibilidadProductos).
-            $a = $this->puedeEditarProducto($item['branch_id'] ?? null) ? [
+            $a = $this->puedeEditarEnCatalogo($item['branch_id'] ?? null) ? [
                 [
                     'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
@@ -173,7 +199,7 @@ class ctrl extends mdl {
             $cajas  = $factor > 0 ? max(0, floor((float) $p['base_stock'] / $factor)) : 0;
 
             // La presentación se edita con su producto base.
-            $a = $this->puedeEditarProducto($p['base_branch_id'] ?? null) ? [
+            $a = $this->puedeEditarEnCatalogo($p['base_branch_id'] ?? null) ? [
                 [
                     'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
@@ -222,12 +248,13 @@ class ctrl extends mdl {
     // De qué sucursal es el stock de Productos: la de la navbar (sesión). El administrador
     // puede pedir otra con el selector (`sucursal`) o '' para la suma de todas; con una
     // sucursal elegida, la lista trae solo los productos de esa sucursal (`propietario`).
+    // Quien tiene varias sucursales, la que elija de las suyas.
     private function sucursalDeStock() {
         if ($this->esAdministrador() && isset($_POST['sucursal'])) {
             return $_POST['sucursal'] === '' ? '' : (int) $_POST['sucursal'];
         }
 
-        return (int) ($_SESSION['branch_id'] ?? 0);
+        return $this->sucursalVista() ?? (int) ($_SESSION['branch_id'] ?? 0);
     }
 
     // Sucursal dueña que manda el formulario de Productos (campo `branch_id`): solo la toma
@@ -253,7 +280,7 @@ class ctrl extends mdl {
     // Candado de VisibilidadProductos: un producto de otra sucursal (los de Matriz, para
     // las sucursales) se usa pero no se edita. 403 con el aviso; null si se puede.
     private function productoAjeno($material) {
-        if (!$material || $this->puedeEditarProducto($material['branch_id'] ?? null)) return null;
+        if (!$material || $this->puedeEditarEnCatalogo($material['branch_id'] ?? null)) return null;
 
         return [
             'status'  => 403,
@@ -295,7 +322,21 @@ class ctrl extends mdl {
 
     // El formulario lo consulta mientras se escribe el nombre: avisa antes de guardar.
     function lsSimilarMaterials() {
-        return ['status' => 200] + $this->nameMatches($_POST['name'] ?? '', (int) ($_POST['id'] ?? 0));
+        $id = (int) ($_POST['id'] ?? 0);
+
+        return ['status' => 200] + $this->nameMatches($_POST['name'] ?? '', $id, $this->sucursalDelNombre($id));
+    }
+
+    // En qué sucursal no se repite el nombre: la que eligió el administrador en el
+    // formulario, la del producto que se edita o, en un alta, la del selector o la sesión.
+    private function sucursalDelNombre($id) {
+        $elegida = $this->sucursalDelProducto();
+        if ($elegida !== null) return $elegida;
+
+        $material = $id ? $this->getMaterialById($id) : null;
+        if (!empty($material['branch_id'])) return (int) $material['branch_id'];
+
+        return $this->sucursalVista() ?? (int) ($_SESSION['branch_id'] ?? 0);
     }
 
     function addMaterial() {
@@ -313,7 +354,12 @@ class ctrl extends mdl {
             ];
         }
 
-        $nameCheck = $this->checkMaterialName($_POST['name'], 0);
+        // De la sesión, salvo que el administrador elija otra sucursal en el formulario o que
+        // quien tiene varias esté viendo otra de las suyas en el selector.
+        $branch_id = $this->sucursalDelNombre(0);
+
+        // El nombre no se repite en esa sucursal; en otra sí (Coca Cola en Matriz y en Centro).
+        $nameCheck = $this->checkMaterialName($_POST['name'], 0, $branch_id);
 
         if ($nameCheck) return $nameCheck;
 
@@ -338,8 +384,6 @@ class ctrl extends mdl {
 
         $now          = date('Y-m-d H:i:s');
         $companies_id = $_SESSION['company_id'];
-        // De la sesión, salvo que el administrador elija otra sucursal en el formulario.
-        $branch_id    = $this->sucursalDelProducto() ?? $_SESSION['branch_id'];
 
         $item = [
             'name'            => $_POST['name'] ?? '',
@@ -490,7 +534,7 @@ class ctrl extends mdl {
         }
 
         if ($this->normalizarIA($name) !== $this->normalizarIA($material['name'])) {
-            $nameCheck = $this->checkMaterialName($name, $id);
+            $nameCheck = $this->checkMaterialName($name, $id, (int) $material['branch_id']);
 
             if ($nameCheck) return $nameCheck;
         }
@@ -566,7 +610,7 @@ class ctrl extends mdl {
 
         // Solo si cambió el nombre: uno que ya se llamaba igual que otro no se traba al editar.
         if ($this->normalizarIA($_POST['name'] ?? '') !== $this->normalizarIA($material['name'] ?? '')) {
-            $nameCheck = $this->checkMaterialName($_POST['name'] ?? '', $id);
+            $nameCheck = $this->checkMaterialName($_POST['name'] ?? '', $id, $this->sucursalDelNombre((int) $id));
 
             if ($nameCheck) return $nameCheck;
         }
@@ -691,14 +735,15 @@ class ctrl extends mdl {
 
     // Mismo nombre (sin importar mayúsculas, acentos ni signos): no se guarda.
     // Parecido: se avisa y solo se guarda si lo confirman; el formulario manda
-    // similar_ok = 1 cuando ya enseñó los parecidos de ese nombre.
-    private function checkMaterialName($name, $exceptId) {
-        $matches = $this->nameMatches($name, $exceptId);
+    // similar_ok = 1 cuando ya enseñó los parecidos de ese nombre. Solo cuenta lo de la
+    // sucursal `$branchId`: en otra el mismo nombre se vale.
+    private function checkMaterialName($name, $exceptId, $branchId) {
+        $matches = $this->nameMatches($name, $exceptId, $branchId);
 
         if ($matches['exact']) {
             return [
                 'status'  => 409,
-                'message' => 'Ya existe un producto con ese nombre: ' . $this->nameList([$matches['exact']], 0)
+                'message' => 'Ya existe un producto con ese nombre en esta sucursal: ' . $this->nameList([$matches['exact']], 0)
                            . ($matches['exact']['active'] ? '.' : '. Actívalo desde el filtro Estado: Inactivos.'),
                 'matches' => $matches
             ];
@@ -707,7 +752,7 @@ class ctrl extends mdl {
         if ($matches['similar'] && ($_POST['similar_ok'] ?? '') !== '1') {
             return [
                 'status'  => 409,
-                'message' => 'Ya existe un producto con un nombre similar: ' . $this->nameList($matches['similar'], $matches['more'])
+                'message' => 'Ya existe un producto con un nombre similar en esta sucursal: ' . $this->nameList($matches['similar'], $matches['more'])
                            . '. Si es otro producto, pulsa Aceptar otra vez.',
                 'matches' => $matches
             ];
@@ -716,9 +761,9 @@ class ctrl extends mdl {
         return null;
     }
 
-    // Contra todos los productos de la empresa, activos e inactivos. De los
-    // parecidos van los 5 que más se parecen; 'more' dice cuántos quedaron fuera.
-    private function nameMatches($name, $exceptId) {
+    // Contra los productos de la sucursal, activos e inactivos. De los parecidos van
+    // los 5 que más se parecen; 'more' dice cuántos quedaron fuera.
+    private function nameMatches($name, $exceptId, $branchId) {
         $key     = $this->normalizarIA($name);
         $words   = $this->nameWords($key);
         $exact   = null;
@@ -732,7 +777,7 @@ class ctrl extends mdl {
             ];
         }
 
-        foreach ($this->listMaterialNames([$_SESSION['company_id'], (int) $exceptId]) as $producto) {
+        foreach ($this->listMaterialNames([$_SESSION['company_id'], (int) $exceptId, (int) $branchId]) as $producto) {
             $other = $this->normalizarIA($producto['name']);
             $match = [
                 'id'     => (int) $producto['id'],
@@ -1009,10 +1054,11 @@ class ctrl extends mdl {
         }
 
         $update = $this->updatePresentacion([
-            'values' => 'name = ?, sku = ?, factor = ?, unit_id = ?, warehouse_area_id = ?, cost_unit = ?',
+            'values' => 'name = ?, description = ?, sku = ?, factor = ?, unit_id = ?, warehouse_area_id = ?, cost_unit = ?',
             'where'  => 'id = ?',
             'data'   => [
                 $fields['name'],
+                $fields['description'],
                 $fields['sku'],
                 $fields['factor'],
                 $fields['unit_id'],
@@ -1081,10 +1127,11 @@ class ctrl extends mdl {
 
         if ($exists) {
             $this->updatePresentacion([
-                'values' => 'name = ?, sku = ?, factor = ?, unit_id = ?, warehouse_area_id = ?, cost_unit = ?, active = ?',
+                'values' => 'name = ?, description = ?, sku = ?, factor = ?, unit_id = ?, warehouse_area_id = ?, cost_unit = ?, active = ?',
                 'where'  => 'id = ?',
                 'data'   => [
                     $fields['name'],
+                    $fields['description'],
                     $fields['sku'],
                     $fields['factor'],
                     $fields['unit_id'],
@@ -1107,10 +1154,11 @@ class ctrl extends mdl {
         // created_at con el reloj de PHP, igual que item.created_at (addMaterial): la tabla
         // de Productos los ordena juntos por fecha de alta.
         $create = $this->createPresentacion([
-            'values' => ['item_id', 'name', 'sku', 'factor', 'unit_id', 'warehouse_area_id', 'cost_unit', 'active', 'companies_id', 'created_at'],
+            'values' => ['item_id', 'name', 'description', 'sku', 'factor', 'unit_id', 'warehouse_area_id', 'cost_unit', 'active', 'companies_id', 'created_at'],
             'data'   => [
                 $base['id'],
                 $fields['name'],
+                $fields['description'],
                 $fields['sku'],
                 $fields['factor'],
                 $fields['unit_id'],
@@ -1133,12 +1181,13 @@ class ctrl extends mdl {
 
     // Lo que trae el formulario para una presentación, validado contra su base. El factor
     // es de 2 o más; el SKU vacío se deriva del base (47003-12) y el costo vacío se sugiere
-    // del factor (12 × $16.20 = $194.40). Área y foto son suyas, no del base: llegan en
-    // los mismos campos del producto (warehouse_area_id, image_b64, image_remove), que el
-    // formulario mueve a la sección de la presentación. Con error devuelve la respuesta
-    // (lleva `status`).
+    // del factor (12 × $16.20 = $194.40). Área, foto y descripción son suyas, no del base:
+    // llegan en los mismos campos del producto (warehouse_area_id, image_b64, image_remove,
+    // description), que el formulario mueve a la sección de la presentación. Con error
+    // devuelve la respuesta (lleva `status`).
     private function presentacionFields($base, $skuActual = '') {
         $name   = mb_substr(trim($_POST['pres_name'] ?? ''), 0, 160);
+        $nota   = mb_substr(trim($_POST['description'] ?? ''), 0, 255);
         $sku    = mb_substr(trim($_POST['pres_sku'] ?? ''), 0, 40);
         $factor = (float) ($_POST['factor'] ?? 0);
 
@@ -1190,6 +1239,7 @@ class ctrl extends mdl {
 
         return [
             'name'              => $name,
+            'description'       => $nota === '' ? null : $nota,
             'sku'               => $sku === '' ? null : $sku,
             'factor'            => $factor,
             'unit_id'           => ($_POST['pres_unit_id'] ?? '') === '' ? null : (int) $_POST['pres_unit_id'],
@@ -1357,20 +1407,22 @@ class ctrl extends mdl {
             $folios[] = $folio;
         }
 
-        // Si el base ya tenía una con ese nombre, se actualiza en vez de duplicarla.
+        // Si el base ya tenía una con ese nombre, se actualiza en vez de duplicarla. Sin
+        // descripción en $fields (CoffeeIA) se queda la que tenía como producto.
         $existe = $this->existsPresentacionByName([$base['id'], $company, $fields['name'], 0]);
         $area   = $fields['warehouse_area_id'] ?? null;
+        $nota   = array_key_exists('description', $fields) ? $fields['description'] : (($material['description'] ?? '') !== '' ? $material['description'] : null);
 
         if ($existe) {
             $this->updatePresentacion([
-                'values' => 'name = ?, sku = ?, factor = ?, unit_id = ?, warehouse_area_id = ?, cost_unit = ?, active = ?',
+                'values' => 'name = ?, description = ?, sku = ?, factor = ?, unit_id = ?, warehouse_area_id = ?, cost_unit = ?, active = ?',
                 'where'  => 'id = ?',
-                'data'   => [$fields['name'], $fields['sku'], $factor, $fields['unit_id'], $area, $fields['cost_unit'], 1, $existe]
+                'data'   => [$fields['name'], $nota, $fields['sku'], $factor, $fields['unit_id'], $area, $fields['cost_unit'], 1, $existe]
             ]);
         } else {
             $this->createPresentacion([
-                'values' => ['item_id', 'name', 'sku', 'factor', 'unit_id', 'warehouse_area_id', 'cost_unit', 'active', 'companies_id', 'created_at'],
-                'data'   => [$base['id'], $fields['name'], $fields['sku'], $factor, $fields['unit_id'], $area, $fields['cost_unit'], 1, $company, date('Y-m-d H:i:s')]
+                'values' => ['item_id', 'name', 'description', 'sku', 'factor', 'unit_id', 'warehouse_area_id', 'cost_unit', 'active', 'companies_id', 'created_at'],
+                'data'   => [$base['id'], $fields['name'], $nota, $fields['sku'], $factor, $fields['unit_id'], $area, $fields['cost_unit'], 1, $company, date('Y-m-d H:i:s')]
             ]);
         }
 
@@ -1583,6 +1635,8 @@ class ctrl extends mdl {
 
         if (!IaOllama::activo($this)) return ['status' => 403, 'message' => 'CoffeeIA está apagado. Se enciende en Administrador > CoffeeIA.'];
 
+        if (!Permissions::can('administrador', 'ia')) return ['status' => 403, 'message' => 'Tu rol no tiene CoffeeIA en el Catálogo. Se activa en Accesos › Roles, columna IA.'];
+
         $ia = IaOllama::desdeCredenciales($this);
 
         if ($ia === null) return ['status' => 503, 'message' => 'El asistente no está configurado: falta la llave de Ollama.'];
@@ -1688,6 +1742,8 @@ class ctrl extends mdl {
     // Todo o nada: si un cambio falla, la transacción deshace los demás.
     function applyAsistente() {
         if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
+
+        if (!Permissions::can('administrador', 'ia')) return ['status' => 403, 'message' => 'Tu rol no tiene CoffeeIA en el Catálogo. Se activa en Accesos › Roles, columna IA.'];
 
         $pendiente = $_SESSION['iaProductos'] ?? null;
         $token     = (string) ($_POST['token'] ?? '');
