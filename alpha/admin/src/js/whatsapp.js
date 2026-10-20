@@ -2329,7 +2329,7 @@ class WhatsApp extends Templates {
                 subtitle: 'Se envía al terminar cada pedido, normal o personalizado',
                 icon:     'cake',
                 color:    '#C4B5FD',
-                note:     'Incluye los productos del pedido; el pastel personalizado lleva sus modificadores y dedicatoria, y su foto va arriba del mensaje (si hay más, llegan detrás).'
+                note:     'Incluye los productos del pedido; el pastel personalizado lleva sus modificadores y dedicatoria. La primera foto va arriba del mensaje (la del pastel personalizado o, si no hay, la del catálogo del producto) y las demás llegan detrás.'
             },
             {
                 id:       'edicion',
@@ -2339,7 +2339,7 @@ class WhatsApp extends Templates {
                 subtitle: 'Se envía cuando cambia un pedido que ya se avisó',
                 icon:     'pencil',
                 color:    '#38BDF8',
-                note:     'Dice qué cambió desde el último aviso (➕ agregado, ➖ quitado, antes → ahora) y cómo quedó el pedido; solo manda las fotos nuevas del pastel personalizado. Si no cambió nada, no se envía.'
+                note:     'Dice qué cambió desde el último aviso (➕ agregado, ➖ quitado, antes → ahora) y cómo quedó el pedido. La primera foto del pedido va arriba del mensaje; detrás, solo las fotos nuevas. Si no cambió nada, no se envía.'
             }
         ];
     }
@@ -2386,23 +2386,31 @@ class WhatsApp extends Templates {
             year:  'numeric'
         });
 
+        // Mismo formato que arma ctrl-pedidos-catalogo: los detalles van como lista de
+        // WhatsApp ("- ") para que el renglon partido quede alineado en el celular.
         const order = [
-            ['folio',     'P988-25'],
-            ['hora',      '01:00 PM'],
-            ['cliente',   'María'],
-            ['telefono',  '962 XXX XXXX'],
+            ['folio',       'P988-25'],
+            ['fecha_larga', 'Viernes 24 de octubre'],
+            ['hora',        '12:00 PM'],
+            ['entrega',     '🏠 Recoge en sucursal'],
+            ['cliente',     'María'],
+            ['telefono',    '962 XXX XXXX'],
             ['productos', [
-                '• *1 × Tres Leches Fresas con Crema 12*',
-                '   ◦ Dedicatoria: Felicidades mami',
-                '• *1 × Pastel personalizado «María»*',
-                '   ◦ Porciones: 10',
-                '   ◦ Forma: redonda',
-                '   ◦ Rellenos: manjar',
-                '   ◦ Dedicatoria: Happy Birthday Mom',
-                '   ◦ 🖼️ 1 imagen adjunta'
+                '🍰 *1 Pastel personalizado*',
+                '- Porciones: 40',
+                '- Forma: cuadrado',
+                '- Pan: mantequilla',
+                '- Relleno: fresas con crema',
+                '- Cobertura: chantilly',
+                '- Notas: decoración como en la imagen, perlas doradas',
+                '> ✍️ *FELICIDADES PAPÁ*',
+                '',
+                '🍰 *1 Tres Leches Fresas con Crema 12*',
+                '> ✍️ *Felicidades mami*'
             ].join('\n')],
-            ['total',      '$1,250.00'],
-            ['anticipo',   '$500.00'],
+            ['descripcion', 'Entregar en caja con moño dorado'],
+            ['total',      '$1,550.00'],
+            ['anticipo',   '$800.00'],
             ['forma_pago', 'Efectivo'],
             ['restante',   '$750.00'],
             ['estatus',    '🟡 PENDIENTE']
@@ -2460,12 +2468,10 @@ class WhatsApp extends Templates {
             edicion: [
                 ...order,
                 ['cambios', [
-                    '• Hora: 11:00 AM → 01:00 PM',
-                    '• Anticipo: $300.00 → $500.00',
-                    '➕ *1 × Pastel personalizado «María»*',
-                    '   ◦ Porciones: 10',
-                    '   ◦ Rellenos: manjar',
-                    '➖ *1 × Gelatina de mosaico*'
+                    '- Hora: ~11:00 AM~ → *12:00 PM*',
+                    '- Dedicatoria: ~Felicidades~ → *FELICIDADES PAPÁ*',
+                    '- Anticipo: ~$500.00~ → *$800.00*',
+                    '- Se quitó: 1 Gelatina de mosaico'
                 ].join('\n')]
             ]
         };

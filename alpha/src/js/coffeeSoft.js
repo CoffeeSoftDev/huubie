@@ -5604,7 +5604,8 @@ class Templates extends Components {
                 if ((found = line.match(/^(\d+)\. (.*)$/)))   return row(`${found[1]}.`, found[2]);
                 if ((found = line.match(/^&gt; ?(.*)$/)))
                     return `<div style="border-left:4px solid #06CF9C;background:rgba(0,0,0,.05);padding:2px 6px;border-radius:4px;margin:1px 0;">${inline(found[1])}</div>`;
-                return `<div>${line === '' ? '<br>' : inline(line)}</div>`;
+                // pre-wrap: WhatsApp respeta los espacios al inicio del renglon (sangria de "   ◦").
+                return `<div style="white-space:pre-wrap;">${line === '' ? '<br>' : inline(line)}</div>`;
             }).join('');
 
             return html.replace(/\u0001(\d+)\u0002/g, (all, index) => saved[index]);

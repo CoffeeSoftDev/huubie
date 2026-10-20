@@ -47,8 +47,13 @@ class OrdenesMovil {
         this.cards       = [];
     }
 
+    // Por el estado que se muestra (estadoRequisicion del ctrl); los reabastos usan el de la BD.
     static get BADGES() {
         return {
+            'En espera':            'bg-yellow-500/15 text-yellow-600 border-yellow-500/30',
+            'Entregado':            'bg-blue-500/15 text-blue-700 border-blue-500/30',
+            'Surtido parcialmente': 'bg-orange-500/15 text-orange-600 border-orange-500/30',
+            'Confirmado':           'bg-green-500/15 text-green-600 border-green-500/30',
             Borrador:   'bg-gray-500/15 text-gray-500 border-gray-400/30',
             Solicitada: 'bg-yellow-500/15 text-yellow-600 border-yellow-500/30',
             Aprobada:   'bg-blue-500/15 text-blue-700 border-blue-500/30',
@@ -209,7 +214,8 @@ class OrdenesMovil {
 
     card(c) {
         const o     = this.opts;
-        const badge = OrdenesMovil.BADGES[c.status] || OrdenesMovil.BADGES.Borrador;
+        const estado = c.estado || c.status;
+        const badge  = OrdenesMovil.BADGES[estado] || OrdenesMovil.BADGES.Borrador;
         const total = Number(c.total || 0);
 
         const top = $('<div>', { class: 'flex items-center justify-between gap-2 mb-2' }).append(
@@ -218,7 +224,7 @@ class OrdenesMovil {
                 $('<span>', { class: 'text-[14px] font-bold text-gray-800 whitespace-nowrap', text: c.folio }),
                 $('<span>', { class: 'text-[11px] text-gray-400 truncate', text: c.hace || '' })
             ),
-            $('<span>', { class: `flex-shrink-0 px-2 py-[2px] rounded-[6px] text-[11px] font-bold border-[1px] ${badge}`, text: c.status })
+            $('<span>', { class: `flex-shrink-0 px-2 py-[2px] rounded-[6px] text-[11px] font-bold border-[1px] ${badge}`, text: estado })
         );
 
         const mid = $('<div>', { class: 'flex items-center justify-between gap-2' }).append(

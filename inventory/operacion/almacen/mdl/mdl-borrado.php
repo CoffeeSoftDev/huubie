@@ -116,6 +116,7 @@ trait BorradoInventario {
         }
 
         $this->_CUD("DELETE FROM {$this->bd}detail_purchase_order WHERE purchase_order_id = ?", [$id]);
+        $this->_CUD("DELETE FROM {$this->bd}purchase_order_supply WHERE purchase_order_id = ?", [$id]);
         $this->_CUD("DELETE FROM {$this->bd}purchase_order WHERE id = ? AND companies_id = ?", [$id, $companiesId]);
 
         $borrado['pedidos'][]   = $h[0]['folio'];

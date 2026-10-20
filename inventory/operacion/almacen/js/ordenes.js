@@ -46,8 +46,8 @@ class App extends Templates {
                 categorias:    r.categorias    || [],
                 unidades:      r.unidades      || [],
                 productos:     r.productos     || [],
-                estados_orden: r.estados_orden || [],
-                estados_entrega: r.estados_entrega || []
+                solo_su_sucursal: !!r.solo_su_sucursal,
+                estados_orden: r.estados_orden || []
             };
         } else {
             this.dataInit = {
@@ -62,8 +62,7 @@ class App extends Templates {
                 categorias:    [],
                 unidades:      [],
                 productos:     [],
-                estados_orden: [],
-                estados_entrega: []
+                estados_orden: []
             };
         }
         this.subId = this.dataInit.branch_id;
@@ -85,8 +84,8 @@ class App extends Templates {
         this.visorResize({ key: 'ordenes', label: 'Ancho del detalle del pedido' });
         this.filterBar();
         ordenesView.renderHeader(this.modulo === 'despacho' ? {
-            title:    'Despacho',
-            subtitle: 'Revisa, aprueba y surte las requisiciones que le hacen a tu sucursal'
+            title:    'Surtir',
+            subtitle: 'Surte las requisiciones que le hacen a tu sucursal'
         } : {
             title:    'Requisiciones',
             subtitle: 'Pide materiales al almacén y sigue el estado de tus requisiciones'
@@ -236,17 +235,15 @@ class App extends Templates {
         ordenes.lsOrdenes();
     }
 
-    // "Nueva requisición" solo en Requisiciones (lista y calendario): Despacho aprueba y surte.
-    // La lista de Despacho usa los estados agrupados (Por surtir, Aprobada, Rechazada y
-    // Cancelada); el Calendario arranca con todos los estados.
+    // "Nueva requisición" solo en Requisiciones (lista y calendario): Surtir aprueba y surte.
+    // Los dos módulos filtran por los estados de la requisición y arrancan con todos.
     syncVista() {
         const entregas   = this.vista === 'entregas';
         const calendario = this.vista === 'calendario';
-        const estados    = entregas ? this.dataInit.estados_entrega : this.dataInit.estados_orden;
 
         $('#btnNuevaOrden').parent().toggleClass('hidden', this.modulo === 'despacho');
-        $('#fEstado').empty().append((estados || []).map(e => $('<option>', { value: e.id, text: e.valor })));
-        $('#fEstado').val(entregas ? 'PorAtender' : (calendario ? '' : 'Activas'));
+        $('#fEstado').empty().append((this.dataInit.estados_orden || []).map(e => $('<option>', { value: e.id, text: e.valor })));
+        $('#fEstado').val('');
 
         $('#tableWrap').toggleClass('hidden', calendario);
         $('#calendarWrap').toggleClass('hidden', !calendario);
@@ -271,25 +268,25 @@ class App extends Templates {
         $('#viewHeader').find('h1').first().parent().append(
             $('<p>', { id: 'leyendaPunto', class: 'mt-0.5 flex items-center gap-1.5 text-[10px] text-gray-400' })
                 .append($('<span>', { class: 'inline-block w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse' }))
-                .append($('<span>', { text: 'Punto verde: pedido Solicitada, nuevo por surtir' }))
+                .append($('<span>', { text: 'Punto verde: requisición en espera, nueva por surtir' }))
         );
 
         const leyenda = [
             {
                 color: '#D97706',
-                text:  'Por surtir: te toca revisarlo'
+                text:  'En espera: te toca surtirla'
             },
             {
-                color: '#16A34A',
-                text:  'Surtido: ya salió del almacén'
+                color: 'rgb(var(--brand-700, 168 74 51))',
+                text:  'Entregado: falta que quien pidió lo confirme'
             },
             {
                 color: '#EA580C',
-                text:  'Surtido a medias: faltó algo'
+                text:  'Surtido parcialmente: puedes seguir surtiendo'
             },
             {
-                color: '#DC2626',
-                text:  'Rechazado o cancelado'
+                color: '#16A34A',
+                text:  'Confirmado: quien pidió ya lo recibió'
             }
         ];
 
@@ -352,7 +349,7 @@ class App extends Templates {
                 lbl:      'Estado:',
                 class:    'col-12 col-md-4 col-lg-1',
                 onchange: 'app.onChangeFilters()',
-                value:    'Activas',
+                value:    '',
                 data:     estados
             },
             {
@@ -429,13 +426,15 @@ class App extends Templates {
         });
     }
 
+    // El almacenista, en Surtir, se queda con la sucursal con la que entró (solo_su_sucursal).
     populateFilters() {
         const sucursales = this.dataInit.sucursales || [];
+        const fija       = this.modulo === 'despacho' && this.dataInit.solo_su_sucursal;
 
         if (sucursales.length) {
             this.populateSelect('branch_id', sucursales);
         }
-        if (sucursales.length <= 1) {
+        if (sucursales.length <= 1 || fija) {
             $('#branch_id').find('option[value=""]').remove();
             $('#branch_id').val(this.subId).prop('disabled', true);
         } else {
@@ -563,17 +562,20 @@ class Ordenes extends Templates {
     async getOrden(id) {
         const r = await useFetch({ url: apiOrdenes, data: { opc: 'getOrden', id: id } });
         if (r && r.status === 200) {
-            ordenesView.renderDetail(this.mapOrdenDetail(r.header || {}, r.detail || []));
+            ordenesView.renderDetail(this.mapOrdenDetail(r.header || {}, r.detail || [], r.surtidos || []));
         } else {
             ordenesView.renderDetail(null);
         }
     }
 
-    mapOrdenDetail(h, detail) {
+    // `surtidos` = historial de surtimiento (Terminar de surtir).
+    mapOrdenDetail(h, detail, surtidos = []) {
         return {
             id:               h.id,
             folio:            h.folio,
             status:           h.status,
+            // El que se le muestra: En espera, Entregado, Surtido parcialmente o Confirmado.
+            estado:           h.estado || h.status || '',
             status_badge:     h.status_badge || '',
             supplier_id:      h.supplier_id,
             supplier_name:    h.supplier_name || '',
@@ -599,7 +601,16 @@ class Ordenes extends Templates {
             entradas_surtido:     h.entradas_surtido || '',
             surtidos_por_recibir: parseInt(h.surtidos_por_recibir || 0, 10),
             received_confirmed_at:        h.received_confirmed_at || '',
+            received_confirmed_user_id:   h.received_confirmed_user_id || '',
             received_confirmed_user_name: h.received_confirmed_user_name || '',
+            surtidos: (surtidos || []).map(s => ({
+                fecha:   s.created_at || '',
+                usuario: s.user_name  || '',
+                unidades: Number(s.total_units || 0),
+                importe:  Number(s.total_cost  || 0),
+                tipo:     s.exit_type === 'manual' ? 'Salida manual' : 'Salida automática',
+                salida:   s.salida_folio || ''
+            })),
             total_products:   parseInt(h.total_products || 0, 10),
             total_units:      Number(h.total_units  || 0),
             total_cost:       Number(h.total_cost   || 0),
@@ -688,7 +699,7 @@ class Ordenes extends Templates {
                 </div>
                 <div>
                     <div class="folio">${esc(o.folio||'-')}</div>
-                    <span class="status">${esc(o.status)}</span>
+                    <span class="status">${esc(o.estado || o.status)}</span>
                 </div>
             </div>
             <div class="info-grid">
@@ -791,7 +802,7 @@ class Ordenes extends Templates {
                 </div>
                 <div>
                     <div class="folio">${esc(o.folio||'-')}</div>
-                    ${o.status?`<span class="status">${esc(o.status)}</span>`:''}
+                    ${o.status?`<span class="status">${esc(o.estado || o.status)}</span>`:''}
                 </div>
             </div>
             ${o.reject_reason?`<div class="reject-box"><strong style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#E02424;display:block;margin-bottom:3px">Motivo de rechazo</strong>${esc(o.reject_reason)}</div>`:''}
@@ -902,7 +913,7 @@ class OrdenesView extends Templates {
                 {
                     id:   app.lado,
                     icon: despacho ? 'truck' : 'clipboard-list',
-                    text: despacho ? 'Despacho' : 'Requisiciones'
+                    text: despacho ? 'Surtir' : 'Requisiciones'
                 }
             ],
             labels: { nuevo: 'Nueva requisición' },
@@ -930,7 +941,7 @@ class OrdenesView extends Templates {
         const opciones = (sel) => $(sel).find('option').map((i, el) => ({ id: el.value, valor: el.textContent })).get();
 
         this.movil.setView({
-            title:     entregas ? 'Despacho' : 'Mis requisiciones',
+            title:     entregas ? 'Surtir' : 'Mis requisiciones',
             tab:       app.vista,
             chips:     opciones('#fEstado').map(e => (e.id === '' ? { id: '', valor: 'Todas' } : e)),
             chip:      $('#fEstado').val() || '',
@@ -982,7 +993,7 @@ class OrdenesView extends Templates {
         this.alertBox({
             type:        'confirm',
             title:       `Enviar pedido ${o.folio}`,
-            detailHtml:  'El pedido pasará a estado Solicitada y quedará pendiente de aprobación.',
+            detailHtml:  'El pedido pasará a En espera hasta que lo surtan.',
             okLabel:     'Sí, enviar',
             cancelLabel: 'No',
             onOk: async () => {
@@ -1080,26 +1091,28 @@ class OrdenesView extends Templates {
         });
     }
 
-    // Aprobar = surtir: arranca sin marcar; lo marcado se descuenta del almacén de la
-    // sucursal que surte con su "Cant. a entregar" (arranca en lo pedido y se puede bajar).
-    // En "Producto a entregar" se cambia por otro de la misma categoría con stock en ese
-    // almacén (los de nombre parecido primero); la unidad es la del producto que se entrega,
-    // sin equivalencias. Lo no marcado sale del pedido. Un producto sin stock suficiente se
-    // puede marcar y surtir igual. Con faltante se pregunta cómo darle salida al almacén
-    // (csChoiceCards): automática (el stock queda en negativo), manual después (aprueba sin
-    // descuento y se surte con el botón Surtir) o generar una orden pendiente
-    // (openPendingOrderModal pide la fecha).
+    // Surtir la requisición («Surtiendo la requisición»): a la izquierda lo que pidió
+    // (Cantidad, Unidad, Producto) y a la derecha lo que sale del almacén elegido (Stock,
+    // Cantidad, Unidad, Producto). La cantidad arranca en lo pendiente y se puede bajar: lo
+    // que quede en 0 sigue pendiente y la requisición queda Surtido parcialmente. En Producto
+    // se cambia por otro de la misma categoría con stock (los de nombre parecido primero); la
+    // unidad es la del producto que sale, sin equivalencias. Con estado Parcial es «Terminar
+    // de surtir»: arriba el historial de surtimiento y abajo solo lo pendiente. Al aceptar
+    // pregunta si se descuenta del almacén ahora (salida automática; el stock puede quedar en
+    // negativo) o se hace a mano (salida manual).
     openAprobacionModal(orden) {
         if (!orden || !orden.id) return;
 
         const self       = this;
         const esc        = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtNum     = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
-        const productos  = orden.productos || [];
+        const fmtMoney   = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const pendiente  = (p) => Math.max(0, p.quantity_ordered - p.quantity_received);
-        const elegidos   = new Set();
+        // Solo lo que falta por surtir (en una requisición en espera, todo).
+        const productos  = (orden.productos || []).filter(p => pendiente(p) > 0);
+        const terminar   = orden.status === 'Parcial';
         const cantidades = {};
-        // Renglón -> producto que sale del almacén (arranca en lo pedido).
+        // Renglón -> producto que sale del almacén: el del surtido anterior o lo pedido.
         const entrega    = {};
 
         // Sin equivalencias entre unidades, la cantidad se dice en la unidad del producto que sale: lo que
@@ -1110,9 +1123,15 @@ class OrdenesView extends Templates {
 
         productos.forEach(p => {
             cantidades[String(p.detailId)] = aceptaDecimales(p.unidad) ? pendiente(p) : Math.floor(pendiente(p));
-            entrega[String(p.detailId)]    = String(p.product_id);
+            entrega[String(p.detailId)]    = p.delivered_id || String(p.product_id);
         });
-        const almacen    = this.almacenQueSurte(orden);
+
+        // "Selecciona almacén": los de la sucursal que surte; arranca en el de la requisición o
+        // en el principal (almacenQueSurte).
+        const sucursalSurte = String(orden.destination_branch_id || orden.branch_id);
+        const almacenes     = (app.dataInit.almacenes || []).filter(a => String(a.branch_id) === sucursalSurte);
+        let   almacen       = this.almacenQueSurte(orden);
+        if (almacen && !almacenes.some(a => String(a.id) === String(almacen.id))) almacenes.unshift(almacen);
 
         const catalogo = (app.dataInit && app.dataInit.productos) || [];
         const porId    = {};
@@ -1132,114 +1151,70 @@ class OrdenesView extends Templates {
         let similares   = {};
 
         const necesita = this.needDateLabel(orden.date_order);
-
-        // `dec` = false: lo que se cuenta, "Solo X de Y" con lo que hay entero (hacia abajo).
-        const alcanzaCell = (disp, ped, dec = true) => {
-            if (disp === null) return `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400">—</span>`;
-            if (disp >= ped)   return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(63,193,137,.15);color:#15803D"><i data-lucide="check" class="w-3 h-3"></i>Sí</span>`;
-            if (disp > 0)      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(249,115,22,.15);color:#C2410C"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Solo ${dec ? fmtNum(disp) : Math.floor(disp)} de ${fmtNum(ped)}</span>`;
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:rgba(224,36,36,.15);color:#B91C1C"><i data-lucide="x" class="w-3 h-3"></i>No hay</span>`;
-        };
-
-        const meta = [
-            { lbl: 'Solicitado por',     icon: 'circle-user', tone: 'text-gray-400',  val: esc(orden.user_name || '-') },
-            { lbl: 'Sucursal que pide',  icon: 'building-2',  tone: 'text-gray-400',  val: esc(orden.branch_name || '-') },
-            { lbl: 'Fecha de solicitud', icon: 'calendar',    tone: 'text-gray-400',  val: esc(this.fechaCorta(orden.created_at || orden.date_order) || '-') },
-            { lbl: 'Lo necesita para',   icon: 'clock',       tone: 'text-amber-500', val: esc((necesita.today ? 'Hoy · ' : '') + (this.fechaConDia(orden.date_order) || necesita.text)), cls: necesita.today ? 'text-red-600' : 'text-gray-800' }
-        ];
-
-        // Teléfono: todo lo de en medio se desplaza junto (un solo scroll) entre el encabezado y
-        // los botones, que quedan fijos; con bloques fijos la lista quedaba de unos renglones y
-        // con el teclado abierto se encimaban. En escritorio el envoltorio es `contents` y la tabla
-        // scrollea sola, como siempre. Márgenes de 16px: el px-5 de Bootstrap son 42px por lado.
-        const cuerpoCls = movil ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white' : 'contents';
-        const px        = movil ? 'px-[16px]' : 'px-5';
-        const ayuda     = movil
-            ? 'Toca un producto para marcarlo y elige cuánto vas a entregar. Lo que no marques se quita del pedido.'
-            : 'Marca lo que vas a entregar; en "Producto a entregar" puedes cambiarlo por otro de su categoría con stock. Al aprobar se descuenta del almacén con su "Cant. a entregar" y lo no marcado se quita del pedido; si algo queda en negativo, el sistema te pregunta si la salida es automática o manual.';
+        const titulo   = terminar ? 'Terminar de surtir' : 'Surtiendo la requisición';
+        const seccion  = (texto) => `<p class="text-[11px] font-bold uppercase tracking-wider text-gray-600 mb-1.5">${texto}</p>`;
 
         // En el teléfono los campos van a 16 px (compact.css los deja en 14 con !important):
-        // con menos, el iPhone hace zoom al tocarlos.
+        // con menos, el iPhone hace zoom al tocarlos. Encabezado como la hoja de surtir: título,
+        // quién pide, el almacén del que sale y para cuándo lo necesita.
         const $modal = $(`
             <div id="${modalId}" class="fixed inset-0 z-[9999] flex items-center justify-center md:p-4">
-                <style>@media (max-width: 767.98px) { #${modalId} :is(input, textarea) { font-size: 16px !important; } }</style>
+                <style>@media (max-width: 767.98px) { #${modalId} :is(input, textarea, select) { font-size: 16px !important; } }</style>
                 <div class="absolute inset-0 bg-black/40"></div>
-                <div class="relative z-10 w-full max-w-[1080px] h-full md:h-[90vh] bg-white md:rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+                <div class="relative z-10 w-full max-w-[1080px] h-full md:h-auto md:max-h-[90vh] bg-white md:rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
 
-                    <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style="background:#3FC189">
-                                <i data-lucide="clipboard-check" class="w-5 h-5 text-white"></i>
+                    <div class="flex items-start justify-between gap-3 px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                        <div class="flex-1 min-w-0 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-x-6 gap-y-3">
+                            <div class="min-w-0">
+                                <h3 class="text-base font-bold uppercase tracking-wide text-gray-800">${titulo}</h3>
+                                <p class="text-[11px] text-gray-500">Requisición <span class="font-semibold text-gray-700">${esc(orden.folio)}</span> &middot; ${orden.status_badge || ''}</p>
                             </div>
-                            <div>
-                                <h3 class="text-sm font-bold text-gray-800">Revisar y aprobar</h3>
-                                <p class="text-[11px] text-gray-500">Solicitud <span class="font-semibold text-gray-700">${esc(orden.folio)}</span> &middot; ${orden.status_badge || ''}</p>
+                            <div class="flex flex-wrap items-end gap-x-5 gap-y-2">
+                                <p class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 pb-2" title="Sucursal que pide">
+                                    <i data-lucide="store" class="w-3.5 h-3.5 text-gray-400"></i>${esc(orden.branch_name || '-')}
+                                </p>
+                                <div>
+                                    <label for="${modalId}_warehouse" class="block text-[10px] font-semibold text-gray-500 mb-0.5">Selecciona almacén:</label>
+                                    <div class="relative">
+                                        <select id="${modalId}_warehouse" class="w-48 pl-2.5 pr-8 py-1.5 text-xs font-semibold text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 cursor-pointer appearance-none">
+                                            ${almacenes.map(a => `<option value="${esc(a.id)}"${almacen && String(a.id) === String(almacen.id) ? ' selected' : ''}>${esc(a.valor || a.name || '')}</option>`).join('') || '<option value="">Sin almacén</option>'}
+                                        </select>
+                                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500 pb-2">Para el: <b class="${necesita.today ? 'text-red-600' : 'text-gray-800'}">${esc(necesita.text)}</b></p>
                             </div>
                         </div>
-                        <button id="${modalId}_close" class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400">
+                        <button id="${modalId}_close" class="w-8 h-8 flex-shrink-0 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400">
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
                     </div>
 
-                    <div id="${modalId}_cuerpo" class="${cuerpoCls}">
+                    <div id="${modalId}_cuerpo" class="flex-1 min-h-0 overflow-y-auto overscroll-contain cs-scroll bg-white ${movil ? 'px-[16px]' : 'px-[18px]'} py-[16px] space-y-4">
+                        ${terminar ? `
+                        <section>
+                            ${seccion('Historial de surtimiento')}
+                            <div id="${modalId}_historial"></div>
+                        </section>` : ''}
 
-                    <div class="${px} py-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
-                            ${meta.map(m => `
-                            <div class="min-w-0">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${m.lbl}</p>
-                                <div class="mt-0.5 flex items-center gap-2 min-w-0">
-                                    <i data-lucide="${m.icon}" class="w-[15px] h-[15px] flex-shrink-0 ${m.tone}"></i>
-                                    <p class="text-xs font-semibold truncate ${m.cls || 'text-gray-800'}">${m.val}</p>
-                                </div>
-                            </div>`).join('')}
-                        </div>
-                        <input type="hidden" id="${modalId}_warehouse_id" value="${almacen ? almacen.id : ''}">
-                    </div>
+                        <section>
+                            ${terminar ? seccion('Pendiente de surtir') : ''}
+                            <div id="${modalId}_table"></div>
+                        </section>
 
-                    <p class="flex-shrink-0 ${px} ${movil ? 'py-2.5 text-[12px]' : 'py-2 text-[10px]'} flex items-start gap-1.5 leading-snug text-gray-500">
-                        <i data-lucide="info" class="w-3 h-3 mt-px flex-shrink-0" style="color:#15803D"></i>
-                        <span>${ayuda}</span>
-                    </p>
-
-                    <!-- Franja y tabla con el formato de la captura de Nueva entrada -->
-                    <div class="${px} py-2.5 border-y border-gray-200 flex items-center gap-2 flex-shrink-0 bg-gray-50">
-                        <div class="w-6 h-6 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center">
-                            <i data-lucide="boxes" class="w-3.5 h-3.5 text-blue-600"></i>
-                        </div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">Productos del pedido</p>
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold leading-none bg-blue-50 text-blue-700 border border-blue-200">${productos.length}</span>
-                    </div>
-
-                    <div id="${modalId}_table" class="${movil ? 'bg-gray-50' : 'flex-1 min-h-0 overflow-y-auto cs-scroll'}"></div>
-
-                    ${orden.note ? `
-                    <div class="flex-shrink-0 ${px} pt-3 pb-3">
+                        ${orden.note ? `
                         <div class="flex items-start gap-2.5 rounded-[10px] border border-gray-200 bg-white px-3 py-2.5" style="border-left:3px solid rgb(var(--brand-600, 192 90 64))">
                             <i data-lucide="file-text" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:rgb(var(--brand-600, 192 90 64))"></i>
                             <p class="text-xs leading-relaxed text-gray-500"><b class="font-semibold text-gray-800">Nota de quien pidió:</b> «${esc(orden.note)}»</p>
-                        </div>
-                    </div>` : ''}
-
-                    <div class="flex-shrink-0 border-t border-gray-200 ${px} py-3 bg-gray-50">
-                        <p id="${modalId}_resumen" class="text-xs leading-relaxed text-gray-500 mb-2.5">Cargando disponibilidad...</p>
-                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nota <span class="text-gray-400 normal-case">(opcional)</span></label>
-                        <textarea id="${modalId}_note" rows="2" maxlength="255" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-md outline-none resize-none focus:border-blue-500 placeholder:text-gray-400" placeholder="Observaciones de la aprobación..."></textarea>
+                        </div>` : ''}
                     </div>
 
-                    </div>
-
-                    <!-- En el teléfono: Cerrar es la X de arriba; Rechazar y Aprobar a lo ancho, de 44px -->
-                    <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0"${movil ? ' style="padding-bottom:max(12px, env(safe-area-inset-bottom))"' : ''}>
-                        <button id="${modalId}_cerrar" class="${movil ? 'hidden' : ''} px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cerrar</button>
-                        <div class="flex items-center gap-2 ${movil ? 'w-full' : ''}">
-                            <button id="${modalId}_rechazar" class="${movil ? 'flex-1 h-[44px] text-[13px] justify-center' : 'px-3 py-1.5 text-xs'} font-semibold rounded-md border flex items-center gap-1.5 transition-all" style="border-color:#E02424;color:#E02424">
-                                <i data-lucide="x" class="w-3.5 h-3.5"></i><span>Rechazar</span>
-                            </button>
-                            <button id="${modalId}_aprobar" class="${movil ? 'flex-[2] h-[44px] text-[14px] justify-center' : 'px-3 py-1.5 text-xs'} font-bold text-white rounded-md hover:shadow-lg transition-all flex items-center gap-1.5" style="background:#3FC189">
-                                <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Aprobar y surtir</span>
-                            </button>
-                        </div>
+                    <!-- En el teléfono los botones van a lo ancho, de 44px -->
+                    <div class="flex items-center justify-end gap-2 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0"${movil ? ' style="padding-bottom:max(12px, env(safe-area-inset-bottom))"' : ''}>
+                        <button id="${modalId}_cerrar" class="${movil ? 'flex-1 h-[44px] text-[13px]' : 'px-[16px] py-2 text-xs'} font-semibold text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
+                        <button id="${modalId}_aprobar" class="${movil ? 'flex-[2] h-[44px] text-[14px] justify-center' : 'px-[16px] py-2 text-xs'} font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-md hover:shadow-lg transition-all flex items-center gap-1.5">
+                            <i data-lucide="check" class="w-3.5 h-3.5"></i><span>Aceptar</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1254,12 +1229,14 @@ class OrdenesView extends Templates {
             if (id === String(p.product_id)) {
                 return { id, nombre: p.nombre, sku: p.sku, unidad: p.unidad, unitId: String(p.unit_id || (porId[id] || {}).unit_id || '') };
             }
-            const x = porId[id] || {};
-            return { id, nombre: x.nombre || '', sku: x.sku || '', unidad: unidades[String(x.unit_id)] || x.presentacion || '', unitId: String(x.unit_id || '') };
+            // El de un surtido anterior trae su nombre y unidad aunque ya no esté en el catálogo.
+            const x     = porId[id] || {};
+            const antes = id === p.delivered_id;
+            return { id, nombre: x.nombre || (antes ? p.delivered_nombre : ''), sku: x.sku || (antes ? p.delivered_sku : ''), unidad: unidades[String(x.unit_id)] || x.presentacion || (antes ? p.delivered_unidad : ''), unitId: String(x.unit_id || '') };
         };
 
         // Lo que queda para el renglón: el stock del producto que entrega menos lo que se llevan
-        // los renglones marcados de antes con ese mismo producto (así lo descuenta surtir()).
+        // los renglones de antes con ese mismo producto (así lo descuenta surtir()).
         const dispDe = (p) => {
             if (!stockLoaded) return null;
             const id = entrega[String(p.detailId)];
@@ -1267,7 +1244,7 @@ class OrdenesView extends Templates {
             for (const q of productos) {
                 if (q === p) break;
                 const qid = String(q.detailId);
-                if (elegidos.has(qid) && entrega[qid] === id) disp -= cantidades[qid];
+                if (entrega[qid] === id) disp -= cantidades[qid];
             }
             return disp;
         };
@@ -1306,30 +1283,29 @@ class OrdenesView extends Templates {
             });
         };
 
-        const tonoDisp = (disp, qty) => disp === null ? '#9CA3AF' : (disp >= qty ? '#15803D' : (disp > 0 ? '#C2410C' : '#B91C1C'));
-
-        // Casilla del template: cuadro gris vacío o verde con palomita.
-        const casilla = (on, attrs) => `<span ${attrs} role="checkbox" aria-checked="${on}" class="inline-grid place-items-center w-[17px] h-[17px] rounded-[5px] border-[1.5px] align-middle cursor-pointer transition-colors ${on ? 'text-white' : 'text-transparent bg-white border-gray-300'}" style="${on ? 'background:#3FC189;border-color:#3FC189' : ''}"><i data-lucide="check" class="w-[11px] h-[11px]" style="stroke-width:3.2"></i></span>`;
+        const tonoDisp = (disp, qty) => disp === null ? '#9CA3AF' : (disp <= 0 ? '#B91C1C' : (disp >= qty ? '#15803D' : '#C2410C'));
 
         // Miniatura igual a la de Entradas (imagen o ícono del catálogo).
         const thumb = (x, box, ico) => EntradaForm.prototype.prodThumb.call({ esc }, Object.assign({ icon: 'package', bg: 'bg-gray-100', color: 'text-gray-500' }, x), box, ico);
 
-        // "Producto a entregar": campo de búsqueda como el de Entradas (lupa, texto de 14 px)
-        // con el producto que sale; a la derecha lo que hay, en verde si alcanza (naranja o
-        // rojo si no). Al entrar se escribe para buscar (abrirSelector). Sin marcar queda
-        // bloqueado y el clic pasa al renglón (lo marca).
-        const entregaCell = (p, marcado) => {
+        // Stock del producto que sale (lo que le queda al renglón): verde si alcanza, naranja o
+        // rojo si no.
+        const stockCell = (p) => {
             const did  = String(p.detailId);
-            const e    = entregaDe(p);
             const disp = dispDe(p);
+            return `<span data-stock="${did}" class="text-sm font-bold" style="color:${tonoDisp(disp, cantidades[did])}">${disp === null ? '—' : esc(dispTx(p, disp))}</span>`;
+        };
+
+        // "Producto" que se entrega: se ve como select (flecha) pero se escribe para buscar,
+        // con la lista de Entradas (abrirSelector).
+        const entregaCell = (p) => {
+            const did = String(p.detailId);
+            const e   = entregaDe(p);
             return `
                 <div data-entrega-box="${did}" class="relative scroll-mt-[60px]">
-                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
-                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
-                    </span>
-                    <input type="text" data-entrega-input="${did}" value="${esc(e.nombre)}" autocomplete="off" placeholder="Buscar producto a entregar..."${marcado ? '' : ' disabled tabindex="-1"'}
-                        class="w-full !pl-8 !pr-20 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400 truncate disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:pointer-events-none">
-                    ${disp === null ? '' : `<span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold pointer-events-none whitespace-nowrap" style="color:${marcado ? tonoDisp(disp, cantidades[did]) : '#9CA3AF'}">${esc(dispTx(p, disp))} disp.</span>`}
+                    <input type="text" data-entrega-input="${did}" value="${esc(e.nombre)}" autocomplete="off" placeholder="Buscar producto a entregar..."
+                        class="w-full !pl-3 !pr-8 py-2 text-[13px] font-semibold uppercase text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400 placeholder:normal-case placeholder:font-normal truncate">
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
                 </div>`;
         };
 
@@ -1380,166 +1356,158 @@ class OrdenesView extends Templates {
             ? `<div class="px-3 py-2 bg-amber-50/70 border-b border-gray-200 text-[11px] font-semibold text-amber-700 flex items-center gap-1.5"><i data-lucide="lightbulb" class="w-3 h-3"></i>${esc(g.titulo)}</div>`
             : `<div class="px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-bold uppercase tracking-wider text-gray-500">${esc(g.titulo)}</div>`;
 
-        // La unidad es la del producto que se entrega; en naranja si no es la que se pidió.
+        // La unidad es la del producto que se entrega (caja de solo lectura); en naranja si no
+        // es la que se pidió.
         const unidadCell = (p) => {
             const e      = entregaDe(p);
             const pedida = String(p.unit_id || (porId[String(p.product_id)] || {}).unit_id || '');
             const otra   = e.id !== String(p.product_id) && e.unitId !== '' && pedida !== '' && e.unitId !== pedida;
-            return `<p class="text-[11px] font-bold uppercase tracking-wide ${otra ? 'text-[#C2410C]' : 'text-gray-700'}">${esc(e.unidad || '-')}</p>`
-                 + (otra ? `<p class="text-[10px] text-gray-400">pidió ${esc(p.unidad || 'otra')}</p>` : '');
+            return `<span class="flex w-full items-center justify-center min-h-[36px] px-1.5 text-[11px] font-bold uppercase tracking-wide bg-white border rounded-md truncate ${otra ? 'border-orange-300 text-[#C2410C]' : 'border-gray-300 text-gray-700'}"${otra ? ` title="Pidió ${esc(p.unidad || 'otra unidad')}"` : ''}>${esc(e.unidad || '-')}</span>`;
         };
 
-        // Repinta "Producto a entregar" y "¿Alcanza?" de todos los renglones sin rehacer la tabla
-        // (el foco sigue en la cantidad que se captura): otra cantidad cambia lo que les queda a
-        // los renglones de abajo con el mismo producto.
+        // Repinta el Stock de todos los renglones sin rehacer la tabla (el foco sigue en la
+        // cantidad que se captura): otra cantidad cambia lo que les queda a los renglones de
+        // abajo con el mismo producto.
         const refreshDisp = () => {
-            productos.forEach(p => {
-                const did = String(p.detailId);
-                $modal.find(`[data-entrega-box="${did}"]`).replaceWith(entregaCell(p, elegidos.has(did)));
-                $modal.find(`[data-alcanza="${did}"]`).html(alcanzaCell(dispDe(p), cantidades[did], decDe(p)));
-            });
-            if (window.lucide) lucide.createIcons();
+            productos.forEach(p => $modal.find(`[data-stock="${String(p.detailId)}"]`).replaceWith(stockCell(p)));
         };
 
-        // Lo de abajo cuenta solo los productos marcados, con su cantidad a entregar y, con
-        // faltante, cómo quedaría cada producto en el almacén; el botón de aprobar lleva
-        // cuántos van marcados.
-        const updateResumen = () => {
-            const $r       = $(`#${modalId}_resumen`);
-            const marcados = productos.filter(p => elegidos.has(String(p.detailId)));
-            const total    = marcados.length;
-            $(`#${modalId}_aprobar span`).text(total ? `Aprobar y surtir (${total})` : 'Aprobar y surtir');
-            if (!total)       { $r.html(`Marca los productos que vas a entregar (<strong>0</strong> de <strong>${productos.length}</strong>).`); return; }
-            if (!stockLoaded) { $r.html(`<strong>${total}</strong> de <strong>${productos.length}</strong> productos marcados. Cargando disponibilidad...`); return; }
-            const conFalta = marcados.filter(p => faltaDe(p) > 0);
-            $r.html(`<strong>${total}</strong> de <strong>${productos.length}</strong> productos marcados: `
-                  + `<strong style="color:#15803D">${total - conFalta.length}</strong> con stock completo`
-                  + (conFalta.length ? ` y <strong style="color:#C2410C">${conFalta.length}</strong> con faltante: ${conFalta.map(negativoDe).join(' · ')}.` : '.'));
+        const cantidadInput = (p, cls) => {
+            const did = String(p.detailId);
+            const dec = decDe(p);
+            return `<input type="number" data-cantidad="${did}" value="${cantidades[did]}" min="0" max="${topeDe(p)}" step="${dec ? '0.01' : '1'}" inputmode="${dec ? 'decimal' : 'numeric'}"
+                class="no-spin w-full px-2 py-2 font-bold text-center text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all ${cls}">`;
         };
 
-        const tableId = `tb${modalId}`;
+        // Lo que pidió: nombre y, si trae, su nota de solicitud (en una línea; completa al pasar el mouse).
+        const pedidoHtml = (p) => `
+            <p class="text-xs font-semibold uppercase text-gray-800 truncate" title="${esc(p.nombre)}">${esc(p.nombre)}</p>
+            ${p.nota ? `<p class="text-[10px] text-gray-500 italic truncate flex items-center gap-1" title="${esc(p.nota)}"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0"></i><span class="truncate">${esc(p.nota)}</span></p>` : ''}`;
 
-        // Renglón con el formato de la tabla de Nueva entrada (SKU, miniatura, nombre y
-        // "categoría · unidad", campos de 14 px). Lo marcado se resalta; lo no marcado deja
-        // bloqueados "Producto a entregar" y "Cant. a entregar" (el clic sobre ellos marca el renglón).
-        const filaHtml = (p) => {
-            const did     = String(p.detailId);
-            const qty     = cantidades[did];
-            const marcado = elegidos.has(did);
-            const dec     = decDe(p);
-            const cat     = porId[String(p.product_id)] || {};
-            const datos   = [cat.categoria && cat.categoria !== 'Sin categoría' ? cat.categoria : '', p.unidad].filter(Boolean).map(esc).join(' &middot; ');
-            return `
-                <tr class="group border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors cursor-pointer" data-row="1"${marcado ? ' style="background:rgba(63,193,137,.08)"' : ''}>
-                    <td class="px-3 py-2 align-middle text-center">${casilla(marcado, `data-elegir="${did}"`)}</td>
-                    <td class="px-3 py-2 align-middle">
-                        <span class="block truncate text-[11px] font-mono text-gray-500" title="${esc(p.sku)}">${esc(p.sku)}</span>
-                    </td>
-                    <td class="px-3 py-2 align-middle">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            ${thumb(Object.assign({ image: p.image }, cat), 'w-8 h-8', 'w-3.5 h-3.5')}
-                            <div class="min-w-0 flex-1">
-                                <p class="text-xs font-semibold truncate leading-tight ${marcado ? 'text-gray-800' : 'text-gray-600'}">${esc(p.nombre)}</p>
-                                ${datos ? `<p class="text-[10px] text-gray-400 truncate mt-0.5">${datos}</p>` : ''}
-                                ${p.nota ? `<p class="text-[10px] text-gray-500 italic leading-tight flex items-start gap-1 mt-0.5"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-2 py-2 align-middle text-center text-xs text-gray-600">${fmtNum(pendiente(p))}</td>
-                    <td class="px-2 py-2 align-middle">${entregaCell(p, marcado)}</td>
-                    <td class="px-2 py-2 align-middle">
-                        <input type="number" data-cantidad="${did}" value="${qty}" min="0" max="${topeDe(p)}" step="${dec ? '0.01' : '1'}" inputmode="${dec ? 'decimal' : 'numeric'}"${marcado ? '' : ' disabled tabindex="-1"'}
-                            class="no-spin w-full px-3 py-2 text-sm font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:pointer-events-none">
-                    </td>
-                    <td class="px-2 py-2 align-middle text-center">${unidadCell(p)}</td>
-                    <td class="px-2 py-2 align-middle text-center"><span data-alcanza="${did}">${alcanzaCell(dispDe(p), qty, dec)}</span></td>
-                </tr>`;
-        };
+        // Las dos tablas comparten el alto de renglón para que cada producto quede frente a
+        // lo que se le entrega.
+        const th   = 'py-2 text-[10px] uppercase tracking-wider text-white font-bold whitespace-nowrap';
+        const fila = 'h-[52px] border-b border-gray-100 last:border-b-0';
 
-        // Teléfono: el mismo renglón en tarjeta, con los mismos data-* (marcar, producto a
-        // entregar, cantidad y ¿Alcanza?). Arriba casilla, nombre, lo pedido y ¿Alcanza?; solo
-        // esa parte marca o desmarca (un toque entre los campos no la quita). Sin marcar no
-        // lleva campos; marcada abre producto a entregar, cantidad y unidad.
+        const filaPedido = (p) => `
+            <tr class="${fila}">
+                <td class="px-2 align-middle text-center text-sm font-bold text-gray-800">${fmtNum(pendiente(p))}</td>
+                <td class="px-2 align-middle text-center text-[11px] font-bold uppercase tracking-wide text-gray-600 truncate">${esc(p.unidad || '-')}</td>
+                <td class="px-3 align-middle min-w-0">${pedidoHtml(p)}</td>
+            </tr>`;
+
+        const filaEntrega = (p) => `
+            <tr class="${fila}">
+                <td class="px-2 align-middle text-center">${stockCell(p)}</td>
+                <td class="px-2 align-middle">${cantidadInput(p, 'text-sm')}</td>
+                <td class="px-2 align-middle">${unidadCell(p)}</td>
+                <td class="px-2 align-middle">${entregaCell(p)}</td>
+            </tr>`;
+
+        // Teléfono: cada producto en tarjeta; arriba lo que pidió y abajo lo que se entrega.
         const tarjetaHtml = (p) => {
-            const did     = String(p.detailId);
-            const qty     = cantidades[did];
-            const marcado = elegidos.has(did);
-            const dec     = decDe(p);
-            const cat     = porId[String(p.product_id)] || {};
-            const datos   = [p.sku, cat.categoria && cat.categoria !== 'Sin categoría' ? cat.categoria : ''].filter(Boolean).map(esc).join(' &middot; ');
-            const lbl     = 'text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1';
+            const lbl = 'text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1';
             return `
-                <div class="bg-white rounded-[12px] border-[1.5px] overflow-hidden ${marcado ? '' : 'border-gray-200'}"${marcado ? ' style="border-color:#3FC189"' : ''}>
-                    <div class="flex items-start gap-3 px-[14px] py-[12px] cursor-pointer" data-row="1">
-                        <span class="pt-0.5">${casilla(marcado, `data-elegir="${did}"`)}</span>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-[14px] font-semibold leading-snug text-gray-800">${esc(p.nombre)}</p>
-                            <p class="text-[12px] text-gray-500 mt-0.5">Pidió <b class="text-gray-800">${fmtNum(pendiente(p))}${p.unidad ? ` ${esc(p.unidad)}` : ''}</b></p>
-                            ${datos ? `<p class="text-[11px] text-gray-400 mt-0.5 truncate">${datos}</p>` : ''}
-                            ${p.nota ? `<p class="text-[11px] text-gray-500 italic leading-tight flex items-start gap-1 mt-1"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}
-                            ${marcado ? '' : '<p class="text-[11px] mt-1" style="color:#15803D">Toca para marcarlo y elegir cuánto entregar</p>'}
-                        </div>
-                        <span data-alcanza="${did}" class="flex-shrink-0">${alcanzaCell(dispDe(p), qty, dec)}</span>
+                <div class="bg-white rounded-[12px] border-[1.5px] border-gray-200 overflow-hidden">
+                    <div class="px-[14px] py-[12px] bg-gray-50 border-b border-gray-100">
+                        <p class="${lbl}">Pidió</p>
+                        <p class="text-[14px] leading-snug text-gray-800"><b>${fmtNum(pendiente(p))}${p.unidad ? ` ${esc(p.unidad)}` : ''}</b> &middot; ${esc(p.nombre)}</p>
+                        ${p.nota ? `<p class="text-[11px] text-gray-500 italic leading-tight flex items-start gap-1 mt-1"><i data-lucide="message-square" class="w-3 h-3 flex-shrink-0 mt-px"></i><span>${esc(p.nota)}</span></p>` : ''}
                     </div>
-                    ${marcado ? `
-                    <div class="border-t border-gray-100 bg-gray-50 px-[14px] py-[12px] space-y-3">
+                    <div class="px-[14px] py-[12px] space-y-3">
                         <div>
-                            <p class="${lbl}">Producto a entregar</p>
-                            ${entregaCell(p, marcado)}
+                            <p class="${lbl}">Producto</p>
+                            ${entregaCell(p)}
                         </div>
-                        <div class="flex items-end gap-3">
-                            <div class="flex-1">
-                                <p class="${lbl}">Cant. a entregar</p>
-                                <input type="number" data-cantidad="${did}" value="${qty}" min="0" max="${topeDe(p)}" step="${dec ? '0.01' : '1'}" inputmode="${dec ? 'decimal' : 'numeric'}"
-                                    class="no-spin w-full px-3 py-2 font-bold text-center text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all">
+                        <div class="grid grid-cols-3 gap-3 items-end">
+                            <div>
+                                <p class="${lbl}">Stock</p>
+                                <div class="min-h-[40px] flex items-center">${stockCell(p)}</div>
                             </div>
-                            <div class="w-[96px] flex-shrink-0">
+                            <div>
+                                <p class="${lbl}">Cantidad</p>
+                                ${cantidadInput(p, '')}
+                            </div>
+                            <div>
                                 <p class="${lbl}">Unidad</p>
-                                <div class="min-h-[40px] flex flex-col justify-center">${unidadCell(p)}</div>
+                                ${unidadCell(p)}
                             </div>
                         </div>
-                    </div>` : ''}
+                    </div>
                 </div>`;
         };
 
-        // Encabezado como el de Nueva entrada (una sola línea); anchos fijos para que las columnas
-        // no se muevan al marcar, al cambiar de producto ni al capturar. En el teléfono, tarjetas
-        // con "Marcar todos" arriba.
+        // Escritorio: las dos tablas lado a lado (abajo de la otra en tablet). Anchos fijos
+        // para que las columnas no se muevan al cambiar de producto ni al capturar.
         const renderRows = () => {
-            const todos = productos.length > 0 && productos.every(p => elegidos.has(String(p.detailId)));
-            const th    = 'py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold whitespace-nowrap';
-
             if (movil) {
                 $(`#${modalId}_table`).html(`
-                    <div id="${modalId}_todos" class="sticky top-0 z-10 flex items-center gap-3 px-[16px] py-[10px] bg-white border-b border-gray-200 cursor-pointer">
-                        ${casilla(todos, '')}
-                        <span class="text-[13px] font-semibold text-gray-700">Marcar todos</span>
-                        <span class="ml-auto text-[12px] text-gray-400">${elegidos.size} de ${productos.length}</span>
-                    </div>
-                    <div class="p-3 space-y-3">
-                        ${productos.map(tarjetaHtml).join('') || '<p class="py-6 text-center text-xs text-gray-400">Este pedido no tiene productos</p>'}
+                    <div class="space-y-3">
+                        ${productos.map(tarjetaHtml).join('') || '<p class="py-6 text-center text-xs text-gray-400">No hay productos por surtir</p>'}
                     </div>`);
                 if (window.lucide) lucide.createIcons();
                 return;
             }
 
             $(`#${modalId}_table`).html(`
-                <table id="${tableId}" class="w-full border-collapse table-fixed">
-                    <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th class="w-11 px-3 py-2 text-center">${casilla(todos, `id="${modalId}_todos" title="Marcar o desmarcar todos"`)}</th>
-                            <th class="text-left px-3 ${th} w-24">SKU</th>
-                            <th class="text-left px-3 ${th}">Producto</th>
-                            <th class="text-center px-2 ${th} w-16">Pedido</th>
-                            <th class="text-left px-2 ${th} w-[27%]">Producto a entregar</th>
-                            <th class="text-center px-2 ${th} w-32">Cant. a entregar</th>
-                            <th class="text-center px-2 ${th} w-20">Unidad</th>
-                            <th class="text-center px-2 ${th} w-32">¿Alcanza?</th>
-                        </tr>
-                    </thead>
-                    <tbody>${productos.map(filaHtml).join('') || '<tr><td colspan="8" class="px-3 py-6 text-center text-xs text-gray-400">Este pedido no tiene productos</td></tr>'}</tbody>
-                </table>`);
+                <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 items-start">
+                    <div class="rounded-lg border border-gray-200 overflow-hidden">
+                        <table class="w-full border-collapse table-fixed">
+                            <thead class="bg-blue-600">
+                                <tr>
+                                    <th class="text-center px-2 ${th} w-20">Cantidad</th>
+                                    <th class="text-center px-2 ${th} w-20">Unidad</th>
+                                    <th class="text-left px-3 ${th}">Producto</th>
+                                </tr>
+                            </thead>
+                            <tbody>${productos.map(filaPedido).join('')}</tbody>
+                        </table>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 overflow-hidden">
+                        <table class="w-full border-collapse table-fixed">
+                            <thead class="bg-blue-600">
+                                <tr>
+                                    <th class="text-center px-2 ${th} w-16">Stock</th>
+                                    <th class="text-center px-2 ${th} w-24">Cantidad</th>
+                                    <th class="text-center px-2 ${th} w-24">Unidad</th>
+                                    <th class="text-left px-3 ${th}">Producto</th>
+                                </tr>
+                            </thead>
+                            <tbody>${productos.map(filaEntrega).join('')}</tbody>
+                        </table>
+                    </div>
+                </div>
+                ${productos.length ? '' : '<p class="py-6 text-center text-xs text-gray-400">No hay productos por surtir</p>'}`);
             if (window.lucide) lucide.createIcons();
+        };
+
+        // Terminar de surtir: lo que ya se le entregó, con el tipo de salida de cada vez.
+        const renderHistorial = () => {
+            const surtidos = orden.surtidos || [];
+            const thH      = 'py-2 text-[10px] uppercase tracking-wider text-white font-bold whitespace-nowrap';
+            $(`#${modalId}_historial`).html(`
+                <div class="rounded-lg border border-gray-200 overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead class="bg-blue-600">
+                            <tr>
+                                <th class="text-left px-3 ${thH}">Fecha</th>
+                                <th class="text-left px-3 ${thH}">Usuario</th>
+                                <th class="text-center px-2 ${thH}">Cantidad</th>
+                                <th class="text-right px-3 ${thH}">Cantidad ($)</th>
+                                <th class="text-left px-3 ${thH}">Tipo de salida</th>
+                            </tr>
+                        </thead>
+                        <tbody>${surtidos.map(s => `
+                            <tr class="border-b border-gray-100 last:border-b-0 text-xs text-gray-700">
+                                <td class="px-3 py-2 whitespace-nowrap">${esc(this.fechaHoraCorta(s.fecha))}</td>
+                                <td class="px-3 py-2">${esc(s.usuario || '-')}</td>
+                                <td class="px-2 py-2 text-center font-semibold">${fmtNum(s.unidades)}</td>
+                                <td class="px-3 py-2 text-right">${fmtMoney(s.importe)}</td>
+                                <td class="px-3 py-2 whitespace-nowrap uppercase text-[11px] font-semibold"${s.salida ? ` title="Salida ${esc(s.salida)}"` : ''}>${esc(s.tipo)}</td>
+                            </tr>`).join('') || '<tr><td colspan="5" class="px-3 py-4 text-center text-xs text-gray-400">Sin surtimientos registrados</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>`);
         };
 
         // Abre el selector debajo de "Producto a entregar" (arriba si no cabe). Vive en el panel
@@ -1638,18 +1606,16 @@ class OrdenesView extends Templates {
             picker = null;
             $picker.addClass('hidden').empty();
             renderRows();
-            updateResumen();
             $modal.find(`[data-cantidad="${did}"]`).trigger('focus').trigger('select');
         };
 
         const loadStock = (warehouseId) => {
-            if (!warehouseId) { stockLoaded = false; stockMap = {}; similares = {}; renderRows(); updateResumen(); return; }
+            if (!warehouseId) { stockLoaded = false; stockMap = {}; similares = {}; renderRows(); return; }
             useFetch({ url: apiOrdenes, data: { opc: 'stockByWarehouse', warehouse_id: warehouseId } }).then(r => {
                 stockMap    = (r && r.status === 200 && r.stock) ? r.stock : {};
                 stockLoaded = true;
                 armarSimilares();
                 renderRows();
-                updateResumen();
             });
         };
 
@@ -1658,21 +1624,13 @@ class OrdenesView extends Templates {
         $(`#${modalId}_cerrar`).on('click', closeModal);
         $modal.on('click', (ev) => { if ($(ev.target).is(`#${modalId}`)) closeModal(); });
 
-        $(`#${modalId}_rechazar`).on('click', () => self.doRejectOrden(orden, closeModal));
-
-        // Clic en cualquier parte del renglón (o la tarjeta) marca o desmarca (menos en sus campos activos).
-        $modal.on('click', '[data-row]', function (ev) {
-            if ($(ev.target).closest('input:not(:disabled)').length) return;
-            const did = String($(this).find('[data-elegir]').attr('data-elegir'));
-            if (elegidos.has(did)) elegidos.delete(did); else elegidos.add(did);
+        // Otro almacén: su stock y los parecidos que tiene.
+        $(`#${modalId}_warehouse`).on('change', function () {
+            const id = $(this).val();
+            almacen  = almacenes.find(a => String(a.id) === String(id)) || null;
+            stockLoaded = false;
             renderRows();
-            updateResumen();
-        });
-        $modal.on('click', `#${modalId}_todos`, () => {
-            const todos = productos.every(p => elegidos.has(String(p.detailId)));
-            productos.forEach(p => todos ? elegidos.delete(String(p.detailId)) : elegidos.add(String(p.detailId)));
-            renderRows();
-            updateResumen();
+            loadStock(id);
         });
 
         // "Producto a entregar" se busca como en Entradas: al entrar al campo se abre la lista,
@@ -1719,8 +1677,8 @@ class OrdenesView extends Templates {
         });
         $(`#${modalId}_table, #${modalId}_cuerpo`).on('scroll', () => { if (picker) colocarSelector(); });
 
-        // "Cant. a entregar" va de 0 a lo pedido, entera salvo litro o gramo; recalcula el
-        // disponible, el "¿Alcanza?" y el resumen.
+        // Cantidad va de 0 a lo pendiente, entera salvo litro o gramo; recalcula el Stock que
+        // les queda a los renglones con el mismo producto.
         $modal.on('input', '[data-cantidad]', function () {
             const did = String($(this).attr('data-cantidad'));
             const p   = productos.find(x => String(x.detailId) === did);
@@ -1730,261 +1688,86 @@ class OrdenesView extends Templates {
             if (qty > topeDe(p)) { qty = topeDe(p); $(this).val(qty); }
             cantidades[did] = qty;
             refreshDisp();
-            updateResumen();
         });
 
-        // `salida` = 'manual' aprueba sin descuento; `reabasto` = false surte todo lo marcado sin
-        // generar orden (el stock puede quedar en negativo); `compromiso` = fecha de la orden
-        // pendiente; `negativos` = lo que queda en negativo, para decirlo en el aviso final;
-        // `mover` = mueve el inventario aunque el almacén tenga «mueve inventario» en No.
-        // Regresa true si se guardó.
-        const aprobar = async ({ salida = 'auto', reabasto = true, compromiso = '', negativos = [], mover = false } = {}) => {
-            // `subs` = lo marcado que se entrega en lugar de lo pedido.
+        // `salida` = 'auto' («Sí, descontarlos»: la salida SI- descuenta el almacén elegido) o
+        // 'manual' («No, lo haré manual»: solo queda lo entregado). Se mandan los renglones con
+        // cantidad; el producto que sale va en `subs` (el ctrl ignora el que ya tenía).
+        const surtirAhora = async (salida) => {
             const items = {}, subs = {};
             productos.forEach(p => {
                 const did = String(p.detailId);
-                if (!elegidos.has(did)) return;
+                if (!(cantidades[did] > 0)) return;
                 items[did] = cantidades[did];
-                if (entrega[did] !== String(p.product_id)) subs[did] = entrega[did];
+                subs[did]  = entrega[did];
             });
             const $btn = $(`#${modalId}_aprobar`).prop('disabled', true).addClass('opacity-60 pointer-events-none');
             const r = await useFetch({
                 url:  apiOrdenes,
                 data: {
-                    opc:           'approveOrden',
-                    id:            orden.id,
-                    vista:         app.vistaOrden(orden),
-                    items:         JSON.stringify(items),
-                    subs:          JSON.stringify(subs),
-                    note:          $(`#${modalId}_note`).val() || '',
-                    warehouse_id:  $(`#${modalId}_warehouse_id`).val() || '',
-                    expected_date: compromiso,
-                    reabasto:      reabasto ? 1 : 0,
-                    salida:        salida,
-                    mover:         mover ? 1 : 0
+                    opc:          'approveOrden',
+                    id:           orden.id,
+                    vista:        app.vistaOrden(orden),
+                    items:        JSON.stringify(items),
+                    subs:         JSON.stringify(subs),
+                    warehouse_id: almacen ? almacen.id : '',
+                    salida:       salida
                 }
             }).catch(() => null);
             if (r && r.status === 200) {
                 closeModal();
-                self.avisoAprobado(r, salida, negativos);
+                this.alertBox({ type: 'success', title: salida === 'manual' ? 'Salida manual registrada' : 'Surtido registrado', detailHtml: esc(r.message || ''), timer: 6500 });
                 self._refreshAfterAction(orden.folio, orden.id);
-                return true;
+                return;
             }
             $btn.prop('disabled', false).removeClass('opacity-60 pointer-events-none');
-            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo aprobar el pedido' });
-            return false;
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo surtir la requisición' });
         };
 
-        // Con faltante: cómo darle salida al almacén. Regresar en cualquier subpaso vuelve aquí.
-        const askExit = (ctx) => {
-            const { filas, faltantes, titulo, prods, quitadosTx } = ctx;
-            // Lo clave de cada opción, más oscuro que el gris de la explicación.
-            const enfasis = 'class="font-semibold text-gray-800"';
-
-            this.csChoiceCards({
-                title:   titulo,
-                lead:    `Se van a surtir ${prods(filas.length)} · <b style="color:#C2410C">${faltantes.length} con faltante</b>.${quitadosTx}`,
-                alerts:  faltantes.map(f => ({ html: `<b>${esc(f.nombre)} (entrega ${fmtNum(f.sup)}${f.unidad ? ` ${esc(f.unidad)}` : ''}) quedará en −${fmtNum(f.falta)}${f.unidad ? ` ${esc(f.unidad)}` : ''}</b>${almacen.valor ? ` en ${esc(almacen.valor)}` : ''}.` })),
-                ask:     '¿Cómo quieres darle salida al almacén?',
-                hint:    'Recomendada: el descuento se registra al momento y el faltante queda a la vista en el resumen.',
-                choices: [
-                    { id: 'auto',    icon: 'zap',           tone: 'go',  title: 'Salida automática',       badge: 'Recomendada',
-                      text: `El sistema <b ${enfasis}>descuenta el almacén al aceptar</b>. El negativo se ajusta con <b ${enfasis}>una entrada después</b>, desde Entradas.` },
-                    { id: 'manual',  icon: 'hand',          tone: 'mut', title: 'Salida manual después',
-                      text: `Queda <b ${enfasis}>aprobada sin descuento</b>: la surtes después con el botón <b ${enfasis}>Surtir</b> de su detalle. Hasta entonces <b ${enfasis}>el faltante sigue en la solicitud</b>.` },
-                    { id: 'pending', icon: 'shopping-cart', tone: 'ac',  title: 'Generar orden pendiente',
-                      text: `Lo que falta <b ${enfasis}>se compra</b>: queda <b ${enfasis}>una orden pendiente</b> que recibes en Mis entregas cuando llegue el producto.` }
-                ],
-                onChoose: (id) => {
-                    if (id === 'auto')    aprobar({ reabasto: false, negativos: faltantes, mover: ctx.forzar });
-                    if (id === 'manual')  askManual(ctx);
-                    if (id === 'pending') this.openPendingOrderModal(orden, faltantes, { total: filas.length, onConfirm: (fecha) => aprobar({ compromiso: fecha, mover: ctx.forzar }), onBack: () => askExit(ctx) });
-                }
+        // La pregunta de la hoja de surtir. Abajo, en qué estado queda la requisición y, si al
+        // descontar algo queda en negativo, cuánto. «Sí, descontarlos» va primero, como en la
+        // captura; un clic fuera solo cierra la pregunta y regresa a la captura.
+        const preguntarDescuento = (completa, negativos) => {
+            const id     = `${modalId}_descontar`;
+            const estado = completa ? 'Entregado' : 'Surtido parcialmente';
+            this.alertBox({
+                id:          id,
+                type:        'confirm',
+                title:       '¿Quieres descontarlo AHORA de tu Almacén?',
+                detailHtml:  'Este cambio no se puede deshacer.'
+                           + `<span class="block mt-2 text-[11px]">La requisición queda <b class="text-gray-800">${estado}</b>.</span>`
+                           + (negativos.length ? `<span class="block mt-1 text-[11px]">Si lo descuentas: ${negativos.map(negativoDe).join(' · ')}.</span>` : ''),
+                okLabel:     'Sí, descontarlos',
+                okBg:        'bg-blue-600 hover:bg-blue-700',
+                cancelLabel: 'No, lo haré manual',
+                onOk:        () => surtirAhora('auto'),
+                onCancel:    () => surtirAhora('manual')
             });
+            const $box = $(`#${id}`);
+            $box.find('[data-ab-ok]').insertBefore($box.find('[data-ab-cancel]'));
+            $box.find('[data-ab-backdrop]').off('click').on('click', () => $box.remove());
         };
 
-        const askManual = (ctx) => {
-            this.csChoiceCards({
-                title:   'No le diste salida a almacén',
-                lead:    `Lo sentimos: la solicitud <b>${esc(orden.folio)}</b> quedará aprobada sin movimiento de almacén.${ctx.quitadosTx}`,
-                alerts:  [{ html: 'Hasta que la surtas con el botón <b>Surtir</b> de su detalle, el pedido figura aprobado sin descuento. La encuentras en el filtro «Aprobada».' }],
-                okLabel: 'Entendido',
-                okTone:  'pri',
-                onOk:    () => aprobar({ salida: 'manual' }),
-                onBack:  () => askExit(ctx)
-            });
-        };
-
+        // Todo lo pendiente con su cantidad completa = Entregado; si algo va de menos o en 0,
+        // Surtido parcialmente.
         $(`#${modalId}_aprobar`).on('click', () => {
             if (!almacen) {
                 this.alertBox({ type: 'warning', title: 'La sucursal que surte no tiene almacén', timer: 2200 });
                 return;
             }
-            const marcados = productos.filter(p => elegidos.has(String(p.detailId)));
-            if (!marcados.length) {
-                this.alertBox({ type: 'warning', title: 'Selecciona al menos un producto para aprobar', timer: 1800 });
-                return;
-            }
-            if (marcados.some(p => !(cantidades[String(p.detailId)] > 0))) {
-                this.alertBox({ type: 'warning', title: 'Indica cuánto vas a entregar de cada producto marcado', timer: 2000 });
+            if (!productos.some(p => cantidades[String(p.detailId)] > 0)) {
+                this.alertBox({ type: 'warning', title: 'Indica cuánto vas a entregar de al menos un producto', timer: 2000 });
                 return;
             }
 
-            // Sin faltante se pregunta una sola vez; con faltante, cómo darle salida (askExit).
-            // El faltante se calcula como en surtir(): lo que se entrega menos lo que hay.
-            // En lo que se cuenta, lo que hay va entero hacia abajo y lo que falta hacia arriba.
-            const filas = marcados.map(p => {
-                const e     = entregaDe(p);
-                const dec   = decDe(p);
-                const qty   = cantidades[String(p.detailId)];
-                const disp  = dispDe(p) || 0;
-                const falta = Math.max(0, qty - disp);
-                return { nombre: e.nombre, sku: e.sku, unidad: e.unidad || '', sup: qty, disp: dec ? disp : Math.floor(disp), falta: dec ? falta : Math.ceil(falta) };
-            });
-            const quitados = productos.length - marcados.length;
-            const ctx      = {
-                filas:      filas,
-                faltantes:  filas.filter(f => f.falta > 0),
-                titulo:     `¿Aprobar y surtir la solicitud ${esc(orden.folio)}?`,
-                prods:      (n) => `<strong>${n}</strong> ${n === 1 ? 'producto' : 'productos'}`,
-                quitadosTx: quitados ? ` ${quitados === 1 ? 'El que no marcaste se quita' : `Los ${quitados} que no marcaste se quitan`} del pedido.` : '',
-                // Almacén con «mueve inventario» en No: con faltante salen las mismas opciones y
-                // la que se elija sí mueve el inventario de este despacho.
-                forzar:     !this.mueveInventario(orden, almacen.id)
-            };
-
-            // Almacén que no mueve inventario al surtir a otra sucursal y todo alcanza: no hay salida que preguntar.
-            if (ctx.forzar && !ctx.faltantes.length) {
-                this.csChoiceCards({
-                    title:   ctx.titulo,
-                    lead:    `Se van a surtir ${ctx.prods(filas.length)}. <b>${esc(almacen.valor || 'Este almacén')}</b> no mueve inventario al surtir a otra sucursal: no se descuenta ni entra nada, el pedido solo queda surtido.${ctx.quitadosTx}`,
-                    okLabel: 'Sí, aprobar y surtir',
-                    onOk:    () => aprobar()
-                });
-                return;
-            }
-
-            if (!ctx.faltantes.length) {
-                this.csChoiceCards({
-                    title:   ctx.titulo,
-                    lead:    `Se van a surtir ${ctx.prods(filas.length)}. Todo alcanza: la salida de almacén se registra al aceptar.${ctx.quitadosTx}`,
-                    okLabel: 'Sí, aprobar y surtir',
-                    onOk:    () => aprobar()
-                });
-                return;
-            }
-
-            askExit(ctx);
+            const completa  = productos.every(p => cantidades[String(p.detailId)] >= pendiente(p));
+            const negativos = stockLoaded ? productos.filter(p => cantidades[String(p.detailId)] > 0 && faltaDe(p) > 0) : [];
+            preguntarDescuento(completa, negativos);
         });
 
+        if (terminar) renderHistorial();
         if (almacen) loadStock(almacen.id);
-        else         { renderRows(); updateResumen(); }
-    }
-
-    // Aviso al aprobar: lo que dice el servidor (salida SI-, orden REAB-, estado en que quedó la
-    // solicitud) y, si se surtió con faltante y sin orden pendiente, cómo quedó cada producto.
-    avisoAprobado(r, salida, negativos) {
-        const esc    = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmtNum = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
-        const manual = salida === 'manual';
-        const base   = String(r.message || '').replace(/^Pedido aprobado( sin salida de almacén)?\.\s*/, '');
-        const queda  = negativos.map(n => `${esc(n.nombre)} quedó en −${fmtNum(n.falta)}${n.unidad ? ` ${esc(n.unidad)}` : ''}`).join(' · ');
-
-        this.alertBox({
-            type:       'success',
-            title:      manual ? 'Solicitud aprobada sin salida de almacén' : 'Pedido aprobado',
-            detailHtml: manual
-                ? 'Surte la solicitud después con el botón <strong>Surtir</strong> de su detalle: hasta entonces el faltante sigue en la solicitud.'
-                : [esc(base), queda ? `${queda} hasta que registres la entrada.` : ''].filter(Boolean).join(' '),
-            timer:      6500
-        });
-    }
-
-    // Generar orden pendiente: lo que se entrega con el stock contra lo que se compra (REAB-) y la
-    // fecha compromiso de esa compra, obligatoria y no anterior a hoy. `opts.onConfirm(fecha)`
-    // guarda la aprobación; Regresar, la X o Escape llaman `opts.onBack`.
-    openPendingOrderModal(orden, rows, opts) {
-        const esc       = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmtNum    = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
-        const hoy       = moment().format('YYYY-MM-DD');
-        const brand     = 'rgb(var(--brand-600, 192 90 64))';
-        const unitTx    = (f) => (f.unidad ? ` <span class="text-[10px] text-gray-400 uppercase">${esc(f.unidad)}</span>` : '');
-        let   confirmed = false;
-
-        const modal = this.cfModal({
-            title:       `<span class="inline-flex items-center gap-2.5"><span class="w-8 h-8 rounded-[9px] flex items-center justify-center flex-shrink-0 text-white" style="background:${brand}"><i data-lucide="shopping-cart" class="w-4 h-4"></i></span>Generar orden pendiente</span>`,
-            size:        'default',
-            okLabel:     'Sí, generar orden pendiente',
-            cancelLabel: 'Regresar',
-            okBg:        'bg-blue-600 hover:bg-blue-700',
-            onOk: () => {
-                const fecha = $date.val();
-                if (!fecha) {
-                    this.alertBox({ type: 'warning', title: 'Elige la fecha compromiso', timer: 1800 });
-                    $date.addClass('!border-red-400').trigger('focus');
-                    return;
-                }
-                if (fecha < hoy) {
-                    this.alertBox({ type: 'warning', title: 'La fecha compromiso no puede ser anterior a hoy', timer: 1800 });
-                    return;
-                }
-                confirmed = true;
-                modal.close();
-                opts.onConfirm(fecha);
-            },
-            onClose: () => { if (!confirmed) opts.onBack(); }
-        });
-
-        modal.el.attr('id', 'modalOrdenPendiente').css('z-index', 10000);
-        modal.footer.removeClass('justify-end').addClass('justify-between');
-
-        const $table = $('<div>', { id: 'pendingOrderTable', class: 'rounded-[11px] border border-gray-200 overflow-hidden' });
-        const $date  = $('<input>', {
-            type:  'date',
-            id:    'pendingOrderDate',
-            min:   hoy,
-            class: 'w-full md:w-56 px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500'
-        }).on('input', function () { $(this).removeClass('!border-red-400'); });
-
-        modal.body.addClass('flex flex-col gap-3').append(
-            $('<p>', { class: 'text-[13.5px] leading-relaxed text-gray-700', html: `Se creará una compra con lo que falta de <b>${esc(orden.folio)}</b> y se surtirán los <b>${opts.total}</b> ${opts.total === 1 ? 'producto marcado' : 'productos marcados'}.` }),
-            $table,
-            $('<div>', {
-                class: 'flex gap-2.5 rounded-[10px] border px-3 py-2.5 text-[12.5px] leading-snug',
-                style: `background:rgb(var(--brand-600, 192 90 64) / .10);border-color:rgb(var(--brand-600, 192 90 64) / .25);color:${brand}`
-            }).append(
-                $('<i>', { 'data-lucide': 'info', class: 'w-4 h-4 flex-shrink-0 mt-px' }),
-                $('<div>', { html: 'La compra queda <b>pendiente de compra</b>: la recibes en Mis entregas cuando llegue el producto.' })
-            ),
-            $('<div>').append(
-                $('<label>', { class: 'block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1', html: 'Fecha compromiso <span class="text-red-500">*</span> <span class="text-gray-400 normal-case">(cuándo se espera registrar la compra)</span>' }),
-                $date
-            )
-        );
-
-        this.createCoffeeTable3({
-            parent:       'pendingOrderTable',
-            id:           'tbPendingOrder',
-            theme:        'light',
-            f_size:       12,
-            class:        'w-full table-fixed text-xs',
-            color_th:     'bg-gray-50 border-b border-gray-200',
-            border_table: '',
-            border_row:   'border-b border-gray-100',
-            center:       [2, 3],
-            data: {
-                thead: ['Producto', 'Entrega', 'Se compra'],
-                row:   rows.map((f, i) => ({
-                    id:       i + 1,
-                    producto: `<p class="font-semibold text-xs text-gray-800 truncate">${esc(f.nombre)}</p>${f.sku ? `<p class="text-[10px] text-gray-400 truncate">${esc(f.sku)}</p>` : ''}`,
-                    entrega:  `${fmtNum(Math.max(0, Math.min(f.sup, f.disp)))}${unitTx(f)}`,
-                    compra:   `<strong>${fmtNum(f.falta)}</strong>${unitTx(f)}`
-                }))
-            }
-        });
-
-        if (window.lucide) lucide.createIcons();
-        setTimeout(() => $date.trigger('focus'), 60);
+        else         renderRows();
     }
 
     // Almacén del que se surte (ya no se elige): el que traiga el pedido o, si no, el de la
@@ -2087,7 +1870,7 @@ class OrdenesView extends Templates {
             ask:     '¿Cómo queda el pedido?',
             choices: [
                 { id: 'revisar',  icon: 'rotate-ccw', tone: 'go',  title: 'Regresar a revisión', badge: 'Recomendada',
-                  text: 'Vuelve a Solicitada para revisarlo y aprobarlo otra vez con Aprobar y surtir.' },
+                  text: 'Vuelve a En espera para surtirlo otra vez con Surtir.' },
                 { id: 'cancelar', icon: 'ban',        tone: 'mut', title: 'Revertir y cancelar',
                   text: 'Se deshace igual y el pedido queda Cancelada.' }
             ],
@@ -2102,7 +1885,9 @@ class OrdenesView extends Templates {
         this.alertBox({
             type:        'confirm',
             title:       `¿Te llegó el pedido ${o.folio}?`,
-            detailHtml:  `Ya entró a tu almacén con la entrada <b>${o.entradas_surtido}</b>. Confirma que lo recibiste.`,
+            detailHtml:  o.entradas_surtido
+                ? `Ya entró a tu almacén con la entrada <b>${o.entradas_surtido}</b>. Confirma que lo recibiste.`
+                : 'Confirma que te llegó lo surtido: la requisición queda Confirmado.',
             okLabel:     'Sí, lo recibí',
             cancelLabel: 'Todavía no',
             onOk: async () => {
@@ -3108,13 +2893,21 @@ class OrdenesView extends Templates {
         const e      = opts.json;
         const status = e.status || '';
 
-        // Timeline stepper en tres pasos: Borrador = Armado, Solicitada = Enviado y
-        // Aprobada, Parcial o Recibida = Surtido. Rechazada y Cancelada llevan su etiqueta roja.
-        const steps = ['Armado', 'Enviado', 'Surtido'];
-        const stepOf = { Borrador: 0, Solicitada: 1, Aprobada: 2, Parcial: 2, Recibida: 2 };
+        // Paso a paso con los estados de la requisición: En espera · Entregado · Confirmado.
+        // «Surtido parcialmente» entra entre los dos primeros solo si pasó por ahí (está Parcial
+        // o tiene más de un surtimiento en su historial). Un borrador aún no tiene paso;
+        // Rechazada y Cancelada llevan su etiqueta roja. Los reabastos (REAB-) son compras y
+        // conservan Armado · Enviado · Surtido.
+        const reabasto  = String(e.folio || '').startsWith('REAB-');
+        const estado    = e.estado || status;
+        const parcial   = estado === 'Surtido parcialmente' || (e.surtidos || []).length > 1;
+        const steps     = reabasto
+            ? ['Armado', 'Enviado', 'Surtido']
+            : ['En espera'].concat(parcial ? ['Surtido parcialmente'] : [], ['Entregado', 'Confirmado']);
+        const stepOf    = { Borrador: 0, Solicitada: 1, Aprobada: 2, Parcial: 2, Recibida: 2 };
         const specialStatuses = ['Rechazada', 'Cancelada'];
         const isSpecial = specialStatuses.includes(status);
-        const activeIdx = isSpecial || !(status in stepOf) ? -1 : stepOf[status];
+        const activeIdx = isSpecial ? -1 : (reabasto ? (status in stepOf ? stepOf[status] : -1) : steps.indexOf(estado));
 
         const stepperHtml = isSpecial
             ? `<div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-gray-200 flex-shrink-0">
@@ -3226,7 +3019,7 @@ class OrdenesView extends Templates {
                 // Solo la sucursal de destino (o gestor sin restriccion) aprueba o rechaza.
                 actionsHtml = `
                     ${editar}
-                    ${esCreador ? '' : btnCls('#3FC189', 'Aprobar y surtir', 'check', 'approve')}
+                    ${esCreador ? '' : btnCls('#3FC189', 'Surtir', 'truck', 'approve')}
                     ${btnCls('#E02424', 'Rechazar', 'x',     'reject')}`;
             } else if (esOrigen) {
                 // La sucursal de origen edita o cancela su solicitud.
@@ -3251,13 +3044,15 @@ class OrdenesView extends Templates {
                 actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
             }
         } else if (status === 'Parcial') {
-            // La REAB- sí continúa recibiéndose (la compra puede llegar por partes).
-            // Una solicitud Parcial es un surtido CERRADO: no se continúa; lo que faltó
-            // se pide con una nueva solicitud. El estado solo indica "surtido incompleto".
+            // La REAB- sí continúa recibiéndose (la compra puede llegar por partes). Una
+            // requisición Surtido parcialmente se sigue surtiendo: Terminar de surtir abre la
+            // misma hoja con su historial y solo lo pendiente.
             if (esReabasto) {
                 actionsHtml = `
                     ${btnCls('#3FC189', 'Continuar recepción', 'package-check', 'recibir')}
                     ${btnSec('Editar compromiso', 'calendar-clock', 'compromiso')}`;
+            } else if ((esDestino || sinRestriccion) && !esCreador) {
+                actionsHtml = btnCls('#3FC189', 'Terminar de surtir', 'truck', 'approve');
             }
         } else {
             actionsHtml = '';
@@ -3267,16 +3062,19 @@ class OrdenesView extends Templates {
         const revertible = !esReabasto && ['Aprobada', 'Parcial', 'Recibida'].includes(status) && (esDestino || sinRestriccion) && !esCreador;
         if (revertible) actionsHtml += btnSec('Revertir', 'rotate-ccw', 'revert');
 
-        // «Recibí»: lo surtido por otra sucursal ya entró; quien pidió confirma que le llegó.
-        const porRecibir = !enEntregas && (esOrigen || sinRestriccion) && e.surtidos_por_recibir > 0;
+        // «Recibí»: lo surtido por otra sucursal ya entró, o la requisición quedó Entregado (sin
+        // entrada: salida manual o su misma sucursal); quien pidió confirma que le llegó y pasa
+        // a Confirmado (porConfirmar en el ctrl).
+        const sinConfirmar = !esReabasto && status === 'Recibida' && !e.received_confirmed_user_id;
+        const porRecibir   = !enEntregas && (esOrigen || sinRestriccion) && (e.surtidos_por_recibir > 0 || sinConfirmar);
         if (porRecibir) actionsHtml += btnCls('#3FC189', 'Recibí', 'package-check', 'recibi');
 
+        const recibidoHtml = `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Recibido por</span>${e.surtidos_por_recibir > 0 || sinConfirmar
+            ? `<span class="text-amber-600 font-semibold text-right">Falta confirmar «Recibí»</span>`
+            : `<span class="text-gray-700 text-right">${esc(e.received_confirmed_user_name || '-')} &middot; ${esc(this.fechaHoraCorta(e.received_confirmed_at))}</span>`}</div>`;
         const recepcionHtml = e.entradas_surtido
-            ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Entró con</span><span class="text-gray-700 text-right">${esc(e.entradas_surtido)}</span></div>
-               <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Recibido por</span>${e.surtidos_por_recibir > 0
-                   ? `<span class="text-amber-600 font-semibold text-right">Falta confirmar «Recibí»</span>`
-                   : `<span class="text-gray-700 text-right">${esc(e.received_confirmed_user_name || '-')} &middot; ${esc(this.fechaHoraCorta(e.received_confirmed_at))}</span>`}</div>`
-            : '';
+            ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Entró con</span><span class="text-gray-700 text-right">${esc(e.entradas_surtido)}</span></div>${recibidoHtml}`
+            : (!esReabasto && status === 'Recibida' ? recibidoHtml : '');
 
         // Reabasto (REAB-): fecha compromiso de la compra (quién la capturó y cuándo) y la
         // tabla de lo pedido, recibido y pendiente.
@@ -3539,13 +3337,16 @@ class CalendarioPedidos extends Templates {
             }
         });
 
+        // Los estados de la requisición (los de reabasto no salen en la leyenda); el borrador
+        // solo en Requisiciones, que es donde se arma.
+        const leyenda = ['En espera', 'Entregado', 'Surtido parcialmente', 'Confirmado']
+            .concat(app.modulo === 'requisiciones' ? ['Borrador'] : [], ['Rechazada']);
+
         $(`#calendarLegend${this.PROJECT_NAME}`).append(
-            Object.entries(CalendarioPedidos.ESTADOS)
-                .filter(([estado]) => estado !== 'Cancelada')
-                .map(([estado, color]) => $('<span>', { class: 'flex items-center gap-1.5' }).append(
-                    $('<span>', { class: 'w-2.5 h-2.5 rounded-full', css: { background: color } }),
-                    $('<span>', { text: estado === 'Rechazada' ? 'Rechazada / Cancelada' : estado })
-                )),
+            leyenda.map(estado => $('<span>', { class: 'flex items-center gap-1.5' }).append(
+                $('<span>', { class: 'w-2.5 h-2.5 rounded-full', css: { background: CalendarioPedidos.ESTADOS[estado] } }),
+                $('<span>', { text: estado === 'Rechazada' ? 'Rechazada / Cancelada' : estado })
+            )),
             app.modulo === 'requisiciones' ? $('<span>', { class: 'ml-auto text-gray-400', text: 'Clic en un día para programar una requisición' }) : null
         );
     }
@@ -3567,7 +3368,7 @@ class CalendarioPedidos extends Templates {
         }).catch(() => null);
 
         const eventos = (request && request.status === 200 ? request.events : []).map(e => Object.assign(e, {
-            color:      CalendarioPedidos.ESTADOS[e.extendedProps.status] || '#475569',
+            color:      CalendarioPedidos.ESTADOS[e.extendedProps.estado] || '#475569',
             classNames: [e.extendedProps.status === 'Recibida' ? 'po-done' : '', e.extendedProps.folio === app.selectedId ? 'po-sel' : ''].filter(Boolean)
         }));
 
@@ -3588,16 +3389,20 @@ class CalendarioPedidos extends Templates {
 
     // -- Render helpers --
 
-    // Mismos colores que el badge de estado (statusBadge en ctrl-ordenes).
+    // Mismos colores que el badge de estado (statusBadge en ctrl-ordenes), por el estado que
+    // se muestra (estadoRequisicion).
     static get ESTADOS() {
         return {
-            Borrador:   '#475569',
-            Solicitada: '#D97706',
-            Aprobada:   'rgb(var(--brand-700, 168 74 51))',
-            Parcial:    '#EA580C',
-            Recibida:   '#16A34A',
-            Rechazada:  '#DC2626',
-            Cancelada:  '#DC2626'
+            'En espera':            '#D97706',
+            'Entregado':            'rgb(var(--brand-700, 168 74 51))',
+            'Surtido parcialmente': '#EA580C',
+            'Confirmado':           '#16A34A',
+            Borrador:               '#475569',
+            Aprobada:               'rgb(var(--brand-700, 168 74 51))',
+            Parcial:                '#EA580C',
+            Recibida:               '#16A34A',
+            Rechazada:              '#DC2626',
+            Cancelada:              '#DC2626'
         };
     }
 
@@ -3608,8 +3413,8 @@ class CalendarioPedidos extends Templates {
         const p      = arg.event.extendedProps;
         const agenda = arg.view.type.startsWith('list');
         const pill   = agenda
-            ? $('<span>', { class: 'text-white px-1.5 rounded-full text-[10px] leading-4 font-medium truncate min-w-0', css: { background: CalendarioPedidos.ESTADOS[p.status] || '#475569' }, text: p.status })
-            : $('<span>', { class: 'bg-black/20 text-white px-1.5 rounded-full text-[10px] leading-4 font-medium truncate min-w-0', text: p.status });
+            ? $('<span>', { class: 'text-white px-1.5 rounded-full text-[10px] leading-4 font-medium truncate min-w-0', css: { background: CalendarioPedidos.ESTADOS[p.estado] || '#475569' }, text: p.estado })
+            : $('<span>', { class: 'bg-black/20 text-white px-1.5 rounded-full text-[10px] leading-4 font-medium truncate min-w-0', text: p.estado });
 
         const card = $('<div>', { class: 'px-1.5 py-1 w-full min-w-0 overflow-hidden' }).append(
             $('<div>', { class: 'font-semibold text-[11px] leading-4 truncate', text: arg.event.title }),

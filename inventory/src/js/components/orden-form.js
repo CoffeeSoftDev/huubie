@@ -235,30 +235,45 @@ class OrdenForm extends EntradaForm {
     // -- Tabla de productos --
 
     // Sin stock. Ancho fijo para que las columnas no se muevan al teclear una cantidad.
-    // El pedido lleva SKU, Producto, Cantidad y Unidad (en tablet y teléfono se oculta el
-    // SKU, en teléfono también la miniatura: el nombre ocupa hasta dos renglones). En
-    // computadora Producto no se estira: Cantidad y Unidad quedan cerca del nombre y las
-    // acciones toman el resto, pegadas al borde derecho. Con
-    // montos (Compras) hay costos de solo lectura, que salen del catálogo: en tablet se
-    // ocultan SKU, costo sin impuesto e impuesto; en teléfono también el costo y la
-    // miniatura: quedan Producto, Cantidad y Subtotal.
+    // La requisición va como la hoja de papel: Cantidad, Unidad (se elige) y Producto, con
+    // el encabezado en el color del tema (en teléfono sin la miniatura: el nombre ocupa
+    // hasta dos renglones). Las columnas se reparten a lo ancho (Cantidad 16 %, Unidad 22 %,
+    // acciones 10 %) con sus campos al centro, para que no queden pegadas a la izquierda.
+    // Con montos (Compras) hay SKU y costos de solo lectura, que salen del catálogo: en
+    // tablet se ocultan SKU, costo sin impuesto e impuesto; en teléfono también el costo y
+    // la miniatura: quedan Producto, Cantidad y Subtotal.
     renderProductsTable() {
-        const m  = this.conMontos();
+        const m = this.conMontos();
+        if (!m) {
+            const th = 'py-2 text-[10px] uppercase tracking-wider text-white font-bold';
+            return `
+            <table class="w-full border-collapse table-fixed">
+                <thead class="sticky top-0 z-10 bg-blue-600">
+                    <tr>
+                        <th class="text-center px-2 ${th} w-[16%]">Cantidad</th>
+                        <th class="text-center px-2 ${th} w-[22%]">Unidad</th>
+                        <th class="text-left px-3 ${th}">Producto</th>
+                        <th class="w-[10%] px-2 py-2"></th>
+                    </tr>
+                </thead>
+                <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}${this.draft ? this.renderDraftRow() : ''}</tbody>
+            </table>
+            <div class="h-64" aria-hidden="true"></div>`;
+        }
+
         const th = 'py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold';
         return `
             <table class="w-full border-collapse table-fixed">
                 <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                     <tr>
                         <th class="hidden lg:table-cell text-left px-3 ${th} w-28">SKU</th>
-                        <th class="text-left px-3 ${th}${m ? '' : ' lg:w-[40%]'}">Producto</th>
+                        <th class="text-left px-3 ${th}">Producto</th>
                         <th class="text-center px-2 ${th} w-20 md:w-24">Cantidad</th>
-                        ${m ? `
                         <th class="hidden md:table-cell text-right px-2 ${th} w-24">Costo c/imp</th>
                         <th class="hidden lg:table-cell text-right px-2 ${th} w-24">Costo s/imp</th>
                         <th class="hidden lg:table-cell text-center px-2 ${th} w-16">Imp. %</th>
-                        <th class="text-right px-2 md:px-3 ${th} w-28 md:w-36">Subtotal</th>` : `
-                        <th class="text-center px-2 ${th} w-28 md:w-32">Unidad</th>`}
-                        <th class="${m ? 'w-10' : 'w-20 lg:w-auto'} px-2 py-2"></th>
+                        <th class="text-right px-2 md:px-3 ${th} w-28 md:w-36">Subtotal</th>
+                        <th class="w-10 px-2 py-2"></th>
                     </tr>
                 </thead>
                 <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}${this.draft ? this.renderDraftRow() : ''}</tbody>
@@ -282,8 +297,8 @@ class OrdenForm extends EntradaForm {
         const unidades = (this.opts.data && this.opts.data.unidades) || [];
         if (unidades.length) {
             return `
-            <td class="px-1 py-2 align-middle">
-                <div class="relative" title="Unidad: escribe o elige">
+            <td class="px-2 py-2 align-middle">
+                <div class="relative max-w-[170px] mx-auto" title="Unidad: escribe o elige">
                     <input type="text" autocomplete="off" value="${this.esc(this.unidadTexto(p.unit_id))}" placeholder="-" data-unit-idx="${i}" style="font-size:13px !important"
                         class="w-full pl-2.5 pr-7 py-1.5 font-semibold uppercase text-gray-700 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all placeholder:text-gray-300">
                     <button type="button" tabindex="-1" class="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100" data-unit-toggle="${i}">
@@ -376,11 +391,11 @@ class OrdenForm extends EntradaForm {
             <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-remove="${i}" title="Eliminar">
                 <i data-lucide="x" class="w-3 h-3"></i>
             </button>`;
-        return `
-            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
-                <td class="hidden lg:table-cell px-3 py-2 align-middle">
-                    <span class="block truncate text-[11px] font-mono text-gray-500" title="${this.esc(p.sku)}">${this.esc(p.sku)}</span>
-                </td>
+        const cantidad = `
+                <td class="px-2 py-2 align-middle">
+                    <input type="number" min="1" step="0.01" value="${cant}" class="${this.cls.qtyInp}" data-field="cantidad" data-idx="${i}">
+                </td>`;
+        const producto = `
                 <td class="px-3 py-2 align-middle">
                     <div class="flex items-center gap-2.5 min-w-0">
                         <span class="hidden sm:inline-flex">${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}</span>
@@ -390,32 +405,48 @@ class OrdenForm extends EntradaForm {
                             ${this.equivaleHtml(p)}
                         </div>
                     </div>
-                </td>
+                </td>`;
+
+        // Requisición: la cantidad, de ancho fijo, al centro de su columna.
+        if (!m) {
+            return `
+            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
                 <td class="px-2 py-2 align-middle">
-                    <input type="number" min="1" step="0.01" value="${cant}" class="${this.cls.qtyInp}" data-field="cantidad" data-idx="${i}">
+                    <div class="max-w-[110px] mx-auto">
+                        <input type="number" min="1" step="0.01" value="${cant}" class="${this.cls.qtyInp}" data-field="cantidad" data-idx="${i}">
+                    </div>
                 </td>
-                ${m ? `
+                ${this.renderUnidadCell(p, i)}
+                ${producto}
+                <td class="px-3 py-2 align-middle">
+                    <div class="flex items-center justify-end gap-1">${this.renderSubtotalExtra(p, i)}${quitar}</div>
+                </td>
+            </tr>`;
+        }
+
+        return `
+            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
+                <td class="hidden lg:table-cell px-3 py-2 align-middle">
+                    <span class="block truncate text-[11px] font-mono text-gray-500" title="${this.esc(p.sku)}">${this.esc(p.sku)}</span>
+                </td>
+                ${producto}
+                ${cantidad}
                 <td class="hidden md:table-cell px-2 py-2 align-middle text-right text-xs text-gray-600">${this.fmtMoney(costo)}</td>
                 <td class="hidden lg:table-cell px-2 py-2 align-middle text-right text-xs text-gray-600">${this.fmtMoney(base)}</td>
                 <td class="hidden lg:table-cell px-2 py-2 align-middle text-center text-xs text-gray-600">${this.fmtQty(tax)}%</td>
                 <td class="px-2 md:px-3 py-2 align-middle text-right whitespace-nowrap">
                     <span class="text-green-700 font-bold text-xs" data-subtotal>${this.fmtMoney(cant * costo)}</span>${this.renderSubtotalExtra(p, i)}
                 </td>
-                <td class="px-2 py-2 align-middle text-center">${quitar}</td>` : `
-                ${this.renderUnidadCell(p, i)}
-                <td class="px-2 py-2 align-middle">
-                    <div class="flex items-center justify-end gap-1">${this.renderSubtotalExtra(p, i)}${quitar}</div>
-                </td>`}
+                <td class="px-2 py-2 align-middle text-center">${quitar}</td>
             </tr>`;
     }
 
-    // Renglón vacío (↓): mismas columnas que la tabla, para que se oculten igual.
+    // Renglón vacío (↓): mismas columnas que la tabla, para que se oculten igual. En la
+    // requisición el buscador cae bajo Producto.
     renderDraftRow() {
         const o = this.opts;
         const m = this.conMontos();
-        return `
-            <tr class="border-b border-gray-100 bg-blue-50/30" data-draft>
-                <td class="hidden lg:table-cell"></td>
+        const buscador = `
                 <td class="px-3 py-2 align-middle">
                     <div class="relative">
                         <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
@@ -423,14 +454,20 @@ class OrdenForm extends EntradaForm {
                         </span>
                         <input id="${o.id}_draftInput" type="text" autocomplete="off" value="${this.esc(this.draft.term)}" placeholder="${this.esc(o.labels.draftPh)}" class="${this.cls.search}">
                     </div>
-                </td>
-                <td></td>
+                </td>`;
+        return `
+            <tr class="border-b border-gray-100 bg-blue-50/30" data-draft>
                 ${m ? `
+                <td class="hidden lg:table-cell"></td>
+                ${buscador}
+                <td></td>
                 <td class="hidden md:table-cell"></td>
                 <td class="hidden lg:table-cell"></td>
                 <td class="hidden lg:table-cell"></td>
                 <td></td>` : `
-                <td></td>`}
+                <td></td>
+                <td></td>
+                ${buscador}`}
                 <td class="px-2 py-2 align-middle ${m ? 'text-center' : 'text-right'}">
                     <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-draft-remove title="${this.esc(o.labels.quitarRenglon)}">
                         <i data-lucide="x" class="w-3 h-3"></i>

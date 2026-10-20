@@ -94,23 +94,15 @@ class ctrl extends mdl {
             'categorias'    => $this->lsCategorias([$this->companiesId]),
             'unidades'      => $this->lsUnidades([$this->companiesId]),
             'productos'     => $productos,
+            // El almacenista solo ve en Surtir lo que le piden a su sucursal (soloSuSucursal).
+            'solo_su_sucursal' => $this->soloSuSucursal(),
+            // Los estados de la requisición (estadoRequisicion); su SQL vive en qOrdenes.
             'estados_orden' => [
-                ['id' => '',           'valor' => 'Todos los estados'],
-                ['id' => 'Activas',    'valor' => 'Activas'],
-                ['id' => 'Borrador',   'valor' => 'Borrador'],
-                ['id' => 'Solicitada', 'valor' => 'Solicitada'],
-                ['id' => 'Aprobada',   'valor' => 'Aprobada'],
-                ['id' => 'Parcial',    'valor' => 'Parcial'],
-                ['id' => 'Recibida',   'valor' => 'Recibida'],
-                ['id' => 'Rechazada',  'valor' => 'Rechazada'],
-                ['id' => 'Cancelada',  'valor' => 'Cancelada']
-            ],
-            // Mis entregas agrupa los estados (los grupos viven en qOrdenes).
-            'estados_entrega' => [
-                ['id' => '',           'valor' => 'Todos los estados'],
-                ['id' => 'PorAtender', 'valor' => 'Por surtir'],
-                ['id' => 'Aprobadas',  'valor' => 'Aprobada'],
-                ['id' => 'Cerradas',   'valor' => 'Rechazada y Cancelada']
+                ['id' => '',               'valor' => 'Todos los estados'],
+                ['id' => 'EnEspera',       'valor' => 'En espera'],
+                ['id' => 'Entregado',      'valor' => 'Entregado'],
+                ['id' => 'SurtidoParcial', 'valor' => 'Surtido parcialmente'],
+                ['id' => 'Confirmado',     'valor' => 'Confirmado']
             ]
         ];
     }
@@ -118,10 +110,12 @@ class ctrl extends mdl {
     function lsOrdenes() {
         $_POST += ['vista' => 'pedidos', 'branch_id' => '', 'status' => '', 'fi' => '', 'ff' => '', 'q' => ''];
 
+        $sucursal = $_POST['vista'] === 'entregas' && $this->soloSuSucursal() ? $this->branchId : $_POST['branch_id'];
+
         $ordenes = $this->qOrdenes([
             'companies_id' => $this->companiesId,
             'vista'        => $_POST['vista'],
-            'branch_id'    => $_POST['branch_id'],
+            'branch_id'    => $sucursal,
             'status'       => $_POST['status'],
             'fi'           => $_POST['fi'],
             'ff'           => $_POST['ff'],
@@ -141,7 +135,7 @@ class ctrl extends mdl {
                 'Entrega para'     => $this->entregaParaCell($orden['date_order']),
                 'Solicita → Surte' => $this->rutaCell($orden),
                 'Materiales'       => (int) $orden['total_products'],
-                'Estado'           => $this->statusBadge($orden['status']) . $this->faltaRecibi($orden, $entregas)
+                'Estado'           => $this->statusBadge($orden) . $this->faltaRecibi($orden, $entregas)
             ];
             // $fila['Total']      = evaluar((float) $orden['total_cost']);
             $fila['a'] = [
@@ -167,6 +161,8 @@ class ctrl extends mdl {
         $_POST += ['branch_id' => '', 'status' => '', 'fi' => date('Y-m-01'), 'ff' => date('Y-m-t'), 'lado' => ''];
 
         $sucursal = $_POST['branch_id'] !== '' ? (int) $_POST['branch_id'] : 0;
+        if ($_POST['lado'] === 'entregas' && $this->soloSuSucursal()) $sucursal = $this->branchId;
+
         $eventos  = array_map(function ($o) use ($sucursal) {
             return [
                 'id'            => (int) $o['id'],
@@ -176,6 +172,7 @@ class ctrl extends mdl {
                 'extendedProps' => [
                     'folio'          => $o['folio'],
                     'status'         => $o['status'],
+                    'estado'         => $this->estadoRequisicion($o),
                     'total_products' => (int) $o['total_products'],
                     'surte'          => $o['destination_branch_name'] ?: '',
                     'pide'           => !$sucursal || (int) $o['branch_id'] === $sucursal
@@ -203,6 +200,7 @@ class ctrl extends mdl {
             'id'         => (int) $orden['id'],
             'folio'      => $orden['folio'],
             'status'     => $orden['status'],
+            'estado'     => $this->estadoRequisicion($orden),
             'hace'       => $this->haceCuanto($orden['minutos'], $orden['dias']),
             'materiales' => implode(', ', array_slice($nombres, 0, 2)),
             'mas'        => max(0, count($nombres) - 2),
@@ -240,9 +238,10 @@ class ctrl extends mdl {
         $header = $this->qGetOrden([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
 
-        $header['status_badge'] = $this->statusBadge($header['status']);
+        $header['status_badge'] = $this->statusBadge($header);
+        $header['estado']       = $this->estadoRequisicion($header);
         $detail = $this->qGetOrdenDetail([$id]);
-        return ['status' => 200, 'header' => $header, 'detail' => $detail];
+        return ['status' => 200, 'header' => $header, 'detail' => $detail, 'surtidos' => $this->lsSurtidosOrden([$id])];
     }
 
     function createSupplier() {
@@ -434,7 +433,7 @@ class ctrl extends mdl {
             return ['status' => 404, 'message' => 'Pedido no encontrado'];
         }
         if (!in_array($header['status'], ['Borrador', 'Solicitada'], true)) {
-            return ['status' => 400, 'message' => 'Solo se puede editar un pedido en estado Borrador o Solicitada'];
+            return ['status' => 400, 'message' => 'Solo se puede editar un pedido en Borrador o En espera'];
         }
         if ($header['status'] === 'Solicitada' && !$this->editAuthorized($id)) {
             return ['status' => 403, 'message' => 'Confirma tu contraseña para editar el pedido'];
@@ -579,45 +578,43 @@ class ctrl extends mdl {
         ];
     }
 
-    // Aprobar = surtir. `items` = {renglón: cantidad a entregar} de lo que el almacenista
-    // dejó marcado: lo demás sale del pedido (los totales se recalculan) y lo marcado se
-    // descuenta del almacén en ese momento. Si el stock no alcanza se surte igual y el
-    // faltante queda en un reabasto (REAB-) con la fecha compromiso, como en surtir().
-    // `reabasto` = '0' cuando el almacenista solo surte: se entrega todo lo marcado sin generar REAB-.
-    // `salida` = 'manual' aprueba sin llamar a surtir(): sin salida SI-, sin descuento y sin REAB-;
-    // el pedido queda Aprobada y se surte después con el botón Surtir. 'auto' (omisión) surte como siempre.
-    // `subs` = {renglón: item_id} de lo que se entrega en lugar de lo pedido («Producto a entregar»).
-    // `mover` = '1' cuando hubo faltante en un almacén con «mueve inventario» en No: la opción que
-    // eligió el almacenista (salida automática u orden pendiente) sí mueve el inventario.
+    // Surtir la requisición («Surtiendo la requisición»; con estado Parcial, «Terminar de
+    // surtir»). `items` = {renglón: cantidad a entregar}: lo que va en 0 sigue pendiente y la
+    // requisición queda Parcial (Surtido parcialmente); si se entrega todo queda Recibida
+    // (Entregado) hasta que quien pidió confirme. Ningún renglón sale de la requisición.
+    // `subs` = {renglón: item_id} del producto que se entrega («Producto» de la segunda tabla).
+    // `salida` = 'auto' («Sí, descontarlos»): la salida SI- descuenta el almacén elegido al
+    // momento, aunque tenga apagado «mueve inventario»; 'manual' («No, lo haré manual»): solo
+    // se marca lo entregado y la salida se hace a mano. Las dos quedan en el historial de
+    // surtimiento. Sin reabasto (REAB-): el stock puede quedar en negativo.
     function approveOrden() {
-        $_POST += ['items' => '{}', 'subs' => '{}', 'note' => '', 'warehouse_id' => 0, 'expected_date' => '', 'reabasto' => '1', 'salida' => 'auto', 'vista' => '', 'mover' => '0'];
+        $_POST += ['items' => '{}', 'subs' => '{}', 'note' => '', 'warehouse_id' => 0, 'salida' => 'auto', 'vista' => ''];
 
         $salida = (string) $_POST['salida'];
         if (!in_array($salida, ['auto', 'manual'], true)) {
-            return ['status' => 400, 'message' => 'Elige si la salida de almacén es automática o manual'];
+            return ['status' => 400, 'message' => 'Elige si se descuenta del almacén ahora o se hace manual'];
         }
 
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
-        if ($header['status'] !== 'Solicitada') {
-            return ['status' => 400, 'message' => 'Solo se puede aprobar un pedido en estado Solicitada'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
+        if (!in_array($header['status'], ['Solicitada', 'Parcial'], true) || strpos((string) $header['folio'], 'REAB-') === 0) {
+            return ['status' => 400, 'message' => 'Solo se surte una requisición en espera o surtida parcialmente'];
         }
         if (!$this->puedeGestionarDestino($header)) {
-            return ['status' => 403, 'message' => 'Solo la sucursal de destino puede aprobar esta solicitud'];
+            return ['status' => 403, 'message' => 'Solo la sucursal a la que se le pidió puede surtir esta requisición'];
         }
         if ($_POST['vista'] !== 'entregas' && $this->esCreadorPedido($header)) {
-            return ['status' => 403, 'message' => 'No puedes aprobar ni surtir un pedido que tú hiciste'];
+            return ['status' => 403, 'message' => 'No puedes surtir una requisición que tú hiciste'];
         }
 
-        $detalle = $this->qGetOrdenDetail([$id]);
-        $byId    = [];
-        foreach ($detalle as $renglon) $byId[(string) $renglon['id']] = $renglon;
+        $byId = [];
+        foreach ($this->qGetOrdenDetail([$id]) as $renglon) $byId[(string) $renglon['id']] = $renglon;
 
         $items = json_decode($_POST['items'], true);
         $items = is_array($items) ? array_intersect_key(array_filter($items, function ($qty) { return (float) $qty > 0; }), $byId) : [];
-        if (empty($items)) return ['status' => 400, 'message' => 'Selecciona al menos un producto para aprobar'];
+        if (empty($items)) return ['status' => 400, 'message' => 'Indica cuánto vas a entregar de al menos un producto'];
 
         $subs = $this->sustitutosEntrega($_POST['subs'], $items, $byId);
         if (is_string($subs)) return ['status' => 400, 'message' => $subs];
@@ -625,39 +622,19 @@ class ctrl extends mdl {
         $warehouseId = (int) $_POST['warehouse_id'] ?: (int) $header['warehouse_id'];
         if ($warehouseId <= 0) return ['status' => 400, 'message' => 'Elige el almacén del que se surte'];
 
-        $compromiso = trim((string) $_POST['expected_date']);
-        if ($compromiso !== '' && ($error = $this->compromisoInvalido($compromiso))) {
-            return ['status' => 400, 'message' => $error];
-        }
+        $automatica = $salida === 'auto';
+        $reasonId   = $this->getShrinkageReasonId(['SURTIDO_SUC', $this->companiesId]);
+        if ($automatica && !$reasonId) return ['status' => 500, 'message' => 'Falta configurar el motivo de salida (SURTIDO_SUC)'];
 
-        $conSalida = $salida === 'auto';
-        $reasonId  = $this->getShrinkageReasonId(['SURTIDO_SUC', $this->companiesId]);
-        if ($conSalida && !$reasonId) return ['status' => 500, 'message' => 'Falta configurar el motivo de salida (SURTIDO_SUC)'];
-
-        $note        = mb_substr(trim($_POST['note']), 0, 255) ?: null;
-        $conReabasto = $conSalida && (string) $_POST['reabasto'] !== '0';
-        $forzar      = $conSalida && (string) $_POST['mover'] === '1';
+        $note = mb_substr(trim($_POST['note']), 0, 255) ?: null;
 
         try {
-            return $this->transaction(function () use ($id, $header, $detalle, $byId, $items, $subs, $warehouseId, $compromiso, $reasonId, $note, $conReabasto, $conSalida, $forzar) {
-                $unidades = 0;
-                $costo    = 0.0;
-                $base     = 0.0;
-                foreach ($detalle as $renglon) {
-                    if (!isset($items[$renglon['id']])) {
-                        if (!$this->softDeleteDetailRow([(int) $renglon['id'], $id])) throw new Exception('No se pudo quitar un producto del pedido');
-                        continue;
-                    }
-                    $unidades += (float) $renglon['quantity_ordered'];
-                    $costo    += (float) $renglon['quantity_ordered'] * (float) $renglon['cost'];
-                    $base     += (float) $renglon['quantity_ordered'] * (float) $renglon['price_without_tax'];
+            return $this->transaction(function () use ($id, $header, $byId, $items, $subs, $warehouseId, $reasonId, $note, $automatica) {
+                // La primera vez queda quién la surtió (Aprobado por); terminar de surtir no lo cambia.
+                if ($header['status'] === 'Solicitada' && !$this->updateOrdenStatusApprove(['Aprobada', $this->userId, $note, $id])) {
+                    throw new Exception('No se pudo surtir la requisición');
                 }
 
-                if (!$this->updateOrdenTotals([count($items), $unidades, $costo, $base, $id])) throw new Exception('No se pudieron actualizar los totales');
-                if (!$this->updateOrdenStatusApprove(['Aprobada', $this->userId, $note, $id])) throw new Exception('No se pudo aprobar el pedido');
-
-                // Lo que se entrega en lugar de lo pedido queda en su renglón, también sin salida:
-                // el botón Surtir de después entrega ese mismo producto.
                 foreach ($subs as $detailId => $itemId) {
                     if (!$this->updateDetailDelivered([$itemId, (int) $detailId, $id])) throw new Exception('No se pudo guardar el producto a entregar');
                 }
@@ -666,23 +643,10 @@ class ctrl extends mdl {
                     foreach ($this->qGetOrdenDetail([$id]) as $renglon) $byId[(string) $renglon['id']] = $renglon;
                 }
 
-                if (!$conSalida) {
-                    return [
-                        'status'         => 200,
-                        'message'        => 'Pedido aprobado sin salida de almacén. Surte la solicitud después con el botón Surtir de su detalle.',
-                        'salida_folio'   => null,
-                        'reabasto_folio' => null,
-                        'orden_status'   => 'Aprobada'
-                    ];
-                }
-
-                $r = $this->surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, 'Surtido de solicitud ' . $header['folio'], $conReabasto, $forzar);
-                // La salida SI- se consulta en Salidas: el aviso lo dice junto a su folio.
-                $r['message'] = 'Pedido aprobado. ' . str_replace("salida {$r['salida_folio']},", "salida {$r['salida_folio']} (en Salidas),", $r['message']);
-                return $r;
+                return $this->surtir($id, $header, $warehouseId, $items, $byId, $reasonId, '', 'Surtido de la requisición ' . $header['folio'], false, $automatica, !$automatica);
             });
         } catch (\Throwable $e) {
-            return ['status' => 500, 'message' => 'No se pudo aprobar el pedido: ' . $e->getMessage()];
+            return ['status' => 500, 'message' => 'No se pudo surtir la requisición: ' . $e->getMessage()];
         }
     }
 
@@ -717,7 +681,7 @@ class ctrl extends mdl {
 
         if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
         if ($header['status'] !== 'Solicitada') {
-            return ['status' => 400, 'message' => 'Solo se puede rechazar un pedido en estado Solicitada'];
+            return ['status' => 400, 'message' => 'Solo se puede rechazar un pedido En espera'];
         }
         if (!$this->puedeGestionarDestino($header)) {
             return ['status' => 403, 'message' => 'Solo la sucursal de destino puede rechazar esta solicitud'];
@@ -935,7 +899,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Un reabasto no se revierte: se cancela'];
         }
         if (!in_array($header['status'], ['Aprobada', 'Parcial', 'Recibida'], true)) {
-            return ['status' => 400, 'message' => 'Solo se revierte un pedido Aprobada, Parcial o Recibida'];
+            return ['status' => 400, 'message' => 'Solo se revierte un pedido Entregado, Surtido parcialmente o Confirmado'];
         }
         if (!$this->puedeGestionarDestino($header)) {
             return ['status' => 403, 'message' => 'Solo la sucursal que surte puede revertir este pedido'];
@@ -951,6 +915,7 @@ class ctrl extends mdl {
             $hecho = $this->transaction(function () use ($id, $estado) {
                 $hecho = $this->updateDespachoRevertido($id, $this->companiesId);
                 if (!$this->updateOrdenRevertida([$estado, $id])) throw new Exception('No se pudo regresar el pedido');
+                if (!$this->updateSurtidosRevertidos([$id])) throw new Exception('No se pudo borrar el historial de surtimiento');
                 return $hecho;
             });
         } catch (\Throwable $e) {
@@ -963,7 +928,7 @@ class ctrl extends mdl {
         if ($hecho['reabastos']) $partes[] = 'reabasto ' . implode(', ', $hecho['reabastos']) . ' cancelado';
         if ($hecho['recibidos']) $partes[] = 'el reabasto ' . implode(', ', $hecho['recibidos']) . ' ya se recibió y se queda';
 
-        $msg  = $cancelar ? "Pedido {$header['folio']} revertido y cancelado" : "Pedido {$header['folio']} revertido: vuelve a Solicitada";
+        $msg  = $cancelar ? "Pedido {$header['folio']} revertido y cancelado" : "Pedido {$header['folio']} revertido: vuelve a En espera";
         $msg .= $partes ? ': ' . implode('; ', $partes) . '.' : '. No tenía movimientos de almacén.';
 
         return ['status' => 200, 'message' => $msg, 'orden_status' => $estado];
@@ -974,7 +939,8 @@ class ctrl extends mdl {
         $header = $this->qGetOrden([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
 
-        $header['status_badge'] = $this->statusBadge($header['status']);
+        $header['status_badge'] = $this->statusBadge($header);
+        $header['estado']       = $this->estadoRequisicion($header);
         $detail = $this->qGetOrdenDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
@@ -1007,6 +973,12 @@ class ctrl extends mdl {
         return $ids ?: [0];
     }
 
+    // El almacenista solo surte lo que le piden a la sucursal con la que entró: en Surtir
+    // (lista y calendario) no puede ver las de sus otras sucursales ni «Todas».
+    private function soloSuSucursal() {
+        return $this->branchId > 0 && $this->getRolSucursal([$this->userId, $this->branchId]) === 'almacenista';
+    }
+
     private function esCreadorPedido($header) {
         if (strpos((string) ($header['folio'] ?? ''), 'REAB-') === 0) return false;
         return $this->userId > 0 && (int) ($header['user_id'] ?? 0) === $this->userId;
@@ -1028,18 +1000,41 @@ class ctrl extends mdl {
         return "<p class='text-[10px] font-semibold text-amber-600 mt-0.5 whitespace-nowrap'>{$texto}</p>";
     }
 
-    private function statusBadge($status) {
+    // Estado que se le muestra a la requisición: En espera (Solicitada), Entregado (surtida
+    // completa: falta que quien pidió confirme), Surtido parcialmente (Parcial: se puede
+    // seguir surtiendo) y Confirmado (Recibida con «Recibí»). Borrador, Rechazada, Cancelada
+    // y los reabastos (REAB-, que son compras) conservan su nombre. Mismo criterio que el
+    // filtro de qOrdenes (sqlEstado).
+    private function estadoRequisicion($orden) {
+        $status = (string) ($orden['status'] ?? '');
+        if (strpos((string) ($orden['folio'] ?? ''), 'REAB-') === 0) return $status;
+
+        if ($status === 'Solicitada') return 'En espera';
+        if ($status === 'Parcial')    return 'Surtido parcialmente';
+        if ($status === 'Recibida' && !empty($orden['received_confirmed_user_id'])) return 'Confirmado';
+        if (in_array($status, ['Aprobada', 'Recibida'], true)) return 'Entregado';
+
+        return $status;
+    }
+
+    private function statusBadge($orden) {
+        $acento = ['var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))'];
         $map = [
-            'Borrador'   => ['#475569', '#F1F5F9'],
-            'Solicitada' => ['#D97706', '#FEF3C7'],
-            'Aprobada'   => ['var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))'],
-            'Parcial'    => ['#EA580C', '#FFEDD5'],
-            'Recibida'   => ['#16A34A', '#DCFCE7'],
-            'Rechazada'  => ['#DC2626', '#FEE2E2'],
-            'Cancelada'  => ['#DC2626', '#FEE2E2']
+            'En espera'            => ['#D97706', '#FEF3C7', 'clock'],
+            'Entregado'            => [$acento[0], $acento[1], 'truck'],
+            'Surtido parcialmente' => ['#EA580C', '#FFEDD5', 'package-minus'],
+            'Confirmado'           => ['#16A34A', '#DCFCE7', 'circle-check'],
+            'Borrador'             => ['#475569', '#F1F5F9', 'pencil'],
+            'Aprobada'             => [$acento[0], $acento[1], 'shopping-cart'],
+            'Parcial'              => ['#EA580C', '#FFEDD5', 'package-minus'],
+            'Recibida'             => ['#16A34A', '#DCFCE7', 'package-check'],
+            'Rechazada'            => ['#DC2626', '#FEE2E2', 'circle-x'],
+            'Cancelada'            => ['#DC2626', '#FEE2E2', 'ban']
         ];
-        $c = $map[$status] ?? ['#475569', '#F1F5F9'];
-        return badge(strtoupper($status), $c[0], 100, $c[1]);
+        $estado = $this->estadoRequisicion($orden);
+        $c      = $map[$estado] ?? ['#475569', '#F1F5F9', 'circle'];
+
+        return "<span class='whitespace-nowrap'>" . badge(strtoupper($estado), $c[0], 100, $c[1], $c[2]) . '</span>';
     }
 
     // Como Origen → Destino en traspasos. El almacén es de quien surte; sin sucursal
@@ -1214,11 +1209,14 @@ class ctrl extends mdl {
     // pero no se genera la orden de reabasto.
     // Si el almacén tiene apagado «Surtir pedidos mueve inventario» (Catálogo › Almacenes) y el
     // pedido es de otra sucursal, solo se marca lo entregado: sin SI-, sin ENT- y sin REAB-.
-    // `$forzarMover` = el almacenista eligió qué hacer con el faltante: se mueve como siempre.
-    private function surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, $note, $conReabasto = true, $forzarMover = false) {
+    // `$forzarMover` = el almacenista eligió descontar («Sí, descontarlos»): se mueve siempre.
+    // `$sinMover` = «No, lo haré manual»: solo se marca lo entregado, como si no moviera.
+    // Cada surtimiento queda en el historial (purchase_order_supply: auto si movió, manual si
+    // no) y la requisición vuelve a esperar el «Recibí» de quien pidió.
+    private function surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, $note, $conReabasto = true, $forzarMover = false, $sinMover = false) {
         if (empty($header['warehouse_id'])) $this->updateOrdenWarehouse([$warehouseId, $id]);
 
-        $mueve = $forzarMover || !$this->esInterSucursal($header) || $this->qMueveInventario([$warehouseId]);
+        $mueve = !$sinMover && ($forzarMover || !$this->esInterSucursal($header) || $this->qMueveInventario([$warehouseId]));
 
         // Se surte el pendiente completo aunque el stock no alcance: el almacen
         // queda en deficit (negativo) y el faltante (qtyNow - disponible) genera una
@@ -1273,6 +1271,7 @@ class ctrl extends mdl {
         }
 
         $siFolio   = null;
+        $shrId     = null;
         $entrada   = null;
         $reabFolio = null;
         $totProds  = count($toSupply);
@@ -1319,6 +1318,17 @@ class ctrl extends mdl {
             $reabFolio = $this->createReabastoOrden($header, $warehouseId, $faltantes, $compromiso);
         }
 
+        $unidades = 0;
+        $importe  = 0.0;
+        foreach ($toSupply as $linea) {
+            $unidades += $linea['qty'];
+            $importe  += $linea['qty'] * $linea['cost'];
+        }
+        if (!$this->insertSurtido([$id, $mueve ? 'auto' : 'manual', $shrId, $warehouseId, $totProds, $unidades, $importe, $this->userId, $this->companiesId])) {
+            throw new Exception('No se pudo guardar el historial de surtimiento');
+        }
+        $this->updateOrdenRecibi([null, $id]);
+
         $detailUpdated = $this->qGetOrdenDetail([$id]);
         $allDone = true;
         $anyDone = false;
@@ -1329,12 +1339,16 @@ class ctrl extends mdl {
         $newStatus = $allDone ? 'Recibida' : ($anyDone ? 'Parcial' : $header['status']);
         $this->updateOrdenStatus([$newStatus, $id]);
 
+        $estado = $this->estadoRequisicion(['status' => $newStatus, 'folio' => $header['folio']]);
+
         $msg = $mueve
-            ? "Surtido registrado: salida {$siFolio}, {$totProds} materiales."
-            : "Surtido registrado sin mover inventario, {$totProds} materiales: el almacén tiene apagado «Surtir pedidos mueve inventario» (Catálogo › Almacenes).";
+            ? "Surtido registrado: salida {$siFolio} (en Salidas), {$totProds} materiales."
+            : ($sinMover
+                ? "Surtido registrado como salida manual, {$totProds} materiales: el almacén no se descontó."
+                : "Surtido registrado sin mover inventario, {$totProds} materiales: el almacén tiene apagado «Surtir pedidos mueve inventario» (Catálogo › Almacenes).");
         if ($entrada)   $msg .= " Entró al {$entrada['almacen']} de {$header['branch_name']} con la entrada {$entrada['folio']}.";
         if ($reabFolio) $msg .= " Se generó la orden de reabasto {$reabFolio} (pendiente de compra).";
-        $msg .= " Solicitud ahora {$newStatus}.";
+        $msg .= " Requisición ahora {$estado}.";
 
         return [
             'status'         => 200,
@@ -1342,7 +1356,8 @@ class ctrl extends mdl {
             'salida_folio'   => $siFolio,
             'entrada_folio'  => $entrada ? $entrada['folio'] : null,
             'reabasto_folio' => $reabFolio,
-            'orden_status'   => $newStatus
+            'orden_status'   => $newStatus,
+            'estado'         => $estado
         ];
     }
 
@@ -1417,14 +1432,15 @@ class ctrl extends mdl {
 
     // «Recibí»: la sucursal que pidió confirma que le llegó lo surtido. La entrada ENT- ya
     // sumó a su almacén al surtirse; esto deja quién lo recibió y cuándo (en el pedido y en
-    // la entrada, que en Entradas muestra «Confirmó»).
+    // la entrada, que en Entradas muestra «Confirmó»). Una requisición Entregado sin entrada
+    // (salida manual o de su misma sucursal) también se confirma: pasa a Confirmado.
     function confirmRecepcion() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
         if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
-        if ((int) $header['surtidos_por_recibir'] === 0) {
-            return ['status' => 400, 'message' => 'Este pedido no tiene un surtido por confirmar'];
+        if (!$this->porConfirmar($header)) {
+            return ['status' => 400, 'message' => 'Esta requisición no tiene un surtido por confirmar'];
         }
         if ($this->branchId > 0 && $this->branchId !== (int) $header['branch_id']) {
             return ['status' => 403, 'message' => 'Solo la sucursal que hizo el pedido confirma que lo recibió'];
@@ -1439,7 +1455,18 @@ class ctrl extends mdl {
             return ['status' => 500, 'message' => 'No se pudo confirmar: ' . $e->getMessage()];
         }
 
-        return ['status' => 200, 'message' => "Recepción confirmada. Lo surtido ya está en tu almacén ({$header['entradas_surtido']})."];
+        return ['status' => 200, 'message' => $header['entradas_surtido']
+            ? "Recepción confirmada. Lo surtido ya está en tu almacén ({$header['entradas_surtido']})."
+            : 'Recepción confirmada. La requisición queda Confirmado.'];
+    }
+
+    // ¿Quien pidió tiene algo que confirmar con «Recibí»? Una entrada de surtido sin confirmar
+    // o la requisición Entregado (Recibida sin «Recibí»). Los reabastos no se confirman.
+    private function porConfirmar($header) {
+        if (strpos((string) $header['folio'], 'REAB-') === 0) return false;
+        if ((int) $header['surtidos_por_recibir'] > 0) return true;
+
+        return $header['status'] === 'Recibida' && empty($header['received_confirmed_user_id']);
     }
 
     // El renglón con el producto que de verdad sale del almacén: el que se entrega en lugar
@@ -1456,9 +1483,10 @@ class ctrl extends mdl {
         ]);
     }
 
-    // «Producto a entregar» de Revisar y aprobar: {renglón: item_id} de lo marcado que se
-    // entrega en lugar de lo pedido. El que coincide con lo pedido no cuenta; los demás deben
-    // estar activos en el Catálogo de la empresa. Regresa el mapa o el mensaje de error.
+    // «Producto» que se entrega al surtir: {renglón: item_id} de lo que lleva cantidad. Lo
+    // pedido no cuenta, salvo que el renglón ya traiga otro de un surtido anterior: entonces
+    // vuelve a lo pedido (null). Los demás deben estar activos en el Catálogo de la empresa.
+    // Regresa el mapa o el mensaje de error.
     private function sustitutosEntrega($json, $items, $byId) {
         $subs = json_decode((string) $json, true);
         if (!is_array($subs)) return [];
@@ -1466,7 +1494,14 @@ class ctrl extends mdl {
         $out = [];
         foreach ($subs as $detailId => $itemId) {
             $itemId = (int) $itemId;
-            if (!isset($items[$detailId]) || $itemId <= 0 || $itemId === (int) $byId[(string) $detailId]['product_id']) continue;
+            if (!isset($items[$detailId]) || $itemId <= 0) continue;
+
+            $renglon = $byId[(string) $detailId];
+            if ($itemId === (int) $renglon['product_id']) {
+                if (!empty($renglon['delivered_item_id'])) $out[$detailId] = null;
+                continue;
+            }
+            if ($itemId === (int) $renglon['delivered_item_id']) continue;
             if (!$this->qItemEntrega([$itemId, $this->companiesId])) return 'Uno de los productos a entregar ya no está en el Catálogo';
             $out[$detailId] = $itemId;
         }

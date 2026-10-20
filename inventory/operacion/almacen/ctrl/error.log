@@ -1,3 +1,69 @@
+[ 2026-10-20 16:37:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                ps.id,
+                ps.created_at,
+                ps.exit_type,
+                ps.total_products,
+                ps.total_units,
+                ps.total_cost,
+                sh.folio AS salida_folio,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name
+            FROM fayxzvov_inventory.purchase_order_supply ps
+            LEFT JOIN fayxzvov_inventory.inventory_shrinkage sh ON sh.id = ps.inventory_shrinkage_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = ps.user_id
+            WHERE ps.purchase_order_id = ? AND ps.active = 1
+            ORDER BY ps.created_at ASC, ps.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order_supply' doesn't exist
+
+
+[ 2026-10-20 16:37:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                ps.id,
+                ps.created_at,
+                ps.exit_type,
+                ps.total_products,
+                ps.total_units,
+                ps.total_cost,
+                sh.folio AS salida_folio,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name
+            FROM fayxzvov_inventory.purchase_order_supply ps
+            LEFT JOIN fayxzvov_inventory.inventory_shrinkage sh ON sh.id = ps.inventory_shrinkage_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = ps.user_id
+            WHERE ps.purchase_order_id = ? AND ps.active = 1
+            ORDER BY ps.created_at ASC, ps.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order_supply' doesn't exist
+
+
+[ 2026-10-20 16:33:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                ps.id,
+                ps.created_at,
+                ps.exit_type,
+                ps.total_products,
+                ps.total_units,
+                ps.total_cost,
+                sh.folio AS salida_folio,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name
+            FROM fayxzvov_inventory.purchase_order_supply ps
+            LEFT JOIN fayxzvov_inventory.inventory_shrinkage sh ON sh.id = ps.inventory_shrinkage_id
+            LEFT JOIN fayxzvov_erp.users            u  ON u.id  = ps.user_id
+            WHERE ps.purchase_order_id = ? AND ps.active = 1
+            ORDER BY ps.created_at ASC, ps.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_inventory.purchase_order_supply' doesn't exist
+
+
 [ 2026-10-18 15:17:49 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

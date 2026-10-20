@@ -733,29 +733,42 @@ class ctrl extends MPedidos{
         $total = floatval($order['total_pay']) - floatval($order['discount']);
         $paid  = $this->getTotalPaidByOrder([$orderId]);
 
-        // Solo las fotos de los pasteles personalizados viajan como imagen.
+        // Fotos de los personalizados y del catalogo de los productos normales.
         $photos = $this->orderNoticePhotos($lines);
 
+        $paths = function ($catalog) use ($photos) {
+            return array_values(array_column(array_filter($photos, function ($photo) use ($catalog) {
+                return $photo['catalog'] === $catalog;
+            }), 'path'));
+        };
+
         // Los datos nuevos van al final: los avisos ya guardados se comparan por los
-        // que tienen en comun (ver abajo).
+        // que tienen en comun (ver abajo). Las del catalogo van aparte: un aviso
+        // guardado sin ellas no cuenta como pedido editado.
         $snapshot  = [
-            'fecha'      => (string) $order['date_order'],
-            'hora'       => (string) $order['time_order'],
-            'cliente'    => oneLine($order['name']),
-            'telefono'   => oneLine($order['phone']),
-            'estatus'    => orderStatusText($order['status']),
-            'productos'  => $this->orderNoticeProducts($lines),
-            'total'      => noticeMoney($total),
-            'anticipo'   => $paid > 0 ? noticeMoney($paid) : '',
-            'forma_pago' => $this->orderNoticeMethods((array) $this->getMethodPayment([$orderId])),
-            'restante'   => noticeMoney(max(0, $total - $paid)),
-            'fotos'      => array_column($photos, 'path')
+            'fecha'          => (string) $order['date_order'],
+            'hora'           => (string) $order['time_order'],
+            'cliente'        => oneLine($order['name']),
+            'telefono'       => oneLine($order['phone']),
+            'estatus'        => orderStatusText($order['status']),
+            'productos'      => $this->orderNoticeProducts($lines),
+            'total'          => noticeMoney($total),
+            'anticipo'       => $paid > 0 ? noticeMoney($paid) : '',
+            'forma_pago'     => $this->orderNoticeMethods((array) $this->getMethodPayment([$orderId])),
+            'restante'       => noticeMoney(max(0, $total - $paid)),
+            'fotos'          => $paths(false),
+            'fotos_catalogo' => $paths(true),
+            'entrega'        => deliveryText($order['delivery_type']),
+            'descripcion'    => oneLine($order['note'])
         ];
 
+        // {productos} se muestra con su propio formato; el snapshot guarda los bloques
+        // de siempre para comparar contra los avisos ya enviados.
         $vars = array_merge($snapshot, [
-            'folio'     => $folio,
-            'sucursal'  => $branch['sucursal'],
-            'productos' => implode("\n", $snapshot['productos'])
+            'folio'       => $folio,
+            'sucursal'    => $branch['sucursal'],
+            'fecha_larga' => longDate($order['date_order']),
+            'productos'   => implode("\n\n", $this->orderNoticeDisplay($lines))
         ]);
 
         $msg  = new Message();
@@ -798,14 +811,7 @@ class ctrl extends MPedidos{
         // {cambios} va vacio y su seccion no sale.
         $vars['cambios'] = $before ? implode("\n", $this->orderNoticeChanges($before, $snapshot)) : '';
 
-        // Solo las fotos que el aviso anterior no llevaba. Uno guardado antes de mandar
-        // fotos no las trae en su snapshot: ninguna habia salido, van todas.
-        $sentPhotos = (array) ($before['fotos'] ?? []);
-        $newPhotos  = array_values(array_filter($photos, function ($photo) use ($sentPhotos) {
-            return !in_array($photo['path'], $sentPhotos, true);
-        }));
-
-        $images = $this->orderNoticeImages($newPhotos, $folio);
+        $images = $this->orderNoticeImages($this->orderNoticeEditPhotos($photos, $before), $folio);
         $result = $msg->aviso('edicion', $branch['idCompany'], $vars, $reference, $order['subsidiaries_id'], false, $snapshot, $images);
 
         return [
@@ -815,20 +821,23 @@ class ctrl extends MPedidos{
         ];
     }
 
-    // Variable {cambios}: los datos del pedido como "antes → ahora" y los productos
-    // completos, ➕ los nuevos y ➖ los quitados. Un producto que se modifico sale como
-    // quitado (como estaba) y nuevo (como quedo).
+    // Variable {cambios}: un renglon de lista por cambio, lo de antes tachado y lo de
+    // ahora en negritas. Un producto que sigue en el pedido dice solo el dato que le
+    // cambio; el que llega o se va sale como "Se agregó" / "Se quitó". Compara los
+    // bloques del snapshot (formato de siempre), no el texto que se muestra.
     private function orderNoticeChanges($before, $after) {
         $labels = [
-            'fecha'      => 'Fecha',
-            'hora'       => 'Hora',
-            'cliente'    => 'Cliente',
-            'telefono'   => 'Tel',
-            'estatus'    => 'Estatus',
-            'total'      => 'Total',
-            'anticipo'   => 'Anticipo',
-            'forma_pago' => 'Forma de pago',
-            'restante'   => 'Restante'
+            'fecha'       => 'Fecha',
+            'hora'        => 'Hora',
+            'entrega'     => 'Entrega',
+            'cliente'     => 'Cliente',
+            'telefono'    => 'Tel',
+            'estatus'     => 'Estatus',
+            'descripcion' => 'Descripción',
+            'total'       => 'Total',
+            'anticipo'    => 'Anticipo',
+            'forma_pago'  => 'Forma de pago',
+            'restante'    => 'Resta'
         ];
 
         $changes = [];
@@ -840,60 +849,128 @@ class ctrl extends MPedidos{
             $old = (string) ($before[$key] ?? '');
             $new = (string) ($after[$key] ?? '');
 
-            if ($old !== $new) {
-                $changes[] = "• {$label}: " . ($old !== '' ? $old : '—') . ' → ' . ($new !== '' ? $new : '—');
-            }
+            if ($old !== $new) $changes[] = noticeChange($label, $old, $new);
         }
 
         if (array_key_exists('fotos', $before)) {
             $newPhotos  = count(array_diff($after['fotos'], $before['fotos']));
             $gonePhotos = count(array_diff($before['fotos'], $after['fotos']));
 
-            if ($newPhotos)  $changes[] = '📷 ' . $newPhotos . ($newPhotos === 1 ? ' foto nueva' : ' fotos nuevas');
-            if ($gonePhotos) $changes[] = '📷 ' . $gonePhotos . ($gonePhotos === 1 ? ' foto quitada' : ' fotos quitadas');
+            if ($newPhotos)  $changes[] = '- ' . $newPhotos . ($newPhotos === 1 ? ' foto nueva' : ' fotos nuevas');
+            if ($gonePhotos) $changes[] = '- ' . $gonePhotos . ($gonePhotos === 1 ? ' foto quitada' : ' fotos quitadas');
         }
 
-        $removed     = (array) ($before['productos'] ?? []);
-        $removedKeys = array_map('noticeKey', $removed);
-        $added       = [];
+        // Primero se apartan los productos que no cambiaron en nada; los que quedan se
+        // emparejan por nombre para decir que dato les cambio.
+        $removed = (array) ($before['productos'] ?? []);
+        $added   = [];
 
         foreach ($after['productos'] as $block) {
-            $index = array_search(noticeKey($block), $removedKeys, true);
+            $index = array_search(noticeKey($block), array_map('noticeKey', $removed), true);
 
             if ($index === false) {
-                $added[] = $block;
+                $added[] = noticeBlock($block);
             } else {
-                unset($removed[$index], $removedKeys[$index]);
+                unset($removed[$index]);
             }
         }
 
-        // Cada bloque empieza con "• ": la viñeta se cambia por la marca.
-        foreach ($added as $block)   $changes[] = '➕ ' . substr($block, strlen('• '));
-        foreach ($removed as $block) $changes[] = '➖ ' . substr($block, strlen('• '));
+        $removed = array_map('noticeBlock', $removed);
+        $several = count($after['productos']) > 1;
+
+        foreach ($added as $block) {
+            $index = null;
+
+            foreach ($removed as $i => $prev) {
+                if ($prev['key'] === $block['key']) {
+                    $index = $i;
+                    break;
+                }
+            }
+
+            if ($index === null) {
+                $changes[] = '- Se agregó: ' . $block['title'];
+                continue;
+            }
+
+            $prev = $removed[$index];
+            unset($removed[$index]);
+
+            $fields = array_unique(array_merge(array_keys($prev['details']), array_keys($block['details'])));
+
+            foreach ($fields as $field) {
+                $old = $prev['details'][$field] ?? '';
+                $new = $block['details'][$field] ?? '';
+
+                // El catalogo cambio de mayusculas a minusculas: eso no es un cambio.
+                if (mb_strtolower($old, 'UTF-8') === mb_strtolower($new, 'UTF-8')) continue;
+
+                $changes[] = noticeChange(($several ? "{$block['name']} · " : '') . $field, $old, $new);
+            }
+        }
+
+        foreach ($removed as $prev) $changes[] = '- Se quitó: ' . $prev['title'];
 
         return $changes;
     }
 
-    // Fotos de los pasteles personalizados, en el orden del pedido. Las de productos
-    // normales no se mandan.
+    // Fotos del aviso. Primero las subidas al pedido (la primera va arriba del mensaje)
+    // y despues la del catalogo de cada producto normal que no trae foto propia. Una
+    // foto de catalogo repetida (mismo producto dos veces) sale una sola vez.
     private function orderNoticePhotos($lines) {
-        $photos = [];
+        $uploaded = [];
+        $catalog  = [];
 
         foreach ($lines as $line) {
-            if (!$line['is_custom']) continue;
+            $images = array_filter((array) $line['images'], function ($image) {
+                return !empty($image['path']);
+            });
 
-            foreach ((array) $line['images'] as $image) {
-                if (empty($image['path'])) continue;
-
-                $photos[] = [
+            foreach ($images as $image) {
+                $uploaded[] = [
                     'path'    => $image['path'],
                     'name'    => $image['name'] ?: basename($image['path']),
-                    'cake'    => $line['name']
+                    'cake'    => $line['name'],
+                    'catalog' => false
                 ];
             }
+
+            // El personalizado no tiene foto de catalogo: solo cuentan las subidas.
+            if ($line['is_custom'] || $images) continue;
+
+            $path = trim((string) $line['image']);
+            if ($path === '' || in_array($path, array_column($catalog, 'path'), true)) continue;
+
+            $catalog[] = [
+                'path'    => $path,
+                'name'    => basename($path),
+                'cake'    => $line['name'],
+                'catalog' => true
+            ];
         }
 
-        return $photos;
+        return array_merge($uploaded, $catalog);
+    }
+
+    // Fotos del aviso de edicion. La primera del pedido va siempre arriba, aunque ya se
+    // haya mandado, para que se vea de que pastel se trata; detras, solo las que el
+    // aviso anterior no llevaba. Uno guardado antes de mandar fotos no las trae en su
+    // snapshot: ninguna habia salido, van todas. Las del catalogo no se repiten si ese
+    // aviso es de antes de enviarlas: sus productos ya se habian avisado.
+    private function orderNoticeEditPhotos($photos, $before) {
+        $sent  = array_merge((array) ($before['fotos'] ?? []), (array) ($before['fotos_catalogo'] ?? []));
+        $known = is_array($before) && array_key_exists('fotos_catalogo', $before);
+
+        $news = array_values(array_filter($photos, function ($photo) use ($sent, $known) {
+            if ($photo['catalog'] && !$known) return false;
+            return !in_array($photo['path'], $sent, true);
+        }));
+
+        if ($photos && !in_array($photos[0]['path'], array_column($news, 'path'), true)) {
+            array_unshift($news, $photos[0]);
+        }
+
+        return $news;
     }
 
     // Una imagen por foto para Message::aviso(). La primera lleva el aviso completo como
@@ -931,8 +1008,9 @@ class ctrl extends MPedidos{
         }, $methods));
     }
 
-    // Variable {productos}: un bloque por producto (su viñeta y sus detalles). El
-    // pastel personalizado lleva sus modificadores agrupados como en el armado.
+    // Bloques del snapshot: un producto por bloque (su viñeta y sus detalles). Con ellos
+    // se compara contra los avisos ya enviados, asi que su formato no se cambia; lo que
+    // se muestra lo arma orderNoticeDisplay().
     private function orderNoticeProducts($lines) {
         $text = [];
 
@@ -940,29 +1018,9 @@ class ctrl extends MPedidos{
             $qty    = intval($line['quantity']);
             $detail = [];
 
-            // El producto va en negritas y cada dato con su viñeta ◦: en el celular los
-            // renglones largos se parten y sin viñeta no se ve donde empieza el siguiente.
             if ($line['is_custom']) {
-                $title    = "• *{$qty} × Pastel personalizado «{$line['name']}»*";
-                $portions = oneLine($line['portion_qty']);
-
-                if ($portions !== '' && $portions !== '0') $detail[] = "Porciones: {$portions}";
-
-                $groups = [];
-
-                foreach ($line['customer_products'] as $item) {
-                    $group = mb_strtolower(trim($item['modifier_name']), 'UTF-8');
-                    $label = mb_strtoupper(mb_substr($group, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($group, 1, null, 'UTF-8');
-                    $count = intval($item['custom_quantity']);
-
-                    // El catalogo de modificadores mezcla MAYUSCULAS y minusculas: el valor
-                    // va siempre en minusculas para que se lea parejo.
-                    $groups[$label][] = mb_strtolower(trim($item['name']), 'UTF-8') . ($count > 1 ? " x{$count}" : '');
-                }
-
-                foreach ($groups as $label => $names) {
-                    $detail[] = $label . ': ' . implode(', ', $names);
-                }
+                $title  = "• *{$qty} × Pastel personalizado «{$line['name']}»*";
+                $detail = $this->orderNoticeCustomDetails($line);
             } else {
                 $title = "• *{$qty} × {$line['name']}*";
             }
@@ -978,6 +1036,64 @@ class ctrl extends MPedidos{
         }
 
         return $text;
+    }
+
+    // Variable {productos}: un bloque por producto. Los detalles van como lista de
+    // WhatsApp ("- "): al partirse el renglon en el celular, la segunda linea queda
+    // alineada bajo la primera. La dedicatoria va aparte, en una cita, para que no se
+    // pierda entre los demas datos.
+    private function orderNoticeDisplay($lines) {
+        $blocks = [];
+
+        foreach ($lines as $line) {
+            $qty  = intval($line['quantity']);
+            $name = oneLine($line['name']);
+            $rows = [];
+
+            if ($line['is_custom']) {
+                $title = "🍰 *{$qty} Pastel personalizado" . ($name !== '' ? " «{$name}»" : '') . '*';
+                $rows  = $this->orderNoticeCustomDetails($line);
+            } else {
+                $title = "🍰 *{$qty} {$name}*";
+            }
+
+            if (oneLine($line['order_details']) !== '') $rows[] = 'Notas: ' . oneLine($line['order_details']);
+
+            $block = $title . ($rows ? "\n- " . implode("\n- ", $rows) : '');
+
+            if (oneLine($line['dedication']) !== '') $block .= "\n> ✍️ *" . oneLine($line['dedication']) . '*';
+
+            $blocks[] = $block;
+        }
+
+        return $blocks;
+    }
+
+    // Detalles del pastel personalizado: porciones y sus modificadores agrupados como en
+    // el armado.
+    private function orderNoticeCustomDetails($line) {
+        $detail   = [];
+        $portions = oneLine($line['portion_qty']);
+
+        if ($portions !== '' && $portions !== '0') $detail[] = "Porciones: {$portions}";
+
+        $groups = [];
+
+        foreach ($line['customer_products'] as $item) {
+            $group = mb_strtolower(trim($item['modifier_name']), 'UTF-8');
+            $label = mb_strtoupper(mb_substr($group, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($group, 1, null, 'UTF-8');
+            $count = intval($item['custom_quantity']);
+
+            // El catalogo de modificadores mezcla MAYUSCULAS y minusculas: el valor
+            // va siempre en minusculas para que se lea parejo.
+            $groups[$label][] = mb_strtolower(trim($item['name']), 'UTF-8') . ($count > 1 ? " x{$count}" : '');
+        }
+
+        foreach ($groups as $label => $names) {
+            $detail[] = $label . ': ' . implode(', ', $names);
+        }
+
+        return $detail;
     }
 
     function getPayment(){
@@ -1079,6 +1195,67 @@ function noticeMoney($value) {
 function noticeKey($block) {
     $plain = str_replace(['*', '•', '◦'], '', (string) $block);
     return trim(preg_replace('/\s+/u', ' ', mb_strtolower($plain, 'UTF-8')));
+}
+
+// Bloque del snapshot desarmado para {cambios}: nombre, titulo sin formato y sus datos
+// como "Etiqueta => valor". La cantidad cuenta como un dato mas.
+function noticeBlock($block) {
+    $rows  = preg_split('/\r\n|\r|\n/', (string) $block);
+    $title = trim(str_replace(['*', '•'], '', array_shift($rows)));
+
+    // "2 × Tres Leches": cantidad 2, nombre "Tres Leches".
+    $parts = explode(' × ', $title, 2);
+    $qty   = count($parts) === 2 ? $parts[0] : '';
+    $name  = count($parts) === 2 ? $parts[1] : $title;
+
+    $details = $qty !== '' ? ['Cantidad' => $qty] : [];
+
+    foreach ($rows as $row) {
+        $row = trim(str_replace('◦', '', $row));
+
+        // "🖼️ 1 imagen adjunta" no es un dato: las fotos se cuentan aparte.
+        if (strpos($row, ': ') === false) continue;
+
+        list($label, $value) = explode(': ', $row, 2);
+        $details[$label === 'Observaciones' ? 'Notas' : $label] = $value;
+    }
+
+    return [
+        'key'     => mb_strtolower($name, 'UTF-8'),
+        'name'    => $name,
+        'title'   => $qty !== '' ? "{$qty} {$name}" : $name,
+        'details' => $details
+    ];
+}
+
+// Renglon de {cambios}: lo de antes tachado y lo de ahora en negritas. Un texto largo
+// (descripcion, notas) no se repite dos veces: solo dice como quedo.
+function noticeChange($label, $old, $new) {
+    $long = mb_strlen($old, 'UTF-8') > 40;
+
+    if ($old === '') return "- {$label}: *{$new}*";
+    if ($new === '') return $long ? "- {$label}: se quitó" : "- {$label}: ~{$old}~ (se quitó)";
+
+    return $long ? "- {$label} cambió a: *{$new}*" : "- {$label}: ~{$old}~ → *{$new}*";
+}
+
+// Variable {fecha_larga}: "Viernes 24 de octubre"; el año solo si no es el actual.
+// Llega como la devuelve getOrderID (d/m/Y).
+function longDate($date) {
+    $day = DateTime::createFromFormat('!d/m/Y', (string) $date);
+    if (!$day) return '';
+
+    $days   = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    $months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+    $text = $days[$day->format('w')] . ' ' . $day->format('j') . ' de ' . $months[$day->format('n') - 1];
+
+    return $day->format('Y') === date('Y') ? $text : $text . ' de ' . $day->format('Y');
+}
+
+// Variable {entrega}: order.delivery_type (0 = en sucursal, 1 = a domicilio).
+function deliveryText($type) {
+    return intval($type) === 1 ? '🛵 A domicilio' : '🏠 Recoge en sucursal';
 }
 
 function imagesLabel($total) {

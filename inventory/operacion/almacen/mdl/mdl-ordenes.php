@@ -224,24 +224,7 @@ class mdl extends CRUD {
             $where .= ' AND po.branch_id = ?';
             $data[] = $array['branch_id'];
         }
-        // Grupos de estado de Mis entregas. Aprobada incluye Recibida: aprobar surte en el
-        // mismo paso y el pedido queda Recibida.
-        $grupos = [
-            'PorAtender' => ['Solicitada', 'Parcial'],
-            'Aprobadas'  => ['Aprobada', 'Recibida'],
-            'Cerradas'   => ['Rechazada', 'Cancelada']
-        ];
-        if (!empty($array['status'])) {
-            if ($array['status'] === 'Activas') {
-                $where .= " AND po.status NOT IN ('Cancelada', 'Rechazada')";
-            } elseif (isset($grupos[$array['status']])) {
-                $where .= ' AND po.status IN (?, ?)';
-                $data   = array_merge($data, $grupos[$array['status']]);
-            } else {
-                $where .= ' AND po.status = ?';
-                $data[] = $array['status'];
-            }
-        }
+        $where .= $this->sqlEstado($array['status'] ?? '');
         if (!empty($array['fi']) && !empty($array['ff'])) {
             $where .= ' AND DATE(po.created_at) BETWEEN ? AND ?';
             $data[] = $array['fi'];
@@ -279,6 +262,7 @@ class mdl extends CRUD {
                 TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
                 po.approved_at,
                 po.reject_reason,
+                po.received_confirmed_user_id,
                 (SELECT GROUP_CONCAT(i.name ORDER BY d.id SEPARATOR '|')
                    FROM {$this->bd}detail_purchase_order d
                    INNER JOIN {$this->bd}item i ON i.id = d.item_id
@@ -333,18 +317,14 @@ class mdl extends CRUD {
             $data[] = $array['branch_id'];
         }
 
-        if (($array['status'] ?? '') === 'Activas') {
-            $where .= " AND po.status NOT IN ('Cancelada', 'Rechazada')";
-        } elseif (!empty($array['status'])) {
-            $where .= ' AND po.status = ?';
-            $data[] = $array['status'];
-        }
+        $where .= $this->sqlEstado($array['status'] ?? '');
 
         $query = "
             SELECT
                 po.id,
                 po.folio,
                 po.status,
+                po.received_confirmed_user_id,
                 po.date_order,
                 po.total_products,
                 po.branch_id,
@@ -359,6 +339,33 @@ class mdl extends CRUD {
         ";
         $r = $this->_Read($query, $data);
         return is_array($r) ? $r : [];
+    }
+
+    // Rol del usuario en una sucursal (roles.code). [user_id, branch_id]
+    function getRolSucursal($array) {
+        $query = "
+            SELECT r.code
+            FROM {$this->bdErp}users_braches ub
+            INNER JOIN {$this->bdErp}roles r ON r.id = ub.role_id AND r.is_active = 1
+            WHERE ub.user_id = ? AND ub.branch_id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (string) $r[0]['code'] : '';
+    }
+
+    // Filtro Estado de la Lista y del Calendario, con el mismo criterio que
+    // ctrl::estadoRequisicion. Los reabastos (REAB-) son compras, no requisiciones: solo
+    // salen con «Todos los estados».
+    private function sqlEstado($estado) {
+        $sql = [
+            'EnEspera'       => "po.status = 'Solicitada'",
+            'Entregado'      => "po.status IN ('Aprobada', 'Recibida') AND po.received_confirmed_user_id IS NULL",
+            'SurtidoParcial' => "po.status = 'Parcial'",
+            'Confirmado'     => "po.status = 'Recibida' AND po.received_confirmed_user_id IS NOT NULL"
+        ];
+
+        return isset($sql[$estado]) ? " AND po.folio NOT LIKE 'REAB-%' AND {$sql[$estado]}" : '';
     }
 
     // Día de hoy según MySQL, el mismo reloj que llena created_at (PHP corre en UTC).
@@ -745,6 +752,53 @@ class mdl extends CRUD {
             WHERE id = ?
         ";
         return $this->_CUD($query, [$array[0], $array[0], $array[1]]);
+    }
+
+    // -- Historial de surtimiento --
+
+    // Un surtimiento de la requisición. exit_type: 'auto' (salida SI-) o 'manual' (sin
+    // movimiento de almacén). [purchase_order_id, exit_type, inventory_shrinkage_id,
+    // warehouse_id, total_products, total_units, total_cost, user_id, companies_id]
+    function insertSurtido($array) {
+        $query = "
+            INSERT INTO {$this->bd}purchase_order_supply
+                (purchase_order_id, exit_type, inventory_shrinkage_id, warehouse_id,
+                 total_products, total_units, total_cost, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Historial de surtimiento de la requisición, del primero al último. [purchase_order_id]
+    function lsSurtidosOrden($array) {
+        $query = "
+            SELECT
+                ps.id,
+                ps.created_at,
+                ps.exit_type,
+                ps.total_products,
+                ps.total_units,
+                ps.total_cost,
+                sh.folio AS salida_folio,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name
+            FROM {$this->bd}purchase_order_supply ps
+            LEFT JOIN {$this->bd}inventory_shrinkage sh ON sh.id = ps.inventory_shrinkage_id
+            LEFT JOIN {$this->bdErp}users            u  ON u.id  = ps.user_id
+            WHERE ps.purchase_order_id = ? AND ps.active = 1
+            ORDER BY ps.created_at ASC, ps.id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Revertir el despacho borra su historial. [purchase_order_id]
+    function updateSurtidosRevertidos($array) {
+        $query = "
+            UPDATE {$this->bd}purchase_order_supply
+            SET active = 0
+            WHERE purchase_order_id = ? AND active = 1
+        ";
+        return $this->_CUD($query, $array);
     }
 
     // Las entradas de surtido del pedido quedan confirmadas por quien dijo «Recibí».

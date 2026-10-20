@@ -756,11 +756,20 @@
 // Complements.
 
 
+  // Igual que fileUrl() de coffeeSoft.js: la foto se pide al mismo servidor y, si la
+  // copia local no la tiene (subida en produccion), fileUrlFallback() la busca alla.
   function renderProductImage($foto, $nombre) {
-    $src = !empty($foto) ? 'https://huubie.com.mx/' . $foto : '';
+    $path = trim((string) $foto);
+
+    if ($path === '' || preg_match('#^(https?:)?//#i', $path)) {
+        $src = $path;
+    } else {
+        // El path lleva el nombre de la empresa, con espacios y acentos.
+        $src = '/' . implode('/', array_map('rawurlencode', explode('/', ltrim($path, '/'))));
+    }
 
     $img = !empty($src)
-        ? '<img src="' . $src . '" alt="Imagen Producto" class="w-14 h-14 bg-gray-500 rounded-md object-cover" />'
+        ? '<img src="' . htmlspecialchars($src) . '" onerror="fileUrlFallback(this)" alt="Imagen Producto" class="w-14 h-14 bg-gray-500 rounded-md object-cover" />'
         : '<div class="w-12 h-12 bg-[#1F2A37] rounded-md flex items-center justify-center">
                 <i class=" icon-birthday text-gray-500"></i>
         </div>';
