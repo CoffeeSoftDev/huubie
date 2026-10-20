@@ -893,8 +893,29 @@ class Roles extends Templates {
         this.createfilterBar({
             parent: 'filterbar-roles',
             data: [
-                { opc: 'select', id: 'active', lbl: 'Estado', class: 'col-12 col-md-3', data: dataInit.statusFilter || [], onchange: 'roles.lsRoles()' },
-                { opc: 'button', class: 'col-12 col-md-3', id: 'btnNewRole', text: 'Nuevo Rol', onClick: () => this.addRole() }
+                {
+                    opc: 'select',
+                    id: 'company_id',
+                    lbl: 'Empresa',
+                    class: 'col-12 col-md-3',
+                    data: this.companyFilter(),
+                    onchange: 'roles.lsRoles()'
+                },
+                {
+                    opc: 'select',
+                    id: 'active',
+                    lbl: 'Estado',
+                    class: 'col-12 col-md-3',
+                    data: dataInit.statusFilter || [],
+                    onchange: 'roles.lsRoles()'
+                },
+                {
+                    opc: 'button',
+                    id: 'btnNewRole',
+                    class: 'col-12 col-md-3',
+                    text: 'Nuevo Rol',
+                    onClick: () => this.addRole()
+                }
             ]
         });
     }
@@ -903,17 +924,25 @@ class Roles extends Templates {
         this.createTable({
             parent: 'table-roles', idFilterBar: 'filterbar-roles',
             data: { opc: 'lsRoles' }, coffeesoft: true, conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbRoles', theme: 'light', striped: true, center: [3, 4, 5], right: [] }
+            attr: { id: 'tbRoles', theme: 'light', striped: true, center: [4, 5, 6], right: [] }
         });
     }
 
+    // El rol nuevo nace en la empresa que esté filtrada; con Todas o Sistema se elige en el modal.
     async addRole() {
+        if (!(dataInit.companies || []).length) {
+            alert({ icon: 'info', text: 'Primero registra al menos una empresa activa', btn1: true });
+            return;
+        }
+
         const access = await useFetch({ url: this._link, data: { opc: 'getRolePermissions', id: 0 } });
         if (!access || access.status !== 200) { notify(access); return; }
 
+        const filter = String($('#filterbar-roles [name="company_id"]').val() || '');
+
         this.createModalForm({
             id: 'formRoleAdd', data: { opc: 'addRole' }, theme: 'light', coffeesoft: true,
-            bootbox: { title: 'Nuevo Rol', size: 'xl' }, json: this.jsonRole(false),
+            bootbox: { title: 'Nuevo Rol', size: 'xl' }, json: this.jsonRole(false, this.companySelect(/^\d+$/.test(filter) ? filter : '')),
             success: (r) => afterSave(r, () => this.lsRoles())
         });
         this.permissionPicker(access);
@@ -934,7 +963,7 @@ class Roles extends Templates {
 
         this.createModalForm({
             id: 'formRoleEdit', data: { opc: 'editRole', id: id }, theme: 'light', coffeesoft: true,
-            bootbox: { title: title, size: 'xl' }, autofill: request.data, json: this.jsonRole(access.fullAccess),
+            bootbox: { title: title, size: 'xl' }, autofill: request.data, json: this.jsonRole(access.fullAccess, this.companyReadonly()),
             success: (r) => afterSave(r, () => this.lsRoles())
         });
         this.permissionPicker(access);
@@ -949,13 +978,54 @@ class Roles extends Templates {
     }
 
     // El código del Super Admin es el que le da el acceso total: no se edita.
-    jsonRole(fullAccess) {
+    jsonRole(fullAccess, company) {
         return [
+            company,
             { opc: 'input', id: 'code', lbl: 'Código', class: 'col-12 col-md-6 mb-3', readonly: fullAccess },
             { opc: 'input', id: 'name', lbl: 'Nombre del rol', class: 'col-12 col-md-6 mb-3', required: true },
             // Hueco vacío: lo rellena permissionPicker() con las acciones de cada sección.
             { opc: 'div', id: 'rolePermissionsWrap', class: 'col-12', required: false }
         ];
+    }
+
+    // -- Empresa del rol --
+
+    companyFilter() {
+        return [
+            {
+                id: 'all',
+                valor: 'Todas'
+            },
+            {
+                id: 'system',
+                valor: 'Roles del sistema'
+            }
+        ].concat(dataInit.companies || []);
+    }
+
+    companySelect(companyId) {
+        return {
+            opc: 'select',
+            id: 'company_id',
+            lbl: 'Empresa',
+            class: 'col-12 mb-3',
+            required: true,
+            selected: 'Elige una empresa',
+            value: companyId,
+            data: dataInit.companies || []
+        };
+    }
+
+    // Un rol no cambia de empresa: sus usuarios ya están asignados en sucursales de esa empresa.
+    companyReadonly() {
+        return {
+            opc: 'input',
+            id: 'company_name',
+            lbl: 'Empresa',
+            class: 'col-12 mb-3',
+            required: false,
+            disabled: true
+        };
     }
 
     // -- Permission picker --

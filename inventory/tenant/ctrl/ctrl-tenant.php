@@ -23,6 +23,10 @@ class ctrl extends mdl {
     private $paymentStatuses  = ['paid', 'pending', 'failed', 'refunded'];
     private $discountTypes    = ['percent', 'fixed'];
 
+    // Los permisos se resuelven por roles.code: un rol de empresa con el código
+    // superadmin le daría acceso total a toda la plataforma a quien lo tenga.
+    private $reservedRoleCodes = ['superadmin', 'dueno'];
+
     public function __construct() {
         parent::__construct();
     }
@@ -1250,8 +1254,13 @@ class ctrl extends mdl {
     /* ===== Roles (roles) ===== */
 
     function lsRoles() {
-        $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
-        $ls = $this->qRoles([$active]);
+        // Empresa: all = todos, system = solo los del sistema, un id = los de esa empresa.
+        $active  = isset($_POST['active']) ? (int) $_POST['active'] : 1;
+        $company = (string) ($_POST['company_id'] ?? 'all');
+
+        $ls = ctype_digit($company)
+            ? $this->qRoles([$active, (int) $company], 'company')
+            : $this->qRoles([$active], $company === 'system' ? 'system' : 'all');
 
         $row = [];
         foreach ($ls as $r) {
@@ -1282,12 +1291,13 @@ class ctrl extends mdl {
 
             $system = (int) $r['is_system'] === 1
                 ? '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-sky-50 text-sky-700 ">Sistema</span>'
-                : '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-600 ">Personalizado</span>';
+                : '<span class="px-2 py-1 rounded-md text-sm font-semibold  bg-slate-50 text-slate-600 ">De empresa</span>';
 
             $row[] = [
                 'id'       => $r['id'],
                 'Código'   => $r['code'] ?: '-',
                 'Rol'      => htmlspecialchars($r['name'] ?? ''),
+                'Empresa'  => $this->roleCompanyLabel($r),
                 'Tipo'     => $system,
                 'Permisos' => $this->roleAccessLabel($r),
                 'Estado'   => renderActive($r['is_active']),
@@ -1300,6 +1310,7 @@ class ctrl extends mdl {
 
     function getRole() {
         $data = $this->qRole([(int) $_POST['id']]);
+        if ($data && (int) $data['is_system'] === 1) $data['company_name'] = 'Todas las empresas (rol del sistema)';
         return ['status' => $data ? 200 : 404, 'message' => $data ? 'OK' : 'Rol no encontrado', 'data' => $data];
     }
 
@@ -1322,12 +1333,17 @@ class ctrl extends mdl {
     }
 
     function addRole() {
-        $name = trim($_POST['name'] ?? '');
-        $code = trim($_POST['code'] ?? '') ?: null;
+        $name      = trim($_POST['name'] ?? '');
+        $code      = trim($_POST['code'] ?? '') ?: null;
+        $companyId = (int) ($_POST['company_id'] ?? 0);
         if ($name === '') return ['status' => 400, 'message' => 'El nombre del rol es obligatorio'];
+        if ($companyId <= 0 || !$this->qCompany([$companyId])) return ['status' => 400, 'message' => 'Elige la empresa del rol'];
 
-        return $this->transaction(function () use ($code, $name) {
-            $this->qInsertRole([$code, $name, $this->companyId()]);
+        $error = $this->roleError($code, $name, $companyId, 0);
+        if ($error) return ['status' => 400, 'message' => $error];
+
+        return $this->transaction(function () use ($code, $name, $companyId) {
+            $this->qInsertRole([$code, $name, $companyId]);
 
             $newId = $this->qLastInsertId();
             if (!$newId) {
@@ -1350,7 +1366,12 @@ class ctrl extends mdl {
         if (!$role) return ['status' => 404, 'message' => 'Rol no encontrado'];
 
         // El código del Super Admin es el que le da el acceso total: no se cambia.
-        if ((int) $role['is_system'] === 1) $code = $role['code'];
+        if ((int) $role['is_system'] === 1) {
+            $code = $role['code'];
+        } else {
+            $error = $this->roleError($code, $name, (int) $role['company_id'], $id);
+            if ($error) return ['status' => 400, 'message' => $error];
+        }
 
         return $this->transaction(function () use ($id, $code, $name, $role) {
             $this->qUpdateRole([$code, $name, $id]);
@@ -1370,6 +1391,21 @@ class ctrl extends mdl {
         }
         $ok = $this->qSetRoleActive([(int) $_POST['active'], $id]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Rol activado' : 'Rol desactivado') : 'No se pudo actualizar el estado'];
+    }
+
+    // Rol de una empresa (no del sistema): el código no puede ser uno reservado y
+    // el nombre no se repite dentro de la misma empresa.
+    private function roleError($code, $name, $companyId, $id) {
+        if ($code !== null && in_array(strtolower($code), $this->reservedRoleCodes, true)) {
+            return 'Ese código está reservado para un rol del sistema';
+        }
+        if ($this->qRoleNameExists([$name, $companyId, $id])) return 'Esa empresa ya tiene un rol con ese nombre';
+        return null;
+    }
+
+    private function roleCompanyLabel($role) {
+        if ((int) $role['is_system'] === 1) return '<span class="text-gray-400">Todas</span>';
+        return $role['company_name'] ? htmlspecialchars($role['company_name']) : '-';
     }
 
     // Columna Permisos de la tabla de roles. El Super Admin tiene acceso total

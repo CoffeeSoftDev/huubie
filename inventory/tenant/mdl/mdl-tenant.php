@@ -761,14 +761,23 @@ class mdl extends CRUD {
 
     /* ===== Roles (roles) ===== */
 
-    function qRoles($array) {
-        // [is_active] · actions/sections: acciones vigentes del rol y en cuántas secciones caen
+    function qRoles($array, $scope) {
+        // [is_active] o [is_active, company_id] · $scope: all | system | company
+        // actions/sections: acciones vigentes del rol y en cuántas secciones caen.
+        // Primero los del sistema y luego cada empresa con sus roles juntos.
+        $filters = [
+            'all'     => '',
+            'system'  => 'AND r.is_system = 1',
+            'company' => 'AND r.is_system = 0 AND r.company_id = ?'
+        ];
         $query = "
             SELECT
-                r.id, r.code, r.name, r.is_system, r.is_active,
+                r.id, r.code, r.name, r.is_system, r.is_active, r.company_id,
+                co.name                      AS company_name,
                 COUNT(c.id)                  AS actions,
                 COUNT(DISTINCT c.section_id) AS sections
             FROM {$this->bd}roles r
+            LEFT JOIN {$this->bd}companies co ON co.id = r.company_id
             LEFT JOIN {$this->bd}permissions_roles pr ON pr.role_id = r.id
             LEFT JOIN (
                 SELECT p.id, p.section_id
@@ -778,9 +787,9 @@ class mdl extends CRUD {
                 JOIN {$this->bd}modules m           ON m.id = s.module_id AND m.is_active = 1
                 WHERE p.is_active = 1
             ) AS c ON c.id = pr.permission_id
-            WHERE r.is_active = ?
-            GROUP BY r.id, r.code, r.name, r.is_system, r.is_active
-            ORDER BY r.id ASC
+            WHERE r.is_active = ? {$filters[$scope]}
+            GROUP BY r.id, r.code, r.name, r.is_system, r.is_active, r.company_id, co.name
+            ORDER BY r.is_system DESC, co.name ASC, r.id ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -799,13 +808,26 @@ class mdl extends CRUD {
 
     function qRole($array) {
         // [id]
-        $query = "SELECT id, code, name, is_system, is_active FROM {$this->bd}roles WHERE id = ? LIMIT 1";
+        $query = "
+            SELECT r.id, r.code, r.name, r.is_system, r.is_active, r.company_id, co.name AS company_name
+            FROM {$this->bd}roles r
+            LEFT JOIN {$this->bd}companies co ON co.id = r.company_id
+            WHERE r.id = ?
+            LIMIT 1
+        ";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
+    function qRoleNameExists($array) {
+        // [name, company_id, id que se excluye (0 = ninguno)]
+        $query = "SELECT id FROM {$this->bd}roles WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND company_id = ? AND id <> ? LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r);
+    }
+
     function qInsertRole($array) {
-        // [code, name, company_id] · sin empresa no saldría en Configuración > Accesos
+        // [code, name, company_id] · el rol solo sale en Configuración > Accesos de esa empresa
         $query = "INSERT INTO {$this->bd}roles (code, name, is_system, is_active, company_id, created_at) VALUES (?, ?, 0, 1, ?, NOW())";
         return $this->_CUD($query, $array);
     }
