@@ -409,6 +409,11 @@ class Navbar {
             .nav-notif-dot { width:8px; height:8px; border-radius:9999px; background:#22C55E; flex-shrink:0; margin-top:6px; }
             @keyframes nav-ring { 0%, 100% { transform:rotate(0); } 15% { transform:rotate(14deg); } 30% { transform:rotate(-12deg); } 45% { transform:rotate(9deg); } 60% { transform:rotate(-6deg); } 75% { transform:rotate(3deg); } }
             .nav-ring svg { animation:nav-ring .9s ease; transform-origin:50% 3px; }
+            /* Aviso de requisición por revisar: un solo punto en el acento del tema, junto al
+               título de la tarjeta, que parpadea suave (sin mover nada más). */
+            @keyframes nav-blink { 0%, 100% { opacity:1; } 50% { opacity:.25; } }
+            .nav-toast-dot { display:inline-block; width:8px; height:8px; border-radius:9999px; background:var(--nav-accent); margin-right:6px; vertical-align:middle; animation:nav-blink 1.6s ease-in-out infinite; }
+            @media (prefers-reduced-motion: reduce) { .nav-toast-dot { animation:none; } }
             .nav-limpiar { border:none; cursor:pointer; font-size:11px; font-weight:600; color:var(--nav-accent); background:var(--nav-accent-tint); border-radius:8px; padding:4px 10px; flex-shrink:0; }
             /* Tarjetas de aviso: al llegar uno nuevo suena y queda una tarjeta fija bajo la
                barra hasta su X o «Ver». Debajo de los modales (z 9999): no tapan sus botones. */
@@ -1122,7 +1127,7 @@ class Navbar {
             <div class="nav-toast" role="alert" title="${this.escapeText(a.folio)} · ${this.escapeText(a.detalle)}">
                 <span class="nav-toast-ico"><i data-lucide="clipboard-list"></i></span>
                 <div class="nav-toast-body">
-                    <span class="nav-toast-tit">${this.escapeText(a.titulo)} <small>&middot; ${this.haceCuanto(a.minutos, a.dias)}</small></span>
+                    <span class="nav-toast-tit"><span class="nav-toast-dot" aria-hidden="true"></span>${this.escapeText(a.titulo)} <small>&middot; ${this.haceCuanto(a.minutos, a.dias)}</small></span>
                     <span class="nav-toast-txt"><b>${this.escapeText(a.folio)}</b> &middot; ${this.escapeText(a.detalle)}</span>
                 </div>
                 <a class="nav-toast-ver" href="${base}${this.escapeText(a.url)}" data-aviso="${Number(a.id)}">Ver</a>

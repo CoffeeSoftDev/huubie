@@ -235,8 +235,9 @@ class ctrl extends mdl {
             $status
         ]);
 
-        // Nace con sus orígenes, motivos y estados de traspaso: Entradas, Salidas y
-        // Traspasos los buscan por code dentro de la empresa.
+        // Nace con sus orígenes, motivos, estados de traspaso y colores de los estados de la
+        // requisición: Entradas, Salidas, Traspasos y Requisiciones los buscan por code
+        // dentro de la empresa.
         if ($ok) $this->qSeedInventoryCatalogs([$name]);
 
         return [
@@ -1108,11 +1109,13 @@ class ctrl extends mdl {
         $moduleId = (int) ($_POST['module_id'] ?? 0);
         if ($name === '') return ['status' => 400, 'message' => 'El nombre de la sección es obligatorio'];
         if ($moduleId <= 0) return ['status' => 400, 'message' => 'Debes seleccionar un módulo'];
-        if (!$this->qSection([$id])) return ['status' => 404, 'message' => 'Sección no encontrada'];
+        $section = $this->qSection([$id]);
+        if (!$section) return ['status' => 404, 'message' => 'Sección no encontrada'];
 
+        // El código es la llave de los permisos (Permissions::page/can): renombrar no lo cambia.
         $ok = $this->qUpdateSection([
             $name,
-            trim($_POST['code'] ?? '') ?: null,
+            $section['code'],
             trim($_POST['icon'] ?? '') ?: null,
             trim($_POST['route'] ?? '') ?: null,
             $this->intOrNull($_POST['orden'] ?? '') ?? 0,

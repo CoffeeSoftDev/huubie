@@ -47,7 +47,9 @@ class App extends Templates {
                 unidades:      r.unidades      || [],
                 productos:     r.productos     || [],
                 solo_su_sucursal: !!r.solo_su_sucursal,
-                estados_orden: r.estados_orden || []
+                estados_orden: r.estados_orden || [],
+                // {estado: [texto, fondo]} de Catálogo › Estados requisición (colorEstado).
+                estados_color: r.estados_color || {}
             };
         } else {
             this.dataInit = {
@@ -62,7 +64,8 @@ class App extends Templates {
                 categorias:    [],
                 unidades:      [],
                 productos:     [],
-                estados_orden: []
+                estados_orden: [],
+                estados_color: {}
             };
         }
         this.subId = this.dataInit.branch_id;
@@ -80,6 +83,7 @@ class App extends Templates {
     }
 
     render() {
+        this.estiloFilaActiva();
         this.layout();
         this.visorResize({ key: 'ordenes', label: 'Ancho del detalle del pedido' });
         this.filterBar();
@@ -87,7 +91,7 @@ class App extends Templates {
             title:    'Surtir',
             subtitle: 'Surte las requisiciones que le hacen a tu sucursal'
         } : {
-            title:    'Requisiciones',
+            title:    'Requisiciones de compras',
             subtitle: 'Pide materiales al almacén y sigue el estado de tus requisiciones'
         });
         this.renderTabs();
@@ -273,19 +277,19 @@ class App extends Templates {
 
         const leyenda = [
             {
-                color: '#D97706',
+                color: this.colorEstado('En espera', '#D97706'),
                 text:  'En espera: te toca surtirla'
             },
             {
-                color: 'rgb(var(--brand-700, 168 74 51))',
+                color: this.colorEstado('Entregado', 'rgb(var(--brand-700, 168 74 51))'),
                 text:  'Entregado: falta que quien pidió lo confirme'
             },
             {
-                color: '#EA580C',
+                color: this.colorEstado('Surtido parcialmente', '#EA580C'),
                 text:  'Surtido parcialmente: puedes seguir surtiendo'
             },
             {
-                color: '#16A34A',
+                color: this.colorEstado('Confirmado', '#16A34A'),
                 text:  'Confirmado: quien pidió ya lo recibió'
             }
         ];
@@ -483,16 +487,45 @@ class App extends Templates {
 
     selectOrden(folio, id) {
         this.selectedId = folio;
-        $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
+        this.marcarFila();
         if (folio) {
-            const $row = $(`#tb${this.PROJECT_NAME} tbody tr`).filter(function () {
-                return $(this).text().includes(folio);
-            });
-            $row.addClass('row-active');
             ordenes.getOrden(id);
         } else {
             ordenesView.renderDetail(null);
         }
+    }
+
+    // Color (texto) del estado elegido en Catálogo › Estados requisición; sin elegir (o el
+    // del tema), `porDefecto`.
+    colorEstado(estado, porDefecto) {
+        const elegido = (this.dataInit && this.dataInit.estados_color || {})[estado];
+        return (elegido && elegido[0]) || porDefecto;
+    }
+
+    // Marca la fila de la requisición abierta. lsOrdenes la vuelve a marcar al recargar la
+    // lista (y cuando se abre desde la campana, que elige antes de que llegue la tabla).
+    marcarFila() {
+        const folio = this.selectedId;
+        const $rows = $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
+        if (!folio) return;
+
+        $rows.filter(function () {
+            return $(this).text().includes(folio);
+        }).addClass('row-active');
+    }
+
+    // La fila abierta va con el color del tema (el acento, que cambia en Temas); table.css
+    // la pinta con el primario (gris) en los demás módulos.
+    estiloFilaActiva() {
+        if ($('#ordenes-row-active').length) return;
+
+        const tabla = `#tb${this.PROJECT_NAME}`;
+        $('<style>', {
+            id:   'ordenes-row-active',
+            text: `
+                ${tabla} tr.row-active > td { background-color: rgb(var(--brand-600, 192 90 64) / .12) !important; }
+                ${tabla} tr.row-active > td:first-child { box-shadow: inset 4px 0 0 0 rgb(var(--brand-600, 192 90 64)); }`
+        }).appendTo('head');
     }
 }
 
@@ -556,6 +589,7 @@ class Ordenes extends Templates {
 
         // createCoffeeTable3 capitaliza cada palabra del encabezado ("Fecha De Pedido").
         $(`#tb${this.PROJECT_NAME} thead th`).removeClass('capitalize');
+        app.marcarFila();
         app.updateFooterInfo(`Mostrando ${total} ${total !== 1 ? 'pedidos' : 'pedido'}`);
     }
 
@@ -609,7 +643,8 @@ class Ordenes extends Templates {
                 unidades: Number(s.total_units || 0),
                 importe:  Number(s.total_cost  || 0),
                 tipo:     s.exit_type === 'manual' ? 'Salida manual' : 'Salida automática',
-                salida:   s.salida_folio || ''
+                salida:   s.salida_folio || '',
+                nota:     s.note || ''
             })),
             total_products:   parseInt(h.total_products || 0, 10),
             total_units:      Number(h.total_units  || 0),
@@ -917,6 +952,7 @@ class OrdenesView extends Templates {
                 }
             ],
             labels: { nuevo: 'Nueva requisición' },
+            colores: app.dataInit.estados_color,
             onChip: (id) => {
                 $('#fEstado').val(id);
                 app.onChangeFilters();
@@ -941,7 +977,7 @@ class OrdenesView extends Templates {
         const opciones = (sel) => $(sel).find('option').map((i, el) => ({ id: el.value, valor: el.textContent })).get();
 
         this.movil.setView({
-            title:     entregas ? 'Surtir' : 'Mis requisiciones',
+            title:     entregas ? 'Surtir' : 'Requisiciones de compras',
             tab:       app.vista,
             chips:     opciones('#fEstado').map(e => (e.id === '' ? { id: '', valor: 'Todas' } : e)),
             chip:      $('#fEstado').val() || '',
@@ -963,7 +999,7 @@ class OrdenesView extends Templates {
         this.ordenEditando = orden;
         this.ordenMovilForm({
             id:       'ordenMovilForm',
-            title:    'Nueva requisición',
+            title:    'Nueva requisición de compra',
             sucursal: orden ? (orden.branch_name || '') : (actual ? actual.valor : ''),
             json:     app.dataInit.productos || [],
             // A quién pedir: cualquier sucursal; por defecto la del almacén principal.
@@ -1200,6 +1236,12 @@ class OrdenesView extends Templates {
                         <section>
                             ${terminar ? seccion('Pendiente de surtir') : ''}
                             <div id="${modalId}_table"></div>
+                        </section>
+
+                        <!-- Por qué no se surtió: queda en el historial y en el detalle de la requisición -->
+                        <section>
+                            <label for="${modalId}_nota" class="block text-[11px] font-bold uppercase tracking-wider text-gray-600 mb-1.5">¿Por qué no se surtió? <span class="font-normal normal-case tracking-normal text-gray-400">(opcional)</span></label>
+                            <textarea id="${modalId}_nota" rows="2" maxlength="255" placeholder="Ej. No hay existencia en el almacén; se manda mañana" class="w-full px-3 py-2 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 resize-none"></textarea>
                         </section>
 
                         ${orden.note ? `
@@ -1495,6 +1537,7 @@ class OrdenesView extends Templates {
                                 <th class="text-center px-2 ${thH}">Cantidad</th>
                                 <th class="text-right px-3 ${thH}">Cantidad ($)</th>
                                 <th class="text-left px-3 ${thH}">Tipo de salida</th>
+                                <th class="text-left px-3 ${thH}">Por qué no se surtió</th>
                             </tr>
                         </thead>
                         <tbody>${surtidos.map(s => `
@@ -1504,7 +1547,8 @@ class OrdenesView extends Templates {
                                 <td class="px-2 py-2 text-center font-semibold">${fmtNum(s.unidades)}</td>
                                 <td class="px-3 py-2 text-right">${fmtMoney(s.importe)}</td>
                                 <td class="px-3 py-2 whitespace-nowrap uppercase text-[11px] font-semibold"${s.salida ? ` title="Salida ${esc(s.salida)}"` : ''}>${esc(s.tipo)}</td>
-                            </tr>`).join('') || '<tr><td colspan="5" class="px-3 py-4 text-center text-xs text-gray-400">Sin surtimientos registrados</td></tr>'}
+                                <td class="px-3 py-2 ${s.nota ? 'text-gray-700' : 'text-gray-400'}">${esc(s.nota || '—')}</td>
+                            </tr>`).join('') || '<tr><td colspan="6" class="px-3 py-4 text-center text-xs text-gray-400">Sin surtimientos registrados</td></tr>'}
                         </tbody>
                     </table>
                 </div>`);
@@ -1711,7 +1755,8 @@ class OrdenesView extends Templates {
                     items:        JSON.stringify(items),
                     subs:         JSON.stringify(subs),
                     warehouse_id: almacen ? almacen.id : '',
-                    salida:       salida
+                    salida:       salida,
+                    nota_surtido: $(`#${modalId}_nota`).val() || ''
                 }
             }).catch(() => null);
             if (r && r.status === 200) {
@@ -1932,7 +1977,7 @@ class OrdenesView extends Templates {
             prefijo: 'no_',
             closeOnError: false,
             bootbox: {
-                title: 'Nueva requisición',
+                title: 'Nueva requisición de compra',
                 size: 'small',
                 closeButton: true
             },
@@ -2153,7 +2198,7 @@ class OrdenesView extends Templates {
                 },
                 // El solicitante no ve costos ni importes (Compras, que usa el mismo formato, sí).
                 montos:   false,
-                labels:   { title: 'Nueva requisición' },
+                labels:   { title: 'Nueva requisición de compra' },
                 onAdd:    (payload) => this.saveOrdenForm(payload),
                 onUpdate: (payload) => this.saveOrdenForm(payload)
             });
@@ -3118,8 +3163,16 @@ class OrdenesView extends Templates {
                 </table>
             </div>`;
 
+        // Por qué no se surtió (nota de cada surtimiento); con más de uno, cuándo fue.
+        const conNota          = (e.surtidos || []).filter(s => s.nota);
+        const notasSurtidoHtml = conNota.map(s => `
+            <div class="flex items-start justify-between gap-2 text-xs">
+                <span class="text-gray-500 w-28 flex-shrink-0">Por qué no se surtió</span>
+                <span class="text-gray-700 text-right">${esc(s.nota)}${conNota.length > 1 ? ` <span class="text-gray-400">&middot; ${esc(this.fechaHoraCorta(s.fecha))}</span>` : ''}</span>
+            </div>`).join('');
+
         // Bloque de motivo de rechazo
-        const rejectHtml = (status === 'Rechazada' && e.reject_reason)
+        const rejectHtml =(status === 'Rechazada' && e.reject_reason)
             ? `<div class="mx-4 my-2 rounded-lg px-3 py-2.5 flex-shrink-0" style="border-left:3px solid #E02424;background:rgba(224,36,36,.07)">
                    <p class="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style="color:#E02424">Motivo del rechazo</p>
                    <p class="text-xs text-gray-700">${esc(e.reject_reason)}</p>
@@ -3188,6 +3241,7 @@ class OrdenesView extends Templates {
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Solicitado por</span><span class="text-gray-700 text-right">${esc(e.user_name || '-')}</span></div>
                     ${e.approved_user_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Aprobado por</span><span class="text-gray-700 text-right">${esc(e.approved_user_name)}</span></div>` : ''}
                     ${e.approval_note ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Nota de aprobación</span><span class="text-gray-700 text-right">${esc(e.approval_note)}</span></div>` : ''}
+                    ${notasSurtidoHtml}
                     ${recepcionHtml}
                     <div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Nota</span><span class="${e.note ? 'text-gray-700' : 'text-gray-400'} text-right">${esc(e.note || 'Sin nota')}</span></div>
                 </div>
@@ -3344,7 +3398,7 @@ class CalendarioPedidos extends Templates {
 
         $(`#calendarLegend${this.PROJECT_NAME}`).append(
             leyenda.map(estado => $('<span>', { class: 'flex items-center gap-1.5' }).append(
-                $('<span>', { class: 'w-2.5 h-2.5 rounded-full', css: { background: CalendarioPedidos.ESTADOS[estado] } }),
+                $('<span>', { class: 'w-2.5 h-2.5 rounded-full', css: { background: app.colorEstado(estado, CalendarioPedidos.ESTADOS[estado]) } }),
                 $('<span>', { text: estado === 'Rechazada' ? 'Rechazada / Cancelada' : estado })
             )),
             app.modulo === 'requisiciones' ? $('<span>', { class: 'ml-auto text-gray-400', text: 'Clic en un día para programar una requisición' }) : null
@@ -3368,7 +3422,9 @@ class CalendarioPedidos extends Templates {
         }).catch(() => null);
 
         const eventos = (request && request.status === 200 ? request.events : []).map(e => Object.assign(e, {
-            color:      CalendarioPedidos.ESTADOS[e.extendedProps.estado] || '#475569',
+            // Los reabastos (REAB-) conservan su color, como en la tabla (statusBadge).
+            color:      (String(e.extendedProps.folio).startsWith('REAB-') ? null : app.colorEstado(e.extendedProps.estado))
+                        || CalendarioPedidos.ESTADOS[e.extendedProps.estado] || '#475569',
             classNames: [e.extendedProps.status === 'Recibida' ? 'po-done' : '', e.extendedProps.folio === app.selectedId ? 'po-sel' : ''].filter(Boolean)
         }));
 
@@ -3390,7 +3446,8 @@ class CalendarioPedidos extends Templates {
     // -- Render helpers --
 
     // Mismos colores que el badge de estado (statusBadge en ctrl-ordenes), por el estado que
-    // se muestra (estadoRequisicion).
+    // se muestra (estadoRequisicion). Los elegidos en Catálogo › Estados requisición mandan
+    // (app.colorEstado); estos quedan de respaldo.
     static get ESTADOS() {
         return {
             'En espera':            '#D97706',

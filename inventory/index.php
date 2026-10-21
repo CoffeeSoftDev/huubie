@@ -70,7 +70,7 @@
                 </div>
 
                 <label class="remember-check reveal" style="--i:7">
-                    <input type="checkbox" id="rememberMe" checked>
+                    <input type="checkbox" id="rememberMe" name="recordar" value="1" checked>
                     <span>Recordar mi usuario en este equipo</span>
                 </label>
 
@@ -84,7 +84,7 @@
             <div class="card-foot">¿Sin acceso? <b>Pide una cuenta a tu administrador.</b></div>
         </div>
 
-        <p class="login-trust reveal" style="--i:9"><i data-lucide="shield-check"></i>Tu sesión se cierra tras 8 h sin uso</p>
+        <p class="login-trust reveal" style="--i:9"><i data-lucide="shield-check"></i>Tu sesión se cierra tras 8 h sin uso, o 30 días si recuerdas este equipo</p>
     </main>
 
     <p class="login-footer reveal" style="--i:10">&copy; <?php echo date('Y'); ?> CoffeeSoft</p>

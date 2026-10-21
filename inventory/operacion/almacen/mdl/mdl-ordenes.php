@@ -754,17 +754,33 @@ class mdl extends CRUD {
         return $this->_CUD($query, [$array[0], $array[0], $array[1]]);
     }
 
+    // -- Estados de la requisición --
+
+    // Ícono y colores elegidos en Catálogo › Estados requisición (requisition_status, por
+    // empresa). [companies_id]
+    function lsEstadosRequisicion($array) {
+        $query = "
+            SELECT code, name, icon, color_hex, bg_hex
+            FROM {$this->bd}requisition_status
+            WHERE companies_id = ? AND active = 1
+            ORDER BY order_index ASC, id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     // -- Historial de surtimiento --
 
     // Un surtimiento de la requisición. exit_type: 'auto' (salida SI-) o 'manual' (sin
-    // movimiento de almacén). [purchase_order_id, exit_type, inventory_shrinkage_id,
-    // warehouse_id, total_products, total_units, total_cost, user_id, companies_id]
+    // movimiento de almacén); note = por qué no se surtió. [purchase_order_id, exit_type,
+    // inventory_shrinkage_id, warehouse_id, total_products, total_units, total_cost, note,
+    // user_id, companies_id]
     function insertSurtido($array) {
         $query = "
             INSERT INTO {$this->bd}purchase_order_supply
                 (purchase_order_id, exit_type, inventory_shrinkage_id, warehouse_id,
-                 total_products, total_units, total_cost, user_id, companies_id)
-            VALUES (?,?,?,?,?,?,?,?,?)
+                 total_products, total_units, total_cost, note, user_id, companies_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
     }
@@ -779,6 +795,7 @@ class mdl extends CRUD {
                 ps.total_products,
                 ps.total_units,
                 ps.total_cost,
+                ps.note,
                 sh.folio AS salida_folio,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user_name
             FROM {$this->bd}purchase_order_supply ps

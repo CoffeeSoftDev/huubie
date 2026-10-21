@@ -530,6 +530,43 @@ class mdl extends CRUD {
         ]);
     }
 
+    // Estados de la requisición -> requisition_status (por empresa, igual que transfer_status)
+    // Los estados y sus códigos son fijos (los usa ctrl-ordenes): aquí solo se cambian el
+    // ícono y los colores. color_hex/bg_hex NULL = el color del tema.
+
+    function listRequisitionStatus($array) {
+        // [companies_id]
+        $query = "
+            SELECT id, code, name AS valor, icon, color_hex, bg_hex
+            FROM {$this->bd}requisition_status
+            WHERE companies_id = ? AND active = 1
+            ORDER BY order_index ASC, id ASC
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
+    function getRequisitionStatusById($array) {
+        // [id, companies_id]
+        $query = "
+            SELECT id, code, name, icon, color_hex, bg_hex
+            FROM {$this->bd}requisition_status
+            WHERE id = ? AND companies_id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0] ?? null;
+    }
+
+    function updateRequisitionStatusStyle($array) {
+        // [icon, color_hex, bg_hex, id, companies_id]
+        $query = "
+            UPDATE {$this->bd}requisition_status
+            SET icon = ?, color_hex = ?, bg_hex = ?
+            WHERE id = ? AND companies_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
     // Almacenes -> warehouse
 
     // $branchIds: solo los almacenes de esas sucursales (las del usuario); null = todas.

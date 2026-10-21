@@ -749,10 +749,7 @@ class EntradaForm {
                     <span id="${o.id}_cntProductos" class="${cls.badge} bg-blue-50 text-blue-700 border border-blue-200">0</span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="hidden md:flex items-center gap-1 text-[10px] text-gray-400">
-                        <span class="ef-kbd">&darr;</span>${this.esc(o.labels.hintRenglon)}
-                        <span class="ef-kbd ml-1.5">Enter</span>${this.esc(o.labels.hintBuscador)}
-                    </span>
+                    ${this.renderAtajos()}
                     ${typeof o.onOpenIA === 'function' ? `
                     <button id="${o.id}_btnIA" type="button" class="${cls.btnIco}" title="${this.esc(o.labels.iaSubirTit)}">
                         <span>${this.esc(o.labels.iaSubir)}</span>${this.renderIaMark()}
@@ -762,6 +759,16 @@ class EntradaForm {
                     </button>
                 </div>
             </div>`;
+    }
+
+    // Atajos de teclado junto al título de la lista; las capturas que heredan ponen los suyos.
+    renderAtajos() {
+        const o = this.opts;
+        return `
+            <span class="hidden md:flex items-center gap-1 text-[10px] text-gray-400">
+                <span class="ef-kbd">&darr;</span>${this.esc(o.labels.hintRenglon)}
+                <span class="ef-kbd ml-1.5">Enter</span>${this.esc(o.labels.hintBuscador)}
+            </span>`;
     }
 
     // Mismo pie que la captura de Salidas (salida-form): Nota y comprobante a la

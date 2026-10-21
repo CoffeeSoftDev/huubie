@@ -38,6 +38,7 @@ class Catalogo extends Templates {
         inflow.filterBarInflow();
         shrinkage.filterBarShrinkage();
         supplier.filterBarSupplier();
+        requisitionStatus.filterBarRequisitionStatus();
 
         category.lsCategory();
     }
@@ -1707,6 +1708,114 @@ class TransferStatus extends Templates {
     }
 }
 
+// -- Estados de la requisición --
+// Los estados de Requisiciones y Surtir son fijos: aquí solo se eligen su ícono y su color
+// (texto y fondo), con la misma etiqueta y formulario que Motivos de salida. Sin color
+// elegido (Entregado al nacer) va el del tema.
+class RequisitionStatus extends Templates {
+    constructor(link, div_modulo) {
+        super(link, div_modulo);
+        this.PROJECT_NAME = "requisitionStatus";
+    }
+
+    // Sin filtros (no se dan de baja ni se agregan): solo la tabla. createTable igual pide un
+    // idFilterBar (sin él cae en una rama rota de coffeeSoft): va un contenedor vacío, sin
+    // alto, que no deja franja.
+    filterBarRequisitionStatus() {
+        $("#container-requisition-status").html('<div id="filterbar-requisition-status"></div><div id="table-requisition-status" class="flex-1 min-h-0 overflow-auto"></div>');
+    }
+
+    lsRequisitionStatus() {
+        this.createTable({
+            parent: "table-requisition-status",
+            idFilterBar: "filterbar-requisition-status",
+            data: { opc: "lsRequisitionStatus" },
+            coffeesoft: true,
+            conf: { datatable: true, fn_datatable: "catalogStaticTable" },
+            attr: {
+                id: "tbRequisitionStatus",
+                theme: "light",
+                class: "w-full text-sm table-fixed min-w-[640px]",
+                striped: true,
+                title: "Estados de requisición",
+                subtitle: "Ícono y color de cada estado en Requisiciones y Surtir",
+                center: [3]
+            }
+        });
+    }
+
+    async editRequisitionStatus(id) {
+        const request = await useFetch({ url: this._link, data: { opc: "getRequisitionStatus", id: id } });
+        if (!request || request.status !== 200) return;
+
+        // Sin color elegido arranca en el del tema, el mismo con que se ve hoy.
+        const data = Object.assign({}, request.data, {
+            color_hex: request.data.color_hex || temaHex("--brand-700", "#A84A33"),
+            bg_hex:    request.data.bg_hex    || temaHex("--brand-100", "#F7E3DC")
+        });
+
+        this.createModalForm({
+            id: "formRequisitionStatusEdit",
+            data: { opc: "editRequisitionStatus", id: id },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: "Editar estado", size: 'small', closeButton: true },
+            autofill: data,
+            json: this.jsonRequisitionStatus(),
+            success: (response) => {
+                if (response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsRequisitionStatus();
+                } else {
+                    this.alertBox({ type: "error", theme: "light", title: response.message });
+                }
+            }
+        });
+        // El nombre es fijo: solo se ve (y da el texto de la vista previa). El ícono, con el
+        // mismo selector que Motivos de salida.
+        $("#formRequisitionStatusEdit #name").prop("readonly", true).addClass("bg-gray-50 text-gray-500");
+        inflow.mountIconField("formRequisitionStatusEdit", data.icon || "");
+        wireBadgeSimulator("formRequisitionStatusEdit", "rounded-full");
+    }
+
+    jsonRequisitionStatus() {
+        return [
+            {
+                opc: "input",
+                id: "name",
+                lbl: "Estado",
+                tipo: "texto",
+                class: "col-12 mb-3"
+            },
+            {
+                opc: "input",
+                id: "color_hex",
+                lbl: "Color de texto",
+                type: "color",
+                class: "col-12 col-md-5 mb-3"
+            },
+            {
+                opc: "input",
+                id: "bg_hex",
+                lbl: "Color de fondo",
+                type: "color",
+                class: "col-12 col-md-5 mb-3"
+            },
+            badgeWandField(),
+            badgePreviewField()
+        ];
+    }
+}
+
+// HEX de un color del tema (las variables --brand-* guardan "R G B"); `porDefecto` si la
+// página no las trae.
+function temaHex(variable, porDefecto) {
+    const rgb = getComputedStyle(document.documentElement).getPropertyValue(variable).trim().split(/\s+/).map(Number);
+    if (rgb.length !== 3 || rgb.some(isNaN)) return porDefecto;
+
+    return "#" + rgb.map(n => n.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
 // -- Helpers --
 
 // Ancho por columna (las tablas van con table-fixed y al 100% de la tarjeta): todas en
@@ -1739,7 +1848,9 @@ const CATALOG_WIDTHS = {
     "origen":             "30%",
     "motivo":             "50%",
     "lo ve quien envía":  "26%",
-    "lo ve quien recibe": "26%"
+    "lo ve quien recibe": "26%",
+    "estado de requisición": "27%",
+    "cuándo se usa":      "60%"
 };
 
 function catalogColumns(table) {

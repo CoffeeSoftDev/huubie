@@ -1009,6 +1009,77 @@ class ctrl extends mdl {
         ];
     }
 
+    // Estados de la requisición --
+
+    // Qué quiere decir cada estado (Requisiciones y Surtir); el nombre y el código son fijos.
+    const REQUISITION_STATUS_INFO = [
+        'BORRADOR'        => 'Se está armando; aún no se envía',
+        'EN_ESPERA'       => 'Se envió y espera que la surtan',
+        'SURTIDO_PARCIAL' => 'Se entregó una parte; se puede seguir surtiendo',
+        'ENTREGADO'       => 'Se surtió completa; falta que quien pidió la confirme',
+        'CONFIRMADO'      => 'Quien pidió confirmó que la recibió',
+        'RECHAZADA'       => 'Quien surte la rechazó',
+        'CANCELADA'       => 'Se canceló'
+    ];
+
+    // Solo se cambian el ícono y los colores (texto y fondo); la etiqueta, como la de Motivos
+    // de salida. Sin color = el del tema; así nace Entregado. El código solo lo ve el Super
+    // Admin, al final.
+    function lsRequisitionStatus() {
+        $ls    = $this->listRequisitionStatus([$_SESSION['company_id']]);
+        $super = $this->esSuperAdmin();
+        $tema  = ['var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))'];
+        $rows  = [];
+
+        foreach ($ls as $item) {
+            $color = $item['color_hex'] ?: $tema[0];
+            $fondo = $item['color_hex'] ? ($item['bg_hex'] ?: null) : $tema[1];
+
+            $row = [
+                'id'                    => $item['id'],
+                'Estado de requisición' => badge($item['valor'], $color, 100, $fondo, $item['icon'], 'rounded-full'),
+                'Cuándo se usa'         => self::REQUISITION_STATUS_INFO[$item['code']] ?? '-'
+            ];
+
+            if ($super) $row['Código'] = renderCode($item['code']);
+
+            $row['a'] = Permissions::rowActions('administrador', [editButton('requisitionStatus.editRequisitionStatus', $item['id'])]);
+            $rows[]   = $row;
+        }
+
+        return ['row' => $rows, 'ls' => $ls];
+    }
+
+    function getRequisitionStatus() {
+        $row = $this->getRequisitionStatusById([(int) $_POST['id'], $_SESSION['company_id']]);
+
+        if ($row) return ['status' => 200, 'message' => 'Estado encontrado', 'data' => $row];
+        return ['status' => 404, 'message' => 'Estado no encontrado', 'data' => null];
+    }
+
+    function editRequisitionStatus() {
+        $hex = function ($campo) {
+            $v = strtoupper(trim((string) ($_POST[$campo] ?? '')));
+            return preg_match('/^#[0-9A-F]{6}$/', $v) ? $v : null;
+        };
+        $color = $hex('color_hex');
+        $fondo = $hex('bg_hex');
+        if (!$color || !$fondo) return ['status' => 400, 'message' => 'Elige el color de texto y el de fondo'];
+
+        // Nombre de ícono Lucide (clock, circle-check...).
+        $icono = strtolower(trim((string) ($_POST['icon'] ?? '')));
+        if (!preg_match('/^[a-z0-9-]{1,40}$/', $icono)) return ['status' => 400, 'message' => 'Elige el ícono del estado'];
+
+        $id = (int) $_POST['id'];
+        if (!$this->getRequisitionStatusById([$id, $_SESSION['company_id']])) return ['status' => 404, 'message' => 'Estado no encontrado'];
+
+        $ok = $this->updateRequisitionStatusStyle([$icono, $color, $fondo, $id, $_SESSION['company_id']]);
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Estado actualizado correctamente' : 'No se pudo guardar el estado'
+        ];
+    }
+
     // Almacenes --
 
     // Cada quien ve los almacenes de sus sucursales; el dueño (is_owner), los de todas.
@@ -1542,5 +1613,5 @@ function renderStatus($active) {
 // patrón: addX, editX / sortX, statusX (dar de baja) y deleteX.
 $obj = new ctrl();
 $opc = $_POST['opc'];
-$permissions = Permissions::crud(['Category', 'Area', 'Unit', 'Inflow', 'Shrinkage', 'TransferStatus', 'Warehouse', 'Supplier']);
+$permissions = Permissions::crud(['Category', 'Area', 'Unit', 'Inflow', 'Shrinkage', 'TransferStatus', 'RequisitionStatus', 'Warehouse', 'Supplier']);
 echo json_encode(Permissions::guard('administrador', $opc, $permissions) ?: $obj->{$opc}());

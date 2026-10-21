@@ -79,13 +79,25 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    // Orígenes de entrada, motivos de salida y estados de traspaso del inventario son por
-    // empresa (2026-10-18_catalogos-por-empresa.sql). La empresa con ese nombre que aún no
-    // tiene los de una tabla recibe la copia de la plantilla (filas sin companies_id).
+    // Orígenes de entrada, motivos de salida, estados de traspaso y colores de los estados
+    // de la requisición son por empresa (2026-10-18_catalogos-por-empresa.sql y
+    // 2026-10-21_estados-requisicion.sql). La empresa con ese nombre que aún no tiene los de
+    // una tabla recibe la copia de la plantilla (filas sin companies_id).
     // Se puede repetir: la que ya los tiene no recibe otra copia.
     function qSeedInventoryCatalogs($array) {
         // [company name]
         $inv = 'fayxzvov_inventory.';
+
+        $this->_CUD("
+            INSERT INTO {$inv}requisition_status
+                (code, name, order_index, icon, color_hex, bg_hex, active, companies_id)
+            SELECT t.code, t.name, t.order_index, t.icon, t.color_hex, t.bg_hex, t.active, c.id
+            FROM {$inv}requisition_status t
+            CROSS JOIN {$this->bd}companies c
+            WHERE t.companies_id IS NULL
+            AND c.name = ?
+            AND NOT EXISTS (SELECT 1 FROM {$inv}requisition_status x WHERE x.companies_id = c.id)
+        ", $array);
 
         $this->_CUD("
             INSERT INTO {$inv}inflow_origin

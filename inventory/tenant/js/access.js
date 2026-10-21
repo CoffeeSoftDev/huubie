@@ -488,6 +488,9 @@ class Sections extends Templates {
             success: (r) => afterSave(r, () => this.lsSections())
         });
 
+        // Al editar, el código no sigue al nombre: es la llave de los permisos.
+        $('#formSectionEdit #name').removeAttr('onkeyup');
+
         modules.mountIconField('formSectionEdit', request.data ? request.data.icon : '');
     }
 

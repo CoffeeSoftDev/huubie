@@ -12,7 +12,7 @@ const PERIODOS_VIDA = [
 
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
-let  cataloge, category, area, unit, warehouse, inflow, shrinkage, supplier, transferStatus;
+let  cataloge, category, area, unit, warehouse, inflow, shrinkage, supplier, transferStatus, requisitionStatus;
 
 $(async () => {
     const data     = await useFetch({ url: api, data: { opc: "init" } });
@@ -41,6 +41,7 @@ $(async () => {
     shrinkage      = new ShrinkageReason(api_catalogo, "root");
     supplier       = new Supplier(api_catalogo, "root");
     transferStatus = new TransferStatus(api_catalogo, "root");
+    requisitionStatus = new RequisitionStatus(api_catalogo, "root");
 
     cataloge.render();
 
@@ -151,6 +152,13 @@ class Main extends Templates {
                     lucideIcon: "log-out",
                     class: paneClass,
                     onClick: () => shrinkage.lsShrinkage()
+                },
+                {
+                    id: "requisition-status",
+                    tab: "Estados requisición",
+                    lucideIcon: "clipboard-list",
+                    class: paneClass,
+                    onClick: () => requisitionStatus.lsRequisitionStatus()
                 }
             ]
         });

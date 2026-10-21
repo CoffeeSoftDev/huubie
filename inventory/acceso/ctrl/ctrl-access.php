@@ -35,9 +35,11 @@ class Access extends MAccess {
                 return false;
             }
 
-            // Id nuevo en cada login: la cookie sale con sus 8 horas completas y
-            // nadie puede entrar con un id que ya conociera de antes.
+            // Id nuevo en cada login: nadie puede entrar con un id que ya conociera
+            // de antes. La cookie sale con 30 dias si marco "Recordar mi usuario en
+            // este equipo" y con 8 horas si no (conf/_Session.php).
             session_regenerate_id(true);
+            invSessionRecordar(!empty($_POST['recordar']));
 
             $expira = time() + (365 * 24 * 60 * 60);
             setcookie("IDU",        $usr['IDU'],        $expira, "/");

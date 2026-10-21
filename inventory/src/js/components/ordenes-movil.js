@@ -25,6 +25,8 @@ class OrdenesMovil {
             showNew:   true,
             rangeText: '',
             json:      [],
+            // {estado: [texto, fondo]} de Catálogo › Estados requisición; mandan sobre BADGES.
+            colores:   {},
             labels: {
                 todas:      'Todas las sucursales',
                 nuevo:      'Nuevo pedido',
@@ -216,6 +218,8 @@ class OrdenesMovil {
         const o     = this.opts;
         const estado = c.estado || c.status;
         const badge  = OrdenesMovil.BADGES[estado] || OrdenesMovil.BADGES.Borrador;
+        // El color elegido en el Catálogo (los reabastos REAB- conservan el suyo).
+        const color  = String(c.folio || '').startsWith('REAB-') ? null : (o.colores || {})[estado];
         const total = Number(c.total || 0);
 
         const top = $('<div>', { class: 'flex items-center justify-between gap-2 mb-2' }).append(
@@ -224,7 +228,11 @@ class OrdenesMovil {
                 $('<span>', { class: 'text-[14px] font-bold text-gray-800 whitespace-nowrap', text: c.folio }),
                 $('<span>', { class: 'text-[11px] text-gray-400 truncate', text: c.hace || '' })
             ),
-            $('<span>', { class: `flex-shrink-0 px-2 py-[2px] rounded-[6px] text-[11px] font-bold border-[1px] ${badge}`, text: estado })
+            $('<span>', {
+                class: `flex-shrink-0 px-2 py-[2px] rounded-[6px] text-[11px] font-bold border-[1px] ${color ? '' : badge}`,
+                css:   color ? { color: color[0], background: color[1] || 'transparent', borderColor: `${color[0]}4D` } : {},
+                text:  estado
+            })
         );
 
         const mid = $('<div>', { class: 'flex items-center justify-between gap-2' }).append(

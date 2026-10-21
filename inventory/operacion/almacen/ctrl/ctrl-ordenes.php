@@ -20,6 +20,20 @@ class ctrl extends mdl {
     // Hoy según MySQL (fechaHoraPedido); se consulta una vez por petición.
     private $hoyBd = null;
 
+    // Renglones de Catálogo › Estados requisición (estadosCatalogo); una vez por petición.
+    private $estadosCatalogo = null;
+
+    // Código de requisition_status de cada estado que se muestra (estadoRequisicion).
+    const CODIGO_ESTADO = [
+        'Borrador'             => 'BORRADOR',
+        'En espera'            => 'EN_ESPERA',
+        'Surtido parcialmente' => 'SURTIDO_PARCIAL',
+        'Entregado'            => 'ENTREGADO',
+        'Confirmado'           => 'CONFIRMADO',
+        'Rechazada'            => 'RECHAZADA',
+        'Cancelada'            => 'CANCELADA'
+    ];
+
     public function __construct() {
         parent::__construct();
         $_POST += ['companies_id' => 0, 'branch_id' => 0, 'user_id' => 0];
@@ -103,7 +117,10 @@ class ctrl extends mdl {
                 ['id' => 'Entregado',      'valor' => 'Entregado'],
                 ['id' => 'SurtidoParcial', 'valor' => 'Surtido parcialmente'],
                 ['id' => 'Confirmado',     'valor' => 'Confirmado']
-            ]
+            ],
+            // Colores de Catálogo › Estados requisición para la leyenda, el calendario y el
+            // teléfono (los que no vienen usan el color de siempre).
+            'estados_color' => (object) $this->coloresEstado()
         ];
     }
 
@@ -586,9 +603,10 @@ class ctrl extends mdl {
     // `salida` = 'auto' («Sí, descontarlos»): la salida SI- descuenta el almacén elegido al
     // momento, aunque tenga apagado «mueve inventario»; 'manual' («No, lo haré manual»): solo
     // se marca lo entregado y la salida se hace a mano. Las dos quedan en el historial de
-    // surtimiento. Sin reabasto (REAB-): el stock puede quedar en negativo.
+    // surtimiento, con `nota_surtido` (por qué no se surtió). Sin reabasto (REAB-): el
+    // stock puede quedar en negativo.
     function approveOrden() {
-        $_POST += ['items' => '{}', 'subs' => '{}', 'note' => '', 'warehouse_id' => 0, 'salida' => 'auto', 'vista' => ''];
+        $_POST += ['items' => '{}', 'subs' => '{}', 'note' => '', 'nota_surtido' => '', 'warehouse_id' => 0, 'salida' => 'auto', 'vista' => ''];
 
         $salida = (string) $_POST['salida'];
         if (!in_array($salida, ['auto', 'manual'], true)) {
@@ -626,10 +644,11 @@ class ctrl extends mdl {
         $reasonId   = $this->getShrinkageReasonId(['SURTIDO_SUC', $this->companiesId]);
         if ($automatica && !$reasonId) return ['status' => 500, 'message' => 'Falta configurar el motivo de salida (SURTIDO_SUC)'];
 
-        $note = mb_substr(trim($_POST['note']), 0, 255) ?: null;
+        $note        = mb_substr(trim($_POST['note']), 0, 255) ?: null;
+        $notaSurtido = mb_substr(trim($_POST['nota_surtido']), 0, 255) ?: null;
 
         try {
-            return $this->transaction(function () use ($id, $header, $byId, $items, $subs, $warehouseId, $reasonId, $note, $automatica) {
+            return $this->transaction(function () use ($id, $header, $byId, $items, $subs, $warehouseId, $reasonId, $note, $notaSurtido, $automatica) {
                 // La primera vez queda quién la surtió (Aprobado por); terminar de surtir no lo cambia.
                 if ($header['status'] === 'Solicitada' && !$this->updateOrdenStatusApprove(['Aprobada', $this->userId, $note, $id])) {
                     throw new Exception('No se pudo surtir la requisición');
@@ -643,7 +662,7 @@ class ctrl extends mdl {
                     foreach ($this->qGetOrdenDetail([$id]) as $renglon) $byId[(string) $renglon['id']] = $renglon;
                 }
 
-                return $this->surtir($id, $header, $warehouseId, $items, $byId, $reasonId, '', 'Surtido de la requisición ' . $header['folio'], false, $automatica, !$automatica);
+                return $this->surtir($id, $header, $warehouseId, $items, $byId, $reasonId, '', 'Surtido de la requisición ' . $header['folio'], false, $automatica, !$automatica, $notaSurtido);
             });
         } catch (\Throwable $e) {
             return ['status' => 500, 'message' => 'No se pudo surtir la requisición: ' . $e->getMessage()];
@@ -1034,7 +1053,43 @@ class ctrl extends mdl {
         $estado = $this->estadoRequisicion($orden);
         $c      = $map[$estado] ?? ['#475569', '#F1F5F9', 'circle'];
 
+        // La requisición lleva el ícono y los colores del Catálogo; los reabastos (REAB-), los
+        // de siempre. Sin color elegido (el del tema) se queda el de arriba.
+        $elegido = strpos((string) ($orden['folio'] ?? ''), 'REAB-') === 0 ? null : ($this->estadosCatalogo()[$estado] ?? null);
+        if ($elegido && $elegido['color_hex']) $c = [$elegido['color_hex'], $elegido['bg_hex'] ?: $c[1], $c[2]];
+        if ($elegido && $elegido['icon'])      $c[2] = $elegido['icon'];
+
         return "<span class='whitespace-nowrap'>" . badge(strtoupper($estado), $c[0], 100, $c[1], $c[2]) . '</span>';
+    }
+
+    // [estado => renglón (icon, color_hex, bg_hex)] de Catálogo › Estados requisición. Un
+    // estado sin renglón conserva lo de statusBadge. Sin la tabla (migración sin correr)
+    // quedan los de siempre, también dentro de una transacción.
+    private function estadosCatalogo() {
+        if ($this->estadosCatalogo !== null) return $this->estadosCatalogo;
+
+        $porCodigo = [];
+        try {
+            foreach ($this->lsEstadosRequisicion([$this->companiesId]) as $r) $porCodigo[$r['code']] = $r;
+        } catch (\Throwable $e) {
+            $porCodigo = [];
+        }
+
+        $this->estadosCatalogo = [];
+        foreach (self::CODIGO_ESTADO as $estado => $code) {
+            if (isset($porCodigo[$code])) $this->estadosCatalogo[$estado] = $porCodigo[$code];
+        }
+        return $this->estadosCatalogo;
+    }
+
+    // [estado => [texto, fondo]] para la leyenda, el calendario y el teléfono (init). Un estado
+    // sin color elegido (NULL: el del tema) no viene y conserva el de siempre.
+    private function coloresEstado() {
+        $colores = [];
+        foreach ($this->estadosCatalogo() as $estado => $r) {
+            if ($r['color_hex']) $colores[$estado] = [$r['color_hex'], $r['bg_hex'] ?: null];
+        }
+        return $colores;
     }
 
     // Como Origen → Destino en traspasos. El almacén es de quien surte; sin sucursal
@@ -1212,8 +1267,9 @@ class ctrl extends mdl {
     // `$forzarMover` = el almacenista eligió descontar («Sí, descontarlos»): se mueve siempre.
     // `$sinMover` = «No, lo haré manual»: solo se marca lo entregado, como si no moviera.
     // Cada surtimiento queda en el historial (purchase_order_supply: auto si movió, manual si
-    // no) y la requisición vuelve a esperar el «Recibí» de quien pidió.
-    private function surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, $note, $conReabasto = true, $forzarMover = false, $sinMover = false) {
+    // no; `$notaSurtido` = por qué no se surtió) y la requisición vuelve a esperar el
+    // «Recibí» de quien pidió.
+    private function surtir($id, $header, $warehouseId, $items, $byId, $reasonId, $compromiso, $note, $conReabasto = true, $forzarMover = false, $sinMover = false, $notaSurtido = null) {
         if (empty($header['warehouse_id'])) $this->updateOrdenWarehouse([$warehouseId, $id]);
 
         $mueve = !$sinMover && ($forzarMover || !$this->esInterSucursal($header) || $this->qMueveInventario([$warehouseId]));
@@ -1324,7 +1380,7 @@ class ctrl extends mdl {
             $unidades += $linea['qty'];
             $importe  += $linea['qty'] * $linea['cost'];
         }
-        if (!$this->insertSurtido([$id, $mueve ? 'auto' : 'manual', $shrId, $warehouseId, $totProds, $unidades, $importe, $this->userId, $this->companiesId])) {
+        if (!$this->insertSurtido([$id, $mueve ? 'auto' : 'manual', $shrId, $warehouseId, $totProds, $unidades, $importe, $notaSurtido, $this->userId, $this->companiesId])) {
             throw new Exception('No se pudo guardar el historial de surtimiento');
         }
         $this->updateOrdenRecibi([null, $id]);

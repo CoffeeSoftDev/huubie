@@ -1,9 +1,11 @@
-// Captura de un pedido a sucursal con el mismo formato que la de Entradas (EntradaForm):
-// buscador y renglón vacío con ↓. Cambia lo propio del pedido: "Solicitar a" y la fecha en
-// que se necesitan los insumos; sin almacén (lo elige quien surte al aprobar), sin stock,
-// sin costos ni importes (opción `montos: false`; Compras, que hereda de aquí, los muestra
-// de solo lectura), sin formatos, sin alta de productos ni comprobante. Se guarda
-// como borrador o se envía a revisión. Se adapta a tablet y teléfono.
+// Captura de un pedido a sucursal sobre la de Entradas (EntradaForm). Cambia lo propio del
+// pedido: "Solicitar a" y la fecha en que se necesitan los insumos; sin almacén (lo elige
+// quien surte al aprobar), sin stock, sin costos ni importes (opción `montos: false`), sin
+// formatos, sin alta de productos ni comprobante. Con `montos: false` (la requisición) los
+// productos se capturan en una hoja tipo Excel: se escribe en Producto y se elige solo el
+// del Catálogo que más se parece (ver «Hoja» y «Coincidencias»). Compras, que hereda de
+// aquí, conserva el buscador, el renglón vacío y sus costos de solo lectura. Se guarda como
+// borrador o se envía a revisión. Se adapta a tablet y teléfono.
 // Requiere entrada-form.js cargado antes.
 class OrdenForm extends EntradaForm {
 
@@ -11,7 +13,7 @@ class OrdenForm extends EntradaForm {
         const o = options || {};
         super(Object.assign({}, o, {
             id:     o.id || 'ordenFormModal',
-            labels: Object.assign({}, OrdenForm.LABELS, o.labels || {})
+            labels: Object.assign({}, OrdenForm.LABELS, o.montos === false ? OrdenForm.LABELS_HOJA : {}, o.labels || {})
         }));
     }
 
@@ -47,6 +49,27 @@ class OrdenForm extends EntradaForm {
             guardarEdit:   'Guardar cambios',
             confirmEdit:   '¿Deseas guardar los cambios del pedido?',
             confirmEditOk: 'Sí, guardar'
+        };
+    }
+
+    // Lo propio de la hoja de la requisición: atajos de las filas, textos de las celdas y de
+    // lo que se va a la nota.
+    static get LABELS_HOJA() {
+        return {
+            atajoMover:       'moverse',
+            atajoOtraFila:    'otra fila',
+            atajoEnviar:      'enviar',
+            productoPh:       'Escribe el producto...',
+            coincidenPara:    'Coincidencias para',
+            sinCoincidencias: 'Sin coincidencias en el Catálogo',
+            sinCoincidencia:  'Sin coincidencia en el Catálogo: al guardar va en la nota',
+            vaEnNota:         'va en la nota',
+            comoNota:         'Dejarlo como nota',
+            elegir:           'elegir y otra fila',
+            deshacer:         'deshacer',
+            sinCatalogo:      'Sin catálogo',
+            soloNotas:        'Agrega al menos un producto del Catálogo: lo que no tiene coincidencia va en la nota',
+            notaLarga:        'La nota pasa de 255 caracteres: acorta el comentario o lo que va como nota'
         };
     }
 
@@ -90,10 +113,11 @@ class OrdenForm extends EntradaForm {
 
     // -- Render estático --
 
-    // Solo a quién se le pide y para cuándo: el almacén lo elige quien surte al aprobar.
-    // Cada campo ocupa col-3 en computadora y la mitad en tablet (en col-3 el select y la
-    // etiqueta de la fecha no caben), alineados por abajo. El aviso de sucursal propia
-    // solo sale en el formulario previo de "Nuevo pedido" (ordenes.js).
+    // Solo a quién se le pide y para cuándo: el almacén lo elige quien surte al aprobar y
+    // los productos se escriben en la hoja. Cada campo ocupa col-3 en computadora y la
+    // mitad en tablet (en col-3 el select y la etiqueta de la fecha no caben), alineados
+    // por abajo. El aviso de sucursal propia solo sale en el formulario previo de "Nuevo
+    // pedido" (ordenes.js).
     renderConfigRow() {
         const o   = this.opts;
         const cls = this.cls;
@@ -112,31 +136,13 @@ class OrdenForm extends EntradaForm {
                         <label class="${cls.label}">${this.esc(o.labels.fecha)}</label>
                         <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" min="${this.haceUnMes()}" class="${cls.input}">
                     </div>
-                    ${this.conMontos() ? '' : this.renderSearchField()}
                 </div>
             </div>`;
     }
 
-    // En el pedido el buscador va en la misma franja que los filtros (Solicitar a, fecha);
-    // Compras conserva su franja propia.
+    // La requisición no lleva buscador: se escribe en la hoja. Compras conserva su franja.
     renderSearchBar() {
         return this.conMontos() ? super.renderSearchBar() : '';
-    }
-
-    renderSearchField() {
-        const o = this.opts;
-        return `
-            <div id="${o.id}_searchBar" class="sm:col-span-2">
-                <label class="${this.cls.label}">Material</label>
-                <div class="relative">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
-                        <i data-lucide="search" class="w-4 h-4"></i>
-                    </span>
-                    <input id="${o.id}_buscarProducto" type="text" placeholder="${this.esc(o.labels.placeholder)}" autocomplete="off"
-                        class="${this.cls.input} !pl-9 !pr-3">
-                    <div id="${o.id}_catalogoLista" class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>
-                </div>
-            </div>`;
     }
 
     // El pedido no lleva formatos.
@@ -235,29 +241,38 @@ class OrdenForm extends EntradaForm {
     // -- Tabla de productos --
 
     // Sin stock. Ancho fijo para que las columnas no se muevan al teclear una cantidad.
-    // La requisición va como la hoja de papel: Cantidad, Unidad (se elige) y Producto, con
-    // el encabezado en el color del tema (en teléfono sin la miniatura: el nombre ocupa
-    // hasta dos renglones). Las columnas se reparten a lo ancho (Cantidad 16 %, Unidad 22 %,
-    // acciones 10 %) con sus campos al centro, para que no queden pegadas a la izquierda.
+    // La requisición es una hoja de cálculo con el formato de las tablas de CoffeeSoft en
+    // tema claro (createCoffeeTable3): letra de 12 px y borde redondeado, sin sombra ni
+    // filas sombreadas, con el encabezado en el color del tema (terracota); como en Excel,
+    // lleva líneas entre columnas y el número de fila. Columnas: #, Producto (se escribe),
+    // Cantidad y Unidad al centro (la unidad se elige) y Observación. Siempre termina en una
+    // fila vacía para seguir escribiendo (ver «Hoja»). El contenedor recorta con
+    // overflow-clip y no con hidden: así el encabezado sigue fijo al desplazar la lista.
     // Con montos (Compras) hay SKU y costos de solo lectura, que salen del catálogo: en
     // tablet se ocultan SKU, costo sin impuesto e impuesto; en teléfono también el costo y
     // la miniatura: quedan Producto, Cantidad y Subtotal.
     renderProductsTable() {
         const m = this.conMontos();
         if (!m) {
-            const th = 'py-2 text-[10px] uppercase tracking-wider text-white font-bold';
+            const th = 'px-2 py-2 bg-blue-600 text-white font-semibold text-center border-r border-white/20 last:border-r-0';
             return `
-            <table class="w-full border-collapse table-fixed">
-                <thead class="sticky top-0 z-10 bg-blue-600">
-                    <tr>
-                        <th class="text-center px-2 ${th} w-[16%]">Cantidad</th>
-                        <th class="text-center px-2 ${th} w-[22%]">Unidad</th>
-                        <th class="text-left px-3 ${th}">Producto</th>
-                        <th class="w-[10%] px-2 py-2"></th>
-                    </tr>
-                </thead>
-                <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}${this.draft ? this.renderDraftRow() : ''}</tbody>
-            </table>
+            <div class="px-5 pt-[12px]">
+                <div class="rounded-lg border border-gray-200 overflow-clip">
+                    <table class="w-full table-fixed border-separate border-spacing-0 [&>tbody>tr:last-child>td]:border-b-0" style="font-size:12px">
+                        <thead class="sticky top-0 z-10">
+                            <tr>
+                                <th class="${th} w-10">#</th>
+                                <th class="${th}">Producto</th>
+                                <th class="${th} w-[11%]">Cantidad</th>
+                                <th class="${th} w-[14%]">Unidad</th>
+                                <th class="${th} w-[26%]">Observación</th>
+                                <th class="${th} w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}</tbody>
+                    </table>
+                </div>
+            </div>
             <div class="h-64" aria-hidden="true"></div>`;
         }
 
@@ -289,19 +304,20 @@ class OrdenForm extends EntradaForm {
         return this.esc(p.presentacion ? `${p.nombre} - ${p.presentacion}` : p.nombre);
     }
 
-    // Celda de la unidad del producto (columna Unidad del pedido); sin unidad, un guion.
-    // Campo donde se escribe para buscar la unidad o se elige de la lista (flecha),
-    // con la misma lista flotante que el Impuesto de Entradas. La letra va en línea con
-    // !important: compact.css le pone 1rem con !important a todo input[type="text"].
+    // Celda de la unidad (columna Unidad de la hoja): se escribe para buscar la unidad o se
+    // elige de la lista con la flecha, que solo aparece en la celda activa o al pasar el
+    // mouse (como la de Excel), con la misma lista flotante que el Impuesto de Entradas.
+    // Sin catálogo de unidades queda solo el texto de la presentación.
     renderUnidadCell(p, i) {
+        const c        = this.celdaCls();
         const unidades = (this.opts.data && this.opts.data.unidades) || [];
         if (unidades.length) {
             return `
-            <td class="px-2 py-2 align-middle">
-                <div class="relative max-w-[170px] mx-auto" title="Unidad: escribe o elige">
-                    <input type="text" autocomplete="off" value="${this.esc(this.unidadTexto(p.unit_id))}" placeholder="-" data-unit-idx="${i}" style="font-size:13px !important"
-                        class="w-full pl-2.5 pr-7 py-1.5 font-semibold uppercase text-gray-700 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all placeholder:text-gray-300">
-                    <button type="button" tabindex="-1" class="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100" data-unit-toggle="${i}">
+            <td class="${c.td} group/unidad">
+                <div class="relative" title="Unidad: escribe o elige (Alt+↓)">
+                    <input type="text" autocomplete="off" value="${this.esc(this.unidadTexto(p.unit_id))}" data-unit-idx="${i}" style="${c.letra}"
+                        class="${c.campo} pl-6 pr-6 text-center font-semibold uppercase text-gray-700">
+                    <button type="button" tabindex="-1" class="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 opacity-0 group-hover/unidad:opacity-100 group-focus-within/unidad:opacity-100" data-unit-toggle="${i}">
                         <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
@@ -310,8 +326,8 @@ class OrdenForm extends EntradaForm {
 
         const pres = this.presentacionDe(p);
         return `
-            <td class="px-2 py-2 align-middle text-center text-xs font-medium text-gray-600">
-                ${pres ? `<span class="block truncate" title="${this.esc(pres)}">${this.esc(pres)}</span>` : '<span class="text-gray-300">&mdash;</span>'}
+            <td class="${c.td} px-2 text-center text-xs font-medium text-gray-600">
+                ${pres ? `<span class="block truncate" title="${this.esc(pres)}">${this.esc(pres)}</span>` : ''}
             </td>`;
     }
 
@@ -347,29 +363,34 @@ class OrdenForm extends EntradaForm {
         </div>`);
     }
 
+    // Escribir filtra la lista y Alt+↓ la abre, como en Excel; con la lista abierta las
+    // flechas la recorren y Enter elige; Tab (o ←/→ al salir de la celda) también elige y
+    // pasa a la celda de al lado. Sin lista, las teclas son las de la hoja.
     onUnitKeydown(e, idx) {
         const f    = this.float;
         const open = f && f.kind === 'unit' && f.idx === idx;
-        if (e.key === 'ArrowDown' && (e.altKey || !open)) {
+        if (e.key === 'ArrowDown' && e.altKey) {
             e.preventDefault();
             this.openUnitList(idx, false);
             return;
         }
-        if (!open) return;
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const u = f.items[f.active];
-            if (u) this.selectUnit(idx, u.id);
-            return;
+        if (open) {
+            if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey) || this.saleConFlecha(e)) {
+                const u = f.items[f.active];
+                if (u) this.selectUnit(idx, u.id);
+                if (e.key === 'Enter') { e.preventDefault(); return; }
+            } else if (this.onFloatKeydown(e)) return;
         }
-        this.onFloatKeydown(e);
+        this.navegarHoja(e, idx, 'unidad');
     }
 
+    // Elegida a mano, la unidad se queda aunque después se cambie el producto del renglón.
     selectUnit(idx, unitId) {
         const p = this.lote[idx];
         this.closeFloat();
         if (!p) return;
-        p.unit_id = unitId || null;
+        p.unit_id       = unitId || null;
+        p._unidadManual = true;
         this.unitInput(idx).val(this.unidadTexto(p.unit_id));
     }
 
@@ -381,7 +402,8 @@ class OrdenForm extends EntradaForm {
     }
 
     renderProductRow(p, i) {
-        const m     = this.conMontos();
+        if (!this.conMontos()) return this.renderFilaHoja(p, i);
+
         const cant  = Number(p.cantidad || 0);
         const costo = Number(p.costo || 0);
         const tax   = Number(p.tax || 0);
@@ -407,23 +429,6 @@ class OrdenForm extends EntradaForm {
                     </div>
                 </td>`;
 
-        // Requisición: la cantidad, de ancho fijo, al centro de su columna.
-        if (!m) {
-            return `
-            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
-                <td class="px-2 py-2 align-middle">
-                    <div class="max-w-[110px] mx-auto">
-                        <input type="number" min="1" step="0.01" value="${cant}" class="${this.cls.qtyInp}" data-field="cantidad" data-idx="${i}">
-                    </div>
-                </td>
-                ${this.renderUnidadCell(p, i)}
-                ${producto}
-                <td class="px-3 py-2 align-middle">
-                    <div class="flex items-center justify-end gap-1">${this.renderSubtotalExtra(p, i)}${quitar}</div>
-                </td>
-            </tr>`;
-        }
-
         return `
             <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
                 <td class="hidden lg:table-cell px-3 py-2 align-middle">
@@ -441,12 +446,13 @@ class OrdenForm extends EntradaForm {
             </tr>`;
     }
 
-    // Renglón vacío (↓): mismas columnas que la tabla, para que se oculten igual. En la
-    // requisición el buscador cae bajo Producto.
+    // Renglón vacío (↓) de Compras: mismas columnas que la tabla, para que se oculten igual.
+    // La requisición no lo usa: su hoja ya termina en una fila vacía.
     renderDraftRow() {
         const o = this.opts;
-        const m = this.conMontos();
-        const buscador = `
+        return `
+            <tr class="border-b border-gray-100 bg-blue-50/30" data-draft>
+                <td class="hidden lg:table-cell"></td>
                 <td class="px-3 py-2 align-middle">
                     <div class="relative">
                         <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
@@ -454,21 +460,13 @@ class OrdenForm extends EntradaForm {
                         </span>
                         <input id="${o.id}_draftInput" type="text" autocomplete="off" value="${this.esc(this.draft.term)}" placeholder="${this.esc(o.labels.draftPh)}" class="${this.cls.search}">
                     </div>
-                </td>`;
-        return `
-            <tr class="border-b border-gray-100 bg-blue-50/30" data-draft>
-                ${m ? `
-                <td class="hidden lg:table-cell"></td>
-                ${buscador}
+                </td>
                 <td></td>
                 <td class="hidden md:table-cell"></td>
                 <td class="hidden lg:table-cell"></td>
                 <td class="hidden lg:table-cell"></td>
-                <td></td>` : `
                 <td></td>
-                <td></td>
-                ${buscador}`}
-                <td class="px-2 py-2 align-middle ${m ? 'text-center' : 'text-right'}">
+                <td class="px-2 py-2 align-middle text-center">
                     <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-draft-remove title="${this.esc(o.labels.quitarRenglon)}">
                         <i data-lucide="x" class="w-3 h-3"></i>
                     </button>
@@ -476,9 +474,569 @@ class OrdenForm extends EntradaForm {
             </tr>`;
     }
 
-    // Nota por producto para quien surte: ícono al final del subtotal (en el pedido, que no
-    // lleva subtotal, junto al botón de quitar). Con nota va marcado y la muestra al pasar
-    // el mouse; el clic abre la edición (editNota).
+    // -- Hoja --
+
+    // Solo las teclas principales de la hoja, arriba de la tabla (Compras conserva las de
+    // Entradas). Tab, Ctrl+D, Ctrl+Supr y Ctrl+S siguen sirviendo, pero no se anuncian.
+    renderAtajos() {
+        if (this.conMontos()) return super.renderAtajos();
+
+        const l      = this.opts.labels;
+        const atajos = [
+            ['&larr; &uarr; &darr; &rarr;', l.atajoMover],
+            ['Enter',      l.atajoOtraFila],
+            ['Ctrl+Enter', l.atajoEnviar]
+        ];
+        return `
+            <span class="hidden md:flex items-center gap-2.5 whitespace-nowrap text-[10px] text-gray-400">
+                ${atajos.map(([tecla, txt]) => `<span class="inline-flex items-center gap-1"><span class="ef-kbd">${tecla}</span>${this.esc(txt)}</span>`).join('')}
+            </span>`;
+    }
+
+    // Clases de la rejilla: celdas con las líneas grises de las tablas de CoffeeSoft (abajo
+    // y entre columnas) y la activa (con foco) con el marco del color del tema, como la
+    // celda seleccionada de Excel; el campo de adentro no se ve. La letra va en línea con
+    // !important: compact.css pone 1rem y alto automático con !important a todo input, por
+    // eso el alto sale del padding (px-2 py-2, el mismo de las celdas de CoffeeSoft).
+    celdaCls() {
+        return {
+            td:    'p-0 align-middle border-b border-r border-gray-200 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-blue-600',
+            campo: 'block w-full px-2 py-2 leading-[18px] bg-transparent border-0 rounded-none outline-none shadow-none focus:ring-0',
+            letra: 'font-size:12px !important'
+        };
+    }
+
+    // Fila de la hoja: número de fila, Producto, Cantidad, Unidad y Observación, en blanco
+    // (sin filas sombreadas: solo se marca la celda activa). En Producto se escribe libre;
+    // a la derecha de lo escrito va la categoría del producto elegido o, si no coincidió
+    // con nada del Catálogo, el aviso de que se va a la nota. La Observación es una celda
+    // más (se guarda como la nota del renglón). Quitar se ve en toda fila con producto; la
+    // fila vacía del final no lo lleva ni tiene cantidad.
+    renderFilaHoja(p, i) {
+        const o     = this.opts;
+        const c     = this.celdaCls();
+        const vacia = this.esVacia(p);
+        const cant  = p.cantidad === '' || p.cantidad == null ? '' : Number(p.cantidad);
+        return `
+            <tr class="group/fila bg-white" data-idx="${i}">
+                <td class="p-0 text-center text-[11px] text-gray-400 border-b border-r border-gray-200 select-none">${i + 1}</td>
+                <td class="${c.td}">
+                    <div class="flex items-center gap-2 min-w-0 pr-[10px]" data-prod-box="${i}">
+                        <input type="text" autocomplete="off" value="${this.esc(this.valorProducto(p))}" placeholder="${this.esc(o.labels.productoPh)}" data-prod-idx="${i}" style="${c.letra}"
+                            class="${c.campo} flex-1 min-w-0 font-medium text-gray-800 placeholder:text-gray-400">
+                        <span class="flex-shrink-0 max-w-[45%] truncate" data-prod-meta="${i}">${this.metaProducto(p)}</span>
+                    </div>
+                </td>
+                <td class="${c.td}">
+                    <input type="number" min="0" step="0.01" value="${cant}" data-field="cantidad" data-idx="${i}" style="${c.letra}"
+                        class="no-spin ${c.campo} text-center font-semibold text-gray-800">
+                </td>
+                ${this.renderUnidadCell(p, i)}
+                <td class="${c.td}">
+                    <input type="text" autocomplete="off" maxlength="255" value="${this.esc(p.nota || '')}" data-field="nota" data-idx="${i}" style="${c.letra}"
+                        class="${c.campo} text-gray-600">
+                </td>
+                <td class="p-0 text-center border-b border-gray-200">
+                    <button type="button" tabindex="-1" class="${vacia ? 'invisible ' : ''}w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:!text-red-500 hover:bg-red-50 transition-all" data-remove="${i}" data-quitar title="Eliminar">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </td>
+            </tr>`;
+    }
+
+    // Lo que dice la celda Producto: el nombre del Catálogo o lo que se escribió.
+    valorProducto(p) {
+        return p.id ? (p.nombre || '') : (p.texto || '');
+    }
+
+    // A la derecha de la celda Producto, en etiqueta: la categoría (y equivalencia) del
+    // producto elegido o, si no coincidió con nada, «va en la nota» en ámbar.
+    metaProducto(p) {
+        if (p.id) {
+            const datos = [p.categoria, p.equivale].filter(Boolean).map(x => this.esc(x)).join(' &middot; ');
+            return datos ? `<span class="inline-flex max-w-full px-1.5 py-0.5 rounded text-[10px] font-medium leading-none bg-white text-gray-500 ring-1 ring-gray-200 truncate">${datos}</span>` : '';
+        }
+        if (!String(p.texto || '').trim()) return '';
+        const l = this.opts.labels;
+        return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold leading-none bg-amber-50 text-amber-700 ring-1 ring-amber-200" title="${this.esc(l.sinCoincidencia)}"><i data-lucide="sticky-note" class="w-3 h-3"></i>${this.esc(l.vaEnNota)}</span>`;
+    }
+
+    // La fila vacía va en blanco, como en Excel: la cantidad toma 1 al elegir el producto.
+    filaVacia() {
+        return { libre: true, texto: '', cantidad: '', unit_id: null, nota: '' };
+    }
+
+    // Sin producto del Catálogo ni nada escrito en Producto.
+    esVacia(p) {
+        return !p.id && !String(p.texto || '').trim();
+    }
+
+    // Las filas que cuentan: con producto o con algo escrito (en Compras, todo el lote).
+    filasConContenido() {
+        return this.lote.filter(p => !this.esVacia(p));
+    }
+
+    // La hoja siempre termina en una fila vacía donde seguir escribiendo.
+    renderLote() {
+        if (this.conMontos()) { super.renderLote(); return; }
+
+        const ultimo = this.lote[this.lote.length - 1];
+        if (!ultimo || !this.esVacia(ultimo)) this.lote.push(this.filaVacia());
+
+        this.closeFloat();
+        $(`#${this.opts.id}_listaProductos`).html(this.renderProductsTable()).removeClass('flex items-center justify-center');
+        this.syncLimpiar();
+        this.updateTotals();
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Si la última fila ya tiene producto, agrega otra vacía al final sin repintar la hoja
+    // (no se pierde el foco de la celda en que se está escribiendo).
+    asegurarVacia() {
+        const ultimo = this.lote[this.lote.length - 1];
+        if (ultimo && this.esVacia(ultimo)) return;
+
+        this.lote.push(this.filaVacia());
+        const idx    = this.lote.length - 1;
+        const $tbody = $(`#${this.opts.id}_listaProductos tbody`);
+        if (!$tbody.length) return;
+        $tbody.append(this.renderFilaHoja(this.lote[idx], idx));
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Repinta las celdas de una fila en su lugar, sin rehacer los inputs.
+    refrescarFila(i) {
+        const p   = this.lote[i];
+        const $tr = $(`#${this.opts.id}_listaProductos tr[data-idx="${i}"]`);
+        if (!p || !$tr.length) return;
+
+        $tr.find(`input[data-field="cantidad"][data-idx="${i}"]`).val(p.cantidad === '' || p.cantidad == null ? '' : Number(p.cantidad));
+        $tr.find(`input[data-prod-idx="${i}"]`).val(this.valorProducto(p));
+        $tr.find(`[data-prod-meta="${i}"]`).html(this.metaProducto(p));
+        $tr.find(`input[data-unit-idx="${i}"]`).val(this.unidadTexto(p.unit_id));
+        $tr.find(`input[data-field="nota"][data-idx="${i}"]`).val(p.nota || '');
+        $tr.find('[data-quitar]').toggleClass('invisible', this.esVacia(p));
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Los totales cuentan solo las filas con producto del Catálogo.
+    updateTotals() {
+        if (this.conMontos()) { super.updateTotals(); return; }
+
+        const o    = this.opts;
+        const lote = this.lote.filter(p => p.id);
+        const uds  = lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
+        const cats = new Set(lote.map(p => (p.categoria && String(p.categoria).trim()) || 'Sin categoria')).size;
+        $(`#${o.id}_qtyItems`).text(lote.length);
+        $(`#${o.id}_qtyUnits`).text(this.fmtQty(uds));
+        $(`#${o.id}_qtyCats`).text(cats);
+        $(`#${o.id}_cntProductos`).text(lote.length);
+    }
+
+    syncLimpiar() {
+        $(`#${this.opts.id}_btnLimpiarLote`).toggleClass('hidden', !this.filasConContenido().length);
+    }
+
+    // Un producto que llega de fuera (addProducto) entra en la fila vacía del final.
+    addOrIncrement(prod, qty) {
+        if (this.conMontos()) return super.addOrIncrement(prod, qty);
+
+        const ultimo = this.lote.length - 1;
+        const idx    = ultimo >= 0 && this.esVacia(this.lote[ultimo]) ? ultimo : this.lote.length;
+        const fila   = this.filaProducto(this.filaVacia(), prod, prod.nombre);
+        fila.cantidad = Math.max(1, Number(qty) || 1);
+        this.lote.splice(idx, 0, fila);
+        this.renderLote();
+        this.flashRow(idx);
+        return idx;
+    }
+
+    celda(i, campo) {
+        const $lista = $(`#${this.opts.id}_listaProductos`);
+        if (campo === 'unidad')   return $lista.find(`input[data-unit-idx="${i}"]`);
+        if (campo === 'producto') return $lista.find(`input[data-prod-idx="${i}"]`);
+        return $lista.find(`input[data-field="${campo}"][data-idx="${i}"]`);
+    }
+
+    focusCelda(i, campo) {
+        const $inp = this.celda(i, campo);
+        if (!$inp.length) return;
+        this.revealRow($inp.closest('tr')[0]);
+        $inp.trigger('focus').trigger('select');
+    }
+
+    // Columnas de la fila en orden; Unidad solo si hay catálogo de unidades.
+    columnasHoja(i) {
+        return ['producto', 'cantidad'].concat(this.celda(i, 'unidad').length ? ['unidad'] : [], ['nota']);
+    }
+
+    // ← y → salen de la celda cuando ya no hay texto que recorrer hacia ese lado: con todo
+    // seleccionado (recién se entró a la celda) o con el cursor en la orilla. En Cantidad
+    // (número, sin cursor de texto) siempre salen.
+    saleConFlecha(e) {
+        if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.shiftKey || e.altKey) return false;
+
+        const el = e.target;
+        let ini = null, fin = null;
+        try { ini = el.selectionStart; fin = el.selectionEnd; } catch (_) { /* type=number */ }
+        if (ini == null) return true;
+
+        const largo = el.value.length;
+        if (ini === 0 && fin === largo) return true;
+        if (ini !== fin) return false;
+        return e.key === 'ArrowLeft' ? ini === 0 : ini === largo;
+    }
+
+    // Teclas de la hoja, como en Excel: en Producto, Enter o Tab cierran lo escrito y pasan
+    // a la Cantidad de la fila; Tab sigue de Cantidad a Unidad y de Unidad a Observación;
+    // ← y → pasan a la columna de al lado. En las demás celdas Enter lleva a la fila nueva
+    // del final (en Producto); ↑ y ↓ suben o bajan a la misma columna y bajar desde la
+    // última fila con producto crea otra. Con Ctrl van los atajos (atajoHoja).
+    navegarHoja(e, i, campo) {
+        if (e.ctrlKey || e.metaKey) { this.atajoHoja(e, i, campo); return; }
+
+        const tab = e.key === 'Tab' && !e.shiftKey;
+        if (campo === 'producto' && (e.key === 'Enter' || tab)) {
+            this.resolverProducto(i, this.eleccionActiva(i));
+            if (!this.esVacia(this.lote[i])) {
+                e.preventDefault();
+                this.focusCelda(i, 'cantidad');
+                return;
+            }
+            if (tab) return;
+        }
+
+        const cols = this.columnasHoja(i);
+        if (tab && (campo === 'cantidad' || campo === 'unidad')) {
+            e.preventDefault();
+            this.focusCelda(i, cols[cols.indexOf(campo) + 1]);
+        } else if (this.saleConFlecha(e)) {
+            // En la primera o última columna no se mueve, y la celda sigue lista para ← o →.
+            e.preventDefault();
+            const destino = cols[cols.indexOf(campo) + (e.key === 'ArrowRight' ? 1 : -1)];
+            if (!destino) return;
+            this.resolverProducto(i, this.eleccionActiva(i));
+            this.focusCelda(i, destino);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            this.resolverProducto(i, this.eleccionActiva(i));
+            this.asegurarVacia();
+            this.focusCelda(this.lote.length - 1, 'producto');
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.resolverProducto(i, this.eleccionActiva(i));
+            const destino = i + (e.key === 'ArrowDown' ? 1 : -1);
+            if (destino >= 0 && destino < this.lote.length) this.focusCelda(destino, campo);
+        }
+    }
+
+    // Ctrl+Supr quita la fila y Ctrl+D copia la celda de arriba. Ctrl+S y Ctrl+Enter
+    // (guardar) los atiende la captura completa (bindEvents).
+    atajoHoja(e, i, campo) {
+        if (e.key === 'Delete') {
+            e.preventDefault();
+            this.quitarFila(i, campo);
+        } else if (e.key === 'd' || e.key === 'D') {
+            e.preventDefault();
+            this.copiarDeArriba(i, campo);
+        }
+    }
+
+    // La fila vacía del final no se quita: la hoja siempre termina en una. El cursor se
+    // queda en la misma columna de la fila que sube.
+    quitarFila(i, campo) {
+        if (i === this.lote.length - 1 && this.esVacia(this.lote[i])) return;
+
+        this.removeProducto(i);
+        this.focusCelda(Math.min(i, this.lote.length - 1), campo);
+    }
+
+    // Como Ctrl+D de Excel: la Cantidad, Unidad u Observación de la fila de arriba. El
+    // Producto no se copia (sería el mismo material dos veces).
+    copiarDeArriba(i, campo) {
+        const arriba = this.lote[i - 1];
+        if (!arriba || campo === 'producto') return;
+
+        if (campo === 'unidad') {
+            this.selectUnit(i, arriba.unit_id);
+            this.unitInput(i).trigger('select');
+            return;
+        }
+        const valor = campo === 'cantidad' ? (arriba.cantidad ?? '') : (arriba.nota || '');
+        this.celda(i, campo).val(valor).trigger('input').trigger('select');
+    }
+
+    // Lo escrito en Producto que aún no se elige (para guardar sin salir de la celda).
+    resolverPendientes() {
+        this.lote.forEach((p, i) => {
+            if (p && p._pendiente != null) this.resolverProducto(i, this.eleccionActiva(i));
+        });
+    }
+
+    // Cantidad y Observación (input[data-field]) usan las teclas de la hoja; Compras, las de Entradas.
+    onRowKeydown(e) {
+        if (this.conMontos()) { super.onRowKeydown(e); return; }
+
+        const $inp = $(e.currentTarget);
+        this.navegarHoja(e, Number($inp.attr('data-idx')), $inp.attr('data-field'));
+    }
+
+    // -- Coincidencias --
+
+    // Palabras que no sirven para buscar: «aceite de oliva» busca por aceite y oliva.
+    static get VACIAS() {
+        return ['de', 'del', 'la', 'las', 'el', 'los', 'con', 'sin', 'para', 'por', 'y', 'a', 'al', 'en', 'un', 'una'];
+    }
+
+    // Palabras para comparar: sin acentos ni mayúsculas y con números y letras separados
+    // («355ml» = 355 ml, «3lt» = 3 lt).
+    palabras(texto) {
+        return this.normTxt(texto).replace(/(\d)([a-z])/g, '$1 $2').replace(/([a-z])(\d)/g, '$1 $2').split(' ').filter(Boolean);
+    }
+
+    // Las que buscan: sin «de», «la»... y de al menos dos letras (los números siempre).
+    palabrasClave(texto) {
+        return this.palabras(texto).filter(w => !OrdenForm.VACIAS.includes(w) && (w.length >= 2 || /^\d+$/.test(w)));
+    }
+
+    nombreDe(p) {
+        return this.palabras(p.nombre);
+    }
+
+    // SKU, sobrenombres (Descripción del Catálogo), equivalencia y presentación.
+    apodosDe(p) {
+        return this.palabras(`${p.sku || ''} ${p.descripcion || ''} ${p.equivale || ''} ${p.presentacion || ''}`);
+    }
+
+    // La palabra tal cual o su plural (3), lo escrito completo al inicio de una palabra del
+    // producto (2: «acei» → aceite) o la palabra completa con un error de dedo (1:
+    // «mermlada» → mermelada; ver toleranciaHoja). Se compara contra la palabra entera y no
+    // contra su inicio: así «bimbo» no encuentra BIMBUEÑUELOS.
+    puntosPalabra(w, palabras) {
+        const plural = (a, b) => a === `${b}s` || a === `${b}es`;
+        if (palabras.some(x => x === w || plural(w, x) || plural(x, w))) return 3;
+        if (w.length >= 3 && !/^\d+$/.test(w) && palabras.some(x => x.startsWith(w))) return 2;
+
+        const tope = this.toleranciaHoja(w);
+        if (tope && palabras.some(x => !/^\d+$/.test(x) && Math.abs(x.length - w.length) <= tope && this.distanciaLetras(w, x) <= tope)) return 1;
+        return 0;
+    }
+
+    // Errores de dedo que se le perdonan a una palabra según su largo: ninguno con menos de
+    // 4 letras ni en los números, uno hasta 7 letras y dos desde 8.
+    toleranciaHoja(w) {
+        if (w.length < 4 || /^\d+$/.test(w)) return 0;
+        return w.length >= 8 ? 2 : 1;
+    }
+
+    // Letras que hay que cambiar, poner, quitar o voltear (dos juntas) para pasar de una
+    // palabra a otra: «mermlada» → mermelada = 1, «ligth» → light = 1.
+    distanciaLetras(a, b) {
+        const d = [];
+        for (let i = 0; i <= a.length; i++) d[i] = [i];
+        for (let j = 0; j <= b.length; j++) d[0][j] = j;
+
+        for (let i = 1; i <= a.length; i++) {
+            for (let j = 1; j <= b.length; j++) {
+                d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+                if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+            }
+        }
+        return d[a.length][b.length];
+    }
+
+    // Los productos del Catálogo que encuentran más palabras de lo escrito (los que
+    // encuentran menos no salen: con «pan blanco chico integral» solo queda PAN BLANCO
+    // CHICO). Entre ellos va primero el de palabras tal cual en el nombre (en el nombre
+    // valen el doble que en los sobrenombres), luego el que más se parece completo (más de
+    // su nombre escrito) y luego el nombre más corto. El SKU exacto gana siempre.
+    coincidencias(texto) {
+        const buscadas = this.palabrasClave(texto);
+        if (!buscadas.length) return [];
+
+        const sku   = this.normTxt(texto);
+        const filas = (this.opts.json || []).map((p) => {
+            if (p.sku && this.normTxt(p.sku) === sku) return { p, n: Infinity, puntos: Infinity, cubre: 1 };
+
+            const nombre = this.nombreDe(p);
+            const apodos = this.apodosDe(p);
+            const usadas = new Set();
+            let n = 0, puntos = 0;
+            buscadas.forEach((w) => {
+                const enNombre = this.puntosPalabra(w, nombre);
+                const enApodo  = this.puntosPalabra(w, apodos);
+                if (!enNombre && !enApodo) return;
+                n++;
+                puntos += Math.max(enNombre * 2, enApodo);
+                nombre.forEach((x, k) => { if (this.puntosPalabra(w, [x])) usadas.add(k); });
+            });
+            return { p, n, puntos, cubre: nombre.length ? usadas.size / nombre.length : 0 };
+        }).filter(x => x.n > 0);
+
+        if (!filas.length) return [];
+        const mejor = Math.max(...filas.map(x => x.n));
+        return filas
+            .filter(x => x.n === mejor)
+            .sort((a, b) => b.puntos - a.puntos || b.cubre - a.cubre || String(a.p.nombre).length - String(b.p.nombre).length)
+            .slice(0, 8)
+            .map(x => x.p);
+    }
+
+    // Lo escrito que no está en el producto elegido: con «aceite patrona» y ACEITE queda
+    // «patrona», que se guarda como descripción en la Observación de la fila.
+    restoDe(texto, prod) {
+        const conocidas = this.nombreDe(prod).concat(this.apodosDe(prod));
+        return String(texto || '').split(/\s+/)
+            .filter((w) => {
+                const partes = this.palabras(w);
+                return partes.length && !partes.some(x => this.puntosPalabra(x, conocidas) > 0);
+            })
+            .join(' ');
+    }
+
+    // Lista bajo la celda Producto: queda marcado el que más se parece y es el que se elige
+    // solo; al final, dejar lo escrito como nota. Sin coincidencias solo queda la nota.
+    renderCoincidencias(items, texto) {
+        const l    = this.opts.labels;
+        const head = items.length
+            ? `<div class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50/50 border-b border-gray-200 text-[11px] font-semibold text-gray-600 truncate"><i data-lucide="search" class="w-3 h-3 text-blue-600 flex-shrink-0"></i>${this.esc(l.coincidenPara)} "${this.esc(texto)}"</div>`
+            : `<div class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50/70 border-b border-gray-200 text-[11px] font-semibold text-amber-700"><i data-lucide="search-x" class="w-3 h-3 flex-shrink-0"></i>${this.esc(l.sinCoincidencias)}</div>`;
+        const sep  = '<span class="text-gray-300"> &middot; </span>';
+        const filas = items.map((p, k) => `
+            <div class="ef-cat-item px-3 py-2 cursor-pointer hover:bg-blue-50/60 border-b border-gray-100 transition-all" data-pick-idx="${k}">
+                <div class="flex items-center gap-2 min-w-0"><p class="text-xs font-semibold text-gray-800 truncate">${this.esc(p.nombre)}</p>${this.renderPresentacion(p)}</div>
+                <p class="text-[10px] text-gray-500 truncate mt-0.5">${[p.sku ? `<span class="font-mono">${this.esc(p.sku)}</span>` : '', p.categoria ? this.esc(p.categoria) : ''].filter(Boolean).join(sep)}</p>
+            </div>`).join('');
+        const nota = `
+            <div class="ef-cat-item flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-amber-50 text-[11px] font-semibold text-amber-700 transition-all" data-pick-idx="${items.length}">
+                <i data-lucide="sticky-note" class="w-3.5 h-3.5 flex-shrink-0"></i><span class="truncate">${this.esc(l.comoNota)}: "${this.esc(texto)}"</span>
+            </div>`;
+        const pie = `
+            <div class="flex items-center gap-1 px-3 py-1.5 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-400">
+                <span class="ef-kbd">&crarr;</span>${this.esc(l.elegir)}<span class="ef-kbd ml-1.5">esc</span>${this.esc(l.deshacer)}
+            </div>`;
+        return `${head}<div class="max-h-[260px] overflow-y-auto cs-scroll ef-scroll">${filas}${nota}</div>${pie}`;
+    }
+
+    // Mientras se escribe en Producto se buscan las coincidencias; la que más se parece
+    // queda marcada y es la que se elige al salir de la celda.
+    escribirProducto(i, valor) {
+        const p = this.lote[i];
+        if (!p) return;
+        p._pendiente = String(valor);
+
+        const texto = p._pendiente.trim();
+        if (!texto) { this.closeFloat(); return; }
+
+        const items = this.coincidencias(texto);
+        this.openFloat({
+            kind:     'prod',
+            idx:      i,
+            items:    items.concat([{ nota: true }]),
+            active:   0,
+            $anchor:  $(`#${this.opts.id}_listaProductos [data-prod-box="${i}"]`),
+            minWidth: 420
+        }, this.renderCoincidencias(items, texto));
+    }
+
+    // Lo marcado en la lista de la fila: un producto, 'nota' o null (la que más se parece).
+    eleccionActiva(i) {
+        const f = this.float;
+        if (!f || f.kind !== 'prod' || f.idx !== i) return null;
+        const item = f.items[f.active];
+        return item && item.nota ? 'nota' : (item || null);
+    }
+
+    // Escape deshace lo escrito; con la lista abierta las flechas la recorren. Lo demás,
+    // las teclas de la hoja.
+    onProductoKeydown(e, i) {
+        const p = this.lote[i];
+        if (e.key === 'Escape' && p && p._pendiente != null) {
+            e.preventDefault();
+            e.stopPropagation();
+            p._pendiente = null;
+            this.closeFloat();
+            $(e.currentTarget).val(this.valorProducto(p)).trigger('select');
+            return;
+        }
+
+        const f = this.float;
+        if (f && f.kind === 'prod' && f.idx === i && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+            this.onFloatKeydown(e);
+            return;
+        }
+        this.navegarHoja(e, i, 'producto');
+    }
+
+    // Cierra lo escrito en Producto: con coincidencia la fila toma ese producto del Catálogo
+    // (lo que sobra de lo escrito va a la Observación); sin coincidencia, o si se eligió
+    // dejarlo como nota, queda el texto y al guardar se va a la nota de la requisición.
+    // Borrar el texto deja la fila vacía.
+    resolverProducto(i, eleccion = null) {
+        const p = this.lote[i];
+        if (!p || p._pendiente == null) return;
+
+        const texto = p._pendiente.trim();
+        if (this.float && this.float.kind === 'prod' && this.float.idx === i) this.closeFloat();
+
+        let fila;
+        if (!texto || eleccion === 'nota') {
+            fila = this.filaLibre(p, texto);
+        } else {
+            const prod = eleccion || this.coincidencias(texto)[0];
+            fila = prod ? this.filaProducto(p, prod, texto) : this.filaLibre(p, texto);
+        }
+
+        this.lote[i] = fila;
+        this.refrescarFila(i);
+        this.asegurarVacia();
+        this.updateTotals();
+        this.syncLimpiar();
+    }
+
+    // La unidad es la del producto salvo que se haya elegido a mano. La Observación toma lo
+    // que sobró de lo escrito mientras nadie la haya cambiado.
+    filaProducto(p, prod, texto) {
+        const resto = this.restoDe(texto, prod);
+        const auto  = !p.nota || p.nota === p._notaAuto;
+        return Object.assign({}, prod, this.seedTax(prod), {
+            cantidad:      p.cantidad || 1,
+            unit_id:       p._unidadManual ? p.unit_id : (prod.unit_id || p.unit_id || null),
+            _unidadManual: p._unidadManual,
+            nota:          auto ? resto : p.nota,
+            _notaAuto:     auto ? resto : (p._notaAuto || '')
+        });
+    }
+
+    // Sin producto: se queda lo escrito, la cantidad (1 si hay texto y no tenía), la unidad
+    // elegida a mano y la observación propia (la que puso el producto anterior se quita).
+    filaLibre(p, texto) {
+        const auto = !p.nota || p.nota === p._notaAuto;
+        return {
+            libre:         true,
+            texto:         texto,
+            cantidad:      texto ? (p.cantidad || 1) : p.cantidad,
+            unit_id:       p._unidadManual || !p.id ? p.unit_id : null,
+            _unidadManual: p._unidadManual,
+            nota:          auto ? '' : p.nota
+        };
+    }
+
+    // Lo que no tuvo coincidencia en el Catálogo va a la nota de la requisición, en una
+    // línea: «Sin catálogo: 2 PZA aceite patrona; 1 cloro azul (urgente)».
+    notaConLibres(nota, libres) {
+        if (!libres.length) return nota;
+
+        const lineas = libres.map((p) => {
+            const obs = String(p.nota || '').trim();
+            return [this.fmtQty(p.cantidad || 1), this.unidadTexto(p.unit_id), p.texto.trim()].filter(Boolean).join(' ') + (obs ? ` (${obs})` : '');
+        });
+        return [String(nota || '').trim(), `${this.opts.labels.sinCatalogo}: ${lineas.join('; ')}`].filter(Boolean).join('\n');
+    }
+
+    // Nota por producto para quien surte en Compras: ícono al final del subtotal. Con nota va
+    // marcado y la muestra al pasar el mouse; el clic abre la edición (editNota). En la
+    // requisición la nota es la celda Observación de la hoja.
     renderSubtotalExtra(p, i) {
         const nota = String(p.nota || '');
         return `
@@ -591,11 +1149,10 @@ class OrdenForm extends EntradaForm {
         // guarda como borrador o se sale (requestClose).
         this.wrap.off('click', '[data-modal-close]').on('click', '[data-modal-close]', () => this.requestClose());
 
-        // Unidad: al escribir se filtra la lista, el clic o la flecha la abren; al salir del
+        // Unidad: al escribir se filtra la lista y la flecha (o Alt+↓) la abre; al salir del
         // campo sin elegir vuelve a decir la unidad que tenía.
         const unitIdx = (e) => Number($(e.currentTarget).attr('data-unit-idx'));
         this.wrap.on('input',   'input[data-unit-idx]', (e) => this.openUnitList(unitIdx(e), true));
-        this.wrap.on('click',   'input[data-unit-idx]', (e) => this.openUnitList(unitIdx(e), false));
         this.wrap.on('keydown', 'input[data-unit-idx]', (e) => this.onUnitKeydown(e, unitIdx(e)));
         this.wrap.on('focusout', 'input[data-unit-idx]', (e) => {
             const p = this.lote[unitIdx(e)];
@@ -609,14 +1166,58 @@ class OrdenForm extends EntradaForm {
         });
 
         this.wrap.on('click', '[data-nota-idx]', (e) => this.editNota(Number($(e.currentTarget).attr('data-nota-idx'))));
+
+        // Producto de la hoja: al escribir salen las coincidencias y al salir de la celda se
+        // elige la marcada. La lista no le quita el foco a la celda (mousedown en #_float),
+        // así el clic en una opción sí cuenta.
+        const prodIdx = (e) => Number($(e.currentTarget).attr('data-prod-idx'));
+        this.wrap.on('input',    'input[data-prod-idx]', (e) => this.escribirProducto(prodIdx(e), e.currentTarget.value));
+        this.wrap.on('keydown',  'input[data-prod-idx]', (e) => this.onProductoKeydown(e, prodIdx(e)));
+        this.wrap.on('focusout', 'input[data-prod-idx]', (e) => this.resolverProducto(prodIdx(e), this.eleccionActiva(prodIdx(e))));
+
+        // Como en Excel, al entrar a Producto, Cantidad o Unidad se selecciona lo que dice y
+        // escribir lo reemplaza; el mouseup del mismo clic no deshace la selección.
+        const seleccionables = 'input[data-prod-idx], input[data-field="cantidad"], input[data-unit-idx]';
+        this.wrap.on('focusin', seleccionables, (e) => {
+            if (this.conMontos()) return;
+            e.currentTarget.select();
+            this.focoCelda = { el: e.currentTarget, t: Date.now() };
+        });
+        this.wrap.on('mouseup', seleccionables, (e) => {
+            const f = this.focoCelda;
+            if (f && f.el === e.currentTarget && Date.now() - f.t < 400) e.preventDefault();
+        });
+        this.wrap.on('click', '[data-pick-idx]', (e) => {
+            const f = this.float;
+            if (!f || f.kind !== 'prod') return;
+            const item = f.items[Number($(e.currentTarget).attr('data-pick-idx'))];
+            this.resolverProducto(f.idx, item && item.nota ? 'nota' : item);
+        });
+
+        // Desde cualquier parte de la captura: Ctrl+S guarda como borrador y Ctrl+Enter
+        // guarda y envía a revisión, con la confirmación de siempre (al editar, los dos
+        // guardan los cambios). Con una alerta encima no hacen nada.
+        $(document).off(`keydown.hoja_${id}`).on(`keydown.hoja_${id}`, (e) => {
+            if (this.conMontos() || this.wrap.hasClass('hidden') || !(e.ctrlKey || e.metaKey)) return;
+
+            const guardar = e.key === 's' || e.key === 'S';
+            if (!guardar && e.key !== 'Enter') return;
+            e.preventDefault();
+            if (e.repeat || this.hasOverlay()) return;
+
+            this.resolverPendientes();
+            this.doRegistrar(!guardar);
+        });
     }
 
     // -- Abrir --
 
-    // EntradaForm topa la fecha en hoy; el pedido puede ser para más adelante.
+    // EntradaForm topa la fecha en hoy; el pedido puede ser para más adelante. La hoja
+    // arranca en el Producto de su fila vacía.
     open() {
         super.open();
         $(`#${this.opts.id}_inpFecha`).removeAttr('max');
+        if (!this.conMontos()) setTimeout(() => this.focusCelda(this.lote.length - 1, 'producto'), 60);
     }
 
     // `status` = el del pedido: si es Borrador, al cerrar se ofrece guardarlo en ese mismo.
@@ -626,13 +1227,14 @@ class OrdenForm extends EntradaForm {
 
         this.editing.borrador = orden.status === 'Borrador';
         this.huellaInicial    = this.huella();
+        if (!this.conMontos()) setTimeout(() => this.focusCelda(this.lote.length - 1, 'producto'), 60);
     }
 
-    // Lo capturado en texto: dice si el borrador abierto cambió.
+    // Lo capturado en texto: dice si el borrador abierto cambió (la fila vacía no cuenta).
     huella() {
         const id = this.opts.id;
         return JSON.stringify([
-            this.lote.map(p => [p.id, Number(p.cantidad || 0), Number(p.costo || 0), p.nota || '']),
+            this.filasConContenido().map(p => [p.id || '', p.texto || '', Number(p.cantidad || 0), Number(p.costo || 0), p.unit_id || '', p.nota || '']),
             $(`#${id}_selSucursal`).val(),
             $(`#${id}_inpFecha`).val(),
             $(`#${id}_inpNota`).val()
@@ -662,7 +1264,7 @@ class OrdenForm extends EntradaForm {
     // ese mismo (y si no cambió, solo se cierra); otro pedido abierto, o sin
     // materiales, se queda con el comportamiento de siempre.
     requestClose() {
-        if (!this.lote.length) { super.requestClose(); return; }
+        if (!this.filasConContenido().length) { this.closeModal(); return; }
 
         if (this.editing) {
             if (!this.editing.borrador)               { super.requestClose(); return; }
@@ -696,10 +1298,15 @@ class OrdenForm extends EntradaForm {
         if (payload) this.confirmRegistrar(payload);
     }
 
-    // Revisa lo capturado y arma lo que se manda; null (con aviso) si algo falta.
+    // Revisa lo capturado y arma lo que se manda; null (con aviso) si algo falta. Se mandan
+    // las filas con producto del Catálogo; lo escrito sin coincidencia va en la nota (que
+    // en la base es de 255 caracteres) y necesita al menos un producto que acompañe.
     buildPayload(submit) {
-        if (!this.lote.length) { this.notify('Agrega al menos un material al pedido'); return null; }
-        const o = this.opts;
+        const o      = this.opts;
+        const filas  = this.filasConContenido();
+        const lote   = filas.filter(p => p.id);
+        const libres = filas.filter(p => !p.id);
+        if (!lote.length) { this.notify(libres.length ? o.labels.soloNotas : 'Agrega al menos un material al pedido'); return null; }
 
         const fecha = $(`#${o.id}_inpFecha`).val();
         if (!fecha) {
@@ -711,13 +1318,19 @@ class OrdenForm extends EntradaForm {
             return null;
         }
 
+        const nota = this.notaConLibres($(`#${o.id}_inpNota`).val() || '', libres);
+        if (libres.length && nota.length > 255) {
+            this.notify(o.labels.notaLarga);
+            return null;
+        }
+
         return {
             id:                    this.editing ? this.editing.id : null,
             submit:                !this.editing && submit,
             destination_branch_id: $(`#${o.id}_selSucursal`).val() || '',
             date_order:            fecha,
-            note:                  $(`#${o.id}_inpNota`).val() || '',
-            productos: this.lote.map(p => ({
+            note:                  nota,
+            productos: lote.map(p => ({
                 product_id:        p.id,
                 quantity:          Number(p.cantidad || 0),
                 cost:              Number(p.costo || 0),
