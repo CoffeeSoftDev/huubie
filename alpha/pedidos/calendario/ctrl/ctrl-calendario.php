@@ -79,6 +79,9 @@ class ctrlCalendario extends MCalendarioPedidos{
             
             $event[] = [
                 'id'       => $key['id'],
+                // El front filtra y cuenta por estado y por estado de entrega con estos ids.
+                'idStatus'    => $key['idStatus'],
+                'isDelivered' => $key['is_delivered'],
                 'title'    => $key['name_client'],
                 'start' => date('Y-m-d', strtotime($key['date_order'])),
                 'hour'    =>$key['time_order'],

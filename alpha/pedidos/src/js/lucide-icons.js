@@ -37,6 +37,7 @@
         'store'      : '<path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/>',
         'chevron-down': '<path d="m6 9 6 6 6-6"/>',
         'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+        'chevron-left': '<path d="m15 18-6-6 6-6"/>',
         'power'      : '<path d="M12 2v10"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>',
         'log-out'    : '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
         'search'     : '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',

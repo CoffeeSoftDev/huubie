@@ -3591,7 +3591,7 @@ class App extends Templates {
 
         return `
             <div class="bg-[#29374A] rounded-xl p-[16px] flex items-start gap-[16px]">
-                <div class="w-14 h-14 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
+                <div class="w-20 h-20 sm:w-28 sm:h-28 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
                     ${this.renderProductImage(product)}
                 </div>
 
@@ -3695,21 +3695,35 @@ class App extends Templates {
         const total = images.length;
         const first = images[0];
 
+        // Miniaturas en una sola fila del ancho de la foto grande: caben 3 de 48px. Si
+        // hay mas, la fila se desliza con los chevrons (scrollThumbs). El p-[2px] deja
+        // ver el anillo de la elegida, que el overflow recortaria.
         const thumbs = total > 1 ? `
-            <div class="flex flex-wrap gap-1.5 mt-2">
-                ${images.map((img, i) => `
-                <button type="button" onclick="app.selectCustomImage(this, ${product.id})"
-                    class="relative w-6 h-6 rounded overflow-hidden bg-gray-700 ${i === 0 ? 'ring-2 ring-blue-500' : ''}">
-                    <img src="${fileUrl(img.path)}" alt="${img.original_name || 'Imagen'}"
-                         onerror="app.productImageError(this)"
-                         class="object-cover w-full h-full pointer-events-none">
-                    <span class="absolute bottom-0 right-0 px-0.5 rounded-tl bg-black/70 text-[8px] font-bold leading-tight text-white">${i + 1}</span>
-                </button>`).join('')}
+            <div class="relative w-40 mt-2">
+                <div data-thumbs onscroll="app.updateThumbChevrons(this)"
+                     class="flex gap-1.5 p-[2px] overflow-x-auto snap-x snap-mandatory scroll-px-[2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    ${images.map((img, i) => `
+                    <button type="button" onclick="app.selectCustomImage(this, ${product.id})"
+                        class="relative w-12 h-12 shrink-0 snap-start rounded overflow-hidden bg-gray-700 ${i === 0 ? 'ring-2 ring-blue-500' : ''}">
+                        <img src="${fileUrl(img.path)}" alt="${img.original_name || 'Imagen'}"
+                             onerror="app.productImageError(this)"
+                             class="object-cover w-full h-full pointer-events-none">
+                        <span class="absolute bottom-0 right-0 px-1 rounded-tl bg-black/70 text-[10px] font-bold leading-tight text-white">${i + 1}</span>
+                    </button>`).join('')}
+                </div>
+                <button type="button" data-thumb-prev onclick="app.scrollThumbs(this, -1)" title="Anteriores"
+                    class="hidden absolute left-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow flex items-center justify-center">
+                    ${lucideIcon('chevron-left', 'w-4 h-4')}
+                </button>
+                <button type="button" data-thumb-next onclick="app.scrollThumbs(this, 1)" title="Siguientes"
+                    class="${total > 3 ? '' : 'hidden'} absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow flex items-center justify-center">
+                    ${lucideIcon('chevron-right', 'w-4 h-4')}
+                </button>
             </div>` : '';
 
         return `
             <div class="relative w-40 h-40 rounded-lg overflow-hidden bg-gray-700 cursor-pointer"
-                 onclick="app.previewImage(this.querySelector('img').src, this.querySelector('img').alt)">
+                 onclick="app.previewCustomGallery(this)">
                 <img id="customMain${product.id}" src="${fileUrl(first.path)}" alt="${first.original_name || 'Imagen'}"
                      onerror="app.productImageError(this)"
                      class="object-cover w-full h-full pointer-events-none">
@@ -3734,6 +3748,31 @@ class App extends Templates {
         $thumb.addClass('ring-2 ring-blue-500').siblings().removeClass('ring-2 ring-blue-500');
     }
 
+    // Desliza la fila de miniaturas lo que se ve de ella; el snap la deja alineada
+    // al inicio de una miniatura.
+    scrollThumbs(btn, dir) {
+        const track = $(btn).siblings('[data-thumbs]')[0];
+        track.scrollBy({ left: dir * track.clientWidth, behavior: 'smooth' });
+    }
+
+    // Cada chevron se ve solo si quedan miniaturas de su lado.
+    updateThumbChevrons(track) {
+        const $wrap = $(track).parent();
+
+        $wrap.find('[data-thumb-prev]').toggleClass('hidden', track.scrollLeft <= 0);
+        $wrap.find('[data-thumb-next]').toggleClass('hidden', track.scrollLeft + track.clientWidth >= track.scrollWidth - 1);
+    }
+
+    // La foto grande abre el carrusel con todas las fotos de referencia, empezando por
+    // la que se ve. Los src salen de las miniaturas (ya corregidos por fileUrlFallback);
+    // las que no cargaron ni en produccion se quedaron sin <img> y se saltan.
+    previewCustomGallery(box) {
+        const main  = $(box).find('img')[0];
+        const fotos = $(box).next().find('[data-thumbs] img').map((i, img) => ({ src: img.src, name: img.alt })).get();
+
+        this.previewImage(main.src, main.alt, fotos);
+    }
+
     renderProductImage(product) {
         const hasImage = product.image && product.image.trim() !== '';
 
@@ -3750,7 +3789,7 @@ class App extends Templates {
         } else {
             return `
                 <div class="w-full h-full flex items-center justify-center">
-                    ${lucideIcon('cake', 'w-6 h-6 text-white')}
+                    ${lucideIcon('cake', 'w-10 h-10 text-white')}
                 </div>
             `;
         }
@@ -3804,30 +3843,58 @@ class App extends Templates {
     }
 
     // Se abre desde el detalle del pedido, cuyo overlay (createCoffeeModalForm) va en
-    // z-index 100000: la vista previa tiene que quedar por encima.
-    previewImage(imageUrl, imageName = 'Imagen') {
+    // z-index 100000: la vista previa tiene que quedar por encima. Con varias fotos
+    // (fotos = [{ src, name }]) es un carrusel: flechas a los lados, ← → del teclado
+    // y contador; al llegar al final da la vuelta.
+    previewImage(imageUrl, imageName = 'Imagen', fotos = []) {
+        const lista  = fotos.length ? fotos : [{ src: imageUrl, name: imageName }];
+        const varias = lista.length > 1;
+        let actual   = Math.max(0, lista.findIndex(f => f.src === imageUrl));
+
+        const flecha = (paso, icono, lado) => varias ? `
+            <button type="button" data-preview-step="${paso}"
+                    class="absolute ${lado} top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center">
+                ${lucideIcon(icono, 'w-6 h-6')}
+            </button>` : '';
+
         const modal = $(`
-            <div id="imagePreviewModal" class="fixed inset-0 z-[100001] flex items-center justify-center bg-black/80" onclick="if(event.target === this) $(this).remove()">
+            <div id="imagePreviewModal" class="fixed inset-0 z-[100001] flex items-center justify-center bg-black/80">
                 <div class="relative max-w-4xl max-h-[90vh] p-2">
-                    <button onclick="$('#imagePreviewModal').remove()"
+                    <button type="button" data-preview-close
                             class="absolute -top-2 -right-2 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xl font-bold z-10 shadow-lg">
                         ×
                     </button>
-                    <img src="${imageUrl}" alt="${imageName}"
-                         class="max-w-full max-h-[85vh] rounded-lg shadow-2xl object-contain">
-                    <p class="text-white text-center mt-3 text-sm">${imageName}</p>
+                    <img class="max-w-full max-h-[85vh] rounded-lg shadow-2xl object-contain">
+                    <p class="text-white text-center mt-3 text-sm"></p>
                 </div>
+                ${flecha(-1, 'chevron-left', 'left-4')}
+                ${flecha(1, 'chevron-right', 'right-4')}
             </div>
         `);
 
-        $('body').append(modal);
+        const mostrar = (i) => {
+            actual = (i + lista.length) % lista.length;
+            modal.find('img').attr({ src: lista[actual].src, alt: lista[actual].name });
+            modal.find('p').text(varias ? `${lista[actual].name} · ${actual + 1} / ${lista.length}` : lista[actual].name);
+        };
 
-        $(document).on('keydown.imagePreview', function(e) {
-            if (e.key === 'Escape') {
-                $('#imagePreviewModal').remove();
-                $(document).off('keydown.imagePreview');
-            }
+        const cerrar = () => {
+            modal.remove();
+            $(document).off('keydown.imagePreview');
+        };
+
+        modal.on('click', (e) => { if (e.target === modal[0]) cerrar(); });
+        modal.find('[data-preview-close]').on('click', cerrar);
+        modal.find('[data-preview-step]').on('click', (e) => mostrar(actual + Number(e.currentTarget.dataset.previewStep)));
+
+        $(document).off('keydown.imagePreview').on('keydown.imagePreview', (e) => {
+            if (e.key === 'Escape') cerrar();
+            if (varias && e.key === 'ArrowLeft') mostrar(actual - 1);
+            if (varias && e.key === 'ArrowRight') mostrar(actual + 1);
         });
+
+        mostrar(actual);
+        $('body').append(modal);
     }
 
 

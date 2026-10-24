@@ -31,11 +31,11 @@ class App extends Templates {
         this.isProduction = this.rolId == 8;
         // Administrador (1), SuperAdmin (5) y supervisores (6, 7) ven el ok de lo que
         // Produccion ya elaboro, sin poder palomear.
-        this.seesProduced = [1, 5, 6, 7].includes(Number(this.rolId));
-        this.canOperate = !this.isSupervisor && !this.isProduction;
-        this.canDiscount = this.rolId != 7 && !this.isProduction;
+        this.seesProduced   = [1, 5, 6, 7].includes(Number(this.rolId));
+        this.canOperate     = !this.isSupervisor && !this.isProduction;
+        this.canDiscount    = this.rolId != 7 && !this.isProduction;
         this.subsidiaryName = data.subsidiaryName || '';
-        this.subsidiaryId = data.subsidiaryId || null;
+        this.subsidiaryId   = data.subsidiaryId || null;
         this.render();
 
         // Sincronizar con la navbar de pedidos: al elegir sucursal en su pill filtra la
@@ -69,14 +69,26 @@ class App extends Templates {
             }
         });
 
+        // Casillas de color de la leyenda: filtran por estado. Produccion no ve
+        // cotizaciones ni cancelados.
+        const estados = [
+            { id: 1, label: 'Cotización', color: '#6E95C0' },
+            { id: 3, label: 'Pagado',     color: '#0E9E6E' },
+            { id: 2, label: 'Pendiente',  color: '#FE6F00' },
+            { id: 4, label: 'Cancelado',  color: '#E60001' }
+        ].filter(e => !this.isProduction || [2, 3].includes(e.id));
+
         $(`#container${this.PROJECT_NAME}`).html(`
             <!-- Barra de filtros:
                  - Celular: un control por renglon.
-                 - Tablet (md a lg): "Volver a Lista" (solo icono) y los 4 filtros en UNA
+                 - Tablet (md a lg): "Volver a Lista" (solo icono) y los 3 filtros en UNA
                    linea; controles de 44px para el dedo; etiquetas cortas en tablet vertical.
                  - PC (xl): filtros y leyenda en la MISMA linea; la leyenda queda fija a la
                    derecha y buscador y sucursal se encogen. Hasta 1700px van las etiquetas
                    cortas para que todo quepa en laptops; desde 1700px, las completas.
+                 - Los estados se filtran con las casillas de color de la leyenda. Cada
+                   casilla y cada opcion de entrega lleva cuantos pedidos hay en el periodo
+                   que se ve (updateFilterCounts).
                  Padding y gap en valores arbitrarios: bootstrap trae .px-N/.gap-N con
                  !important y anula las variantes md:/xl: de Tailwind. -->
             <div class="p-2 flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-[12px] min-[1700px]:gap-[16px]">
@@ -88,57 +100,8 @@ class App extends Templates {
                     <i class="icon-reply"></i><small class="md:hidden min-[1700px]:inline">Volver a Lista</small>
                 </button>`}
 
-                <div class="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_auto_minmax(0,1fr)] gap-[12px]">
+                <div class="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-[12px]">
                     <div id="searchFilter" class="flex items-center gap-2 min-w-0 h-11 xl:h-10 bg-[#1a2332] border-[1px] border-[#374151] px-[16px] md:px-[4px] xl:px-[6px] min-[1700px]:px-[16px] py-2 rounded-md text-gray-400"></div>
-
-                    <div class="relative">
-                        <button id="statusFilterBtn" type="button"
-                            class="flex items-center gap-1 lg:gap-1.5 xl:gap-2 w-full h-11 xl:h-10 bg-[#1a2332] hover:bg-[#2B3D4F] border-[1px] border-[#374151] text-gray-400 px-[10px] lg:px-[12px] min-[1700px]:px-[16px] py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors">
-                            <i class="icon-filter"></i>
-                            <span class="md:hidden lg:inline xl:hidden min-[1700px]:inline">Filtrar Estados</span>
-                            <span class="hidden md:inline lg:hidden xl:inline min-[1700px]:hidden">Estados</span>
-                            <span id="statusCount" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">${this.isProduction ? 2 : 4}</span>
-                            <i class="icon-down-open text-xs ml-auto"></i>
-                        </button>
-
-                        <div id="statusDropdown" class="hidden absolute top-full left-0 mt-2 bg-[#2B3D4F] border border-gray-700 rounded-lg shadow-lg z-50 min-w-[240px]">
-                            <div class="p-3 border-b border-gray-700">
-                                <p class="text-xs font-semibold text-white uppercase">Seleccionar Estados</p>
-                            </div>
-                            <div class="p-2 space-y-1">
-                                ${this.isProduction ? '' : `
-                                <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
-                                    <input type="checkbox" value="1" class="status-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
-                                    <i class="icon-blank text-lg" style="color: #6E95C0"></i>
-                                    <span class="text-sm text-white">Cotización</span>
-                                </label>`}
-                                <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
-                                    <input type="checkbox" value="2" class="status-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
-                                    <i class="icon-blank text-lg" style="color: #FE6F00"></i>
-                                    <span class="text-sm text-white">Pendiente</span>
-                                </label>
-                                <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
-                                    <input type="checkbox" value="3" class="status-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
-                                    <i class="icon-blank text-lg" style="color: #0E9E6E"></i>
-                                    <span class="text-sm text-white">Pagado</span>
-                                </label>
-                                ${this.isProduction ? '' : `
-                                <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
-                                    <input type="checkbox" value="4" class="status-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
-                                    <i class="icon-blank text-lg" style="color: #E60001"></i>
-                                    <span class="text-sm text-white">Cancelado</span>
-                                </label>`}
-                            </div>
-                            <div class="p-2 border-t border-gray-700 flex gap-2">
-                                <button id="selectAllBtn" class="flex-1 text-xs px-3 py-1.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 border border-green-500/30 rounded transition-colors">
-                                    Todos
-                                </button>
-                                <button id="clearAllBtn" class="flex-1 text-xs px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 rounded transition-colors">
-                                    Ninguno
-                                </button>
-                            </div>
-                        </div>
-                    </div>
 
                     <div class="relative">
                         <button id="deliveryFilterBtn" type="button"
@@ -146,7 +109,7 @@ class App extends Templates {
                             <i class="icon-truck"></i>
                             <span class="md:hidden lg:inline xl:hidden min-[1700px]:inline">Estado Entrega</span>
                             <span class="hidden md:inline lg:hidden xl:inline min-[1700px]:hidden">Entrega</span>
-                            <span id="deliveryCount" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">3</span>
+                            <span id="deliveryCount" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">0</span>
                             <i class="icon-down-open text-xs ml-auto"></i>
                         </button>
 
@@ -156,28 +119,29 @@ class App extends Templates {
                             </div>
                             <div class="p-2 space-y-1">
                                 <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                                    <input type="checkbox" id="deliveryAll" class="w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500" checked>
+                                    <span class="flex-1 text-sm font-semibold text-white">Todos los tipos de entrega</span>
+                                    <span id="deliveryAllCount" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+                                </label>
+                                <div class="border-t border-gray-700"></div>
+                                <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
                                     <input type="checkbox" value="1" class="delivery-checkbox w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500" checked>
                                     <i class="icon-ok text-lg text-green-400"></i>
-                                    <span class="text-sm text-white">Entregado</span>
+                                    <span class="flex-1 text-sm text-white">Entregado</span>
+                                    <span data-count-delivery="1" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">0</span>
                                 </label>
                                 <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
                                     <input type="checkbox" value="2" class="delivery-checkbox w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500" checked>
                                     <span class="text-lg">🎂</span>
-                                    <span class="text-sm text-white">Para Producir</span>
+                                    <span class="flex-1 text-sm text-white">Para Producir</span>
+                                    <span data-count-delivery="2" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">0</span>
                                 </label>
                                 <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
                                     <input type="checkbox" value="0" class="delivery-checkbox w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500" checked>
                                     <i class="icon-cancel text-lg text-orange-400"></i>
-                                    <span class="text-sm text-white">No Entregado</span>
+                                    <span class="flex-1 text-sm text-white">No Entregado</span>
+                                    <span data-count-delivery="0" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">0</span>
                                 </label>
-                            </div>
-                            <div class="p-2 border-t border-gray-700 flex gap-2">
-                                <button id="selectAllDeliveryBtn" class="flex-1 text-xs px-3 py-1.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 border border-green-500/30 rounded transition-colors">
-                                    Todos
-                                </button>
-                                <button id="clearAllDeliveryBtn" class="flex-1 text-xs px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 rounded transition-colors">
-                                    Ninguno
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -192,20 +156,15 @@ class App extends Templates {
                 </div>
 
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm xl:gap-x-2 xl:text-xs min-[1700px]:gap-x-3 min-[1700px]:text-sm xl:flex-nowrap xl:whitespace-nowrap xl:shrink-0">
-                        ${this.isProduction ? '' : `
-                        <p class="flex items-center">
-                            <i class="icon-blank text-lg" style="color: #6E95C0"></i> Cotización
-                        </p>`}
-                        <p class="flex items-center">
-                            <i class="icon-blank text-lg" style="color: #0E9E6E"></i> Pagado
-                        </p>
-                        <p class="flex items-center">
-                            <i class="icon-blank text-lg" style="color: #FE6F00"></i> Pendiente
-                        </p>
-                        ${this.isProduction ? '' : `
-                        <p class="flex items-center">
-                            <i class="icon-blank text-lg" style="color: #E60001"></i> Cancelado
-                        </p>`}
+                        ${estados.map(e => `
+                        <label class="flex items-center gap-1.5 cursor-pointer select-none mb-0" title="Mostrar u ocultar ${e.label}">
+                            <input type="checkbox" value="${e.id}" class="status-checkbox peer sr-only" checked>
+                            <span class="w-4 h-4 rounded-[3px] border-[2px] border-[${e.color}] peer-checked:bg-[${e.color}] text-transparent peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-white/60 flex items-center justify-center shrink-0">
+                                ${lucideIcon('check', 'w-3 h-3')}
+                            </span>
+                            ${e.label}
+                            <span data-count-status="${e.id}" class="bg-gray-700 text-white text-[10px] leading-4 px-1.5 rounded-full">0</span>
+                        </label>`).join('')}
                         ${this.isProduction ? `
                         <span class="w-px h-5 bg-gray-600 mx-1"></span>
                         <p class="flex items-center gap-1.5">
@@ -280,88 +239,79 @@ class App extends Templates {
     }
 
     initStatusFilter() {
-        const $statusBtn = $('#statusFilterBtn');
-        const $statusDropdown = $('#statusDropdown');
-        const $statusCheckboxes = $('.status-checkbox');
-        const $statusCount = $('#statusCount');
-
-        const $deliveryBtn = $('#deliveryFilterBtn');
-        const $deliveryDropdown = $('#deliveryDropdown');
+        const $deliveryDropdown   = $('#deliveryDropdown');
+        const $deliveryAll        = $('#deliveryAll');
         const $deliveryCheckboxes = $('.delivery-checkbox');
-        const $deliveryCount = $('#deliveryCount');
 
-        $statusBtn.on('click', (e) => {
-            e.stopPropagation();
-            $statusDropdown.toggleClass('hidden');
-            $deliveryDropdown.addClass('hidden');
-        });
-
-        $deliveryBtn.on('click', (e) => {
+        $('#deliveryFilterBtn').on('click', (e) => {
             e.stopPropagation();
             $deliveryDropdown.toggleClass('hidden');
-            $statusDropdown.addClass('hidden');
         });
 
         $(document).on('click', (e) => {
-            if (!$(e.target).closest('#statusFilterBtn, #statusDropdown, #deliveryFilterBtn, #deliveryDropdown').length) {
-                $statusDropdown.addClass('hidden');
+            if (!$(e.target).closest('#deliveryFilterBtn, #deliveryDropdown').length) {
                 $deliveryDropdown.addClass('hidden');
             }
         });
 
-        const updateStatusCount = () => {
-            const count = $statusCheckboxes.filter(':checked').length;
-            $statusCount.text(count);
-        };
+        // Casillas de color de la leyenda.
+        $('.status-checkbox').on('change', () => this.renderCalendar());
 
-        const updateDeliveryCount = () => {
-            const count = $deliveryCheckboxes.filter(':checked').length;
-            $deliveryCount.text(count);
-        };
-
-        $statusCheckboxes.on('change', () => {
-            updateStatusCount();
-            this.createCalendar();
+        // "Todos los tipos de entrega" marca o desmarca las tres opciones; queda a
+        // medias (indeterminate) si solo hay algunas marcadas.
+        $deliveryAll.on('change', () => {
+            $deliveryCheckboxes.prop('checked', $deliveryAll.prop('checked'));
+            this.renderCalendar();
         });
 
         $deliveryCheckboxes.on('change', () => {
-            updateDeliveryCount();
-            this.createCalendar();
-        });
+            const marcadas = $deliveryCheckboxes.filter(':checked').length;
 
-        $('#selectAllBtn').on('click', () => {
-            $statusCheckboxes.prop('checked', true);
-            updateStatusCount();
-            this.createCalendar();
-        });
+            $deliveryAll.prop({
+                checked:       marcadas === $deliveryCheckboxes.length,
+                indeterminate: marcadas > 0 && marcadas < $deliveryCheckboxes.length
+            });
 
-        $('#clearAllBtn').on('click', () => {
-            $statusCheckboxes.prop('checked', false);
-            updateStatusCount();
-            this.createCalendar();
-        });
-
-        $('#selectAllDeliveryBtn').on('click', () => {
-            $deliveryCheckboxes.prop('checked', true);
-            updateDeliveryCount();
-            this.createCalendar();
-        });
-
-        $('#clearAllDeliveryBtn').on('click', () => {
-            $deliveryCheckboxes.prop('checked', false);
-            updateDeliveryCount();
-            this.createCalendar();
+            this.renderCalendar();
         });
     }
 
+    // Trae todos los pedidos de la sucursal; estado y entrega se filtran aqui
+    // (renderCalendar) para poder contar cuantos hay de cada uno.
     async createCalendar() {
-        const selectedStatuses = $('.status-checkbox:checked').map(function () {
-            return $(this).val();
-        }).get();
+        // Cualquier usuario filtra por la sucursal elegida en el selector
+        // ("0" = todas las sucursales).
+        const subsidiaryId = $('#subsidiaryFilter').val() || 0;
 
-        const selectedDelivery = $('.delivery-checkbox:checked').map(function () {
-            return $(this).val();
-        }).get();
+        let data = await useFetch({
+            url: this._calendarLink,
+            data: {
+                opc: 'getCalendar',
+                statuses: '1,2,3,4',
+                delivery: '0,1,2',
+                subsidiaries_id: subsidiaryId
+            }
+        });
+
+        // Produccion: el pedido producido se pinta en tono apagado. baseColor guarda
+        // el color del estado para volver a el al quitar la palomita.
+        if (this.isProduction) {
+            data = data.map(ev => ({
+                ...ev,
+                baseColor: ev.color,
+                color: ev.produced == 1 ? this.producedColor(ev.color) : ev.color
+            }));
+        }
+
+        this.orders = data;
+        this.renderCalendar();
+    }
+
+    renderCalendar() {
+        const selectedStatuses = this.checkedValues('.status-checkbox');
+        const selectedDelivery = this.checkedValues('.delivery-checkbox');
+
+        this.updateFilterCounts();
 
         if (selectedStatuses.length === 0 || selectedDelivery.length === 0) {
             if (this.calendar) {
@@ -371,20 +321,6 @@ class App extends Templates {
             $('#calendarFull').html('<div class="flex items-center justify-center h-full text-gray-400"><p>Selecciona al menos un estado y un tipo de entrega para ver los pedidos</p></div>');
             return;
         }
-
-        // Cualquier usuario filtra por la sucursal elegida en el selector
-        // ("0" = todas las sucursales).
-        const subsidiaryId = $('#subsidiaryFilter').val() || 0;
-
-        let data = await useFetch({
-            url: this._calendarLink,
-            data: {
-                opc: 'getCalendar',
-                statuses: selectedStatuses.join(','),
-                delivery: selectedDelivery.join(','),
-                subsidiaries_id: subsidiaryId
-            }
-        });
 
         const calendarEl = document.getElementById('calendarFull');
 
@@ -397,15 +333,9 @@ class App extends Templates {
             this.calendar.destroy();
         }
 
-        // Produccion: el pedido producido se pinta en tono apagado. baseColor guarda
-        // el color del estado para volver a el al quitar la palomita.
-        if (this.isProduction) {
-            data = data.map(ev => ({
-                ...ev,
-                baseColor: ev.color,
-                color: ev.produced == 1 ? this.producedColor(ev.color) : ev.color
-            }));
-        }
+        const events = (this.orders || []).filter(ev =>
+            selectedStatuses.includes(String(ev.idStatus)) && selectedDelivery.includes(String(ev.isDelivered))
+        );
 
         // Los filtros vuelven a crear el calendario: arranca en el mes y la vista que
         // el usuario estaba viendo (los guarda datesSet), no en el mes actual.
@@ -433,7 +363,7 @@ class App extends Templates {
             contentHeight: 'auto',
             dayMaxEvents: 3,
             moreLinkClick: 'popover',
-            events: data,
+            events: events,
             // Las coincidencias del buscador van primero en su dia: con dayMaxEvents
             // quedarian escondidas dentro del "+N".
             eventOrder: '-searchMatch,start,-duration,allDay,title',
@@ -447,13 +377,46 @@ class App extends Templates {
             datesSet: (info) => {
                 this.currentView = info.view.type;
                 this.currentDate = info.view.calendar.getDate();
+                this.currentRange = {
+                    start: moment(info.view.currentStart).format('YYYY-MM-DD'),
+                    end:   moment(info.view.currentEnd).format('YYYY-MM-DD')
+                };
                 this.customizeCalendarAppearance();
+                this.updateFilterCounts();
             }
         });
 
         this.calendar.render();
         this.applyCalendarStyles();
         this.highlightSearch();
+    }
+
+    // -- Conteo de filtros --
+
+    // Cuantos pedidos hay en el periodo que se ve (mes, semana o dia; currentRange de
+    // datesSet, fin exclusivo). El conteo de cada estado respeta la entrega elegida y
+    // el de cada entrega respeta los estados elegidos: los numeros cuadran con lo que
+    // muestra el calendario.
+    updateFilterCounts() {
+        if (!this.currentRange) return;
+
+        const { start, end } = this.currentRange;
+        const statuses = this.checkedValues('.status-checkbox');
+        const delivery = this.checkedValues('.delivery-checkbox');
+        const periodo  = (this.orders || []).filter(ev => ev.start >= start && ev.start < end);
+
+        const porEstado  = (id) => periodo.filter(ev => ev.idStatus == id && delivery.includes(String(ev.isDelivered))).length;
+        const porEntrega = (id) => periodo.filter(ev => ev.isDelivered == id && statuses.includes(String(ev.idStatus))).length;
+
+        $('[data-count-status]').each((i, el) => $(el).text(porEstado(el.dataset.countStatus)));
+        $('[data-count-delivery]').each((i, el) => $(el).text(porEntrega(el.dataset.countDelivery)));
+
+        $('#deliveryAllCount').text(periodo.filter(ev => statuses.includes(String(ev.idStatus))).length);
+        $('#deliveryCount').text(delivery.reduce((total, id) => total + porEntrega(id), 0));
+    }
+
+    checkedValues(selector) {
+        return $(`${selector}:checked`).map((i, el) => el.value).get();
     }
 
     // Marca cada pedido como coincidencia (1) o no (0) del texto buscado; sin texto
@@ -1503,7 +1466,7 @@ class App extends Templates {
         const hasPhotos = Array.isArray(product.images) && product.images.length > 0;
         const photo = hasPhotos
             ? `<div class="sm:w-[190px] shrink-0">${this.customGallery(product)}</div>`
-            : `<div class="w-14 h-14 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
+            : `<div class="w-20 h-20 sm:w-28 sm:h-28 rounded-lg overflow-hidden bg-[#D8B4E2] flex-shrink-0">
                     ${this.renderProductImage(product)}
                 </div>`;
 
@@ -1611,21 +1574,35 @@ class App extends Templates {
         const total = images.length;
         const first = images[0];
 
+        // Miniaturas en una sola fila del ancho de la foto grande: caben 3 de 48px. Si
+        // hay mas, la fila se desliza con los chevrons (scrollThumbs). El p-[2px] deja
+        // ver el anillo de la elegida, que el overflow recortaria.
         const thumbs = total > 1 ? `
-            <div class="flex flex-wrap gap-1.5 mt-2">
-                ${images.map((img, i) => `
-                <button type="button" onclick="app.selectCustomImage(this, ${product.id})"
-                    class="relative w-6 h-6 rounded overflow-hidden bg-gray-700 ${i === 0 ? 'ring-2 ring-blue-500' : ''}">
-                    <img src="${fileUrl(img.path)}" alt="${img.original_name || 'Imagen'}"
-                         onerror="app.productImageError(this)"
-                         class="object-cover w-full h-full pointer-events-none">
-                    <span class="absolute bottom-0 right-0 px-0.5 rounded-tl bg-black/70 text-[8px] font-bold leading-tight text-white">${i + 1}</span>
-                </button>`).join('')}
+            <div class="relative w-40 mt-2">
+                <div data-thumbs onscroll="app.updateThumbChevrons(this)"
+                     class="flex gap-1.5 p-[2px] overflow-x-auto snap-x snap-mandatory scroll-px-[2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    ${images.map((img, i) => `
+                    <button type="button" onclick="app.selectCustomImage(this, ${product.id})"
+                        class="relative w-12 h-12 shrink-0 snap-start rounded overflow-hidden bg-gray-700 ${i === 0 ? 'ring-2 ring-blue-500' : ''}">
+                        <img src="${fileUrl(img.path)}" alt="${img.original_name || 'Imagen'}"
+                             onerror="app.productImageError(this)"
+                             class="object-cover w-full h-full pointer-events-none">
+                        <span class="absolute bottom-0 right-0 px-1 rounded-tl bg-black/70 text-[10px] font-bold leading-tight text-white">${i + 1}</span>
+                    </button>`).join('')}
+                </div>
+                <button type="button" data-thumb-prev onclick="app.scrollThumbs(this, -1)" title="Anteriores"
+                    class="hidden absolute left-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow flex items-center justify-center">
+                    ${lucideIcon('chevron-left', 'w-4 h-4')}
+                </button>
+                <button type="button" data-thumb-next onclick="app.scrollThumbs(this, 1)" title="Siguientes"
+                    class="${total > 3 ? '' : 'hidden'} absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow flex items-center justify-center">
+                    ${lucideIcon('chevron-right', 'w-4 h-4')}
+                </button>
             </div>` : '';
 
         return `
             <div class="relative w-40 h-40 rounded-lg overflow-hidden bg-gray-700 cursor-pointer"
-                 onclick="app.previewImage(this.querySelector('img').src, this.querySelector('img').alt)">
+                 onclick="app.previewCustomGallery(this)">
                 <img id="customMain${product.id}" src="${fileUrl(first.path)}" alt="${first.original_name || 'Imagen'}"
                      onerror="app.productImageError(this)"
                      class="object-cover w-full h-full pointer-events-none">
@@ -1650,6 +1627,31 @@ class App extends Templates {
         $thumb.addClass('ring-2 ring-blue-500').siblings().removeClass('ring-2 ring-blue-500');
     }
 
+    // Desliza la fila de miniaturas lo que se ve de ella; el snap la deja alineada
+    // al inicio de una miniatura.
+    scrollThumbs(btn, dir) {
+        const track = $(btn).siblings('[data-thumbs]')[0];
+        track.scrollBy({ left: dir * track.clientWidth, behavior: 'smooth' });
+    }
+
+    // Cada chevron se ve solo si quedan miniaturas de su lado.
+    updateThumbChevrons(track) {
+        const $wrap = $(track).parent();
+
+        $wrap.find('[data-thumb-prev]').toggleClass('hidden', track.scrollLeft <= 0);
+        $wrap.find('[data-thumb-next]').toggleClass('hidden', track.scrollLeft + track.clientWidth >= track.scrollWidth - 1);
+    }
+
+    // La foto grande abre el carrusel con todas las fotos de referencia, empezando por
+    // la que se ve. Los src salen de las miniaturas (ya corregidos por fileUrlFallback);
+    // las que no cargaron ni en produccion se quedaron sin <img> y se saltan.
+    previewCustomGallery(box) {
+        const main  = $(box).find('img')[0];
+        const fotos = $(box).next().find('[data-thumbs] img').map((i, img) => ({ src: img.src, name: img.alt })).get();
+
+        this.previewImage(main.src, main.alt, fotos);
+    }
+
     renderProductImage(product) {
         const hasImage = product.image && product.image.trim() !== '';
 
@@ -1666,7 +1668,7 @@ class App extends Templates {
         } else {
             return `
                 <div class="w-full h-full flex items-center justify-center">
-                    ${lucideIcon('cake', 'w-6 h-6 text-white')}
+                    ${lucideIcon('cake', 'w-10 h-10 text-white')}
                 </div>
             `;
         }
@@ -3128,29 +3130,57 @@ class App extends Templates {
         }
     }
 
-    previewImage(imageUrl, imageName = 'Imagen') {
+    // Con varias fotos (fotos = [{ src, name }]) la vista previa es un carrusel:
+    // flechas a los lados, ← → del teclado y contador; al llegar al final da la vuelta.
+    previewImage(imageUrl, imageName = 'Imagen', fotos = []) {
+        const lista  = fotos.length ? fotos : [{ src: imageUrl, name: imageName }];
+        const varias = lista.length > 1;
+        let actual   = Math.max(0, lista.findIndex(f => f.src === imageUrl));
+
+        const flecha = (paso, icono, lado) => varias ? `
+            <button type="button" data-preview-step="${paso}"
+                    class="absolute ${lado} top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 hover:bg-white text-gray-800 shadow-lg flex items-center justify-center">
+                ${lucideIcon(icono, 'w-6 h-6')}
+            </button>` : '';
+
         const modal = $(`
-            <div id="imagePreviewModal" class="fixed inset-0 z-[100100] flex items-center justify-center bg-black/80" onclick="if(event.target === this) $(this).remove()">
+            <div id="imagePreviewModal" class="fixed inset-0 z-[100100] flex items-center justify-center bg-black/80">
                 <div class="relative max-w-4xl max-h-[90vh] p-2">
-                    <button onclick="$('#imagePreviewModal').remove()"
+                    <button type="button" data-preview-close
                             class="absolute -top-2 -right-2 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xl font-bold z-10 shadow-lg">
                         ×
                     </button>
-                    <img src="${imageUrl}" alt="${imageName}"
-                         class="max-w-full max-h-[85vh] rounded-lg shadow-2xl object-contain">
-                    <p class="text-white text-center mt-3 text-sm">${imageName}</p>
+                    <img class="max-w-full max-h-[85vh] rounded-lg shadow-2xl object-contain">
+                    <p class="text-white text-center mt-3 text-sm"></p>
                 </div>
+                ${flecha(-1, 'chevron-left', 'left-4')}
+                ${flecha(1, 'chevron-right', 'right-4')}
             </div>
         `);
 
-        $('body').append(modal);
+        const mostrar = (i) => {
+            actual = (i + lista.length) % lista.length;
+            modal.find('img').attr({ src: lista[actual].src, alt: lista[actual].name });
+            modal.find('p').text(varias ? `${lista[actual].name} · ${actual + 1} / ${lista.length}` : lista[actual].name);
+        };
 
-        $(document).on('keydown.imagePreview', function (e) {
-            if (e.key === 'Escape') {
-                $('#imagePreviewModal').remove();
-                $(document).off('keydown.imagePreview');
-            }
+        const cerrar = () => {
+            modal.remove();
+            $(document).off('keydown.imagePreview');
+        };
+
+        modal.on('click', (e) => { if (e.target === modal[0]) cerrar(); });
+        modal.find('[data-preview-close]').on('click', cerrar);
+        modal.find('[data-preview-step]').on('click', (e) => mostrar(actual + Number(e.currentTarget.dataset.previewStep)));
+
+        $(document).off('keydown.imagePreview').on('keydown.imagePreview', (e) => {
+            if (e.key === 'Escape') cerrar();
+            if (varias && e.key === 'ArrowLeft') mostrar(actual - 1);
+            if (varias && e.key === 'ArrowRight') mostrar(actual + 1);
         });
+
+        mostrar(actual);
+        $('body').append(modal);
     }
 
 
