@@ -76,7 +76,7 @@ class Cierre extends MCierre {
             $checks[] = ['key' => 'pending_balance', 'ok' => true, 'blocker' => false, 'label' => 'Sin saldos pendientes', 'detail' => ''];
         }
 
-        $payments = $this->getConsolidatedPayments([$date, $subsidiaries_id]);
+        $payments = $this->getConsolidatedPayments([$date, $subsidiaries_id, $date, $subsidiaries_id]);
         $cash = 0; $card = 0; $transfer = 0;
         if (is_array($payments)) {
             foreach ($payments as $pay) {

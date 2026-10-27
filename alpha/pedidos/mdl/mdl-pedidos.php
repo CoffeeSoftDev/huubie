@@ -126,9 +126,10 @@ class MPedidos extends CRUD {
 
     }
 
-    // Datos de entrega en crudo: la fecha y la hora salen en el formato que aceptan
+    // Datos de entrega en crudo: las fechas y la hora salen en el formato que aceptan
     // los inputs date/time del formulario, no en el de pantalla que devuelve
-    // getOrderID (d/m/Y, h:i A).
+    // getOrderID (d/m/Y, h:i A). El cumpleaños va aqui porque el formulario de
+    // edicion del pedido tambien lo muestra.
     function getOrderDeliveryById($array){
         $sql = "
         SELECT
@@ -137,7 +138,8 @@ class MPedidos extends CRUD {
             order.note,
             order.delivery_type,
             DATE_FORMAT(date_order, '%Y-%m-%d') AS date_order,
-            TIME_FORMAT(time_order, '%H:%i') AS time_order
+            TIME_FORMAT(time_order, '%H:%i') AS time_order,
+            DATE_FORMAT(date_birthday, '%Y-%m-%d') AS date_birthday
         FROM
             {$this->bd}order
 

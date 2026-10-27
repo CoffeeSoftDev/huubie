@@ -468,10 +468,15 @@ class Pedidos extends MPedidos{
             ];
         }
 
+        // Este pedido llena el formulario de edicion: getOrderID trae entrega en formato
+        // de pantalla (d/m/Y, h:i A) y no trae cumpleaños, los inputs date/time quedaban
+        // vacios y el front los rellenaba con la fecha de hoy.
+        $raw = $this->getOrderDeliveryById([$_POST['id'] ?? 0]);
+
         return [
             'status'  => 200,
             'message' => 'Datos obtenidos correctamente',
-            'data'    => $get[0]
+            'data'    => array_merge($get[0], $raw[0] ?? [])
         ];
     }
 

@@ -1,3 +1,52 @@
+[ 2026-10-26 20:07:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT COUNT(*) AS enviados
+            FROM wa_historial
+            WHERE companies_id = ? AND status = 'enviado' AND DATE(sent_at) = CURDATE()
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.wa_historial' doesn't exist
+
+
+[ 2026-10-26 20:07:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name, phone, type, active
+            FROM wa_destinatarios
+            WHERE companies_id = ?
+            ORDER BY FIELD(type, 'cierre', 'turno', 'personalizado', 'edicion'), name, id
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.wa_destinatarios' doesn't exist
+
+
+[ 2026-10-26 20:07:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, type, body, active
+            FROM wa_plantillas
+            WHERE companies_id = ?
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.wa_plantillas' doesn't exist
+
+
+[ 2026-10-26 20:07:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                provider,
+                instance,
+                token,
+                api_url,
+                state,
+                checked_at,
+                active
+            FROM wa_config
+            WHERE companies_id = ?
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.wa_config' doesn't exist
+
+
 [ 2026-10-12 09:52:44 ]
 [ UNIX_USR ] :: SomxDev
 [ WINDOWS_USR ] :: SomxDev

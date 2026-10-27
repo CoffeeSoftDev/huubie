@@ -746,8 +746,9 @@ class App extends Templates {
             }, true);
         }
 
-        $("#date_order").val(new Date().toISOString().split("T")[0]);
-        $("#date_birthday").val(new Date().toISOString().split("T")[0]);
+        // Fecha local: toISOString() pasa a UTC y despues de las 6 pm ya da mañana.
+        $("#date_order").val(moment().format('YYYY-MM-DD'));
+        $("#date_birthday").val(moment().format('YYYY-MM-DD'));
 
         const ahora = new Date();
         const hora = ahora.toTimeString().split(":").slice(0, 2).join(":");
@@ -944,8 +945,9 @@ class App extends Templates {
         // En edición la sucursal del pedido es fija: mostrar la real y bloquear el cambio.
         this.lockSubsidiarySelector(order.subsidiaries_id);
 
-        $("#date_order").val(new Date().toISOString().split("T")[0]);
-        if (!$("#date_birthday").val()) $("#date_birthday").val(new Date().toISOString().split("T")[0]);
+        // Fecha y hora de entrega vienen del pedido; hoy solo es respaldo si faltan.
+        // El cumpleaños no lleva respaldo: es opcional y un pedido sin él se queda vacío.
+        if (!$("#date_order").val()) $("#date_order").val(moment().format('YYYY-MM-DD'));
 
         const ahora = new Date();
         const hora = ahora.toTimeString().split(":").slice(0, 2).join(":");

@@ -1,3 +1,384 @@
+[ 2026-10-26 20:12:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:12:52 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:12:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:11:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:11:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:11:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:11:36 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:11:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:11:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:11:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+        SELECT
+            order_clients.name,
+            order_clients.phone,
+            order.id,
+            order.id as folio,
+            order.date_creation,
+            email,
+            order.note,
+            order.discount,
+            order.status,
+            order.delivery_type,
+            order.is_delivered,
+            order.total_pay,
+            order.subsidiaries_id,
+            DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
+        FROM
+            fayxzvov_reginas.order
+        INNER JOIN fayxzvov_reginas.order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
+
+        WHERE order.id = ?
+
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'order.created_by' in 'on clause'
+
+
+[ 2026-10-26 20:08:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT phone
+            FROM wa_destinatarios
+            WHERE companies_id = ? AND type = ? AND active = 1
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.wa_destinatarios' doesn't exist
+
+
+[ 2026-10-26 20:08:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT provider, instance, token, api_url
+            FROM wa_config
+            WHERE companies_id = ? AND active = 1
+            LIMIT 1
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.wa_config' doesn't exist
+
+
+[ 2026-10-26 20:08:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT body, active
+            FROM wa_plantillas
+            WHERE companies_id = ? AND type = ?
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_alpha.wa_plantillas' doesn't exist
+
+
 [ 2026-10-20 15:07:24 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
