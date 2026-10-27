@@ -1,5 +1,5 @@
 /* ============================================================
-   Huubie · Acceso (login)
+   Huubie · Acceso (login y recuperar contraseña)
    Estilo "Porcelana" de inventory/src/css/index.css: fondo hueso con grano,
    tarjeta blanca con sombras en capas, marca oscura, campos con etiqueta
    arriba y boton negro con relieve. Tipografia Geist, iconos de fontello.
@@ -131,6 +131,8 @@
     letter-spacing: -0.01em;
 }
 
+a.login-wordmark { color: inherit; text-decoration: none; }
+
 /* -- Escena -- */
 .login-shell {
     position: relative;
@@ -187,6 +189,21 @@
 .field[hidden] { display: none; }
 
 .field-label { font-size: 13px; font-weight: 500; }
+
+.label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.label-row a {
+    font-size: 13px;
+    color: var(--acc-ink-2);
+    text-decoration: none;
+    transition: color .2s;
+}
+
+.label-row a:hover { color: var(--acc-ink); }
 
 .control { position: relative; }
 
@@ -399,6 +416,7 @@
     font-size: 14.5px;
     font-weight: 500;
     color: #FFFFFF;
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.16),
@@ -436,6 +454,14 @@
 
 .card-foot b { font-weight: 500; color: var(--acc-ink); }
 
+.card-foot a {
+    font-weight: 500;
+    color: var(--acc-ink);
+    text-decoration: none;
+}
+
+.card-foot a:hover { text-decoration: underline; }
+
 /* En bloque y con el icono en linea: con flex, al partirse el texto en movil
    el escudo se quedaba solo a la izquierda. */
 .login-trust {
@@ -454,6 +480,86 @@
     text-align: center;
     font-size: 12px;
     color: var(--acc-ink-3);
+}
+
+/* ============================================================
+   RECUPERAR CONTRASEÑA
+   Tres pasos en la misma tarjeta; los conmuta recuperar.js con .hide y
+   pinta .step.on, .notice-ok y .notice-error.
+   ============================================================ */
+
+.steps {
+    display: flex;
+    gap: 6px;
+    margin-top: 20px;
+}
+
+.step {
+    flex: 1;
+    height: 3px;
+    border-radius: 3px;
+    background: var(--acc-line);
+    transition: background .3s;
+}
+
+.step.on { background: var(--acc-ink); }
+
+.hide { display: none !important; }
+
+.step-text {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--acc-ink-2);
+}
+
+.step-text span { font-weight: 500; color: var(--acc-ink); }
+
+/* Digitos grandes: el codigo se teclea mirando el correo en el telefono. */
+.field-input.field-code {
+    height: 56px;
+    padding: 0 14px;
+    text-align: center;
+    font-family: var(--acc-mono);
+    font-size: 24px;
+    font-weight: 500;
+    letter-spacing: .45em;
+    text-indent: .45em;
+}
+
+.login-card .btn-ghost {
+    width: 100%;
+    margin-top: -4px;
+    padding: 8px 0;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--acc-ink-2);
+    cursor: pointer;
+    transition: color .2s;
+}
+
+.login-card .btn-ghost:hover { color: var(--acc-ink); }
+.login-card .btn-ghost:disabled { opacity: .6; cursor: not-allowed; }
+
+.notice {
+    margin-top: 18px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.notice-ok {
+    background: #F0FAF3;
+    box-shadow: inset 0 0 0 1px rgba(31, 122, 61, 0.16);
+    color: #1F7A3D;
+}
+
+.notice-error {
+    background: #FEF3F2;
+    box-shadow: inset 0 0 0 1px rgba(194, 40, 29, 0.14);
+    color: var(--acc-danger);
 }
 
 /* -- Responsive -- */

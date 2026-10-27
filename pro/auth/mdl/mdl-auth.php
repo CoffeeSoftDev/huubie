@@ -21,6 +21,7 @@ class mdl extends CRUD {
                 u.last_name,
                 u.email,
                 u.password,
+                u.login_attempts,
                 u.photo,
                 u.color,
                 u.is_owner,
@@ -74,6 +75,82 @@ class mdl extends CRUD {
         ";
 
         return $this->_Read($query, $array);
+    }
+
+    function addLoginAttempt($array) {
+        $query = "UPDATE {$this->bd}users SET login_attempts = login_attempts + 1 WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function resetLoginAttempts($array) {
+        $query = "UPDATE {$this->bd}users SET login_attempts = 0 WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    // Recuperar contraseña:
+
+    // reset_vigente lo resuelve MySQL con su NOW(): el reloj que pone la
+    // caducidad (setResetCode) y el que la revisa es uno solo.
+    function getUserForReset($array) {
+        $query = "
+            SELECT
+                u.id,
+                u.name,
+                u.email,
+                u.reset_code,
+                u.reset_tries,
+                (u.reset_expires IS NOT NULL AND u.reset_expires > NOW()) AS reset_vigente
+            FROM {$this->bd}users u
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return empty($sql) ? null : $sql[0];
+    }
+
+    // [hash del codigo, minutos de vigencia, id]
+    function setResetCode($array) {
+        $query = "
+            UPDATE {$this->bd}users
+               SET reset_code    = ?,
+                   reset_expires = DATE_ADD(NOW(), INTERVAL ? MINUTE),
+                   reset_tries   = 0
+             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function addResetTry($array) {
+        $query = "UPDATE {$this->bd}users SET reset_tries = reset_tries + 1 WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function clearResetCode($array) {
+        $query = "
+            UPDATE {$this->bd}users
+               SET reset_code    = NULL,
+                   reset_expires = NULL,
+                   reset_tries   = 0
+             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // [password bcrypt, id]. El codigo se gasta y la cuenta se desbloquea en el
+    // mismo UPDATE: quien llega aqui casi siempre venia de quedarse fuera.
+    function setNewPassword($array) {
+        $query = "
+            UPDATE {$this->bd}users
+               SET password       = ?,
+                   reset_code     = NULL,
+                   reset_expires  = NULL,
+                   reset_tries    = 0,
+                   login_attempts = 0
+             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
     }
 }
 ?>

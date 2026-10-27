@@ -1,0 +1,1192 @@
+/* ============================================================
+   PÁGINA OSCURA DE INVENTORY
+   ============================================================
+   Solo aplica con un tema de página oscura (themes.scheme 'huubie',
+   'midnight' o 'rose'): InventoryPalette (src/js/tailwind-theme.js) pone
+   body.dark-mode y el data-scheme de <html>. Los temas claros nunca la
+   activan: su fondo es siempre el gris de la página.
+
+   Las superficies (--dk-*) y la versión oscura de los tokens de página
+   viven en themes.css, que cargan TODAS las páginas (también las que no
+   cargan esta hoja, como modulos/ y sucursales/). El acento y el primario
+   salen del tema (--brand-*, --primary), no de aquí.
+
+   Layout canónico de Huubie (grimorio-huubie-ui §4, alpha/pedidos):
+     página            --dk-bg    (#111928)
+     contenedor        --dk-card  (#1F2A37) + rounded-lg + p-3
+     dentro            transparente: toma el color del contenedor
+   En claro ese contenedor es el `main > #main__content > div` de
+   general.css (aliceblue, padding 10px, radio 10px); en oscuro es el mismo
+   elemento con la superficie de Huubie.
+   ============================================================ */
+
+body.dark-mode {
+    background-color: var(--dk-bg) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode main {
+    background-color: var(--dk-bg) !important;
+}
+
+body.dark-mode #main__content {
+    background-color: var(--dk-bg) !important;
+}
+
+/* El contenedor del módulo: bg-[#1F2A37] rounded-lg p-3. */
+body.dark-mode #main__content > form,
+body.dark-mode #main__content > div {
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border-radius: 0.5rem !important;
+    padding: 0.75rem !important;
+}
+
+body.dark-mode #main__content > div > div {
+    background-color: transparent !important;
+    color: var(--dk-text) !important;
+}
+
+/* Inputs: bg-input de Huubie (#1a2332) con border #374151. */
+body.dark-mode .form-control,
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background-color: var(--dk-input) !important;
+    color: var(--dk-text) !important;
+    border-color: var(--dk-line) !important;
+}
+
+/* Foco con el secundario del tema: border-focus #7C3AED de Huubie UI. En los
+   temas sin secundario propio es el acento. */
+body.dark-mode .form-control:focus,
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+    background-color: var(--dk-input) !important;
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 192 90 64) /0.2) !important;
+}
+
+/* Botones de Bootstrap SIN color propio (.btn suelto, btn-light, btn-sm...):
+   superficie de la tarjeta. Los de color (primary, success, info, warning,
+   outline-*) conservan el suyo de buttons.css, como en alpha/. Antes esta
+   regla los aplanaba a todos y success/info/warning quedaban como texto. */
+body.dark-mode .btn:not(.btn-primary):not(.btn-secondary):not(.btn-success):not(.btn-danger):not(.btn-info):not(.btn-warning):not([class*="btn-outline-"]) {
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .btn:not(.btn-primary):not(.btn-secondary):not(.btn-success):not(.btn-danger):not(.btn-info):not(.btn-warning):not([class*="btn-outline-"]):hover {
+    background-color: var(--dk-card-hi) !important;
+    border-color: var(--dk-line-hi) !important;
+}
+
+/* Outline: sin relleno en reposo (buttons.css les pone el blanco aliceblue);
+   borde y texto de su color, y al pasar el mouse se rellenan. */
+body.dark-mode [class*="btn-outline-"]:not(:hover):not(:focus):not(:active) {
+    background-color: transparent !important;
+}
+
+/* Primario del tema (los oscuros traen uno que se lee sobre fondo oscuro). */
+body.dark-mode .btn-primary {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .btn-primary:hover {
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+}
+
+body.dark-mode .btn-danger {
+    background-color: #9D3434 !important;
+    border-color: #9D3434 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .btn-danger:hover {
+    background-color: #832B2B !important;
+    border-color: #832B2B !important;
+}
+
+/* Secundario = el secundario del tema: el morado de alpha/ en Huubie
+   (btn-secondary #7152EC). En los temas sin secundario propio es el acento. */
+body.dark-mode .btn-secondary {
+    background-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .btn-secondary:hover {
+    background-color: rgb(var(--accent-2-700, 168 74 51)) !important;
+    border-color: rgb(var(--accent-2-700, 168 74 51)) !important;
+}
+
+body.dark-mode .btn-outline-secondary {
+    color: rgb(var(--accent-2-400, 217 130 106)) !important;
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+}
+
+body.dark-mode .btn-outline-secondary:hover,
+body.dark-mode .btn-outline-secondary:focus,
+body.dark-mode .btn-outline-secondary:active {
+    background-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+/* Tablas: las de coffeeSoft se pintan SOLAS con su variante 'dark', la
+   misma de alpha/ (Huubie): header #374151 text-gray-300, filas #283341,
+   separadores gray-700. Por eso estas reglas solo tocan celdas SIN clase
+   de color propia (tablas sueltas: rpt_json_table2, plugins), con esos
+   mismos valores. Nunca pisar las de coffeeSoft. */
+body.dark-mode table thead th:not([class*="bg-"]) {
+    background-color: var(--dk-th) !important;
+    color: #D1D5DB !important;
+    border-color: var(--dk-line) !important;
+    font-weight: 600 !important;
+}
+
+body.dark-mode table tbody td:not([class*="bg-"]) {
+    background-color: var(--dk-row) !important;
+    color: #D1D5DB !important;
+    border-color: var(--dk-line) !important;
+}
+
+/* Sin zebra en página oscura. Aquí coffeeSoft arma toda tabla en 'dark'
+   aunque el módulo pida 'light' (cfPageTheme): fila bg-[#283341] y, con
+   striped, alterna bg-[#1F2A37]. La alterna toma el color de fila y el hover
+   cubre las dos. Las de grupo (tr[data-opc]) y colgroup (td[colspan])
+   conservan su tono; esos :not() además suben la especificidad sobre el
+   remapeo de hex de Midnight/Rosé (más abajo). */
+body.dark-mode table tbody tr:not([data-opc]) > td.bg-\[\#1F2A37\]:not([colspan]) {
+    background-color: var(--dk-row) !important;
+}
+
+body.dark-mode table tbody tr:hover > td:not([class*="bg-"]),
+body.dark-mode table tbody tr:not([data-opc]):not(.row-active):hover > td.bg-\[\#283341\]:not([colspan]),
+body.dark-mode table tbody tr:not([data-opc]):not(.row-active):hover > td.bg-\[\#1F2A37\]:not([colspan]) {
+    background-color: var(--dk-row-hover) !important;
+}
+
+/* Fila abierta en el visor (row-active, table.css): conserva su tinte en todas
+   las filas. Misma especificidad que la regla sin zebra de arriba y va
+   después; también le gana al remapeo de hex de Midnight/Rosé. */
+body.dark-mode table tbody tr.row-active:not([data-opc]) > td:not([colspan]) {
+    background-color: var(--primary1) !important;
+}
+
+body.dark-mode .breadcrumb-item .parent {
+    color: #d1d1d1 !important;
+}
+body.dark-mode .breadcrumb-item .child {
+    color: #ffffff !important;
+}
+body.dark-mode .breadcrumb-item + .breadcrumb-item::before {
+    color: #d1d1d1 !important;
+}
+
+/* Cards y modales: bg-card de Huubie. */
+body.dark-mode .card,
+body.dark-mode .modal-content {
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer {
+    border-color: var(--dk-line) !important;
+    background-color: var(--dk-card) !important;
+}
+
+body.dark-mode .category-card,
+body.dark-mode .group-card,
+body.dark-mode .question-card {
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border: 1px solid var(--dk-line) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark-mode .category-card:hover,
+body.dark-mode .group-card:hover,
+body.dark-mode .question-card:hover {
+    background-color: var(--dk-card-hi) !important;
+    border-color: var(--dk-line-hi) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-mode .line,
+body.dark-mode .container-border,
+body.dark-mode .container-border-right,
+body.dark-mode .container-border-left,
+body.dark-mode .container-border-bottom,
+body.dark-mode .container-border-top {
+    border-color: var(--dk-line);
+}
+
+body.dark-mode .text-dark {
+    color: var(--dk-text-soft) !important;
+}
+
+body.dark-mode .text-muted {
+    color: var(--dk-muted) !important;
+}
+
+/* bg-white es la TARJETA en claro (blanco sobre el gris de la página): en
+   oscuro es la tarjeta oscura, no el fondo, para no fundirse con la página. */
+body.dark-mode .bg-white {
+    background-color: var(--dk-card) !important;
+}
+
+body.dark-mode .bg-light {
+    background-color: var(--dk-card) !important;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+    color: var(--dk-text);
+}
+
+body.dark-mode label {
+    color: var(--dk-text-soft);
+}
+
+body.dark-mode .alert {
+    background-color: var(--dk-card);
+    border-color: var(--dk-line);
+    color: var(--dk-text-soft);
+}
+
+/* Tabs Dark Mode */
+body.dark-mode .nav-tabs {
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .nav-tabs .nav-link {
+    color: var(--dk-muted) !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
+    transition: all 0.2s ease !important;
+}
+
+body.dark-mode .nav-tabs .nav-link:hover {
+    color: #ffffff !important;
+    background-color: rgb(var(--brand-600, 192 90 64) /0.15) !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode .nav-tabs .nav-link.active {
+    color: #ffffff !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) var(--dk-line) var(--dk-card) !important;
+    font-weight: 500 !important;
+}
+
+/* CoffeeSoft tabLayout (cs-tabs de Huubie): la activa es el primario sólido
+   con texto blanco —lo pone el propio tabLayout en su variante 'dark'
+   (bg-blue-600 text-white)—; aquí solo el texto de las inactivas y su hover.
+   tabLayout marca la activa con data-state="active". */
+body.dark-mode [id*="tabs-"] button[data-state="inactive"],
+body.dark-mode [id^="tabs"] button[data-state="inactive"] {
+    color: var(--dk-muted) !important;
+    transition: all 0.2s ease !important;
+}
+
+body.dark-mode [id*="tabs-"] button[data-state="inactive"]:hover,
+body.dark-mode [id^="tabs"] button[data-state="inactive"]:hover {
+    color: #ffffff !important;
+    background-color: rgb(var(--brand-600, 192 90 64) / .15) !important;
+}
+
+body.dark-mode [id*="tabs-"] button[data-state="active"],
+body.dark-mode [id^="tabs"] button[data-state="active"],
+body.dark-mode [id*="tabs-"] button[data-state="active"] svg,
+body.dark-mode [id^="tabs"] button[data-state="active"] svg {
+    color: #ffffff !important;
+}
+
+/* Tabs de Bootstrap (no tabLayout). */
+body.dark-mode [id*="tabs-"] button.active,
+body.dark-mode [id^="tabs"] button.active,
+body.dark-mode [id*="tabs-"] button[aria-selected="true"],
+body.dark-mode [id^="tabs"] button[aria-selected="true"] {
+    color: #ffffff !important;
+    background-color: var(--dk-card) !important;
+    font-weight: 500 !important;
+}
+
+/* FilterBar Dark Mode: transparente, como en claro; toma la superficie de
+   la tarjeta donde vive. */
+body.dark-mode .filterBar,
+body.dark-mode [id*="filterBar"] {
+    background-color: transparent !important;
+    border-color: var(--dk-line) !important;
+}
+
+/* DataTables Dark Mode */
+/* gray-300, el texto de las tablas oscuras de alpha/: así lo heredan también
+   las tablas cuyo módulo reemplaza la clase por defecto (text-gray-300). */
+body.dark-mode .dataTables_wrapper {
+    color: #D1D5DB !important;
+}
+
+body.dark-mode .dataTables_filter input {
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .dataTables_length select {
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .dataTables_info {
+    color: var(--dk-muted) !important;
+}
+
+body.dark-mode .dataTables_paginate .paginate_button {
+    color: var(--dk-muted) !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .dataTables_paginate .paginate_button:hover {
+    background-color: var(--dk-card-hi) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .dataTables_paginate .paginate_button.current {
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+    color: #ffffff !important;
+    border-color: rgb(var(--brand-600, 192 90 64)) !important;
+}
+
+/* Select2 Dark Mode */
+body.dark-mode .select2-container--default .select2-selection--single {
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .select2-dropdown {
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .select2-results__option {
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .select2-results__option--highlighted {
+    background-color: var(--dk-card-hi) !important;
+}
+
+/* coffeeForm arma sus select2 con el tema bootstrap-5 (Productos > Área, en el
+   filtro y en el formulario): caja como los inputs oscuros, flecha clara y el
+   buscador de la lista con la misma superficie. */
+body.dark-mode .select2-container--bootstrap-5 .select2-selection {
+    background-color: var(--dk-input) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .select2-container--bootstrap-5 .select2-selection--single {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%239CA3AF' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+body.dark-mode .select2-container--bootstrap-5 .select2-selection__rendered,
+body.dark-mode .select2-container--bootstrap-5 .select2-selection__placeholder {
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .select2-container--bootstrap-5 .select2-search__field {
+    background-color: var(--dk-input) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .select2-results__option--selected {
+    background-color: var(--dk-hover) !important;
+}
+
+/* Breadcrumb Dark Mode */
+body.dark-mode .breadcrumb {
+    background-color: transparent !important;
+}
+
+body.dark-mode .breadcrumb-item {
+    color: var(--dk-muted) !important;
+}
+
+body.dark-mode .breadcrumb-item.active {
+    color: var(--dk-text) !important;
+}
+
+.navbar-main {
+    background-color: #FAFCFF;
+    top: 0;
+    left: 0;
+}
+
+.navbar-title {
+    color: #1a1a1a;
+}
+
+body.dark-mode .navbar-main {
+    background-color: var(--dk-chrome) !important;
+    border-bottom: 1px solid var(--dk-line) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark-mode .navbar-title {
+    color: var(--dk-text) !important;
+}
+
+.user-menu-dropdown {
+    background-color: #ffffff;
+}
+
+.user-menu-header {
+    background-color: rgb(var(--brand-600, 192 90 64));
+}
+
+.user-menu-btn {
+    background-color: #ffffff;
+    color: #1a1a1a;
+}
+
+.user-menu-btn:hover {
+    background-color: #f3f4f6;
+}
+
+body.dark-mode .user-menu-dropdown {
+    background-color: var(--dk-bg) !important;
+    border: 1px solid var(--dk-line) !important;
+}
+
+body.dark-mode .user-menu-header {
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+}
+
+body.dark-mode .user-menu-btn {
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .user-menu-btn:hover {
+    background-color: var(--dk-card-hi) !important;
+    border-color: var(--dk-line-hi) !important;
+}
+
+/* Sidebar Dark Mode */
+body.dark-mode #menu-sidebar {
+    background-color: var(--dk-chrome) !important;
+    border-right: 1px solid var(--dk-line) !important;
+}
+
+body.dark-mode #sidebar {
+    background-color: var(--dk-chrome) !important;
+}
+
+body.dark-mode section#sidebar {
+    background-color: var(--dk-chrome) !important;
+}
+
+/* Main Container Dark Mode */
+body.dark-mode .main-container {
+    background-color: var(--dk-bg) !important;
+}
+
+/* Badge/Status Dark Mode */
+body.dark-mode .badge {
+    border: none !important;
+}
+
+/* Scrollbar Dark Mode: mismo carril separado de general.css (pulgar de 6px
+   con 7px de aire del lado del contenido), riel transparente y pulgar en el
+   borde del tema para que no pinte una franja pegada a la tabla. */
+@supports not selector(::-webkit-scrollbar) {
+    body.dark-mode,
+    body.dark-mode * {
+        scrollbar-color: var(--dk-line-hi) transparent;
+    }
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: var(--dk-line-hi);
+    background-clip: padding-box;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background: var(--dk-muted);
+    background-clip: padding-box;
+}
+
+/* Tailwind Overrides for Dark Mode (bg-white: ver arriba, es la tarjeta) */
+
+body.dark-mode .bg-gray-50 {
+    background-color: var(--dk-bg) !important;
+}
+
+body.dark-mode .bg-gray-100 {
+    background-color: var(--dk-bg) !important;
+}
+
+body.dark-mode .bg-gray-200 {
+    background-color: var(--dk-card) !important;
+}
+
+body.dark-mode .border-gray-200 {
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .border-gray-300 {
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .text-gray-500 {
+    color: var(--dk-muted) !important;
+}
+
+body.dark-mode .text-gray-600 {
+    color: var(--dk-muted) !important;
+}
+
+body.dark-mode .text-gray-700 {
+    color: #D1D5DB !important;
+}
+
+body.dark-mode .text-gray-800 {
+    color: #E5E7EB !important;
+}
+
+body.dark-mode .text-gray-900,
+body.dark-mode .text-black {
+    color: #F3F4F6 !important;
+}
+
+/* Badges de dos colores de badge() (conf/_Utileria.php): traen un fondo
+   pastel pensado para página clara. En oscuro el fondo pasa a un velo de su
+   propio color de texto y el texto se aclara. */
+body.dark-mode .cs-badge-soft {
+    background: color-mix(in srgb, var(--b-fg) 22%, transparent) !important;
+    color: color-mix(in srgb, var(--b-fg) 45%, #ffffff) !important;
+}
+
+/* Tintes de estado de Tailwind (bg-*-50/100 con text-*-600/700/800): en
+   oscuro, velo del 500 de su familia y texto en el 300. */
+body.dark-mode .bg-emerald-50, body.dark-mode .bg-emerald-100 { background-color: rgb(16 185 129 / .16) !important; }
+body.dark-mode .bg-green-50,   body.dark-mode .bg-green-100   { background-color: rgb(34 197 94 / .16) !important; }
+body.dark-mode .bg-red-50,     body.dark-mode .bg-red-100     { background-color: rgb(239 68 68 / .16) !important; }
+body.dark-mode .bg-rose-50,    body.dark-mode .bg-rose-100    { background-color: rgb(244 63 94 / .16) !important; }
+body.dark-mode .bg-amber-50,   body.dark-mode .bg-amber-100   { background-color: rgb(245 158 11 / .16) !important; }
+/* Con opacidad: "Tal vez quisiste decir" del buscador de entradas. Sin esto
+   el fondo se quedaba crema y su texto (amber-300 en oscuro) no se leía. */
+body.dark-mode .bg-amber-50\/70                               { background-color: rgb(245 158 11 / .16) !important; }
+body.dark-mode .bg-yellow-50,  body.dark-mode .bg-yellow-100  { background-color: rgb(234 179 8 / .16) !important; }
+body.dark-mode .bg-orange-50,  body.dark-mode .bg-orange-100  { background-color: rgb(249 115 22 / .16) !important; }
+body.dark-mode .bg-sky-50,     body.dark-mode .bg-sky-100     { background-color: rgb(14 165 233 / .16) !important; }
+body.dark-mode .bg-cyan-50,    body.dark-mode .bg-cyan-100    { background-color: rgb(6 182 212 / .16) !important; }
+body.dark-mode .bg-teal-50,    body.dark-mode .bg-teal-100    { background-color: rgb(20 184 166 / .16) !important; }
+body.dark-mode .bg-indigo-50,  body.dark-mode .bg-indigo-100,
+body.dark-mode .bg-indigo-50\/50                              { background-color: rgb(99 102 241 / .16) !important; }
+body.dark-mode .bg-violet-50,  body.dark-mode .bg-violet-100  { background-color: rgb(139 92 246 / .16) !important; }
+body.dark-mode .bg-purple-50,  body.dark-mode .bg-purple-100  { background-color: rgb(168 85 247 / .16) !important; }
+body.dark-mode .bg-pink-50,    body.dark-mode .bg-pink-100    { background-color: rgb(236 72 153 / .16) !important; }
+body.dark-mode .bg-slate-50,   body.dark-mode .bg-slate-100   { background-color: rgb(100 116 139 / .16) !important; }
+
+body.dark-mode .text-emerald-600, body.dark-mode .text-emerald-700, body.dark-mode .text-emerald-800 { color: rgb(110 231 183) !important; }
+body.dark-mode .text-green-600,   body.dark-mode .text-green-700,   body.dark-mode .text-green-800   { color: rgb(134 239 172) !important; }
+body.dark-mode .text-red-600,     body.dark-mode .text-red-700,     body.dark-mode .text-red-800     { color: rgb(252 165 165) !important; }
+body.dark-mode .text-rose-600,    body.dark-mode .text-rose-700,    body.dark-mode .text-rose-800    { color: rgb(253 164 175) !important; }
+body.dark-mode .text-amber-600,   body.dark-mode .text-amber-700,   body.dark-mode .text-amber-800   { color: rgb(252 211 77) !important; }
+body.dark-mode .text-yellow-600,  body.dark-mode .text-yellow-700,  body.dark-mode .text-yellow-800  { color: rgb(253 224 71) !important; }
+body.dark-mode .text-orange-600,  body.dark-mode .text-orange-700,  body.dark-mode .text-orange-800  { color: rgb(253 186 116) !important; }
+body.dark-mode .text-sky-600,     body.dark-mode .text-sky-700,     body.dark-mode .text-sky-800     { color: rgb(125 211 252) !important; }
+body.dark-mode .text-cyan-600,    body.dark-mode .text-cyan-700,    body.dark-mode .text-cyan-800    { color: rgb(103 232 249) !important; }
+body.dark-mode .text-teal-600,    body.dark-mode .text-teal-700,    body.dark-mode .text-teal-800    { color: rgb(94 234 212) !important; }
+body.dark-mode .text-indigo-600,  body.dark-mode .text-indigo-700,  body.dark-mode .text-indigo-800  { color: rgb(165 180 252) !important; }
+body.dark-mode .text-violet-600,  body.dark-mode .text-violet-700,  body.dark-mode .text-violet-800  { color: rgb(196 181 253) !important; }
+body.dark-mode .text-purple-600,  body.dark-mode .text-purple-700,  body.dark-mode .text-purple-800  { color: rgb(216 180 254) !important; }
+body.dark-mode .text-pink-600,    body.dark-mode .text-pink-700,    body.dark-mode .text-pink-800    { color: rgb(249 168 212) !important; }
+body.dark-mode .text-slate-600,   body.dark-mode .text-slate-700,   body.dark-mode .text-slate-800   { color: rgb(203 213 225) !important; }
+
+/* Bordes pastel de esas mismas cards (infoCard, avisos): en oscuro eran una
+   línea clara alrededor del velo. Pasan a su 500 translúcido. */
+body.dark-mode .border-emerald-200, body.dark-mode .border-emerald-300 { border-color: rgb(16 185 129 / .35) !important; }
+body.dark-mode .border-green-200,   body.dark-mode .border-green-300   { border-color: rgb(34 197 94 / .35) !important; }
+body.dark-mode .border-red-200,     body.dark-mode .border-red-300     { border-color: rgb(239 68 68 / .35) !important; }
+body.dark-mode .border-rose-200,    body.dark-mode .border-rose-300    { border-color: rgb(244 63 94 / .35) !important; }
+body.dark-mode .border-amber-200,   body.dark-mode .border-amber-300   { border-color: rgb(245 158 11 / .35) !important; }
+body.dark-mode .border-yellow-200,  body.dark-mode .border-yellow-300  { border-color: rgb(234 179 8 / .35) !important; }
+body.dark-mode .border-orange-200,  body.dark-mode .border-orange-300  { border-color: rgb(249 115 22 / .35) !important; }
+body.dark-mode .border-sky-200,     body.dark-mode .border-sky-300     { border-color: rgb(14 165 233 / .35) !important; }
+body.dark-mode .border-cyan-200,    body.dark-mode .border-cyan-300    { border-color: rgb(6 182 212 / .35) !important; }
+body.dark-mode .border-teal-200,    body.dark-mode .border-teal-300    { border-color: rgb(20 184 166 / .35) !important; }
+body.dark-mode .border-indigo-200,  body.dark-mode .border-indigo-300  { border-color: rgb(99 102 241 / .35) !important; }
+body.dark-mode .border-violet-200,  body.dark-mode .border-violet-300  { border-color: rgb(139 92 246 / .35) !important; }
+body.dark-mode .border-purple-200,  body.dark-mode .border-purple-300  { border-color: rgb(168 85 247 / .35) !important; }
+body.dark-mode .border-pink-200,    body.dark-mode .border-pink-300    { border-color: rgb(236 72 153 / .35) !important; }
+body.dark-mode .border-slate-200,   body.dark-mode .border-slate-300   { border-color: var(--dk-line) !important; }
+
+/* Midnight, Rosé y las que vengan: las variantes oscuras de los componentes de
+   coffeeSoft.js traen los hex de Huubie clavados. En Huubie ya son su paleta; en
+   las demás páginas oscuras se remapean a sus superficies (--dk-*) para que
+   ningún componente quede en otro tono. */
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#111928\],
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#111827\],
+:root:not([data-scheme="huubie"]) body.dark-mode .hover\:bg-\[\#111928\]:hover { background-color: var(--dk-bg) !important; }
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#1F2A37\],
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#1E293B\] { background-color: var(--dk-card) !important; }
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#283341\] { background-color: var(--dk-row) !important; }
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#1a2332\],
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#334155\],
+:root:not([data-scheme="huubie"]) body.dark-mode .hover\:bg-\[\#283341\]:hover,
+:root:not([data-scheme="huubie"]) body.dark-mode .hover\:bg-\[\#334155\]:hover,
+:root:not([data-scheme="huubie"]) body.dark-mode .hover\:bg-\[\#374151\]:hover { background-color: var(--dk-hover) !important; }
+/* bg-[#374151] es el header de las tablas oscuras de coffeeSoft: fuera de Huubie
+   va al header de tabla del scheme, más claro que las filas, igual que en alpha/. */
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#374151\] { background-color: var(--dk-th) !important; }
+:root:not([data-scheme="huubie"]) body.dark-mode .border-\[\#374151\],
+:root:not([data-scheme="huubie"]) body.dark-mode .border-gray-700 { border-color: var(--dk-line) !important; }
+
+/* Tintes claros del acento (chips, pestañas, badges): en oscuro pasan a un
+   velo del acento y su texto se aclara para seguir leyéndose. */
+body.dark-mode .bg-blue-50,
+body.dark-mode .bg-blue-100 {
+    background-color: rgb(var(--brand-600, 192 90 64) / .16) !important;
+}
+
+/* Sus variantes con opacidad (encabezado de resultados del buscador, renglón
+   vacío, hover de un resultado): sin esto se veían como un gris lavado. */
+body.dark-mode .bg-blue-50\/30,
+body.dark-mode .bg-blue-50\/40,
+body.dark-mode .bg-blue-50\/50,
+body.dark-mode .bg-blue-50\/60 {
+    background-color: rgb(var(--brand-600, 192 90 64) / .10) !important;
+}
+
+/* La capa de "suelta el archivo" (bg-blue-50/90) tapa lo de abajo: casi sólida,
+   la tarjeta oscura con un toque del acento. */
+body.dark-mode .bg-blue-50\/90 {
+    background-color: color-mix(in srgb, rgb(var(--brand-600, 192 90 64)) 14%, var(--dk-card, #1F2A37)) !important;
+}
+
+body.dark-mode .hover\:bg-blue-50:hover,
+body.dark-mode .hover\:bg-blue-50\/40:hover,
+body.dark-mode .hover\:bg-blue-50\/60:hover {
+    background-color: rgb(var(--brand-600, 192 90 64) / .14) !important;
+}
+
+body.dark-mode .border-blue-100,
+body.dark-mode .border-blue-200,
+body.dark-mode .border-blue-300 {
+    border-color: rgb(var(--brand-600, 192 90 64) / .30) !important;
+}
+
+body.dark-mode .text-blue-700,
+body.dark-mode .text-blue-800,
+body.dark-mode .text-blue-900 {
+    color: rgb(var(--brand-300, 232 166 143)) !important;
+}
+
+/* Texto del acento sobre fondo oscuro: el 400, como el text-blue-400 de
+   alpha/ (#76A9FA en Huubie). El 600 no se lee sobre #1F2A37. Si el
+   elemento trae su propio hover de texto (hover:text-white), se respeta. */
+body.dark-mode .text-blue-600:not([class*="hover:text-"]),
+body.dark-mode .text-blue-600[class*="hover:text-"]:not(:hover) {
+    color: rgb(var(--brand-400, 217 130 106)) !important;
+}
+
+body.dark-mode .bg-stone-200 {
+    background-color: var(--dk-card) !important;
+}
+
+/* Variantes con opacidad y estados hover de los fondos claros: los
+   componentes propios (entrada-form, traspaso-form, órdenes...) las usan y
+   sin esto pintan franjas o destellos claros sobre la página oscura. */
+body.dark-mode .bg-gray-50\/50,
+body.dark-mode .bg-gray-50\/60,
+body.dark-mode .bg-gray-50\/80,
+body.dark-mode .bg-white\/80,
+body.dark-mode .bg-white\/90 {
+    background-color: var(--dk-card) !important;
+}
+
+body.dark-mode .hover\:bg-white:hover,
+body.dark-mode .hover\:bg-gray-50:hover,
+body.dark-mode .hover\:bg-gray-100:hover,
+body.dark-mode .hover\:bg-gray-200:hover,
+body.dark-mode .hover\:bg-slate-50:hover,
+body.dark-mode .hover\:bg-slate-100:hover {
+    background-color: var(--dk-hover) !important;
+}
+
+body.dark-mode .border-gray-100,
+body.dark-mode .divide-gray-100 > * + *,
+body.dark-mode .divide-gray-200 > * + * {
+    border-color: var(--dk-line) !important;
+}
+
+/* Rounded containers */
+body.dark-mode .rounded-lg,
+body.dark-mode .rounded-xl {
+    border-color: var(--dk-line) !important;
+}
+
+/* ...salvo el borde del acento (botón outline, card activa): la regla de
+   arriba lo dejaba gris. Misma especificidad, gana por ir después. */
+body.dark-mode .border-blue-500,
+body.dark-mode .border-blue-600,
+body.dark-mode .border-blue-700 {
+    border-color: rgb(var(--brand-600, 192 90 64)) !important;
+}
+
+/* Shadow adjustments */
+body.dark-mode .shadow,
+body.dark-mode .shadow-sm,
+body.dark-mode .shadow-md,
+body.dark-mode .shadow-lg {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+}
+
+
+/* ========================================
+   CoffeeSoft Components Dark Mode
+   ======================================== */
+
+/* Paneles de pestaña y contenedores de layout: TRANSPARENTES, como en claro.
+   Toman la superficie de la tarjeta que los contiene. Antes se pintaban
+   con el fondo de página y quedaban cajas más oscuras pegadas a los bordes
+   de la tarjeta (sin padding propio). */
+body.dark-mode [id*="tabs"] .tab-content,
+body.dark-mode .tab-pane,
+body.dark-mode [class*="primaryLayout"],
+body.dark-mode [id*="container"] {
+    background-color: transparent !important;
+}
+
+/* Módulos con visor lateral (.cs-visor: Entradas, Salidas, Movimientos, Órdenes,
+   Solicitudes, Stock, Traspasos). Dentro de la tarjeta no van franjas del color
+   de página ni líneas de contenedor: el bg-gray-50 de la fila de KPIs y del visor
+   quedaba como hueco negro. Escala de Huubie (PALETTE.md): tarjeta #1F2A37 →
+   elevado #283341 (cards de KPI, tarjetas del visor, totales) y el visor un nivel
+   abajo (--dk-sunken, #1a2332), que lo separa de la tabla sin línea. Las demás
+   líneas del visor (renglones, línea de tiempo) se quedan. */
+body.dark-mode .cs-visor,
+body.dark-mode .cs-visor #mainPanel > *,
+body.dark-mode .cs-visor #kpisRow [data-kpi-idx],
+body.dark-mode .cs-visor #detailPanel,
+body.dark-mode .cs-visor #detailPanel .border-t.border-gray-200,
+body.dark-mode .cs-visor #detailPanel .border-b.border-gray-200,
+body.dark-mode .cs-visor #detailPanel .border.border-gray-200 {
+    border-color: transparent !important;
+}
+
+body.dark-mode .cs-visor #kpisRow {
+    background-color: transparent !important;
+}
+
+body.dark-mode .cs-visor #kpisRow [data-kpi-idx] {
+    background-color: var(--dk-row) !important;
+}
+
+body.dark-mode .cs-visor #detailPanel {
+    background-color: var(--dk-sunken) !important;
+    border-radius: 0.5rem;
+}
+
+/* Franjas del visor (encabezado, resumen): toman el fondo del visor. */
+body.dark-mode .cs-visor #detailPanel .bg-gray-50,
+body.dark-mode .cs-visor #detailPanel .bg-gray-50\/50,
+body.dark-mode .cs-visor #detailPanel .bg-gray-50\/60,
+body.dark-mode .cs-visor #detailPanel .bg-gray-50\/80 {
+    background-color: transparent !important;
+}
+
+/* Tarjetas del visor (las de borde completo) y totales: un nivel arriba; la
+   línea pasa a superficie. Ganan a la franja aunque traigan bg-gray-50. */
+body.dark-mode .cs-visor #detailPanel .border.border-gray-200,
+body.dark-mode .cs-visor #detailPanel .cs-visor-totals {
+    background-color: var(--dk-row) !important;
+}
+
+/* Cancelar / Rechazar / Eliminar del visor: velo rojo y no el sólido, que
+   competía con el primario (Editar, Surtir) de al lado. Unos traen bg-rose-600
+   y otros el color en línea (ordenes, traspasos): se reconocen por el id. */
+body.dark-mode .cs-visor #detailPanel .bg-rose-600,
+body.dark-mode .cs-visor #detailPanel [id$="_cancel"],
+body.dark-mode .cs-visor #detailPanel [id$="_reject"],
+body.dark-mode .cs-visor #detailPanel [id$="_delete"] {
+    background: rgb(244 63 94 / .14) !important;
+    color: #FDA4AF !important;
+}
+
+body.dark-mode .cs-visor #detailPanel .bg-rose-600:hover,
+body.dark-mode .cs-visor #detailPanel [id$="_cancel"]:hover,
+body.dark-mode .cs-visor #detailPanel [id$="_reject"]:hover,
+body.dark-mode .cs-visor #detailPanel [id$="_delete"]:hover {
+    background: rgb(244 63 94 / .24) !important;
+}
+
+/* Modales de captura (.cs-captura: Nueva entrada, salida, orden y solicitud).
+   Una sola superficie de tarjeta: el bg-gray-50 / bg-white de cada sección
+   (encabezado, campos, buscador, pie) quedaba en dos tonos, página y tarjeta,
+   partidos por líneas. La lista de productos es un pozo un nivel abajo
+   (--dk-sunken) y el resumen de totales sube uno (--dk-row), como en el visor. */
+body.dark-mode .cs-captura {
+    background-color: var(--dk-card) !important;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Secciones = hijas directas. El desplegable flotante (absolute) se queda. */
+body.dark-mode .cs-captura > div:not(.absolute) {
+    background-color: transparent !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode .cs-captura > div.cs-captura-lista {
+    background-color: var(--dk-sunken) !important;
+}
+
+body.dark-mode .cs-captura > div.cs-captura-resumen {
+    background-color: var(--dk-row) !important;
+}
+
+/* Franjas internas (encabezado de la tabla, pie de los resultados del buscador,
+   costo bloqueado): un nivel abajo de la tarjeta, no el negro de la página. */
+body.dark-mode .cs-captura .bg-gray-50 {
+    background-color: var(--dk-sunken) !important;
+}
+
+/* Teclas de atajo (↑↓, Enter, Esc) de los modales: traen el gris claro fijo. */
+body.dark-mode .ef-kbd,
+body.dark-mode .sf-kbd,
+body.dark-mode .tf-kbd,
+body.dark-mode .sol-kbd {
+    background: var(--dk-input) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-muted) !important;
+}
+
+/* Barra de pestañas de la variante oscura de tabLayout (#19232D): es la de
+   Huubie tal cual; en las demás páginas oscuras toma su fondo de página. */
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#19232D\] {
+    background-color: var(--dk-bg) !important;
+}
+
+/* CoffeTable Themes Override */
+body.dark-mode .coffe-table {
+    background-color: var(--dk-bg) !important;
+}
+
+body.dark-mode .coffe-table-header {
+    background-color: var(--dk-card) !important;
+    color: var(--dk-muted) !important;
+}
+
+body.dark-mode .coffe-table-row {
+    background-color: var(--dk-bg) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .coffe-table-row:hover {
+    background-color: var(--dk-card-hi) !important;
+}
+
+/* Dropdown Menu */
+body.dark-mode .dropdown-menu {
+    background-color: var(--dk-bg) !important;
+    border-color: var(--dk-line) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-mode .dropdown-item {
+    color: var(--dk-text-soft) !important;
+}
+
+body.dark-mode .dropdown-item:hover {
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .dropdown-divider {
+    border-color: var(--dk-line) !important;
+}
+
+/* SweetAlert2 Dark Mode */
+body.dark-mode .swal2-popup {
+    background-color: var(--dk-bg) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .swal2-title {
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .swal2-html-container {
+    color: var(--dk-muted) !important;
+}
+
+body.dark-mode .swal2-confirm {
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+}
+
+body.dark-mode .swal2-cancel {
+    background-color: var(--dk-line) !important;
+}
+
+/* Bootbox Modal */
+body.dark-mode .bootbox .modal-content {
+    background-color: var(--dk-bg) !important;
+}
+
+body.dark-mode .bootbox .modal-header {
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .bootbox .modal-title {
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .bootbox .modal-body {
+    background-color: var(--dk-bg) !important;
+    color: var(--dk-text-soft) !important;
+}
+
+body.dark-mode .bootbox .modal-footer {
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .bootbox .close {
+    color: var(--dk-muted) !important;
+}
+
+/* DateRangePicker Dark Mode: tarjeta oscura con el panel de rangos un tono
+   abajo, como en claro (blanco + #F9FAFB). daterangepicker.css trae blancos
+   clavados en .ranges, .drp-buttons y la flechita; se pisan todos aquí. */
+body.dark-mode .daterangepicker {
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text-soft) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45) !important;
+}
+
+body.dark-mode .daterangepicker:before {
+    border-bottom-color: var(--dk-line) !important;
+}
+
+body.dark-mode .daterangepicker:after {
+    border-bottom-color: var(--dk-card) !important;
+}
+
+body.dark-mode .daterangepicker.drop-up:before {
+    border-top-color: var(--dk-line) !important;
+}
+
+body.dark-mode .daterangepicker.drop-up:after {
+    border-top-color: var(--dk-card) !important;
+}
+
+body.dark-mode .daterangepicker .ranges {
+    background-color: var(--dk-hover) !important;
+}
+
+body.dark-mode .daterangepicker .ranges li {
+    color: var(--dk-text-soft) !important;
+}
+
+body.dark-mode .daterangepicker .ranges li:hover {
+    background-color: var(--dk-row-hover) !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .daterangepicker .ranges li.active {
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .daterangepicker.show-ranges .drp-calendar.left,
+body.dark-mode .daterangepicker.show-ranges .drp-calendar.right {
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .daterangepicker .calendar-table {
+    background-color: transparent !important;
+    border-color: transparent !important;
+}
+
+/* Celdas del calendario: las reglas de tablas de arriba también las pintan
+   (fondo de fila, rejilla, hover de fila). El .drp-calendar extra sube la
+   especificidad por encima de esas. */
+body.dark-mode .daterangepicker .drp-calendar .calendar-table th,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: var(--dk-text-soft) !important;
+}
+
+body.dark-mode .daterangepicker .drp-calendar .calendar-table th {
+    color: var(--dk-muted) !important;
+}
+
+body.dark-mode .daterangepicker .calendar-table .next span,
+body.dark-mode .daterangepicker .calendar-table .prev span {
+    border-color: var(--dk-muted) !important;
+}
+
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.available:hover,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table th.available:hover {
+    background-color: var(--dk-row-hover) !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.in-range {
+    background-color: rgb(var(--brand-600, 192 90 64) / .22) !important;
+    color: rgb(var(--brand-300, 232 166 143)) !important;
+}
+
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.active,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.active:hover {
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+/* Días de otro mes: sin relleno aunque caigan en el rango, como en claro. */
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.off,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.off.in-range,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.off.start-date,
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.off.end-date {
+    background-color: transparent !important;
+    color: #6B7280 !important;
+}
+
+body.dark-mode .daterangepicker .drp-calendar .calendar-table td.disabled {
+    color: var(--dk-line-hi) !important;
+}
+
+body.dark-mode .daterangepicker .drp-buttons {
+    background-color: transparent !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .daterangepicker .drp-selected {
+    color: var(--dk-muted) !important;
+}
+
+/* Cancelar (btn-outline-danger): el #9D3434 no se lee sobre la tarjeta. En
+   reposo, el rojo claro del botón de salir de la barra; al pasar se rellena. */
+body.dark-mode .daterangepicker .cancelBtn:not(:hover):not(:focus):not(:active) {
+    color: #F87171 !important;
+    border-color: rgb(248 113 113 / .45) !important;
+}
+
+/* Pagination */
+body.dark-mode .pagination .page-link {
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-muted) !important;
+}
+
+body.dark-mode .pagination .page-link:hover {
+    background-color: var(--dk-card-hi) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .pagination .page-item.active .page-link {
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+    border-color: rgb(var(--brand-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+/* Tooltip */
+body.dark-mode .tooltip-inner {
+    background-color: var(--dk-hover) !important;
+    color: var(--dk-text) !important;
+}
+
+/* Progress Bar */
+body.dark-mode .progress {
+    background-color: var(--dk-card) !important;
+}
+
+/* List Group */
+body.dark-mode .list-group-item {
+    background-color: var(--dk-bg) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text-soft) !important;
+}
+
+body.dark-mode .list-group-item:hover {
+    background-color: var(--dk-card) !important;
+}
+
+/* Accordion */
+body.dark-mode .accordion-item {
+    background-color: var(--dk-bg) !important;
+    border-color: var(--dk-line) !important;
+}
+
+body.dark-mode .accordion-button {
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .accordion-button:not(.collapsed) {
+    background-color: var(--dk-card-hi) !important;
+}
+
+body.dark-mode .accordion-body {
+    background-color: var(--dk-bg) !important;
+}
+
+/* Placeholder text */
+body.dark-mode ::placeholder {
+    color: #6B7280 !important;
+    opacity: 1 !important;
+}
+
+body.dark-mode :-ms-input-placeholder {
+    color: #6B7280 !important;
+}
+
+body.dark-mode ::-ms-input-placeholder {
+    color: #6B7280 !important;
+}
+
+/* Puntito que pulsa para estados que requieren atencion (p.ej. Solicitada). */
+@keyframes csDotPulse {
+    0%, 100% { transform: scale(1);    opacity: 1; }
+    50%      { transform: scale(1.35); opacity: 0.5; }
+}
+.cs-pulse-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 9999px;
+    flex-shrink: 0;
+    animation: csDotPulse 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .cs-pulse-dot { animation: none; }
+}

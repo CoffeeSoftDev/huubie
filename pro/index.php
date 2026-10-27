@@ -68,7 +68,10 @@ $version = function ($file) {
                 </div>
 
                 <div class="field reveal" style="--i:6">
-                    <label class="field-label" for="password">Contraseña</label>
+                    <div class="label-row">
+                        <label class="field-label" for="password">Contraseña</label>
+                        <a href="recuperar.php">¿La olvidaste?</a>
+                    </div>
                     <div class="control">
                         <input type="password" class="field-input has-eye" id="password" name="password" autocomplete="current-password" required>
                         <button type="button" id="btn-eye" class="eye-btn" aria-label="Mostrar contraseña"><i class="icon-eye"></i></button>

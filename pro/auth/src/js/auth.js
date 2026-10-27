@@ -15,6 +15,7 @@ $(() => {
     $('#btn-eye').on('click', togglePassword);
     $('#btn-forget').on('click', forgetUser);
     $('#email, #password').on('input', hideError);
+    $('#email').on('input', () => setLocked(false));
     $('#password').on('keydown keyup', toggleCaps);
 });
 
@@ -53,7 +54,12 @@ function login() {
 
         setLoading(false);
         showError(res.message);
-        $('#password').val('').trigger('focus');
+        $('#password').val('');
+
+        // Bloqueada no tiene caso volver a escribir la contraseña: la salida es
+        // "¿La olvidaste?", que la desbloquea.
+        if (res.status === 423) setLocked(true);
+        else $('#password').trigger('focus');
     })
     .fail(() => {
         setLoading(false);
@@ -64,6 +70,12 @@ function login() {
 function onLogin(data) {
     if ($('#remember').is(':checked')) saveRemembered(data);
     else clearRemembered();
+
+    // El menu que el rail guardo en esta pestaña es de quien estaba antes
+    // (sidebar.js): se olvida para no pintarlo ni un instante.
+    try {
+        Object.keys(sessionStorage).filter((k) => k.startsWith('pro:sidebar:')).forEach((k) => sessionStorage.removeItem(k));
+    } catch (e) {}
 
     window.location.href = data.redirect;
 }
@@ -118,6 +130,7 @@ function forgetUser() {
     clearRemembered();
     $('#email, #password').val('');
     hideError();
+    setLocked(false);
     applyRemembered();
     $('#email').trigger('focus');
 }
@@ -145,6 +158,10 @@ function initialsOf(name) {
 // Deshabilitado ademas de girando: un Enter de mas no manda el login dos veces.
 function setLoading(estado) {
     $('#btn-login').toggleClass('loading', estado).prop('disabled', estado);
+}
+
+function setLocked(estado) {
+    $('#password, #btn-login').prop('disabled', estado);
 }
 
 function showError(message) {

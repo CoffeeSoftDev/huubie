@@ -1,0 +1,266 @@
+/* ============================================================
+   TOKENS DE PÁGINA DE INVENTORY
+   ============================================================
+   Un tema (fayxzvov_erp.themes) pinta la BARRA superior (applyTheme() de
+   acceso/src/js/navbar.js, como en erp-pro/pro) y trae tres hex editables:
+   el ACENTO, el PRIMARIO y el SECUNDARIO. De ellos, src/js/tailwind-theme.js
+   calcula las rampas y las escribe en el style de <html>:
+     --brand-50..950        rampa del acento (Tailwind blue-*)
+     --accent-2-50..950     rampa del secundario (barra, foco, hover de cards)
+     --gray-*, --line ...   solo con un acento sin color (negro, grafito)
+     --primary-*-rgb        tonos del primario (Tailwind main-*, colors.css)
+   Esta hoja trae los tokens de página de Claro y las superficies de las
+   dos páginas oscuras. Va en TODAS las páginas, también en las que no
+   cargan dark-mode.css (modulos/, sucursales/).
+
+   Con tema claro el fondo es gris #F3F4F6 siempre. Con tema de página
+   oscura (scheme huubie | midnight | rose) InventoryPalette pone body.dark-mode.
+   ============================================================ */
+
+:root {
+    --bg:            #F3F4F6;
+    --surface:       #FFFFFF;
+    --surface-hover: #F9FAFB;
+    --line:          #E5E7EB;
+    --ink:           #111827;
+    --ink-dim:       #6B7280;
+
+    /* Card de módulo (ModuleCard): borde, caja del ícono y badge verde. */
+    --raised-line:   var(--line);
+    --icon-box-bg:   var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)));
+    --icon-box-fg:   rgb(var(--brand-600, 192 90 64));
+    --ok-soft-bg:    #DCFCE7;
+    --ok-soft-fg:    #16A34A;
+}
+
+/* -- Superficies de las páginas oscuras --
+   Huubie: tokens de Huubie UI (grimorio-huubie-ui, sección 2) y el layout
+   canónico de alpha/pedidos: página #111928, contenedor #1F2A37 con p-3. */
+:root {
+    --dk-bg:        #111928;   /* bg-body: fondo de página */
+    --dk-chrome:    #141d2b;
+    --dk-card:      #1F2A37;   /* bg-card: contenedor, cards, modales */
+    --dk-sunken:    #1a2332;   /* un nivel abajo de la tarjeta: visor lateral */
+    --dk-card-hi:   #1F2937;
+    --dk-th:        #374151;   /* tabla (como alpha/): header */
+    --dk-row:       #283341;   /*   filas */
+    --dk-row-alt:   #1F2A37;   /*   alternas = contenedor (alpha usa #111827 y no combina) */
+    --dk-row-hover: #334155;   /*   hover de fila */
+    --dk-hover:     #1a2332;   /* hover genérico */
+    --dk-input:     #1a2332;   /* bg-input: inputs, selects, textareas */
+    --dk-raised:    #333D4C;   /* card de módulo (grid inicial) */
+    --dk-raised-hover: #3F4B5C; /*   su hover (alpha/menus/src/js/cards.js) */
+    --dk-line:      #374151;   /* border */
+    --dk-line-hi:   #4B5563;
+    --dk-text:      #f5f5f5;
+    --dk-text-soft: #e5e5e5;
+    --dk-muted:     #9CA3AF;   /* text-secondary */
+}
+
+/* Midnight: [data-theme="midnight"] de erp-pro/ERP24/avatars/src/css/visor.css,
+   repartido en los mismos papeles que Huubie. */
+:root[data-scheme="midnight"] {
+    --dk-bg:        #0B1420;
+    --dk-chrome:    #101B29;
+    --dk-card:      #142132;
+    --dk-sunken:    #101B2A;
+    --dk-card-hi:   #16243A;
+    --dk-th:        #22354F;
+    --dk-row:       #1B2C44;
+    --dk-row-alt:   #142132;
+    --dk-row-hover: #26384F;
+    --dk-hover:     #1B2C44;
+    --dk-input:     #16243A;
+    --dk-raised:    #1B2C44;
+    --dk-raised-hover: #26384F;
+    --dk-line:      #26384F;
+    --dk-line-hi:   #33506E;
+    --dk-text:      #EAF2FB;
+    --dk-text-soft: #D3E0EF;
+    --dk-muted:     #8CA0B8;
+}
+
+/* Rosé: oscuro con tinte vino para los temas rosados (Regina's). Saturación
+   baja (~18%) para que no canse en jornadas largas; el rosa fuerte lo pone el
+   acento, no las superficies. Mismos papeles que Midnight. Contrastes sobre
+   --dk-card: texto 14.6:1, tenue 7.1:1. */
+:root[data-scheme="rose"] {
+    --dk-bg:        #1A1216;
+    --dk-chrome:    #1E1519;
+    --dk-card:      #251A20;
+    --dk-sunken:    #20161B;
+    --dk-card-hi:   #2A1E25;
+    --dk-th:        #3B2A33;
+    --dk-row:       #2E2128;
+    --dk-row-alt:   #251A20;
+    --dk-row-hover: #3F2D37;
+    --dk-hover:     #2E2128;
+    --dk-input:     #2A1E25;
+    --dk-raised:    #33242C;
+    --dk-raised-hover: #40303A;
+    --dk-line:      #3F2D37;
+    --dk-line-hi:   #55404B;
+    --dk-text:      #F5EDF0;
+    --dk-text-soft: #E8DCE1;
+    --dk-muted:     #B9A3AD;
+}
+
+/* En página oscura los tokens de página toman esas superficies: todo lo que
+   los consume (ModuleCard, badges en línea, páginas propias) se oscurece
+   sin saber nada del tema. */
+body.dark-mode {
+    --bg:             var(--dk-bg);
+    --surface:        var(--dk-card);
+    --surface-raised: var(--dk-raised);
+    --surface-hover:  var(--dk-hover);
+    --line:           var(--dk-line);
+    --ink:            var(--dk-text);
+    --ink-dim:        var(--dk-muted);
+    --accent-soft-bg: rgb(var(--brand-600, 192 90 64) / .18);
+    --accent-soft-fg: rgb(var(--brand-300, 232 166 143));
+
+    /* Card de módulo como la de alpha/: sin borde, caja del ícono sólida
+       (#233876 en Huubie) con el ícono claro, y el badge en velo verde en
+       lugar del pastel de la página clara. */
+    --raised-line:    transparent;
+    --icon-box-bg:    rgb(var(--brand-900, 110 47 32));
+    --icon-box-fg:    rgb(var(--brand-400, 217 130 106));
+    --ok-soft-bg:     rgb(34 197 94 / .16);
+    --ok-soft-fg:     rgb(134 239 172);
+}
+
+/* Hover de las cards de módulo en página oscura: se aclaran (#3F4B5C, como
+   alpha/) y toman el borde del `secondary` de Huubie UI ("hover de cards"),
+   que en Huubie es morado. Fondo y borde vienen en línea desde ModuleCard,
+   por eso el !important. */
+body.dark-mode .module-card-item:hover {
+    background-color: var(--dk-raised-hover) !important;
+    border-color: rgb(var(--accent-2-500, 200 105 76)) !important;
+}
+
+/* -- Página clara con secundario propio --
+   data-second="own" lo pone InventoryPalette cuando el tema trae un segundo
+   color de verdad (Huubie Claro: el azul junto a su morado). Toma los papeles que ya
+   tiene en página oscura (dark-mode.css): botón secundario de Bootstrap y de
+   coffeeSoft, foco de inputs y hover de las cards. Sin él, todo sigue en el
+   acento. */
+html[data-second="own"] body:not(.dark-mode) .btn-secondary,
+html[data-second="own"] body:not(.dark-mode) .tw-btn.dark\:bg-second-600 {
+    background-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .btn-secondary:hover,
+html[data-second="own"] body:not(.dark-mode) .tw-btn.dark\:bg-second-600:hover {
+    background-color: rgb(var(--accent-2-700, 168 74 51)) !important;
+    border-color: rgb(var(--accent-2-700, 168 74 51)) !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .tw-btn.dark\:bg-second-600:focus {
+    --tw-ring-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .btn-outline-secondary {
+    color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .btn-outline-secondary:hover,
+html[data-second="own"] body:not(.dark-mode) .btn-outline-secondary:focus,
+html[data-second="own"] body:not(.dark-mode) .btn-outline-secondary:active {
+    background-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    color: #ffffff !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .form-control:focus,
+html[data-second="own"] body:not(.dark-mode) input:focus,
+html[data-second="own"] body:not(.dark-mode) select:focus,
+html[data-second="own"] body:not(.dark-mode) textarea:focus {
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 192 90 64) / .2) !important;
+}
+
+html[data-second="own"] body:not(.dark-mode) .module-card-item:hover {
+    border-color: rgb(var(--accent-2-500, 200 105 76)) !important;
+}
+
+
+/* ============================================================
+   CONTENEDORES CON EL COLOR CLAVADO EN CSS
+   ============================================================
+   Esta hoja se carga DESPUÉS de general.css y sidebar.css: con la misma
+   especificidad, gana por orden. */
+
+body { background-color: var(--bg); }
+
+#menu-sidebar { border-right-color: var(--line); }
+
+.menu-rail-item:hover {
+    color: var(--ink);
+    background: rgb(var(--gray-100, 243 244 246));
+    border-color: var(--line);
+}
+
+.menu-rail-item.is-active {
+    color: rgb(var(--brand-600, 192 90 64));
+    background: rgb(var(--brand-600, 192 90 64) / .10);
+    border-color: rgb(var(--brand-600, 192 90 64) / .12);
+}
+
+
+/* ============================================================
+   SIDEBAR CON COLOR PROPIO (themes.sidebar_color)
+   ============================================================
+   InventoryPalette pone --sidebar-bg y data-sidebar en <html>; sin color
+   propio no hay atributo y el rail sigue a la página. `html … body` y el
+   !important del fondo le ganan al bg-white de cada página y a
+   body.dark-mode #menu-sidebar (dark-mode.css carga después de esta hoja).
+     white  -> casi blanco: los íconos grises de la página clara.
+     tinted -> claro con color (rosa, menta): tinta oscura y velo blanco.
+     dark   -> oscuro: íconos claros y velo blanco, como .nav-dark. */
+
+html[data-sidebar] body #menu-sidebar {
+    background-color: var(--sidebar-bg) !important;
+}
+
+html[data-sidebar="dark"] body #menu-sidebar,
+html[data-sidebar="tinted"] body #menu-sidebar {
+    border-right-color: rgb(0 0 0 / .10) !important;
+}
+
+html[data-sidebar="white"] body .menu-rail-item { color: #6B7280; }
+html[data-sidebar="white"] body .menu-rail-item:hover {
+    color: #111827;
+    background: #F3F4F6;
+    border-color: #E5E7EB;
+}
+html[data-sidebar="white"] body .menu-rail-item.is-active {
+    color: rgb(var(--brand-600, 192 90 64));
+    background: rgb(var(--brand-600, 192 90 64) / .10);
+    border-color: rgb(var(--brand-600, 192 90 64) / .12);
+}
+
+html[data-sidebar="tinted"] body .menu-rail-item { color: rgb(17 24 39 / .62); }
+html[data-sidebar="tinted"] body .menu-rail-item:hover {
+    color: #111827;
+    background: rgb(255 255 255 / .40);
+    border-color: rgb(255 255 255 / .55);
+}
+html[data-sidebar="tinted"] body .menu-rail-item.is-active {
+    color: #111827;
+    background: rgb(255 255 255 / .70);
+    border-color: rgb(255 255 255 / .85);
+}
+
+html[data-sidebar="dark"] body .menu-rail-item { color: rgb(255 255 255 / .68); }
+html[data-sidebar="dark"] body .menu-rail-item:hover {
+    color: #FFFFFF;
+    background: rgb(255 255 255 / .08);
+    border-color: rgb(255 255 255 / .10);
+}
+html[data-sidebar="dark"] body .menu-rail-item.is-active {
+    color: #FFFFFF;
+    background: rgb(255 255 255 / .16);
+    border-color: rgb(255 255 255 / .20);
+}

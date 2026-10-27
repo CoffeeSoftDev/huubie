@@ -29,12 +29,16 @@ public function _CUD($query, $values) {
             if ($isMultidimensional) {
                 foreach ($row as $colKey => $colValue) {
                     $num = ($key * count($row)) + $colKey + 1;
-                    $stm->bindParam($num, $values[$key][$colKey]);
+                    // bindValue con su tipo: un null tiene que ir como PARAM_NULL.
+                    // Con bindParam viajaba como '' y rompia las llaves foraneas opcionales.
+                    $val = $values[$key][$colKey];
+                    $stm->bindValue($num, $val, is_null($val) ? PDO::PARAM_NULL : PDO::PARAM_STR);
                 }
             } else {
                 // Si es un array simple, vincular cada valor directamente
                 $num = $key + 1;
-                $stm->bindParam($num, $values[$key]);
+                $val = $values[$key];
+                $stm->bindValue($num, $val, is_null($val) ? PDO::PARAM_NULL : PDO::PARAM_STR);
             }
         }
 
@@ -48,13 +52,17 @@ public function _CUD($query, $values) {
         $message  =  "[ INFO ] ::  $query";
         $message .=  "\n[ ERROR C.U.D. ] :: ". $e->getMessage()."\n";
         $this->writeToLog($message);
+        // Dentro de una transaccion el error tiene que subir para que haya rollback;
+        // fuera de ella se queda como siempre: log y false.
+        if ($this->inTransaction) throw $e;
+        return false;
     }
 }
 /* Función Read
     los parámetros que recibe son la consulta sql y los datos en forma de arreglo.
     Consulta y retorna datos de una tabla en la base de datos.
 */
-public function _Read($query, $values,$retorno = false) {
+public function _Read($query, $values = null, $retorno = false) {
     try {
         // if($retorno == true) return $query;
 

@@ -9,6 +9,7 @@ require_once(__DIR__.'/../helpers/_Zona.php');
 	class Conection {
 		protected $mysql;
         protected $connected = false;
+        protected $inTransaction = false;
 
 		public function connect() {
             if (!$this->connected) {
@@ -58,9 +59,54 @@ require_once(__DIR__.'/../helpers/_Zona.php');
 		}
         // Cerrar conexiones
         public function disconnect() {
+            // Con una transaccion abierta NO se cierra: la transaccion vive en una
+            // sola conexion, y _CUD/_Read llaman disconnect() al final de cada
+            // consulta. Sin este guardia moriria entre escritura y escritura, y
+            // LAST_INSERT_ID() devolveria 0 en la conexion nueva.
+            if ($this->inTransaction) return;
             if ($this->connected) {
                 $this->mysql = null; // Cierra la conexión
                 $this->connected = false; // Establecer la bandera de conexión a false
+            }
+        }
+
+        /*  TRANSACCIONES (todo o nada). Portado de inventory/conf/_Conect.php.
+            Mientras nadie llame beginTransaction(), connect/disconnect se
+            comportan igual que siempre. */
+        public function beginTransaction() {
+            if ($this->inTransaction) return;
+            $this->connect();
+            if (!$this->connected) return;
+            $this->mysql->beginTransaction();
+            $this->inTransaction = true;
+        }
+
+        public function commit() {
+            if (!$this->inTransaction) return;
+            $this->mysql->commit();
+            $this->inTransaction = false;
+            $this->disconnect();
+        }
+
+        public function rollback() {
+            if (!$this->inTransaction) return;
+            $this->mysql->rollBack();
+            $this->inTransaction = false;
+            $this->disconnect();
+        }
+
+        // Ejecuta $fn en una transaccion: commit si sale bien, rollback y se
+        // relanza si lanza cualquier excepcion.
+        //   return $this->transaction(function () { ...escrituras...; return [...]; });
+        public function transaction(callable $fn) {
+            $this->beginTransaction();
+            try {
+                $result = $fn();
+                $this->commit();
+                return $result;
+            } catch (\Throwable $e) {
+                $this->rollback();
+                throw $e;
             }
         }
 

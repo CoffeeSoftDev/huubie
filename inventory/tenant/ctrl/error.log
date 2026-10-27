@@ -1,3 +1,15 @@
+[ 2026-10-27 09:36:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_erp.branches
+            WHERE company_id = ? AND is_active = 1
+            ORDER BY id IN (SELECT branch_id FROM fayxzvov_inventory.warehouse WHERE is_main = 1 AND active = 1) DESC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'is_main' in 'where clause'
+
+
 [ 2026-10-26 23:17:12 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: ROSY$
