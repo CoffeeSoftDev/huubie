@@ -33,6 +33,11 @@ app/facture/sql/backup/
 # los archivos sess_* son runtime.
 inventory/sessions/sess_*
 
+# pro/: credenciales de la base (el .env.example si viaja, como plantilla) y
+# los archivos de sesion, que son runtime. La carpeta viaja por su .htaccess.
+pro/core/config/.env
+pro/sessions/sess_*
+
 # ImageLab: credenciales, imagenes generadas y base de trabajos. Todo runtime.
 imagelab/.env
 imagelab/uploads/

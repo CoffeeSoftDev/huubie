@@ -1,0 +1,468 @@
+/* ============================================================
+   Huubie · Acceso (login)
+   Estilo "Porcelana" de inventory/src/css/index.css: fondo hueso con grano,
+   tarjeta blanca con sombras en capas, marca oscura, campos con etiqueta
+   arriba y boton negro con relieve. Tipografia Geist, iconos de fontello.
+
+   Clases que pone auth.js y NO se renombran:
+     .login-error.show, .is-invalid, .loading, .caps.show
+   ============================================================ */
+
+:root {
+    --acc-bg:      #F6F6F4;
+    --acc-card:    #FFFFFF;
+    --acc-ink:     #0A0A0A;
+    --acc-ink-2:   #5E5E5E;
+    --acc-ink-3:   #9C9C9C;
+    --acc-line:    rgba(10, 10, 10, 0.08);
+    --acc-line-2:  rgba(10, 10, 10, 0.13);
+    --acc-soft:    #FAFAF9;
+    --acc-brand:   239, 68, 68;
+    --acc-danger:  #C2281D;
+    --acc-warn:    #A15C07;
+    --acc-ease:    cubic-bezier(.16, 1, .3, 1);
+    --acc-sans:    'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --acc-mono:    'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.login-body {
+    font-family: var(--acc-sans);
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background:
+        radial-gradient(ellipse 60% 50% at 50% 38%, rgba(var(--acc-brand), 0.07), transparent 70%),
+        radial-gradient(ellipse 80% 60% at 50% -10%, #FFFFFF, transparent 70%),
+        var(--acc-bg);
+    color: var(--acc-ink);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Puntos finos alrededor de la tarjeta, desvanecidos hacia los bordes. */
+.login-body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(rgba(10, 10, 10, 0.09) 1px, transparent 1px);
+    background-size: 20px 20px;
+    -webkit-mask-image: radial-gradient(ellipse 50% 45% at 50% 45%, #000 20%, transparent 80%);
+    mask-image: radial-gradient(ellipse 50% 45% at 50% 45%, #000 20%, transparent 80%);
+    opacity: .55;
+    pointer-events: none;
+}
+
+/* Grano: le quita lo plano al fondo. */
+.login-body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: .035;
+    pointer-events: none;
+}
+
+/* fontello les pone margen a los lados del glifo; dentro de botones y avisos
+   descentra el icono. */
+.login-body [class^="icon-"]::before,
+.login-body [class*=" icon-"]::before {
+    margin: 0;
+}
+
+/* -- Entrada escalonada (fade + blur) -- */
+.reveal {
+    animation: acc-rise .8s var(--acc-ease) backwards;
+    animation-delay: calc(var(--i, 0) * 60ms + 60ms);
+}
+
+@keyframes acc-rise {
+    from { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+    to   { opacity: 1; transform: none; filter: none; }
+}
+
+/* -- Marca: el logo de Huubie es blanco con el punto rojo, va sobre oscuro -- */
+.login-mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #2C2C2E 0%, #0A0A0A 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 0 0 1px rgba(10, 10, 10, 0.9),
+        0 6px 14px -6px rgba(10, 10, 10, 0.5);
+}
+
+.login-mark img { width: 30px; height: 30px; }
+
+.login-mark.sm {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 0 1px rgba(10, 10, 10, 0.9);
+}
+
+.login-mark.sm img { width: 18px; height: 18px; }
+
+/* -- Barra superior -- */
+.login-top {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    height: 68px;
+    padding: 0 28px;
+}
+
+.login-wordmark {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* -- Escena -- */
+.login-shell {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px 40px;
+}
+
+/* -- Tarjeta -- */
+.login-card {
+    width: 100%;
+    max-width: 412px;
+    padding: 32px;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    background:
+        linear-gradient(var(--acc-card), var(--acc-card)) padding-box,
+        linear-gradient(180deg, rgba(10, 10, 10, 0.10), rgba(10, 10, 10, 0.05)) border-box;
+    box-shadow:
+        0 1px 1px rgba(10, 10, 10, 0.03),
+        0 2px 4px -1px rgba(10, 10, 10, 0.03),
+        0 12px 24px -8px rgba(10, 10, 10, 0.06),
+        0 32px 64px -24px rgba(10, 10, 10, 0.14);
+}
+
+.login-title {
+    margin-top: 22px;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.025em;
+}
+
+.login-sub {
+    margin-top: 6px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--acc-ink-2);
+}
+
+/* -- Formulario -- */
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 26px;
+}
+
+.field { display: grid; gap: 7px; }
+.field[hidden] { display: none; }
+
+.field-label { font-size: 13px; font-weight: 500; }
+
+.control { position: relative; }
+
+.field-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 13px;
+    font-family: inherit;
+    font-size: 14.5px;
+    color: var(--acc-ink);
+    background: #FFFFFF;
+    border: 1px solid var(--acc-line-2);
+    border-radius: 10px;
+    outline: none;
+    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05), inset 0 1px 1px rgba(10, 10, 10, 0.02);
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.field-input::placeholder { color: var(--acc-ink-3); }
+.field-input:hover { border-color: rgba(10, 10, 10, 0.2); }
+
+.field-input:focus {
+    border-color: var(--acc-ink);
+    box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.07);
+}
+
+.field-input.has-eye { padding-right: 42px; }
+.field-input.is-invalid { border-color: var(--acc-danger); }
+.field-input.is-invalid:focus { box-shadow: 0 0 0 4px rgba(194, 40, 29, 0.1); }
+
+/* -- Ojo de la contraseña -- */
+.login-card .eye-btn {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 15px;
+    color: var(--acc-ink-3);
+    cursor: pointer;
+    transition: color .2s, background .2s;
+}
+
+.login-card .eye-btn:hover { color: var(--acc-ink); background: rgba(10, 10, 10, 0.05); }
+
+/* -- Usuario recordado -- */
+.remembered {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 9px 9px 10px;
+    border: 1px solid var(--acc-line);
+    border-radius: 12px;
+    background: var(--acc-soft);
+}
+
+.remembered[hidden] { display: none; }
+
+/*  Sin color elegido, un degradado oscuro sostiene las iniciales. Con color
+    propio (users.color) el background en linea que pone auth.js lo pisa. */
+.remembered-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #3A3A3C, #111111);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    color: #FFFFFF;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.remembered-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.remembered-info {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.3;
+}
+
+.remembered-name,
+.remembered-email {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.remembered-name { font-size: 14px; font-weight: 500; }
+.remembered-email { font-family: var(--acc-mono); font-size: 11.5px; color: var(--acc-ink-2); }
+
+.login-card .remembered-x {
+    flex-shrink: 0;
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--acc-line-2);
+    border-radius: 8px;
+    background: #FFFFFF;
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--acc-ink-2);
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05);
+    transition: color .2s, border-color .2s;
+}
+
+.login-card .remembered-x:hover { color: var(--acc-ink); border-color: rgba(10, 10, 10, 0.22); }
+
+/* -- Casilla de recordar (propia, sin la del navegador) -- */
+.remember-check {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13.5px;
+    color: var(--acc-ink-2);
+    cursor: pointer;
+    user-select: none;
+}
+
+.remember-check input {
+    appearance: none;
+    -webkit-appearance: none;
+    display: grid;
+    place-content: center;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border: 1px solid rgba(10, 10, 10, 0.22);
+    border-radius: 5px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05);
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+}
+
+.remember-check input::after {
+    content: '';
+    width: 8px;
+    height: 4.5px;
+    margin-top: -2px;
+    border-left: 1.75px solid #FFFFFF;
+    border-bottom: 1.75px solid #FFFFFF;
+    transform: rotate(-45deg) scale(0);
+    transition: transform .2s var(--acc-ease);
+}
+
+.remember-check input:checked { background: var(--acc-ink); border-color: var(--acc-ink); }
+.remember-check input:checked::after { transform: rotate(-45deg) scale(1); }
+.remember-check input:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.08); }
+
+/* -- Bloq Mayus -- */
+.caps {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--acc-warn);
+}
+
+.caps.show { display: flex; }
+
+/* -- Aviso de error -- */
+.login-error {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #FEF3F2;
+    box-shadow: inset 0 0 0 1px rgba(194, 40, 29, 0.14);
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--acc-danger);
+}
+
+.login-error.show { display: flex; animation: acc-rise .4s var(--acc-ease) backwards; }
+.login-error i { flex-shrink: 0; font-size: 15px; }
+
+/* -- Boton principal: negro con relieve --
+   Va con dos clases (.login-card .btn-continue) para ganarle a cualquier
+   reset que pise [type=submit]. */
+.login-card .btn-continue {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 44px;
+    margin-top: 2px;
+    border: 1px solid #0A0A0A;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #2E2E30 0%, #0A0A0A 100%);
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 500;
+    color: #FFFFFF;
+    cursor: pointer;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 1px 2px rgba(10, 10, 10, 0.2),
+        0 8px 18px -8px rgba(10, 10, 10, 0.45);
+    transition: transform .15s var(--acc-ease), filter .2s;
+}
+
+.login-card .btn-continue:hover { filter: brightness(1.18); }
+.login-card .btn-continue:active { transform: scale(.985); }
+.login-card .btn-continue:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 3px; }
+.login-card .btn-continue:disabled { opacity: .6; cursor: not-allowed; filter: none; }
+
+.btn-continue .btn-arrow { transition: transform .25s var(--acc-ease); }
+.btn-continue:hover .btn-arrow { transform: translateX(3px); }
+
+/* Cargando: flecha fuera, giro dentro. */
+.btn-continue .btn-spin { display: none; animation: acc-spin .8s linear infinite; }
+.login-card .btn-continue.loading { pointer-events: none; opacity: 1; cursor: progress; }
+.btn-continue.loading .btn-spin { display: block; }
+.btn-continue.loading .btn-arrow { display: none; }
+
+@keyframes acc-spin { to { transform: rotate(360deg); } }
+
+/* -- Pie de la tarjeta -- */
+.card-foot {
+    margin: 26px -32px -32px;
+    padding: 16px 32px;
+    border-top: 1px solid var(--acc-line);
+    border-radius: 0 0 20px 20px;
+    background: var(--acc-soft);
+    font-size: 13px;
+    color: var(--acc-ink-2);
+}
+
+.card-foot b { font-weight: 500; color: var(--acc-ink); }
+
+/* En bloque y con el icono en linea: con flex, al partirse el texto en movil
+   el escudo se quedaba solo a la izquierda. */
+.login-trust {
+    margin-top: 22px;
+    font-size: 12.5px;
+    text-align: center;
+    color: var(--acc-ink-3);
+}
+
+.login-trust i { margin-right: 5px; }
+
+.login-footer {
+    position: relative;
+    z-index: 1;
+    padding: 0 16px 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--acc-ink-3);
+}
+
+/* -- Responsive -- */
+@media (max-width: 480px) {
+    .login-top { padding: 0 18px; }
+    .login-card { padding: 26px 22px; }
+    .card-foot { margin: 22px -22px -26px; padding: 14px 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}

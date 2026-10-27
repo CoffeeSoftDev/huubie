@@ -1,0 +1,12 @@
+# Nunca se sirven por web: el .env lleva las credenciales de la base, y los
+# .log (los escribe core/database/_Conect.php junto a cada ctrl) y .sql traen
+# consultas y datos. Apache por defecto solo protege los .ht*.
+<FilesMatch "(^\.env|\.(log|sql)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
