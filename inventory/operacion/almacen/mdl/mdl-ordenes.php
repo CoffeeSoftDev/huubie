@@ -458,6 +458,45 @@ class mdl extends CRUD {
     }
 
     // -----------------------------------------------------------------------
+    // Enlace para compartir el comprobante (comprobante-requisicion.php)
+    // -----------------------------------------------------------------------
+
+    function getOrdenShareToken($array) {
+        // [id, companies_id]
+        $query = "
+            SELECT id, share_token
+            FROM {$this->bd}purchase_order
+            WHERE id = ? AND companies_id = ? AND active = 1
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    // Solo si aún no tiene: dos clics a la vez no cambian el enlace ya enviado.
+    function updateOrdenShareToken($array) {
+        // [share_token, id]
+        $query = "
+            UPDATE {$this->bd}purchase_order
+            SET share_token = ?
+            WHERE id = ? AND share_token IS NULL
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function getOrdenIdByShareToken($array) {
+        // [share_token]
+        $query = "
+            SELECT id
+            FROM {$this->bd}purchase_order
+            WHERE share_token = ? AND active = 1
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['id'] : 0;
+    }
+
+    // -----------------------------------------------------------------------
     // Insercion de cabecera y renglones de la OC
     // -----------------------------------------------------------------------
 

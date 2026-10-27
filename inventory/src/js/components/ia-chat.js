@@ -2261,6 +2261,7 @@ Templates.prototype.iaIconPlain = function () {
 // morado del chat en su esquina de abajo a la derecha (en barra oscura, uno más
 // claro). `onClick` abre o cierra el CoffeeIA de cada módulo. La navbar se pinta
 // sola y asíncrona (navbar.js): si aún no está, se espera su aviso navbarReady.
+// En el teléfono no sale (nav-hide-compact): se abre desde el menú del usuario.
 Templates.prototype.iaNavButton = function (options) {
     const o = Object.assign({
         id:      'iaNavButton',
@@ -2277,7 +2278,7 @@ Templates.prototype.iaNavButton = function (options) {
         const $btn = $('<button>', {
             type: 'button',
             id: o.id,
-            class: 'nav-theme-toggle',
+            class: 'nav-theme-toggle nav-hide-compact',
             title: o.title,
             'aria-label': `Abrir ${o.title}`,
             'data-ia-nav': ''

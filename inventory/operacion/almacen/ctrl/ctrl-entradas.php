@@ -307,6 +307,7 @@ class ctrl extends mdl {
         $ok = $this->insertEntrada([
             $folio,
             $payload['note'] ?? null,
+            $this->folioFactura($payload),
             $totalProducts,
             $totalUnits,
             $totalCost,
@@ -387,6 +388,12 @@ class ctrl extends mdl {
             'id'      => $inflowId,
             'pending' => $isProduction
         ];
+    }
+
+    // Folio de la factura con que llegó la entrada (opcional, hasta 50 caracteres); null si
+    // viene vacío.
+    private function folioFactura($payload) {
+        return mb_substr(trim((string) ($payload['invoice_folio'] ?? '')), 0, 50) ?: null;
     }
 
     // El costo sin impuesto con que entró cada presentación queda como su último costo,
@@ -607,6 +614,7 @@ class ctrl extends mdl {
 
                 $this->updateEntradaHeader([
                     $payload['note'] ?? null,
+                    $this->folioFactura($payload),
                     count($norm),
                     $totalUnits,
                     $totalCost,

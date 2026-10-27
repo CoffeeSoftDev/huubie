@@ -164,6 +164,18 @@ class ctrl extends mdl {
                 ]
             ];
 
+            // Aprobar surtido desde la lista: el mismo «Surtir» / «Terminar de surtir» del
+            // detalle; abre la hoja «Surtiendo la requisición». Va antes que el ojo.
+            if ($this->puedeSurtir($orden, $_POST['vista'])) {
+                $parcial = $orden['status'] === 'Parcial';
+                array_unshift($fila['a'], [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="truck" class="w-4 h-4"></i>',
+                    'attr'    => ['title' => $parcial ? 'Terminar de surtir la requisición' : 'Surtir la requisición'],
+                    'onclick' => "ordenesView.surtirDesdeLista('{$orden['folio']}', {$orden['id']})"
+                ]);
+            }
+
             $__row[] = $fila;
             $cards[] = $this->tarjetaMovil($orden, $entregas);
         }
@@ -253,7 +265,7 @@ class ctrl extends mdl {
     function getOrden() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
 
         $header['status_badge'] = $this->statusBadge($header);
         $header['estado']       = $this->estadoRequisicion($header);
@@ -431,7 +443,7 @@ class ctrl extends mdl {
 
         return [
             'status'  => 200,
-            'message' => $submit ? 'Pedido enviado' : 'Borrador guardado',
+            'message' => $submit ? 'Requisición enviada' : 'Borrador guardado',
             'folio'   => $folio,
             'id'      => $ordenId,
             'pending' => !$submit
@@ -447,13 +459,13 @@ class ctrl extends mdl {
         $header = $this->qGetOrden([$id]);
 
         if (!$header) {
-            return ['status' => 404, 'message' => 'Pedido no encontrado'];
+            return ['status' => 404, 'message' => 'Requisición no encontrada'];
         }
         if (!in_array($header['status'], ['Borrador', 'Solicitada'], true)) {
-            return ['status' => 400, 'message' => 'Solo se puede editar un pedido en Borrador o En espera'];
+            return ['status' => 400, 'message' => 'Solo se puede editar una requisición en Borrador o En espera'];
         }
         if ($header['status'] === 'Solicitada' && !$this->editAuthorized($id)) {
-            return ['status' => 403, 'message' => 'Confirma tu contraseña para editar el pedido'];
+            return ['status' => 403, 'message' => 'Confirma tu contraseña para editar la requisición'];
         }
 
         $payload   = json_decode($_POST['payload'], true);
@@ -550,7 +562,7 @@ class ctrl extends mdl {
 
         return [
             'status'  => 200,
-            'message' => 'Pedido actualizado',
+            'message' => 'Requisición actualizada',
             'id'      => $id
         ];
     }
@@ -562,7 +574,7 @@ class ctrl extends mdl {
     function verifyEditPassword() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
 
         // Misma verificación que el login: users.password (bcrypt).
         $user  = $this->qUserPassword([$this->userId]);
@@ -583,9 +595,9 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
         if ($header['status'] !== 'Borrador') {
-            return ['status' => 400, 'message' => 'Solo se puede enviar un pedido en estado Borrador'];
+            return ['status' => 400, 'message' => 'Solo se puede enviar una requisición en estado Borrador'];
         }
 
         $ok = $this->updateOrdenStatus(['Solicitada', $id]);
@@ -676,7 +688,7 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
         if (strpos((string) $header['folio'], 'REAB-') !== 0 || !in_array($header['status'], ['Aprobada', 'Parcial'], true)) {
             return ['status' => 400, 'message' => 'Solo un reabasto pendiente de recibir lleva fecha compromiso'];
         }
@@ -698,9 +710,9 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
         if ($header['status'] !== 'Solicitada') {
-            return ['status' => 400, 'message' => 'Solo se puede rechazar un pedido En espera'];
+            return ['status' => 400, 'message' => 'Solo se puede rechazar una requisición En espera'];
         }
         if (!$this->puedeGestionarDestino($header)) {
             return ['status' => 403, 'message' => 'Solo la sucursal de destino puede rechazar esta solicitud'];
@@ -710,7 +722,7 @@ class ctrl extends mdl {
         $ok = $this->updateOrdenStatusReject([$this->userId, $reason ?: null, $id]);
         return [
             'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Pedido rechazado' : 'No se pudo rechazar el pedido'
+            'message' => $ok ? 'Requisición rechazada' : 'No se pudo rechazar la requisición'
         ];
     }
 
@@ -720,7 +732,7 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
         if (!in_array($header['status'], ['Aprobada', 'Parcial'], true)) {
             return ['status' => 400, 'message' => 'Solo se puede recibir una orden Aprobada o Parcial'];
         }
@@ -888,18 +900,18 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
         if ($header['status'] === 'Recibida') {
-            return ['status' => 400, 'message' => 'No se puede cancelar un pedido ya recibido completamente'];
+            return ['status' => 400, 'message' => 'No se puede cancelar una requisición ya recibida completamente'];
         }
         if ($header['status'] === 'Cancelada') {
-            return ['status' => 400, 'message' => 'El pedido ya está cancelado'];
+            return ['status' => 400, 'message' => 'La requisición ya está cancelada'];
         }
 
         $ok = $this->updateOrdenStatus(['Cancelada', $id]);
         return [
             'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Pedido cancelado' : 'No se pudo cancelar el pedido'
+            'message' => $ok ? 'Requisición cancelada' : 'No se pudo cancelar la requisición'
         ];
     }
 
@@ -913,18 +925,18 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
         if (strpos((string) $header['folio'], 'REAB-') === 0) {
             return ['status' => 400, 'message' => 'Un reabasto no se revierte: se cancela'];
         }
         if (!in_array($header['status'], ['Aprobada', 'Parcial', 'Recibida'], true)) {
-            return ['status' => 400, 'message' => 'Solo se revierte un pedido Entregado, Surtido parcialmente o Confirmado'];
+            return ['status' => 400, 'message' => 'Solo se revierte una requisición Entregado, Surtido parcialmente o Confirmado'];
         }
         if (!$this->puedeGestionarDestino($header)) {
-            return ['status' => 403, 'message' => 'Solo la sucursal que surte puede revertir este pedido'];
+            return ['status' => 403, 'message' => 'Solo la sucursal que surte puede revertir esta requisición'];
         }
         if ($_POST['vista'] !== 'entregas' && $this->esCreadorPedido($header)) {
-            return ['status' => 403, 'message' => 'No puedes revertir un pedido que tú hiciste'];
+            return ['status' => 403, 'message' => 'No puedes revertir una requisición que tú hiciste'];
         }
 
         $cancelar = (string) $_POST['cancelar'] === '1';
@@ -933,7 +945,7 @@ class ctrl extends mdl {
         try {
             $hecho = $this->transaction(function () use ($id, $estado) {
                 $hecho = $this->updateDespachoRevertido($id, $this->companiesId);
-                if (!$this->updateOrdenRevertida([$estado, $id])) throw new Exception('No se pudo regresar el pedido');
+                if (!$this->updateOrdenRevertida([$estado, $id])) throw new Exception('No se pudo regresar la requisición');
                 if (!$this->updateSurtidosRevertidos([$id])) throw new Exception('No se pudo borrar el historial de surtimiento');
                 return $hecho;
             });
@@ -947,7 +959,7 @@ class ctrl extends mdl {
         if ($hecho['reabastos']) $partes[] = 'reabasto ' . implode(', ', $hecho['reabastos']) . ' cancelado';
         if ($hecho['recibidos']) $partes[] = 'el reabasto ' . implode(', ', $hecho['recibidos']) . ' ya se recibió y se queda';
 
-        $msg  = $cancelar ? "Pedido {$header['folio']} revertido y cancelado" : "Pedido {$header['folio']} revertido: vuelve a En espera";
+        $msg  = $cancelar ? "Requisición {$header['folio']} revertida y cancelada" : "Requisición {$header['folio']} revertida: vuelve a En espera";
         $msg .= $partes ? ': ' . implode('; ', $partes) . '.' : '. No tenía movimientos de almacén.';
 
         return ['status' => 200, 'message' => $msg, 'orden_status' => $estado];
@@ -956,12 +968,53 @@ class ctrl extends mdl {
     function printOrden() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
 
         $header['status_badge'] = $this->statusBadge($header);
         $header['estado']       = $this->estadoRequisicion($header);
         $detail = $this->qGetOrdenDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
+    }
+
+    // Compartir por WhatsApp: la llave del enlace público del comprobante. Nace la primera
+    // vez y después se reusa, así el enlace que ya se mandó sigue abriendo.
+    function shareOrden() {
+        $id  = (int) $_POST['id'];
+        $row = $this->getOrdenShareToken([$id, $this->companiesId]);
+        if (!$row) return ['status' => 404, 'message' => 'Requisición no encontrada'];
+
+        if (empty($row['share_token'])) {
+            $this->updateOrdenShareToken([bin2hex(random_bytes(16)), $id]);
+            $row = $this->getOrdenShareToken([$id, $this->companiesId]);
+        }
+        if (empty($row['share_token'])) return ['status' => 500, 'message' => 'No se pudo crear el enlace'];
+
+        return ['status' => 200, 'token' => $row['share_token']];
+    }
+
+    // Lo que abre el enlace para compartir (comprobante-requisicion.php), sin sesión: solo
+    // con la llave. Va lo que trae el comprobante impreso; sin costos, ids ni notas internas.
+    function getComprobante() {
+        $token  = (string) ($_POST['t'] ?? '');
+        $id     = preg_match('/^[a-f0-9]{32}$/', $token) ? $this->getOrdenIdByShareToken([$token]) : 0;
+        $header = $id ? $this->qGetOrden([$id]) : null;
+        if (!$header) return ['status' => 404, 'message' => 'Este enlace ya no es válido'];
+
+        $cabecera = array_intersect_key($header, array_flip([
+            'folio', 'status', 'branch_name', 'destination_branch_name', 'warehouse_name', 'supplier_name',
+            'date_order', 'expected_date', 'note', 'reject_reason', 'user_name', 'approved_user_name'
+        ]));
+        $cabecera['estado'] = $this->estadoRequisicion($header);
+
+        $campos = array_flip([
+            'product_name', 'sku', 'unidad', 'quantity_ordered', 'quantity_received',
+            'delivered_item_id', 'delivered_name', 'delivered_unidad'
+        ]);
+        $renglones = array_map(function ($d) use ($campos) {
+            return array_intersect_key($d, $campos);
+        }, $this->qGetOrdenDetail([$id]));
+
+        return ['status' => 200, 'header' => $cabecera, 'detail' => $renglones];
     }
 
     // Solo la sucursal destino puede aprobar/rechazar solicitudes inter-sucursal.
@@ -1001,6 +1054,16 @@ class ctrl extends mdl {
     private function esCreadorPedido($header) {
         if (strpos((string) ($header['folio'] ?? ''), 'REAB-') === 0) return false;
         return $this->userId > 0 && (int) ($header['user_id'] ?? 0) === $this->userId;
+    }
+
+    // Lo que valida approveOrden: En espera o Surtido parcialmente, sin reabasto (REAB-), la
+    // sucursal a la que se le pidió y, fuera de Surtir, no quien la hizo.
+    private function puedeSurtir($orden, $vista) {
+        if (!in_array($orden['status'], ['Solicitada', 'Parcial'], true)) return false;
+        if (strpos((string) $orden['folio'], 'REAB-') === 0) return false;
+        if (!$this->puedeGestionarDestino($orden)) return false;
+
+        return $vista === 'entregas' || !$this->esCreadorPedido($orden);
     }
 
     private function puedeGestionarDestino($header) {
@@ -1157,7 +1220,7 @@ class ctrl extends mdl {
 
     private function folioLink($folio, $id) {
         $label = htmlspecialchars($folio, ENT_QUOTES);
-        return "<a href=\"javascript:void(0)\" onclick=\"app.selectOrden('{$label}', {$id})\" title=\"Ver detalle del pedido\""
+        return "<a href=\"javascript:void(0)\" onclick=\"app.selectOrden('{$label}', {$id})\" title=\"Ver detalle de la requisición\""
              . " class=\"text-gray-800 hover:text-blue-600 hover:underline cursor-pointer\">{$label}</a>";
     }
 
@@ -1226,7 +1289,7 @@ class ctrl extends mdl {
             return ['status' => 403, 'message' => 'Solo la sucursal de destino puede surtir esta solicitud'];
         }
         if ($_POST['vista'] !== 'entregas' && $this->esCreadorPedido($header)) {
-            return ['status' => 403, 'message' => 'No puedes aprobar ni surtir un pedido que tú hiciste'];
+            return ['status' => 403, 'message' => 'No puedes aprobar ni surtir una requisición que tú hiciste'];
         }
 
         $warehouseId = $_POST['warehouse_id'] ? (int) $_POST['warehouse_id'] : (int) $header['warehouse_id'];
@@ -1494,12 +1557,12 @@ class ctrl extends mdl {
         $id     = (int) $_POST['id'];
         $header = $this->qGetOrden([$id]);
 
-        if (!$header) return ['status' => 404, 'message' => 'Pedido no encontrado'];
+        if (!$header) return ['status' => 404, 'message' => 'Requisición no encontrada'];
         if (!$this->porConfirmar($header)) {
             return ['status' => 400, 'message' => 'Esta requisición no tiene un surtido por confirmar'];
         }
         if ($this->branchId > 0 && $this->branchId !== (int) $header['branch_id']) {
-            return ['status' => 403, 'message' => 'Solo la sucursal que hizo el pedido confirma que lo recibió'];
+            return ['status' => 403, 'message' => 'Solo la sucursal que hizo la requisición confirma que recibió lo surtido'];
         }
 
         try {
@@ -2170,6 +2233,11 @@ $obj = new ctrl();
 $opc = $_POST['opc'];
 if (!method_exists($obj, $opc)) {
     echo json_encode(['status' => 405, 'message' => "opc '{$opc}' no implementado"]);
+    exit(0);
+}
+// El enlace para compartir se abre sin sesión: getComprobante solo responde con la llave.
+if ($opc === 'getComprobante') {
+    echo json_encode($obj->getComprobante());
     exit(0);
 }
 // Requisiciones ('ordenes') y Despacho ('despacho') comparten este ctrl: basta con que el

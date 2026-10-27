@@ -191,7 +191,7 @@ class mdl extends CRUD {
             WHERE {$where}
             GROUP BY i.id
             {$having}
-            ORDER BY quantity_total DESC, i.name ASC
+            ORDER BY last_movement_occurred_at IS NULL, last_movement_occurred_at DESC, i.name ASC
         ";
         $r = $this->_Read($query, $data);
         return is_array($r) ? $r : [];

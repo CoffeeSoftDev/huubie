@@ -88,3 +88,8 @@ tr.row-active > td {
 tr.row-active > td:first-child {
   box-shadow: inset 4px 0 0 0 var(--primary);
 }
+
+/* Visor de Stock: la fila abierta un poco más oscura que en los demás módulos. */
+#tbPOSStock tr.row-active > td {
+  background-color: var(--primary2) !important;
+}

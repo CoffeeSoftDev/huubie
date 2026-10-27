@@ -434,11 +434,11 @@ class mdl extends CRUD {
     function insertEntrada($array) {
         $query = "
             INSERT INTO {$this->bd}inventory_inflow
-                (folio, note, total_products, total_units, total_cost,
+                (folio, note, invoice_folio, total_products, total_units, total_cost,
                  total_price_without_tax,
                  status, inflow_origin_id, warehouse_id, warehouse_area_id, supplier_id,
                  branch_id, user_id, companies_id, date_inflow)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
     }
@@ -446,7 +446,7 @@ class mdl extends CRUD {
     function updateEntradaHeader($array) {
         $query = "
             UPDATE {$this->bd}inventory_inflow
-            SET note = ?, total_products = ?, total_units = ?, total_cost = ?,
+            SET note = ?, invoice_folio = ?, total_products = ?, total_units = ?, total_cost = ?,
                 total_price_without_tax = ?, inflow_origin_id = ?, warehouse_id = ?,
                 warehouse_area_id = ?, supplier_id = ?, branch_id = ?, date_inflow = ?,
                 updated_at = NOW()

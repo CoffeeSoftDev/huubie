@@ -92,7 +92,7 @@ class Navbar {
                         <i data-lucide="menu" class="w-6 h-6"></i>
                     </button>
                     <a class="nav-brand-logo" href="${this.homeUrl()}" title="Ir al inicio" aria-label="Ir al inicio">${Navbar.LOGO_SVG}</a>
-                    <div class="flex flex-col leading-tight">
+                    <div class="nav-brand-text flex flex-col leading-tight">
                         <span class="navbar-title">CoffeeSoft</span>
                         <span class="navbar-subtitle">${this.settings.negocio || this.settings.company}</span>
                     </div>
@@ -101,8 +101,8 @@ class Navbar {
                 <div class="nav-right flex items-center gap-2">
                     ${this.branchPillHtml()}
 
-                    <div class="relative">
-                        <button id="btnTheme" class="nav-theme-toggle" title="Tema" aria-expanded="false">
+                    <div class="relative nav-tool">
+                        <button id="btnTheme" class="nav-theme-toggle nav-hide-compact" title="Tema" aria-expanded="false">
                             <i data-lucide="palette" class="w-[18px] h-[18px]"></i>
                         </button>
                         <div id="navColorMenu" class="nav-color-menu hidden">
@@ -123,8 +123,8 @@ class Navbar {
                     <!-- Calendario y notificaciones, como la barra de corporativogv.
                          El contenido de cada panel lo pinta renderCalendar() /
                          renderNotifs() al abrirlo. -->
-                    <div class="relative">
-                        <button id="btnCalendar" class="nav-theme-toggle" title="Mi calendario" aria-expanded="false">
+                    <div class="relative nav-tool">
+                        <button id="btnCalendar" class="nav-theme-toggle nav-hide-compact" title="Mi calendario" aria-expanded="false">
                             <i data-lucide="calendar-days" class="w-[18px] h-[18px]"></i>
                         </button>
                         <div id="navCalendarPanel" class="nav-panel hidden"></div>
@@ -165,7 +165,8 @@ class Navbar {
 
                     <div class="nav-divider"></div>
 
-                    <!-- En el teléfono Módulos y Empresas no caben en la barra: van aquí. -->
+                    <!-- En el teléfono lo que no cabe en la barra va aquí: Módulos, Empresas,
+                         CoffeeIA (solo si el módulo lo trae), Tema y Calendario. -->
                     <div class="md:hidden px-2 pt-2">
                         <button type="button" class="nav-menu-row" data-nav-go="modulos">
                             <i data-lucide="layout-grid" class="w-4 h-4"></i>
@@ -176,6 +177,18 @@ class Navbar {
                             <i data-lucide="building" class="w-4 h-4"></i>
                             Empresas
                         </button>` : ''}
+                        <button type="button" class="nav-menu-row" data-nav-go="ia" style="display:none;">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                            CoffeeIA
+                        </button>
+                        <button type="button" class="nav-menu-row" data-nav-go="tema">
+                            <i data-lucide="palette" class="w-4 h-4"></i>
+                            Tema
+                        </button>
+                        <button type="button" class="nav-menu-row" data-nav-go="calendario">
+                            <i data-lucide="calendar-days" class="w-4 h-4"></i>
+                            Mi calendario
+                        </button>
                     </div>
 
                     <div class="px-3 py-3">
@@ -567,32 +580,39 @@ class Navbar {
 
             /* ── Teléfono y tablet chica (< 768px, el md de Tailwind) ──
                Completa la barra pide unos 590px: en un teléfono de 390 se salía
-               por la derecha. Quedan el menú, el logo, la sucursal (que se encoge
-               y corta el nombre), CoffeeIA, Tema y el avatar; Módulos y Empresas
-               pasan al menú del usuario. Bootstrap trae .px-4/.gap-* con
+               por la derecha. Quedan el menú, el logo (sin el texto CoffeeSoft), la
+               sucursal (sin ícono ni flecha: se encoge y corta el nombre), Notificaciones
+               y el avatar; Módulos, Empresas, CoffeeIA, Tema y Calendario pasan al menú
+               del usuario (nav-hide-compact). Bootstrap trae .px-4/.gap-* con
                !important: por eso los !important de aquí. Los desplegables van
                fijos a lo ancho de la pantalla para no salirse por la izquierda.
                Va al final para ganarle por orden a las reglas de arriba. */
             @media (max-width: 767.98px) {
                 .navbar-main { padding-left:10px !important; padding-right:10px !important; gap:8px; }
                 .navbar-main .nav-left { gap:4px !important; flex-shrink:0; }
+                .navbar-main #btn-mobile-menu { width:36px; }
                 .navbar-main .nav-brand-text,
                 .navbar-main .nav-hide-compact,
                 .navbar-main .branch-pill-label,
+                .navbar-main .branch-pill-icon,
+                .navbar-main .branch-pill-chev,
                 .navbar-main .nav-chevron { display:none !important; }
                 .navbar-main .nav-right { gap:4px !important; min-width:0; }
                 .navbar-main .nav-right > :not(.nav-branch) { flex-shrink:0; }
                 .navbar-main .nav-branch { min-width:0; }
-                .navbar-main .branch-pill { max-width:100%; gap:6px !important; padding:3px 8px 3px 4px; }
+                .navbar-main .branch-pill { max-width:100%; padding:6px 10px; }
                 .navbar-main .branch-pill-text { flex:1 1 auto; min-width:0; }
-                .navbar-main .branch-pill-icon { width:26px; height:26px; }
                 .navbar-main .branch-pill-name { display:block; max-width:100%; font-size:12.5px; }
                 .navbar-main .nav-theme-toggle { width:34px; height:34px; }
                 .navbar-main .nav-user-pill,
                 .navbar-main .nav-user-pill:hover { padding:0; border:none; background:transparent; }
                 .navbar-main .nav-avatar { width:34px; height:34px; }
                 .branch-dd,
-                .nav-color-menu { position:fixed; left:10px; right:10px; top:70px; width:auto; }
+                .nav-color-menu,
+                .nav-tool > .nav-panel { position:fixed; left:10px; right:10px; top:70px; width:auto; max-width:none; }
+                /* Tema y Calendario sin botón (se abren desde el menú del usuario): su
+                   caja no ocupa lugar ni hueco en la barra. */
+                .navbar-main .nav-tool { display:contents; }
             }
         </style>`;
     }
@@ -613,6 +633,21 @@ class Navbar {
             this.toggleUserMenu();
         });
         $("#btnLogout").on("click", () => this.logout());
+
+        // Renglones del menú en el teléfono. Frenan el clic: el de documento cerraría
+        // el Tema o el Calendario que abren.
+        $("#userMenuDropdown").on("click", "[data-nav-go]", (e) => {
+            e.stopPropagation();
+            this.closeUserMenu();
+
+            const go = e.currentTarget.getAttribute("data-nav-go");
+            if (go === 'modulos')    window.location.href = this.homeUrl();
+            if (go === 'empresas')   this.goTo('empresas');
+            if (go === 'ia')         $("[data-ia-nav]").first().trigger("click");
+            if (go === 'tema')       { this.closeToolPanels(); this.toggleThemeMenu(); }
+            if (go === 'calendario') this.toggleToolPanel('calendar');
+        });
+
         $("#btnModulos").on("click", () => {
             window.location.href = this.homeUrl();
         });
@@ -811,6 +846,7 @@ class Navbar {
         // dejar un menú vacío colgando.
         if (!themes.length) {
             $("#btnTheme").closest(".relative").addClass("hidden");
+            $('[data-nav-go="tema"]').css("display", "none");
             return;
         }
 
@@ -933,7 +969,10 @@ class Navbar {
         $("#btnTheme").attr("aria-expanded", "false");
     }
 
+    // CoffeeIA lo pone cada módulo en la barra (iaNavButton): el renglón del menú
+    // solo sale si el botón está.
     toggleUserMenu() {
+        $('[data-nav-go="ia"]').css("display", $("[data-ia-nav]").length ? "" : "none");
         $("#userMenuDropdown").toggleClass("opacity-0 scale-95 invisible");
         $("#btnUserMenu").toggleClass("open");
     }

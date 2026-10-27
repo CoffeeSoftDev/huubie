@@ -2,6 +2,13 @@ let apiOrdenes = 'ctrl/ctrl-ordenes.php';
 let app, ordenes, ordenesView, asistentePedidos, calendarioPedidos;
 
 $(async () => {
+    // Enlace para compartir (comprobante-requisicion.php): solo el comprobante, sin sesión.
+    if (window.REQUISICION_TOKEN) {
+        ordenes = new Ordenes(apiOrdenes, 'root');
+        ordenes.verComprobante(window.REQUISICION_TOKEN);
+        return;
+    }
+
     ordenesView       = new OrdenesView(apiOrdenes, 'root');
     ordenes           = new Ordenes(apiOrdenes, 'root');
     calendarioPedidos = new CalendarioPedidos(apiOrdenes, 'root');
@@ -85,7 +92,7 @@ class App extends Templates {
     render() {
         this.estiloFilaActiva();
         this.layout();
-        this.visorResize({ key: 'ordenes', label: 'Ancho del detalle del pedido' });
+        this.visorResize({ key: 'ordenes', label: 'Ancho del detalle de la requisición' });
         this.filterBar();
         ordenesView.renderHeader(this.modulo === 'despacho' ? {
             title:    'Surtir',
@@ -575,7 +582,7 @@ class Ordenes extends Templates {
             scrollable:   false,
             striped:      true,
             f_size:       12,
-            emptyMessage: 'No se encontraron pedidos con los filtros aplicados',
+            emptyMessage: 'No se encontraron requisiciones con los filtros aplicados',
             emptyIcon:    'clipboard-list',
             data:         data
         });
@@ -594,12 +601,10 @@ class Ordenes extends Templates {
     }
 
     async getOrden(id) {
-        const r = await useFetch({ url: apiOrdenes, data: { opc: 'getOrden', id: id } });
-        if (r && r.status === 200) {
-            ordenesView.renderDetail(this.mapOrdenDetail(r.header || {}, r.detail || [], r.surtidos || []));
-        } else {
-            ordenesView.renderDetail(null);
-        }
+        const r     = await useFetch({ url: apiOrdenes, data: { opc: 'getOrden', id: id } });
+        const orden = (r && r.status === 200) ? this.mapOrdenDetail(r.header || {}, r.detail || [], r.surtidos || []) : null;
+        ordenesView.renderDetail(orden);
+        return orden;
     }
 
     // `surtidos` = historial de surtimiento (Terminar de surtir).
@@ -683,14 +688,62 @@ class Ordenes extends Templates {
             }
             o = this.mapOrdenDetail(r.header || {}, r.detail || []);
         }
-        // Solicitada = todavía hay que conseguir los productos: se imprime la lista de compras.
-        if (o.status === 'Solicitada') this._renderListaCompras(o);
-        else this._renderOrdenDoc(o);
+
+        const w = window.open('', '_blank', 'width=900,height=1000');
+        if (!w) {
+            this.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el documento.' });
+            return;
+        }
+        w.document.write(this.comprobanteHtml(o, true));
+        w.document.close();
+        w.focus();
+    }
+
+    // Solicitada = todavía hay que conseguir los productos: va la lista de compras.
+    // `cerrar`: el botón Cerrar de la ventana de Imprimir (el enlace no lo lleva).
+    comprobanteHtml(o, cerrar) {
+        return o.status === 'Solicitada' ? this._renderListaCompras(o, cerrar) : this._renderOrdenDoc(o, cerrar);
+    }
+
+    // Compartir por WhatsApp: el enlace del comprobante (comprobante-requisicion.php), que
+    // abre sin iniciar sesión. La pestaña se abre en el clic: después de esperar al servidor
+    // el navegador ya no deja abrirla.
+    async compartirOrden(o) {
+        if (!o || !o.id) return;
+        const w = window.open('', '_blank');
+
+        const r = await useFetch({ url: apiOrdenes, data: { opc: 'shareOrden', id: o.id } }).catch(() => null);
+        if (!r || r.status !== 200) {
+            if (w) w.close();
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el enlace' });
+            return;
+        }
+
+        const enlace = new URL(`comprobante-requisicion.php?t=${r.token}`, window.location.href).href;
+        const texto  = `Requisición ${o.folio}${o.branch_name ? ` de ${o.branch_name}` : ''}: ${enlace}`;
+        const wa     = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+
+        if (w) w.location.href = wa;
+        else window.location.href = wa;
+    }
+
+    // Lo que abre el enlace: el comprobante en la misma página, o el aviso si ya no vale.
+    async verComprobante(token) {
+        const r = await useFetch({ url: apiOrdenes, data: { opc: 'getComprobante', t: token } }).catch(() => null);
+        const html = r && r.status === 200
+            ? this.comprobanteHtml(this.mapOrdenDetail(r.header || {}, r.detail || []), false)
+            : `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Comprobante</title></head>
+               <body style="font-family:'Segoe UI',Arial,sans-serif;background:#f3f4f6;color:#374151;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;text-align:center">
+               <p style="font-size:15px">${$('<p>').text((r && r.message) || 'No se pudo abrir el comprobante').html()}</p></body></html>`;
+
+        document.open();
+        document.write(html);
+        document.close();
     }
 
     // Formato de compras: lo pedido para abastecer, con casilla para palomear y
     // espacio para anotar lo que de verdad se compró y a qué precio.
-    _renderListaCompras(o) {
+    _renderListaCompras(o, cerrar) {
         const esc      = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtNum   = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
         const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -722,10 +775,10 @@ class Ordenes extends Templates {
 
         const surtir = [o.destination_branch_name, o.warehouse_name].filter(Boolean).map(esc).join(' &middot; ');
 
-        const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Lista de compras ${esc(o.folio||'')}</title>
-        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800}.folio{font-size:20px;font-weight:800;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 6px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:7px 6px;font-size:11px;border-bottom:1px solid #d4d4d4;vertical-align:middle}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}td.qty{font-size:13px;font-weight:800}td.fill{width:90px;border-bottom:1px solid #000}.check{display:inline-block;width:14px;height:14px;border:1.5px solid #000;border-radius:2px}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:15px;font-weight:800}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
+        return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Lista de compras ${esc(o.folio||'')}</title>
+        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800}.folio{font-size:20px;font-weight:800;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 6px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:7px 6px;font-size:11px;border-bottom:1px solid #d4d4d4;vertical-align:middle}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}td.qty{font-size:13px;font-weight:800}td.fill{width:90px;border-bottom:1px solid #000}.check{display:inline-block;width:14px;height:14px;border:1.5px solid #000;border-radius:2px}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:15px;font-weight:800}@media (max-width:640px){body{padding:0;background:#fff}.toolbar{padding:12px 12px 0;margin-bottom:4px}.sheet{min-height:auto;box-shadow:none;padding:16px}.info-grid{grid-template-columns:1fr}}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
         </head><body>
-        <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
+        <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button>${cerrar ? '<button class="btn gray" onclick="window.close()">Cerrar</button>' : ''}</div>
         <div class="sheet">
             <div class="doc-header">
                 <div>
@@ -765,18 +818,9 @@ class Ordenes extends Templates {
             </div>
             ${o.note?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(o.note)}</div>`:''}
         </div></body></html>`;
-
-        const w = window.open('', '_blank', 'width=900,height=1000');
-        if (!w) {
-            this.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el documento.' });
-            return;
-        }
-        w.document.write(html);
-        w.document.close();
-        w.focus();
     }
 
-    _renderOrdenDoc(o) {
+    _renderOrdenDoc(o, cerrar) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -825,10 +869,10 @@ class Ordenes extends Templates {
             </tr>`;
         }).join('');
 
-        const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Pedido ${esc(o.folio||'')}</title>
-        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800}.folio{font-size:20px;font-weight:800;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px;margin-left:4px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.doc-footer{margin-top:28px;display:flex;justify-content:space-between;font-size:10px;color:#777;border-top:1px solid #ccc;padding-top:10px}.reject-box{margin-bottom:18px;border-left:3px solid #E02424;background:#FEF2F2;padding:10px 14px;font-size:12px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
+        return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Pedido ${esc(o.folio||'')}</title>
+        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800}.folio{font-size:20px;font-weight:800;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px;margin-left:4px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.doc-footer{margin-top:28px;display:flex;justify-content:space-between;font-size:10px;color:#777;border-top:1px solid #ccc;padding-top:10px}.reject-box{margin-bottom:18px;border-left:3px solid #E02424;background:#FEF2F2;padding:10px 14px;font-size:12px}@media (max-width:640px){body{padding:0;background:#fff}.toolbar{padding:12px 12px 0;margin-bottom:4px}.sheet{min-height:auto;box-shadow:none;padding:16px}.info-grid{grid-template-columns:1fr}}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
         </head><body>
-        <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
+        <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button>${cerrar ? '<button class="btn gray" onclick="window.close()">Cerrar</button>' : ''}</div>
         <div class="sheet">
             <div class="doc-header">
                 <div>
@@ -874,15 +918,6 @@ class Ordenes extends Templates {
                 <span>Generado: ${esc(fmtFecha(new Date().toISOString().slice(0,10)))}</span>
             </div>
         </div></body></html>`;
-
-        const w = window.open('', '_blank', 'width=900,height=1000');
-        if (!w) {
-            this.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el documento.' });
-            return;
-        }
-        w.document.write(html);
-        w.document.close();
-        w.focus();
     }
 }
 
@@ -911,8 +946,10 @@ class OrdenesView extends Templates {
             parent:  enMovil ? this.movil.detailParent() : 'detailPanel',
             id:      enMovil ? 'ordenDetailMovil' : 'ordenDetailPanel',
             json:    orden,
+            back:    enMovil,
             onClose: () => app.selectOrden(null),
             onPrint: (o) => { if (o) ordenes.printOrden(o); },
+            onShare: (o) => ordenes.compartirOrden(o),
             onEdit:          (o) => this.openOrdenForm(o),
             onSubmit:        (o) => this.doSubmitOrden(o),
             onApprove:       (o) => this.doApproveOrden(o),
@@ -929,7 +966,7 @@ class OrdenesView extends Templates {
 
     // -- Teléfono --
 
-    // Debajo de md se ve como app (ordenes-movil.js): tarjetas, estados en píldoras, botón
+    // Debajo de md se ve como app (ordenes-movil.js): tarjetas, estados en un select, botón
     // flotante y barra inferior. Los filtros son los de escritorio (#fEstado, #branch_id):
     // el teléfono solo los cambia y vuelve a consultar. La barra lleva Inicio y la lista del
     // módulo (Requisiciones o Despacho).
@@ -951,7 +988,11 @@ class OrdenesView extends Templates {
                     text: despacho ? 'Surtir' : 'Requisiciones'
                 }
             ],
-            labels: { nuevo: 'Nueva requisición' },
+            labels: {
+                nuevo:      'Nueva requisición',
+                emptyTitle: 'No hay requisiciones',
+                emptyHint:  'Prueba con otro estado o crea una requisición nueva.'
+            },
             colores: app.dataInit.estados_color,
             onChip: (id) => {
                 $('#fEstado').val(id);
@@ -979,7 +1020,7 @@ class OrdenesView extends Templates {
         this.movil.setView({
             title:     entregas ? 'Surtir' : 'Requisiciones de compras',
             tab:       app.vista,
-            chips:     opciones('#fEstado').map(e => (e.id === '' ? { id: '', valor: 'Todas' } : e)),
+            chips:     opciones('#fEstado'),
             chip:      $('#fEstado').val() || '',
             branches:  opciones('#branch_id'),
             branch:    $('#branch_id').val() || '',
@@ -1028,8 +1069,8 @@ class OrdenesView extends Templates {
         if (!o || !o.id) return;
         this.alertBox({
             type:        'confirm',
-            title:       `Enviar pedido ${o.folio}`,
-            detailHtml:  'El pedido pasará a En espera hasta que lo surtan.',
+            title:       `Enviar requisición ${o.folio}`,
+            detailHtml:  'La requisición pasará a En espera hasta que la surtan.',
             okLabel:     'Sí, enviar',
             cancelLabel: 'No',
             onOk: async () => {
@@ -1038,7 +1079,7 @@ class OrdenesView extends Templates {
                     this.alertBox({ type: 'success', title: r.message || 'Solicitud enviada', timer: 1600 });
                     this._refreshAfterAction(o.folio, o.id);
                 } else {
-                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo enviar el pedido' });
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo enviar la requisición' });
                 }
             }
         });
@@ -1047,6 +1088,15 @@ class OrdenesView extends Templates {
     doApproveOrden(o) {
         if (!o || !o.id) return;
         this.openAprobacionModal(o);
+    }
+
+    // «Surtir» de la fila (lsOrdenes): abre la requisición y su hoja «Surtiendo la
+    // requisición», igual que el botón Surtir del detalle.
+    async surtirDesdeLista(folio, id) {
+        app.selectedId = folio;
+        app.marcarFila();
+        const orden = await ordenes.getOrden(id);
+        if (orden) this.doApproveOrden(orden);
     }
 
     // AAAA-MM-DD -> 13/OCT/2026.
@@ -1840,7 +1890,7 @@ class OrdenesView extends Templates {
         if (!o || !o.id) return;
         this.alertBox({
             type:             'cancel',
-            title:            `Rechazar pedido ${o.folio}`,
+            title:            `Rechazar requisición ${o.folio}`,
             okLabel:          'Rechazar',
             cancelLabel:      'Cancelar',
             input:            'textarea',
@@ -1855,11 +1905,11 @@ class OrdenesView extends Templates {
                 }).then(r => {
                     if (r && r.status === 200) {
                         if (typeof onDone === 'function') onDone();
-                        this.alertBox({ type: 'success', title: r.message || 'Pedido rechazado', timer: 1600 });
+                        this.alertBox({ type: 'success', title: r.message || 'Requisición rechazada', timer: 1600 });
                         app.selectOrden(null);
                         ordenes.lsOrdenes();
                     } else {
-                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo rechazar el pedido' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo rechazar la requisición' });
                     }
                 });
             }
@@ -1870,18 +1920,18 @@ class OrdenesView extends Templates {
         if (!o || !o.id) return;
         this.alertBox({
             type:        'cancel',
-            title:       `Cancelar pedido ${o.folio}`,
-            detailHtml:  'El pedido quedará cancelado. Las recepciones parciales previas no se revierten.',
+            title:       `Cancelar requisición ${o.folio}`,
+            detailHtml:  'La requisición quedará cancelada. Las recepciones parciales previas no se revierten.',
             okLabel:     'Sí, cancelar',
             cancelLabel: 'No',
             onOk: async () => {
                 const r = await useFetch({ url: this._link, data: { opc: 'cancelOrden', id: o.id } }).catch(() => null);
                 if (r && r.status === 200) {
-                    this.alertBox({ type: 'success', title: r.message || 'Pedido cancelado', timer: 1600 });
+                    this.alertBox({ type: 'success', title: r.message || 'Requisición cancelada', timer: 1600 });
                     app.selectOrden(null);
                     ordenes.lsOrdenes();
                 } else {
-                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar el pedido' });
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar la requisición' });
                 }
             }
         });
@@ -1900,24 +1950,24 @@ class OrdenesView extends Templates {
                 data: { opc: 'revertOrden', id: o.id, cancelar: cancelar ? 1 : 0, vista: app.vistaOrden(o) }
             }).catch(() => null);
             if (r && r.status === 200) {
-                this.alertBox({ type: 'success', title: cancelar ? 'Pedido revertido y cancelado' : 'Pedido revertido', detailHtml: esc(r.message), timer: 6500 });
+                this.alertBox({ type: 'success', title: cancelar ? 'Requisición revertida y cancelada' : 'Requisición revertida', detailHtml: esc(r.message), timer: 6500 });
                 this._refreshAfterAction(o.folio, o.id);
             } else {
-                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo revertir el pedido' });
+                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo revertir la requisición' });
             }
         };
 
         this.csChoiceCards({
             icon:    'rotate-ccw',
-            title:   `¿Revertir el pedido ${esc(o.folio)}?`,
+            title:   `¿Revertir la requisición ${esc(o.folio)}?`,
             lead:    `Se deshace lo que movió el despacho: la salida regresa el stock al almacén, la entrada sale de <b>${esc(o.branch_name || 'la sucursal que pidió')}</b> y el reabasto pendiente se cancela. Los productos vuelven como se pidieron.`,
             alerts:  confirmo ? [{ html: `<b>${esc(o.branch_name || 'La sucursal que pidió')}</b> ya confirmó «Recibí»: lo que se le quita puede dejar su stock en negativo.` }] : [],
-            ask:     '¿Cómo queda el pedido?',
+            ask:     '¿Cómo queda la requisición?',
             choices: [
                 { id: 'revisar',  icon: 'rotate-ccw', tone: 'go',  title: 'Regresar a revisión', badge: 'Recomendada',
-                  text: 'Vuelve a En espera para surtirlo otra vez con Surtir.' },
+                  text: 'Vuelve a En espera para surtirla otra vez con Surtir.' },
                 { id: 'cancelar', icon: 'ban',        tone: 'mut', title: 'Revertir y cancelar',
-                  text: 'Se deshace igual y el pedido queda Cancelada.' }
+                  text: 'Se deshace igual y la requisición queda Cancelada.' }
             ],
             onChoose: (id) => revertir(id === 'cancelar')
         });
@@ -1929,7 +1979,7 @@ class OrdenesView extends Templates {
         if (!o || !o.id) return;
         this.alertBox({
             type:        'confirm',
-            title:       `¿Te llegó el pedido ${o.folio}?`,
+            title:       `¿Te llegó la requisición ${o.folio}?`,
             detailHtml:  o.entradas_surtido
                 ? `Ya entró a tu almacén con la entrada <b>${o.entradas_surtido}</b>. Confirma que lo recibiste.`
                 : 'Confirma que te llegó lo surtido: la requisición queda Confirmado.',
@@ -1986,7 +2036,7 @@ class OrdenesView extends Templates {
                 if (response && response.status === 200) {
                     this.openOrdenForm(null, response.data);
                 } else {
-                    this.alertBox({ type: 'warning', title: (response && response.message) || 'No se pudo abrir el pedido' });
+                    this.alertBox({ type: 'warning', title: (response && response.message) || 'No se pudo abrir la requisición' });
                 }
             }
         });
@@ -2117,7 +2167,7 @@ class OrdenesView extends Templates {
                 type:             'confirm',
                 icon:             'lock',
                 title:            'Confirma tu contraseña',
-                detailHtml:       retry ? 'Contraseña incorrecta. Intenta de nuevo.' : 'Para editar un pedido ya solicitado escribe tu contraseña.',
+                detailHtml:       retry ? 'Contraseña incorrecta. Intenta de nuevo.' : 'Para editar una requisición ya solicitada escribe tu contraseña.',
                 input:            'password',
                 inputPlaceholder: 'Tu contraseña',
                 inputRequired:    true,
@@ -2223,7 +2273,7 @@ class OrdenesView extends Templates {
 
         if (r && r.status === 200) {
             if (!isEdit && payload.submit) this.avisoPedidoEnviado(r, payload);
-            else this.alertBox({ type: 'success', title: r.message || (isEdit ? 'Pedido actualizado' : 'Pedido creado'), timer: 1600 });
+            else this.alertBox({ type: 'success', title: r.message || (isEdit ? 'Requisición actualizada' : 'Requisición creada'), timer: 1600 });
             ordenes.lsOrdenes();
             if (isEdit && orden && orden.folio) {
                 setTimeout(() => app.selectOrden(orden.folio, orden.id), 300);
@@ -2234,7 +2284,7 @@ class OrdenesView extends Templates {
             return true;
         }
 
-        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el pedido' });
+        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar la requisición' });
         return false;
     }
 
@@ -2251,14 +2301,14 @@ class OrdenesView extends Templates {
 
         this.alertBox({
             type:       'success',
-            title:      `Pedido ${esc(r.folio || '')} enviado`,
+            title:      `Requisición ${esc(r.folio || '')} enviada`,
             detailHtml: `
                 <span class="block mt-2 mb-1 text-left text-[12px]">
                     ${renglon('Solicitado a', esc(sucursal ? sucursal.valor : '-'))}
                     ${renglon('Lo necesitas para', esc(this.fechaCorta(payload.date_order) || '-'))}
                     ${renglon('Materiales', `${productos.length} &middot; ${fmtNum(unidades)} uds`)}
                 </span>
-                <span class="block text-[11px] text-gray-400">Queda en espera de que lo revisen y aprueben.</span>`
+                <span class="block text-[11px] text-gray-400">Queda en espera de que la revisen y aprueben.</span>`
         });
     }
 
@@ -2622,7 +2672,7 @@ class OrdenesView extends Templates {
         // Qué pasa al confirmar, según el almacén origen (puede no mover inventario).
         const pintarInfo = (warehouseId) => $(`#${modalId}_info`).html(this.mueveInventario(orden, warehouseId)
             ? 'Al confirmar se genera una <span class="font-semibold text-gray-800">salida</span> que descuenta el stock del almacén origen. Si surtes más de lo disponible, el faltante queda como una <span class="font-semibold text-gray-800">orden de compra de reabasto</span> pendiente, que deberás recibir cuando registres la compra.'
-            : 'Este almacén <span class="font-semibold text-gray-800">no mueve inventario</span> al surtir a otra sucursal (Catálogo › Almacenes): al confirmar no se descuenta ni entra nada, el pedido solo queda surtido.');
+            : 'Este almacén <span class="font-semibold text-gray-800">no mueve inventario</span> al surtir a otra sucursal (Catálogo › Almacenes): al confirmar no se descuenta ni entra nada, la requisición solo queda surtida.');
         pintarInfo($(`#${modalId}_warehouse_id`).val());
 
         const recalc = () => {
@@ -2895,13 +2945,16 @@ class OrdenesView extends Templates {
             parent:  'root',
             id:      'ordenDetailPanel',
             json:    null,
+            // En el teléfono: flecha de regresar a la izquierda del folio (regresa a la lista).
+            back:    false,
             labels: {
-                emptyTitle:  'Selecciona un pedido',
+                emptyTitle:  'Selecciona una requisición',
                 emptyHint:   'Haz clic en cualquier fila para ver el detalle aquí.',
-                subtitleLbl: 'Detalle del pedido'
+                subtitleLbl: 'Detalle de la requisición'
             },
             onClose:   () => {},
             onPrint:   () => {},
+            onShare:   () => {},
             onEdit:    () => {},
             onSubmit:  () => {},
             onApprove: () => {},
@@ -3186,14 +3239,24 @@ class OrdenesView extends Templates {
 
                 <!-- Header folio + badge + cerrar -->
                 <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-                    <div>
-                        <p class="text-xs text-gray-500 uppercase tracking-wider">${esc(opts.labels.subtitleLbl)}</p>
-                        <p class="text-base font-bold text-gray-800">${esc(e.folio || '-')}</p>
+                    <div class="flex items-center gap-2 min-w-0">
+                        ${opts.back ? `
+                        <button id="${opts.id}_back" type="button" aria-label="Regresar" title="Regresar" class="w-9 h-9 -ml-2 flex-shrink-0 rounded-lg bg-transparent border-0 flex items-center justify-center text-gray-600 active:bg-gray-200">
+                            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                        </button>` : ''}
+                        <div class="min-w-0">
+                            <p class="text-xs text-gray-500 uppercase tracking-wider">${esc(opts.labels.subtitleLbl)}</p>
+                            <p class="text-base font-bold text-gray-800">${esc(e.folio || '-')}</p>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2">
                         ${e.status_badge || `<span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-500">${esc(status)}</span>`}
                         <button id="${opts.id}_print" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors" title="Imprimir">
                             <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <!-- Logo de WhatsApp en SVG: Lucide no trae íconos de marcas. -->
+                        <button id="${opts.id}_share" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-[#25D366] hover:text-[#128C7E] transition-colors" title="Compartir por WhatsApp">
+                            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
                         </button>
                         <button id="${opts.id}_close" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors">
                             <i data-lucide="x" class="w-3.5 h-3.5"></i>
@@ -3264,8 +3327,9 @@ class OrdenesView extends Templates {
 
         if (window.lucide) lucide.createIcons();
 
-        $parent.find(`#${opts.id}_close`).on('click',    () => opts.onClose(e));
+        $parent.find(`#${opts.id}_close, #${opts.id}_back`).on('click', () => opts.onClose(e));
         $parent.find(`#${opts.id}_print`).on('click',    () => opts.onPrint(e));
+        $parent.find(`#${opts.id}_share`).on('click',    () => opts.onShare(e));
         $parent.find(`#${opts.id}_edit`).on('click',     () => opts.onEdit(e));
         $parent.find(`#${opts.id}_submit`).on('click',   () => opts.onSubmit(e));
         $parent.find(`#${opts.id}_approve`).on('click',  () => opts.onApprove(e));
@@ -3359,7 +3423,7 @@ class CalendarioPedidos extends Templates {
             headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,dayGridWeek,listMonth' },
             // El bundle global no trae el locale 'es': los botones se traducen aquí.
             buttonText:    { today: 'Hoy', month: 'Mes', week: 'Semana', list: 'Agenda' },
-            noEventsText:  'Sin pedidos en este periodo',
+            noEventsText:  'Sin requisiciones en este periodo',
             height:        'auto',
             dayMaxEvents:  3,
             moreLinkClick: 'popover',

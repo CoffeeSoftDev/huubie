@@ -480,6 +480,7 @@ class Entradas extends Templates {
             almacen:       h.warehouse_name,
             destino:       h.area_name || '',
             proveedor:     h.supplier_name,
+            factura:       h.invoice_folio || '',
             registrado:    h.user_name,
             confirmadoPor: h.confirmed_user_name || '',
             confirmadoIso: confRaw ? confRaw.replace(' ', 'T') : '',
@@ -559,7 +560,7 @@ class Entradas extends Templates {
         <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
         <div class="sheet">
             <div class="doc-header"><div><div class="doc-title">Comprobante de Entrada</div><div style="font-size:12px;color:#555;margin-top:3px">${esc(e.sucursal||'')}${e.almacen?' &middot; '+esc(e.almacen):''}</div></div><div><div class="folio">${esc(e.folio||'-')}</div>${e.estado?`<span class="status">${esc(e.estado)}</span>`:''}</div></div>
-            <div class="info-grid"><div class="info-item"><span class="k">Tipo de entrada</span><span class="v">${esc(e.origen||'-')}</span></div>${e.proveedor?`<div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(e.proveedor)}</span></div>`:''}<div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(e.fechaIso))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(e.sucursal||'-')}</span></div><div class="info-item"><span class="k">Origen</span><span class="v">${esc(e.almacen||'-')}</span></div>${e.destino?`<div class="info-item"><span class="k">Destino</span><span class="v">${esc(e.destino)}</span></div>`:''}<div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(e.registrado||'-')}</span></div>${e.editadoPor?`<div class="info-item"><span class="k">Editado por</span><span class="v">${esc(e.editadoPor)} &middot; ${esc(e.editadoFecha)}</span></div>`:''}</div>
+            <div class="info-grid"><div class="info-item"><span class="k">Tipo de entrada</span><span class="v">${esc(e.origen||'-')}</span></div>${e.proveedor?`<div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(e.proveedor)}</span></div>`:''}${e.factura?`<div class="info-item"><span class="k">Folio factura</span><span class="v">${esc(e.factura)}</span></div>`:''}<div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(e.fechaIso))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(e.sucursal||'-')}</span></div><div class="info-item"><span class="k">Origen</span><span class="v">${esc(e.almacen||'-')}</span></div>${e.destino?`<div class="info-item"><span class="k">Destino</span><span class="v">${esc(e.destino)}</span></div>`:''}<div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(e.registrado||'-')}</span></div>${e.editadoPor?`<div class="info-item"><span class="k">Editado por</span><span class="v">${esc(e.editadoPor)} &middot; ${esc(e.editadoFecha)}</span></div>`:''}</div>
             <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="r">Costo unit.</th><th class="r">Importe</th><th class="c">Unidad</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="5" class="c">Sin productos</td></tr>'}</tbody></table>
             <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${productos.length}</span></div><div class="totals-row"><span>Unidades</span><span>${fmtUds(totals.uds)}</span></div><div class="totals-row grand"><span>Costo total</span><span>${fmtMoney(totals.costo)}</span></div></div></div>
             ${e.nota?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;color:#222"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(e.nota)}</div>`:''}
@@ -994,6 +995,7 @@ class EntradasView extends Templates {
             supplier_id:       h.supplier_id,
             fecha:             String(h.date_inflow || '').slice(0, 10),
             nota:              h.note || '',
+            factura:           h.invoice_folio || '',
             productos: (r.detail || []).map(d => {
                 const prod = catalogo.find(p => String(p.id) === String(d.product_id)) || {};
                 return {
@@ -1055,6 +1057,7 @@ class EntradasView extends Templates {
         return {
             id:                payload.id || null,
             note:              payload.nota || null,
+            invoice_folio:     payload.factura || null,
             date_inflow:       payload.fecha,
             inflow_origin_id:  payload.origen,
             warehouse_id:      payload.warehouseId,
@@ -1771,6 +1774,7 @@ class EntradasView extends Templates {
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Sucursal</span><span class="text-gray-700 text-right">${esc(e.sucursal || '-')}</span></div>
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Origen</span><span class="text-gray-700 text-right">${esc(e.almacen || '-')}${e.destino ? ` <span class="text-gray-400">/ ${esc(e.destino)}</span>` : ''}</span></div>
                     ${e.proveedor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Proveedor</span><span class="text-gray-700 text-right">${esc(e.proveedor)}</span></div>` : ''}
+                    ${e.factura ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-24 flex-shrink-0">Folio factura</span><span class="text-gray-700 text-right">${esc(e.factura)}</span></div>` : ''}
                 </div>
 
                 <div class="flex-1 overflow-y-auto px-4 py-2">

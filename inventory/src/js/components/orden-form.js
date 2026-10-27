@@ -52,10 +52,14 @@ class OrdenForm extends EntradaForm {
         };
     }
 
-    // Lo propio de la hoja de la requisición: atajos de las filas, textos de las celdas y de
-    // lo que se va a la nota.
+    // Lo propio de la hoja de la requisición: atajos de las filas, textos de las celdas, de
+    // lo que se va a la nota y de las confirmaciones (Compras se queda con las de LABELS).
     static get LABELS_HOJA() {
         return {
+            confirmAdd:       '¿Deseas crear la requisición?',
+            confirmDraft:     '¿Deseas guardar la requisición como borrador?',
+            confirmSalir:     '¿Guardar la requisición como borrador o salir de la captura?',
+            confirmEdit:      '¿Deseas guardar los cambios de la requisición?',
             atajoMover:       'moverse',
             atajoOtraFila:    'otra fila',
             atajoEnviar:      'enviar',
@@ -1342,7 +1346,7 @@ class OrdenForm extends EntradaForm {
         };
     }
 
-    // "¿Deseas crear el pedido de la sucursal X para el día viernes 17 de octubre del 2026?"
+    // "¿Deseas crear la requisición de la sucursal X para el día viernes 17 de octubre del 2026?"
     confirmCrearTexto(payload) {
         const dias     = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
         const meses    = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -1355,7 +1359,7 @@ class OrdenForm extends EntradaForm {
         // El alertBox pinta el título como HTML; sucursal y fecha van escapadas y en el color del tema.
         const tema  = 'style="color:rgb(var(--brand-600, 192 90 64))"';
         const fecha = `${dias[d.getDay()]} ${Number(m[3])} de ${meses[Number(m[2]) - 1]} del ${m[1]}`;
-        return `¿Deseas crear el pedido de la sucursal <span ${tema}>${this.esc(sucursal.valor)}</span> para el día <span ${tema}>${this.esc(fecha)}</span>?`;
+        return `¿Deseas crear la requisición de la sucursal <span ${tema}>${this.esc(sucursal.valor)}</span> para el día <span ${tema}>${this.esc(fecha)}</span>?`;
     }
 
     confirmRegistrar(payload) {

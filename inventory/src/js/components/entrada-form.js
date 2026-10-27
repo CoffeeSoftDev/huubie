@@ -117,6 +117,8 @@ class EntradaForm {
                 fechaReq:     'Elige la fecha de la entrada',
                 fechaFutura:  'La fecha no puede ser posterior a hoy',
                 nota:         'Nota (opcional)',
+                factura:      'Folio factura',
+                facturaPh:    'Opcional',
                 comprobante:  'Comprobante',
                 compDrop:     'Arrastra la foto o PDF a la ventana, o haz clic',
                 compSuelta:   'Suelta el archivo para adjuntarlo como comprobante',
@@ -239,7 +241,7 @@ class EntradaForm {
         const cls = this.cls;
         return `
             <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60">
-                <div id="${o.id}_configGrid" class="grid grid-cols-5 gap-3 items-end">
+                <div id="${o.id}_configGrid" class="grid grid-cols-6 gap-3 items-end">
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.origen)}</label>
                         ${this.selectWrap(`
@@ -290,6 +292,10 @@ class EntradaForm {
                             </select>
                         `)}
                     </div>
+                    <div>
+                        <label class="${cls.label}">${this.esc(o.labels.factura)}</label>
+                        <input id="${o.id}_inpFactura" type="text" maxlength="50" autocomplete="off" placeholder="${this.esc(o.labels.facturaPh)}" class="${cls.input}">
+                    </div>
                 </div>
             </div>`;
     }
@@ -331,8 +337,8 @@ class EntradaForm {
         const show   = this.requiresSupplier(origen);
         $(`#${o.id}_cellProveedor`).toggleClass('hidden', !show);
         $(`#${o.id}_configGrid`)
-            .toggleClass('grid-cols-6', show)
-            .toggleClass('grid-cols-5', !show);
+            .toggleClass('grid-cols-7', show)
+            .toggleClass('grid-cols-6', !show);
         this.syncOrigenIcon();
     }
 
@@ -1925,6 +1931,8 @@ class EntradaForm {
         this.draft = null;
         this.formatoAplicado = null;
         this.setVoucher(null);
+        // El folio de factura es de esa entrada: no se queda para la siguiente captura.
+        $(`#${this.opts.id}_inpFactura`).val('');
         if (this.editing) this.setMode(null);
         this.renderLote();
         this.opts.onClose();
@@ -1979,6 +1987,7 @@ class EntradaForm {
             supplierId:  supplierId,
             fecha:       fecha,
             nota:        $(`#${o.id}_inpNota`).val(),
+            factura:     ($(`#${o.id}_inpFactura`).val() || '').trim(),
             voucher:     this.voucher ? this.voucher.dataUrl : null,
             productos:  this.lote.map(p => ({
                 id:     p.id,
@@ -2519,6 +2528,7 @@ class EntradaForm {
         $(`#${id}_selProveedor`).val(entrada.supplier_id ? String(entrada.supplier_id) : '');
         $(`#${id}_inpFecha`).val(entrada.fecha || '').attr('max', this.hoy());
         $(`#${id}_inpNota`).val(entrada.nota || '');
+        $(`#${id}_inpFactura`).val(entrada.factura || '');
         this.syncFechaMin();
 
         this.lote  = (entrada.productos || []).map(p => Object.assign({}, p));

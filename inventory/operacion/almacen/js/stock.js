@@ -769,6 +769,7 @@ class StockView extends Templates {
             blind:    { checked: false, disabled: false },
             actions:  [],
             onBlind:  () => { },
+            onSearch: () => { },
             onClose:  () => { }
         };
 
@@ -814,10 +815,18 @@ class StockView extends Templates {
 
                 <div class="flex flex-wrap items-center justify-between gap-3 px-[20px] py-[10px] border-b border-gray-200">
                     <div id="${opts.id}Tabs" class="min-w-0 max-w-full"></div>
-                    <label class="inline-flex items-center gap-2 text-[11px] ${opts.blind.disabled ? 'text-gray-400 cursor-not-allowed' : 'text-gray-600 cursor-pointer'} select-none">
-                        <input id="${opts.id}Blind" type="checkbox" class="w-3.5 h-3.5 accent-blue-600" ${opts.blind.checked ? 'checked' : ''} ${opts.blind.disabled ? 'disabled' : ''}>
-                        Conteo ciego <span class="text-gray-400">(oculta lo que dice el sistema)</span>
-                    </label>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="relative">
+                            <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            <input id="${opts.id}Search" type="text" autocomplete="off" placeholder="Buscar producto o SKU"
+                                style="font-size:11px !important;height:32px !important;"
+                                class="w-[220px] pl-8 pr-2 rounded-md border-[1px] border-gray-300 bg-white text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none">
+                        </div>
+                        <label class="inline-flex items-center gap-2 text-[11px] ${opts.blind.disabled ? 'text-gray-400 cursor-not-allowed' : 'text-gray-600 cursor-pointer'} select-none">
+                            <input id="${opts.id}Blind" type="checkbox" class="w-3.5 h-3.5 accent-blue-600" ${opts.blind.checked ? 'checked' : ''} ${opts.blind.disabled ? 'disabled' : ''}>
+                            Conteo ciego <span class="text-gray-400">(oculta lo que dice el sistema)</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="px-[20px] py-2 text-[10px] flex items-center gap-1.5 ${infoTone.cls}">
@@ -845,6 +854,7 @@ class StockView extends Templates {
 
         modal.on('click', '[data-count-close]', close);
         modal.on('change', `#${opts.id}Blind`, () => opts.onBlind());
+        modal.on('input', `#${opts.id}Search`, (e) => opts.onSearch($(e.currentTarget).val()));
         opts.actions.forEach(a => modal.on('click', `#${a.id}`, () => a.onClick()));
         $(document).on('keydown.countModal', (e) => { if (e.key === 'Escape' && !$('[id^="alertBox_"]').length) close(); });
 
@@ -1494,6 +1504,7 @@ class StockCount extends Templates {
         this.PROJECT_NAME = 'StockCount';
         this.id           = null;
         this.areaId       = '';
+        this.q            = '';
         this.counts       = {};
         this.sheet        = [];
         this.perms        = {};
@@ -1505,6 +1516,7 @@ class StockCount extends Templates {
     async render(id) {
         this.id     = id;
         this.areaId = '';
+        this.q      = '';
         this.counts = {};
 
         const data = await this.getConteo();
@@ -1522,6 +1534,7 @@ class StockCount extends Templates {
             },
             actions:  this.jsonActions(data.perms),
             onBlind:  () => this.toggleBlind(),
+            onSearch: (q) => this.filterSheet(q),
             onClose:  () => this.onClose()
         });
 
@@ -1600,8 +1613,41 @@ class StockCount extends Templates {
         this.restoreCounts();
         this.toggleBlind();
         if (!this.areaId && (data.row || []).some(r => r.colgroup)) this.groupToggles();
+        this.filterSheet(this.q);
 
-        if (this.perms.edit) $(`#tb${this.PROJECT_NAME} [data-count]:enabled`).first().trigger('focus');
+        if (this.perms.edit) $(`#tb${this.PROJECT_NAME} [data-count]:enabled:visible`).first().trigger('focus');
+    }
+
+    // Buscador de la hoja: deja los productos cuyo nombre o SKU trae lo escrito (sin
+    // importar acentos) y, en "Todas", las áreas que conservan alguno. Mientras se busca
+    // se ven también los de un área contraída; al borrarlo se respeta lo contraído.
+    filterSheet(q) {
+        this.q = String(q || '');
+
+        const norm   = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+        const needle = norm(this.q);
+
+        let $group = null, rows = 0, hits = 0;
+        const closeGroup = () => {
+            if ($group) $group.css('display', needle && rows && !hits ? 'none' : '');
+        };
+
+        $(`#tb${this.PROJECT_NAME} tbody tr`).each((i, tr) => {
+            const $tr = $(tr);
+            if (!$tr.find('[data-count]').length) {
+                closeGroup();
+                $group = $tr;
+                rows = hits = 0;
+                return;
+            }
+
+            const text  = $tr.children('td').first().find('div div').map((j, el) => $(el).text()).get().join(' ');
+            const match = !needle || norm(text).includes(needle);
+            rows++;
+            if (match) hits++;
+            $tr.css('display', !needle ? '' : (match ? 'table-row' : 'none'));
+        });
+        closeGroup();
     }
 
     // En "Todas" cada renglon de area contrae o expande sus productos.

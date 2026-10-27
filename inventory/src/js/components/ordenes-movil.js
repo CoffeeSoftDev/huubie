@@ -1,5 +1,5 @@
 // -- ordenesMovil --
-// Pedidos en el teléfono: encabezado con la sucursal, estados en píldoras, una tarjeta por
+// Pedidos en el teléfono: encabezado con la sucursal, estados en un select, una tarjeta por
 // pedido, botón flotante de nuevo pedido y barra inferior. Va fijo debajo del navbar (64px);
 // el rail lateral (z-40) y su velo (z-30) le pasan por encima. El detalle se pinta a
 // pantalla completa en detailParent().
@@ -105,7 +105,7 @@ class OrdenesMovil {
                 $('<h1>', { id: `${o.id}_title`, class: 'text-[18px] font-bold text-gray-800 leading-tight m-0' }),
                 $('<div>', { id: `${o.id}_branch`, class: 'mt-1' })
             ),
-            $('<div>', { id: `${o.id}_chips`, class: 'flex items-center gap-2 overflow-x-auto -mx-[16px] px-[16px]' })
+            $('<div>', { id: `${o.id}_chips` })
         );
     }
 
@@ -141,23 +141,20 @@ class OrdenesMovil {
         $(`#${o.id}_branch`).empty().append(chip);
     }
 
+    // Los estados van en un select nativo: en el teléfono abre la lista del sistema.
     renderChips() {
         const o = this.opts;
 
-        $(`#${o.id}_chips`).empty().append(o.chips.map(c => {
-            const on = String(c.id) === String(o.chip);
-
-            return $('<button>', {
-                type:        'button',
-                'data-chip': c.id,
-                class:       'flex-shrink-0 px-[14px] py-[6px] rounded-full text-[12px] font-semibold whitespace-nowrap border-[1px] transition-colors '
-                           + (on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'),
-                text:        c.valor
-            });
-        }));
-
-        const activo = $(`#${o.id}_chips [data-chip="${String(o.chip).replace(/"/g, '')}"]`)[0];
-        if (activo) activo.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        $(`#${o.id}_chips`).empty().append(
+            $('<select>', {
+                id:           `${o.id}_estado`,
+                'aria-label': 'Estado',
+                class:        'form-select w-full rounded-[10px] border-[1px] border-gray-300 bg-white text-gray-700 font-semibold',
+                style:        'padding-top:8px;padding-bottom:8px;'
+            })
+                .append(o.chips.map(c => $('<option>', { value: c.id, text: c.valor })))
+                .val(o.chip)
+        );
     }
 
     renderFab() {
@@ -295,9 +292,8 @@ class OrdenesMovil {
     bindEvents() {
         const o = this.opts;
 
-        this.root.on('click', '[data-chip]', (e) => {
-            o.chip = String($(e.currentTarget).attr('data-chip'));
-            this.renderChips();
+        this.root.on('change', `#${o.id}_estado`, (e) => {
+            o.chip = String(e.target.value);
             o.onChip(o.chip);
         });
 
@@ -327,8 +323,6 @@ class OrdenesMovil {
         const style = document.createElement('style');
         style.id          = 'ordenesMovilStyles';
         style.textContent = `
-            #${this.opts.id}_chips { scrollbar-width: none; }
-            #${this.opts.id}_chips::-webkit-scrollbar { display: none; }
             #${body} > div { overflow-y: auto !important; }
             #${body} > div > .flex-1 { flex: none !important; overflow: visible !important; }
             #${body} > div > :first-child { position: sticky; top: 0; z-index: 2; }
@@ -382,10 +376,10 @@ class OrdenMovilForm {
                 sinDestino:    'Elige a qué sucursal le pides',
                 sinCantidad:   'Escribe la cantidad de',
                 salirTitulo:   'Tienes materiales sin enviar',
-                borradorHint:  'Queda en Mis pedidos para enviarlo después',
+                borradorHint:  'Queda en Requisiciones para enviarla después',
                 salirHint:     'Se pierden los materiales que agregaste',
                 cambiosTitulo: 'Tienes cambios sin guardar',
-                cambiosHint:   'El pedido conserva su estado',
+                cambiosHint:   'La requisición conserva su estado',
                 descartarHint: 'Se pierden los cambios que hiciste',
                 seguir:        'Seguir capturando'
             },
@@ -398,12 +392,14 @@ class OrdenMovilForm {
         this.lote        = ((this.opts.edit && this.opts.edit.productos) || []).map(p => Object.assign({}, p));
         this.term        = '';
         this.saving      = false;
+        // Textos de la captura de escritorio con los de la requisición (confirmaciones).
+        this.textos      = Object.assign({}, OrdenForm.LABELS, OrdenForm.LABELS_HOJA);
 
         this.catalogo = Object.assign(Object.create(OrdenForm.prototype), {
             opts: {
                 json:   this.opts.json,
                 data:   this.opts.data,
-                labels: OrdenForm.LABELS
+                labels: this.textos
             },
             lote: []
         });
@@ -772,8 +768,8 @@ class OrdenMovilForm {
 
         this.tpl.alertBox({
             type:        'confirm',
-            title:       o.edit ? OrdenForm.LABELS.confirmEdit : this.catalogo.confirmCrearTexto(payload),
-            okLabel:     o.edit ? OrdenForm.LABELS.confirmEditOk : OrdenForm.LABELS.confirmAddOk,
+            title:       o.edit ? this.textos.confirmEdit : this.catalogo.confirmCrearTexto(payload),
+            okLabel:     o.edit ? this.textos.confirmEditOk : this.textos.confirmAddOk,
             okIcon:      'check',
             cancelLabel: 'Cancelar',
             onOk:        () => this.save(payload)
@@ -800,7 +796,7 @@ class OrdenMovilForm {
     // solo si algo cambió, y guardar es guardar los cambios.
     requestClose() {
         const o = this.opts;
-        const L = OrdenForm.LABELS;
+        const L = this.textos;
         if (o.edit ? this.huella() === this.huellaInicial : !this.lote.length) { this.close(); return; }
 
         this.tpl.csChoiceCards({

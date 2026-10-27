@@ -16,8 +16,10 @@
                 
                 //  La conexión va en utf8mb4: el "utf8" de MySQL solo guarda caracteres de hasta 3 bytes
                 //  y rechaza los emojis (4 bytes) con "Incorrect string value", aunque la columna sea utf8mb4.
+                //  NOW()/CURDATE()/CURTIME() en hora de México (UTC-6 fijo, sin horario de verano): el
+                //  MySQL del servidor de producción corre en otra zona y adelantaba las horas 2 h.
                 $opc = array(
-                        PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8mb4',
+                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4, time_zone = '-06:00'",
                     );
 
                 try {
