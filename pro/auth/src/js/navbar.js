@@ -36,7 +36,7 @@ class Navbar {
         $('#menu-navbar').html(`
             <nav class="flex items-center justify-between gap-3 px-3 bg-white border-b border-gray-200">
                 <div class="flex items-center gap-3 min-w-0">
-                    <button type="button" id="btn-mobile-menu" class="lg:hidden p-2 rounded-md text-gray-500 hover:bg-gray-100" title="Menú">
+                    <button type="button" id="btn-menu" class="p-2 rounded-md text-gray-500 hover:bg-gray-100" title="Menú" aria-controls="menu-sidebar">
                         <i data-lucide="menu" class="w-5 h-5"></i>
                     </button>
                     <a href="${this.base}/index.php" class="flex items-center gap-2 no-underline text-gray-900 shrink-0">

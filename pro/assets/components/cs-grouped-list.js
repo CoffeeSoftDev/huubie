@@ -1,15 +1,17 @@
 // -- csNavList · csGroupedList --
 // Panel lateral de selección y lista agrupada en acordeones (arrastre para ordenar + interruptor).
 
+// Los title de este archivo van con .attr(): como prop de $('<el>', {...}) jQuery
+// llama a $.fn.title (complementos.js), que lo vuelve popover, y al re-pintar la
+// lista tras editar o apagar el popover se queda huérfano encima de la página.
 function csGlSwitch(on, onClick) {
     const sw = $('<button>', {
         type: 'button',
         role: 'switch',
         'aria-checked': on ? 'true' : 'false',
-        title: on ? 'Apagar' : 'Encender',
         class: 'shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition '
             + (on ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-gray-300 hover:bg-gray-400')
-    });
+    }).attr('title', on ? 'Apagar' : 'Encender');
 
     sw.append($('<span>', {
         class: 'inline-block h-4 w-4 rounded-full bg-white shadow transform transition '
@@ -34,6 +36,8 @@ Templates.prototype.csNavList = function (options) {
         active: null,
         addTitle: 'Agregar',
         empty: '',
+        // false: el lápiz de los editables solo aparece al pasar el mouse.
+        showEdit: false,
         onAdd: null,
         onSelect: () => { },
         onEdit: () => { },
@@ -132,9 +136,9 @@ Templates.prototype.csNavList = function (options) {
         if (item.editable) {
             const edit = $('<button>', {
                 type: 'button',
-                title: 'Editar',
-                class: 'shrink-0 w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-blue-600 hover:bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition'
-            });
+                class: 'shrink-0 w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-blue-600 hover:bg-white transition'
+                    + (opts.showEdit ? '' : ' opacity-0 group-hover:opacity-100 focus:opacity-100')
+            }).attr('title', 'Editar');
 
             edit.append($('<i>', {
                 'data-lucide': 'pencil',
@@ -149,9 +153,11 @@ Templates.prototype.csNavList = function (options) {
             row.append(edit);
         }
 
+        // check: false quita la palomita de la fila elegida (ej. roles del sistema,
+        // que solo llevan el lápiz).
         if (item.switchable) {
             row.append(csGlSwitch(item.on, () => opts.onToggle(item)));
-        } else if (selected) {
+        } else if (selected && item.check !== false) {
             row.append($('<i>', {
                 'data-lucide': 'check',
                 class: 'w-3.5 h-3.5 text-gray-900 shrink-0'
@@ -216,7 +222,9 @@ Templates.prototype.csGroupedList = function (options) {
         onRename: () => { },
         onRenameItem: () => { },
         onDelete: () => { },
-        onGroupToggle: () => { }
+        onGroupToggle: () => { },
+        onGroupEdit: () => { },
+        onGroupSwitch: () => { }
     };
 
     const opts = Object.assign({}, defaults, options);
@@ -468,10 +476,40 @@ Templates.prototype.csGroupedList = function (options) {
 
         head.append(title);
 
-        head.append($('<span>', {
-            class: 'shrink-0 text-[11px] font-medium text-gray-400',
+        // Lado derecho: conteo y, si el grupo lo pide, editar completo (configurable)
+        // e interruptor de encendido (switchable).
+        const side = $('<span>', {
+            class: 'flex items-center gap-2 shrink-0'
+        });
+
+        side.append($('<span>', {
+            class: 'text-[11px] font-medium text-gray-400',
             text: group.count !== undefined ? group.count : group.items.length
         }));
+
+        if (group.configurable) {
+            const configBtn = $('<button>', {
+                type: 'button',
+                'aria-label': 'Editar submódulo',
+                class: 'w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-blue-600 hover:bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition'
+            }).attr('title', 'Editar');
+
+            configBtn.append($('<i>', {
+                'data-lucide': 'settings-2',
+                class: 'w-3.5 h-3.5'
+            }));
+
+            configBtn.on('click', (e) => {
+                e.stopPropagation();
+                opts.onGroupEdit(group);
+            });
+
+            side.append(configBtn);
+        }
+
+        if (group.switchable) side.append(csGlSwitch(group.on, () => opts.onGroupSwitch(group)));
+
+        head.append(side);
 
         const body = $('<div>', {
             class: open ? '' : 'hidden'

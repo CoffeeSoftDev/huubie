@@ -24,7 +24,9 @@
                              que solo eligen viendo el dibujo.
                              Con f.compact === true queda solo la muestra (el
                              clic en ella abre el selector) y el valor oculto,
-                             sin texto ni boton. f.required pone `required` al
+                             sin texto ni boton. Con f.button === false se quita
+                             solo el boton: quedan la muestra (que abre el
+                             selector) y el texto. f.required pone `required` al
                              valor: coffeeForm no guarda sin icono y la muestra
                              se pinta de rojo.
 
@@ -287,7 +289,7 @@ Templates.prototype.csIconField = function (f) {
             name. Sin esto el icono no llegaría al servidor. */
         +   `<input type="${showName && !compact ? 'text' : 'hidden'}" id="${esc(f.id)}"${f.name ? ` name="${esc(f.name)}"` : ''} value="${esc(value)}" class="${esc(f.inputClass || '')}"`
         +        ` placeholder="${esc(f.ph || 'layout-grid')}" spellcheck="false" autocomplete="off"${f.required ? ' required' : ''}>`
-        +   (compact ? '' : `<button type="button" class="cs-icon-btn" title="Elegir icono"><i data-lucide="layout-grid"></i>${showName ? '' : '<span>Elegir icono</span>'}</button>`)
+        +   (compact || f.button === false ? '' : `<button type="button" class="cs-icon-btn" title="Elegir icono"><i data-lucide="layout-grid"></i>${showName ? '' : '<span>Elegir icono</span>'}</button>`)
         + '</div>';
 };
 

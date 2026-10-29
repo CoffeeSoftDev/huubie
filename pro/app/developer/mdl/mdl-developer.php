@@ -463,24 +463,10 @@ class mdl extends CRUD {
 
     /* ===== Submódulos (submodules) ===== */
 
-    function qSubmodules($array) {
-        // [is_active]
-        $query = "
-            SELECT
-                sm.id, sm.name, sm.code, sm.route, sm.orden, sm.is_active, sm.module_id,
-                m.name AS module_name
-            FROM {$this->bd}submodules sm
-            LEFT JOIN {$this->bd}modules m ON m.id = sm.module_id
-            WHERE sm.is_active = ?
-            ORDER BY sm.orden ASC, sm.id ASC
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) ? $r : [];
-    }
-
+    // module_id: el modal de sección solo ofrece los submódulos del módulo elegido.
     function qSubmodulesForSelect() {
         $query = "
-            SELECT id, name AS valor
+            SELECT id, name AS valor, module_id
             FROM {$this->bd}submodules
             WHERE is_active = 1
             ORDER BY orden ASC, name ASC
@@ -511,15 +497,23 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function qRenameSubmodule($array) {
-        // [name, id]
-        $query = "UPDATE {$this->bd}submodules SET name = ? WHERE id = ?";
-        return $this->_CUD($query, $array);
-    }
-
     function qSetSubmoduleActive($array) {
         // [is_active, id]
         $query = "UPDATE {$this->bd}submodules SET is_active = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    // Antes de borrar el submódulo: sections.submodule_id es ON DELETE CASCADE y
+    // sin esto se llevaría sus secciones (y sus permisos) con él.
+    function qDetachSubmoduleSections($array) {
+        // [submodule_id]
+        $query = "UPDATE {$this->bd}sections SET submodule_id = NULL WHERE submodule_id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function qDeleteSubmodule($array) {
+        // [id]
+        $query = "DELETE FROM {$this->bd}submodules WHERE id = ?";
         return $this->_CUD($query, $array);
     }
 
@@ -556,8 +550,10 @@ class mdl extends CRUD {
 
     // Todos los módulos (activos y apagados) para el panel de Secciones.
     function qModulesCatalog() {
+        // code: el panel no ofrece apagar Developer (ver toggleModule del ctrl).
+        // description: el texto de la tarjeta del módulo.
         $query = "
-            SELECT id, name, icon, is_active
+            SELECT id, name, code, icon, description, is_active
             FROM {$this->bd}modules
             ORDER BY orden ASC, id ASC
         ";
@@ -622,10 +618,12 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function qRenameSection($array) {
-        // [name, id]
-        $query = "UPDATE {$this->bd}sections SET name = ? WHERE id = ?";
-        return $this->_CUD($query, $array);
+    // Los tipos de permiso encendidos en la sección: lo que muestra el select del modal.
+    function qSectionTypeIds($array) {
+        // [section_id]
+        $query = "SELECT type_permission_id FROM {$this->bd}permissions WHERE section_id = ? AND is_active = 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? array_map('intval', array_column($r, 'type_permission_id')) : [];
     }
 
     function qSetSectionActive($array) {
@@ -755,14 +753,18 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function qRolesForSelect() {
+    // Roles que se pueden dar en las sucursales de una empresa: los del sistema y los suyos.
+    // root no: tenerlo en cualquier sucursal da acceso total a todas las empresas.
+    function qRolesForCompany($array) {
+        // [company_id]
         $query = "
-            SELECT id, name AS valor
+            SELECT id, name AS valor, code, is_system, company_id
             FROM {$this->bd}roles
-            WHERE is_active = 1
-            ORDER BY name ASC
+            WHERE is_active = 1 AND (is_system = 1 OR company_id = ?)
+              AND COALESCE(code, '') <> 'root'
+            ORDER BY is_system DESC, name ASC
         ";
-        $r = $this->_Read($query, null);
+        $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
     }
 
@@ -780,15 +782,17 @@ class mdl extends CRUD {
     }
 
     function qRoleNameExists($array) {
-        // [name, company_id, id que se excluye (0 = ninguno)]
-        $query = "SELECT id FROM {$this->bd}roles WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND company_id = ? AND id <> ? LIMIT 1";
+        // [name, company_id (NULL = entre los del sistema), id que se excluye (0 = ninguno)]
+        // <=> y no =: con NULL, `company_id = ?` nunca coincide y dejaría repetir nombres del sistema.
+        $query = "SELECT id FROM {$this->bd}roles WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND company_id <=> ? AND id <> ? LIMIT 1";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r);
     }
 
     function qInsertRole($array) {
-        // [code, name, company_id] · el rol solo sale en Configuración > Accesos de esa empresa
-        $query = "INSERT INTO {$this->bd}roles (code, name, is_system, is_active, company_id, created_at) VALUES (?, ?, 0, 1, ?, NOW())";
+        // [code, name, is_system, company_id] · del sistema: company_id NULL y se puede dar
+        // en las sucursales de cualquier empresa; de empresa: solo en las suyas.
+        $query = "INSERT INTO {$this->bd}roles (code, name, is_system, is_active, company_id, created_at) VALUES (?, ?, ?, 1, ?, NOW())";
         return $this->_CUD($query, $array);
     }
 
@@ -805,22 +809,6 @@ class mdl extends CRUD {
     }
 
     /* ===== Permisos: acciones de cada sección (permissions) ===== */
-
-    // Secciones encendidas de módulos encendidos: las filas de la pestaña Permisos.
-    function qCatalogSections() {
-        $query = "
-            SELECT
-                s.id, s.name, s.icon, s.route, s.module_id,
-                m.name AS module_name,
-                m.icon AS module_icon
-            FROM {$this->bd}sections s
-            JOIN {$this->bd}modules m ON m.id = s.module_id AND m.is_active = 1
-            WHERE s.is_active = 1
-            ORDER BY m.orden ASC, m.id ASC, s.orden ASC, s.id ASC
-        ";
-        $r = $this->_Read($query, null);
-        return is_array($r) ? $r : [];
-    }
 
     // Todo el catálogo (encendido y apagado) con cuántos roles tiene cada acción.
     function qPermissionsCatalog() {
@@ -1094,13 +1082,14 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    // Sucursales activas de una empresa, para selects de asignación.
-    function qBranchesForSelect($array) {
+    // Todas las sucursales de una empresa, también las apagadas: el modal de
+    // usuario reescribe sus accesos y no debe perder los que tenga en una inactiva.
+    function qBranchesByCompany($array) {
         // [company_id]
         $query = "
-            SELECT id, name AS valor
+            SELECT id, name AS valor, is_active
             FROM {$this->bd}branches
-            WHERE company_id = ? AND is_active = 1
+            WHERE company_id = ?
             ORDER BY name ASC
         ";
         $r = $this->_Read($query, $array);
@@ -1139,40 +1128,94 @@ class mdl extends CRUD {
         return is_array($r) && count($r) > 0;
     }
 
-    /* ===== CRUD de usuarios (mismo juego que admin/accesos, con rol) ===== */
+    /* ===== CRUD de usuarios de todas las empresas ===== */
 
-    // Una fila por usuario. Las sucursales y los roles se concatenan en
-    // subconsultas porque users_braches tiene una fila por usuario+sucursal:
-    // sin esto la tabla repetiria al usuario tantas veces como sucursales tenga.
-    function qUsersFull($array) {
-        // [company_id, status]
+    // Una fila por usuario con su empresa y la sucursal a la que pertenece
+    // (users.branch_id). Sus accesos llegan aparte en qUsersAccess.
+    // $byCompany: con [status, company_id] filtra la empresa; con [status] trae todas.
+    // Primero los de plataforma (sin empresa, como root) y luego cada empresa junta.
+    function qUsers($array, $byCompany) {
+        $company = $byCompany ? 'AND u.company_id = ?' : '';
         $query = "
             SELECT
-                u.id,
-                u.name,
-                u.last_name,
-                u.email,
-                u.status,
-                u.is_owner,
-                u.color,
-                (
-                    SELECT GROUP_CONCAT(DISTINCT br.name ORDER BY br.name ASC SEPARATOR ', ')
-                    FROM {$this->bd}users_braches ub
-                    INNER JOIN {$this->bd}branches br ON br.id = ub.branch_id
-                    WHERE ub.user_id = u.id
-                ) AS branch_names,
-                (
-                    SELECT GROUP_CONCAT(DISTINCT r.name ORDER BY r.name ASC SEPARATOR ', ')
-                    FROM {$this->bd}users_braches ub2
-                    INNER JOIN {$this->bd}roles r ON r.id = ub2.role_id
-                    WHERE ub2.user_id = u.id
-                ) AS role_names
+                u.id, u.name, u.last_name, u.email, u.status, u.is_owner, u.color,
+                u.company_id, u.branch_id,
+                co.name AS company_name,
+                hb.name AS branch_name
             FROM {$this->bd}users u
-            WHERE u.company_id = ? AND u.status = ?
-            ORDER BY u.name ASC
+            LEFT JOIN {$this->bd}companies co ON co.id = u.company_id
+            LEFT JOIN {$this->bd}branches hb  ON hb.id = u.branch_id
+            WHERE u.status = ? {$company}
+            ORDER BY (u.company_id IS NULL) DESC, co.name ASC, u.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
+    }
+
+    // Una fila por sucursal a la que entra cada usuario de qUsers (mismos filtros).
+    function qUsersAccess($array, $byCompany) {
+        $company = $byCompany ? 'AND u.company_id = ?' : '';
+        $query = "
+            SELECT
+                ub.user_id, ub.branch_id, ub.role_id,
+                b.name AS branch_name,
+                r.name AS role_name,
+                r.code AS role_code
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}users u    ON u.id = ub.user_id
+            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
+            LEFT JOIN {$this->bd}roles r     ON r.id = ub.role_id
+            WHERE u.status = ? {$company}
+            ORDER BY b.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function qUser($array) {
+        // [id]
+        $query = "
+            SELECT id, name, last_name, email, company_id, branch_id, is_owner, status, color, photo
+            FROM {$this->bd}users
+            WHERE id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    function qUserAccess($array) {
+        // [user_id]
+        $query = "
+            SELECT branch_id, role_id
+            FROM {$this->bd}users_braches
+            WHERE user_id = ?
+            ORDER BY branch_id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Con el rol root en cualquier sucursal el usuario es de plataforma (ver getRootRole del login).
+    function qUserIsRoot($array) {
+        // [user_id]
+        $query = "
+            SELECT ub.id
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}roles r ON r.id = ub.role_id
+            WHERE ub.user_id = ? AND r.code = 'root'
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r);
+    }
+
+    // El login busca el correo en toda la plataforma: no se repite entre empresas.
+    function qUserEmailTaken($array) {
+        // [email, id que se excluye (0 = ninguno)]
+        $query = "SELECT id FROM {$this->bd}users WHERE LOWER(email) = LOWER(?) AND id <> ? LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r);
     }
 
     function qUserFull($array) {
@@ -1188,56 +1231,14 @@ class mdl extends CRUD {
     }
 
     function qUpdateUserPhoto($array) {
-        // [photo, id, company_id]
-        $query = "UPDATE {$this->bd}users SET photo = ?, updated_at = NOW() WHERE id = ? AND company_id = ?";
+        // [photo, id]
+        $query = "UPDATE {$this->bd}users SET photo = ?, updated_at = NOW() WHERE id = ?";
         return $this->_CUD($query, $array);
-    }
-
-    function qUserBranchIds($array) {
-        // [user_id]
-        $query = "
-            SELECT branch_id
-            FROM {$this->bd}users_braches
-            WHERE user_id = ?
-            ORDER BY branch_id ASC
-        ";
-        $r = $this->_Read($query, $array);
-        if (!is_array($r) || empty($r)) return [];
-        return array_column($r, 'branch_id');
-    }
-
-    // El modal captura UN rol por usuario, asi que se lee el primero que tenga
-    // asignado. Si por datos viejos tuviera roles distintos por sucursal, el
-    // guardado los uniforma al que quede seleccionado.
-    function qUserMainRole($array) {
-        // [user_id]
-        $query = "
-            SELECT role_id
-            FROM {$this->bd}users_braches
-            WHERE user_id = ? AND role_id IS NOT NULL
-            LIMIT 1
-        ";
-        $r = $this->_Read($query, $array);
-        return (is_array($r) && !empty($r)) ? (int) $r[0]['role_id'] : 0;
     }
 
     function qBranchInCompany($array) {
         // [branch_id, company_id]
         $query = "SELECT id FROM {$this->bd}branches WHERE id = ? AND company_id = ? LIMIT 1";
-        $r = $this->_Read($query, $array);
-        return is_array($r) && count($r) > 0;
-    }
-
-    function qUserEmailExists($array) {
-        // [email, company_id]
-        $query = "SELECT id FROM {$this->bd}users WHERE LOWER(email) = LOWER(?) AND company_id = ?";
-        $r = $this->_Read($query, $array);
-        return is_array($r) && count($r) > 0;
-    }
-
-    function qUserEmailExistsExcept($array) {
-        // [email, company_id, id]
-        $query = "SELECT id FROM {$this->bd}users WHERE LOWER(email) = LOWER(?) AND company_id = ? AND id <> ?";
         $r = $this->_Read($query, $array);
         return is_array($r) && count($r) > 0;
     }
@@ -1258,11 +1259,11 @@ class mdl extends CRUD {
     }
 
     function qUpdateUser($array) {
-        // [name, last_name, email, branch_id, color, id, company_id]
+        // [name, last_name, email, company_id, branch_id, color, id]
         $query = "
             UPDATE {$this->bd}users
-            SET name = ?, last_name = ?, email = ?, branch_id = ?, color = ?, updated_at = NOW()
-            WHERE id = ? AND company_id = ?
+            SET name = ?, last_name = ?, email = ?, company_id = ?, branch_id = ?, color = ?, updated_at = NOW()
+            WHERE id = ?
         ";
         return $this->_CUD($query, $array);
     }
@@ -1274,14 +1275,14 @@ class mdl extends CRUD {
     }
 
     function qUpdateUserPassword($array) {
-        // [password, id, company_id]
-        $query = "UPDATE {$this->bd}users SET password = ? WHERE id = ? AND company_id = ?";
+        // [password, id]
+        $query = "UPDATE {$this->bd}users SET password = ? WHERE id = ?";
         return $this->_CUD($query, $array);
     }
 
     function qSetUserStatus($array) {
-        // [status, id, company_id]
-        $query = "UPDATE {$this->bd}users SET status = ? WHERE id = ? AND company_id = ?";
+        // [status, id]
+        $query = "UPDATE {$this->bd}users SET status = ? WHERE id = ?";
         return $this->_CUD($query, $array);
     }
 
