@@ -24,6 +24,10 @@
     <script src="<?= $asset('assets/components/cs-grouped-list.js') ?>"></script>
 
     <script src="src/js/developer.js?v=<?= filemtime(__DIR__ . '/../src/js/developer.js') ?>"></script>
+    <?php if (in_array($script, ['accesos', 'facturacion'], true)): ?>
+    <!-- Alta y edición de usuarios: Accesos › Usuarios y el detalle de cada empresa en Facturación. -->
+    <script src="src/js/user-form.js?v=<?= filemtime(__DIR__ . '/../src/js/user-form.js') ?>"></script>
+    <?php endif; ?>
     <script src="src/js/<?= $script ?>.js?v=<?= filemtime(__DIR__ . '/../src/js/' . $script . '.js') ?>"></script>
 </body>
 

@@ -16,6 +16,15 @@ function afterSave(response, reload) {
     if (response && response.status == 200 && typeof reload === 'function') reload();
 }
 
+// Aviso gris con ícono: estados vacíos y notas dentro de paneles y modales
+// (Roles y Permisos y el formulario de usuario).
+function accessNote(icon, text) {
+    return $('<div>', { class: 'flex items-start gap-2 p-3 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-500' }).append(
+        $('<i>', { 'data-lucide': icon, class: 'w-4 h-4 shrink-0 text-gray-400' }),
+        $('<span>', { text: text })
+    );
+}
+
 // Botón compacto con ícono de las cabeceras de panel (Roles y Permisos en
 // Accesos; Empresas, Pagos y Módulos en Facturación). primary: el primario del tema (bg-main).
 function actionButton(icon, text, onClick, primary = false, disabled = false) {

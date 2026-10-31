@@ -1,10 +1,13 @@
 let api = 'ctrl/ctrl-facturacion.php';
-let app, companies, plans, billingModules, subscriptions, payments, coupons, redemptions;
+let app, companies, plans, billingModules, subscriptions, payments, coupons, redemptions, userForm;
 let dataInit = {};
 
 $(async () => {
     dataInit = await useFetch({ url: api, data: { opc: 'init' } }) || {};
 
+    // Los usuarios de cada empresa se dan de alta y se editan con el mismo modal
+    // de Accesos › Usuarios (src/js/user-form.js), y sus endpoints viven en ctrl-accesos.
+    userForm = new UserForm('ctrl/ctrl-accesos.php', 'root');
     companies = new Companies(api, 'root');
     plans = new Plans(api, 'root');
     billingModules = new BillingModules(api, 'root');
@@ -831,7 +834,7 @@ class Companies extends BillingPanel {
                 )
             ));
         } else {
-            ownerList.append($('<p>', { class: 'text-xs text-gray-400 mb-0', text: 'Nadie marcado como dueño. Márcalo en Accesos › Usuarios: es quien paga la suscripción.' }));
+            ownerList.append($('<p>', { class: 'text-xs text-gray-400 mb-0', text: 'Nadie marcado como dueño. Márcalo al editar un usuario (pestaña Usuarios): es quien paga la suscripción.' }));
         }
 
         return this.card('p-4 sm:p-5').append(
@@ -1115,8 +1118,7 @@ class Companies extends BillingPanel {
                     $('<div>', { class: 'flex-1' }),
                     scope,
                     search,
-                    // Usuarios, roles y accesos se administran en Accesos; aquí solo se consultan.
-                    actionButton('external-link', 'Administrar en Accesos', () => { window.location.href = 'accesos.php'; })
+                    actionButton('plus', 'Agregar usuario', () => userForm.addUser(c.id, () => this.reload()), true)
                 ]),
                 $('<div>', { id: 'companyUserRows' })
             ),
@@ -1146,7 +1148,7 @@ class Companies extends BillingPanel {
 
         const $box = $('#companyUserRows').empty();
         if (!rows.length) {
-            $box.append(this.emptyState('users', 'Sin usuarios', d.users.length ? 'Nadie coincide con el filtro o la búsqueda.' : 'Se dan de alta en Accesos › Usuarios.'));
+            $box.append(this.emptyState('users', 'Sin usuarios', d.users.length ? 'Nadie coincide con el filtro o la búsqueda.' : 'Agrega el primero con «Agregar usuario».'));
             this.icons();
             return;
         }
@@ -1159,8 +1161,10 @@ class Companies extends BillingPanel {
             if (u.access.length > 3) access.append(this.chip(`+${u.access.length - 3}`, 'neutral'));
             if (!u.access.length) access.append(this.chip('Sin acceso', 'warn'));
 
-            // basis-[220px]: en pantallas angostas sucursal y estado bajan juntos
-            // a una segunda línea en vez de apretar el nombre.
+            const active = u.status === 'active';
+
+            // basis-[220px]: en pantallas angostas sucursal, estado y acciones
+            // bajan juntos a una segunda línea en vez de apretar el nombre.
             $box.append($('<div>', { class: 'flex items-center gap-x-3 gap-y-2 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 flex-wrap' }).append(
                 this.avatar(u.name, u.id, 'w-9 h-9 rounded-xl text-xs', u.color),
                 $('<div>', { class: 'min-w-0 flex-1 basis-[220px]' }).append(
@@ -1176,7 +1180,13 @@ class Companies extends BillingPanel {
                         $('<p>', { class: 'text-xs font-semibold text-gray-700 truncate mb-0', text: home ? home.name : 'Sin sucursal' }),
                         $('<p>', { class: 'text-[11px] text-gray-400 mb-0', text: u.last_activity ? `Último acceso ${this.date(u.last_activity.slice(0, 10))}` : 'Sin accesos registrados' })
                     ),
-                    this.chip(st.label, st.tone, true)
+                    this.chip(st.label, st.tone, true),
+                    $('<div>', { class: 'flex items-center' }).append(
+                        this.iconButton('pencil', 'Editar usuario', () => userForm.editUser(u.id, () => this.reload())),
+                        this.iconButton(active ? 'user-x' : 'user-check', active ? 'Desactivar usuario' : 'Activar usuario',
+                            () => userForm.toggleUser(u.id, active ? 0 : 1, () => this.reload()),
+                            active ? 'hover:text-red-600' : 'hover:text-emerald-600')
+                    )
                 )
             ));
         });
