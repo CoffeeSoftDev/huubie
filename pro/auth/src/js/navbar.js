@@ -48,8 +48,8 @@ class Navbar {
                     <span id="nav-context" class="hidden md:flex items-center gap-1.5 text-sm text-gray-500 min-w-0"></span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                    <a id="nav-companies" href="${this.base}/app/empresas/" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-gray-600 hover:bg-gray-100 no-underline">
-                        <i data-lucide="building-2" class="w-4 h-4"></i>Cambiar empresa
+                    <a id="nav-companies" href="${this.base}/app/empresas/" title="Cambiar empresa" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-gray-600 hover:bg-gray-100 no-underline">
+                        <i data-lucide="building-2" class="w-4 h-4"></i><span class="hidden md:inline">Cambiar empresa</span>
                     </a>
                     <div id="nav-user" class="flex items-center gap-2"></div>
                     <button type="button" id="btn-logout" class="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900" title="Cerrar sesión">
@@ -59,7 +59,6 @@ class Navbar {
             </nav>
         `);
 
-        $('#nav-companies').hide();
         $('#btn-logout').on('click', () => this.logout());
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -74,7 +73,9 @@ class Navbar {
             );
         }
 
-        if (data.is_root) $('#nav-companies').show();
+        // Con clases y no con show(): show() le ponía display:inline y en celular el
+        // texto se partía. En celular queda solo el ícono; el texto, desde md.
+        if (data.is_root) $('#nav-companies').removeClass('hidden').addClass('inline-flex');
 
         const color  = /^#[0-9A-Fa-f]{6}$/.test(data.color || '') ? data.color : '#111827';
         const avatar = data.photo

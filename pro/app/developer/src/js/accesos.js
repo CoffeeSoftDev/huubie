@@ -1,5 +1,5 @@
 let api = 'ctrl/ctrl-accesos.php';
-let app, modules, submodules, sections, typePermissions, roles, permissions, users, branches;
+let app, modules, submodules, sections, typePermissions, roles, permissions, users;
 let dataInit = {};
 
 $(async () => {
@@ -12,7 +12,6 @@ $(async () => {
     roles = new Roles(api, 'root');
     permissions = new Permissions(api, 'root');
     users = new Users(api, 'root');
-    branches = new Branches(api, 'root');
 
     app = new App(api, 'root');
     app.render();
@@ -30,6 +29,7 @@ function companyOptions(first) {
 
     return [{ id: first, valor: labels[first] }].concat(dataInit.companies || []);
 }
+
 
 // Aviso gris con ícono: estados vacíos y notas dentro de paneles y modales.
 function accessNote(icon, text) {
@@ -63,7 +63,9 @@ class App extends Templates {
                 class: 'flex flex-col mx-2 flex-1',
                 container: [
                     { type: 'div', id: `header${this.PROJECT_NAME}`, class: 'w-full' },
-                    { type: 'div', id: `container${this.PROJECT_NAME}`, class: 'w-full rounded p-2 flex-1 min-h-0 flex flex-col' }
+                    // min-h-0 solo desde lg: en escritorio los paneles llenan la pantalla
+                    // y scrollean por dentro; en celular la página crece con su contenido.
+                    { type: 'div', id: `container${this.PROJECT_NAME}`, class: 'w-full rounded p-2 flex-1 lg:min-h-0 flex flex-col' }
                 ]
             }
         });
@@ -89,13 +91,28 @@ class App extends Templates {
             id: `tabs${this.PROJECT_NAME}`,
             theme: 'light',
             type: 'button',
-            content: { class: 'flex-1 min-h-0 flex flex-col' },
+            content: { class: 'flex-1 lg:min-h-0 flex flex-col' },
             json: [
+
+                {
+                    id: 'permisos',
+                    tab: 'Roles y Permisos',
+                    lucideIcon: 'shield-check',
+                    class: 'flex-1 lg:min-h-0 flex flex-col',
+                    onClick: () => { permissions.render(); permissions.lsRoles(); }
+                },
+                {
+                    id: 'usuarios',
+                    tab: 'Usuarios',
+                    lucideIcon: 'user-cog',
+                    class: 'flex-1 lg:min-h-0 flex flex-col',
+                    onClick: () => { users.render(); users.lsUsers(); }
+                },
                 {
                     id: 'tipos-permiso',
                     tab: 'Tipos de permiso',
                     lucideIcon: 'key-round',
-                    class: 'flex-1 min-h-0 flex flex-col',
+                    class: 'flex-1 lg:min-h-0 flex flex-col',
                     active: true,
                     onClick: () => { typePermissions.render(); typePermissions.lsTypePermissions(); }
                 },
@@ -103,29 +120,8 @@ class App extends Templates {
                     id: 'modulos',
                     tab: 'Módulos',
                     lucideIcon: 'layout-grid',
-                    class: 'flex-1 min-h-0 flex flex-col',
+                    class: 'flex-1 lg:min-h-0 flex flex-col',
                     onClick: () => { sections.render(); sections.lsSections(); }
-                },
-                {
-                    id: 'permisos',
-                    tab: 'Roles y Permisos',
-                    lucideIcon: 'shield-check',
-                    class: 'flex-1 min-h-0 flex flex-col',
-                    onClick: () => { permissions.render(); permissions.lsRoles(); }
-                },
-                {
-                    id: 'usuarios',
-                    tab: 'Usuarios',
-                    lucideIcon: 'user-cog',
-                    class: 'flex-1 min-h-0 flex flex-col',
-                    onClick: () => { users.render(); users.lsUsers(); }
-                },
-                {
-                    id: 'sucursales',
-                    tab: 'Sucursales',
-                    lucideIcon: 'map-pin',
-                    class: 'flex-1 min-h-0 flex flex-col',
-                    onClick: () => branches.render()
                 }
             ]
         });
@@ -253,7 +249,9 @@ class Modules extends Templates {
             // Hueco vacío: lo rellena mountIconField() con el selector de íconos.
             { opc: 'div', id: 'iconFieldWrap', lbl: 'Ícono', class: 'col-12 col-md-6 mb-3', required: false },
             { opc: 'select', id: 'route', lbl: 'Ruta', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', select2: true, required: false, data: dataInit.routes || [] },
-            { opc: 'input', id: 'description', lbl: 'Descripción', class: 'col-12 mb-3', required: false, placeholder: 'Texto que se muestra en la tarjeta' }
+            { opc: 'input', id: 'description', lbl: 'Descripción', class: 'col-12 col-md-8 mb-3', required: false, placeholder: 'Texto que se muestra en la tarjeta' },
+            // Lo que se cobra por el módulo en el plan Personalizado (Facturación).
+            { opc: 'input', id: 'price', lbl: 'Precio mensual sin IVA', type: 'number', class: 'col-12 col-md-4 mb-3', required: false, placeholder: 'Plan Personalizado' }
         ];
     }
 
@@ -381,7 +379,7 @@ class Sections extends Templates {
             design: false,
             data: {
                 id: 'sectionsBoard',
-                class: 'flex flex-col gap-2 flex-1 min-h-0',
+                class: 'flex flex-col gap-2 flex-1 lg:min-h-0',
                 container: [
                     {
                         type: 'div',
@@ -393,7 +391,7 @@ class Sections extends Templates {
                         // que medía 25% - 6px por los huecos de la rejilla de 12.
                         type: 'div',
                         id: 'sections-body',
-                        class: 'grid grid-cols-1 lg:grid-cols-[calc(25%-54px)_minmax(0,1fr)] gap-2 items-stretch flex-1 min-h-0',
+                        class: 'grid grid-cols-1 lg:grid-cols-[calc(25%-54px)_minmax(0,1fr)] gap-2 items-stretch flex-1 lg:min-h-0',
                         children: [
                             {
                                 id: 'sections-modules',
@@ -437,9 +435,10 @@ class Sections extends Templates {
                     onchange: 'sections.lsSections()'
                 },
                 {
+                    // En celular, Nuevo Módulo y Nuevo Submódulo comparten renglón.
                     opc: 'button',
                     id: 'btnNewModule',
-                    class: 'col-12 col-sm-4 col-lg-2',
+                    class: 'col-6 col-sm-4 col-lg-2',
                     text: 'Nuevo Módulo',
                     color_btn: 'outline',
                     onClick: () => modules.addModule(() => this.lsSections())
@@ -447,7 +446,7 @@ class Sections extends Templates {
                 {
                     opc: 'button',
                     id: 'btnNewSubmodule',
-                    class: 'col-12 col-sm-4 col-lg-2',
+                    class: 'col-6 col-sm-4 col-lg-2',
                     text: 'Nuevo Submódulo',
                     color_btn: 'outline',
                     onClick: () => submodules.addSubmodule(this.activeModuleId, () => this.lsSections())
@@ -461,6 +460,13 @@ class Sections extends Templates {
                 }
             ]
         });
+
+        // El outline trae bg-white y border, que Bootstrap marca con !important: le
+        // ganaban al hover:bg-blue-600 y el botón no se rellenaba. Mismo gris en
+        // reposo, con ring en vez de border para que el hover pinte el contorno.
+        $('#btnNewModule, #btnNewSubmodule')
+            .removeClass('bg-white border')
+            .addClass('bg-[#fff] ring-1 ring-inset ring-gray-200 hover:ring-blue-600');
     }
 
     // Panel izquierdo. El buscador se pinta aquí y la lista aparte (renderModuleCards)
@@ -481,7 +487,8 @@ class Sections extends Templates {
                 $('<span>', { class: 'text-sm font-semibold text-gray-800 shrink-0', text: 'Módulos' }),
                 input
             ),
-            $('<div>', { id: 'sectionsModuleCards', class: 'flex-1 min-h-0 overflow-y-auto p-2 bg-gray-50 flex flex-col gap-2' })
+            // En celular, con tope de alto: si hay muchos módulos no empujan las secciones.
+            $('<div>', { id: 'sectionsModuleCards', class: 'flex-1 min-h-0 max-h-[55vh] lg:max-h-none overflow-y-auto p-2 bg-gray-50 flex flex-col gap-2' })
         );
 
         $('#sections-modules').html(panel);
@@ -603,24 +610,40 @@ class Sections extends Templates {
 
         const body = $('<div>', { class: open ? '' : 'hidden' });
 
-        if (group.items.length) {
-            const grid = $('<div>', { class: 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-3' });
-            group.items.forEach((row) => grid.append(this.sectionCard(row, sortable)));
+        // Ordenando, todos los grupos del módulo comparten el arrastre (group de
+        // Sortable): una sección se reordena en el suyo o se suelta en otro
+        // submódulo, también en uno vacío.
+        if (sortable && typeof Sortable !== 'undefined') {
+            const grid = $('<div>', {
+                class: 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-3 min-h-[52px]',
+                'data-submodule': group.submoduleId || 0
+            });
+            group.items.forEach((row) => grid.append(this.sectionCard(row, true)));
+            if (!group.items.length) {
+                grid.append($('<p>', { class: 'col-span-full px-1 py-1 text-xs text-gray-400 mb-0', text: group.emptyText }));
+            }
             body.append(grid);
 
-            if (sortable && group.items.length > 1 && typeof Sortable !== 'undefined') {
-                Sortable.create(grid[0], {
-                    handle: '.cs-sec-handle',
-                    draggable: '.cs-sec-card',
-                    animation: 150,
-                    ghostClass: 'opacity-40',
-                    onEnd: (evt) => {
-                        if (evt.oldIndex === evt.newIndex) return;
-                        const ids = grid.children('.cs-sec-card').map((_i, el) => $(el).data('id')).get();
-                        this.sortSections(group, ids);
+            Sortable.create(grid[0], {
+                group: `sections-${this.activeModuleId}`,
+                handle: '.cs-sec-handle',
+                draggable: '.cs-sec-card',
+                animation: 150,
+                ghostClass: 'opacity-40',
+                onEnd: (evt) => {
+                    const ids = $(evt.to).children('.cs-sec-card').map((_i, el) => $(el).data('id')).get();
+
+                    if (evt.from !== evt.to) {
+                        this.moveSection($(evt.item).data('id'), Number($(evt.to).data('submodule')), ids);
+                        return;
                     }
-                });
-            }
+                    if (evt.oldIndex !== evt.newIndex) this.sortSections(ids);
+                }
+            });
+        } else if (group.items.length) {
+            const grid = $('<div>', { class: 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-3' });
+            group.items.forEach((row) => grid.append(this.sectionCard(row, false)));
+            body.append(grid);
         } else {
             body.append($('<p>', { class: 'px-4 py-3 text-xs text-gray-400 mb-0', text: group.emptyText }));
         }
@@ -869,14 +892,14 @@ class Sections extends Templates {
         this.renderBoard();
     }
 
-    // Reparte los mismos números de orden del grupo en el nuevo acomodo (sin empates)
-    // y solo envía las secciones cuyo orden cambió.
-    async sortSections(group, ids) {
+    // Reparte los mismos números de orden del grupo en el nuevo acomodo (sin
+    // empates) y deja solo las secciones cuyo orden cambió.
+    orderItems(ids) {
         const rows = ids.map(id => this.rows.find(r => Number(r.id) === Number(id))).filter(Boolean);
         const slots = rows.map(r => Number(r.orden)).sort((a, b) => a - b);
 
         let prev = -Infinity;
-        const items = rows
+        return rows
             .map((r, i) => {
                 const orden = Math.max(slots[i], prev + 1);
                 prev = orden;
@@ -886,7 +909,10 @@ class Sections extends Templates {
                 };
             })
             .filter(x => Number(this.rows.find(r => Number(r.id) === x.id).orden) !== x.orden);
+    }
 
+    async sortSections(ids) {
+        const items = this.orderItems(ids);
         if (!items.length) return;
 
         const request = await useFetch({
@@ -898,6 +924,33 @@ class Sections extends Templates {
         });
 
         if (request && request.status === 200) {
+            items.forEach((x) => { this.rows.find(r => Number(r.id) === x.id).orden = x.orden; });
+            this.sortRows();
+        } else {
+            notify(request);
+        }
+
+        this.renderBoard();
+    }
+
+    // Soltada en otro submódulo: cambia de grupo y el de destino se reordena con
+    // ella. Si falla, renderBoard la regresa a donde estaba.
+    async moveSection(id, submoduleId, ids) {
+        const items = this.orderItems(ids);
+
+        const request = await useFetch({
+            url: this._link,
+            data: {
+                opc: 'moveSection',
+                id: id,
+                submodule_id: submoduleId,
+                items: JSON.stringify(items)
+            }
+        });
+
+        if (request && request.status === 200) {
+            const row = this.rows.find(r => Number(r.id) === Number(id));
+            if (row) row.submodule_id = submoduleId || null;
             items.forEach((x) => { this.rows.find(r => Number(r.id) === x.id).orden = x.orden; });
             this.sortRows();
         } else {
@@ -1137,16 +1190,10 @@ class Sections extends Templates {
     /*  Permisos de la sección: select2 múltiple con los tipos de permiso activos.
         Viajan como JSON en el hidden `type_ids` y no como el select: el modal arma
         su envío con FormData y de un select múltiple solo se quedaría el último.
-        Sin tipos activos no hay hidden y el ctrl no toca los permisos. */
+        Debajo va "+ Nuevo permiso" (typeCreator) para crear uno sin salir del modal. */
     mountTypesField(formId, selected) {
         const $wrap = $(`#${formId}`).find('#typesFieldWrap');
         if (!$wrap.length) return;
-
-        if (!this.types.length) {
-            $wrap.html(accessNote('info', 'No hay tipos de permiso activos. Créalos en la pestaña Tipos de permiso.'));
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-            return;
-        }
 
         const picked = (selected || []).map(Number);
         const $input = $('<input>', { type: 'hidden', name: 'type_ids' });
@@ -1161,6 +1208,7 @@ class Sections extends Templates {
         $wrap.empty().append(
             $select,
             $input,
+            this.typeCreator($select),
             $('<p>', { class: 'text-[11px] text-gray-400 mt-1 mb-0', text: 'Quitar uno que ya tienen roles lo oculta de sus permisos; si lo vuelves a poner, lo recuperan.' })
         );
 
@@ -1171,11 +1219,92 @@ class Sections extends Templates {
         // Anclado al modal: fuera de él el dropdown quedaría detrás (head.php baja
         // .select2-dropdown a z-index 1).
         if ($.fn.select2) {
-            const cfg = { theme: 'bootstrap-5', width: '100%', placeholder: 'Elige los permisos de la sección', closeOnSelect: false };
+            const cfg = {
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: this.types.length ? 'Elige los permisos de la sección' : 'Crea el primero con «Nuevo permiso»',
+                closeOnSelect: false
+            };
             const $modal = $select.closest('.cf-modal, .modal, .bootbox');
             if ($modal.length) cfg.dropdownParent = $modal;
             $select.select2(cfg);
         }
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    /*  "+ Nuevo permiso": crea el tipo de permiso ahí mismo (queda en el catálogo,
+        para todas las secciones) y lo deja elegido en el select. El texto no lleva
+        name, así que no viaja con la sección, y su Enter / Escape se detienen aquí:
+        el modal escucha esas teclas en document para Aceptar y cerrar. */
+    typeCreator($select) {
+        const $toggle = $('<button>', {
+            type: 'button',
+            class: 'inline-flex items-center gap-1 mt-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700'
+        }).append(
+            $('<i>', { 'data-lucide': 'plus', class: 'w-3.5 h-3.5' }),
+            $('<span>', { text: 'Nuevo permiso' })
+        );
+
+        const $name = $('<input>', {
+            type: 'text',
+            maxlength: 60,
+            placeholder: 'Ej. Exportar',
+            'aria-label': 'Nombre del nuevo permiso',
+            class: this.cfThemedClass(CF_CSS.input, 'light') + ' flex-1 min-w-0 py-1.5'
+        });
+        const $add = $('<button>', {
+            type: 'button',
+            class: 'shrink-0 px-3 py-1.5 rounded-lg bg-main text-white text-xs font-semibold hover:bg-main-hover disabled:opacity-50',
+            text: 'Agregar'
+        });
+        const $cancel = $('<button>', {
+            type: 'button',
+            class: 'shrink-0 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-800',
+            text: 'Cancelar'
+        });
+        const $row = $('<div>', { class: 'hidden flex items-center gap-2 mt-2' }).append($name, $add, $cancel);
+
+        const open = (show) => {
+            $row.toggleClass('hidden', !show);
+            $toggle.toggleClass('hidden', show);
+            if (show) $name.val('').trigger('focus');
+        };
+
+        const save = async () => {
+            const name = String($name.val() || '').trim();
+            if (!name) {
+                $name.trigger('focus');
+                return;
+            }
+
+            $add.prop('disabled', true);
+            const request = await useFetch({ url: this._link, data: { opc: 'addTypePermission', name: name } });
+            $add.prop('disabled', false);
+
+            if (!request || request.status !== 200) {
+                notify(request);
+                return;
+            }
+
+            const type = { id: Number(request.type.id), name: request.type.name };
+            this.types.push(type);
+            $select.append(new Option(type.name, type.id, true, true)).trigger('change');
+            open(false);
+        };
+
+        $toggle.on('click', () => open(true));
+        $cancel.on('click', () => open(false));
+        $add.on('click', save);
+        $name.on('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== 'Escape') return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.key === 'Enter') save();
+            else open(false);
+        });
+
+        return $('<div>').append($toggle, $row);
     }
 
     // El select de submódulo solo ofrece los del módulo elegido y se rehace al
@@ -1379,7 +1508,7 @@ class TypePermissions extends Templates {
     render() {
         $('#container-tipos-permiso').html(`
             <div id="filterbar-types" class="mb-2"></div>
-            <div id="table-types"></div>
+            <div id="table-types" class="overflow-x-auto"></div>
         `);
         this.createfilterBar({
             parent: 'filterbar-types',
@@ -1573,7 +1702,7 @@ class Permissions extends Templates {
             design: false,
             data: {
                 id: 'permissionsBoard',
-                class: 'flex flex-col gap-2 flex-1 min-h-0',
+                class: 'flex flex-col gap-2 flex-1 lg:min-h-0',
                 container: [
                     {
                         type: 'div',
@@ -1583,7 +1712,7 @@ class Permissions extends Templates {
                     {
                         type: 'div',
                         id: 'permissions-body',
-                        class: 'grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch flex-1 min-h-0',
+                        class: 'grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch flex-1 lg:min-h-0',
                         children: [
                             {
                                 id: 'permissions-roles',
@@ -1691,8 +1820,8 @@ class Permissions extends Templates {
         if (editable) {
             head.append($('<div>', { class: 'flex items-center gap-2 shrink-0' }).append(
                 $('<span>', { id: 'permissionsCount', class: 'text-xs font-medium text-gray-500' }),
-                branches.actionButton('rotate-ccw', 'Deshacer', () => this.renderPicker(this.access)).attr('id', 'btnPermissionsUndo'),
-                branches.actionButton('save', 'Guardar', () => this.savePermissions(), true).attr('id', 'btnPermissionsSave')
+                actionButton('rotate-ccw', 'Deshacer', () => this.renderPicker(this.access)).attr('id', 'btnPermissionsUndo'),
+                actionButton('save', 'Guardar', () => this.savePermissions(), true).attr('id', 'btnPermissionsSave')
             ));
         }
 
@@ -2050,7 +2179,8 @@ class Users extends Templates {
                 class: 'flex flex-col gap-2',
                 container: [
                     { type: 'div', id: 'filterbar-users', class: 'w-full' },
-                    { type: 'div', id: 'table-users', class: 'w-full' }
+                    // La tabla scrollea de lado aquí dentro y no arrastra la página en celular.
+                    { type: 'div', id: 'table-users', class: 'w-full overflow-x-auto' }
                 ]
             }
         });
@@ -2068,6 +2198,18 @@ class Users extends Templates {
                     class: 'col-12 col-md-4 col-lg-3',
                     select2: true,
                     data: companyOptions('all'),
+                    onchange: 'users.lsUsers()'
+                },
+                {
+                    // Los dueños (is_owner) son quienes pagan la suscripción.
+                    opc: 'select',
+                    id: 'owner',
+                    lbl: 'Tipo',
+                    class: 'col-12 col-md-3 col-lg-2',
+                    data: [
+                        { id: 'all', valor: 'Todos' },
+                        { id: 'owners', valor: 'Solo dueños' }
+                    ],
                     onchange: 'users.lsUsers()'
                 },
                 {
@@ -2101,13 +2243,14 @@ class Users extends Templates {
     }
 
     // Con una empresa filtrada, el usuario nace en ella y el modal abre con sus sucursales.
-    async addUser() {
+    // El panel de Empresa la pasa en preset y dice cómo refrescarse en onSaved.
+    async addUser(preset = null, onSaved = () => this.lsUsers()) {
         if (!(dataInit.companies || []).length) {
             alert({ icon: 'info', text: 'Primero registra al menos una empresa activa', btn1: true });
             return;
         }
 
-        const filter = String($('#filterbar-users [name="company_id"]').val() || '');
+        const filter = String(preset || $('#filterbar-users [name="company_id"]').val() || '');
         const companyId = /^\d+$/.test(filter) ? filter : '';
         const options = companyId ? await this.fetchCompany(companyId) : { branches: [], roles: [] };
         if (!options) return;
@@ -2121,13 +2264,13 @@ class Users extends Templates {
             bootbox: { title: 'Nuevo Usuario', size: 'large' },
             autofill: companyId ? { company_id: companyId } : false,
             json: this.jsonUser(false, options.branches, false),
-            success: (r) => afterSave(r, () => this.lsUsers())
+            success: (r) => afterSave(r, onSaved)
         });
 
-        this.mountUserForm('formUserAdd', modal, { photo: '', color: null, options: options, access: [], isRoot: false });
+        this.mountUserForm('formUserAdd', modal, { photo: '', color: null, options: options, access: [], isRoot: false, isOwner: false });
     }
 
-    async editUser(id) {
+    async editUser(id, onSaved = () => this.lsUsers()) {
         const request = await useFetch({ url: this._link, data: { opc: 'getUser', id: id } });
         if (!request || request.status !== 200) {
             alert({ icon: 'error', text: (request && request.message) || 'No se pudo cargar el usuario', btn1: true });
@@ -2149,7 +2292,7 @@ class Users extends Templates {
             },
             autofill: data,
             json: this.jsonUser(true, request.options.branches, request.isRoot),
-            success: (r) => afterSave(r, () => this.lsUsers())
+            success: (r) => afterSave(r, onSaved)
         });
 
         this.mountUserForm('formUserEdit', modal, {
@@ -2157,7 +2300,8 @@ class Users extends Templates {
             color: data.color || null,
             options: request.options,
             access: request.access || [],
-            isRoot: request.isRoot
+            isRoot: request.isRoot,
+            isOwner: Number(data.is_owner) === 1
         });
     }
 
@@ -2177,9 +2321,33 @@ class Users extends Templates {
     mountUserForm(formId, modal, cfg) {
         this.renderPhotoPicker(formId, cfg.photo, cfg.color);
         this.renderColorSwatches(formId, cfg.color);
+        this.mountOwnerField(formId, cfg.isOwner);
         this.mountAccess(formId, cfg);
         this.guardPasswordMatch(modal);
         this.mountPasswordEyes();
+    }
+
+    // Dueño de la empresa: paga la suscripción y entra a todas sus sucursales.
+    // Viaja como 1/0 en el hidden is_owner: una casilla sin marcar no viajaría.
+    // root no lleva el hueco (no tiene empresa) y el ctrl le deja el suyo.
+    mountOwnerField(formId, isOwner) {
+        const $wrap = $(`#${formId}`).find('#ownerWrap');
+        if (!$wrap.length) return;
+
+        const $input = $('<input>', { type: 'hidden', name: 'is_owner', value: isOwner ? 1 : 0 });
+        const $check = $('<input>', { type: 'checkbox', class: 'w-4 h-4 mt-0.5 accent-blue-600 cursor-pointer shrink-0', checked: !!isOwner })
+            .on('change', (e) => $input.val(e.currentTarget.checked ? 1 : 0));
+
+        $wrap.empty().append(
+            $('<label>', { class: 'flex items-start gap-2.5 p-3 rounded-xl ring-1 ring-inset ring-gray-200 cursor-pointer select-none mb-0' }).append(
+                $check,
+                $('<span>', { class: 'min-w-0' }).append(
+                    $('<span>', { class: 'block text-sm font-semibold text-gray-800', text: 'Dueño de la empresa' }),
+                    $('<span>', { class: 'block text-xs text-gray-400', text: 'Es quien paga la suscripción. Entra a todas las sucursales de su empresa.' })
+                )
+            ),
+            $input
+        );
     }
 
     // -- Acceso por sucursal --
@@ -2253,7 +2421,7 @@ class Users extends Templates {
 
         if (!this.access.branches.length) {
             $list.append(accessNote('building-2', hasCompany
-                ? 'Esta empresa no tiene sucursales. Créalas en la pestaña Sucursales.'
+                ? 'Esta empresa no tiene sucursales. Créalas en Facturación › Empresas.'
                 : 'Elige la empresa para ver sus sucursales.'));
         } else if (!this.access.roles.length) {
             $list.append(accessNote('users', 'Esta empresa no tiene roles que asignar. Créalos en la pestaña Permisos.'));
@@ -2572,6 +2740,13 @@ class Users extends Templates {
                     required: true,
                     selected: 'Elige una sucursal',
                     data: this.branchOptions(branchList)
+                },
+                // Hueco vacío: lo rellena mountOwnerField() con la casilla de dueño.
+                {
+                    opc: 'div',
+                    id: 'ownerWrap',
+                    class: 'col-12 mb-3',
+                    required: false
                 }
             );
         }
@@ -2635,709 +2810,5 @@ class Users extends Templates {
         }
 
         return fields;
-    }
-}
-
-// -- Sucursales (el admin elige empresa y reparte su gente por sucursal) --
-
-const AVATAR_TONES = [
-    'bg-blue-600/15 text-blue-600',
-    'bg-[#059669]/15 text-[#059669]',
-    'bg-[#2563EB]/15 text-[#2563EB]',
-    'bg-[#D97706]/15 text-[#D97706]',
-    'bg-[#7C3AED]/15 text-[#7C3AED]',
-    'bg-[#0891B2]/15 text-[#0891B2]'
-];
-
-class Branches extends Templates {
-    constructor(link, divModule) {
-        super(link, divModule);
-        this.PROJECT_NAME = 'Branches';
-        this.companyId    = 0;
-        this.companies    = [];
-        this.branches     = [];
-        this.candidates   = [];
-        this.roles        = [];
-        this.plan         = null;
-        this.branchId     = 0;
-        this.query        = '';
-        this.selectName   = '';
-    }
-
-    render() {
-        this.layout();
-        this.lsBranches();
-    }
-
-    layout() {
-        this.createLayout({
-            parent: 'container-sucursales',
-            design: false,
-            data: {
-                id: 'branchesEditor',
-                class: 'flex flex-col gap-3',
-                container: [
-                    {
-                        type: 'div',
-                        id: 'branchesCompany',
-                        class: 'w-full'
-                    },
-                    {
-                        type: 'div',
-                        id: 'branchesKpis',
-                        class: 'w-full'
-                    },
-                    {
-                        type: 'div',
-                        id: 'branchesBody',
-                        class: 'flex flex-col lg:flex-row gap-4 min-h-[420px]',
-                        children: [
-                            {
-                                id: 'branchesList',
-                                class: 'w-full lg:w-[260px] lg:flex-none flex flex-col gap-2.5'
-                            },
-                            {
-                                id: 'branchesDetail',
-                                class: 'flex-1 min-w-0 flex flex-col gap-3'
-                            }
-                        ]
-                    }
-                ]
-            }
-        });
-    }
-
-    async lsBranches(companyId = this.companyId) {
-        const res = await useFetch({ url: this._link, data: { opc: 'lsBranches', company_id: companyId } });
-        if (!res || res.status !== 200) {
-            alert({ icon: 'error', text: (res && res.message) || 'No se pudieron cargar las sucursales', btn1: true });
-            return;
-        }
-
-        this.companyId  = Number(res.company_id);
-        this.companies  = res.companies || [];
-        this.branches   = res.branches || [];
-        this.candidates = res.candidates || [];
-        this.roles      = res.roles || [];
-        this.plan       = res.plan || null;
-
-        // Tras crear una sucursal se abre la nueva: el ctrl no devuelve su id,
-        // pero el nombre es único dentro de la empresa.
-        const wanted = this.selectName.trim().toLowerCase();
-        const target = (wanted && this.branches.find(b => b.name.toLowerCase() === wanted))
-            || this.branches.find(b => b.id === this.branchId)
-            || this.branches[0];
-        this.branchId   = target ? target.id : 0;
-        this.selectName = '';
-
-        this.renderCompanyBar();
-        this.renderInfoCards();
-        this.renderBranchList();
-        this.renderBranchDetail();
-    }
-
-    switchCompany(id) {
-        this.branchId = 0;
-        this.lsBranches(id);
-    }
-
-    selectBranch(id) {
-        this.branchId = id;
-        this.renderBranchCards();
-        this.renderBranchDetail();
-    }
-
-    // -- Barra de empresa --
-
-    renderCompanyBar() {
-        const company = this.currentCompany();
-
-        const $current = $('<div>', { class: 'flex items-center gap-3 min-w-0' }).append(
-            this.avatar(company.name, company.id, 'w-[34px] h-[34px] rounded-[10px] text-[12.5px]'),
-            $('<div>', { class: 'min-w-0' }).append(
-                $('<p>', { class: 'text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-0', text: 'Empresa activa' }),
-                $('<p>', { class: 'text-[13.5px] font-semibold text-gray-900 truncate mb-0', text: company.name })
-            )
-        );
-
-        const $button = $('<button>', {
-            type: 'button',
-            class: 'flex items-center gap-2.5 min-w-[220px] sm:min-w-[250px] pl-2 pr-2.5 py-1.5 rounded-xl border border-gray-200 bg-white shadow-sm'
-        }).append(
-            this.avatar(company.name, company.id, 'w-8 h-8 rounded-[9px] text-xs'),
-            $('<div>', { class: 'flex-1 min-w-0 text-left' }).append(
-                $('<p>', { class: 'text-[12.5px] font-semibold text-gray-900 truncate mb-0', text: company.name }),
-                $('<p>', { class: 'text-[10px] text-gray-500 mb-0', text: `${company.total_branches} sucursales · ${company.assignments} asignaciones` })
-            ),
-            $('<i>', { 'data-lucide': 'chevron-down', class: 'w-3.5 h-3.5 text-gray-400 shrink-0' })
-        );
-
-        const $panel = $('<div>', {
-            class: 'hidden absolute right-0 top-full mt-1.5 z-30 w-full min-w-[280px] bg-white border border-gray-200 rounded-xl shadow-lg p-1.5'
-        });
-
-        this.companies.forEach(c => {
-            const selected = Number(c.id) === this.companyId;
-            $panel.append(
-                $('<div>', {
-                    class: 'flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition ' + (selected ? 'bg-blue-600/10' : 'hover:bg-gray-50')
-                }).append(
-                    this.avatar(c.name, c.id, 'w-[30px] h-[30px] rounded-lg text-[11px]'),
-                    $('<div>', { class: 'flex-1 min-w-0' }).append(
-                        $('<p>', { class: 'text-[12.5px] font-semibold text-gray-900 truncate mb-0', text: c.name }),
-                        $('<p>', { class: 'text-[10px] text-gray-500 mb-0', text: `${c.active_branches} activas de ${c.total_branches}` })
-                    ),
-                    selected ? $('<i>', { 'data-lucide': 'check', class: 'w-4 h-4 text-blue-600 shrink-0' }) : null
-                ).on('click', () => this.switchCompany(c.id))
-            );
-        });
-
-        const toggle = (open) => {
-            $panel.toggleClass('hidden', !open);
-            $button.toggleClass('border-blue-600 ring-2 ring-blue-600/15', open);
-        };
-        $button.on('click', (e) => {
-            e.stopPropagation();
-            toggle($panel.hasClass('hidden'));
-        });
-        $(document).off('click.branchesCompany').on('click.branchesCompany', () => toggle(false));
-
-        $('#branchesCompany').empty().append(
-            $('<div>', {
-                class: 'flex items-center justify-between gap-3 flex-wrap p-3 px-4 rounded-xl border border-gray-200 bg-white shadow-sm'
-            }).append(
-                $current,
-                $('<div>', { class: 'flex items-center gap-2.5' }).append(
-                    $('<span>', {
-                        class: 'hidden sm:inline text-[11px] text-gray-500 whitespace-nowrap',
-                        text: `${company.active_branches} de ${company.total_branches} activas`
-                    }),
-                    $('<div>', { class: 'relative' }).append($button, $panel)
-                )
-            )
-        );
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
-
-    // -- KPIs --
-
-    // kpisRow y no infoCard: infoCard no deja achicar padding ni tipografía, y
-    // aquí los KPIs van compactos.
-    renderInfoCards() {
-        const limit = this.planLimit();
-
-        this.kpisRow({
-            parent: 'branchesKpis',
-            id: 'kpiBranches',
-            class: 'grid grid-cols-4 gap-2',
-            cardClass: 'bg-white rounded-lg border border-gray-200 px-2.5 py-4',
-            activeClass: '',
-            labelClass: 'text-[9px] uppercase tracking-wider font-semibold text-gray-500 truncate mb-0',
-            valueClass: 'text-sm font-bold leading-tight mb-0',
-            iconWrapClass: 'w-5 h-5 rounded flex items-center justify-center flex-shrink-0',
-            iconClass: 'w-3 h-3',
-            tones: {
-                brand: 'text-blue-600'
-            },
-            iconBgTones: {
-                brand: 'bg-blue-600/10'
-            },
-            json: [
-                {
-                    id: 'kpiActive',
-                    label: 'Sucursales activas',
-                    value: this.activeCount(),
-                    icon: 'building-2',
-                    tone: 'brand'
-                },
-                {
-                    id: 'kpiAssignments',
-                    label: 'Asignaciones totales',
-                    value: this.branches.reduce((sum, b) => sum + b.users, 0),
-                    icon: 'users',
-                    tone: 'brand'
-                },
-                {
-                    id: 'kpiLimit',
-                    label: 'Límite de sucursales',
-                    value: limit.value,
-                    icon: 'badge-check',
-                    tone: 'brand'
-                }
-            ]
-        });
-
-        $('#kpiLimit').attr('title', limit.subtitle).append(
-            $('<div>', { class: 'h-0.5 rounded-full bg-gray-100 mt-1 overflow-hidden' }).append(
-                $('<div>', { class: 'h-full rounded-full bg-blue-600', css: { width: `${limit.percent}%` } })
-            )
-        );
-    }
-
-    // puede crear = plan.max_branches − sucursales activas. Sin plan, o con un plan
-    // sin tope, no hay límite y el botón Nueva nunca se apaga.
-    planLimit() {
-        const active = this.activeCount();
-        const plan   = this.plan;
-        const max    = plan && plan.max_branches !== null && plan.max_branches !== '' ? Number(plan.max_branches) : null;
-
-        if (!plan) {
-            return {
-                value: 'Sin plan',
-                subtitle: 'Sin límite de sucursales',
-                hint: 'Sin plan activo: sin límite de sucursales',
-                percent: 0,
-                canCreate: true
-            };
-        }
-        if (max === null) {
-            return {
-                value: plan.name,
-                subtitle: 'Sin límite de sucursales',
-                hint: `Plan ${plan.name}: sin límite de sucursales`,
-                percent: 0,
-                canCreate: true
-            };
-        }
-
-        const left = Math.max(max - active, 0);
-        return {
-            value: `${active} / ${max}`,
-            subtitle: left ? `Plan ${plan.name} · quedan ${left}` : `Plan ${plan.name} · lleno`,
-            hint: `Plan ${plan.name}: quedan ${left} de ${max} sucursales activas`,
-            percent: max > 0 ? Math.min(active / max * 100, 100) : 100,
-            canCreate: left > 0
-        };
-    }
-
-    // -- Lista de sucursales --
-
-    renderBranchList() {
-        const canCreate = this.planLimit().canCreate;
-        this.query = '';
-
-        const $new = $('<button>', {
-            type: 'button',
-            class: 'inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-main text-white hover:bg-main-hover transition disabled:opacity-40 disabled:cursor-not-allowed',
-            title: canCreate ? 'Nueva sucursal' : 'El plan ya no admite más sucursales activas',
-            disabled: !canCreate
-        }).append(
-            $('<i>', { 'data-lucide': 'plus', class: 'w-3.5 h-3.5' }),
-            'Nueva'
-        ).on('click', () => this.addBranch());
-
-        const $search = $('<div>', { class: 'relative' }).append(
-            $('<i>', { 'data-lucide': 'search', class: 'w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2' }),
-            $('<input>', {
-                type: 'text',
-                placeholder: 'Buscar sucursal…',
-                class: 'w-full pl-8 pr-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30'
-            }).on('input', (e) => {
-                this.query = e.currentTarget.value || '';
-                this.renderBranchCards();
-            })
-        );
-
-        $('#branchesList').empty().append(
-            $('<div>', { class: 'flex items-center justify-between' }).append(
-                $('<span>', { class: 'text-[13px] font-bold text-gray-900', text: 'Sucursales' }),
-                $new
-            ),
-            $search,
-            $('<div>', { id: 'branchCards', class: 'flex flex-col gap-2 max-h-[60vh] overflow-y-auto p-0.5' })
-        );
-
-        this.renderBranchCards();
-    }
-
-    // El buscador filtra en el navegador: la lista completa ya llegó con lsBranches.
-    renderBranchCards() {
-        const q       = this.query.trim().toLowerCase();
-        const visible = this.branches.filter(b => !q || `${b.name} ${b.ubication || ''}`.toLowerCase().includes(q));
-        const $cards  = $('#branchCards').empty();
-
-        visible.forEach(b => $cards.append(this.branchCard(b)));
-
-        if (q && !visible.length) {
-            $cards.append($('<p>', { class: 'text-center text-xs italic text-gray-400 py-5 mb-0', text: `Sin resultados para «${this.query.trim()}»` }));
-        }
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
-
-    branchCard(b) {
-        const selected = b.id === this.branchId;
-        const state    = selected
-            ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-md'
-            : 'border-gray-200 bg-white shadow-sm hover:border-blue-600/40 hover:-translate-y-px hover:shadow-md';
-
-        const $users = $('<p>', { class: 'flex items-center gap-1 text-[10.5px] text-gray-500 mt-0.5 mb-0' }).append(
-            $('<i>', { 'data-lucide': 'users', class: 'w-[11px] h-[11px] shrink-0' }),
-            document.createTextNode(`${b.users} ${b.users === 1 ? 'usuario' : 'usuarios'}`)
-        );
-        if (!b.is_active) {
-            $users.append(document.createTextNode(' · '), $('<span>', { class: 'font-semibold text-amber-700', text: 'Inactiva' }));
-        }
-
-        return $('<div>', {
-            class: `relative flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition ${state}` + (b.is_active ? '' : ' opacity-60 hover:opacity-100')
-        }).append(
-            selected ? $('<span>', { class: 'absolute -left-px top-2.5 bottom-2.5 w-[3px] rounded-full bg-blue-600' }) : null,
-            $('<div>', { class: 'flex-1 min-w-0' }).append(
-                $('<p>', { class: 'text-[13px] font-semibold text-gray-900 leading-tight truncate mb-0', text: b.name }),
-                $('<p>', { class: 'flex items-center gap-1 text-[10.5px] text-gray-500 mt-1 mb-0' }).append(
-                    $('<i>', { 'data-lucide': 'map-pin', class: 'w-[11px] h-[11px] shrink-0' }),
-                    $('<span>', { class: 'truncate', text: b.ubication || 'Sin ubicación' })
-                ),
-                $users
-            )
-        ).on('click', () => this.selectBranch(b.id));
-    }
-
-    // -- Detalle de la sucursal --
-
-    renderBranchDetail() {
-        const b       = this.branches.find(x => x.id === this.branchId);
-        const $detail = $('#branchesDetail').empty();
-
-        if (!b) {
-            $detail.append(this.emptyState('building-2', 'Esta empresa no tiene sucursales todavía — crea la primera con el botón «Nueva»'));
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-            return;
-        }
-
-        const $head = $('<div>', {
-            class: 'flex items-center justify-between gap-3 flex-wrap p-4 rounded-xl border border-gray-200 bg-white shadow-sm'
-        }).append(
-            $('<div>', { class: 'flex items-center gap-3 min-w-0' }).append(
-                $('<div>', { class: 'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-600/10 text-blue-600' }).append(
-                    $('<i>', { 'data-lucide': 'building-2', class: 'w-5 h-5' })
-                ),
-                $('<div>', { class: 'min-w-0' }).append(
-                    $('<div>', { class: 'flex items-center gap-2 flex-wrap' }).append(
-                        $('<h3>', { class: 'text-base font-semibold text-gray-900 mb-0', text: b.name }),
-                        this.statusPill(b.is_active)
-                    ),
-                    $('<p>', { class: 'flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 mb-0' }).append(
-                        $('<i>', { 'data-lucide': 'map-pin', class: 'w-3 h-3 shrink-0' }),
-                        document.createTextNode(`${b.ubication || 'Sin ubicación'} · creada ${b.created || '—'} · `),
-                        $('<b>', { class: 'text-gray-900', text: b.users }),
-                        document.createTextNode(` ${b.users === 1 ? 'usuario' : 'usuarios'}`)
-                    )
-                )
-            ),
-            $('<div>', { class: 'flex items-center gap-1.5 flex-wrap' }).append(
-                this.actionButton('pencil', 'Editar', () => this.editBranch(b.id)),
-                this.actionButton(b.is_active ? 'ban' : 'circle-check', b.is_active ? 'Desactivar' : 'Activar', () => this.toggleBranch(b.id, b.is_active ? 0 : 1)),
-                this.actionButton('plus', 'Añadir usuario', () => this.assignUser(b.id), true, !b.is_active)
-            )
-        );
-
-        const $table = $('<div>', { id: 'branchUsers' });
-        $detail.append($head, $table);
-
-        if (b.row.length) {
-            this.createCoffeeTable3({
-                parent: 'branchUsers',
-                id: 'tbBranchUsers',
-                theme: 'light',
-                data: { row: b.row },
-                f_size: 13
-            });
-        } else {
-            $table.append(this.emptyState('users', b.is_active
-                ? 'Nadie trabaja aquí todavía — añade el primer usuario'
-                : 'Sucursal desactivada: reactívala para poder asignar gente'));
-        }
-
-        if (!b.is_active && b.users > 0) {
-            $detail.append(
-                $('<div>', { class: 'flex items-start gap-2 px-3.5 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-700' }).append(
-                    $('<i>', { 'data-lucide': 'triangle-alert', class: 'w-4 h-4 shrink-0 mt-px' }),
-                    $('<span>').append(
-                        $('<b>', { text: 'Sucursal desactivada: ' }),
-                        document.createTextNode(`reactívala para poder asignar gente. Sus ${b.users} asignaciones siguen guardadas.`)
-                    )
-                )
-            );
-        }
-
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
-
-    // -- Sucursal: nueva, editar, activar --
-
-    addBranch() {
-        const company = this.currentCompany();
-        this.createModalForm({
-            id: 'formBranchAdd',
-            data: { opc: 'addBranch', company_id: this.companyId },
-            theme: 'light',
-            coffeesoft: true,
-            bootbox: { title: `Nueva sucursal · <span class="text-blue-600 font-bold">${esc(company.name)}</span>` },
-            json: this.jsonBranch(true),
-            success: (r) => {
-                this.selectName = $('#formBranchAdd [name="name"]').val() || '';
-                afterSave(r, () => this.lsBranches());
-            }
-        });
-    }
-
-    editBranch(id) {
-        const b = this.branches.find(x => x.id === id);
-        if (!b) return;
-
-        this.createModalForm({
-            id: 'formBranchEdit',
-            data: { opc: 'editBranch', id: id },
-            theme: 'light',
-            coffeesoft: true,
-            bootbox: { title: `Editar sucursal · <span class="text-blue-600 font-bold">${esc(b.name)}</span>` },
-            autofill: {
-                name: b.name,
-                ubication: b.ubication || ''
-            },
-            json: this.jsonBranch(false),
-            success: (r) => afterSave(r, () => this.lsBranches())
-        });
-    }
-
-    toggleBranch(id, active) {
-        const b = this.branches.find(x => x.id === id);
-        if (!b) return;
-
-        let text = `«${b.name}» volverá a aceptar asignaciones.`;
-        if (active != 1) {
-            text = b.users
-                ? `Sus ${b.users} asignaciones quedan guardadas para cuando la reactives.`
-                : `«${b.name}» dejará de aceptar asignaciones.`;
-        }
-
-        this.swalQuestion({
-            opts: {
-                title: `¿${active == 1 ? 'Activar' : 'Desactivar'} sucursal?`,
-                text: text,
-                icon: 'warning'
-            },
-            data: { opc: 'toggleBranch', id: id, active: active },
-            methods: { send: (r) => afterSave(r, () => this.lsBranches()) }
-        });
-    }
-
-    jsonBranch(isNew) {
-        const fields = [
-            {
-                opc: 'input',
-                id: 'name',
-                lbl: 'Nombre',
-                placeholder: 'Ej: Reginas Centro',
-                class: 'col-12 mb-3',
-                required: true
-            },
-            {
-                opc: 'input',
-                id: 'ubication',
-                lbl: 'Ubicación',
-                placeholder: 'Ej: Av. Central 128',
-                class: 'col-12 mb-3',
-                required: false
-            }
-        ];
-
-        if (isNew) {
-            fields.push({
-                opc: 'p',
-                id: 'branchPlanHint',
-                class: 'col-12',
-                style: 'font-size:12px;color:#6B7280;margin:0',
-                text: this.planLimit().hint
-            });
-        }
-
-        return fields;
-    }
-
-    // -- Gente de la sucursal: asignar, cambiar rol, quitar --
-
-    // El select de usuario excluye a quien ya está en la sucursal: se filtra con
-    // los user_id de sus asignaciones, que ya vinieron en lsBranches.
-    assignUser(branchId) {
-        const b = this.branches.find(x => x.id === branchId);
-        if (!b || !b.is_active) return;
-
-        const assigned  = b.members.map(m => m.user_id);
-        const available = this.candidates.filter(u => !assigned.includes(Number(u.id)));
-
-        if (!this.candidates.length) {
-            alert({ icon: 'info', text: `${this.currentCompany().name} no tiene usuarios activos: primero hay que dar de alta a su gente`, btn1: true });
-            return;
-        }
-        if (!available.length) {
-            alert({ icon: 'info', text: `Todos los usuarios activos de ${this.currentCompany().name} ya están en ${b.name}`, btn1: true });
-            return;
-        }
-        if (!this.roles.length) {
-            alert({ icon: 'info', text: `${this.currentCompany().name} no tiene roles que asignar: créalos en la pestaña Permisos`, btn1: true });
-            return;
-        }
-
-        this.createModalForm({
-            id: 'formBranchAssign',
-            data: { opc: 'assignUserRole', branch_id: branchId },
-            theme: 'light',
-            coffeesoft: true,
-            bootbox: { title: `Añadir usuario a <span class="text-blue-600 font-bold">${esc(b.name)}</span>` },
-            json: [
-                {
-                    opc: 'p',
-                    id: 'assignHint',
-                    class: 'col-12 mb-2',
-                    style: 'font-size:12px;color:#6B7280;margin:0',
-                    text: 'El usuario obtendrá acceso a esta sucursal con el rol elegido'
-                },
-                {
-                    opc: 'select',
-                    id: 'user_id',
-                    lbl: 'Usuario',
-                    class: 'col-12 mb-3',
-                    required: true,
-                    selected: 'Selecciona un usuario…',
-                    data: available
-                },
-                {
-                    opc: 'select',
-                    id: 'role_id',
-                    lbl: 'Rol',
-                    class: 'col-12 mb-3',
-                    required: true,
-                    selected: 'Selecciona un rol…',
-                    data: this.roles
-                }
-            ],
-            success: (r) => afterSave(r, () => this.lsBranches())
-        });
-    }
-
-    editUserRole(assignmentId) {
-        const member = this.findMember(assignmentId);
-        if (!member) return;
-
-        this.createModalForm({
-            id: 'formBranchRole',
-            data: { opc: 'updateUserRole', assignment_id: assignmentId },
-            theme: 'light',
-            coffeesoft: true,
-            bootbox: { title: 'Cambiar rol' },
-            autofill: { role_id: String(member.role_id || '') },
-            json: [
-                {
-                    opc: 'p',
-                    id: 'roleHint',
-                    class: 'col-12 mb-2',
-                    style: 'font-size:12px;color:#6B7280;margin:0',
-                    text: `Solo cambia el rol en ${member.branch}`
-                },
-                {
-                    opc: 'input',
-                    id: 'user_name',
-                    lbl: 'Usuario',
-                    value: member.name,
-                    class: 'col-12 mb-3',
-                    required: false,
-                    disabled: true
-                },
-                {
-                    opc: 'select',
-                    id: 'role_id',
-                    lbl: 'Nuevo rol',
-                    class: 'col-12 mb-3',
-                    required: true,
-                    data: this.roles
-                }
-            ],
-            success: (r) => afterSave(r, () => this.lsBranches())
-        });
-    }
-
-    removeUserRole(assignmentId) {
-        const member = this.findMember(assignmentId);
-        if (!member) return;
-
-        this.swalQuestion({
-            opts: {
-                title: '¿Quitar asignación?',
-                text: `${member.name} dejará de tener acceso a «${member.branch}».`,
-                icon: 'warning'
-            },
-            data: { opc: 'removeUserRole', assignment_id: assignmentId },
-            methods: { send: (r) => afterSave(r, () => this.lsBranches()) }
-        });
-    }
-
-    // -- Helpers de la clase --
-
-    currentCompany() {
-        return this.companies.find(c => Number(c.id) === this.companyId) || {
-            id: this.companyId,
-            name: '—',
-            total_branches: 0,
-            active_branches: 0,
-            assignments: 0
-        };
-    }
-
-    activeCount() {
-        return this.branches.filter(b => b.is_active === 1).length;
-    }
-
-    findMember(assignmentId) {
-        for (const b of this.branches) {
-            const m = b.members.find(x => x.assignment_id === assignmentId);
-            if (m) return Object.assign({ branch: b.name }, m);
-        }
-        return null;
-    }
-
-    // Iniciales de las palabras que empiezan con letra: "Reginas - Pastelería" -> "RP".
-    avatar(name, seed, size) {
-        const words = String(name || '').trim().split(/\s+/).filter(w => /\p{L}/u.test(w.charAt(0)));
-        const text  = words.slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || '?';
-        const sum   = String(seed).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-        return $('<span>', {
-            class: `inline-flex items-center justify-center font-bold shrink-0 select-none ${AVATAR_TONES[sum % AVATAR_TONES.length]} ${size}`,
-            text: text
-        });
-    }
-
-    statusPill(active) {
-        return $('<span>', {
-            class: 'inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full '
-                + (active ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')
-        }).append(
-            $('<span>', { class: 'w-1.5 h-1.5 rounded-full bg-current' }),
-            active ? 'Activa' : 'Inactiva'
-        );
-    }
-
-    actionButton(icon, text, onClick, primary = false, disabled = false) {
-        const look = primary
-            ? 'bg-main text-white hover:bg-main-hover border border-main'
-            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-400';
-        return $('<button>', {
-            type: 'button',
-            class: `inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed ${look}`,
-            disabled: disabled
-        }).append(
-            $('<i>', { 'data-lucide': icon, class: 'w-3.5 h-3.5' }),
-            text
-        ).on('click', onClick);
-    }
-
-    emptyState(icon, text) {
-        return $('<div>', {
-            class: 'flex flex-col items-center justify-center gap-2 py-10 px-4 rounded-xl border border-dashed border-gray-200 bg-white text-center'
-        }).append(
-            $('<i>', { 'data-lucide': icon, class: 'w-6 h-6 text-gray-300' }),
-            $('<p>', { class: 'text-sm italic text-gray-400 mb-0', text: text })
-        );
     }
 }

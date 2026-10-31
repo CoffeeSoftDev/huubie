@@ -85,23 +85,31 @@ class mdl extends CRUD {
 
     function qPlans($array) {
         // [is_active]
+        // module_ids: los de plan_module (solo cuentan si modules_mode = 'included').
+        // Del más barato al más caro; Personalizado (sin precio fijo) al final.
         $query = "
             SELECT
-                id, code, name, price, currency, billing_cycle,
-                max_users, max_branches, trial_days, is_active,
-                DATE_FORMAT(created_at, '%d/%m/%Y') AS created
-            FROM {$this->bd}plans
-            WHERE is_active = ?
-            ORDER BY id DESC
+                p.id, p.code, p.name, p.price, p.price_before, p.currency, p.billing_cycle,
+                p.max_users, p.max_branches, p.trial_days, p.is_active, p.features, p.modules_mode,
+                DATE_FORMAT(p.created_at, '%d/%m/%Y') AS created,
+                (
+                    SELECT GROUP_CONCAT(pm.module_id)
+                    FROM {$this->bd}plan_module pm
+                    WHERE pm.plan_id = p.id
+                ) AS module_ids
+            FROM {$this->bd}plans p
+            WHERE p.is_active = ?
+            ORDER BY p.price IS NULL, p.price ASC, p.id ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
     }
 
     // Planes activos en formato {id, valor} para selects (suscripciones).
+    // modules_mode: el formulario de suscripción pide módulos solo al Personalizado.
     function qPlansForSelect() {
         $query = "
-            SELECT id, name AS valor
+            SELECT id, name AS valor, modules_mode
             FROM {$this->bd}plans
             WHERE is_active = 1
             ORDER BY name ASC
@@ -113,8 +121,8 @@ class mdl extends CRUD {
     function qPlan($array) {
         // [id]
         $query = "
-            SELECT id, code, name, price, currency, billing_cycle,
-                   max_users, max_branches, trial_days, is_active
+            SELECT id, code, name, price, price_before, currency, billing_cycle,
+                   max_users, max_branches, trial_days, is_active, features, modules_mode
             FROM {$this->bd}plans
             WHERE id = ?
             LIMIT 1
@@ -124,24 +132,56 @@ class mdl extends CRUD {
     }
 
     function qInsertPlan($array) {
-        // [code, name, price, currency, billing_cycle, max_users, max_branches, trial_days]
+        // [code, name, price, price_before, currency, billing_cycle, max_users, max_branches, trial_days, features, modules_mode]
         $query = "
             INSERT INTO {$this->bd}plans
-                (code, name, price, currency, billing_cycle, max_users, max_branches, trial_days, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+                (code, name, price, price_before, currency, billing_cycle, max_users, max_branches,
+                 trial_days, features, modules_mode, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
         ";
         return $this->_CUD($query, $array);
     }
 
     function qUpdatePlan($array) {
-        // [code, name, price, currency, billing_cycle, max_users, max_branches, trial_days, id]
+        // [code, name, price, price_before, currency, billing_cycle, max_users, max_branches, trial_days, features, modules_mode, id]
         $query = "
             UPDATE {$this->bd}plans
-            SET code = ?, name = ?, price = ?, currency = ?, billing_cycle = ?,
-                max_users = ?, max_branches = ?, trial_days = ?, update_at = NOW()
+            SET code = ?, name = ?, price = ?, price_before = ?, currency = ?, billing_cycle = ?,
+                max_users = ?, max_branches = ?, trial_days = ?, features = ?, modules_mode = ?,
+                update_at = NOW()
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);
+    }
+
+    function qPlanModuleIds($array) {
+        // [plan_id]
+        $r = $this->_Read("SELECT module_id FROM {$this->bd}plan_module WHERE plan_id = ?", $array);
+        return is_array($r) ? array_map('intval', array_column($r, 'module_id')) : [];
+    }
+
+    function qDeletePlanModules($array) {
+        // [plan_id]
+        return $this->_CUD("DELETE FROM {$this->bd}plan_module WHERE plan_id = ?", $array);
+    }
+
+    function qInsertPlanModule($array) {
+        // [plan_id, module_id]
+        return $this->_CUD("INSERT INTO {$this->bd}plan_module (plan_id, module_id) VALUES (?, ?)", $array);
+    }
+
+    /*  Los módulos que se venden: encendidos y sin Developer, que es la
+        administración de la plataforma. Son los de "todos los módulos" y los que
+        se eligen en un plan Personalizado. price: su precio mensual sin IVA. */
+    function qSellableModules() {
+        $query = "
+            SELECT id, name AS valor, price
+            FROM {$this->bd}modules
+            WHERE is_active = 1 AND (code IS NULL OR code <> 'developer')
+            ORDER BY orden ASC, name ASC
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
     }
 
     function qSetPlanActive($array) {
@@ -162,7 +202,18 @@ class mdl extends CRUD {
                 DATE_FORMAT(s.ends_at, '%d/%m/%Y')            AS ends,
                 DATE_FORMAT(s.next_billing_date, '%d/%m/%Y')  AS next_billing,
                 c.name AS company_name,
-                p.name AS plan_name
+                p.name AS plan_name, p.price AS plan_price, p.currency, p.modules_mode,
+                (
+                    SELECT GROUP_CONCAT(m.name ORDER BY m.orden, m.name SEPARATOR ', ')
+                    FROM {$this->bd}subscription_module sm
+                    INNER JOIN {$this->bd}modules m ON m.id = sm.module_id
+                    WHERE sm.subscription_id = s.id
+                ) AS module_names,
+                (
+                    SELECT SUM(sm.price)
+                    FROM {$this->bd}subscription_module sm
+                    WHERE sm.subscription_id = s.id
+                ) AS modules_price
             FROM {$this->bd}subscriptions s
             LEFT JOIN {$this->bd}companies c ON c.id = s.company_id
             LEFT JOIN {$this->bd}plans p     ON p.id = s.plan_id
@@ -171,6 +222,27 @@ class mdl extends CRUD {
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
+    }
+
+    // Los módulos que eligió una suscripción Personalizada, con el precio contratado.
+    function qSubscriptionModules($array) {
+        // [subscription_id]
+        $r = $this->_Read("SELECT module_id, price FROM {$this->bd}subscription_module WHERE subscription_id = ?", $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function qDeleteSubscriptionModules($array) {
+        // [subscription_id]
+        return $this->_CUD("DELETE FROM {$this->bd}subscription_module WHERE subscription_id = ?", $array);
+    }
+
+    function qInsertSubscriptionModule($array) {
+        // [subscription_id, module_id, price]
+        $query = "
+            INSERT INTO {$this->bd}subscription_module (subscription_id, module_id, price, created_at)
+            VALUES (?, ?, ?, NOW())
+        ";
+        return $this->_CUD($query, $array);
     }
 
     function qSubscription($array) {
@@ -428,7 +500,7 @@ class mdl extends CRUD {
 
     function qModule($array) {
         // [id]
-        $query = "SELECT id, name, code, icon, description, route, orden, is_active FROM {$this->bd}modules WHERE id = ? LIMIT 1";
+        $query = "SELECT id, name, code, icon, description, price, route, orden, is_active FROM {$this->bd}modules WHERE id = ? LIMIT 1";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
@@ -441,17 +513,17 @@ class mdl extends CRUD {
     }
 
     function qInsertModule($array) {
-        // [name, code, icon, description, route, orden]
+        // [name, code, icon, description, price, route, orden]
         $query = "
-            INSERT INTO {$this->bd}modules (name, code, icon, description, route, orden, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+            INSERT INTO {$this->bd}modules (name, code, icon, description, price, route, orden, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())
         ";
         return $this->_CUD($query, $array);
     }
 
     function qUpdateModule($array) {
-        // [name, code, icon, description, route, orden, id]
-        $query = "UPDATE {$this->bd}modules SET name = ?, code = ?, icon = ?, description = ?, route = ?, orden = ? WHERE id = ?";
+        // [name, code, icon, description, price, route, orden, id]
+        $query = "UPDATE {$this->bd}modules SET name = ?, code = ?, icon = ?, description = ?, price = ?, route = ?, orden = ? WHERE id = ?";
         return $this->_CUD($query, $array);
     }
 
@@ -629,6 +701,12 @@ class mdl extends CRUD {
     function qSetSectionActive($array) {
         // [is_active, id]
         $query = "UPDATE {$this->bd}sections SET is_active = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function qMoveSection($array) {
+        // [submodule_id (NULL = sin submódulo), id]
+        $query = "UPDATE {$this->bd}sections SET submodule_id = ? WHERE id = ?";
         return $this->_CUD($query, $array);
     }
 
@@ -895,41 +973,12 @@ class mdl extends CRUD {
 
     /* ===== Sucursales (branches) ===== */
 
-    // Empresas activas con el resumen de sus sucursales, para el selector de empresa.
-    function qCompaniesBranchSummary() {
-        $query = "
-            SELECT
-                c.id,
-                c.name,
-                COUNT(b.id) AS total_branches,
-                COALESCE(SUM(b.is_active = 1), 0) AS active_branches,
-                (
-                    SELECT COUNT(*)
-                    FROM {$this->bd}users_braches ub
-                    INNER JOIN {$this->bd}branches b2 ON b2.id = ub.branch_id
-                    WHERE b2.company_id = c.id
-                ) AS assignments
-            FROM {$this->bd}companies c
-            LEFT JOIN {$this->bd}branches b ON b.company_id = c.id
-            WHERE c.status = 'active'
-            GROUP BY c.id, c.name
-            ORDER BY c.name ASC
-        ";
-        $r = $this->_Read($query, null);
-        return is_array($r) ? $r : [];
-    }
-
     function qBranches($array) {
         // [company_id]
         $query = "
             SELECT
                 b.id, b.name, b.ubication, b.is_active,
-                DATE_FORMAT(b.created_at, '%d/%m/%Y') AS created,
-                (
-                    SELECT COUNT(*)
-                    FROM {$this->bd}users_braches ub
-                    WHERE ub.branch_id = b.id
-                ) AS users
+                DATE_FORMAT(b.created_at, '%Y-%m-%d') AS created
             FROM {$this->bd}branches b
             WHERE b.company_id = ?
             ORDER BY b.name ASC
@@ -943,41 +992,6 @@ class mdl extends CRUD {
         $query = "SELECT id, name, ubication, is_active, company_id FROM {$this->bd}branches WHERE id = ? LIMIT 1";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
-    }
-
-    // Una fila por asignación (usuario + rol) de todas las sucursales de la empresa.
-    function qBranchAssignments($array) {
-        // [company_id]
-        $query = "
-            SELECT
-                ub.id        AS assignment_id,
-                ub.branch_id AS branch_id,
-                ub.role_id   AS role_id,
-                u.id         AS user_id,
-                u.name, u.last_name, u.email,
-                r.name       AS role_name
-            FROM {$this->bd}users_braches ub
-            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
-            INNER JOIN {$this->bd}users u    ON u.id = ub.user_id
-            LEFT JOIN {$this->bd}roles r     ON r.id = ub.role_id
-            WHERE b.company_id = ?
-            ORDER BY u.name ASC
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) ? $r : [];
-    }
-
-    // Usuarios activos de la empresa: candidatos del modal "Añadir usuario".
-    function qUsersForBranchAssign($array) {
-        // [company_id]
-        $query = "
-            SELECT id, TRIM(CONCAT(name, ' ', COALESCE(last_name, ''))) AS valor
-            FROM {$this->bd}users
-            WHERE company_id = ? AND status = 'active'
-            ORDER BY name ASC
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) ? $r : [];
     }
 
     function qBranchNameExists($array) {
@@ -1045,19 +1059,6 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function qAssignment($array) {
-        // [id]
-        $query = "
-            SELECT ub.id, ub.user_id, ub.branch_id, ub.role_id, b.company_id
-            FROM {$this->bd}users_braches ub
-            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
-            WHERE ub.id = ?
-            LIMIT 1
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) && !empty($r) ? $r[0] : null;
-    }
-
     /* ===== Usuarios y su rol por sucursal (users_braches) ===== */
 
     // Usuarios de una empresa con su asignación (sucursal + rol) si existe.
@@ -1096,28 +1097,9 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
-    function qUserBranchAssignment($array) {
-        // [user_id, branch_id]
-        $query = "SELECT id, role_id FROM {$this->bd}users_braches WHERE user_id = ? AND branch_id = ? LIMIT 1";
-        $r = $this->_Read($query, $array);
-        return is_array($r) && !empty($r) ? $r[0] : null;
-    }
-
     function qInsertUserBranchRole($array) {
         // [user_id, branch_id, role_id]
         $query = "INSERT INTO {$this->bd}users_braches (user_id, branch_id, role_id) VALUES (?, ?, ?)";
-        return $this->_CUD($query, $array);
-    }
-
-    function qSetUserBranchRole($array) {
-        // [role_id, id]
-        $query = "UPDATE {$this->bd}users_braches SET role_id = ? WHERE id = ?";
-        return $this->_CUD($query, $array);
-    }
-
-    function qDeleteUserBranchRole($array) {
-        // [id]
-        $query = "DELETE FROM {$this->bd}users_braches WHERE id = ?";
         return $this->_CUD($query, $array);
     }
 
@@ -1130,12 +1112,18 @@ class mdl extends CRUD {
 
     /* ===== CRUD de usuarios de todas las empresas ===== */
 
+    // Filtros de qUsers y qUsersAccess. $byCompany: con [status, company_id] filtra
+    // la empresa; con [status] trae todas. $owners: solo los dueños (is_owner), que
+    // son quienes pagan la suscripción.
+    private function usersWhere($byCompany, $owners) {
+        return ($byCompany ? ' AND u.company_id = ?' : '') . ($owners ? ' AND u.is_owner = 1' : '');
+    }
+
     // Una fila por usuario con su empresa y la sucursal a la que pertenece
     // (users.branch_id). Sus accesos llegan aparte en qUsersAccess.
-    // $byCompany: con [status, company_id] filtra la empresa; con [status] trae todas.
     // Primero los de plataforma (sin empresa, como root) y luego cada empresa junta.
-    function qUsers($array, $byCompany) {
-        $company = $byCompany ? 'AND u.company_id = ?' : '';
+    function qUsers($array, $byCompany, $owners = false) {
+        $company = $this->usersWhere($byCompany, $owners);
         $query = "
             SELECT
                 u.id, u.name, u.last_name, u.email, u.status, u.is_owner, u.color,
@@ -1153,8 +1141,8 @@ class mdl extends CRUD {
     }
 
     // Una fila por sucursal a la que entra cada usuario de qUsers (mismos filtros).
-    function qUsersAccess($array, $byCompany) {
-        $company = $byCompany ? 'AND u.company_id = ?' : '';
+    function qUsersAccess($array, $byCompany, $owners = false) {
+        $company = $this->usersWhere($byCompany, $owners);
         $query = "
             SELECT
                 ub.user_id, ub.branch_id, ub.role_id,
@@ -1218,18 +1206,6 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r);
     }
 
-    function qUserFull($array) {
-        // [id, company_id]
-        $query = "
-            SELECT id, name, last_name, email, branch_id, is_owner, status, color, photo
-            FROM {$this->bd}users
-            WHERE id = ? AND company_id = ?
-            LIMIT 1
-        ";
-        $r = $this->_Read($query, $array);
-        return is_array($r) && !empty($r) ? $r[0] : null;
-    }
-
     function qUpdateUserPhoto($array) {
         // [photo, id]
         $query = "UPDATE {$this->bd}users SET photo = ?, updated_at = NOW() WHERE id = ?";
@@ -1244,11 +1220,11 @@ class mdl extends CRUD {
     }
 
     function qInsertUser($array) {
-        // [name, last_name, email, password, branch_id, company_id, color]
+        // [name, last_name, email, password, branch_id, company_id, color, is_owner]
         $query = "
             INSERT INTO {$this->bd}users
-                (name, last_name, email, password, branch_id, company_id, color, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+                (name, last_name, email, password, branch_id, company_id, color, is_owner, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
         ";
         return $this->_CUD($query, $array);
     }
@@ -1259,10 +1235,10 @@ class mdl extends CRUD {
     }
 
     function qUpdateUser($array) {
-        // [name, last_name, email, company_id, branch_id, color, id]
+        // [name, last_name, email, company_id, branch_id, color, is_owner, id]
         $query = "
             UPDATE {$this->bd}users
-            SET name = ?, last_name = ?, email = ?, company_id = ?, branch_id = ?, color = ?, updated_at = NOW()
+            SET name = ?, last_name = ?, email = ?, company_id = ?, branch_id = ?, color = ?, is_owner = ?, updated_at = NOW()
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);
@@ -1284,6 +1260,220 @@ class mdl extends CRUD {
         // [status, id]
         $query = "UPDATE {$this->bd}users SET status = ? WHERE id = ?";
         return $this->_CUD($query, $array);
+    }
+
+    /* ===== Empresa: la cartera de clientes del developer ===== */
+
+    // Las empresas con su consumo: sucursales, usuarios y dueños (is_owner).
+    function qPanelCompanies($array) {
+        // [company_id, company_id] · 0 = todas
+        $query = "
+            SELECT
+                c.id, c.name, c.rfc, c.ubication, c.status, c.database_name,
+                DATE_FORMAT(c.created_at, '%Y-%m-%d') AS created,
+                (SELECT COUNT(*) FROM {$this->bd}branches b WHERE b.company_id = c.id) AS branches,
+                (SELECT COUNT(*) FROM {$this->bd}branches b WHERE b.company_id = c.id AND b.is_active = 1) AS branches_active,
+                (SELECT COUNT(*) FROM {$this->bd}users u WHERE u.company_id = c.id) AS users,
+                (SELECT COUNT(*) FROM {$this->bd}users u WHERE u.company_id = c.id AND u.status = 'active') AS users_active,
+                (
+                    SELECT GROUP_CONCAT(TRIM(CONCAT(u.name, ' ', COALESCE(u.last_name, ''))) ORDER BY u.name SEPARATOR ', ')
+                    FROM {$this->bd}users u
+                    WHERE u.company_id = c.id AND u.is_owner = 1
+                ) AS owners
+            FROM {$this->bd}companies c
+            WHERE (? = 0 OR c.id = ?)
+            ORDER BY c.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Suscripciones con su plan, de la más nueva a la más vieja por empresa.
+    function qPanelSubscriptions($array) {
+        // [company_id, company_id] · 0 = todas
+        $query = "
+            SELECT
+                s.id, s.company_id, s.plan_id, s.status, s.external_reference,
+                DATE_FORMAT(s.starts_at, '%Y-%m-%d')         AS starts,
+                DATE_FORMAT(s.ends_at, '%Y-%m-%d')           AS ends,
+                DATE_FORMAT(s.next_billing_date, '%Y-%m-%d') AS next_billing,
+                DATE_FORMAT(s.created_at, '%Y-%m-%d')        AS created,
+                p.name AS plan_name, p.code AS plan_code, p.price, p.currency, p.billing_cycle,
+                p.max_users, p.max_branches, p.modules_mode,
+                (
+                    SELECT SUM(sm.price)
+                    FROM {$this->bd}subscription_module sm
+                    WHERE sm.subscription_id = s.id
+                ) AS modules_price
+            FROM {$this->bd}subscriptions s
+            LEFT JOIN {$this->bd}plans p ON p.id = s.plan_id
+            WHERE (? = 0 OR s.company_id = ?)
+            ORDER BY s.company_id ASC, s.id DESC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function qPanelPayments($array) {
+        // [company_id, company_id] · 0 = todas
+        $query = "
+            SELECT
+                ph.id, ph.company_id, ph.subscription_id, ph.amount, ph.currency, ph.status,
+                ph.gateway, ph.transaction_id, ph.invoice_url,
+                DATE_FORMAT(ph.paid_at, '%Y-%m-%d')    AS paid,
+                DATE_FORMAT(ph.created_at, '%Y-%m-%d') AS created,
+                c.name AS company_name,
+                p.name AS plan_name
+            FROM {$this->bd}payment_history ph
+            LEFT JOIN {$this->bd}companies c     ON c.id = ph.company_id
+            LEFT JOIN {$this->bd}subscriptions s ON s.id = ph.subscription_id
+            LEFT JOIN {$this->bd}plans p         ON p.id = s.plan_id
+            WHERE (? = 0 OR ph.company_id = ?)
+            ORDER BY COALESCE(ph.paid_at, ph.created_at) DESC, ph.id DESC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Cobranza por empresa, para el listado.
+    function qPanelPaymentTotals() {
+        $query = "
+            SELECT
+                company_id,
+                COALESCE(SUM(CASE WHEN status = 'paid' THEN amount END), 0)    AS paid_total,
+                COALESCE(SUM(CASE WHEN status = 'pending' THEN amount END), 0) AS pending_total,
+                DATE_FORMAT(MAX(CASE WHEN status = 'paid' THEN paid_at END), '%Y-%m-%d') AS last_paid
+            FROM {$this->bd}payment_history
+            GROUP BY company_id
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    // Los usuarios de la empresa con su último acceso (user_sessions).
+    function qPanelUsers($array) {
+        // [company_id]
+        $query = "
+            SELECT
+                u.id, u.name, u.last_name, u.email, u.status, u.is_owner, u.color, u.branch_id,
+                (
+                    SELECT DATE_FORMAT(MAX(us.last_activity), '%Y-%m-%d %H:%i')
+                    FROM {$this->bd}user_sessions us
+                    WHERE us.user_id = u.id
+                ) AS last_activity
+            FROM {$this->bd}users u
+            WHERE u.company_id = ?
+            ORDER BY u.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // A qué sucursales de la empresa entra cada quien y con qué rol.
+    function qPanelAccess($array) {
+        // [company_id]
+        $query = "
+            SELECT ub.user_id, ub.branch_id, b.name AS branch_name, r.name AS role_name, r.code AS role_code
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id AND b.company_id = ?
+            LEFT JOIN {$this->bd}roles r     ON r.id = ub.role_id
+            ORDER BY b.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Lo que trae cada plan (plan_module): los módulos que se pagan.
+    function qPlanModulesAll() {
+        $query = "SELECT plan_id, module_id FROM {$this->bd}plan_module";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    /* ===== Facturación › Módulos ===== */
+
+    // m.* y no columnas sueltas: features (qué ofrece) solo existe si ya se
+    // aplicó 2026-10-31_modulos-que-ofrece.sql, y sin ella la consulta no truena.
+    function qModulesBilling() {
+        $query = "SELECT * FROM {$this->bd}modules ORDER BY orden ASC, id ASC";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    function qModulesHaveFeatures() {
+        $query = "
+            SELECT COUNT(*) AS n
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'modules' AND COLUMN_NAME = 'features'
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) && !empty($r) && (int) $r[0]['n'] > 0;
+    }
+
+    function qUpdateModuleBilling($array) {
+        // [price, description, id]
+        return $this->_CUD("UPDATE {$this->bd}modules SET price = ?, description = ? WHERE id = ?", $array);
+    }
+
+    function qUpdateModuleFeatures($array) {
+        // [features, id]
+        return $this->_CUD("UPDATE {$this->bd}modules SET features = ? WHERE id = ?", $array);
+    }
+
+    // Lo que deja cada módulo al mes en suscripciones Personalizado activas.
+    function qCustomModuleRevenue() {
+        $query = "
+            SELECT sm.module_id, SUM(sm.price) AS total, COUNT(DISTINCT sm.subscription_id) AS subs
+            FROM {$this->bd}subscription_module sm
+            INNER JOIN {$this->bd}subscriptions s ON s.id = sm.subscription_id AND s.status = 'active'
+            GROUP BY sm.module_id
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    // Lo que eligió cada suscripción Personalizada.
+    function qSubscriptionModulesAll() {
+        $query = "SELECT subscription_id, module_id FROM {$this->bd}subscription_module";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    /*  Los módulos que la empresa tiene habilitados: los que sus usuarios pueden
+        abrir porque algún rol suyo tiene una acción vigente en una de sus secciones
+        (la misma regla de Permission::section). sections = cuántas. No hay una
+        tabla de licencias por empresa: esto es lo que de verdad usan. */
+    function qPanelEnabledModules($array) {
+        // [company_id, company_id] · 0 = todas
+        $query = "
+            SELECT u.company_id, s.module_id, COUNT(DISTINCT s.id) AS sections
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}users u              ON u.id = ub.user_id AND u.company_id IS NOT NULL
+            INNER JOIN {$this->bd}roles r              ON r.id = ub.role_id AND r.is_active = 1
+            INNER JOIN {$this->bd}permissions_roles pr ON pr.role_id = r.id
+            INNER JOIN {$this->bd}permissions p        ON p.id = pr.permission_id AND p.is_active = 1
+            INNER JOIN {$this->bd}type_permissions tp  ON tp.id = p.type_permission_id AND tp.is_active = 1
+            INNER JOIN {$this->bd}sections s           ON s.id = p.section_id AND s.is_active = 1
+            WHERE (? = 0 OR u.company_id = ?)
+            GROUP BY u.company_id, s.module_id
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function qPanelRedemptions($array) {
+        // [company_id]
+        $query = "
+            SELECT
+                cr.id, DATE_FORMAT(cr.redeemed_at, '%Y-%m-%d') AS redeemed,
+                co.code, co.description, co.discount_type, co.discount_value
+            FROM {$this->bd}coupon_redemptions cr
+            LEFT JOIN {$this->bd}coupons co ON co.id = cr.coupon_id
+            WHERE cr.company_id = ?
+            ORDER BY cr.redeemed_at DESC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
     }
 
     /* ===== Temas por empresa (company_themes) ===== */

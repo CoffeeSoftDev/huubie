@@ -127,6 +127,7 @@ class ctrl extends core {
             trim($_POST['code'] ?? '') ?: null,
             trim($_POST['icon'] ?? '') ?: null,
             trim($_POST['description'] ?? '') ?: null,
+            $this->moneyOrNull($_POST['price'] ?? ''),
             trim($_POST['route'] ?? '') ?: null,
             $this->qModulesMaxOrden() + 1
         ]);
@@ -147,6 +148,7 @@ class ctrl extends core {
             $module['code'] ?: (trim($_POST['code'] ?? '') ?: null),
             trim($_POST['icon'] ?? '') ?: null,
             trim($_POST['description'] ?? '') ?: null,
+            $this->moneyOrNull($_POST['price'] ?? ''),
             trim($_POST['route'] ?? '') ?: null,
             (int) $module['orden'],
             $id
@@ -374,7 +376,40 @@ class ctrl extends core {
 
     // Reorden por arrastre: llegan solo las secciones cuyo orden cambió, [{id, orden}, ...].
     function sortSections() {
-        $items = json_decode($_POST['items'], true);
+        $pairs = $this->postedOrder();
+        if (!$pairs) return ['status' => 400, 'message' => 'No hay secciones que reordenar'];
+
+        $ok = $this->qSortSections($pairs);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Orden actualizado' : 'No se pudo actualizar el orden'];
+    }
+
+    // Arrastre a otro submódulo del mismo módulo (submodule_id 0 = sin submódulo),
+    // con el nuevo orden del grupo de destino en `items`.
+    function moveSection() {
+        $id      = (int) ($_POST['id'] ?? 0);
+        $section = $this->qSection([$id]);
+        if (!$section) return ['status' => 404, 'message' => 'Sección no encontrada'];
+
+        $submoduleId = $this->selectOrNull($_POST['submodule_id'] ?? '');
+        if ($submoduleId !== null) {
+            $submodule = $this->qSubmodule([$submoduleId]);
+            if (!$submodule || (int) $submodule['module_id'] !== (int) $section['module_id']) {
+                return ['status' => 400, 'message' => 'Ese submódulo no es del módulo de la sección'];
+            }
+        }
+
+        $pairs = $this->postedOrder();
+
+        return $this->transaction(function () use ($id, $submoduleId, $pairs) {
+            $this->qMoveSection([$submoduleId, $id]);
+            if ($pairs) $this->qSortSections($pairs);
+            return ['status' => 200, 'message' => 'Sección movida'];
+        });
+    }
+
+    // `items` llega como JSON [{id, orden}, ...]: pares [id, orden] válidos.
+    private function postedOrder() {
+        $items = json_decode((string) ($_POST['items'] ?? ''), true);
 
         $pairs = [];
         foreach ((is_array($items) ? $items : []) as $item) {
@@ -382,10 +417,7 @@ class ctrl extends core {
             $orden = (int) ($item['orden'] ?? 0);
             if ($id > 0 && $orden >= 0) $pairs[] = [$id, $orden];
         }
-        if (!$pairs) return ['status' => 400, 'message' => 'No hay secciones que reordenar'];
-
-        $ok = $this->qSortSections($pairs);
-        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Orden actualizado' : 'No se pudo actualizar el orden'];
+        return $pairs;
     }
 
     /* ===== Tipos de permiso (type_permissions) ===== */
@@ -431,8 +463,18 @@ class ctrl extends core {
         if ($name === '' || $code === '') return ['status' => 400, 'message' => 'El nombre es obligatorio'];
         if ($this->qTypeCodeExists([$code])) return ['status' => 409, 'message' => "Ya existe un tipo de permiso con el código «{$code}»"];
 
-        $ok = $this->qInsertTypePermission([$name, $code]);
-        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Tipo de permiso creado' : 'No se pudo crear el tipo de permiso'];
+        // Devuelve el tipo creado: el modal de sección lo agrega a su select ya elegido.
+        // En transacción para que LAST_INSERT_ID lea la misma conexión del INSERT.
+        return $this->transaction(function () use ($name, $code) {
+            $this->qInsertTypePermission([$name, $code]);
+
+            $newId = $this->qLastInsertId();
+            if (!$newId) {
+                throw new \Exception('No se pudo obtener el id del tipo de permiso creado');
+            }
+
+            return ['status' => 200, 'message' => 'Tipo de permiso creado', 'type' => ['id' => $newId, 'name' => $name]];
+        });
     }
 
     // 'Subir comprobante' -> 'subir-comprobante'.
@@ -677,19 +719,6 @@ class ctrl extends core {
         }
     }
 
-    // Ids positivos y sin repetir de un campo que viaja como JSON ('[1,3]').
-    private function postedIds($key) {
-        $decoded = json_decode((string) ($_POST[$key] ?? ''), true);
-        if (!is_array($decoded)) return [];
-
-        $ids = [];
-        foreach ($decoded as $v) {
-            $id = (int) $v;
-            if ($id > 0) $ids[] = $id;
-        }
-        return array_values(array_unique($ids));
-    }
-
     /* ===== Permisos de cada sección (permissions) =====
        Se eligen en la pestaña Módulos: el select del modal de sección, la × de
        sus chips y el menú del clic derecho. */
@@ -742,14 +771,16 @@ class ctrl extends core {
         $company   = (string) ($_POST['company_id'] ?? 'all');
         $byCompany = ctype_digit($company);
         $params    = $byCompany ? [$status, (int) $company] : [$status];
+        // Tipo: 'owners' = solo los dueños (is_owner), los que pagan la suscripción.
+        $owners    = (string) ($_POST['owner'] ?? 'all') === 'owners';
 
         $access = [];
-        foreach ($this->qUsersAccess($params, $byCompany) as $a) {
+        foreach ($this->qUsersAccess($params, $byCompany, $owners) as $a) {
             $access[$a['user_id']][] = $a;
         }
 
         $row = [];
-        foreach ($this->qUsers($params, $byCompany) as $u) {
+        foreach ($this->qUsers($params, $byCompany, $owners) as $u) {
             $mine   = $access[$u['id']] ?? [];
             $isRoot = in_array('root', array_column($mine, 'role_code'), true);
 
@@ -939,7 +970,8 @@ class ctrl extends core {
                 password_hash($password, PASSWORD_BCRYPT),
                 $user['branch_id'],
                 $user['company_id'],
-                $user['color']
+                $user['color'],
+                $user['is_owner'] ?? 0
             ]);
 
             $newId = $this->qLastInsertId();
@@ -983,7 +1015,11 @@ class ctrl extends core {
         if ($isRoot) {
             $user['company_id'] = $current['company_id'];
             $user['branch_id']  = $current['branch_id'];
+            $user['is_owner']   = $current['is_owner'];
         }
+
+        // Sin el campo en el POST (un cliente viejo) el dueño se queda como estaba.
+        if ($user['is_owner'] === null) $user['is_owner'] = $current['is_owner'];
 
         return $this->transaction(function () use ($id, $user, $isRoot, $password, $current) {
             $this->qUpdateUser([
@@ -993,6 +1029,7 @@ class ctrl extends core {
                 $user['company_id'],
                 $user['branch_id'],
                 $user['color'],
+                $user['is_owner'],
                 $id
             ]);
 
@@ -1033,7 +1070,10 @@ class ctrl extends core {
             'company_id' => (int) ($_POST['company_id'] ?? 0),
             'branch_id'  => (int) ($_POST['branch_id'] ?? 0),
             'color'      => $this->normalizeColor($_POST['color'] ?? ''),
-            'access'     => $this->normalizeAccess($_POST['access'] ?? '')
+            'access'     => $this->normalizeAccess($_POST['access'] ?? ''),
+            // Dueño de la empresa: paga la suscripción y entra a todas sus sucursales
+            // (homeBranch en auth/ctrl/ctrl-auth.php). null = no llegó el campo.
+            'is_owner'   => isset($_POST['is_owner']) ? ((int) $_POST['is_owner'] === 1 ? 1 : 0) : null
         ];
     }
 
@@ -1101,236 +1141,6 @@ class ctrl extends core {
     private function normalizeColor($raw) {
         $color = trim((string) $raw);
         return preg_match('/^#[0-9A-Fa-f]{6}$/', $color) ? $color : null;
-    }
-
-    /* ===== Sucursales (el admin elige empresa y reparte su gente) ===== */
-
-    // Una sola consulta por empresa: la lista, el detalle de cada sucursal y los
-    // KPIs salen de esta respuesta, así que cambiar de sucursal no vuelve al servidor.
-    function lsBranches() {
-        $companyId = (int) ($_POST['company_id'] ?? 0) ?: $this->companyId();
-        if (!$this->qCompanyHasSubscription([$companyId])) {
-            return ['status' => 404, 'message' => 'Empresa no encontrada'];
-        }
-
-        $byBranch = [];
-        foreach ($this->qBranchAssignments([$companyId]) as $a) {
-            $byBranch[$a['branch_id']][] = $a;
-        }
-
-        $branches = [];
-        foreach ($this->qBranches([$companyId]) as $b) {
-            $members = [];
-            $row     = [];
-            foreach ($byBranch[$b['id']] ?? [] as $a) {
-                $fullName  = trim($a['name'] . ' ' . ($a['last_name'] ?? ''));
-                $members[] = [
-                    'assignment_id' => (int) $a['assignment_id'],
-                    'user_id'       => (int) $a['user_id'],
-                    'role_id'       => (int) $a['role_id'],
-                    'name'          => $fullName
-                ];
-                $row[] = [
-                    'id'      => $a['assignment_id'],
-                    'Usuario' => renderUserCell($fullName, $a['email']),
-                    'Rol'     => $a['role_name']
-                        ? badge(htmlspecialchars($a['role_name']), '#1D4ED8', 100, '#DBEAFE')
-                        : badge('Sin rol', '#92400E', 100, '#FEF3C7'),
-                    'a'       => [
-                        [
-                            'class'   => $this->actionBtnClass('neutral'),
-                            'html'    => '<i class="icon-pencil"></i>',
-                            'onclick' => 'branches.editUserRole(' . (int) $a['assignment_id'] . ')'
-                        ],
-                        [
-                            'class'   => $this->actionBtnClass('danger', true),
-                            'html'    => '<i class="icon-trash"></i>',
-                            'onclick' => 'branches.removeUserRole(' . (int) $a['assignment_id'] . ')'
-                        ]
-                    ]
-                ];
-            }
-
-            $branches[] = [
-                'id'        => (int) $b['id'],
-                'name'      => (string) $b['name'],
-                'ubication' => (string) $b['ubication'],
-                'is_active' => (int) $b['is_active'],
-                'created'   => $b['created'],
-                'users'     => (int) $b['users'],
-                'members'   => $members,
-                'row'       => $row
-            ];
-        }
-
-        return [
-            'status'         => 200,
-            'company_id'     => $companyId,
-            'companies'      => $this->qCompaniesBranchSummary(),
-            'branches'       => $branches,
-            'candidates'     => $this->qUsersForBranchAssign([$companyId]),
-            'plan'           => $this->qPlanActiveByCompany([$companyId]),
-            // Los que ofrecen los modales de asignar y cambiar rol: del sistema y de esta empresa.
-            'roles'          => $this->qRolesForCompany([$companyId])
-        ];
-    }
-
-    function addBranch() {
-        $companyId = (int) ($_POST['company_id'] ?? 0);
-        $name      = trim($_POST['name'] ?? '');
-
-        if ($name === '') {
-            return ['status' => 400, 'message' => 'El nombre de la sucursal es obligatorio'];
-        }
-        if (!$this->qCompanyHasSubscription([$companyId])) {
-            return ['status' => 404, 'message' => 'Empresa no encontrada'];
-        }
-        if ($this->qBranchNameExists([$name, $companyId])) {
-            return ['status' => 400, 'message' => 'Ya existe una sucursal con ese nombre'];
-        }
-
-        $plan = $this->qPlanActiveByCompany([$companyId]);
-        if ($plan && $plan['max_branches'] !== null
-            && $this->qCountActiveBranches([$companyId]) >= (int) $plan['max_branches']) {
-            return ['status' => 400, 'message' => 'El plan ' . $plan['name'] . ' permite ' . (int) $plan['max_branches'] . ' sucursales activas'];
-        }
-
-        $ok = $this->qInsertBranch([$name, trim($_POST['ubication'] ?? '') ?: null, $companyId]);
-        return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Sucursal «' . $name . '» creada correctamente' : 'No se pudo crear la sucursal'
-        ];
-    }
-
-    function editBranch() {
-        $id   = (int) ($_POST['id'] ?? 0);
-        $name = trim($_POST['name'] ?? '');
-
-        if ($name === '') {
-            return ['status' => 400, 'message' => 'El nombre de la sucursal es obligatorio'];
-        }
-        $branch = $this->qBranch([$id]);
-        if (!$branch) {
-            return ['status' => 404, 'message' => 'Sucursal no encontrada'];
-        }
-        if ($this->qBranchNameExistsExcept([$name, (int) $branch['company_id'], $id])) {
-            return ['status' => 400, 'message' => 'Ya existe una sucursal con ese nombre'];
-        }
-
-        $ok = $this->qUpdateBranch([$name, trim($_POST['ubication'] ?? '') ?: null, $id]);
-        return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Sucursal actualizada' : 'No se pudo actualizar la sucursal'
-        ];
-    }
-
-    // Desactivar no borra la gente: las asignaciones quedan guardadas para cuando se reactive.
-    function toggleBranch() {
-        $id     = (int) ($_POST['id'] ?? 0);
-        $active = (int) ($_POST['active'] ?? 0) === 1 ? 1 : 0;
-
-        $branch = $this->qBranch([$id]);
-        if (!$branch) {
-            return ['status' => 404, 'message' => 'Sucursal no encontrada'];
-        }
-
-        $ok = $this->qSetBranchActive([$active, $id]);
-        if (!$ok) {
-            return ['status' => 500, 'message' => 'No se pudo actualizar el estado'];
-        }
-        if ($active) {
-            return ['status' => 200, 'message' => 'Sucursal «' . $branch['name'] . '» activada'];
-        }
-
-        $kept = $this->qCountBranchAssignments([$id]);
-        return [
-            'status'  => 200,
-            'message' => $kept > 0
-                ? 'Sucursal desactivada. ' . $kept . ' asignaciones quedan guardadas.'
-                : 'Sucursal desactivada'
-        ];
-    }
-
-    // La empresa se toma de la sucursal y no de la sesión: el admin SaaS reparte
-    // gente en la empresa que eligió arriba, no solo en la suya.
-    function assignUserRole() {
-        $userId   = (int) ($_POST['user_id'] ?? 0);
-        $branchId = (int) ($_POST['branch_id'] ?? 0);
-        $roleId   = (int) ($_POST['role_id'] ?? 0);
-
-        if ($userId <= 0 || $branchId <= 0 || $roleId <= 0) {
-            return ['status' => 400, 'message' => 'Usuario, sucursal y rol son obligatorios'];
-        }
-        $branch = $this->qBranch([$branchId]);
-        if (!$branch) {
-            return ['status' => 404, 'message' => 'Sucursal no encontrada'];
-        }
-        if ((int) $branch['is_active'] !== 1) {
-            return ['status' => 400, 'message' => 'La sucursal está desactivada: reactívala para asignar gente'];
-        }
-        $user = $this->qUserFull([$userId, (int) $branch['company_id']]);
-        if (!$user) {
-            return ['status' => 400, 'message' => 'El usuario no pertenece a la empresa de la sucursal'];
-        }
-        $role = $this->qRole([$roleId]);
-        if (!$this->roleFitsCompany($role, (int) $branch['company_id'])) {
-            return ['status' => 400, 'message' => 'El rol seleccionado no es válido'];
-        }
-
-        // Si ya existe la fila usuario+sucursal, se actualiza el rol en vez de duplicar.
-        $existing = $this->qUserBranchAssignment([$userId, $branchId]);
-        $ok = $existing
-            ? $this->qSetUserBranchRole([$roleId, (int) $existing['id']])
-            : $this->qInsertUserBranchRole([$userId, $branchId, $roleId]);
-
-        $fullName = trim($user['name'] . ' ' . ($user['last_name'] ?? ''));
-        return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? $fullName . ' asignado como ' . $role['name'] : 'No se pudo asignar el rol'
-        ];
-    }
-
-    function updateUserRole() {
-        $assignmentId = (int) ($_POST['assignment_id'] ?? 0);
-        $roleId       = (int) ($_POST['role_id'] ?? 0);
-
-        if ($assignmentId <= 0 || $roleId <= 0) {
-            return ['status' => 400, 'message' => 'Asignación y rol son obligatorios'];
-        }
-        $assignment = $this->qAssignment([$assignmentId]);
-        if (!$assignment) {
-            return ['status' => 404, 'message' => 'Asignación no encontrada'];
-        }
-        $role = $this->qRole([$roleId]);
-        if (!$this->roleFitsCompany($role, (int) $assignment['company_id'])) {
-            return ['status' => 400, 'message' => 'El rol seleccionado no es válido'];
-        }
-
-        $ok = $this->qSetUserBranchRole([$roleId, $assignmentId]);
-        return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Rol actualizado a ' . $role['name'] : 'No se pudo actualizar el rol'
-        ];
-    }
-
-    // En una sucursal solo se da un rol encendido del sistema o de la empresa dueña.
-    // root no se reparte aquí: en cualquier sucursal da acceso total a toda la plataforma.
-    private function roleFitsCompany($role, $companyId) {
-        if (!$role || (int) $role['is_active'] !== 1 || $role['code'] === 'root') return false;
-        return (int) $role['is_system'] === 1 || (int) $role['company_id'] === $companyId;
-    }
-
-    function removeUserRole() {
-        $assignmentId = (int) ($_POST['assignment_id'] ?? 0);
-        if (!$this->qAssignment([$assignmentId])) {
-            return ['status' => 404, 'message' => 'Asignación no encontrada'];
-        }
-
-        $ok = $this->qDeleteUserBranchRole([$assignmentId]);
-        return [
-            'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Asignación quitada' : 'No se pudo quitar la asignación'
-        ];
     }
 }
 

@@ -635,7 +635,7 @@ class Components extends Complements {
         const defaults = {
             parent: 'root',
             id: 'coffeeForm',
-            class: 'grid grid-cols-12 gap-x-4 gap-y-1',
+            class: 'grid grid-cols-12 gap-x-4 gap-y-2',
             type: 'default',
             Element: 'div',
             json: [],
@@ -1216,7 +1216,7 @@ class Components extends Complements {
 
                 const panel = $('<div>', {
                     'data-cf-panel': tab.id,
-                    class: 'grid grid-cols-12 gap-x-4 gap-y-1' + (isActive ? '' : ' hidden')
+                    class: 'grid grid-cols-12 gap-x-4 gap-y-2' + (isActive ? '' : ' hidden')
                 });
                 toArray(tab.json).forEach(f => panel.append(buildField(f)));
                 body.append(panel);
