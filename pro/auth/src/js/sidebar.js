@@ -15,6 +15,7 @@ class Sidebar {
         this.initEvents();
         this.highlightCurrentRoute();
         this.loadDarkMode();
+        this.loadHidden();
         this.handleResize();
         this.paintIcons();
 
@@ -58,6 +59,12 @@ class Sidebar {
         return 'pro:sidebar:';
     }
 
+    // Preferencia de este navegador, no de la sesión: en localStorage y fuera del
+    // prefijo pro:sidebar:, que el logout borra.
+    static get CLAVE_OCULTO() {
+        return 'huubie:pro:sidebar-hidden';
+    }
+
     // Base del host hasta /pro (ej. "/huubie/pro" o "/pro").
     proBase() {
         const p = window.location.pathname;
@@ -97,7 +104,9 @@ class Sidebar {
         if ($('#sidebar-responsive-styles').length === 0) {
             $('head').append(`
                 <style id="sidebar-responsive-styles">
-                    #menu-sidebar { transition: transform 0.3s ease-in-out; }
+                    /* Las transiciones esperan a sidebar-animated (loadHidden): sin eso,
+                       entrar con el menú oculto lo vería salir deslizándose. */
+                    body.sidebar-animated #menu-sidebar { transition: transform 0.3s ease-in-out; }
                     @media (max-width: 1023px) {
                         body { padding-left: 0 !important; width: 100% !important; overflow-x: hidden; }
                         main { width: 100% !important; max-width: 100vw !important; }
@@ -107,7 +116,12 @@ class Sidebar {
                     }
                     @media (min-width: 1024px) {
                         #menu-sidebar { transform: translateX(0) !important; }
-                        #sidebar-overlay, #btn-mobile-menu { display: none !important; }
+                        #sidebar-overlay { display: none !important; }
+                        /* Oculto con el botón de la navbar: el rail sale y el contenido
+                           toma sus 60px (el padding-left que le reserva general.css). */
+                        body.sidebar-hidden #menu-sidebar { transform: translateX(-100%) !important; }
+                        body.sidebar-hidden { padding-left: 0; }
+                        body.sidebar-animated { transition: padding-left 0.3s ease-in-out; }
                     }
                 </style>
             `);
@@ -154,12 +168,19 @@ class Sidebar {
                 $('#sidebar-overlay').addClass('hidden');
                 this.isOpen = false;
             }
+            this.syncButton();
         };
         checkWidth();
         $(window).on('resize', checkWidth);
     }
 
+    // Escritorio: el botón oculta o muestra el rail. Móvil: abre el cajón con el fondo oscuro.
     toggle() {
+        if (window.innerWidth >= 1024) {
+            this.setHidden(!$('body').hasClass('sidebar-hidden'));
+            return;
+        }
+
         if (this.isOpen) {
             this.parent.removeClass('sidebar-open');
             $('#sidebar-overlay').addClass('hidden');
@@ -168,6 +189,37 @@ class Sidebar {
             $('#sidebar-overlay').removeClass('hidden');
         }
         this.isOpen = !this.isOpen;
+        this.syncButton();
+    }
+
+    // Las tablas y gráficas miden su ancho al pintarse: el resize al terminar la
+    // transición les avisa que el contenido cambió de ancho.
+    setHidden(hidden) {
+        $('body').toggleClass('sidebar-hidden', hidden);
+        try {
+            localStorage.setItem(Sidebar.CLAVE_OCULTO, hidden ? 'true' : 'false');
+        } catch (e) {}
+        this.syncButton();
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
+    }
+
+    // El estado guardado se aplica sin animar; las transiciones se encienden dos
+    // cuadros después, ya pintada la página.
+    loadHidden() {
+        try {
+            if (localStorage.getItem(Sidebar.CLAVE_OCULTO) === 'true') $('body').addClass('sidebar-hidden');
+        } catch (e) {}
+        requestAnimationFrame(() => requestAnimationFrame(() => $('body').addClass('sidebar-animated')));
+    }
+
+    syncButton() {
+        const desktop = window.innerWidth >= 1024;
+        const shown = desktop ? !$('body').hasClass('sidebar-hidden') : this.isOpen;
+
+        $('#btn-menu').attr({
+            title: desktop ? (shown ? 'Ocultar menú' : 'Mostrar menú') : 'Menú',
+            'aria-expanded': shown ? 'true' : 'false'
+        });
     }
 
     createMenuItems(menuItems) {
@@ -192,7 +244,7 @@ class Sidebar {
         });
 
         $(document).on('click', '#sidebar-overlay', () => this.toggle());
-        $(document).on('click', '#btn-mobile-menu', () => this.toggle());
+        $(document).on('click', '#btn-menu', () => this.toggle());
     }
 
     loadDarkMode() {

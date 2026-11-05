@@ -16,6 +16,31 @@ function afterSave(response, reload) {
     if (response && response.status == 200 && typeof reload === 'function') reload();
 }
 
+// Aviso gris con ícono: estados vacíos y notas dentro de paneles y modales
+// (Roles y Permisos y el formulario de usuario).
+function accessNote(icon, text) {
+    return $('<div>', { class: 'flex items-start gap-2 p-3 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-500' }).append(
+        $('<i>', { 'data-lucide': icon, class: 'w-4 h-4 shrink-0 text-gray-400' }),
+        $('<span>', { text: text })
+    );
+}
+
+// Botón compacto con ícono de las cabeceras de panel (Roles y Permisos en
+// Accesos; Empresas, Pagos y Módulos en Facturación). primary: el primario del tema (bg-main).
+function actionButton(icon, text, onClick, primary = false, disabled = false) {
+    const look = primary
+        ? 'bg-main text-white hover:bg-main-hover border border-main'
+        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-400';
+    return $('<button>', {
+        type: 'button',
+        class: `inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed ${look}`,
+        disabled: disabled
+    }).append(
+        $('<i>', { 'data-lucide': icon, class: 'w-3.5 h-3.5' }),
+        $('<span>', { text: text })
+    ).on('click', onClick);
+}
+
 // Escapa el nombre del registro que se pinta en el titulo de los modales de
 // edicion (Empresa, Plan, Cupon, Submodulo, Seccion, Rol, Tipo de permiso).
 // Global y unico para no repetir esta misma funcion en cada clase de saas.js

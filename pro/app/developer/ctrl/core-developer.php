@@ -20,6 +20,7 @@ class core extends mdl {
     protected $companyStatuses = ['pending', 'active', 'suspended', 'cancelled'];
     protected $subStatuses     = ['trial', 'active', 'past_due', 'cancelled', 'expired'];
     protected $billingCycles   = ['monthly', 'yearly', 'lifetime'];
+    protected $modulesModes    = ['included', 'all', 'custom'];
     protected $paymentStatuses = ['paid', 'pending', 'failed', 'refunded'];
     protected $discountTypes   = ['percent', 'fixed'];
 
@@ -105,6 +106,26 @@ class core extends mdl {
     protected function dateOrNull($v) {
         $v = trim((string) $v);
         return $v === '' ? null : $v;
+    }
+
+    // Precios opcionales: vacío -> NULL, si no el número con dos decimales.
+    protected function moneyOrNull($v) {
+        $v = trim((string) $v);
+        return $v === '' ? null : round((float) $v, 2);
+    }
+
+    // Ids que el front manda como JSON en un hidden (los select múltiples: el
+    // modal arma su envío con FormData y de un select múltiple solo quedaría el último).
+    protected function postedIds($key) {
+        $decoded = json_decode((string) ($_POST[$key] ?? ''), true);
+        if (!is_array($decoded)) return [];
+
+        $ids = [];
+        foreach ($decoded as $v) {
+            $id = (int) $v;
+            if ($id > 0) $ids[] = $id;
+        }
+        return array_values(array_unique($ids));
     }
 }
 
