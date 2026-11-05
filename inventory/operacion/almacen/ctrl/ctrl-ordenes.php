@@ -23,6 +23,9 @@ class ctrl extends mdl {
     // Renglones de Catálogo › Estados requisición (estadosCatalogo); una vez por petición.
     private $estadosCatalogo = null;
 
+    // Departamentos activos de la empresa (departamentos); una vez por petición.
+    private $departamentos = null;
+
     // Código de requisition_status de cada estado que se muestra (estadoRequisicion).
     const CODIGO_ESTADO = [
         'Borrador'             => 'BORRADOR',
@@ -108,6 +111,10 @@ class ctrl extends mdl {
             'categorias'    => $this->lsCategorias([$this->companiesId]),
             'unidades'      => $this->lsUnidades([$this->companiesId]),
             'productos'     => $productos,
+            // Quién pide (Producción, Pastelería...): la requisición nueva arranca en el último
+            // por el que pidió el usuario; la primera vez hay que elegirlo.
+            'departamentos' => $this->departamentos(),
+            'departamento'  => $this->getUltimoDepartamento([$this->userId, $this->companiesId]),
             // El almacenista solo ve en Surtir lo que le piden a su sucursal (soloSuSucursal).
             'solo_su_sucursal' => $this->soloSuSucursal(),
             // Los estados de la requisición (estadoRequisicion); su SQL vive en qOrdenes.
@@ -125,18 +132,19 @@ class ctrl extends mdl {
     }
 
     function lsOrdenes() {
-        $_POST += ['vista' => 'pedidos', 'branch_id' => '', 'status' => '', 'fi' => '', 'ff' => '', 'q' => ''];
+        $_POST += ['vista' => 'pedidos', 'branch_id' => '', 'status' => '', 'department_id' => '', 'fi' => '', 'ff' => '', 'q' => ''];
 
         $sucursal = $_POST['vista'] === 'entregas' && $this->soloSuSucursal() ? $this->branchId : $_POST['branch_id'];
 
         $ordenes = $this->qOrdenes([
-            'companies_id' => $this->companiesId,
-            'vista'        => $_POST['vista'],
-            'branch_id'    => $sucursal,
-            'status'       => $_POST['status'],
-            'fi'           => $_POST['fi'],
-            'ff'           => $_POST['ff'],
-            'q'            => $_POST['q']
+            'companies_id'  => $this->companiesId,
+            'vista'         => $_POST['vista'],
+            'branch_id'     => $sucursal,
+            'status'        => $_POST['status'],
+            'department_id' => (int) $_POST['department_id'],
+            'fi'            => $_POST['fi'],
+            'ff'            => $_POST['ff'],
+            'q'             => $_POST['q']
         ]);
 
         $__row    = [];
@@ -147,10 +155,12 @@ class ctrl extends mdl {
                 'id'               => $orden['id'],
                 'Folio'            => $_POST['vista'] === 'entregas'
                     ? "<span class='whitespace-nowrap'>" . $this->puntoNueva($orden['status']) . $this->folioLink($orden['folio'], $orden['id']) . '</span>'
-                    : $this->folioLink($orden['folio'], $orden['id']),
+                    : "<span class='whitespace-nowrap'>" . $this->folioLink($orden['folio'], $orden['id']) . '</span>',
                 'Fecha de pedido'  => $this->fechaHoraPedido($orden['date_order'], $orden['created_at']),
                 'Entrega para'     => $this->entregaParaCell($orden['date_order']),
                 'Solicita → Surte' => $this->rutaCell($orden),
+                'Solicitó'         => $this->solicitoCell($orden),
+                'Surtió'           => $this->surtioCell($orden),
                 'Materiales'       => (int) $orden['total_products'],
                 'Estado'           => $this->statusBadge($orden) . $this->faltaRecibi($orden, $entregas)
             ];
@@ -187,15 +197,16 @@ class ctrl extends mdl {
     // pide la sucursal del filtro; si no, se lo piden a ella (entrega). `lado` = qué módulo
     // pregunta: Requisiciones ('pedidos') ve lo que pide; Despacho ('entregas'), lo que surte.
     function lsCalendario() {
-        $_POST += ['branch_id' => '', 'status' => '', 'fi' => date('Y-m-01'), 'ff' => date('Y-m-t'), 'lado' => ''];
+        $_POST += ['branch_id' => '', 'status' => '', 'department_id' => '', 'fi' => date('Y-m-01'), 'ff' => date('Y-m-t'), 'lado' => ''];
 
         $sucursal = $_POST['branch_id'] !== '' ? (int) $_POST['branch_id'] : 0;
         if ($_POST['lado'] === 'entregas' && $this->soloSuSucursal()) $sucursal = $this->branchId;
 
+        // Título: la sucursal que pide y su departamento (Kafeto · Pastelería).
         $eventos  = array_map(function ($o) use ($sucursal) {
             return [
                 'id'            => (int) $o['id'],
-                'title'         => $o['branch_name'] ?: 'Sin sucursal',
+                'title'         => implode(' · ', array_filter([$o['branch_name'] ?: 'Sin sucursal', $o['department_name']])),
                 'start'         => substr((string) $o['date_order'], 0, 10),
                 'allDay'        => true,
                 'extendedProps' => [
@@ -208,19 +219,21 @@ class ctrl extends mdl {
                 ]
             ];
         }, $this->qOrdenesCalendario([
-            'companies_id' => $this->companiesId,
-            'branch_id'    => $sucursal,
-            'lado'         => $_POST['lado'],
-            'status'       => $_POST['status'],
-            'fi'           => $_POST['fi'],
-            'ff'           => $_POST['ff']
+            'companies_id'  => $this->companiesId,
+            'branch_id'     => $sucursal,
+            'lado'          => $_POST['lado'],
+            'status'        => $_POST['status'],
+            'department_id' => (int) $_POST['department_id'],
+            'fi'            => $_POST['fi'],
+            'ff'            => $_POST['ff']
         ]));
 
         return ['status' => 200, 'events' => $eventos];
     }
 
     // Tarjeta del teléfono: folio, hace cuánto, estado, los dos primeros materiales y
-    // cuántos más. En Mis entregas también quién pide y para cuándo lo necesita.
+    // cuántos más. En Mis entregas también quién pide (sucursal · departamento) y para
+    // cuándo lo necesita.
     private function tarjetaMovil($orden, $entregas) {
         $nombres  = array_values(array_filter(explode('|', (string) $orden['materiales'])));
         $necesita = strip_tags($this->entregaParaCell($orden['date_order'], false));
@@ -235,7 +248,7 @@ class ctrl extends mdl {
             'mas'        => max(0, count($nombres) - 2),
             'total'      => count($nombres) ?: (int) $orden['total_products'],
             'nueva'      => $entregas && $orden['status'] === 'Solicitada',
-            'pide'       => $entregas ? ($orden['branch_name'] ?: '-') : '',
+            'pide'       => $entregas ? implode(' · ', array_filter([$orden['branch_name'] ?: '-', $orden['department_name']])) : '',
             'necesita'   => $entregas && $necesita !== '-' ? $necesita : '',
             'hoy'        => $necesita === 'Hoy'
         ];
@@ -311,8 +324,9 @@ class ctrl extends mdl {
         ];
     }
 
-    // Formulario previo de "Nuevo pedido": Solicitar a (obligatoria) y la fecha en que se
-    // necesitan los insumos (sin tope hacia adelante). El almacén lo elige quien surte al aprobar.
+    // Formulario previo de "Nuevo pedido": Solicitar a (obligatoria), el departamento que pide
+    // (obligatorio) y la fecha en que se necesitan los insumos (sin tope hacia adelante). El
+    // almacén lo elige quien surte al aprobar.
     // `branch_id` = a quién se le pide: cualquier sucursal activa de la empresa (las
     // sucursales le piden material al almacén principal aunque no sea suya).
     function verifyNuevaOrden() {
@@ -324,6 +338,9 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Elige a qué sucursal le pides'];
         }
 
+        $departamento = $this->departamentoValido($_POST['department_id'] ?? 0);
+        if (!$departamento) return ['status' => 400, 'message' => self::SIN_DEPARTAMENTO];
+
         if ($fecha === '') return ['status' => 400, 'message' => 'Selecciona la fecha en que necesitas tus insumos'];
 
         $errorFecha = $this->fechaInvalida($fecha);
@@ -332,11 +349,14 @@ class ctrl extends mdl {
         return [
             'status' => 200,
             'data'   => [
-                'branch_id' => $branchId,
-                'fecha'     => $fecha
+                'branch_id'     => $branchId,
+                'department_id' => (int) $departamento['id'],
+                'fecha'         => $fecha
             ]
         ];
     }
+
+    const SIN_DEPARTAMENTO = 'Elige el área que pide';
 
     function saveOrden() {
         $_POST += ['payload' => '[]'];
@@ -347,6 +367,9 @@ class ctrl extends mdl {
         if (empty($productos)) {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
+
+        $departamento = $this->departamentoValido($payload['department_id'] ?? 0);
+        if (!$departamento) return ['status' => 400, 'message' => self::SIN_DEPARTAMENTO];
 
         // Caja 24 × 2 se pide como 48 piezas de su base, a costo ÷ 24.
         $aBase = $this->renglonesABase($productos, $this->companiesId, ['cost', 'price_without_tax']);
@@ -404,6 +427,7 @@ class ctrl extends mdl {
             !empty($payload['supplier_id'])   ? (int) $payload['supplier_id']   : null,
             $branchId,
             !empty($payload['destination_branch_id']) ? (int) $payload['destination_branch_id'] : null,
+            (int) $departamento['id'],
             !empty($payload['warehouse_id'])  ? (int) $payload['warehouse_id']  : null,
             !empty($payload['date_order'])    ? $payload['date_order']           : date('Y-m-d'),
             !empty($payload['expected_date']) ? $payload['expected_date']        : null,
@@ -475,6 +499,10 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'No se enviaron renglones'];
         }
 
+        // Una requisición de antes (sin departamento) lo recibe al editarla.
+        $departamento = $this->departamentoValido($payload['department_id'] ?? 0);
+        if (!$departamento) return ['status' => 400, 'message' => self::SIN_DEPARTAMENTO];
+
         // Antes de quitar los renglones viejos: una presentación inactiva no borra nada.
         $aBase = $this->renglonesABase($productos, $this->companiesId, ['cost', 'price_without_tax']);
         if ($aBase['error']) return ['status' => 400, 'message' => $aBase['error']];
@@ -537,26 +565,23 @@ class ctrl extends mdl {
 
         $this->updateOrdenTotals([$totalProducts, $totalUnits, $totalCost, $totalBase, $id]);
 
-        // Si el payload incluye campos de cabecera opcionales, se actualizan.
-        if (!empty($payload['supplier_id']) || isset($payload['warehouse_id']) || isset($payload['note']) || isset($payload['destination_branch_id']) || !empty($payload['branch_id']) || !empty($payload['date_order'])) {
-            $fields = [];
-            $vals   = [];
-            // branch_id ("Solicitar a") y date_order solo se tocan si traen valor real (NOT NULL en BD).
-            if (!empty($payload['branch_id']))            { $fields[] = 'branch_id = ?';            $vals[] = (int) $payload['branch_id']; }
-            if (!empty($payload['date_order']))           { $fields[] = 'date_order = ?';           $vals[] = $payload['date_order']; }
-            if (isset($payload['supplier_id']))           { $fields[] = 'supplier_id = ?';           $vals[] = !empty($payload['supplier_id']) ? (int) $payload['supplier_id'] : null; }
-            if (isset($payload['destination_branch_id'])) { $fields[] = 'destination_branch_id = ?'; $vals[] = !empty($payload['destination_branch_id']) ? (int) $payload['destination_branch_id'] : null; }
-            if (isset($payload['warehouse_id']))          { $fields[] = 'warehouse_id = ?';          $vals[] = !empty($payload['warehouse_id']) ? (int) $payload['warehouse_id'] : null; }
-            if (isset($payload['note']))                  { $fields[] = 'note = ?';                  $vals[] = $payload['note']; }
-            if (isset($payload['expected_date']))         { $fields[] = 'expected_date = ?';         $vals[] = $payload['expected_date'] ?: null; }
-            if (!empty($fields)) {
-                $vals[] = $id;
-                $this->_CUD(
-                    "UPDATE {$this->bd}purchase_order SET " . implode(', ', $fields) . ", updated_at = NOW() WHERE id = ?",
-                    $vals
-                );
-            }
-        }
+        // Campos de cabecera: el departamento siempre (ya se validó arriba); los opcionales,
+        // si vienen en el payload.
+        $fields = ['department_id = ?'];
+        $vals   = [(int) $departamento['id']];
+        // branch_id ("Solicitar a") y date_order solo se tocan si traen valor real (NOT NULL en BD).
+        if (!empty($payload['branch_id']))            { $fields[] = 'branch_id = ?';            $vals[] = (int) $payload['branch_id']; }
+        if (!empty($payload['date_order']))           { $fields[] = 'date_order = ?';           $vals[] = $payload['date_order']; }
+        if (isset($payload['supplier_id']))           { $fields[] = 'supplier_id = ?';           $vals[] = !empty($payload['supplier_id']) ? (int) $payload['supplier_id'] : null; }
+        if (isset($payload['destination_branch_id'])) { $fields[] = 'destination_branch_id = ?'; $vals[] = !empty($payload['destination_branch_id']) ? (int) $payload['destination_branch_id'] : null; }
+        if (isset($payload['warehouse_id']))          { $fields[] = 'warehouse_id = ?';          $vals[] = !empty($payload['warehouse_id']) ? (int) $payload['warehouse_id'] : null; }
+        if (isset($payload['note']))                  { $fields[] = 'note = ?';                  $vals[] = $payload['note']; }
+        if (isset($payload['expected_date']))         { $fields[] = 'expected_date = ?';         $vals[] = $payload['expected_date'] ?: null; }
+        $vals[] = $id;
+        $this->_CUD(
+            "UPDATE {$this->bd}purchase_order SET " . implode(', ', $fields) . ", updated_at = NOW() WHERE id = ?",
+            $vals
+        );
 
         unset($_SESSION['orden_edit'][$id]);
 
@@ -1001,8 +1026,8 @@ class ctrl extends mdl {
         if (!$header) return ['status' => 404, 'message' => 'Este enlace ya no es válido'];
 
         $cabecera = array_intersect_key($header, array_flip([
-            'folio', 'status', 'branch_name', 'destination_branch_name', 'warehouse_name', 'supplier_name',
-            'date_order', 'expected_date', 'note', 'reject_reason', 'user_name', 'approved_user_name'
+            'folio', 'status', 'branch_name', 'destination_branch_name', 'department_name', 'warehouse_name', 'supplier_name',
+            'date_order', 'expected_date', 'note', 'reject_reason', 'user_name', 'approved_user_name', 'approved_at'
         ]));
         $cabecera['estado'] = $this->estadoRequisicion($header);
 
@@ -1153,6 +1178,74 @@ class ctrl extends mdl {
             if ($r['color_hex']) $colores[$estado] = [$r['color_hex'], $r['bg_hex'] ?: null];
         }
         return $colores;
+    }
+
+    // -- Departamento --
+
+    // [{id, valor, icon, color_hex, bg_hex}] activos de la empresa.
+    private function departamentos() {
+        if ($this->departamentos === null) $this->departamentos = $this->lsDepartamentos([$this->companiesId]);
+        return $this->departamentos;
+    }
+
+    // El renglón del departamento si es de la empresa y está activo; si no, null.
+    private function departamentoValido($id) {
+        $id = (int) $id;
+        if ($id <= 0) return null;
+
+        foreach ($this->departamentos() as $d) {
+            if ((int) $d['id'] === $id) return $d;
+        }
+        return null;
+    }
+
+    // Etiqueta redonda con el ícono y los colores del departamento (como Motivos de salida).
+    private function departamentoBadge($orden) {
+        if (empty($orden['department_name'])) return '';
+
+        return badge(
+            htmlspecialchars($orden['department_name'], ENT_QUOTES),
+            $orden['department_color'] ?: '#475569',
+            100,
+            $orden['department_bg'] ?: '#F1F5F9',
+            $orden['department_icon'] ?: 'users',
+            'rounded-full'
+        );
+    }
+
+    // Columna «Solicitó»: la persona que hizo la requisición y su departamento. Las de antes
+    // del departamento lo dicen en gris; el reabasto (REAB-) no lo lleva.
+    private function solicitoCell($orden) {
+        $nombre = htmlspecialchars($orden['user_name'] ?: '-', ENT_QUOTES);
+        $depto  = $this->departamentoBadge($orden);
+        if (!$depto && strpos((string) $orden['folio'], 'REAB-') !== 0) {
+            $depto = "<span class='text-[10px] text-gray-400'>Sin área</span>";
+        }
+
+        return "<div class='flex flex-col items-center gap-0.5'>"
+             . "<span class='font-semibold text-gray-800 whitespace-nowrap'>{$nombre}</span>"
+             . ($depto ? "<span class='whitespace-nowrap'>{$depto}</span>" : '')
+             . '</div>';
+    }
+
+    // Columna «Surtió»: quien surtió la requisición (la primera vez) y cuándo. Rechazada dice
+    // quién la rechazó; en espera, borrador, cancelada y los reabastos, un guion.
+    private function surtioCell($orden) {
+        $status   = (string) $orden['status'];
+        $reabasto = strpos((string) $orden['folio'], 'REAB-') === 0;
+        $surtida  = in_array($status, ['Aprobada', 'Parcial', 'Recibida'], true);
+
+        if ($reabasto || empty($orden['approved_user_name']) || (!$surtida && $status !== 'Rechazada')) {
+            return "<span class='text-gray-400'>-</span>";
+        }
+
+        $nombre = htmlspecialchars($orden['approved_user_name'], ENT_QUOTES);
+        $abajo  = $status === 'Rechazada'
+            ? "<span class='text-[10px] font-semibold text-red-600'>Rechazó</span>"
+            : "<span class='text-[10px] text-gray-500 whitespace-nowrap'>" . strip_tags($this->fechaHoraPedido('', $orden['approved_at'])) . '</span>';
+
+        return "<div class='flex flex-col items-center gap-0.5'>"
+             . "<span class='font-semibold text-gray-800 whitespace-nowrap'>{$nombre}</span>{$abajo}</div>";
     }
 
     // Como Origen → Destino en traspasos. El almacén es de quien surte; sin sucursal
@@ -1653,6 +1746,7 @@ class ctrl extends mdl {
             null,                       // proveedor: lo asigna el encargado al comprar
             (int) $header['branch_id'], // sucursal que repone su almacen
             null,                       // destination_branch_id
+            null,                       // department_id: el reabasto es compra, no requisición
             $warehouseId,               // almacen a reponer
             date('Y-m-d'),
             null,                       // expected_date

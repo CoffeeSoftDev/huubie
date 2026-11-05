@@ -225,6 +225,10 @@ class mdl extends CRUD {
             $data[] = $array['branch_id'];
         }
         $where .= $this->sqlEstado($array['status'] ?? '');
+        if (!empty($array['department_id'])) {
+            $where .= ' AND po.department_id = ?';
+            $data[] = $array['department_id'];
+        }
         if (!empty($array['fi']) && !empty($array['ff'])) {
             $where .= ' AND DATE(po.created_at) BETWEEN ? AND ?';
             $data[] = $array['fi'];
@@ -254,6 +258,11 @@ class mdl extends CRUD {
                 s.name         AS branch_name,
                 po.destination_branch_id,
                 ds.name        AS destination_branch_name,
+                po.department_id,
+                dp.name        AS department_name,
+                dp.icon        AS department_icon,
+                dp.color_hex   AS department_color,
+                dp.bg_hex      AS department_bg,
                 po.supplier_id,
                 sp.name        AS supplier_name,
                 po.user_id,
@@ -277,6 +286,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}warehouse        w  ON w.id  = po.warehouse_id
             LEFT JOIN {$this->bdErp}branches      s  ON s.id  = po.branch_id
             LEFT JOIN {$this->bdErp}branches      ds ON ds.id = po.destination_branch_id
+            LEFT JOIN {$this->bd}department       dp ON dp.id = po.department_id
             LEFT JOIN {$this->bd}supplier         sp ON sp.id = po.supplier_id
             LEFT JOIN {$this->bdErp}users         u  ON u.id  = po.user_id
             LEFT JOIN {$this->bdErp}users         au ON au.id = po.approved_user_id
@@ -318,6 +328,10 @@ class mdl extends CRUD {
         }
 
         $where .= $this->sqlEstado($array['status'] ?? '');
+        if (!empty($array['department_id'])) {
+            $where .= ' AND po.department_id = ?';
+            $data[] = $array['department_id'];
+        }
 
         $query = "
             SELECT
@@ -330,10 +344,12 @@ class mdl extends CRUD {
                 po.branch_id,
                 s.name  AS branch_name,
                 po.destination_branch_id,
-                ds.name AS destination_branch_name
+                ds.name AS destination_branch_name,
+                dp.name AS department_name
             FROM {$this->bd}purchase_order po
             LEFT JOIN {$this->bdErp}branches s  ON s.id  = po.branch_id
             LEFT JOIN {$this->bdErp}branches ds ON ds.id = po.destination_branch_id
+            LEFT JOIN {$this->bd}department  dp ON dp.id = po.department_id
             WHERE {$where}
             ORDER BY po.date_order ASC, po.id ASC
         ";
@@ -385,6 +401,10 @@ class mdl extends CRUD {
                 w.name         AS warehouse_name,
                 s.name         AS branch_name,
                 ds.name        AS destination_branch_name,
+                dp.name        AS department_name,
+                dp.icon        AS department_icon,
+                dp.color_hex   AS department_color,
+                dp.bg_hex      AS department_bg,
                 sp.name        AS supplier_name,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))   AS user_name,
                 TRIM(CONCAT(COALESCE(au.name, ''), ' ', COALESCE(au.last_name, ''))) AS approved_user_name,
@@ -402,6 +422,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}warehouse        w  ON w.id  = po.warehouse_id
             LEFT JOIN {$this->bdErp}branches      s  ON s.id  = po.branch_id
             LEFT JOIN {$this->bdErp}branches      ds ON ds.id = po.destination_branch_id
+            LEFT JOIN {$this->bd}department       dp ON dp.id = po.department_id
             LEFT JOIN {$this->bd}supplier         sp ON sp.id = po.supplier_id
             LEFT JOIN {$this->bdErp}users         u  ON u.id  = po.user_id
             LEFT JOIN {$this->bdErp}users         au ON au.id = po.approved_user_id
@@ -500,14 +521,15 @@ class mdl extends CRUD {
     // Insercion de cabecera y renglones de la OC
     // -----------------------------------------------------------------------
 
+    // department_id: el departamento que pide (requisición); NULL en el reabasto.
     function insertOrden($array) {
         $query = "
             INSERT INTO {$this->bd}purchase_order
-                (folio, supplier_id, branch_id, destination_branch_id, warehouse_id,
+                (folio, supplier_id, branch_id, destination_branch_id, department_id, warehouse_id,
                  date_order, expected_date, note,
                  total_products, total_units, total_cost, total_price_without_tax,
                  status, user_id, companies_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ";
         return $this->_CUD($query, $array);
     }
@@ -806,6 +828,36 @@ class mdl extends CRUD {
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
+    }
+
+    // -- Departamentos --
+
+    // Quién pide la requisición (Producción, Pastelería...), con su etiqueta. No es el área
+    // de almacén (warehouse_area: dónde se guarda). [companies_id]
+    function lsDepartamentos($array) {
+        $query = "
+            SELECT id, name AS valor, icon, color_hex, bg_hex
+            FROM {$this->bd}department
+            WHERE companies_id = ? AND active = 1
+            ORDER BY sort_order ASC, name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // El último departamento (activo) por el que pidió el usuario: con él arranca la
+    // siguiente requisición. [user_id, companies_id]
+    function getUltimoDepartamento($array) {
+        $query = "
+            SELECT po.department_id
+            FROM {$this->bd}purchase_order po
+            INNER JOIN {$this->bd}department dp ON dp.id = po.department_id AND dp.active = 1
+            WHERE po.user_id = ? AND po.companies_id = ? AND po.active = 1
+            ORDER BY po.id DESC
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['department_id'] : 0;
     }
 
     // -- Historial de surtimiento --

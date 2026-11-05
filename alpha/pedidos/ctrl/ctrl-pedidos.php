@@ -2202,6 +2202,40 @@ class Pedidos extends MPedidos{
         ];
     }
 
+    // Turno abierto sin pedidos ni cobros (p. ej. abierto por error, que bloquea abrir
+    // el de hoy): se elimina en lugar de cerrarlo en $0. Solo el administrador. Rol y
+    // vacio se revisan aqui aunque el front ya oculte el boton cuando no aplica.
+    function deleteShift() {
+        if (($_SESSION['ROLID'] ?? 0) != 1) {
+            return ['status' => 403, 'message' => 'Solo un administrador puede eliminar un turno'];
+        }
+
+        $shift_id = $_POST['shift_id'];
+
+        $shift = $this->getCashShiftById($shift_id);
+        if (!$shift) {
+            return ['status' => 404, 'message' => 'Turno no encontrado'];
+        }
+        if ($shift['status'] !== 'open') {
+            return ['status' => 409, 'message' => 'Solo se puede eliminar un turno abierto'];
+        }
+        if (!$this->isShiftEmpty($shift)) {
+            return ['status' => 409, 'message' => 'El turno tiene pedidos o cobros. Ciérralo en lugar de eliminarlo.'];
+        }
+
+        $ok = $this->deleteCashShift([$shift_id]);
+
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Turno eliminado correctamente' : 'No se pudo eliminar el turno'
+        ];
+    }
+
+    private function isShiftEmpty($shift) {
+        $activity = $this->getShiftActivity([$shift['id'], $shift['opened_at'], date('Y-m-d H:i:s'), $shift['subsidiary_id']]);
+        return $activity && intval($activity['orders']) === 0 && intval($activity['payments']) === 0;
+    }
+
     function getShiftsByDate() {
         if (in_array($_SESSION['ROLID'], [1, 2, 3, 6, 7])) {
             $postSub = $_POST['subsidiaries_id'] ?? null;
@@ -2318,7 +2352,8 @@ class Pedidos extends MPedidos{
             'subsidiary_name' => $subsidiary_name,
             'company_name'    => $company_name,
             'logo'            => $_SESSION['LOGO'],
-            'data'            => $metrics
+            'data'            => $metrics,
+            'can_delete'      => ($_SESSION['ROLID'] ?? 0) == 1 && $this->isShiftEmpty($shift)
         ];
     }
 

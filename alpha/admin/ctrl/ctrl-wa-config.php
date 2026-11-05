@@ -664,10 +664,12 @@ function defaultTemplates(){
             '📝 Cotizaciones: {cotizaciones}',
             '❌ Cancelados: {cancelados}'
         ]),
-        // {descripcion} = "Notas adicionales" del pedido (order.note).
+        // {descripcion} = "Notas adicionales" del pedido (order.note). {capturo} = quien
+        // creo el pedido; {edito} = quien lo termino y mando el aviso.
         'personalizado' => implode("\n", [
             '🎂 *PEDIDO {folio}*',
             '📍 {sucursal}',
+            '🖊️ Capturó: {capturo}',
             '',
             '📅 *{fecha_larga}*',
             '⏰ *{hora}*',
@@ -679,6 +681,7 @@ function defaultTemplates(){
             '',
             '📝 *Descripción:* {descripcion}',
             '',
+            '🏷️ Descuento: -{descuento}',
             '💰 Total: {total}',
             '💵 Anticipo: {anticipo} ({forma_pago})',
             '🧾 *Resta: {restante}*',
@@ -687,6 +690,7 @@ function defaultTemplates(){
         'edicion' => implode("\n", [
             '✏️ *CAMBIO EN PEDIDO {folio}*',
             '📍 {sucursal}',
+            '🖊️ Editó: {edito}',
             '',
             '*Qué cambió:*',
             '{cambios}',
@@ -702,6 +706,7 @@ function defaultTemplates(){
             '',
             '📝 *Descripción:* {descripcion}',
             '',
+            '🏷️ Descuento: -{descuento}',
             '🧾 *Resta: {restante}*',
             '{estatus}'
         ])

@@ -588,7 +588,8 @@ class ctrl extends MPedidos{
         $id        = $_POST['id'];
         $pay       = floatval($_POST['advanced_pay'] ?? 0);
         $total_pay = floatval($_POST['total'] ?? 0);
-        $discount  = floatval($_POST['discount'] ?? 0);
+        // Un descuento negativo suma al saldo (pedido 1553 quedo en -95).
+        $discount  = abs(floatval($_POST['discount'] ?? 0));
         $target    = intval($_POST['target_status'] ?? 0);
 
         // Sin turno abierto en la sucursal donde cae el dinero el abono quedaria
@@ -701,7 +702,22 @@ class ctrl extends MPedidos{
     // por Terminar y no avisa). La primera vez sale "Pedidos"; despues, si algo cambio
     // desde el ultimo aviso, sale "Pedido editado" con los cambios. Sin cambios no sale.
     function addOrderNotice() {
-        $orderId = $_POST['id'];
+        return $this->orderNotice($_POST['id'], false);
+    }
+
+    // Reenvio manual desde el detalle del pedido: sale otra vez el aviso completo
+    // ("Pedidos") con los datos de hoy, aunque nada haya cambiado. Su snapshot queda
+    // como el ultimo, asi el siguiente "Pedido editado" compara contra este. Solo el
+    // administrador.
+    function resendOrderNotice() {
+        if (($_SESSION['ROLID'] ?? 0) != 1) {
+            return ['status' => 403, 'message' => 'Solo un administrador puede reenviar el aviso.'];
+        }
+
+        return $this->orderNotice($_POST['id'], true);
+    }
+
+    private function orderNotice($orderId, $resend) {
         $order   = $this->getOrderID([$orderId])[0] ?? null;
         $branch  = $order ? $this->getSucursalByID([$order['subsidiaries_id']]) : null;
 
@@ -729,8 +745,10 @@ class ctrl extends MPedidos{
         $folio     = formatFolio($order['subsidiaries_id'], $order['id']);
         $reference = "Pedido #{$folio}";
 
-        // Mismo neto que addPayment: total de las lineas menos el descuento.
-        $total = floatval($order['total_pay']) - floatval($order['discount']);
+        // Mismo neto que addPayment: total de las lineas menos el descuento (abs: el
+        // pedido 1553 quedo con el descuento en negativo).
+        $discount = abs(floatval($order['discount']));
+        $total    = floatval($order['total_pay']) - $discount;
         $paid  = $this->getTotalPaidByOrder([$orderId]);
 
         // Fotos de los personalizados y del catalogo de los productos normales.
@@ -759,16 +777,25 @@ class ctrl extends MPedidos{
             'fotos'          => $paths(false),
             'fotos_catalogo' => $paths(true),
             'entrega'        => deliveryText($order['delivery_type']),
-            'descripcion'    => oneLine($order['note'])
+            'descripcion'    => oneLine($order['note']),
+            // Sin descuento va vacio y su renglon no sale.
+            'descuento'      => $discount > 0 ? noticeMoney($discount) : ''
         ];
 
+        // Quien manda el aviso es quien termino el pedido: en "Pedido editado" es quien
+        // lo edito. Un pedido de antes de guardar created_by toma ese mismo nombre.
+        $editor = oneLine($this->getUserNameById([$_SESSION['USR'] ?? ($_SESSION['ID'] ?? 0)]));
+
         // {productos} se muestra con su propio formato; el snapshot guarda los bloques
-        // de siempre para comparar contra los avisos ya enviados.
+        // de siempre para comparar contra los avisos ya enviados. {capturo} y {edito}
+        // no van al snapshot: que lo termine otra persona no es un cambio del pedido.
         $vars = array_merge($snapshot, [
             'folio'       => $folio,
             'sucursal'    => $branch['sucursal'],
             'fecha_larga' => longDate($order['date_order']),
-            'productos'   => implode("\n\n", $this->orderNoticeDisplay($lines))
+            'productos'   => implode("\n\n", $this->orderNoticeDisplay($lines)),
+            'capturo'     => oneLine($order['created_by_name'] ?? '') ?: $editor,
+            'edito'       => $editor
         ]);
 
         $msg  = new Message();
@@ -776,13 +803,25 @@ class ctrl extends MPedidos{
 
         // El aviso conserva su clave 'personalizado' (destinatarios, plantilla e
         // historial ya guardados con ella); en Admin se muestra como "Pedidos".
-        if (!$last) {
+        if (!$last || $resend) {
             $images = $this->orderNoticeImages($photos, $folio);
-            $result = $msg->aviso('personalizado', $branch['idCompany'], $vars, $reference, $order['subsidiaries_id'], true, $snapshot, $images);
+            $result = $msg->aviso('personalizado', $branch['idCompany'], $vars, $reference, $order['subsidiaries_id'], !$resend, $snapshot, $images);
+
+            $message = "Aviso enviado a {$result['enviados']} destinatario(s)";
+
+            // aviso() no dice por que no salio: sin destinatarios, aviso pausado o sin
+            // proveedor dan 0 y 0. En el reenvio el cajero necesita saber que revisar.
+            if ($resend) {
+                $message = $result['enviados'] > 0
+                    ? "Aviso reenviado a {$result['enviados']} destinatario(s)" . ($result['fallidos'] > 0 ? "; falló con {$result['fallidos']}." : '.')
+                    : ($result['fallidos'] > 0
+                        ? "No se pudo enviar a ningún destinatario ({$result['fallidos']} fallido(s))."
+                        : 'No salió ningún mensaje. Revisa en Admin › WhatsApp que el aviso de Pedidos esté activo y tenga destinatarios.');
+            }
 
             return [
                 'status'  => 200,
-                'message' => "Aviso enviado a {$result['enviados']} destinatario(s)",
+                'message' => $message,
                 'data'    => $result
             ];
         }
@@ -834,6 +873,7 @@ class ctrl extends MPedidos{
             'telefono'    => 'Tel',
             'estatus'     => 'Estatus',
             'descripcion' => 'Descripción',
+            'descuento'   => 'Descuento',
             'total'       => 'Total',
             'anticipo'    => 'Anticipo',
             'forma_pago'  => 'Forma de pago',

@@ -53,6 +53,9 @@ class App extends Templates {
                 categorias:    r.categorias    || [],
                 unidades:      r.unidades      || [],
                 productos:     r.productos     || [],
+                // Quién pide (Producción, Pastelería...) y el último por el que pidió el usuario.
+                departamentos: r.departamentos || [],
+                departamento:  r.departamento  || '',
                 solo_su_sucursal: !!r.solo_su_sucursal,
                 estados_orden: r.estados_orden || [],
                 // {estado: [texto, fondo]} de Catálogo › Estados requisición (colorEstado).
@@ -71,6 +74,8 @@ class App extends Templates {
                 categorias:    [],
                 unidades:      [],
                 productos:     [],
+                departamentos: [],
+                departamento:  '',
                 estados_orden: [],
                 estados_color: {}
             };
@@ -187,12 +192,16 @@ class App extends Templates {
             }
         });
 
+        // min-w-0 aquí y en `main` (como Almacén en almacen-sidebar.css): sin él, la tabla
+        // ancha ensancha la página y el body (overflow: hidden) corta el visor; con él, la
+        // tabla se desplaza de lado dentro de #tableWrap.
+        $('main').addClass('min-w-0');
         this.createLayout({
             parent: 'ordenesDesk',
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'cs-visor flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
+                class:     'cs-visor flex-1 min-h-0 min-w-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
                 container: [mainPanel, detailResizer, detailPanel]
             }
         });
@@ -364,6 +373,15 @@ class App extends Templates {
                 data:     estados
             },
             {
+                opc:      'select',
+                id:       'fDepartamento',
+                lbl:      'Área:',
+                class:    'col-12 col-md-4 col-lg-1',
+                onchange: 'app.onChangeFilters()',
+                value:    '',
+                data:     [{ id: '', valor: '-- Todos --' }].concat(this.dataInit.departamentos || [])
+            },
+            {
                 opc:       'button',
                 id:        'btnNuevaOrden',
                 text:      'Nueva requisición',
@@ -382,7 +400,7 @@ class App extends Templates {
             data:       filters
         });
 
-        $('#filterFormOrdenes').addClass('lg:grid-cols-4');
+        $('#filterFormOrdenes').addClass('lg:grid-cols-5');
 
         this.initRangePicker();
     }
@@ -469,6 +487,7 @@ class App extends Templates {
             vista:       this.vista,
             branch_id:   $branch.length ? ($branch.val() || '') : (this.subId || ''),
             status:      $('#fEstado').val()    || '',
+            department_id: $('#fDepartamento').val() || '',
             fi:          this.rangeFi           || '',
             ff:          this.rangeFf           || '',
             q:           $('#qBuscar').val()    || ''
@@ -561,6 +580,7 @@ class Ordenes extends Templates {
                 vista:       f.vista,
                 branch_id:   f.branch_id,
                 status:      f.status,
+                department_id: f.department_id,
                 fi:          f.fi,
                 ff:          f.ff,
                 q:           f.q
@@ -575,7 +595,7 @@ class Ordenes extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        'light',
-            center:       [1, 2, 3, 5, 6],
+            center:       [1, 2, 3, 5, 6, 7, 8],
             right:        [],
             actionsAlign: 'left',
             extends:      true,
@@ -622,6 +642,12 @@ class Ordenes extends Templates {
             branch_name:      h.branch_name  || '',
             destination_branch_id:   h.destination_branch_id,
             destination_branch_name: h.destination_branch_name || '',
+            // Quién pide: el departamento (Producción, Pastelería...) y su etiqueta.
+            department_id:    h.department_id ? String(h.department_id) : '',
+            department_name:  h.department_name  || '',
+            department_icon:  h.department_icon  || '',
+            department_color: h.department_color || '',
+            department_bg:    h.department_bg    || '',
             warehouse_id:     h.warehouse_id,
             warehouse_name:   h.warehouse_name || '',
             date_order:       h.date_order    || '',
@@ -793,6 +819,7 @@ class Ordenes extends Templates {
             <div class="info-grid">
                 <div class="info-item"><span class="k">Fecha solicitud</span><span class="v">${esc(fmtFecha(o.date_order))}</span></div>
                 <div class="info-item"><span class="k">Solicita</span><span class="v">${esc(o.branch_name||'-')}</span></div>
+                ${o.department_name?`<div class="info-item"><span class="k">Área</span><span class="v">${esc(o.department_name)}</span></div>`:''}
                 <div class="info-item"><span class="k">Abastecer en</span><span class="v">${surtir||'-'}</span></div>
                 <div class="info-item"><span class="k">Solicitado por</span><span class="v">${esc(o.user_name||'-')}</span></div>
                 ${o.expected_date?`<div class="info-item"><span class="k">Fecha esperada</span><span class="v">${esc(fmtFecha(o.expected_date))}</span></div>`:''}
@@ -841,6 +868,8 @@ class Ordenes extends Templates {
 
         // Recibida: el documento muestra solo lo que llegó, con su unidad.
         const soloRecibido = o.status === 'Recibida';
+        // Quien la surtió (o la rechazó); el reabasto (REAB-) conserva «Aprobado por».
+        const quienSurtio  = String(o.folio || '').startsWith('REAB-') ? 'Aprobado por' : (o.status === 'Rechazada' ? 'Rechazado por' : 'Surtido por');
 
         const rowsHtml = productos.map(p => {
             const recibido  = p.quantity_received;
@@ -888,10 +917,11 @@ class Ordenes extends Templates {
             <div class="info-grid">
                 ${soloRecibido ? '' : `<div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(o.supplier_name||'Sin asignar')}</span></div>`}
                 <div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(o.branch_name||'-')}</span></div>
+                ${o.department_name?`<div class="info-item"><span class="k">Área</span><span class="v">${esc(o.department_name)}</span></div>`:''}
                 <div class="info-item"><span class="k">Fecha solicitud</span><span class="v">${esc(fmtFecha(o.date_order))}</span></div>
                 ${o.expected_date?`<div class="info-item"><span class="k">Fecha esperada</span><span class="v">${esc(fmtFecha(o.expected_date))}</span></div>`:''}
                 <div class="info-item"><span class="k">Solicitado por</span><span class="v">${esc(o.user_name||'-')}</span></div>
-                ${o.approved_user_name?`<div class="info-item"><span class="k">Aprobado por</span><span class="v">${esc(o.approved_user_name)}</span></div>`:''}
+                ${o.approved_user_name?`<div class="info-item"><span class="k">${quienSurtio}</span><span class="v">${esc(o.approved_user_name)}</span></div>`:''}
             </div>
             <table>
                 <thead>
@@ -1045,10 +1075,12 @@ class OrdenesView extends Templates {
             json:     app.dataInit.productos || [],
             // A quién pedir: cualquier sucursal; por defecto la del almacén principal.
             data: {
-                sucursales:  this.destinos(),
-                unidades:    app.dataInit.unidades || [],
-                destino:     orden ? (orden.destination_branch_id || '') : this.sucursalAPedir(),
-                solicitante: solicitante
+                sucursales:    this.destinos(),
+                departamentos: this.departamentosSelect(),
+                unidades:      app.dataInit.unidades || [],
+                destino:       orden ? (orden.destination_branch_id || '') : this.sucursalAPedir(),
+                departamento:  orden ? (orden.department_id || '') : String(app.dataInit.departamento || ''),
+                solicitante:   solicitante
             },
             edit: orden ? {
                 id:        orden.id,
@@ -1148,6 +1180,19 @@ class OrdenesView extends Templates {
     // cuándo se necesitan los insumos) solo si falta created_at.
     fechaHoraPedido(fecha, creado) {
         return this.fechaHoraCorta(creado) || this.fechaCorta(fecha) || '-';
+    }
+
+    // Etiqueta redonda del departamento que pide, con su ícono y colores (la misma que
+    // departamentoBadge del ctrl en la tabla).
+    departamentoPill(o) {
+        const fg = o.department_color || '#475569';
+        return $('<span>', {
+            class: 'cs-badge-soft inline-flex items-center gap-1 text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap',
+            style: `--b-fg:${fg};background:${o.department_bg || '#F1F5F9'};color:${fg};`
+        }).append(
+            $('<i>', { 'data-lucide': o.department_icon || 'users', class: 'w-3 h-3' }),
+            $('<span>', { text: o.department_name || '' })
+        ).prop('outerHTML');
     }
 
     // Editar compromiso del reabasto: arranca en la fecha que ya tiene o, si no, en hoy.
@@ -1258,6 +1303,10 @@ class OrdenesView extends Templates {
                             <div class="flex flex-wrap items-end gap-x-5 gap-y-2">
                                 <p class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 pb-2" title="Sucursal que pide">
                                     <i data-lucide="store" class="w-3.5 h-3.5 text-gray-400"></i>${esc(orden.branch_name || '-')}
+                                </p>
+                                ${orden.department_name ? `<p class="pb-1.5" title="Área que pide">${this.departamentoPill(orden)}</p>` : ''}
+                                <p class="flex items-center gap-1.5 text-xs text-gray-500 pb-2" title="Quien hizo la requisición">
+                                    <i data-lucide="user" class="w-3.5 h-3.5 text-gray-400"></i>${esc(orden.user_name || '-')}
                                 </p>
                                 <div>
                                     <label for="${modalId}_warehouse" class="block text-[10px] font-semibold text-gray-500 mb-0.5">Selecciona almacén:</label>
@@ -2055,7 +2104,8 @@ class OrdenesView extends Templates {
     }
 
     // La fecha arranca vacía: hay que elegirla (required) para poder iniciar. Desde el
-    // Calendario llega la del día que se tocó.
+    // Calendario llega la del día que se tocó. El departamento arranca en el último por el
+    // que pidió el usuario; la primera vez, en «Elige el área».
     jsonNuevaOrden(curSub, fecha = '') {
         return [
             {
@@ -2066,6 +2116,15 @@ class OrdenesView extends Templates {
                 value: curSub,
                 data: this.destinos(),
                 onchange: 'ordenesView.syncNuevaOrdenAviso()',
+                required: true
+            },
+            {
+                opc: 'select',
+                id: 'department_id',
+                lbl: OrdenForm.LABELS.departamento,
+                class: 'col-12',
+                value: String(app.dataInit.departamento || ''),
+                data: this.departamentosSelect(),
                 required: true
             },
             {
@@ -2086,6 +2145,10 @@ class OrdenesView extends Templates {
         $('#no_branch_id').addClass('!pl-10').before(
             $('<span>', { class: 'pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center' })
                 .append($('<i>', { 'data-lucide': 'building-2', class: 'w-4 h-4' }))
+        );
+        $('#no_department_id').addClass('!pl-10').before(
+            $('<span>', { class: 'pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center' })
+                .append($('<i>', { 'data-lucide': 'users', class: 'w-4 h-4' }))
         );
 
         // Tarjeta informativa como la de Tipo de entrada en Entradas, en tono de aviso.
@@ -2114,6 +2177,11 @@ class OrdenesView extends Templates {
             .prop('disabled', !conProductos)
             .toggleClass('opacity-50 cursor-not-allowed', !conProductos)
             .attr('title', conProductos ? '' : 'Esta sucursal no tiene productos');
+    }
+
+    // Departamentos para un select, con «Elige el área» primero (vacío = sin elegir).
+    departamentosSelect() {
+        return [{ id: '', valor: OrdenForm.LABELS.departamentoPh }].concat(app.dataInit.departamentos || []);
     }
 
     // A quién se le puede pedir: cualquier sucursal de la empresa (init › destinos).
@@ -2155,7 +2223,7 @@ class OrdenesView extends Templates {
 
         this.ordenEditando = null;
         form.setMode(null);
-        form.setData(Object.assign({ branch_id: app.subId, fecha: moment().format('YYYY-MM-DD'), nota: '' }, prefill || {}));
+        form.setData(Object.assign({ branch_id: app.subId, department_id: app.dataInit.departamento || '', fecha: moment().format('YYYY-MM-DD'), nota: '' }, prefill || {}));
         form.open();
     }
 
@@ -2200,6 +2268,7 @@ class OrdenesView extends Templates {
             folio:        orden.folio,
             status:       orden.status,
             branch_id:    orden.destination_branch_id || '',
+            department_id: orden.department_id || '',
             fecha:        String(orden.date_order || '').slice(0, 10),
             nota:         orden.note || '',
             productos:    this.lotePedido(orden, form)
@@ -2242,9 +2311,10 @@ class OrdenesView extends Templates {
                 json:   app.dataInit.productos || [],
                 // Sin almacén, formatos ni alta de productos: solo se piden los del catálogo.
                 data: {
-                    sucursales: this.destinos(),
-                    unidades:   app.dataInit.unidades || [],
-                    fecha:      moment().format('YYYY-MM-DD')
+                    sucursales:    this.destinos(),
+                    departamentos: this.departamentosSelect(),
+                    unidades:      app.dataInit.unidades || [],
+                    fecha:         moment().format('YYYY-MM-DD')
                 },
                 // El solicitante no ve costos ni importes (Compras, que usa el mismo formato, sí).
                 montos:   false,
@@ -2295,6 +2365,7 @@ class OrdenesView extends Templates {
         const fmtNum    = (n) => (Number(n) % 1 === 0) ? String(Number(n)) : Number(n).toFixed(2);
         const productos = payload.productos || [];
         const sucursal  = this.destinos().find(s => String(s.id) === String(payload.destination_branch_id));
+        const depto     = (app.dataInit.departamentos || []).find(d => String(d.id) === String(payload.department_id));
         const unidades  = productos.reduce((s, p) => s + Number(p.quantity || 0), 0);
         // span y no div: alertBox mete el detalle dentro de un <p>.
         const renglon   = (k, v) => `<span class="flex justify-between gap-3 py-1 border-b border-gray-100 last:border-b-0"><span class="text-gray-500">${k}</span><span class="font-semibold text-gray-800 text-right">${v}</span></span>`;
@@ -2305,6 +2376,7 @@ class OrdenesView extends Templates {
             detailHtml: `
                 <span class="block mt-2 mb-1 text-left text-[12px]">
                     ${renglon('Solicitado a', esc(sucursal ? sucursal.valor : '-'))}
+                    ${renglon('Área',esc(depto ? depto.valor : '-'))}
                     ${renglon('Lo necesitas para', esc(this.fechaCorta(payload.date_order) || '-'))}
                     ${renglon('Materiales', `${productos.length} &middot; ${fmtNum(unidades)} uds`)}
                 </span>
@@ -3234,6 +3306,18 @@ class OrdenesView extends Templates {
 
         const necesita = this.needDateLabel(e.date_order);
 
+        // Quién surtió: cada surtimiento del historial con su fecha; sin historial (antes de
+        // que existiera), quien la aprobó. Rechazada dice quién la rechazó y el reabasto
+        // (REAB-) conserva «Aprobado por».
+        const filaDato   = (k, v) => `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">${k}</span><span class="text-gray-700 text-right">${v}</span></div>`;
+        const surtidores = esReabasto ? [] : (e.surtidos || []).filter(s => s.usuario);
+        const surtioHtml = surtidores.length
+            ? surtidores.map(s => filaDato('Surtido por', `${esc(s.usuario)} &middot; ${esc(this.fechaHoraCorta(s.fecha))}`)).join('')
+            : (e.approved_user_name
+                ? filaDato(esReabasto ? 'Aprobado por' : (status === 'Rechazada' ? 'Rechazado por' : 'Surtido por'),
+                           esc(e.approved_user_name) + (e.approved_at ? ` &middot; ${esc(this.fechaHoraCorta(e.approved_at))}` : ''))
+                : '');
+
         $parent.html(`
             <div class="flex-1 flex flex-col overflow-hidden">
 
@@ -3274,6 +3358,7 @@ class OrdenesView extends Templates {
                 <!-- Datos de cabecera -->
                 <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Pide</span><span class="text-gray-700 text-right">${esc(e.branch_name || '-')}</span></div>
+                    ${esReabasto ? '' : filaDato('Área', e.department_name ? this.departamentoPill(e) : '<span class="text-gray-400">Sin área</span>')}
                     ${e.destination_branch_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Surte</span><span class="text-gray-700 text-right">${esc(e.destination_branch_name)}</span></div>` : ''}
                     ${e.warehouse_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">${esReabasto ? 'Almacén destino' : 'Sale del almacén'}</span><span class="text-gray-700 text-right">${esc(e.warehouse_name)}</span></div>` : ''}
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Fecha solicitud</span><span class="text-gray-700 text-right">${esc(this.fechaLarga(e.created_at || e.date_order) || '-')}</span></div>
@@ -3301,8 +3386,8 @@ class OrdenesView extends Templates {
 
                 <!-- Quién y nota, al final de los productos (como en Entradas) -->
                 <div class="px-4 py-2.5 border-t border-gray-200 flex-shrink-0 space-y-1.5">
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Solicitado por</span><span class="text-gray-700 text-right">${esc(e.user_name || '-')}</span></div>
-                    ${e.approved_user_name ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Aprobado por</span><span class="text-gray-700 text-right">${esc(e.approved_user_name)}</span></div>` : ''}
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Solicitado por</span><span class="text-gray-700 text-right">${esc(e.user_name || '-')} &middot; ${esc(this.fechaHoraCorta(e.created_at) || '-')}</span></div>
+                    ${surtioHtml}
                     ${e.approval_note ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-28 flex-shrink-0">Nota de aprobación</span><span class="text-gray-700 text-right">${esc(e.approval_note)}</span></div>` : ''}
                     ${notasSurtidoHtml}
                     ${recepcionHtml}
@@ -3480,6 +3565,7 @@ class CalendarioPedidos extends Templates {
                 lado:      app.lado,
                 branch_id: filters.branch_id,
                 status:    filters.status,
+                department_id: filters.department_id,
                 fi:        info.startStr.slice(0, 10),
                 ff:        moment(info.end).subtract(1, 'day').format('YYYY-MM-DD')
             }

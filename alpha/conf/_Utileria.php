@@ -4,6 +4,33 @@
 // que Mexico aboliera el horario de verano (oct-2022) y adelanta 1h en verano.
 date_default_timezone_set('Etc/GMT+6');
 
+// Reemplazo de strftime(), obsoleta desde PHP 8.1. No depende del locale ni de intl:
+// da los nombres en español igual que el locale es_ES. Entiende %A %a %B %b %d %m %Y %y.
+// Con function_exists por si otro helper ya la declaró antes.
+if (!function_exists('strftime_es')) {
+    function strftime_es($formato, $timestamp = null) {
+        $dias    = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+        $diasSm  = ['dom','lun','mar','mié','jue','vie','sáb'];
+        $meses   = ['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+        $mesesSm = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+        $timestamp = ($timestamp === null) ? time() : (int) $timestamp;
+        $dia       = (int) date('w', $timestamp);
+        $mes       = (int) date('n', $timestamp);
+
+        return strtr($formato, [
+            '%A' => $dias[$dia],
+            '%a' => $diasSm[$dia],
+            '%B' => $meses[$mes],
+            '%b' => $mesesSm[$mes],
+            '%d' => date('d', $timestamp),
+            '%m' => date('m', $timestamp),
+            '%Y' => date('Y', $timestamp),
+            '%y' => date('y', $timestamp),
+        ]);
+    }
+}
+
 class Utileria{
     function getIntervalDate($date1, $date2) {
         // Eliminar espacios en blanco al inicio y al final de las fechas
@@ -38,10 +65,10 @@ class Utileria{
             // Agregar la fecha en distintos formatos al array
             $intervalDate['dates'][]    = $fecha_actual->format('Y-m-d');
             $intervalDate['fecha'][]    = $fecha_actual->format('d-m-Y');
-            $intervalDate['thead'][]    = strftime('%A<br>%d %B', $timestamp);
-            $intervalDate['thsm'][]     = strftime('%a<br>%d %b', $timestamp);
-            $intervalDate['week'][]     = strftime('%A', $timestamp);
-            $intervalDate['dayMonth'][] = strftime('%d %B', $timestamp);
+            $intervalDate['thead'][]    = strftime_es('%A<br>%d %B', $timestamp);
+            $intervalDate['thsm'][]     = strftime_es('%a<br>%d %b', $timestamp);
+            $intervalDate['week'][]     = strftime_es('%A', $timestamp);
+            $intervalDate['dayMonth'][] = strftime_es('%d %B', $timestamp);
 
             // Si el mes cambió, agregar el nuevo mes y año al array
             if ($mes_inicial != $fecha_actual->format('m')) {
@@ -341,7 +368,7 @@ function formatSpanishDateAll($fecha = null) {
     $marcaTiempo = strtotime($fecha);
 
     $formatoFecha = "%A, %d de %B del %Y"; // Formato de fecha en español
-    $fechaFormateada = strftime($formatoFecha, $marcaTiempo);
+    $fechaFormateada = strftime_es($formatoFecha, $marcaTiempo);
 
     return $fechaFormateada;
 }
@@ -357,7 +384,7 @@ function formatSpanishDay($fecha = null){
     $marcaTiempo = strtotime($fecha);
 
     $formatoFecha = "%A"; // Formato de fecha en español
-    $fechaFormateada = strftime($formatoFecha, $marcaTiempo);
+    $fechaFormateada = strftime_es($formatoFecha, $marcaTiempo);
 
     return $fechaFormateada;
 }
@@ -390,7 +417,7 @@ function formatSpanishDate($fecha = null, $type = 'short') {
     // Usar el formato adecuado o 'short' por defecto
     $formatoFecha = $formatos[$type] ?? $formatos['short'];
 
-    return strftime($formatoFecha, $marcaTiempo);
+    return strftime_es($formatoFecha, $marcaTiempo);
 }
 
 // Fecha con hora para historiales y bitacoras: 08/Agosto/2026 11:30am.

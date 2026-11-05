@@ -456,6 +456,22 @@ class MPedidos extends CRUD {
         return (isset($success) && count($success) > 0) ? $success[0] : null;
     }
 
+    // Nombre completo del usuario, para el aviso de WhatsApp del pedido ({edito}).
+    function getUserNameById($array) {
+        $query = "
+            SELECT
+                usr_users.fullname
+            FROM
+                fayxzvov_alpha.usr_users
+            WHERE
+                usr_users.id = ?
+            LIMIT 1
+        ";
+        $success = $this->_Read($query, $array);
+
+        return (isset($success) && count($success) > 0) ? $success[0]['fullname'] : '';
+    }
+
     // Un solo pago por id (monto, metodo, fecha, sucursal, pedido) — para editar/validar.
     // Nombre distinto a getPaymentByID (existente, de eventos): PHP no distingue mayus/minus.
     function getOrderPaymentById($array) {
@@ -1952,6 +1968,45 @@ class MPedidos extends CRUD {
             AND subsidiaries_id = ?
             AND (cash_shift_id IS NULL OR cash_shift_id = 0)
         ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Movimientos de un turno abierto: pedidos ligados (o creados en su rango sin turno,
+    // igual que getShiftSalesMetrics) y abonos cobrados en su sucursal desde la apertura.
+    // Cuenta tambien cancelados: con cualquier movimiento el turno ya no es vacio.
+    function getShiftActivity($array) {
+        $shift_id      = $array[0];
+        $startDate     = $array[1];
+        $endDate       = $array[2];
+        $subsidiary_id = $array[3];
+
+        $query = "
+            SELECT
+                (SELECT COUNT(*)
+                   FROM {$this->bd}`order`
+                  WHERE cash_shift_id = ?
+                     OR ((cash_shift_id IS NULL OR cash_shift_id = 0)
+                         AND date_creation >= ? AND date_creation <= ?
+                         AND subsidiaries_id = ?)
+                ) AS orders,
+                (SELECT COUNT(*)
+                   FROM {$this->bd}order_payments pp
+                   INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
+                  WHERE pp.date_pay >= ? AND pp.date_pay <= ?
+                    AND COALESCE(pp.subsidiaries_id, po.subsidiaries_id) = ?
+                ) AS payments
+        ";
+        $result = $this->_Read($query, [
+            $shift_id, $startDate, $endDate, $subsidiary_id,
+            $startDate, $endDate, $subsidiary_id
+        ]);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    // Borrado fisico: un turno vacio no tiene pedidos, pagos de corte ni conteos que
+    // lo referencien. La guarda de vacio vive en deleteShift() del ctrl.
+    function deleteCashShift($array) {
+        $query = "DELETE FROM {$this->bd}cash_shift WHERE id = ? AND status = 'open'";
         return $this->_CUD($query, $array);
     }
 

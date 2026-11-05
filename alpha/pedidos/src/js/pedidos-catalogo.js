@@ -1026,7 +1026,8 @@ class Pos extends Templates {
 
         if (opts.totalSelector) {
             const subtotal = totalAcc;
-            const discount = parseFloat(opts.discount) || 0;
+            // abs(): un descuento guardado en negativo (pedido 1553) quedaba oculto y sumaba al saldo.
+            const discount = Math.abs(parseFloat(opts.discount) || 0);
             const finalTotal = subtotal - discount;
             const totalPaid = parseFloat(opts.totalPaid) || 0;
             const saldo = finalTotal - totalPaid;
@@ -2189,7 +2190,7 @@ class CatalogProduct extends Pos {
 
         if (req.total_paid) {
 
-            discount       = parseFloat(response.discount) || 0;
+            discount       = Math.abs(parseFloat(response.discount) || 0);
             saldoOriginal  = parseFloat(response.total_pay) || 0;
             subtotal       = saldoOriginal;
             total          = saldoOriginal - discount;
@@ -2199,7 +2200,9 @@ class CatalogProduct extends Pos {
         } else {
             const totalText = $('#subtotal').text();
             saldoOriginal   = parseFloat(totalText.replace(/[^0-9.-]+/g, "")) || 0;
-            discount        = parseFloat($('#discountAmount').text().replace(/[^0-9.-]+/g, "")) || 0;
+            // El texto se pinta como "-$95.00": sin abs() el descuento viajaba negativo
+            // y el saldo SUMABA en vez de restar (pedido 1553: 800 + 95 = 895).
+            discount        = Math.abs(parseFloat($('#discountAmount').text().replace(/[^0-9.-]+/g, "")) || 0);
             subtotal        = saldoOriginal;
             total           = saldoOriginal - discount;
             total_paid      = 0;
@@ -2370,6 +2373,14 @@ class CatalogProduct extends Pos {
         $(".js-wrap-advanced-pay").addClass("hidden");
         $(".js-wrap-method-pay").addClass("hidden");
         $(".js-wrap-discount").addClass("hidden");
+
+        // Descuento ya guardado: el switch abre encendido y con el monto escrito, para
+        // verlo y corregirlo. Antes abria vacio y el descuento solo se adivinaba en el total.
+        if (this._paymentState.discount > 0) {
+            $("#toggleDiscount").prop("checked", true);
+            this.toggleDiscount();
+            $("#discount_amount").val(this._paymentState.discount.toFixed(2));
+        }
 
         const $btn             = $("#btnSuccess");
         const originalHandlers = $._data($btn[0], "events")?.click?.map(e => e.handler) || [];

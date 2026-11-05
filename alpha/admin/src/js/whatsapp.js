@@ -2409,11 +2409,14 @@ class WhatsApp extends Templates {
                 '> ✍️ *Felicidades mami*'
             ].join('\n')],
             ['descripcion', 'Entregar en caja con moño dorado'],
+            ['descuento',  '$150.00'],
             ['total',      '$1,550.00'],
             ['anticipo',   '$800.00'],
             ['forma_pago', 'Efectivo'],
             ['restante',   '$750.00'],
-            ['estatus',    '🟡 PENDIENTE']
+            ['estatus',    '🟡 PENDIENTE'],
+            ['capturo',    'Ana Laura Sosa'],
+            ['edito',      'Ana Laura Sosa']
         ];
 
         const pairs = {
@@ -2467,6 +2470,7 @@ class WhatsApp extends Templates {
             personalizado: order,
             edicion: [
                 ...order,
+                ['edito', 'Rosy'],
                 ['cambios', [
                     '- Hora: ~11:00 AM~ → *12:00 PM*',
                     '- Dedicatoria: ~Felicidades~ → *FELICIDADES PAPÁ*',

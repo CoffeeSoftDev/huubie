@@ -351,10 +351,12 @@ class OrdenMovilForm {
             sucursal: '',
             json:     [],
             data: {
-                sucursales:  [],
-                unidades:    [],
-                destino:     '',
-                solicitante: ''
+                sucursales:    [],
+                departamentos: [],
+                unidades:      [],
+                destino:       '',
+                departamento:  '',
+                solicitante:   ''
             },
             edit:     null,
             labels: {
@@ -447,6 +449,7 @@ class OrdenMovilForm {
         $(o.parent === 'body' ? 'body' : `#${o.parent}`).append(this.root);
 
         $(`#${o.id}_destino`).val(o.data.destino);
+        $(`#${o.id}_depto`).val(String(o.data.departamento || ''));
         if (o.edit) {
             $(`#${o.id}_fecha`).val(o.edit.fecha || '');
             $(`#${o.id}_nota`).val(o.edit.nota || '');
@@ -463,6 +466,7 @@ class OrdenMovilForm {
         const o = this.opts;
         return JSON.stringify([
             $(`#${o.id}_destino`).val(),
+            $(`#${o.id}_depto`).val(),
             $(`#${o.id}_fecha`).val(),
             $(`#${o.id}_nota`).val(),
             this.lote.map(p => [String(p.id), Number(p.cantidad || 0), String(p.unit_id || '')])
@@ -490,7 +494,8 @@ class OrdenMovilForm {
     }
 
     // A quién se le pide (arranca en la sucursal de la sesión, como en escritorio) y para
-    // cuándo (vacía: hay que elegirla). Abajo, el aviso de pedirle a la misma sucursal.
+    // cuándo (vacía: hay que elegirla). Abajo, el aviso de pedirle a la misma sucursal y el
+    // departamento que pide, a lo ancho.
     renderCampos() {
         const o = this.opts;
 
@@ -512,6 +517,14 @@ class OrdenMovilForm {
             $('<div>', { id: `${o.id}_misma`, class: 'hidden mt-2 flex items-start gap-2 rounded-[10px] border-[1px] border-red-100 bg-red-50 px-[10px] py-2 text-[12px] leading-snug font-semibold text-red-700' }).append(
                 $('<i>', { 'data-lucide': 'alert-circle', class: 'w-[14px] h-[14px] mt-px flex-shrink-0 text-red-600' }),
                 $('<span>', { text: OrdenForm.LABELS.mismaSucursal })
+            ),
+            $('<div>', { class: 'mt-[10px] min-w-0' }).append(
+                this.label(OrdenForm.LABELS.departamento),
+                $('<div>', { class: 'relative' }).append(
+                    $('<select>', { id: `${o.id}_depto`, class: `${this.control()} appearance-none pr-[32px] truncate` })
+                        .append((o.data.departamentos || []).map(d => $('<option>', { value: d.id, text: d.valor }))),
+                    $('<i>', { 'data-lucide': 'chevron-down', class: 'pointer-events-none absolute right-[10px] top-1/2 -translate-y-1/2 w-[16px] h-[16px] text-gray-400' })
+                )
             )
         );
     }
@@ -733,10 +746,12 @@ class OrdenMovilForm {
     buildPayload(submit) {
         const o       = this.opts;
         const destino = $(`#${o.id}_destino`).val() || '';
+        const depto   = $(`#${o.id}_depto`).val()   || '';
         const fecha   = $(`#${o.id}_fecha`).val()   || '';
 
         if (!this.lote.length) return this.aviso(o.labels.sinMateriales);
         if (!destino)          return this.aviso(o.labels.sinDestino);
+        if (!depto)            return this.aviso(OrdenForm.LABELS.departamentoReq);
         if (!fecha)            return this.aviso(OrdenForm.LABELS.fechaReq);
         if (!o.edit && fecha < this.catalogo.haceUnMes()) return this.aviso(OrdenForm.LABELS.fechaVieja);
 
@@ -747,6 +762,7 @@ class OrdenMovilForm {
             id:                    o.edit ? o.edit.id : null,
             submit:                !o.edit && submit,
             destination_branch_id: destino,
+            department_id:         depto,
             date_order:            fecha,
             note:                  $(`#${o.id}_nota`).val() || '',
             productos: this.lote.map(p => ({

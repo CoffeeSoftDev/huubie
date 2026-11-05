@@ -2952,11 +2952,20 @@ class App extends Templates {
         // "Cerrar", a la derecha del footer, con la nota de consulta a la izquierda.
         modal.el.find('.cf-confirm').remove();
         modal.el.find('.cf-cancel').removeClass('flex-1').addClass('px-6').parent()
-            .removeClass('mt-4').addClass('items-center justify-between px-[20px] py-[12px] border-t border-white/10')
+            .removeClass('mt-4').addClass('flex-wrap items-center justify-between px-[20px] py-[12px] border-t border-white/10')
             .prepend(`
                 <p class="text-xs text-gray-400 flex items-center gap-1.5">
                     ${lucideIcon('info', 'w-3.5 h-3.5')} Pedido de consulta — sin edición de productos
                 </p>`);
+
+        // Reenviar el aviso de WhatsApp, junto a Cerrar. Solo el administrador. Un
+        // cancelado no avisa: nunca pasa por Terminar.
+        if (rol == 1 && response.data.order.status != 4) {
+            modal.el.find('.cf-cancel').wrap('<div class="flex items-center gap-[8px]"></div>').before(`
+                <button type="button" id="btnResendNotice" class="px-[16px] py-2.5 rounded-lg text-sm font-semibold bg-green-500/10 hover:bg-green-500/20 text-green-400 flex items-center gap-[4px]" onclick="app.resendOrderNotice(${orderId})">
+                    <i class="icon-whatsapp text-base"></i> Reenviar
+                </button>`);
+        }
 
         this.layoutManager = {
             isMobile: () => window.innerWidth < 768,
@@ -3017,6 +3026,47 @@ class App extends Templates {
         // El tipo y el estado de entrega se muestran en el encabezado, fuera del panel.
         $('#orderDeliveryBadge').html(this.getBadgeDeliveryType(orderData.delivery_type));
         $('#orderStatusBadge').html(this.statusDelivery(orderData.is_delivered));
+    }
+
+    // Reenvia el aviso de WhatsApp del pedido (Admin › WhatsApp › Pedidos) con sus
+    // datos actuales. Cada envio tarda unos segundos: el boton queda apagado mientras.
+    resendOrderNotice(orderId) {
+        this.alertOverModal({
+            theme:       'dark',
+            type:        'confirm',
+            icon:        'message-circle',
+            title:       '¿Reenviar aviso de WhatsApp?',
+            detailHtml:  'Se enviará otra vez el aviso del pedido, con sus datos actuales, a los destinatarios de Admin › WhatsApp.',
+            okLabel:     'Reenviar',
+            okBg:        'bg-[#057A55] hover:bg-[#046C4E]',
+            cancelLabel: 'Cancelar',
+            onOk: async () => {
+                const $btn  = $('#btnResendNotice');
+                const label = $btn.html();
+                $btn.prop('disabled', true).addClass('opacity-60 cursor-wait')
+                    .html('<i class="icon-whatsapp text-base"></i> Enviando...');
+
+                const res = await useFetch({ url: api_catalogo, data: { opc: 'resendOrderNotice', id: orderId } });
+
+                $btn.prop('disabled', false).removeClass('opacity-60 cursor-wait').html(label);
+
+                const sent = res?.status === 200 && res.data?.enviados > 0;
+                this.alertOverModal({
+                    theme:      'dark',
+                    type:       sent ? 'success' : 'warning',
+                    title:      sent ? 'Aviso reenviado' : 'No se reenvió',
+                    detailHtml: res?.message || 'El servidor no respondió.'
+                });
+            }
+        });
+    }
+
+    // alertBox encima de un createCoffeeModalForm abierto: el overlay del modal usa
+    // z-index 100000 y alertBox nace en 10001, debajo de el.
+    alertOverModal(options) {
+        const id = 'alertBox_' + Date.now();
+        this.alertBox({ ...options, id });
+        $('#' + id).css('z-index', 100010);
     }
 
     // Edicion acotada desde el detalle del pedido: solo los datos de entrega (fecha,
@@ -4084,6 +4134,12 @@ class App extends Templates {
                             ${lucideIcon('printer')} <span>Imprimir</span>
                         </button>
                     </div>
+                    <div id="deleteShiftArea" class="hidden space-y-1">
+                        <button id="btnDeleteShift" class="w-full py-2.5 rounded-lg text-sm font-semibold border border-red-500/50 bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center gap-2" onclick="app.deleteShift()">
+                            ${lucideIcon('trash-2')} Eliminar Turno
+                        </button>
+                        <p class="text-[11px] text-gray-400 text-center">Sin pedidos ni cobros</p>
+                    </div>
                     <div id="closeDayBtnArea" class="border-t border-gray-600 pt-2 mt-2 space-y-2">
                         <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
                             ${lucideIcon('check-check')} Cerrar Dia
@@ -4223,6 +4279,8 @@ class App extends Templates {
             wrapper.replaceWith(label);
         }
         $('#calendarDailyClose').removeClass('!border-green-600/50');
+        // "Eliminar Turno" solo lo vuelve a mostrar viewShiftPreview para un turno vacio.
+        $('#deleteShiftArea').addClass('hidden');
         // Restaurar el boton "Cerrar Dia" en su contenedor estable (#closeDayBtnArea).
         // Al visitar un dia cerrado, loadClosedView reemplaza ese contenedor por "Reabrir
         // Dia" (admin) o lo vacia (otros roles); por eso se reconstruye por id y no via
@@ -4391,6 +4449,7 @@ class App extends Templates {
 
     async viewShiftPreview() {
         const shiftId = $('#shiftSelector').val();
+        $('#deleteShiftArea').addClass('hidden');
         if (!shiftId) {
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
             $('#btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
@@ -4463,6 +4522,12 @@ class App extends Templates {
         } else {
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
         }
+
+        // Turno abierto sin pedidos ni cobros, solo admin (can_delete lo calcula el ctrl). No depende
+        // de _operationBlocked: borrar el turno vacio de un dia pendiente es justo lo que
+        // lo desbloquea.
+        this._selectedShift = metricsRes.shift;
+        $('#deleteShiftArea').toggleClass('hidden', !(shiftStatus === 'open' && metricsRes.can_delete));
     }
 
     // El formato del ticket de turno vive en shift-ticket.js (fuente unica, compartida
@@ -4598,6 +4663,49 @@ class App extends Templates {
                 } else {
                     alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }
+            }
+        });
+    }
+
+    // Elimina el turno abierto vacio seleccionado. El ctrl vuelve a revisar que no
+    // tenga pedidos ni cobros antes de borrarlo.
+    deleteShift() {
+        const shiftId = this._selectedShiftId || $('#shiftSelector').val();
+        if (!shiftId) return;
+
+        const opened  = moment(this._selectedShift?.opened_at);
+        const subName = (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7)
+            ? $('#subsidiariesDailyClose option:selected').text()
+            : sub_name;
+
+        this.alertBox({
+            theme:       'dark',
+            type:        'cancel',
+            icon:        'trash-2',
+            title:       '¿Eliminar turno vacío?',
+            detailHtml:  `Se eliminará el turno abierto a las <b class="text-gray-200">${opened.format('h:mm A')}</b> del <b class="text-gray-200">${opened.format('DD/MM/YYYY')}</b> en <b class="text-gray-200">${subName}</b>. No tiene pedidos ni cobros.`,
+            okLabel:     'Sí, eliminar',
+            okBg:        'bg-[#E02424] hover:bg-[#C81E1E]',
+            cancelLabel: 'Cancelar',
+            onOk: async () => {
+                const res = await useFetch({ url: this._link, data: { opc: 'deleteShift', shift_id: shiftId } });
+
+                if (res.status !== 200) {
+                    this.alertBox({
+                        theme:      'dark',
+                        type:       'error',
+                        title:      'No se eliminó el turno',
+                        detailHtml: res.message || 'Intenta de nuevo.'
+                    });
+                    return;
+                }
+
+                this._selectedShiftId = null;
+                this._selectedShift   = null;
+                this.alertBox({ theme: 'dark', type: 'success', title: 'Turno eliminado', detailHtml: res.message, timer: 2000 });
+                await this.loadShifts();
+                this.ls();
+                await this.syncShiftState();
             }
         });
     }

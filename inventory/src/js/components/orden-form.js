@@ -22,6 +22,9 @@ class OrdenForm extends EntradaForm {
             title:         'Nuevo pedido',
             subtitle:      'Arma la lista de materiales a solicitar',
             sucursal:      'Solicitar a',
+            departamento:  'Área que pide',
+            departamentoPh: 'Elige el área',
+            departamentoReq: 'Elige el área que pide',
             mismaSucursal: 'Le estás pidiendo a tu misma sucursal',
             fecha:         'Lo necesitas para',
             fechaReq:      'Elige la fecha en que necesitas tus insumos',
@@ -110,6 +113,11 @@ class OrdenForm extends EntradaForm {
         return this.opts.montos !== false;
     }
 
+    // La requisición pide el departamento (ordenes.js manda `data.departamentos`); Compras no.
+    conDepartamento() {
+        return Array.isArray(this.opts.data && this.opts.data.departamentos);
+    }
+
     // La presentación es la unidad del catálogo (CJA360, KG, PZ...); '' si el producto no tiene.
     presentacionDe(p) {
         return String(p.presentacion || this.unitOf(p) || '');
@@ -117,11 +125,11 @@ class OrdenForm extends EntradaForm {
 
     // -- Render estático --
 
-    // Solo a quién se le pide y para cuándo: el almacén lo elige quien surte al aprobar y
-    // los productos se escriben en la hoja. Cada campo ocupa col-3 en computadora y la
-    // mitad en tablet (en col-3 el select y la etiqueta de la fecha no caben), alineados
-    // por abajo. El aviso de sucursal propia solo sale en el formulario previo de "Nuevo
-    // pedido" (ordenes.js).
+    // Solo a quién se le pide, qué departamento lo pide (la requisición: `data.departamentos`;
+    // Compras no lo lleva) y para cuándo: el almacén lo elige quien surte al aprobar y los
+    // productos se escriben en la hoja. Cada campo ocupa col-3 en computadora y la mitad en
+    // tablet (en col-3 el select y la etiqueta de la fecha no caben), alineados por abajo. El
+    // aviso de sucursal propia solo sale en el formulario previo de "Nuevo pedido" (ordenes.js).
     renderConfigRow() {
         const o   = this.opts;
         const cls = this.cls;
@@ -136,6 +144,15 @@ class OrdenForm extends EntradaForm {
                             </select>
                         `, 'building-2')}
                     </div>
+                    ${this.conDepartamento() ? `
+                    <div>
+                        <label class="${cls.label}">${this.esc(o.labels.departamento)}</label>
+                        ${this.selectWrap(`
+                            <select id="${o.id}_selDepto" class="${cls.select} !pl-10">
+                                ${o.data.departamentos.map(it => `<option value="${this.esc(it.id)}">${this.esc(it.valor)}</option>`).join('')}
+                            </select>
+                        `, 'users')}
+                    </div>` : ''}
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.fecha)}</label>
                         <input id="${o.id}_inpFecha" type="date" value="${this.esc(o.data.fecha)}" min="${this.haceUnMes()}" class="${cls.input}">
@@ -1225,9 +1242,11 @@ class OrdenForm extends EntradaForm {
     }
 
     // `status` = el del pedido: si es Borrador, al cerrar se ofrece guardarlo en ese mismo.
+    // Una requisición de antes del departamento abre en «Elige el área».
     openEdit(orden) {
         super.openEdit(orden);
         $(`#${this.opts.id}_inpFecha`).removeAttr('max');
+        $(`#${this.opts.id}_selDepto`).val(String(orden.department_id || ''));
 
         this.editing.borrador = orden.status === 'Borrador';
         this.huellaInicial    = this.huella();
@@ -1240,9 +1259,17 @@ class OrdenForm extends EntradaForm {
         return JSON.stringify([
             this.filasConContenido().map(p => [p.id || '', p.texto || '', Number(p.cantidad || 0), Number(p.costo || 0), p.unit_id || '', p.nota || '']),
             $(`#${id}_selSucursal`).val(),
+            $(`#${id}_selDepto`).val(),
             $(`#${id}_inpFecha`).val(),
             $(`#${id}_inpNota`).val()
         ]);
+    }
+
+    // `department_id` lo manda el formulario previo de "Nueva requisición" (o el último
+    // departamento del usuario).
+    setData(newData) {
+        super.setData(newData);
+        if (newData && 'department_id' in newData) $(`#${this.opts.id}_selDepto`).val(String(newData.department_id || ''));
     }
 
     // -- Guardar --
@@ -1312,6 +1339,12 @@ class OrdenForm extends EntradaForm {
         const libres = filas.filter(p => !p.id);
         if (!lote.length) { this.notify(libres.length ? o.labels.soloNotas : 'Agrega al menos un material al pedido'); return null; }
 
+        const depto = this.conDepartamento() ? ($(`#${o.id}_selDepto`).val() || '') : '';
+        if (this.conDepartamento() && !depto) {
+            this.notify(o.labels.departamentoReq);
+            return null;
+        }
+
         const fecha = $(`#${o.id}_inpFecha`).val();
         if (!fecha) {
             this.notify(o.labels.fechaReq);
@@ -1332,6 +1365,7 @@ class OrdenForm extends EntradaForm {
             id:                    this.editing ? this.editing.id : null,
             submit:                !this.editing && submit,
             destination_branch_id: $(`#${o.id}_selSucursal`).val() || '',
+            department_id:         depto,
             date_order:            fecha,
             note:                  nota,
             productos: lote.map(p => ({
@@ -1347,11 +1381,13 @@ class OrdenForm extends EntradaForm {
     }
 
     // "¿Deseas crear la requisición de la sucursal X para el día viernes 17 de octubre del 2026?"
+    // Con departamento: "¿Deseas crear la requisición de Pastelería a la sucursal X para el día ...?"
     confirmCrearTexto(payload) {
         const dias     = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
         const meses    = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
         const m        = String(payload.date_order || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
         const sucursal = ((this.opts.data && this.opts.data.sucursales) || []).find(s => String(s.id) === String(payload.destination_branch_id));
+        const depto    = ((this.opts.data && this.opts.data.departamentos) || []).find(s => s.id !== '' && String(s.id) === String(payload.department_id));
 
         if (!m || !sucursal) return this.opts.labels.confirmAdd;
 
@@ -1359,7 +1395,10 @@ class OrdenForm extends EntradaForm {
         // El alertBox pinta el título como HTML; sucursal y fecha van escapadas y en el color del tema.
         const tema  = 'style="color:rgb(var(--brand-600, 192 90 64))"';
         const fecha = `${dias[d.getDay()]} ${Number(m[3])} de ${meses[Number(m[2]) - 1]} del ${m[1]}`;
-        return `¿Deseas crear la requisición de la sucursal <span ${tema}>${this.esc(sucursal.valor)}</span> para el día <span ${tema}>${this.esc(fecha)}</span>?`;
+        const quien = depto
+            ? `de <span ${tema}>${this.esc(depto.valor)}</span> a la sucursal`
+            : 'de la sucursal';
+        return `¿Deseas crear la requisición ${quien} <span ${tema}>${this.esc(sucursal.valor)}</span> para el día <span ${tema}>${this.esc(fecha)}</span>?`;
     }
 
     confirmRegistrar(payload) {

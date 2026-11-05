@@ -5,7 +5,8 @@ session_start();
 
 class MPayment extends CRUD {
     protected $util;
-    
+    public $bd;
+
     public function __construct() {
         $this->util = new Utileria;
         $this->bd   = "{$_SESSION['DB']}.";
