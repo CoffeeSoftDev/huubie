@@ -86,17 +86,24 @@ class mdl extends CRUD {
     function qPlans($array) {
         // [is_active]
         // module_ids: los de plan_module (solo cuentan si modules_mode = 'included').
+        // classification_ids: las páginas donde se publica (classification_plan).
         // Del más barato al más caro; Personalizado (sin precio fijo) al final.
         $query = "
             SELECT
-                p.id, p.code, p.name, p.price, p.price_before, p.currency, p.billing_cycle,
-                p.max_users, p.max_branches, p.trial_days, p.is_active, p.features, p.modules_mode,
+                p.id, p.code, p.name, p.description, p.price, p.price_before, p.currency, p.billing_cycle,
+                p.max_users, p.max_branches, p.trial_days, p.is_active, p.features,
+                p.modules_mode, p.modules_pick, p.featured,
                 DATE_FORMAT(p.created_at, '%d/%m/%Y') AS created,
                 (
                     SELECT GROUP_CONCAT(pm.module_id)
                     FROM {$this->bd}plan_module pm
                     WHERE pm.plan_id = p.id
-                ) AS module_ids
+                ) AS module_ids,
+                (
+                    SELECT GROUP_CONCAT(cp.classification_id)
+                    FROM {$this->bd}classification_plan cp
+                    WHERE cp.plan_id = p.id
+                ) AS classification_ids
             FROM {$this->bd}plans p
             WHERE p.is_active = ?
             ORDER BY p.price IS NULL, p.price ASC, p.id ASC
@@ -106,13 +113,21 @@ class mdl extends CRUD {
     }
 
     // Planes activos en formato {id, valor} para selects (suscripciones).
-    // modules_mode: el formulario de suscripción pide módulos solo al Personalizado.
+    // modules_mode: el formulario de suscripción pide módulos al Personalizado y
+    // al de elegir (pick), que pide exactamente modules_pick.
+    // Hay planes con el mismo nombre en distintas páginas (Starter de Huubie y de
+    // CoffeeSoft): el que se publica en una sola lleva su nombre ("Starter · CoffeeSoft").
     function qPlansForSelect() {
         $query = "
-            SELECT id, name AS valor, modules_mode
-            FROM {$this->bd}plans
-            WHERE is_active = 1
-            ORDER BY name ASC
+            SELECT
+                p.id, p.modules_mode, p.modules_pick,
+                CASE WHEN COUNT(c.id) = 1 THEN CONCAT(p.name, ' · ', MAX(c.name)) ELSE p.name END AS valor
+            FROM {$this->bd}plans p
+            LEFT JOIN {$this->bd}classification_plan cp  ON cp.plan_id = p.id
+            LEFT JOIN {$this->bd}plans_classification c ON c.id = cp.classification_id AND c.active = 1
+            WHERE p.is_active = 1
+            GROUP BY p.id, p.name, p.modules_mode, p.modules_pick
+            ORDER BY valor ASC
         ";
         $r = $this->_Read($query, null);
         return is_array($r) ? $r : [];
@@ -121,8 +136,8 @@ class mdl extends CRUD {
     function qPlan($array) {
         // [id]
         $query = "
-            SELECT id, code, name, price, price_before, currency, billing_cycle,
-                   max_users, max_branches, trial_days, is_active, features, modules_mode
+            SELECT id, code, name, description, price, price_before, currency, billing_cycle,
+                   max_users, max_branches, trial_days, is_active, features, modules_mode, modules_pick, featured
             FROM {$this->bd}plans
             WHERE id = ?
             LIMIT 1
@@ -132,23 +147,23 @@ class mdl extends CRUD {
     }
 
     function qInsertPlan($array) {
-        // [code, name, price, price_before, currency, billing_cycle, max_users, max_branches, trial_days, features, modules_mode]
+        // [code, name, price, price_before, currency, billing_cycle, max_users, max_branches, trial_days, features, modules_mode, modules_pick, description, featured]
         $query = "
             INSERT INTO {$this->bd}plans
                 (code, name, price, price_before, currency, billing_cycle, max_users, max_branches,
-                 trial_days, features, modules_mode, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+                 trial_days, features, modules_mode, modules_pick, description, featured, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
         ";
         return $this->_CUD($query, $array);
     }
 
     function qUpdatePlan($array) {
-        // [code, name, price, price_before, currency, billing_cycle, max_users, max_branches, trial_days, features, modules_mode, id]
+        // [code, name, price, price_before, currency, billing_cycle, max_users, max_branches, trial_days, features, modules_mode, modules_pick, description, featured, id]
         $query = "
             UPDATE {$this->bd}plans
             SET code = ?, name = ?, price = ?, price_before = ?, currency = ?, billing_cycle = ?,
                 max_users = ?, max_branches = ?, trial_days = ?, features = ?, modules_mode = ?,
-                update_at = NOW()
+                modules_pick = ?, description = ?, featured = ?, update_at = NOW()
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);
@@ -188,6 +203,99 @@ class mdl extends CRUD {
         // [is_active, id]
         $query = "UPDATE {$this->bd}plans SET is_active = ? WHERE id = ?";
         return $this->_CUD($query, $array);
+    }
+
+    function qPlanClassificationIds($array) {
+        // [plan_id]
+        $r = $this->_Read("SELECT classification_id FROM {$this->bd}classification_plan WHERE plan_id = ?", $array);
+        return is_array($r) ? array_map('intval', array_column($r, 'classification_id')) : [];
+    }
+
+    function qDeletePlanClassifications($array) {
+        // [plan_id]
+        return $this->_CUD("DELETE FROM {$this->bd}classification_plan WHERE plan_id = ?", $array);
+    }
+
+    function qInsertPlanClassification($array) {
+        // [classification_id, plan_id]
+        return $this->_CUD("INSERT INTO {$this->bd}classification_plan (classification_id, plan_id) VALUES (?, ?)", $array);
+    }
+
+    /* ===== Clasificaciones de planes (plans_classification) =====
+       La página donde se publica un plan. plans: cuántos planes tiene. */
+
+    function qClassifications($array) {
+        // [active]
+        $query = "
+            SELECT
+                c.id, c.name, c.code, c.description, c.active,
+                DATE_FORMAT(c.created_at, '%d/%m/%Y') AS created,
+                (
+                    SELECT COUNT(*)
+                    FROM {$this->bd}classification_plan cp
+                    WHERE cp.classification_id = c.id
+                ) AS plans
+            FROM {$this->bd}plans_classification c
+            WHERE c.active = ?
+            ORDER BY c.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Activas en formato {id, valor}: los selects y las secciones de Planes.
+    function qClassificationsForSelect() {
+        $query = "
+            SELECT id, name AS valor, code, description
+            FROM {$this->bd}plans_classification
+            WHERE active = 1
+            ORDER BY name ASC
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    function qClassification($array) {
+        // [id]
+        $query = "
+            SELECT id, name, code, description, active
+            FROM {$this->bd}plans_classification
+            WHERE id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    // ¿Otra clasificación ya usa ese código? id = 0 al dar de alta.
+    function qClassificationCodeExists($array) {
+        // [code, id]
+        $r = $this->_Read("SELECT id FROM {$this->bd}plans_classification WHERE code = ? AND id <> ? LIMIT 1", $array);
+        return is_array($r) && !empty($r);
+    }
+
+    function qInsertClassification($array) {
+        // [name, code, description]
+        $query = "
+            INSERT INTO {$this->bd}plans_classification (name, code, description, active)
+            VALUES (?, ?, ?, 1)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function qUpdateClassification($array) {
+        // [name, code, description, id]
+        $query = "
+            UPDATE {$this->bd}plans_classification
+            SET name = ?, code = ?, description = ?
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function qSetClassificationActive($array) {
+        // [active, id]
+        return $this->_CUD("UPDATE {$this->bd}plans_classification SET active = ? WHERE id = ?", $array);
     }
 
     /* ===== Suscripciones (subscriptions) ===== */
@@ -1421,11 +1529,13 @@ class mdl extends CRUD {
     }
 
     // Lo que deja cada módulo al mes en suscripciones Personalizado activas.
+    // Los planes de elegir (pick) también guardan sus módulos, pero cobran el precio del plan.
     function qCustomModuleRevenue() {
         $query = "
             SELECT sm.module_id, SUM(sm.price) AS total, COUNT(DISTINCT sm.subscription_id) AS subs
             FROM {$this->bd}subscription_module sm
             INNER JOIN {$this->bd}subscriptions s ON s.id = sm.subscription_id AND s.status = 'active'
+            INNER JOIN {$this->bd}plans p         ON p.id = s.plan_id AND p.modules_mode = 'custom'
             GROUP BY sm.module_id
         ";
         $r = $this->_Read($query, null);

@@ -1,5 +1,5 @@
 let api = 'ctrl/ctrl-facturacion.php';
-let app, companies, plans, billingModules, subscriptions, payments, coupons, redemptions, userForm;
+let app, companies, plans, classifications, billingModules, subscriptions, payments, coupons, redemptions, userForm;
 let dataInit = {};
 
 $(async () => {
@@ -10,6 +10,7 @@ $(async () => {
     userForm = new UserForm('ctrl/ctrl-accesos.php', 'root');
     companies = new Companies(api, 'root');
     plans = new Plans(api, 'root');
+    classifications = new PlanClassifications(api, 'root');
     billingModules = new BillingModules(api, 'root');
     subscriptions = new Subscriptions(api, 'root');
     payments = new Payments(api, 'root');
@@ -93,6 +94,13 @@ class App extends Templates {
                     lucideIcon: 'layers',
                     class: 'p-3 flex-1 min-h-0 flex flex-col',
                     onClick: () => { plans.render(); plans.lsPlans(); }
+                },
+                {
+                    id: 'clasificaciones',
+                    tab: 'Clasificaciones',
+                    lucideIcon: 'folder',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col',
+                    onClick: () => { classifications.render(); classifications.lsClassifications(); }
                 },
                 {
                     id: 'modulos',
@@ -1543,10 +1551,13 @@ function sellModuleLabel(m) {
     return m.price !== null && m.price !== '' ? `${m.valor} · ${money(m.price)}` : `${m.valor} · sin precio`;
 }
 
-class Plans extends Templates {
+// Planes agrupados por clasificación: la página donde se publica cada uno. Un
+// plan que sale en varias páginas aparece en cada sección.
+class Plans extends BillingPanel {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'Plans';
+        this.list = [];
     }
 
     render() {
@@ -1569,6 +1580,14 @@ class Plans extends Templates {
                     onchange: 'plans.lsPlans()'
                 },
                 {
+                    opc: 'select',
+                    id: 'classification',
+                    lbl: 'Clasificación',
+                    class: 'col-12 col-md-3',
+                    data: this.classificationFilter(),
+                    onchange: 'plans.renderPlanCards()'
+                },
+                {
                     opc: 'button',
                     class: 'col-12 col-md-2',
                     id: 'btnNewPlan',
@@ -1579,6 +1598,20 @@ class Plans extends Templates {
         });
     }
 
+    classificationFilter() {
+        return [
+            {
+                id: 'all',
+                valor: 'Todas'
+            },
+            ...(dataInit.classifications || []),
+            {
+                id: 'none',
+                valor: 'Sin clasificación'
+            }
+        ];
+    }
+
     async lsPlans() {
         const activeVal = $('#filterbar-plans #active').val() ?? 1;
         const response = await useFetch({
@@ -1586,24 +1619,85 @@ class Plans extends Templates {
             data: { opc: 'lsPlans', active: activeVal }
         });
 
-        const list = (response.status === 200 && response.ls) ? response.ls : [];
-        this.renderPlanCards(list);
+        this.list = (response.status === 200 && response.ls) ? response.ls : [];
+        this.renderPlanCards();
     }
 
-    renderPlanCards(plans) {
-        const $wrap = $('#cards-plans');
+    renderPlanCards() {
+        const $wrap  = $('#cards-plans');
+        const filter = String($('#filterbar-plans #classification').val() || 'all');
+        const groups = this.planGroups(this.list).filter(g => filter === 'all' || String(g.id) === filter);
 
-        if (!plans.length) {
-            $wrap.html(`
-                <div class="flex items-center justify-center py-16 text-gray-400">
-                    <p class="text-sm">Sin planes para mostrar.</p>
-                </div>
-            `);
+        if (!this.list.length || !groups.length) {
+            $wrap.empty().append($('<div>', { class: 'flex items-center justify-center py-16 text-gray-400' }).append(
+                $('<p>', { class: 'text-sm', text: this.list.length ? 'Sin planes en esta clasificación.' : 'Sin planes para mostrar.' })
+            ));
             return;
         }
 
-        const cards = plans.map(p => this.buildPlanCard(p)).join('');
-        $wrap.html(`<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-1">${cards}</div>`);
+        $wrap.empty().append(...groups.map(g => this.planSection(g)));
+        this.icons();
+    }
+
+    // Una sección por clasificación activa, aunque aún no tenga planes; los que
+    // no se publican en ninguna van al final en "Sin clasificación".
+    planGroups(plans) {
+        const known  = dataInit.classifications || [];
+        const ids    = known.map(c => Number(c.id));
+        const groups = known.map(c => Object.assign({}, c, {
+            plans: plans.filter(p => (p.classification_ids || []).includes(Number(c.id)))
+        }));
+
+        const loose = plans.filter(p => !(p.classification_ids || []).some(id => ids.includes(Number(id))));
+        if (loose.length) {
+            groups.push({
+                id: 'none',
+                valor: 'Sin clasificación',
+                code: '',
+                description: 'Todavía no se publican en ninguna página.',
+                plans: loose
+            });
+        }
+        return groups;
+    }
+
+    planSection(group) {
+        const count = group.plans.length;
+        const edit  = group.id === 'none'
+            ? null
+            : this.iconButton('pencil', 'Editar clasificación', () => classifications.editClassification(group.id, () => {
+                // El filtro de clasificaciones se vuelve a armar con los nombres nuevos.
+                const active = $('#filterbar-plans #active').val();
+                const filter = $('#filterbar-plans #classification').val();
+                this.render();
+                $('#filterbar-plans #active').val(active);
+                $('#filterbar-plans #classification').val(filter);
+                this.lsPlans();
+            }));
+
+        const head = $('<div>', { class: 'flex items-start gap-2 mb-2' }).append(
+            $('<div>', { class: 'min-w-0 flex-1' }).append(
+                $('<div>', { class: 'flex items-center gap-2 flex-wrap' }).append(
+                    $('<h3>', { class: 'text-base font-bold text-gray-900 mb-0', text: group.valor }),
+                    group.code ? this.chip(`Página: ${group.code}`, 'pri') : null,
+                    this.chip(`${count} ${count === 1 ? 'plan' : 'planes'}`)
+                ),
+                group.description ? $('<p>', { class: 'text-xs text-gray-500 mt-0.5 mb-0', text: group.description }) : null
+            ),
+            edit
+        );
+
+        const body = count
+            ? $('<div>', { class: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-1' }).html(group.plans.map(p => this.buildPlanCard(p)).join(''))
+            : $('<p>', { class: 'text-sm text-gray-400 py-6 text-center mb-0', text: 'Todavía no hay planes en esta página. Asígnalos desde Editar.' });
+
+        return $('<section>', { class: 'mb-6' }).append(head, body);
+    }
+
+    // Dónde se publica el plan, por nombre: "Huubie · Pedidos, CoffeeSoft".
+    classificationNames(p) {
+        const ids = (p.classification_ids || []).map(Number);
+        return (dataInit.classifications || []).filter(c => ids.includes(Number(c.id))).map(c => c.valor);
     }
 
     buildPlanCard(p) {
@@ -1641,6 +1735,15 @@ class Plans extends Templates {
             </li>
         `).join('');
 
+        const featured = parseInt(p.featured) === 1
+            ? ' <span class="ms-1 rounded-full bg-blue-600 px-1.5 py-px text-[9px] font-semibold normal-case tracking-normal text-white">Más elegido</span>'
+            : '';
+
+        const pages    = this.classificationNames(p);
+        const pageHtml = pages.length > 1
+            ? `<p class="text-[11px] text-gray-400 mb-0">Se publica en: ${esc(pages.join(', '))}</p>`
+            : '';
+
         const toggleChecked = isActive ? 'checked' : '';
         const toggleNext    = isActive ? 0 : 1;
         const cardBorder    = isActive ? 'border-blue-600' : 'border-gray-200 opacity-70';
@@ -1649,8 +1752,9 @@ class Plans extends Templates {
             <div class="bg-white rounded-lg border ${cardBorder} shadow-sm flex flex-col p-3.5 gap-3 transition-all hover:shadow-md">
                 <div class="flex items-start justify-between gap-1.5">
                     <div class="min-w-0">
-                        <p class="text-[9px] font-semibold text-blue-600 uppercase tracking-wide">${esc(p.code || '')}</p>
+                        <p class="text-[9px] font-semibold text-blue-600 uppercase tracking-wide">${esc(p.code || '')}${featured}</p>
                         <h3 class="text-sm font-bold text-gray-800 leading-tight truncate">${esc(p.name)}</h3>
+                        ${p.description ? `<p class="text-[11px] text-gray-500 leading-snug mb-0">${esc(p.description)}</p>` : ''}
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-0.5" title="${isActive ? 'Desactivar' : 'Activar'}">
                         <input type="checkbox" class="sr-only peer" ${toggleChecked}
@@ -1672,6 +1776,7 @@ class Plans extends Templates {
                 <div class="rounded-md bg-gray-50 px-2.5 py-2 flex flex-col gap-1">
                     <p class="text-[11px] font-semibold text-gray-700 mb-0">${esc(this.modulesText(p))}</p>
                     <p class="text-[11px] text-gray-500 mb-0">${limits.join(' · ')}</p>
+                    ${pageHtml}
                 </div>
 
                 <ul class="flex flex-col gap-1 flex-1 mb-0 ps-0">
@@ -1692,10 +1797,15 @@ class Plans extends Templates {
         `;
     }
 
-    // Qué módulos trae: los elegidos, todos o (Personalizado) el precio de cada uno.
+    // Qué módulos trae: los elegidos, los que escoja el cliente, todos o
+    // (Personalizado) el precio de cada uno.
     modulesText(p) {
         const sell = dataInit.sellModules || [];
         if (p.modules_mode === 'all') return 'Todos los módulos';
+        if (p.modules_mode === 'pick') {
+            const n = Number(p.modules_pick) || 0;
+            return `El cliente elige ${n} ${n === 1 ? 'módulo' : 'módulos'} de ${sell.length}: ${sell.map(m => m.valor).join(', ')}`;
+        }
         if (p.modules_mode === 'custom') {
             return sell.length ? 'Precio por módulo: ' + sell.map(sellModuleLabel).join(', ') : 'Precio por módulo';
         }
@@ -1732,9 +1842,15 @@ class Plans extends Templates {
             coffeesoft: true,
             bootbox: { title: 'Nuevo Plan' },
             json: this.jsonPlan(),
-            success: (r) => afterSave(r, () => this.lsPlans())
+            success: (r) => afterSave(r, () => this.afterPlanSave())
         });
-        this.wirePlanForm('formPlanAdd', []);
+        this.wirePlanForm('formPlanAdd', [], []);
+    }
+
+    // Suscripciones lee los planes (y cuántos módulos se eligen) de dataInit.
+    async afterPlanSave() {
+        await refreshInit();
+        this.lsPlans();
     }
 
     async editPlan(id) {
@@ -1759,9 +1875,9 @@ class Plans extends Templates {
             bootbox: { title: title },
             autofill: data,
             json: this.jsonPlan(),
-            success: (r) => afterSave(r, () => this.lsPlans())
+            success: (r) => afterSave(r, () => this.afterPlanSave())
         });
-        this.wirePlanForm('formPlanEdit', data.module_ids || []);
+        this.wirePlanForm('formPlanEdit', data.module_ids || [], data.classification_ids || []);
     }
 
     togglePlan(id, active) {
@@ -1773,7 +1889,7 @@ class Plans extends Templates {
                 icon: 'warning'
             },
             data: { opc: 'togglePlan', id: id, active: active },
-            methods: { send: (r) => afterSave(r, () => this.lsPlans()) }
+            methods: { send: (r) => afterSave(r, () => this.afterPlanSave()) }
         });
     }
 
@@ -1794,11 +1910,43 @@ class Plans extends Templates {
                 required: false
             },
             {
+                opc: 'input',
+                id: 'description',
+                lbl: 'Frase corta (la que sale debajo del nombre en la página)',
+                placeholder: 'Ej. Empieza con el módulo que más necesitas.',
+                class: 'col-12 col-md-8 mb-3',
+                required: false
+            },
+            {
+                opc: 'select',
+                id: 'featured',
+                lbl: 'Destacar',
+                class: 'col-12 col-md-4 mb-3',
+                data: dataInit.featuredOptions || []
+            },
+            // Hueco vacío: lo rellena wirePlanForm() con el select de clasificaciones.
+            {
+                opc: 'div',
+                id: 'planClassificationsWrap',
+                lbl: 'Clasificación (páginas donde se publica)',
+                class: 'col-12 mb-3',
+                required: false
+            },
+            {
                 opc: 'select',
                 id: 'modules_mode',
                 lbl: 'Módulos del plan',
-                class: 'col-12 mb-3',
+                class: 'col-12 col-md-8 mb-3',
                 data: dataInit.modulesModes || []
+            },
+            {
+                opc: 'input',
+                id: 'modules_pick',
+                lbl: 'Módulos a elegir',
+                type: 'number',
+                placeholder: 'Ej. 1',
+                class: 'col-12 col-md-4 mb-3',
+                required: false
             },
             // Hueco vacío: lo rellena wirePlanForm() con el select de módulos.
             {
@@ -1878,22 +2026,47 @@ class Plans extends Templates {
 
     // -- Complements --
 
-    /*  Los módulos del plan van en un select2 múltiple y viajan como JSON en el
-        hidden `module_ids` (el modal arma su envío con FormData y de un select
-        múltiple solo quedaría el último). Se muestran solo con "Los módulos que
-        elijas"; en Personalizado tampoco hay precio fijo: se cobra por módulo. */
-    wirePlanForm(formId, selected) {
+    /*  Módulos y clasificaciones van en select2 múltiples y viajan como JSON en
+        los hidden `module_ids` y `classification_ids` (el modal arma su envío con
+        FormData y de un select múltiple solo quedaría el último).
+        Los módulos se muestran solo con "Kit fijo"; "Módulos a elegir" solo con
+        "A elegir" (el cliente los escoge de todos al suscribirse); en
+        Personalizado no hay precio fijo: se cobra por módulo. */
+    wirePlanForm(formId, selectedModules, selectedClassifications) {
         const $form = $(`#${formId}`);
         const $wrap = $form.find('#planModulesWrap');
         if (!$wrap.length) return;
 
+        const sell = dataInit.sellModules || [];
+        this.multiSelect($wrap, `${formId}Modules`, 'module_ids', sell, selectedModules, 'Elige los módulos del plan');
+        this.multiSelect($form.find('#planClassificationsWrap'), `${formId}Classifications`, 'classification_ids',
+            dataInit.classifications || [], selectedClassifications, 'Sin clasificación: no se publica en ninguna página');
+
+        const $mode   = $form.find('[name="modules_mode"]');
+        const $pick   = $form.find('[name="modules_pick"]').attr({ min: 1, max: sell.length });
+        const $price  = $form.find('[name="price"]');
+        const $before = $form.find('[name="price_before"]');
+        const toggle  = () => {
+            const mode = $mode.val();
+            $wrap.closest('[class*="col-"]').toggle(mode === 'included');
+            $pick.prop('required', mode === 'pick').closest('[class*="col-"]').toggle(mode === 'pick');
+            $price.prop('required', mode !== 'custom').closest('[class*="col-"]').toggle(mode !== 'custom');
+            $before.closest('[class*="col-"]').toggle(mode !== 'custom');
+        };
+        $mode.on('change', toggle);
+        toggle();
+    }
+
+    multiSelect($wrap, id, name, options, selected, placeholder) {
+        if (!$wrap.length) return;
+
         const picked  = (selected || []).map(Number);
-        const $input  = $('<input>', { type: 'hidden', name: 'module_ids' });
-        const $select = $('<select>', { id: `${formId}Modules`, multiple: true, class: 'w-full' });
-        (dataInit.sellModules || []).forEach((m) => $select.append($('<option>', {
-            value: m.id,
-            text: m.valor,
-            selected: picked.includes(Number(m.id))
+        const $input  = $('<input>', { type: 'hidden', name: name });
+        const $select = $('<select>', { id: id, multiple: true, class: 'w-full' });
+        options.forEach((o) => $select.append($('<option>', {
+            value: o.id,
+            text: o.valor,
+            selected: picked.includes(Number(o.id))
         })));
         $wrap.empty().append($select, $input);
 
@@ -1902,23 +2075,149 @@ class Plans extends Templates {
         sync();
 
         if ($.fn.select2) {
-            const cfg = { theme: 'bootstrap-5', width: '100%', placeholder: 'Elige los módulos del plan', closeOnSelect: false };
+            const cfg = { theme: 'bootstrap-5', width: '100%', placeholder: placeholder, closeOnSelect: false };
             const $modal = $select.closest('.cf-modal, .modal, .bootbox');
             if ($modal.length) cfg.dropdownParent = $modal;
             $select.select2(cfg);
         }
+    }
+}
 
-        const $mode   = $form.find('[name="modules_mode"]');
-        const $price  = $form.find('[name="price"]');
-        const $before = $form.find('[name="price_before"]');
-        const toggle  = () => {
-            const mode = $mode.val();
-            $wrap.closest('[class*="col-"]').toggle(mode === 'included');
-            $price.prop('required', mode !== 'custom').closest('[class*="col-"]').toggle(mode !== 'custom');
-            $before.closest('[class*="col-"]').toggle(mode !== 'custom');
-        };
-        $mode.on('change', toggle);
-        toggle();
+// -- Clasificaciones --
+// La página donde se publica cada plan (Huubie · Pedidos, CoffeeSoft...). En
+// Planes cada clasificación es una sección; code es lo que pide cada página
+// para traer sus planes.
+
+class PlanClassifications extends Templates {
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'Classifications';
+    }
+
+    render() {
+        const container = $('#container-clasificaciones');
+        container.html(`
+            <div id="filterbar-classifications" class="mb-2"></div>
+            <div id="table-classifications"></div>
+        `);
+
+        this.createfilterBar({
+            parent: 'filterbar-classifications',
+            coffeesoft: true,
+            data: [
+                {
+                    opc: 'select',
+                    id: 'active',
+                    lbl: 'Estado',
+                    class: 'col-12 col-md-2',
+                    data: dataInit.statusFilter || [],
+                    onchange: 'classifications.lsClassifications()'
+                },
+                {
+                    opc: 'button',
+                    class: 'col-12 col-md-3',
+                    id: 'btnNewClassification',
+                    text: 'Nueva Clasificación',
+                    onClick: () => this.addClassification()
+                }
+            ]
+        });
+    }
+
+    lsClassifications() {
+        this.createTable({
+            parent: 'table-classifications',
+            idFilterBar: 'filterbar-classifications',
+            data: { opc: 'lsClassifications' },
+            coffeesoft: true,
+            conf: { datatable: true, pag: 10 },
+            attr: {
+                id: 'tbClassifications',
+                theme: 'light',
+                striped: true,
+                center: [4, 5]
+            }
+        });
+    }
+
+    addClassification(onSaved = () => this.lsClassifications()) {
+        this.createModalForm({
+            id: 'formClassificationAdd',
+            data: { opc: 'addClassification' },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: 'Nueva Clasificación' },
+            json: this.jsonClassification(),
+            success: (r) => afterSave(r, async () => { await refreshInit(); onSaved(); })
+        });
+    }
+
+    // onSaved: cómo se refresca quien lo abrió (esta tabla o las secciones de Planes).
+    async editClassification(id, onSaved = () => this.lsClassifications()) {
+        const request = await useFetch({ url: this._link, data: { opc: 'getClassification', id: id } });
+        if (request.status !== 200) {
+            alert({ icon: 'error', text: request.message || 'No se pudo cargar la clasificación', btn1: true });
+            return;
+        }
+
+        const data  = request.data;
+        const title = data.name
+            ? `Editar Clasificación · <span class="text-blue-600 font-bold">${esc(data.name)}</span>`
+            : 'Editar Clasificación';
+
+        this.createModalForm({
+            id: 'formClassificationEdit',
+            data: { opc: 'editClassification', id: id },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: title },
+            autofill: data,
+            json: this.jsonClassification(),
+            success: (r) => afterSave(r, async () => { await refreshInit(); onSaved(); })
+        });
+    }
+
+    statusClassification(id, active) {
+        this.swalQuestion({
+            opts: {
+                title: `¿${active == 1 ? 'Activar' : 'Desactivar'} clasificación?`,
+                text: active == 1
+                    ? 'Vuelve a aparecer en Planes con los planes que tenía.'
+                    : 'Deja de aparecer en Planes y en los formularios; sus planes la conservan.',
+                icon: 'warning'
+            },
+            data: { opc: 'statusClassification', id: id, active: active },
+            methods: { send: (r) => afterSave(r, async () => { await refreshInit(); this.lsClassifications(); }) }
+        });
+    }
+
+    jsonClassification() {
+        return [
+            {
+                opc: 'input',
+                id: 'name',
+                lbl: 'Nombre',
+                placeholder: 'Ej. Huubie · Pedidos',
+                class: 'col-12 col-md-7 mb-3',
+                required: true
+            },
+            {
+                opc: 'input',
+                id: 'code',
+                lbl: 'Código de la página',
+                placeholder: 'Vacío: sale del nombre',
+                class: 'col-12 col-md-5 mb-3',
+                required: false
+            },
+            {
+                opc: 'textarea',
+                id: 'description',
+                lbl: 'Descripción',
+                class: 'col-12 mb-3',
+                rows: 3,
+                required: false
+            }
+        ];
     }
 }
 
@@ -2272,7 +2571,7 @@ class Subscriptions extends Templates {
                 required: true,
                 data: dataInit.plans || []
             },
-            // Hueco vacío: wireModulesField() lo rellena si el plan es Personalizado.
+            // Hueco vacío: wireModulesField() lo rellena si el plan es Personalizado o a elegir.
             {
                 opc: 'div',
                 id: 'subModulesWrap',
@@ -2322,10 +2621,12 @@ class Subscriptions extends Templates {
 
     // -- Complements --
 
-    /*  Los módulos de un plan Personalizado: select2 múltiple con el precio de
-        cada uno y el total debajo. Viajan como JSON en el hidden `module_ids` (de
-        un select múltiple en FormData solo quedaría el último) y el campo solo se
-        ve si el plan elegido es Personalizado.
+    /*  Los módulos que contrata: select2 múltiple que se arma según el plan.
+        Personalizado: cada módulo con su precio y el total debajo.
+        A elegir (pick): todos los módulos que se venden, sin precio, y deja
+        marcar exactamente los que dice el plan (modules_pick).
+        Viajan como JSON en el hidden `module_ids` (de un select múltiple en
+        FormData solo quedaría el último); con otro plan el campo no se ve.
         contracted: al editar, [{id, price}] con el precio con el que ya se
         contrató cada módulo; ese se respeta aunque el módulo haya cambiado de precio. */
     wireModulesField(formId, contracted) {
@@ -2337,43 +2638,67 @@ class Subscriptions extends Templates {
         (contracted || []).forEach((m) => { kept[Number(m.id)] = Number(m.price); });
 
         const sell    = dataInit.sellModules || [];
-        const $input  = $('<input>', { type: 'hidden', name: 'module_ids' });
-        const $select = $('<select>', { id: `${formId}Modules`, multiple: true, class: 'w-full' });
-        const $total  = $('<p>', { class: 'text-xs text-gray-500 mt-1.5 mb-0' });
-        const priceOf = (m) => (Number(m.id) in kept ? kept[Number(m.id)] : m.price);
+        const $plan   = $form.find('[name="plan_id"]');
+        let picked    = Object.keys(kept).map(Number);
 
-        sell.forEach((m) => $select.append($('<option>', {
-            value: m.id,
-            text: sellModuleLabel(Object.assign({}, m, { price: priceOf(m) })),
-            selected: Number(m.id) in kept,
-            // Sin precio no se puede cobrar: se le pone en Accesos › Módulos.
-            disabled: (m.price === null || m.price === '') && !(Number(m.id) in kept)
-        })));
-        $wrap.empty().append($select, $input, $total);
+        // El precio contratado solo vale si ya era Personalizado: los de un plan a elegir van en 0.
+        const initial  = (dataInit.plans || []).find(p => String(p.id) === String($plan.val()));
+        const hasKept  = (m) => !!initial && initial.modules_mode === 'custom' && Number(m.id) in kept;
+        const priceOf  = (m) => (hasKept(m) ? kept[Number(m.id)] : m.price);
 
-        const sync = () => {
-            const ids = ($select.val() || []).map(Number);
-            const sum = sell.filter(m => ids.includes(Number(m.id))).reduce((s, m) => s + Number(priceOf(m) || 0), 0);
-            $input.val(JSON.stringify(ids));
-            $total.text(ids.length ? `Total: ${money(sum)} MXN / mes + IVA` : 'Elige al menos un módulo.');
-        };
-        $select.on('change', sync);
-        sync();
-
-        if ($.fn.select2) {
-            const cfg = { theme: 'bootstrap-5', width: '100%', placeholder: 'Elige los módulos', closeOnSelect: false };
-            const $modal = $select.closest('.cf-modal, .modal, .bootbox');
-            if ($modal.length) cfg.dropdownParent = $modal;
-            $select.select2(cfg);
-        }
-
-        const $plan  = $form.find('[name="plan_id"]');
-        const toggle = () => {
+        const build = () => {
             const plan = (dataInit.plans || []).find(p => String(p.id) === String($plan.val()));
-            $wrap.closest('[class*="col-"]').toggle(!!plan && plan.modules_mode === 'custom');
+            const mode = plan ? plan.modules_mode : '';
+            const pick = plan ? Number(plan.modules_pick) || 0 : 0;
+
+            $wrap.find('select').each(function () {
+                if ($(this).data('select2')) $(this).select2('destroy');
+            });
+            $wrap.empty().closest('[class*="col-"]').toggle(mode === 'custom' || mode === 'pick');
+            if (mode !== 'custom' && mode !== 'pick') return;
+
+            if (mode === 'pick') picked = picked.slice(0, pick);
+
+            const $input  = $('<input>', { type: 'hidden', name: 'module_ids' });
+            const $select = $('<select>', { id: `${formId}Modules`, multiple: true, class: 'w-full' });
+            const $total  = $('<p>', { class: 'text-xs text-gray-500 mt-1.5 mb-0' });
+
+            sell.forEach((m) => $select.append($('<option>', {
+                value: m.id,
+                text: mode === 'pick' ? m.valor : sellModuleLabel(Object.assign({}, m, { price: priceOf(m) })),
+                selected: picked.includes(Number(m.id)),
+                // Personalizado: sin precio no se puede cobrar; se le pone en Accesos › Módulos.
+                disabled: mode === 'custom' && (m.price === null || m.price === '') && !hasKept(m)
+            })));
+            $wrap.append($select, $input, $total);
+
+            const sync = () => {
+                const ids = ($select.val() || []).map(Number);
+                picked = ids;
+                $input.val(JSON.stringify(ids));
+
+                if (mode === 'pick') {
+                    $total.text(ids.length === pick
+                        ? `Listo: ${pick} de ${pick} ${pick === 1 ? 'módulo' : 'módulos'} elegidos.`
+                        : `El plan ${plan.valor} incluye ${pick} ${pick === 1 ? 'módulo' : 'módulos'} a elegir: llevas ${ids.length}.`);
+                    return;
+                }
+                const sum = sell.filter(m => ids.includes(Number(m.id))).reduce((s, m) => s + Number(priceOf(m) || 0), 0);
+                $total.text(ids.length ? `Total: ${money(sum)} MXN / mes + IVA` : 'Elige al menos un módulo.');
+            };
+            $select.on('change', sync);
+            sync();
+
+            if ($.fn.select2) {
+                const cfg = { theme: 'bootstrap-5', width: '100%', placeholder: 'Elige los módulos', closeOnSelect: false };
+                if (mode === 'pick') cfg.maximumSelectionLength = pick;
+                const $modal = $select.closest('.cf-modal, .modal, .bootbox');
+                if ($modal.length) cfg.dropdownParent = $modal;
+                $select.select2(cfg);
+            }
         };
-        $plan.on('change', toggle);
-        toggle();
+        $plan.on('change', build);
+        build();
     }
 }
 

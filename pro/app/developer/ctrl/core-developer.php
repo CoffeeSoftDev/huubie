@@ -20,7 +20,7 @@ class core extends mdl {
     protected $companyStatuses = ['pending', 'active', 'suspended', 'cancelled'];
     protected $subStatuses     = ['trial', 'active', 'past_due', 'cancelled', 'expired'];
     protected $billingCycles   = ['monthly', 'yearly', 'lifetime'];
-    protected $modulesModes    = ['included', 'all', 'custom'];
+    protected $modulesModes    = ['included', 'pick', 'all', 'custom'];
     protected $paymentStatuses = ['paid', 'pending', 'failed', 'refunded'];
     protected $discountTypes   = ['percent', 'fixed'];
 

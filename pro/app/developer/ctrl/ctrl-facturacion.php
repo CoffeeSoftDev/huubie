@@ -62,12 +62,19 @@ class ctrl extends core {
                 ['id' => 'fixed',   'valor' => 'Monto fijo']
             ],
             'modulesModes'              => [
-                ['id' => 'included', 'valor' => 'Los módulos que elijas abajo'],
+                ['id' => 'included', 'valor' => 'Kit fijo: los módulos que elijas abajo'],
+                ['id' => 'pick',     'valor' => 'A elegir: el cliente escoge de la lista'],
                 ['id' => 'all',      'valor' => 'Todos los módulos'],
-                ['id' => 'custom',   'valor' => 'Personalizado: la empresa elige y paga por módulo']
+                ['id' => 'custom',   'valor' => 'Personalizado: elige y paga por módulo']
+            ],
+            'featuredOptions'           => [
+                ['id' => '0', 'valor' => 'No'],
+                ['id' => '1', 'valor' => 'Sí: «Más elegido» en su página']
             ],
             // Los que se venden, con su precio mensual (plan Personalizado).
             'sellModules'               => $this->qSellableModules(),
+            // Las páginas donde se publican los planes (Planes las usa como secciones).
+            'classifications'           => $this->qClassificationsForSelect(),
             'companies'                 => $this->qCompaniesForSelect(),
             'plans'                     => $this->qPlansForSelect(),
             'subscriptions'             => $this->qSubscriptionsForSelect()
@@ -292,10 +299,12 @@ class ctrl extends core {
             ];
         }
 
-        // Las tarjetas leen ls: lo que incluye como lista y los módulos como ids.
+        // Las tarjetas leen ls: lo que incluye como lista; módulos y clasificaciones como ids.
         $ls = array_map(function ($p) {
-            $p['features']   = $this->planFeatures($p['features']);
-            $p['module_ids'] = $p['module_ids'] ? array_map('intval', explode(',', $p['module_ids'])) : [];
+            $p['features']           = $this->planFeatures($p['features']);
+            $p['module_ids']         = $this->idList($p['module_ids']);
+            $p['classification_ids'] = $this->idList($p['classification_ids']);
+            $p['modules_pick']       = $p['modules_pick'] !== null ? (int) $p['modules_pick'] : null;
             return $p;
         }, $ls);
 
@@ -306,8 +315,10 @@ class ctrl extends core {
         $data = $this->qPlan([(int) $_POST['id']]);
         if ($data) {
             // El textarea lleva lo que incluye un renglón por punto.
-            $data['features']   = implode("\n", $this->planFeatures($data['features']));
-            $data['module_ids'] = $this->qPlanModuleIds([(int) $data['id']]);
+            $data['features']           = implode("\n", $this->planFeatures($data['features']));
+            $data['featured']           = (string) (int) $data['featured'];
+            $data['module_ids']         = $this->qPlanModuleIds([(int) $data['id']]);
+            $data['classification_ids'] = $this->qPlanClassificationIds([(int) $data['id']]);
         }
         return [
             'status'  => $data ? 200 : 404,
@@ -326,6 +337,7 @@ class ctrl extends core {
             $id = $this->qLastInsertId();
             if (!$id) throw new \Exception('No se pudo obtener el id del plan creado');
             $this->syncPlanModules($id, $input['modules']);
+            $this->syncPlanClassifications($id, $input['classifications']);
 
             return ['status' => 200, 'message' => 'Plan creado correctamente'];
         }, 'No se pudo crear el plan');
@@ -339,9 +351,16 @@ class ctrl extends core {
         $input = $this->planInput();
         if (isset($input['error'])) return ['status' => 400, 'message' => $input['error']];
 
+        // El formulario solo ofrece las clasificaciones activas: las apagadas que
+        // ya tenía se conservan para cuando se vuelvan a encender.
+        $inactive = array_map('intval', array_column($this->qClassifications([0]), 'id'));
+        $kept     = array_intersect($this->qPlanClassificationIds([$id]), $inactive);
+        $input['classifications'] = array_values(array_unique(array_merge($input['classifications'], $kept)));
+
         return $this->saveInTransaction(function () use ($id, $input) {
             if (!$this->qUpdatePlan(array_merge($input['values'], [$id]))) throw new \Exception('update');
             $this->syncPlanModules($id, $input['modules']);
+            $this->syncPlanClassifications($id, $input['classifications']);
 
             return ['status' => 200, 'message' => 'Plan actualizado correctamente'];
         }, 'No se pudo actualizar el plan');
@@ -349,8 +368,10 @@ class ctrl extends core {
 
     /*  Lo que llega del formulario del plan, ya validado.
         modules_mode: 'included' trae los módulos elegidos (module_ids, al menos
-        uno), 'all' todos los que se venden y 'custom' los que elija cada empresa;
-        este último no tiene precio fijo: se cobra la suma de sus módulos. */
+        uno), 'pick' deja que el cliente escoja modules_pick de todos los que se
+        venden, 'all' los trae todos y 'custom' los que elija cada empresa; este
+        último no tiene precio fijo: se cobra la suma de sus módulos.
+        classification_ids: las páginas donde se publica; puede no tener ninguna. */
     private function planInput() {
         $name = trim($_POST['name'] ?? '');
         if ($name === '') return ['error' => 'El nombre del plan es obligatorio'];
@@ -361,11 +382,25 @@ class ctrl extends core {
         $modules = $mode === 'included' ? $this->sellableIds($this->postedIds('module_ids')) : [];
         if ($mode === 'included' && !$modules) return ['error' => 'Elige al menos un módulo del plan'];
 
+        $pick = null;
+        if ($mode === 'pick') {
+            $pick      = (int) ($_POST['modules_pick'] ?? 0);
+            $available = count($this->qSellableModules());
+            if ($pick < 1) return ['error' => 'Indica cuántos módulos elige el cliente'];
+            if ($pick > $available) return ['error' => "Solo hay {$available} módulos a la venta: el cliente no puede elegir {$pick}"];
+        }
+
+        $classifications = array_values(array_intersect(
+            $this->postedIds('classification_ids'),
+            array_map('intval', array_column($this->qClassificationsForSelect(), 'id'))
+        ));
+
         $features = array_values(array_filter(array_map('trim', preg_split('/\R/', (string) ($_POST['features'] ?? '')))));
 
         return [
-            'modules' => $modules,
-            'values'  => [
+            'modules'         => $modules,
+            'classifications' => $classifications,
+            'values'          => [
                 trim($_POST['code'] ?? '') ?: null,
                 $name,
                 $mode === 'custom' ? null : round((float) ($_POST['price'] ?? 0), 2),
@@ -376,17 +411,32 @@ class ctrl extends core {
                 $this->intOrNull($_POST['max_branches'] ?? ''),
                 $this->intOrNull($_POST['trial_days'] ?? ''),
                 $features ? json_encode($features, JSON_UNESCAPED_UNICODE) : null,
-                $mode
+                $mode,
+                $pick,
+                trim($_POST['description'] ?? '') ?: null,
+                (int) ($_POST['featured'] ?? 0) === 1 ? 1 : 0
             ]
         ];
     }
 
-    // plan_module queda con exactamente esos módulos (vacío en 'all' y 'custom').
+    // plan_module queda con exactamente esos módulos (vacío en 'pick', 'all' y 'custom').
     private function syncPlanModules($planId, $moduleIds) {
         $this->qDeletePlanModules([$planId]);
         foreach ($moduleIds as $moduleId) {
             if (!$this->qInsertPlanModule([$planId, $moduleId])) throw new \Exception('plan_module');
         }
+    }
+
+    private function syncPlanClassifications($planId, $classificationIds) {
+        $this->qDeletePlanClassifications([$planId]);
+        foreach ($classificationIds as $classificationId) {
+            if (!$this->qInsertPlanClassification([$classificationId, $planId])) throw new \Exception('classification_plan');
+        }
+    }
+
+    // "1,3" (GROUP_CONCAT) -> [1, 3]
+    private function idList($csv) {
+        return $csv ? array_map('intval', explode(',', $csv)) : [];
     }
 
     // plans.features es un JSON con la lista de lo que incluye el plan.
@@ -425,6 +475,117 @@ class ctrl extends core {
         ];
     }
 
+    /* ===== Clasificaciones de planes (plans_classification) =====
+       La página donde se publica un plan: Huubie · Pedidos, CoffeeSoft... */
+
+    function lsClassifications() {
+        $active = (int) $_POST['active'] === 0 ? 0 : 1;
+        $ls     = $this->qClassifications([$active]);
+
+        $row = [];
+        foreach ($ls as $c) {
+            $on = (int) $c['active'] === 1;
+            $a  = [];
+            $a[] = [
+                'class'   => $this->actionBtnClass('neutral'),
+                'html'    => '<i class="icon-pencil"></i>',
+                'onclick' => 'classifications.editClassification(' . $c['id'] . ')'
+            ];
+            $a[] = [
+                'class'   => $this->actionBtnClass($on ? 'danger' : 'neutral', true),
+                'html'    => '<i class="icon-toggle-' . ($on ? 'on' : 'off') . '"></i>',
+                'onclick' => 'classifications.statusClassification(' . $c['id'] . ', ' . ($on ? 0 : 1) . ')'
+            ];
+
+            $row[] = [
+                'id'            => $c['id'],
+                'Clasificación' => htmlspecialchars($c['name']),
+                'Código'        => $c['code'] ? htmlspecialchars($c['code']) : '-',
+                'Descripción'   => $c['description'] ? htmlspecialchars($c['description']) : '-',
+                'Planes'        => (int) $c['plans'],
+                'Estado'        => renderActive($c['active']),
+                'a'             => $a
+            ];
+        }
+
+        return ['status' => 200, 'row' => $row, 'ls' => $ls];
+    }
+
+    function getClassification() {
+        $data = $this->qClassification([(int) $_POST['id']]);
+        return [
+            'status'  => $data ? 200 : 404,
+            'message' => $data ? 'OK' : 'Clasificación no encontrada',
+            'data'    => $data
+        ];
+    }
+
+    function addClassification() {
+        $input = $this->classificationInput(0);
+        if (isset($input['error'])) return ['status' => 400, 'message' => $input['error']];
+
+        $ok = $this->qInsertClassification($input['values']);
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Clasificación creada correctamente' : 'No se pudo crear la clasificación'
+        ];
+    }
+
+    function editClassification() {
+        $id = (int) $_POST['id'];
+        if (!$this->qClassification([$id])) {
+            return ['status' => 404, 'message' => 'Clasificación no encontrada'];
+        }
+        $input = $this->classificationInput($id);
+        if (isset($input['error'])) return ['status' => 400, 'message' => $input['error']];
+
+        $ok = $this->qUpdateClassification(array_merge($input['values'], [$id]));
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Clasificación actualizada correctamente' : 'No se pudo actualizar la clasificación'
+        ];
+    }
+
+    // Apagarla la quita de Planes y de los formularios; sus planes la conservan.
+    function statusClassification() {
+        $id     = (int) $_POST['id'];
+        $active = (int) $_POST['active'] === 1 ? 1 : 0;
+        if (!$this->qClassification([$id])) {
+            return ['status' => 404, 'message' => 'Clasificación no encontrada'];
+        }
+
+        $ok = $this->qSetClassificationActive([$active, $id]);
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? ($active ? 'Clasificación activada' : 'Clasificación desactivada') : 'No se pudo actualizar el estado'
+        ];
+    }
+
+    /*  code es lo que pide cada página para traer sus planes ('huubie-pedidos'):
+        minúsculas, sin acentos ni espacios. Vacío, sale del nombre. */
+    private function classificationInput($id) {
+        $name = trim($_POST['name']);
+        if ($name === '') return ['error' => 'El nombre de la clasificación es obligatorio'];
+
+        $code = $this->slug(trim($_POST['code']) !== '' ? $_POST['code'] : $name);
+        if ($code === '') return ['error' => 'El código debe tener al menos una letra o número'];
+        if ($this->qClassificationCodeExists([$code, $id])) {
+            return ['error' => "El código «{$code}» ya lo usa otra clasificación"];
+        }
+
+        $description = trim($_POST['description']);
+        return ['values' => [$name, $code, $description !== '' ? $description : null]];
+    }
+
+    // "Huubie · Pedidos" -> "huubie-pedidos"
+    private function slug($text) {
+        $text = strtr(trim((string) $text), [
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
+            'Á' => 'a', 'É' => 'e', 'Í' => 'i', 'Ó' => 'o', 'Ú' => 'u', 'Ü' => 'u', 'Ñ' => 'n'
+        ]);
+        return trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($text)), '-');
+    }
+
     /* ===== Suscripciones (subscriptions) ===== */
 
     function lsSubscriptions() {
@@ -445,10 +606,11 @@ class ctrl extends core {
                 'onclick' => "subscriptions.changeStatus(" . $s['id'] . ", '" . $s['status'] . "')"
             ];
 
-            // Personalizado: sus módulos debajo del plan y el precio es su suma.
+            // Personalizado y a elegir: sus módulos debajo del plan. En el
+            // Personalizado el precio es su suma; en el de elegir, el del plan.
             $custom = $s['modules_mode'] === 'custom';
             $plan   = htmlspecialchars($s['plan_name'] ?? '—');
-            if ($custom) {
+            if ($custom || $s['modules_mode'] === 'pick') {
                 $plan .= '<p class="text-[11px] text-gray-400 mb-0">' . htmlspecialchars($s['module_names'] ?: 'Sin módulos elegidos') . '</p>';
             }
             $price = $custom ? $s['modules_price'] : $s['plan_price'];
@@ -538,7 +700,8 @@ class ctrl extends core {
         if ($companyId <= 0 || $planId <= 0) {
             return ['status' => 400, 'message' => 'Empresa y plan son obligatorios'];
         }
-        if (!$this->qSubscription([$id])) {
+        $current = $this->qSubscription([$id]);
+        if (!$current) {
             return ['status' => 404, 'message' => 'Suscripción no encontrada'];
         }
         $plan = $this->qPlan([$planId]);
@@ -546,9 +709,13 @@ class ctrl extends core {
             return ['status' => 400, 'message' => 'El plan seleccionado no es válido'];
         }
 
-        // Los módulos que ya tenía conservan el precio con el que se contrataron.
+        // Los módulos que ya tenía conservan el precio con el que se contrataron,
+        // solo si venía de un Personalizado: los de un plan a elegir van en 0.
         $kept = [];
-        foreach ($this->qSubscriptionModules([$id]) as $m) $kept[(int) $m['module_id']] = (float) $m['price'];
+        $was  = $this->qPlan([(int) $current['plan_id']]);
+        if ($was && $was['modules_mode'] === 'custom') {
+            foreach ($this->qSubscriptionModules([$id]) as $m) $kept[(int) $m['module_id']] = (float) $m['price'];
+        }
 
         $modules = $this->subscriptionModulesInput($plan, $kept);
         if (isset($modules['error'])) return ['status' => 400, 'message' => $modules['error']];
@@ -573,9 +740,12 @@ class ctrl extends core {
 
     /*  Los módulos de una suscripción a un plan Personalizado (module_ids), con
         el precio que se le cobra por cada uno: el que ya tenía contratado o, si es
-        nuevo, el precio actual del módulo. Otro tipo de plan no guarda módulos.
+        nuevo, el precio actual del módulo. En un plan a elegir (pick) son
+        exactamente modules_pick de los que se venden y van en 0: se cobra el
+        precio del plan. Otro tipo de plan no guarda módulos.
         prices: [module_id => precio]. */
     private function subscriptionModulesInput($plan, $kept = []) {
+        if ($plan['modules_mode'] === 'pick') return $this->pickedModulesInput($plan);
         if ($plan['modules_mode'] !== 'custom') return ['prices' => []];
 
         $catalog = [];
@@ -596,6 +766,17 @@ class ctrl extends core {
 
         if (!$prices) return ['error' => 'El plan ' . $plan['name'] . ' se arma por módulos: elige al menos uno'];
         return ['prices' => $prices];
+    }
+
+    private function pickedModulesInput($plan) {
+        $pick   = (int) $plan['modules_pick'];
+        $picked = $this->sellableIds($this->postedIds('module_ids'));
+
+        if ($pick < 1) return ['error' => 'El plan ' . $plan['name'] . ' no dice cuántos módulos se eligen. Corrígelo en Planes.'];
+        if (count($picked) !== $pick) {
+            return ['error' => 'El plan ' . $plan['name'] . ' incluye ' . $pick . ' ' . ($pick === 1 ? 'módulo' : 'módulos') . ' a elegir: marca exactamente ' . $pick];
+        }
+        return ['prices' => array_fill_keys($picked, 0.0)];
     }
 
     private function syncSubscriptionModules($subscriptionId, $prices) {
@@ -1063,14 +1244,17 @@ class ctrl extends core {
                 return $names[(int) $u['company_id']] ?? ('#' . $u['company_id']);
             }, $used[$id] ?? []);
 
-            // Los planes activos que lo traen; el Personalizado, si tiene precio para elegirlo.
+            // Los planes activos que lo traen; el Personalizado, si tiene precio para
+            // elegirlo; los de elegir, si está encendido para que se pueda escoger.
             $inPlans = [];
             foreach ($plans as $p) {
-                $ids = $p['module_ids'] ? array_map('intval', explode(',', $p['module_ids'])) : [];
+                $ids = $this->idList($p['module_ids']);
                 if ($p['modules_mode'] === 'all'
                     || ($p['modules_mode'] === 'included' && in_array($id, $ids, true))
                     || ($p['modules_mode'] === 'custom' && $m['price'] !== null)) {
                     $inPlans[] = $p['name'];
+                } elseif ($p['modules_mode'] === 'pick' && (int) $m['is_active'] === 1) {
+                    $inPlans[] = $p['name'] . ' (a elegir)';
                 }
             }
 
@@ -1126,10 +1310,12 @@ class ctrl extends core {
     /*  Los módulos que paga una suscripción, según el modo de su plan:
         included  los del plan (plan_module)
         all       todos los que se venden (encendidos y sin Developer)
-        custom    los que eligió la empresa (subscription_module) */
+        custom    los que eligió la empresa (subscription_module)
+        pick      los que escogió de todos, igual que el Personalizado */
     private function paidModules($sub, $sources) {
         switch ($sub['modules_mode'] ?? 'included') {
             case 'all':    return $sources['sellable'];
+            case 'pick':
             case 'custom': return array_map('intval', array_column($sources['bySubscription'][$sub['id']] ?? [], 'module_id'));
             default:       return array_map('intval', array_column($sources['byPlan'][$sub['plan_id']] ?? [], 'module_id'));
         }
