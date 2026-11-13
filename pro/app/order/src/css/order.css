@@ -1,0 +1,273 @@
+/*  Pedidos (pro/app/order). Tema Claro de pro: tarjetas blancas, acento de la
+    marca (terracota) via rgb(var(--brand-*)). Las clases del encabezado
+    (.cp-pagina-titulo y .cp-pagina-subtitulo) las inyecta cs-tabs.js en
+    Catalogo; aqui no se carga cs-tabs, asi que van copiadas abajo. */
+
+/* -- Pagina --
+   general.css pinta #main__content > div como tarjeta aliceblue y dark-mode.css
+   como tarjeta oscura con !important. Aqui la tarjeta es la de la tabla, asi
+   que la de fuera se quita. */
+main > #main__content.cp-pagina-pro {
+    padding: 24px 24px 20px;
+}
+
+main > #main__content.cp-pagina-pro > div {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+body.dark-mode #main__content.cp-pagina-pro > div {
+    background-color: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+}
+
+@media (max-width: 640px) {
+    main > #main__content.cp-pagina-pro {
+        padding: 16px;
+    }
+}
+
+/* body es flex en fila y main, su hijo, no baja del ancho de su contenido: la
+   tabla (12 columnas sin salto) empujaba la pagina mas alla de la ventana en
+   pantallas de ~1024 px. Con esto main cede y la tabla se desplaza dentro de
+   .ord-dt-scroll. */
+main {
+    min-width: 0;
+}
+
+/* -- Encabezado -- */
+.cp-migas {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 16px;
+}
+
+.cp-migas-raiz {
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+    color: #94A3B8;
+}
+
+.cp-migas-sep {
+    color: #CBD5E1;
+}
+
+.cp-migas-actual {
+    font-weight: 700;
+    color: rgb(var(--brand-700, 168 74 51));
+}
+
+.cp-pagina-titulo {
+    font-family: Poppins, Inter, sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+    margin: 0;
+    color: rgb(var(--primary-rgb, 41 37 36));
+}
+
+.cp-pagina-subtitulo {
+    font-size: 13px;
+    color: #64748B;
+    margin: 5px 0 0;
+}
+
+/* -- Tarjeta -- */
+.ord-card {
+    background: #fff;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 20px;
+}
+
+/* -- Filtros --
+   La barra es createfilterBar de CoffeeSoft: los campos traen su propio estilo.
+   .ord-period solo marca los filtros que la busqueda ignora (se atenuan). */
+
+/* -- Tabla -- */
+#tbOrders thead th {
+    text-transform: none;
+    white-space: nowrap;
+}
+
+#tbOrders td {
+    vertical-align: middle;
+}
+
+button.ord-folio {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    padding: 0;
+    font-weight: 700;
+    color: #1F2937;
+    white-space: nowrap;
+}
+
+button.ord-folio:hover {
+    color: rgb(var(--brand-700, 168 74 51));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* Del turno abierto. */
+.ord-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #10B981;
+    flex-shrink: 0;
+}
+
+.ord-cliente {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ord-sub {
+    font-size: 11.5px;
+    color: #94A3B8;
+}
+
+.ord-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Cancelado: atenuado, menos el menu de la fila. */
+tr.ord-row-cancel td:not(:last-child) {
+    opacity: .55;
+}
+
+/* Pie de DataTables: el texto y la paginacion en la misma linea. */
+#containerOrders .ord-dt-scroll {
+    overflow-x: auto;
+}
+
+#containerOrders .ord-dt-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#containerOrders .dataTables_paginate .pagination {
+    margin: 0;
+}
+
+#containerOrders .dataTables_info {
+    font-size: 12.5px;
+    color: #64748B;
+    padding-top: 12px !important;
+}
+
+#containerOrders .dataTables_paginate {
+    padding-top: 8px;
+}
+
+/* -- Aviso de "sin secciones" (index.php) -- */
+.ord-aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    max-width: 560px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    color: #64748B;
+}
+
+.ord-aviso-titulo {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1F2937;
+}
+
+.ord-aviso-texto {
+    margin: 4px 0 0;
+    font-size: 13px;
+}
+
+/* -- Alertas en pagina clara --
+   alert() de complementos.js viste el popup para pagina oscura (text-white).
+   Bootstrap trae .text-white con !important y SweetAlert deja su fondo blanco:
+   el titulo y el texto salian blancos sobre blanco. En pagina oscura ya lo
+   resuelve dark-mode.css. */
+body:not(.dark-mode) .swal2-popup {
+    background-color: #fff !important;
+    color: #1F2937 !important;
+}
+
+body:not(.dark-mode) .swal2-title {
+    color: #1F2937 !important;
+}
+
+body:not(.dark-mode) .swal2-html-container {
+    color: #64748B !important;
+}
+
+body:not(.dark-mode) .swal2-confirm {
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+}
+
+body:not(.dark-mode) .swal2-confirm:focus {
+    box-shadow: 0 0 0 3px rgb(var(--brand-600, 192 90 64) / .3) !important;
+}
+
+/* -- Detalle: galeria y vista previa -- */
+.ord-thumbs {
+    scrollbar-width: none;
+}
+
+.ord-thumbs::-webkit-scrollbar {
+    display: none;
+}
+
+/* -- Pagina oscura -- */
+body.dark-mode .cp-migas-raiz { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .cp-migas-sep { color: var(--dk-line, #374151); }
+body.dark-mode .cp-pagina-titulo { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .cp-pagina-subtitulo { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-card,
+body.dark-mode .ord-aviso { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
+body.dark-mode button.ord-folio { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-aviso-titulo { color: var(--dk-text, #F3F4F6); }
+
+/* -- Detalle oscuro --
+   Escala del showOrder de alpha: modal #1F2A37 y dentro tarjetas #29374A sin
+   borde. Sin esto las tarjetas (bg-gray-50) caian al negro de la pagina y los
+   articulos (bg-[#fff]) se quedaban blancos. Las cajas DENTRO de una tarjeta
+   (nota, grupos de personalizacion) bajan un nivel, al tono del modal. */
+body.dark-mode #modalOrderDetails .ord-panel {
+    background-color: var(--dk-panel, #29374A) !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode #modalOrderDetails .ord-panel-empty {
+    background-color: var(--dk-row, #283341) !important;
+    border-color: transparent !important;
+}
+
+body.dark-mode #modalOrderDetails .ord-well {
+    background-color: var(--dk-card, #1F2A37) !important;
+    border-color: transparent !important;
+}
