@@ -14,6 +14,7 @@ require_once __DIR__ . '/../mdl/mdl-catalogo.php';
 class core extends mdl {
 
     private $scopeCache = null;
+    private $mainCache  = null;
 
     // -- Empresa y sucursal --
 
@@ -54,6 +55,26 @@ class core extends mdl {
 
     protected function branchId() {
         return $this->scope()['branch_id'];
+    }
+
+    /*  Matriz = la primera sucursal activa de la empresa (decision F, 13/11/2026).
+        Es convencion, la base no la marca. Igual que mainBranchId() de Pedidos:
+        sus productos los venden todas las sucursales que no tengan uno propio
+        con el mismo nombre. */
+    protected function mainBranch() {
+        if ($this->mainCache === null) {
+            $this->mainCache = $this->companyId() > 0 ? ($this->qFirstBranch($this->companyId()) ?: []) : [];
+        }
+
+        return $this->mainCache;
+    }
+
+    protected function mainBranchId() {
+        return isset($this->mainBranch()['id']) ? (int) $this->mainBranch()['id'] : 0;
+    }
+
+    protected function isMainBranch() {
+        return $this->branchId() > 0 && $this->branchId() === $this->mainBranchId();
     }
 
     // Llevan 'row' para que una tabla pinte vacio en vez de quedarse cargando.

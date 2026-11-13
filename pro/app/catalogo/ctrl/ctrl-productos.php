@@ -4,15 +4,27 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-catalogo.php';
 
-// Pestaña Productos: productos y servicios de la sucursal. Los paquetes tienen su propia pestaña.
+/*  Pestaña Productos: productos y servicios de la sucursal. Los paquetes tienen su propia pestaña.
+
+    Compartido / Propio (decision F, 13/11/2026): lo de la Matriz lo venden todas
+    las sucursales. Una sucursal lo «hace propio» copiandolo; mientras su copia
+    este activa vende la suya. Desactivarla = volver al de la Matriz. */
 class ctrl extends core {
 
-    // Opciones del filtro: categorías activas de la sucursal.
+    // Opciones del filtro. Fuera de la Matriz las categorías también incluyen las de ella.
     public function init() {
         $fail = $this->needBranch();
-        if ($fail) return array_merge($fail, ['categories' => []]);
+        if ($fail) return array_merge($fail, ['categories' => [], 'origins' => [], 'isMain' => true, 'main' => '']);
 
-        return ['status' => 200, 'categories' => $this->qCategoryOptions($this->branchId())];
+        $main = $this->mainBranch();
+
+        return [
+            'status'     => 200,
+            'categories' => $this->qFilterCategories($this->branchId(), $this->mainBranchId()),
+            'origins'    => $this->originOptions(),
+            'isMain'     => $this->isMainBranch(),
+            'main'       => isset($main['name']) ? $main['name'] : ''
+        ];
     }
 
     // Opciones del modal. keep_* conserva la categoría y la subcategoría actuales aunque estén inactivas.
@@ -30,32 +42,92 @@ class ctrl extends core {
         ];
     }
 
+    /*  En la Matriz: lo suyo. En otra sucursal: lo suyo y lo que hereda de la Matriz;
+        lo heredado solo sale con «Activos» (uno inactivo de la Matriz no se le ofrece).
+        origin: '' todos, 'own' propios, 'main' de la Matriz. */
     public function lsProducts() {
         $fail = $this->needBranch();
         if ($fail) return $fail;
 
-        $company  = $this->companyId();
-        $branch   = $this->branchId();
-        $category = $this->selectOrNull('category_id');
-        $row      = [];
+        $company    = $this->companyId();
+        $branch     = $this->branchId();
+        $main       = $this->mainBranchId();
+        $isMain     = $this->isMainBranch();
+        $active     = $this->activeFilter();
+        $origin     = $isMain ? '' : $this->post('origin');
+        $count      = $this->qCountProducts($company, $branch, $main);
+        $categoryId = $this->selectOrNull('category_id');
+        $category   = $categoryId === null ? null : $this->qCategoryName($categoryId, $branch, $main);
+        $items      = [];
 
-        foreach ($this->qListProducts($company, $branch, $this->activeFilter(), $category) as $item) {
-            $id = (int) $item['id'];
+        if ($categoryId !== null && $category === null) return ['status' => 200, 'row' => [], 'count' => $count];
 
-            $row[] = [
-                'id'        => $id,
-                'Producto'  => cellTitle($item['name'], $item['sku']),
-                'Categoría' => $this->categoryCell($item),
-                'Tipo'      => $item['kind'] === 'service' ? chip('Servicio', 'sky') : chip('Producto', 'slate'),
-                'Precio'    => money($item['price']),
-                'Costo'     => money($item['cost']),
-                'Canales'   => $this->channelsCell($item),
-                'Estado'    => renderActive($item['active']),
-                'a'         => $this->rowActions('products', $id, $item['active'])
-            ];
+        if ($origin !== 'main') {
+            foreach ($this->qListProducts($company, $branch, $active, $category, $main) as $item) {
+                $items[] = $item + ['from_main' => 0];
+            }
         }
 
-        return ['status' => 200, 'row' => $row, 'count' => $this->qCountProducts($company, $branch)];
+        if (!$isMain && $origin !== 'own' && $active === 1) {
+            foreach ($this->qListMainProducts($company, $branch, $main, $category) as $item) {
+                $items[] = $item + ['from_main' => 1, 'twin_main' => 0, 'own_elsewhere' => 0];
+            }
+        }
+
+        usort($items, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        $row = array_map(fn ($item) => $this->productRow($item, $isMain), $items);
+
+        return ['status' => 200, 'row' => $row, 'count' => $count];
+    }
+
+    /*  «Hacer propio»: copia a esta sucursal uno de la Matriz. Desde ahí la sucursal
+        vende su copia y la cambia sin tocar la Matriz. La categoría y la subcategoría
+        se buscan por nombre en la sucursal y, si no existen, se crean (Pedidos las
+        agrupa por nombre). Se guarda todo o nada. */
+    public function copyProduct() {
+        $fail = $this->needBranch();
+        if ($fail) return $fail;
+
+        if ($this->isMainBranch()) return $this->fail(409, 'Estás en la Matriz: sus productos ya son suyos.');
+
+        $source = $this->qGetMainProduct($this->postId(), $this->companyId(), $this->mainBranchId());
+
+        if (!$source) return $this->fail(404, 'El producto ya no está activo en la Matriz.');
+
+        $dup = $this->duplicateError([
+            'name'    => trim($source['name']),
+            'sku'     => $this->nullIfBlank($source['sku']),
+            'barcode' => $this->nullIfBlank($source['barcode'])
+        ]);
+        if ($dup) return $dup;
+
+        return $this->attempt(function () use ($source) {
+            $id = $this->transaction(function () use ($source) {
+                $categoryId    = $this->branchCategory($source);
+                $subcategoryId = $this->branchSubcategory($source, $categoryId);
+
+                $this->must($this->qCreateProduct([
+                    'values' => [
+                        'name', 'description', 'image', 'sku', 'barcode', 'kind', 'unit_id', 'price', 'cost',
+                        'portion_qty', 'shelf_life_days', 'is_custom', 'is_inventoriable', 'sell_pos', 'in_catalog',
+                        'company_id', 'branch_id', 'category_id', 'subcategory_id', 'active'
+                    ],
+                    'data' => [
+                        trim($source['name']), $source['description'], $source['image'],
+                        $this->nullIfBlank($source['sku']), $this->nullIfBlank($source['barcode']),
+                        $source['kind'], $source['unit_id'], $source['price'], $source['cost'],
+                        $source['portion_qty'], $source['shelf_life_days'], 0, $source['is_inventoriable'],
+                        $source['sell_pos'], $source['in_catalog'],
+                        $this->companyId(), $this->branchId(), $categoryId, $subcategoryId, 1
+                    ]
+                ]), 'copyProduct');
+
+                return $this->newId('copyProduct');
+            });
+
+            return $this->ok('Ahora es propio de esta sucursal. Lo que cambies no toca la Matriz.', ['id' => $id]);
+        }, 'No se pudo copiar el producto.');
     }
 
     public function getProduct() {
@@ -161,6 +233,60 @@ class ctrl extends core {
         ];
     }
 
+    private function originOptions() {
+        return [
+            ['id' => '',     'valor' => 'Todos'],
+            ['id' => 'own',  'valor' => 'Propios'],
+            ['id' => 'main', 'valor' => 'De la Matriz']
+        ];
+    }
+
+    private function nullIfBlank($value) {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
+    }
+
+    // Solo dentro de transaction().
+    private function newId($what) {
+        $id = $this->qLastInsertId();
+
+        if ($id <= 0) throw new RuntimeException("{$what}: sin id");
+
+        return $id;
+    }
+
+    // La categoría de la sucursal con el nombre de la de la Matriz. Si la tiene inactiva, la copia queda sin categoría.
+    private function branchCategory($source) {
+        if ($source['category'] === null || $source['category'] === '') return null;
+
+        $found = $this->qFindCategoryByName($this->branchId(), $source['category']);
+
+        if ($found) return (int) $found['active'] === 1 ? (int) $found['id'] : null;
+
+        $this->must($this->qCreateCategory([
+            'values' => ['name', 'description', 'branch_id', 'active'],
+            'data'   => [$source['category'], $source['category_description'], $this->branchId(), 1]
+        ]), 'copyProduct/category');
+
+        return $this->newId('copyProduct/category');
+    }
+
+    private function branchSubcategory($source, $categoryId) {
+        if ($categoryId === null || $source['subcategory'] === null || $source['subcategory'] === '') return null;
+
+        $found = $this->qFindSubcategoryByName($categoryId, $source['subcategory']);
+
+        if ($found) return (int) $found['active'] === 1 ? (int) $found['id'] : null;
+
+        $this->must($this->qCreateSubcategory([
+            'values' => ['name', 'description', 'branch_id', 'category_id', 'active'],
+            'data'   => [$source['subcategory'], $source['subcategory_description'], $this->branchId(), $categoryId, 1]
+        ]), 'copyProduct/subcategory');
+
+        return $this->newId('copyProduct/subcategory');
+    }
+
     // Devuelve los campos listos o una respuesta de error (trae 'status').
     // $current: el producto al editar; su categoría y subcategoría se aceptan aunque estén inactivas.
     private function productInput($current = null) {
@@ -258,6 +384,76 @@ class ctrl extends core {
         if ((int) $dup['active'] === 0) $message .= ' Está en el filtro «Inactivos».';
 
         return $this->fail(409, $message);
+    }
+
+    // -- Filas --
+
+    private function productRow($item, $isMain) {
+        $id = (int) $item['id'];
+
+        return [
+            'id'        => $id,
+            'Producto'  => cellTitle($item['name'], $item['sku']),
+            'Origen'    => $this->originCell($item, $isMain),
+            'Categoría' => $this->categoryCell($item),
+            'Tipo'      => $item['kind'] === 'service' ? chip('Servicio', 'sky') : chip('Producto', 'slate'),
+            'Precio'    => money($item['price']),
+            'Costo'     => money($item['cost']),
+            'Canales'   => $this->channelsCell($item),
+            'Estado'    => renderActive($item['active']),
+            'a'         => $this->productActions($item, $id)
+        ];
+    }
+
+    /*  Matriz: «Compartido» y cuántas sucursales venden el suyo.
+        Sucursal: «De la Matriz», o «Propio» y si reemplaza al de la Matriz. */
+    private function originCell($item, $isMain) {
+        if ($isMain) {
+            if ((int) $item['active'] === 0) return '<span class="cp-celda-sub">No se comparte</span>';
+
+            $others = (int) $item['own_elsewhere'];
+            $note   = $others === 0 ? '' : ($others === 1 ? '1 sucursal vende el suyo' : "{$others} sucursales venden el suyo");
+
+            return chip('Compartido', 'emerald') . $this->originNote($note);
+        }
+
+        if ((int) $item['from_main'] === 1) return chip('De la Matriz', 'violet');
+        if ((int) $item['twin_main'] === 0) return chip('Propio', 'slate');
+
+        $note = (int) $item['active'] === 1 ? 'Reemplaza al de la Matriz' : 'Se vende el de la Matriz';
+
+        return chip('Propio', 'amber') . $this->originNote($note);
+    }
+
+    private function originNote($text) {
+        return $text === '' ? '' : '<div class="cp-celda-sub">' . h($text) . '</div>';
+    }
+
+    /*  De la Matriz: solo «Hacer propio» (se edita en la Matriz).
+        Propio activo que reemplaza al de la Matriz: el apagador pasa a «Volver a la
+        Matriz» (lo desactiva, no lo borra). */
+    private function productActions($item, $id) {
+        if ((int) $item['from_main'] === 1) {
+            return [[
+                'class'      => $this->actionBtnClass('neutral', true),
+                'html'       => '<i class="icon-docs"></i> Hacer propio',
+                'aria-label' => 'Copiarlo a esta sucursal para cambiarlo',
+                'onclick'    => "products.copy({$id})"
+            ]];
+        }
+
+        $actions = $this->rowActions('products', $id, $item['active']);
+
+        if ((int) $item['twin_main'] === 1 && (int) $item['active'] === 1) {
+            $actions[1] = [
+                'class'      => $this->actionBtnClass('neutral', true),
+                'html'       => '<i class="icon-reply"></i>',
+                'aria-label' => 'Volver al de la Matriz',
+                'onclick'    => "products.backToMain({$id})"
+            ];
+        }
+
+        return $actions;
     }
 
     // «Pasteles › De chocolate»; — si no tiene ninguna.

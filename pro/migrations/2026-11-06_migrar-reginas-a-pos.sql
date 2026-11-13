@@ -340,7 +340,7 @@ SELECT h.`id`, h.`title`, h.`action`, h.`comment`, h.`type`,
 
 -- -- Totales de turno y de cierre --
 
-INSERT INTO `detail_turn_payment`
+INSERT INTO `turn_payment`
   (`id`, `amount`, `created_at`, `updated_at`, `turn_id`, `payment_method_id`)
 SELECT x.`id`, COALESCE(x.`amount`, 0),
        COALESCE(s.`closed_at`, s.`opened_at`, NOW()), COALESCE(s.`closed_at`, s.`opened_at`, NOW()),
@@ -348,7 +348,7 @@ SELECT x.`id`, COALESCE(x.`amount`, 0),
   FROM `fayxzvov_reginas`.`shift_payment` x
   JOIN `fayxzvov_reginas`.`cash_shift` s ON s.`id` = x.`cash_shift_id`;
 
-INSERT INTO `detail_turn_status`
+INSERT INTO `turn_status`
   (`id`, `amount`, `created_at`, `updated_at`, `turn_id`, `sale_status_id`)
 SELECT x.`id`, COALESCE(x.`amount`, 0),
        COALESCE(s.`closed_at`, s.`opened_at`, NOW()), COALESCE(s.`closed_at`, s.`opened_at`, NOW()),
@@ -356,7 +356,7 @@ SELECT x.`id`, COALESCE(x.`amount`, 0),
   FROM `fayxzvov_reginas`.`shift_status_process` x
   JOIN `fayxzvov_reginas`.`cash_shift` s ON s.`id` = x.`cash_shift_id`;
 
-INSERT INTO `detail_daily_closure_payment`
+INSERT INTO `daily_closure_payment`
   (`id`, `amount`, `created_at`, `updated_at`, `daily_closure_id`, `payment_method_id`)
 SELECT x.`id`, COALESCE(x.`amount`, 0),
        COALESCE(d.`created_at`, d.`closure_date`, NOW()), COALESCE(d.`created_at`, d.`closure_date`, NOW()),
@@ -364,7 +364,7 @@ SELECT x.`id`, COALESCE(x.`amount`, 0),
   FROM `fayxzvov_reginas`.`closure_payment` x
   JOIN `fayxzvov_reginas`.`daily_closure` d ON d.`id` = x.`daily_closure_id`;
 
-INSERT INTO `detail_daily_closure_status`
+INSERT INTO `daily_closure_status`
   (`id`, `amount`, `created_at`, `updated_at`, `daily_closure_id`, `sale_status_id`)
 SELECT x.`id`, COALESCE(x.`amount`, 0),
        COALESCE(d.`created_at`, d.`closure_date`, NOW()), COALESCE(d.`created_at`, d.`closure_date`, NOW()),

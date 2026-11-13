@@ -13,20 +13,16 @@ require_once __DIR__ . '/core-order.php';
       - Punto verde = el pedido es del turno abierto de la sucursal.
 
     Captura:
-      - Un pedido nuevo nace como Cotizacion: capturar no mueve dinero y no
-        exige turno abierto. El estado lo cambia el cobro, nunca la captura.
+      - Un pedido nuevo nace como Cotizacion y exige el turno de HOY abierto.
+        Capturar no mueve dinero: el estado lo cambia el cobro (ctrl-cobro).
+      - Cancelar con abonos deja lo pagado como saldo a favor del cliente
+        (customer.wallet): no hay devolucion.
       - Nombre y precio de un producto del catalogo, y precio de cada opcion del
         pastel, salen de la base: lo que mande el navegador no cuenta.
       - Una linea ya guardada conserva su producto y su precio.
       - Editar y cancelar validan DESPUES de bloquear el pedido (FOR UPDATE).
       - Cada cambio deja su renglon en history_log con quien lo hizo. */
 class ctrl extends core {
-
-    // Estados de sale_status (plantillas de Huubie, iguales en todas las bases).
-    const QUOTE     = 1;
-    const PENDING   = 2;
-    const PAID      = 3;
-    const CANCELLED = 4;
 
     const MAX_LINES  = 100;
     const MAX_PHOTOS = 10;
@@ -45,7 +41,9 @@ class ctrl extends core {
             'scope'    => ['company' => $scope['company'], 'branch' => $scope['branch']],
             'actions'  => $this->actions(),
             'statuses' => $scope['company_id'] > 0 ? $this->qStatuses($scope['company_id']) : [],
-            'today'    => date('Y-m-d')
+            'today'    => date('Y-m-d'),
+            'turn'     => $this->turnBrief(),
+            'day'      => $this->dayBrief()
         ];
     }
 
@@ -144,6 +142,10 @@ class ctrl extends core {
 
         if (in_array('update', $actions, true) && $this->editBlock($o) === '') {
             $menu[] = ['icon' => 'icon-pencil', 'text' => 'Editar', 'onclick' => "orderForm.edit({$id})"];
+        }
+
+        if (in_array('create', $actions, true) && $this->payBlock($o) === '') {
+            $menu[] = ['icon' => 'icon-money', 'text' => 'Cobrar', 'onclick' => "orderPay.open({$id})"];
         }
 
         if (in_array('print', $actions, true)) {
@@ -339,12 +341,21 @@ class ctrl extends core {
     private function orderCan($order) {
         $edit   = $this->need('update') === null ? $this->editBlock($order) : 'Tu rol no puede editar pedidos.';
         $cancel = $this->need('cancel') === null ? $this->cancelBlock($order) : 'Tu rol no puede cancelar pedidos.';
+        $pay    = $this->need('create') === null ? $this->payBlock($order) : 'Tu rol no puede cobrar pedidos.';
+        $money  = $this->moneyBlock($order);
+        $alive  = (int) $order['sale_status_id'] !== self::CANCELLED;
 
         return [
-            'edit'          => $edit === '',
-            'edit_reason'   => $edit,
-            'cancel'        => $cancel === '',
-            'cancel_reason' => $cancel
+            'edit'           => $edit === '',
+            'edit_reason'    => $edit,
+            'money'          => $money === '',
+            'money_reason'   => $money,
+            'cut'            => $this->closedCut($order),
+            'cancel'         => $cancel === '',
+            'cancel_reason'  => $cancel,
+            'pay'            => $pay === '',
+            'pay_reason'     => $pay,
+            'delete_payment' => $alive && $this->need('delete') === null
         ];
     }
 
@@ -362,7 +373,7 @@ class ctrl extends core {
         return '';
     }
 
-    // '' = se puede cancelar. Con abonos espera a la Etapa 3 (devolucion o saldo a favor).
+    // '' = se puede cancelar. Con abonos hace falta cliente: ahi queda el saldo a favor.
     private function cancelBlock($o) {
         $status = (int) $o['sale_status_id'];
 
@@ -370,7 +381,9 @@ class ctrl extends core {
         if ($status === self::PAID)      return 'Un pedido pagado no se cancela.';
         if ($status !== self::QUOTE && $status !== self::PENDING) return 'Este pedido no se puede cancelar en su estado actual.';
         if ((int) $o['delivery_status'] === 1) return 'Un pedido entregado no se cancela.';
-        if ((float) $o['paid'] > 0) return 'Tiene abonos por ' . money($o['paid']) . '. Cancelar con anticipo todavía no está disponible.';
+        if ((float) $o['paid'] > 0 && (int) $o['customer_id'] <= 0) {
+            return 'Tiene abonos por ' . money($o['paid']) . ' y no tiene cliente: no hay a quién dejar el saldo a favor.';
+        }
 
         return '';
     }
@@ -396,25 +409,44 @@ class ctrl extends core {
 
     public function formOptions() {
         $fail = $this->needCapture() ?: $this->needBranch();
+        if (!$fail && $this->post('is_new') === '1') $fail = $this->needTurn();
         if ($fail) return $fail;
 
         return $this->attempt(function () {
-            $customers = [];
-            $products  = [];
-            $groups    = [];
+            $customers  = [];
+            $products   = [];
+            $categories = [];
+            $groups     = [];
 
             foreach ($this->qCustomerOptions($this->branchId(), $this->postId('customer_id')) as $c) {
                 $customers[] = ['id' => (int) $c['id'], 'valor' => $this->customerLabel($c['name'], $c['phone'])];
             }
 
-            foreach ($this->qCatalogProducts($this->companyId(), $this->branchId()) as $p) {
+            foreach ($this->qCatalogProducts($this->companyId(), $this->branchId(), $this->mainBranchId()) as $p) {
+                $category = $p['category'] !== '' ? $p['category'] : 'Sin categoría';
+                $key      = mb_strtolower($category, 'UTF-8');
+
+                if (!isset($categories[$key])) {
+                    $categories[$key] = ['id' => (int) $p['category_id'], 'name' => $category, 'total' => 0];
+                }
+
+                $categories[$key]['total']++;
+                $categoryId = $categories[$key]['id'];
+
                 $products[] = [
-                    'id'    => (int) $p['id'],
-                    'valor' => $p['name'] . ' · ' . money($p['price']),
-                    'name'  => $p['name'],
-                    'price' => (float) $p['price']
+                    'id'          => (int) $p['id'],
+                    'valor'       => $p['name'] . ' · ' . money($p['price']),
+                    'name'        => $p['name'],
+                    'price'       => (float) $p['price'],
+                    'category_id' => $categoryId,
+                    'category'    => $category,
+                    'image'       => $p['image'],
+                    'sku'         => $p['sku'],
+                    'barcode'     => $p['barcode']
                 ];
             }
+
+            usort($categories, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
 
             foreach ($this->qModifierOptions($this->companyId()) as $m) {
                 $groupId = (int) $m['group_id'];
@@ -437,13 +469,14 @@ class ctrl extends core {
             }
 
             return [
-                'status'    => 200,
-                'branch'    => $this->scope()['branch'],
-                'today'     => date('Y-m-d'),
-                'customers' => $customers,
-                'products'  => $products,
-                'groups'    => array_values($groups),
-                'actions'   => $this->actions()
+                'status'     => 200,
+                'branch'     => $this->scope()['branch'],
+                'today'      => date('Y-m-d'),
+                'customers'  => $customers,
+                'products'   => $products,
+                'categories' => $categories,
+                'groups'     => array_values($groups),
+                'actions'    => $this->actions()
             ];
         }, 'No se pudieron cargar las opciones del pedido.');
     }
@@ -576,6 +609,9 @@ class ctrl extends core {
         $again = $this->tokenResult($token);
         if ($again) return $again;
 
+        $closed = $this->needTurn();
+        if ($closed) return $closed;
+
         $answer = $this->attempt(function () {
             $in = $this->orderInput(null);
             if (isset($in['status'])) return $in;
@@ -660,6 +696,11 @@ class ctrl extends core {
                     return $this->fail(422, 'El total (' . money($total) . ') quedaría por debajo de lo abonado (' . money($order['paid']) . ').');
                 }
 
+                // Antes de escribir: transaction() confirma lo hecho aunque se devuelva un fail.
+                $retotal = round((float) $order['total'], 2) !== $total;
+                $money   = $retotal ? $this->moneyBlock($order) : '';
+                if ($money !== '') return $this->fail(409, $money);
+
                 $changes = $this->headerChanges($order, $in);
                 $kept    = [];
 
@@ -687,8 +728,10 @@ class ctrl extends core {
 
                 if (empty($changes)) return $this->ok('Sin cambios.', ['id' => $id, 'unchanged' => true]);
 
-                if (round((float) $order['total'], 2) !== $total) {
+                if ($retotal) {
                     $changes[] = 'Total: ' . money($order['total']) . ' » ' . money($total);
+
+                    if ($this->cutNote($order) !== '' && (int) $order['sale_status_id'] === self::PENDING) $changes[] = $this->cutNote($order);
                 }
 
                 $this->must($this->qUpdateOrder([
@@ -740,9 +783,30 @@ class ctrl extends core {
                     'data'   => [self::CANCELLED, $reason, $this->userId() ?: null, $id]
                 ]), 'cancelOrder');
 
-                $this->log($id, 'cancellation', 'Pedido cancelado', 'Motivo: ' . $reason);
+                $cutNote = $this->cutNote($order);
 
-                return $this->ok("Pedido P{$id} cancelado.", ['id' => $id]);
+                $this->log($id, 'cancellation', 'Pedido cancelado', 'Motivo: ' . $reason . ($cutNote !== '' ? ' · ' . $cutNote : ''));
+
+                $paid    = round((float) $order['paid'], 2);
+                $message = "Pedido P{$id} cancelado." . ($cutNote !== '' ? ' ' . $cutNote : '');
+
+                if ($paid > 0) {
+                    $customerId = (int) $order['customer_id'];
+
+                    $this->must($this->qUpdateCustomer([
+                        'values' => ['wallet = IFNULL(wallet, 0) + ?', 'updated_at = NOW()'],
+                        'where'  => ['id'],
+                        'data'   => [$paid, $customerId]
+                    ]), 'cancelOrder wallet');
+
+                    $name    = $this->qCustomerName($customerId) ?: 'el cliente';
+                    $wallet  = 'El anticipo de ' . money($paid) . ' queda como saldo a favor de ' . $name . '.';
+                    $message = "Pedido P{$id} cancelado. " . $wallet . ($cutNote !== '' ? ' ' . $cutNote : '');
+
+                    $this->log($id, 'payment', 'Saldo a favor', $wallet);
+                }
+
+                return $this->ok($message, ['id' => $id, 'wallet' => $paid]);
             });
         }, 'No se pudo cancelar el pedido.');
     }
@@ -880,7 +944,7 @@ class ctrl extends core {
                     $line['price']      = (float) $old['price'];
                 } else {
                     $productId = isset($item['product_id']) ? (int) $item['product_id'] : 0;
-                    $product   = $productId > 0 ? $this->qGetCatalogProduct($productId, $this->companyId(), $this->branchId()) : null;
+                    $product   = $productId > 0 ? $this->qGetCatalogProduct($productId, $this->companyId(), $this->branchId(), $this->mainBranchId()) : null;
 
                     if (!$product) return $this->fail(422, "{$pos}: ese producto ya no está en el catálogo.");
 
@@ -1287,37 +1351,7 @@ class ctrl extends core {
         return $changes;
     }
 
-    // -- Captura: bitacora y doble envio --
-
-    private function log($saleId, $type, $title, $text) {
-        $this->must($this->qCreateHistory([
-            'values' => ['sale_id', 'user_id', 'type', 'title', 'action', 'detail', 'active'],
-            'data'   => [$saleId, $this->userId() ?: null, $type, mb_substr($title, 0, 50, 'UTF-8'), mb_substr($text, 0, 255, 'UTF-8'), $text, 1]
-        ]), 'log');
-    }
-
-    /*  Un mismo envio (doble clic, red que reintenta) no guarda dos veces: la
-        sesion recuerda las ultimas 20 respuestas por token. PHP no suelta la
-        sesion hasta terminar la peticion, asi que el segundo envio espera al
-        primero y encuentra su respuesta. */
-    private function tokenResult($token) {
-        if (!preg_match('/^[a-f0-9]{16,64}$/', $token)) {
-            return $this->fail(400, 'Falta el identificador del envío. Recarga la página e intenta de nuevo.');
-        }
-
-        return isset($_SESSION['order_tokens'][$token]) ? $_SESSION['order_tokens'][$token] : null;
-    }
-
-    private function rememberToken($token, $answer) {
-        if (!isset($answer['status']) || $answer['status'] !== 200) return;
-
-        $tokens = isset($_SESSION['order_tokens']) && is_array($_SESSION['order_tokens']) ? $_SESSION['order_tokens'] : [];
-
-        unset($tokens[$token]);
-        $tokens[$token] = $answer;
-
-        $_SESSION['order_tokens'] = array_slice($tokens, -20, 20, true);
-    }
+    // -- Ayudantes --
 
     private function groupBy(array $rows, $key) {
         $groups = [];

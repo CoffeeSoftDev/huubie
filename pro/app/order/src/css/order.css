@@ -233,6 +233,17 @@ body:not(.dark-mode) .swal2-confirm:focus {
     box-shadow: 0 0 0 3px rgb(var(--brand-600, 192 90 64) / .3) !important;
 }
 
+/* El boton secundario (btn2: «Listo», «Cancelar») tambien trae text-white. */
+body:not(.dark-mode) .swal2-cancel {
+    color: #44403C !important;
+    background-color: #fff !important;
+    border: 1px solid #D6D3D1 !important;
+}
+
+body:not(.dark-mode) .swal2-cancel:hover {
+    background-color: #F5F5F4 !important;
+}
+
 /* -- Detalle: galeria y vista previa -- */
 .ord-thumbs {
     scrollbar-width: none;
@@ -271,3 +282,286 @@ body.dark-mode #modalOrderDetails .ord-well {
     background-color: var(--dk-card, #1F2A37) !important;
     border-color: transparent !important;
 }
+
+/* -- Boton «Nuevo pedido» del encabezado --
+   coffeeForm pone una etiqueta vacia arriba del boton (para alinearlo con
+   campos); en el encabezado no hay campos, asi que se oculta. */
+#formHeaderOrders label { display: none; }
+#formHeaderOrders > div { margin-top: 0 !important; }
+#btnNewOrder { white-space: nowrap; }
+
+/* -- Captura tipo POS: encabezado --
+   Mismo caso que «Nuevo pedido»: el boton «Volver a pedidos» no lleva campos
+   al lado, asi que sobra la etiqueta vacia de coffeeForm. */
+#posOrderHead .cp-migas { margin-bottom: 0; }
+#formOrderBack label { display: none; }
+#formOrderBack > div { margin-top: 0 !important; }
+#btnOrderBack { white-space: nowrap; }
+
+/* -- Captura tipo POS: datos del pedido dentro del ticket --
+   El ticket es angosto: etiquetas chicas y menos aire entre campos. */
+#formOrderTicket > div { margin-top: 6px !important; }
+#formOrderTicket label { font-size: 11px; margin-bottom: 2px; }
+#formOrderTicket textarea { resize: vertical; min-height: 54px; }
+#btnOfCustomer { white-space: nowrap; width: 100%; }
+
+/* compact.css encoge select2 a 28 px con !important; en el ticket queda al
+   alto (34 px) y redondeo de los demas campos. Fecha y hora salian en 37 px:
+   compact.css les pone height:auto con !important. */
+#formOrderTicket .select2-container--bootstrap-5 .select2-selection--single {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    min-height: 34px !important;
+    padding: 0 2.25rem 0 12px !important;
+    border-radius: 7px;
+}
+
+#formOrderTicket input[type="date"],
+#formOrderTicket input[type="time"] { height: 34px !important; }
+
+/* Mientras se guarda no se puede tocar ni el catalogo ni el ticket. */
+#posOrderHost.is-saving #posOrderBody { pointer-events: none; opacity: 0.6; }
+
+/* -- Pastel: tablas de extras y fotos -- */
+#ocExtras,
+#ocPhotoList { overflow-x: auto; }
+
+#tbOrderExtras thead th,
+#tbOrderPhotos thead th { text-transform: none; white-space: nowrap; }
+
+a.of-act {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    color: #78716C;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+a.of-act:hover { color: rgb(var(--brand-600, 192 90 64)); background: #F5F5F4; }
+a.of-act-del:hover { color: #DC2626; background: #FEF2F2; }
+
+.of-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
+
+#modalOrderCake .cs-modal-info { color: #44403C; font-weight: 600; font-size: 13px; }
+
+/* -- Pastel: botones Agregar extra y Subir fotos --
+   Bootstrap fuerza mt-4 con !important en la etiqueta del input-file. */
+#formOcExtraAdd > div,
+#formOcPhotos > div { margin-top: 0 !important; }
+
+/* Rejilla de 12 columnas con hueco de 16 px: en movil el contenedor mide
+   141 px y los 11 huecos (176 px) empujaban «Agregar» fuera del panel. Cada
+   form tiene un solo campo, asi que el hueco no separa nada. */
+#formOcExtraAdd,
+#formOcPhotos { column-gap: 0; }
+
+#ocPhotoForm label.tw-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 0 !important;
+}
+
+/* -- Captura oscura -- */
+body.dark-mode a.of-act { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode a.of-act:hover { background: var(--dk-row, #283341); }
+body.dark-mode a.of-act-del:hover { color: #F87171; background: rgba(220, 38, 38, 0.15); }
+body.dark-mode #modalOrderCake .cs-modal-info { color: var(--dk-text, #F3F4F6); }
+
+/* -- Turno en el encabezado --
+   Chip con el turno abierto y el boton «Turno y corte» junto a «Nuevo pedido». */
+#formHeaderOrders { gap: 8px; }
+#btnTurnOrders,
+#btnDayOrders { white-space: nowrap; }
+
+.ord-turn-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ord-turn-dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; flex-shrink: 0; }
+
+.ord-turn-chip.is-open { color: #047857; background: #ECFDF5; border-color: #A7F3D0; }
+.ord-turn-chip.is-old  { color: #B45309; background: #FFFBEB; border-color: #FDE68A; }
+.ord-turn-chip.is-none { color: #57534E; background: #F5F5F4; border-color: #E7E5E4; }
+.ord-turn-chip.is-closed { color: #2A55A3; background: #EAF0FA; border-color: #C7D6F0; }
+
+/* -- Pie de los modales --
+   El texto informativo cede ancho; los botones nunca parten su texto en dos renglones. */
+.cs-modal-foot .cs-modal-info { min-width: 0; }
+.cs-modal-foot button.cs-modal-save,
+.cs-modal-foot button.cs-modal-cancel { white-space: nowrap; flex-shrink: 0; }
+
+/* -- Turno y cobro: botones dentro de los modales --
+   Todos con button.X: el preflight de Tailwind ([type=button]) pisa los fondos
+   que vengan solo de clase. */
+button.ord-quick,
+button.ord-goal,
+button.ord-method,
+button.ord-bill,
+button.ord-disc-toggle,
+button.ord-day-nav,
+button.ord-day-turn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid #D6D3D1;
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: #44403C;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+button.ord-quick:hover,
+button.ord-goal:hover,
+button.ord-method:hover,
+button.ord-bill:hover,
+button.ord-disc-toggle:hover,
+button.ord-day-nav:hover,
+button.ord-day-turn:hover { border-color: rgb(var(--brand-600, 192 90 64)); color: rgb(var(--brand-700, 168 74 51)); }
+
+/* Cierre del día: navegación entre días y «Ver corte» en la fila del turno. */
+button.ord-day-nav:disabled { opacity: .45; cursor: not-allowed; border-color: #D6D3D1; color: #44403C; }
+button.ord-day-nav.is-warn { border-color: #FDE68A; background: #FFFBEB; color: #B45309; }
+button.ord-day-turn { min-height: 28px; padding: 0 10px; font-size: 12px; }
+
+button.ord-goal.is-active,
+button.ord-method.is-active,
+button.ord-disc-toggle.is-active {
+    border-color: rgb(var(--brand-600, 192 90 64));
+    background: rgb(var(--brand-600, 192 90 64) / .08);
+    color: rgb(var(--brand-700, 168 74 51));
+    font-weight: 600;
+}
+
+.ord-method-check { color: #059669; }
+
+button.ord-seg {
+    flex: 1;
+    height: 38px;
+    border: 1px solid #D1D5DB;
+    background: #FFFFFF;
+    color: #57534E;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+button.ord-seg:first-child { border-radius: 8px 0 0 8px; }
+button.ord-seg:last-child  { border-radius: 0 8px 8px 0; border-left: 0; }
+button.ord-seg.is-active   { background: rgb(var(--brand-600, 192 90 64)); border-color: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+button.ord-split {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    background: transparent;
+    color: rgb(var(--brand-700, 168 74 51));
+    font-size: 13px;
+    font-weight: 600;
+}
+
+button.ord-split:hover { text-decoration: underline; }
+
+button.ord-line-del,
+button.ord-pay-del {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: transparent;
+    color: #A8A29E;
+}
+
+button.ord-line-del:hover,
+button.ord-pay-del:hover { color: #DC2626; background: #FEF2F2; }
+
+/* «Cobrar» en la tarjeta de ventas del detalle. */
+button.ord-pay-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgb(var(--brand-600, 192 90 64));
+    color: #FFFFFF;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+button.ord-pay-open:hover { background: rgb(var(--brand-700, 168 74 51)); }
+
+/* «Recalcular corte» dentro del aviso ámbar del turno. */
+button.ord-recalc {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 12px;
+    border: 1px solid #F59E0B;
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: #B45309;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+button.ord-recalc:hover { background: #FEF3C7; }
+button.ord-recalc:disabled { opacity: .5; cursor: wait; }
+
+body.dark-mode button.ord-recalc { background: transparent; border-color: rgba(245, 158, 11, 0.55); color: #FCD34D; }
+
+.ord-sum-big { font-size: 24px; font-weight: 700; line-height: 1.15; margin-bottom: 0; }
+
+/* -- Turno y cobro oscuros -- */
+body.dark-mode .ord-turn-chip.is-open { color: #6EE7B7; background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); }
+body.dark-mode .ord-turn-chip.is-old  { color: #FCD34D; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
+body.dark-mode .ord-turn-chip.is-none { color: var(--dk-muted, #9CA3AF); background: var(--dk-row, #283341); border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-turn-chip.is-closed { color: #93B4E8; background: rgba(42, 85, 163, 0.18); border-color: rgba(42, 85, 163, 0.45); }
+
+body.dark-mode .ord-day-alert,
+body.dark-mode button.ord-day-nav.is-warn { color: #FCD34D; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
+
+body.dark-mode button.ord-quick,
+body.dark-mode button.ord-goal,
+body.dark-mode button.ord-method,
+body.dark-mode button.ord-bill,
+body.dark-mode button.ord-disc-toggle,
+body.dark-mode button.ord-day-nav:not(.is-warn),
+body.dark-mode button.ord-day-turn,
+body.dark-mode button.ord-seg { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+
+body.dark-mode button.ord-goal.is-active,
+body.dark-mode button.ord-method.is-active,
+body.dark-mode button.ord-disc-toggle.is-active { background: rgb(var(--brand-600, 192 90 64) / .18); border-color: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+body.dark-mode button.ord-seg.is-active { background: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+body.dark-mode .ord-tile,
+body.dark-mode .ord-sum,
+body.dark-mode .ord-line { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
+
+body.dark-mode button.ord-line-del:hover,
+body.dark-mode button.ord-pay-del:hover { color: #F87171; background: rgba(220, 38, 38, 0.15); }

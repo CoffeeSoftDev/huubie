@@ -489,6 +489,135 @@ class Companies extends BillingPanel {
         this.userFilter = { scope: 'todas', q: '' };
     }
 
+    // -- Piezas con el estilo de la plantilla --
+    // Solo las usa Empresas: Pagos, Módulos y Planes siguen con las de BillingPanel.
+    // Nada lleva sombra: tarjetas y botones van planos, solo con su borde.
+
+    card(extra = '') {
+        return $('<div>', { class: `bg-white ring-1 ring-inset ring-gray-200 rounded-[14px] overflow-hidden ${extra}` });
+    }
+
+    // actionButton (developer.js) trae shadow-sm y lo comparte todo el módulo:
+    // aquí solo se le quita a los botones de Empresas.
+    button(icon, text, onClick, primary = false, disabled = false) {
+        return actionButton(icon, text, onClick, primary, disabled).removeClass('shadow-sm');
+    }
+
+    cardHead(title, side) {
+        return $('<div>', { class: 'flex items-center gap-2.5 flex-wrap px-5 py-3.5 border-b border-gray-200' }).append(
+            $('<h3>', { class: 'text-base font-bold text-gray-900 mb-0', text: title }),
+            ...side.filter(Boolean)
+        );
+    }
+
+    pageHead(title, text) {
+        return $('<div>', { class: 'flex-1 min-w-[220px]' }).append(
+            $('<h2>', { class: 'text-[22px] font-extrabold tracking-tight text-gray-900 mb-0', text: title }),
+            $('<p>', { class: 'text-[13px] text-gray-500 mt-1 mb-0', text: text })
+        );
+    }
+
+    kpis(items) {
+        const glow = { ok: 'bg-emerald-500/10', warn: 'bg-amber-500/10', bad: 'bg-red-500/10' };
+        const grid = $('<div>', { class: 'grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5' });
+        items.forEach((k) => grid.append(
+            this.card('relative px-[18px] py-4').append(
+                $('<span>', { class: `absolute -right-5 -bottom-[30px] w-[90px] h-[90px] rounded-full opacity-50 ${glow[k.tone] || 'bg-blue-600/10'}` }),
+                $('<p>', { class: 'relative text-[11.5px] font-semibold uppercase tracking-[.04em] text-gray-400 mb-0', text: k.label }),
+                $('<p>', { class: 'relative text-[22px] sm:text-[26px] font-extrabold tracking-[-.03em] text-gray-900 truncate mt-1 mb-0.5', text: k.value }),
+                $('<p>', { class: 'relative text-xs text-gray-500 mb-0', text: k.sub })
+            )
+        ));
+        return grid;
+    }
+
+    segmented(items, active, onPick) {
+        const box = $('<div>', { class: 'inline-flex flex-wrap gap-0.5 p-[3px] rounded-[10px] bg-white ring-1 ring-inset ring-gray-200' });
+        items.forEach((it) => {
+            const on = it.key === active;
+            box.append($('<button>', {
+                type: 'button',
+                class: 'inline-flex items-center gap-1.5 px-[13px] py-1.5 rounded-lg text-[12.5px] font-semibold transition '
+                    + (on ? 'bg-blue-600/10 text-blue-600' : 'text-gray-500 hover:text-gray-800')
+            }).append(
+                it.icon ? $('<i>', { 'data-lucide': it.icon, class: 'w-3.5 h-3.5' }) : null,
+                $('<span>', { text: it.label }),
+                it.count !== undefined ? this.count(it.count) : null
+            ).on('click', () => onPick(it.key)));
+        });
+        return box;
+    }
+
+    // Contador con borde: filtros de estado y pestañas del detalle.
+    count(n) {
+        return $('<span>', { class: 'text-[10.5px] leading-4 px-1.5 rounded-full bg-gray-50 ring-1 ring-inset ring-gray-200 text-gray-500', text: n });
+    }
+
+    select(options, value, onChange) {
+        const $s = $('<select>', { class: 'rounded-[10px] ring-1 ring-inset ring-gray-200 bg-white px-3 py-2 text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-600/30 cursor-pointer' });
+        options.forEach((o) => $s.append($('<option>', { value: o.id, text: o.valor, selected: String(o.id) === String(value) })));
+        return $s.on('change', () => onChange($s.val()));
+    }
+
+    searchInput(placeholder, value, onInput) {
+        return $('<div>', { class: 'relative w-full sm:w-64' }).append(
+            $('<i>', { 'data-lucide': 'search', class: 'w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2' }),
+            $('<input>', {
+                type: 'search',
+                value: value,
+                placeholder: placeholder,
+                class: 'w-full pl-9 pr-3 py-2 text-[13px] rounded-[10px] ring-1 ring-inset ring-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30'
+            }).on('input', (e) => onInput(e.currentTarget.value || ''))
+        );
+    }
+
+    // -- Tablas de CoffeeSoft --
+
+    /*  createCoffeeTable3 con el tema claro de las demás tablas del módulo.
+        parent ya debe estar en la página: la tabla se pinta dentro de él.
+        opts: center / right (columnas desde 1) y hover (filas clicables). */
+    coffeeTable(parent, id, thead, row, opts = {}) {
+        this.createCoffeeTable3({
+            parent: parent,
+            id: id,
+            theme: 'light',
+            data: { thead: thead, row: row },
+            striped: true,
+            hover: !!opts.hover,
+            f_size: 13,
+            center: opts.center || [],
+            right: opts.right || []
+        });
+        this.icons();
+    }
+
+    /*  Botón de la columna de acciones ('a'), con la clase de actionBtnClass
+        (core-developer.php). aria-label y no title: title dispara un popover.
+        Sin onClick queda como enlace (la factura de un pago). */
+    rowAction(icon, label, onClick, danger = false) {
+        const action = {
+            class: 'inline-flex items-center px-2 py-1 text-sm rounded-md border transition cursor-pointer '
+                + (danger ? 'border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'),
+            html: `<i class="${icon}"></i>`,
+            'aria-label': label
+        };
+        if (onClick) {
+            action.click = (e) => {
+                e.stopPropagation();
+                onClick();
+            };
+        }
+        return action;
+    }
+
+    // Celda de tabla: el dato en negrita y debajo una línea tenue.
+    cellMain(main, sub) {
+        return $('<div>', { class: 'flex flex-col leading-[1.3]' }).append(
+            $('<strong>', { class: 'font-semibold text-gray-900', text: main }),
+            sub ? $('<span>', { class: 'text-[11.5px] text-gray-400', text: sub }) : null
+        );
+    }
+
     // -- Interface --
 
     render() {
@@ -578,9 +707,9 @@ class Companies extends BillingPanel {
         ], this.filters.order, (value) => { this.filters.order = value; this.renderRows(); });
 
         this.body().empty().append(
-            $('<div>', { class: 'flex items-start justify-between gap-3 flex-wrap' }).append(
+            $('<div>', { class: 'flex items-end gap-4 flex-wrap' }).append(
                 this.pageHead('Empresas cliente', 'Cada empresa que usa el sistema: su plan, lo que consume y cómo va su cobranza.'),
-                actionButton('plus', 'Nueva empresa', () => this.addCompany(), true)
+                this.button('plus', 'Nueva empresa', () => this.addCompany(), true)
             ),
             this.kpis([
                 { label: 'Empresas cliente', value: list.length, sub: `${list.filter(c => ['activa', 'por_vencer'].includes(c.state.key)).length} con plan vigente` },
@@ -588,7 +717,7 @@ class Companies extends BillingPanel {
                 { label: 'Sucursales', value: sum(c => c.branches), sub: `${sum(c => c.branches_active)} activas` },
                 { label: 'Usuarios', value: sum(c => c.users), sub: `${sum(c => c.users_active)} activos` }
             ]),
-            $('<div>', { class: 'flex items-center gap-2 flex-wrap' }).append(
+            $('<div>', { class: 'flex items-center gap-2.5 flex-wrap' }).append(
                 this.segmented(groups, this.filters.state, (key) => {
                     this.filters.state = key;
                     this.renderList();
@@ -596,7 +725,7 @@ class Companies extends BillingPanel {
                 $('<div>', { class: 'flex-1' }),
                 search, plan, order
             ),
-            $('<div>', { id: 'companyRows' })
+            $('<div>', { id: 'companyRows', class: 'overflow-x-auto' })
         );
 
         this.renderRows();
@@ -612,42 +741,45 @@ class Companies extends BillingPanel {
             return;
         }
 
-        const body = $('<tbody>');
-        rows.forEach((c) => {
+        // Las celdas van como { html: jQuery } para que chips y barras conserven su forma.
+        const row = rows.map((c) => {
             const plan = c.plan;
             const closed = this.closed(c.subscription);
             // Los topes solo aplican mientras el plan sigue contratado.
             const live = plan && !closed ? plan : null;
-            const tr = $('<tr>', { class: 'border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer transition' }).append(
-                $('<td>', { class: 'px-4 py-3' }).append(this.nameCell(c.name, c.id, [c.rfc, c.ubication].filter(Boolean).join(' · ') || 'Sin RFC ni ubicación')),
-                $('<td>', { class: 'px-4 py-3' }).append(plan
-                    ? (closed ? this.chip(plan.name, 'neutral').attr('title', 'Último plan que tuvo') : this.chip(plan.name, 'pri'))
-                    : $('<span>', { class: 'text-xs italic text-gray-400', text: 'Sin plan' })),
-                $('<td>', { class: 'px-4 py-3 min-w-[140px]' }).append(
-                    $('<p>', { class: 'text-sm font-semibold text-gray-800 mb-0', text: `${c.branches_active} / ${this.limitText(live && live.max_branches)}` }),
-                    $('<p>', { class: 'text-[11px] text-gray-400 mb-1', text: `${c.branches} en total` }),
-                    this.bar(c.branches_active, live && live.max_branches)
-                ),
-                $('<td>', { class: 'px-4 py-3' }).append(
-                    $('<span>', { class: 'text-sm font-semibold text-gray-800', text: c.users_active }),
-                    $('<span>', { class: 'text-xs text-gray-400', text: ` / ${this.limitText(live && live.max_users)}` })
-                ),
-                $('<td>', { class: 'px-4 py-3' }).append(
-                    $('<p>', { class: 'text-sm font-semibold text-gray-800 mb-0', text: this.money(c.monthly) }),
-                    $('<p>', { class: 'text-[11px] text-gray-400 mb-0', text: this.priceText(live) })
-                ),
-                $('<td>', { class: 'px-4 py-3' }).append(this.chip(c.state.label, c.state.tone, true)),
-                $('<td>', { class: 'px-4 py-3 whitespace-nowrap' }).append(
-                    $('<p>', { class: 'text-sm text-gray-800 mb-0', text: this.date(this.endOf(c.subscription)) }),
-                    $('<p>', { class: 'text-[11px] text-gray-400 mb-0', text: this.daysText(c.state.days) })
-                ),
-                $('<td>', { class: 'px-4 py-3 text-right text-gray-300' }).append($('<i>', { 'data-lucide': 'chevron-right', class: 'w-4 h-4 inline-block' }))
-            ).on('click', () => this.openCompany(c.id));
-            body.append(tr);
+            return {
+                id: c.id,
+                empresa: { html: this.cellMain(c.name, [c.rfc, c.ubication].filter(Boolean).join(' · ') || 'Sin RFC ni ubicación') },
+                plan: {
+                    html: plan
+                        ? (closed ? this.chip(plan.name, 'neutral').attr('title', 'Último plan que tuvo') : this.chip(plan.name, 'pri'))
+                        : $('<span>', { class: 'text-xs italic text-gray-400', text: 'Sin plan' })
+                },
+                sucursales: {
+                    class: 'min-w-[140px]',
+                    html: $('<div>').append(
+                        this.cellMain(`${c.branches_active} / ${this.limitText(live && live.max_branches)}`, `${c.branches} en total`),
+                        $('<div>', { class: 'mt-1' }).append(this.bar(c.branches_active, live && live.max_branches))
+                    )
+                },
+                usuarios: {
+                    class: 'whitespace-nowrap',
+                    html: $('<span>').append(
+                        $('<strong>', { class: 'font-semibold text-gray-900', text: c.users_active }),
+                        $('<span>', { class: 'text-xs text-gray-400', text: ` / ${this.limitText(live && live.max_users)}` })
+                    )
+                },
+                mensual: { class: 'whitespace-nowrap', html: this.cellMain(this.money(c.monthly), this.priceText(live)) },
+                estado: { html: this.chip(c.state.label, c.state.tone, true) },
+                vence: { class: 'whitespace-nowrap', html: this.cellMain(this.date(this.endOf(c.subscription)), this.daysText(c.state.days)) },
+                a: [this.rowAction('icon-eye', 'Ver empresa', () => this.openCompany(c.id))]
+            };
         });
 
-        $box.append(this.card().append(this.table(['Empresa', 'Plan', 'Sucursales activas', 'Usuarios activos', 'Mensual', 'Estado', 'Vence', ''], body)));
-        this.icons();
+        this.coffeeTable('companyRows', 'tbCompanies', ['Empresa', 'Plan', 'Sucursales activas', 'Usuarios activos', 'Mensual', 'Estado', 'Vence', ''], row, { center: [2, 4, 6], hover: true });
+
+        // Toda la fila abre el detalle, igual que el botón del ojo.
+        $('#tbCompanies tbody tr').each((i, tr) => $(tr).on('click', () => this.openCompany(rows[i].id)));
     }
 
     // -- Vista: detalle de una empresa --
@@ -702,19 +834,19 @@ class Companies extends BillingPanel {
         this.list.forEach((x) => switcher.append($('<option>', { value: x.id, text: x.name, selected: x.id === c.id })));
 
         const top = $('<div>', { class: 'flex items-center gap-3 flex-wrap' }).append(
-            $('<button>', { type: 'button', class: 'inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700' })
-                .append($('<i>', { 'data-lucide': 'arrow-left', class: 'w-4 h-4' }), $('<span>', { text: 'Empresas' }))
+            $('<button>', { type: 'button', class: 'inline-flex items-center gap-1 text-[12.5px] font-semibold text-blue-600 hover:underline' })
+                .append($('<i>', { 'data-lucide': 'arrow-left', class: 'w-3.5 h-3.5' }), $('<span>', { text: 'Volver a empresas' }))
                 .on('click', () => this.backToList()),
             $('<div>', { class: 'flex-1' }),
             $('<div>', { class: 'w-full sm:w-72' }).append(switcher)
         );
 
-        const hero = this.card('p-4 sm:p-5').append(
+        const hero = this.card('px-5 py-[18px]').append(
             $('<div>', { class: 'flex items-center gap-4 flex-wrap' }).append(
-                this.avatar(c.name, c.id, 'w-14 h-14 rounded-2xl text-lg'),
+                this.avatar(c.name, c.id, 'w-14 h-14 rounded-2xl text-[19px]'),
                 $('<div>', { class: 'min-w-[200px] flex-1' }).append(
-                    $('<h2>', { class: 'text-xl font-bold text-gray-900 mb-1', text: c.name }),
-                    $('<div>', { class: 'flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500' }).append(
+                    $('<h2>', { class: 'text-xl font-extrabold tracking-tight text-gray-900 mb-0', text: c.name }),
+                    $('<div>', { class: 'flex flex-wrap items-center gap-x-3.5 gap-y-1 mt-1 text-[12.5px] text-gray-500' }).append(
                         c.rfc ? $('<span>', { class: 'font-mono', text: c.rfc }) : null,
                         c.ubication ? this.metaItem('map-pin', c.ubication) : null,
                         this.metaItem('calendar', `Cliente desde ${this.date(this.clientSince())}`),
@@ -723,9 +855,9 @@ class Companies extends BillingPanel {
                 ),
                 $('<div>', { class: 'flex items-center gap-2 flex-wrap' }).append(
                     this.chip(c.state.label, c.state.tone, true),
-                    actionButton('pencil', 'Editar', () => this.editCompany(c.id)),
-                    actionButton('refresh-cw', 'Estado', () => this.changeStatus(c.id, c.status)),
-                    actionButton('palette', 'Temas', () => this.editCompanyThemes(c.id))
+                    this.button('pencil', 'Editar', () => this.editCompany(c.id)),
+                    this.button('refresh-cw', 'Estado', () => this.changeStatus(c.id, c.status)),
+                    this.button('palette', 'Temas', () => this.editCompanyThemes(c.id))
                 )
             )
         );
@@ -741,16 +873,16 @@ class Companies extends BillingPanel {
 
         // La línea de abajo va como sombra interior: con un borde y -mb-px el
         // overflow-x-auto sacaba una barra de scroll vertical de 1px.
-        const tabBar = $('<div>', { class: 'flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_#E5E7EB]' });
+        const tabBar = $('<div>', { class: 'flex gap-1 mt-0.5 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_#E5E7EB]' });
         tabs.forEach(([key, label, count]) => {
             const on = this.tab === key;
             tabBar.append($('<button>', {
                 type: 'button',
-                class: 'shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold border-b-2 transition '
-                    + (on ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800')
+                class: 'shrink-0 inline-flex items-center gap-[7px] px-3.5 py-[9px] text-[13px] font-semibold rounded-t-lg border-b-2 transition '
+                    + (on ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50')
             }).append(
                 $('<span>', { text: label }),
-                count !== undefined ? $('<span>', { class: 'text-[10.5px] px-1.5 rounded-full bg-gray-100 text-gray-500', text: count }) : null
+                count !== undefined ? this.count(count) : null
             ).on('click', () => {
                 this.tab = key;
                 this.renderDetail();
@@ -760,7 +892,7 @@ class Companies extends BillingPanel {
         this.body().empty().append(
             top,
             hero,
-            $('<div>', { class: 'grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4' }).append(this.planCard(), this.clientCard()),
+            $('<div>', { class: 'grid grid-cols-1 lg:grid-cols-2 gap-4' }).append(this.planCard(), this.clientCard()),
             tabBar,
             $('<div>', { id: 'companyTab' })
         );
@@ -789,7 +921,7 @@ class Companies extends BillingPanel {
             return this.card('p-4 sm:p-5').append(
                 $('<h3>', { class: 'text-base font-bold text-gray-900 mb-1', text: 'Sin plan vigente' }),
                 $('<p>', { class: 'text-sm text-gray-500 mb-3', text: 'Esta empresa no tiene una suscripción. Asígnale un plan para ver sus límites y su vigencia.' }),
-                actionButton('plus', 'Asignar plan', assign, true)
+                this.button('plus', 'Asignar plan', assign, true)
             );
         }
 
@@ -801,7 +933,7 @@ class Companies extends BillingPanel {
                 $('<h3>', { class: 'text-base font-bold text-gray-900 mb-0 mr-auto', text: this.closed(sub) ? `Último plan: ${plan.name}` : `Plan ${plan.name}` }),
                 this.chip(SUBSCRIPTION_STATUS[sub.status] ? SUBSCRIPTION_STATUS[sub.status].label : sub.status, SUBSCRIPTION_STATUS[sub.status] ? SUBSCRIPTION_STATUS[sub.status].tone : 'neutral'),
                 this.closed(sub)
-                    ? actionButton('plus', 'Asignar plan', assign, true)
+                    ? this.button('plus', 'Asignar plan', assign, true)
                     : this.iconButton('pencil', 'Editar suscripción', () => subscriptions.editSubscription(sub.id, () => this.reload()))
             ),
             $('<div>', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-4' }).append(
@@ -870,7 +1002,11 @@ class Companies extends BillingPanel {
         };
 
         $('#companyTab').empty().append((render[this.tab] || render.resumen)());
+
+        // Las tablas de CoffeeSoft buscan su contenedor por id: se pintan ya con la pestaña puesta.
+        if (this.tab === 'sucursales') this.renderBranchTable();
         if (this.tab === 'usuarios') this.renderUserRows();
+        if (this.tab === 'pagos') this.renderPaymentTable();
         this.icons();
     }
 
@@ -903,7 +1039,7 @@ class Companies extends BillingPanel {
         ));
         if (!d.branches.length) branches.append($('<p>', { class: 'text-xs text-gray-400 mb-0', text: 'Sin sucursales todavía.' }));
 
-        return $('<div>', { class: 'grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4 items-start' }).append(
+        return $('<div>', { class: 'grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 items-start' }).append(
             this.card('p-4 sm:p-5').append($('<h3>', { class: 'text-base font-bold text-gray-900 mb-3', text: 'Actividad reciente' }), timeline),
             $('<div>', { class: 'flex flex-col gap-4' }).append(
                 this.card('p-4 sm:p-5').append(
@@ -956,11 +1092,11 @@ class Companies extends BillingPanel {
 
     timelineItem(ev) {
         const dot = { ok: 'border-emerald-500', warn: 'border-amber-500', bad: 'border-red-500', info: 'border-sky-500', pri: 'border-blue-600', neutral: 'border-gray-400' };
-        return $('<div>', { class: 'relative pb-4 last:pb-0 pl-3' }).append(
-            $('<span>', { class: `absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-white border-[2.5px] ${dot[ev.tone] || dot.neutral}` }),
-            $('<p>', { class: 'text-[11px] text-gray-400 mb-0', text: this.date(ev.date) }),
-            $('<p>', { class: 'text-sm font-semibold text-gray-800 mb-0', text: ev.title }),
-            ev.text ? $('<p>', { class: 'text-xs text-gray-500 mb-0', text: ev.text }) : null
+        return $('<div>', { class: 'relative pb-[18px] last:pb-0.5 pl-3.5' }).append(
+            $('<span>', { class: `absolute -left-[19px] top-[5px] w-2.5 h-2.5 rounded-full bg-white border-[2.5px] ${dot[ev.tone] || dot.neutral}` }),
+            $('<p>', { class: 'text-[11px] text-gray-400 mb-0.5', text: this.date(ev.date) }),
+            $('<p>', { class: 'text-[13px] font-semibold text-gray-800 mb-0', text: ev.title }),
+            ev.text ? $('<p>', { class: 'text-[12.5px] text-gray-500 mb-0', text: ev.text }) : null
         );
     }
 
@@ -973,7 +1109,7 @@ class Companies extends BillingPanel {
         const max = plan ? plan.max_branches : null;
         const full = max !== null && active >= max;
 
-        const rows = d.branches.filter((b) => this.branchFilter === 'todas' || (this.branchFilter === 'activas' ? b.is_active : !b.is_active));
+        const rows = this.filteredBranches();
 
         const filter = this.select([
             { id: 'todas', valor: 'Todas' },
@@ -981,24 +1117,8 @@ class Companies extends BillingPanel {
             { id: 'inactivas', valor: 'Inactivas' }
         ], this.branchFilter, (value) => { this.branchFilter = value; this.renderTab(); });
 
-        const add = actionButton('plus', 'Agregar sucursal', () => this.addBranch(), true, full);
+        const add = this.button('plus', 'Agregar sucursal', () => this.addBranch(), true, full);
         if (full) add.attr('title', `El plan ${plan.name} permite ${max} sucursales activas`);
-
-        const body = $('<tbody>');
-        rows.forEach((b) => body.append($('<tr>', { class: 'border-b border-gray-100 last:border-0 hover:bg-gray-50' }).append(
-            $('<td>', { class: 'px-4 py-3' }).append(
-                $('<p>', { class: 'text-sm font-semibold text-gray-800 mb-0', text: b.name }),
-                $('<p>', { class: 'text-[11px] text-gray-400 mb-0', text: b.ubication || 'Sin ubicación' })
-            ),
-            $('<td>', { class: 'px-4 py-3 text-sm font-semibold text-gray-800', text: b.users }),
-            $('<td>', { class: 'px-4 py-3 text-sm text-gray-600', text: b.home }),
-            $('<td>', { class: 'px-4 py-3 text-sm text-gray-600 whitespace-nowrap', text: this.date(b.created) }),
-            $('<td>', { class: 'px-4 py-3' }).append(this.chip(b.is_active ? 'Activa' : 'Inactiva', b.is_active ? 'ok' : 'neutral', true)),
-            $('<td>', { class: 'px-4 py-3' }).append($('<div>', { class: 'flex justify-end gap-1' }).append(
-                this.iconButton('pencil', 'Editar sucursal', () => this.editBranch(b)),
-                this.iconButton(b.is_active ? 'ban' : 'circle-check', b.is_active ? 'Desactivar sucursal' : 'Activar sucursal', () => this.toggleBranch(b), b.is_active ? 'hover:text-red-600' : 'hover:text-emerald-600')
-            ))
-        )));
 
         return this.card().append(
             this.cardHead('Sucursales', [
@@ -1008,9 +1128,32 @@ class Companies extends BillingPanel {
                 add
             ]),
             rows.length
-                ? this.table(['Sucursal', 'Con acceso', 'Pertenecen', 'Alta', 'Estado', ''], body)
+                ? $('<div>', { id: 'companyBranchTable', class: 'p-3 overflow-x-auto' })
                 : this.emptyState('building-2', 'Sin sucursales en este filtro', d.branches.length ? 'Cambia el filtro.' : 'Agrega la primera con «Agregar sucursal».')
         );
+    }
+
+    filteredBranches() {
+        return this.detail.branches.filter((b) => this.branchFilter === 'todas' || (this.branchFilter === 'activas' ? b.is_active : !b.is_active));
+    }
+
+    // Tabla de la pestaña Sucursales. Las acciones son las mismas de antes: editar y activar/desactivar.
+    renderBranchTable() {
+        const row = this.filteredBranches().map((b) => ({
+            id: b.id,
+            sucursal: { html: this.cellMain(b.name, b.ubication || 'Sin ubicación') },
+            acceso: b.users,
+            pertenecen: b.home,
+            alta: { class: 'whitespace-nowrap', html: this.date(b.created) },
+            estado: { html: this.chip(b.is_active ? 'Activa' : 'Inactiva', b.is_active ? 'ok' : 'neutral', true) },
+            a: [
+                this.rowAction('icon-pencil', 'Editar sucursal', () => this.editBranch(b)),
+                this.rowAction(b.is_active ? 'icon-toggle-on' : 'icon-toggle-off', b.is_active ? 'Desactivar sucursal' : 'Activar sucursal', () => this.toggleBranch(b), b.is_active)
+            ]
+        }));
+
+        if (!row.length) return;
+        this.coffeeTable('companyBranchTable', 'tbCompanyBranches', ['Sucursal', 'Con acceso', 'Pertenecen', 'Alta', 'Estado', ''], row, { center: [2, 3, 4, 5] });
     }
 
     addBranch() {
@@ -1126,7 +1269,7 @@ class Companies extends BillingPanel {
                     $('<div>', { class: 'flex-1' }),
                     scope,
                     search,
-                    actionButton('plus', 'Agregar usuario', () => userForm.addUser(c.id, () => this.reload()), true)
+                    this.button('plus', 'Agregar usuario', () => userForm.addUser(c.id, () => this.reload()), true)
                 ]),
                 $('<div>', { id: 'companyUserRows' })
             ),
@@ -1268,12 +1411,41 @@ class Companies extends BillingPanel {
                 this.chip(`Pagado: ${this.money(paid.reduce((s, p) => s + p.amount, 0))}`, 'ok'),
                 pending.length ? this.chip(`Pendiente: ${this.money(pending.reduce((s, p) => s + p.amount, 0))}`, 'warn') : null,
                 $('<div>', { class: 'flex-1' }),
-                actionButton('plus', 'Registrar pago', () => payments.addPayment(d.company.id, () => this.reload()), true)
+                this.button('plus', 'Registrar pago', () => payments.addPayment(d.company.id, () => this.reload()), true)
             ]),
             d.payments.length
-                ? this.paymentsTable(d.payments, false, () => this.reload())
+                ? $('<div>', { id: 'companyPaymentTable', class: 'p-3 overflow-x-auto' })
                 : this.emptyState('credit-card', 'Sin pagos registrados', 'Registra el primero con «Registrar pago».')
         );
+    }
+
+    /*  Tabla de la pestaña Pagos. Mismas acciones que paymentsTable (la de la
+        pestaña Pagos general, que sigue igual): factura, editar y cambiar estado. */
+    renderPaymentTable() {
+        const onSaved = () => this.reload();
+        const row = this.detail.payments.map((p) => {
+            const st = PAYMENT_STATUS[p.status] || { label: p.status, tone: 'neutral' };
+            const a = [];
+            if (p.invoice) a.push(Object.assign(this.rowAction('icon-doc-text', 'Ver factura'), { href: p.invoice, target: '_blank', rel: 'noopener' }));
+            a.push(
+                this.rowAction('icon-pencil', 'Editar pago', () => payments.editPayment(p.id, onSaved)),
+                this.rowAction('icon-arrows-cw', 'Cambiar estado', () => payments.changeStatus(p.id, p.status, onSaved))
+            );
+
+            return {
+                id: p.id,
+                referencia: { html: $('<span>', { class: 'font-mono text-xs text-gray-600', text: p.reference || `#${p.id}` }) },
+                plan: esc(p.plan || '—'),
+                metodo: esc(p.gateway || '—'),
+                monto: { class: 'font-semibold whitespace-nowrap', html: this.money(p.amount, p.currency) },
+                fecha: { class: 'whitespace-nowrap', html: this.date(p.date) },
+                estado: { html: this.chip(st.label, st.tone, true) },
+                a: a
+            };
+        });
+
+        if (!row.length) return;
+        this.coffeeTable('companyPaymentTable', 'tbCompanyPayments', ['Referencia', 'Plan', 'Método', 'Monto', 'Fecha', 'Estado', ''], row, { right: [4], center: [5, 6] });
     }
 
     // -- Pestaña: Historial --

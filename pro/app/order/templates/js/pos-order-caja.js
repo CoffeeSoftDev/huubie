@@ -41,7 +41,7 @@ const onEnter = (e, fn) => { if (e.key === 'Enter') { e.preventDefault(); fn(); 
 
 // -- Tablas de corte y números de un turno --
 // Los cortes de fayxzvov_pos guardan sus totales en tablas de detalle; arrancan vacías.
-Object.assign(DB, { detail_turn_payment: [], detail_turn_status: [], detail_daily_closure_payment: [], detail_daily_closure_status: [] });
+Object.assign(DB, { turn_payment: [], turn_status: [], daily_closure_payment: [], daily_closure_status: [] });
 const stampSec = () => `${nowStamp()}:${pad(new Date().getSeconds())}`;
 const isCashMethod = id => !!method(id)?.is_cash;
 const diffTxt = d => d === 0 ? 'cuadra' : `${d > 0 ? 'sobran' : 'faltan'} ${fmt(Math.abs(d))}`;
@@ -73,14 +73,14 @@ function turnStats(turnId) {
     };
 }
 
-// Corte Z: congela los totales en turn + detail_turn_payment + detail_turn_status
+// Corte Z: congela los totales en turn + turn_payment + turn_status
 function snapshotTurn(tu) {
     const k = turnStats(tu.id), now = nowStamp();
     Object.assign(tu, { expected_cash: k.expected, total_sales: k.total_sales, sales_count: k.sales_count, orders_count: k.orders_count, updated_at: now });
-    DB.detail_turn_payment.filter(d => d.turn_id === tu.id).forEach(d => d.active = 0);
-    DB.detail_turn_status.filter(d => d.turn_id === tu.id).forEach(d => d.active = 0);
-    k.methods.forEach(x => DB.detail_turn_payment.push({ id: nextId(DB.detail_turn_payment), turn_id: tu.id, payment_method_id: x.m.id, amount: round2(x.sales + x.abonos), created_at: now, updated_at: now, active: 1 }));
-    k.statuses.filter(x => x.count).forEach(x => DB.detail_turn_status.push({ id: nextId(DB.detail_turn_status), turn_id: tu.id, sale_status_id: x.id, amount: x.amount, created_at: now, updated_at: now, active: 1 }));
+    DB.turn_payment.filter(d => d.turn_id === tu.id).forEach(d => d.active = 0);
+    DB.turn_status.filter(d => d.turn_id === tu.id).forEach(d => d.active = 0);
+    k.methods.forEach(x => DB.turn_payment.push({ id: nextId(DB.turn_payment), turn_id: tu.id, payment_method_id: x.m.id, amount: round2(x.sales + x.abonos), created_at: now, updated_at: now, active: 1 }));
+    k.statuses.filter(x => x.count).forEach(x => DB.turn_status.push({ id: nextId(DB.turn_status), turn_id: tu.id, sale_status_id: x.id, amount: x.amount, created_at: now, updated_at: now, active: 1 }));
 }
 DB.turn.filter(t => t.status === 'closed').forEach(snapshotTurn);   // el turno 41 de ejemplo ya trae su corte Z
 
@@ -399,11 +399,11 @@ async function confirmCierreDia() {
         cash_in: k.cash_in, cash_out: k.cash_out, closure_date: now, updated_at: now, user_id: DB.user.id,
     });
     // Volver a cerrar un día reabierto: los renglones viejos quedan con active = 0
-    DB.detail_daily_closure_payment.filter(d => d.daily_closure_id === c.id).forEach(d => d.active = 0);
-    DB.detail_daily_closure_status.filter(d => d.daily_closure_id === c.id).forEach(d => d.active = 0);
-    k.rows.forEach(x => DB.detail_daily_closure_payment.push({ id: nextId(DB.detail_daily_closure_payment), daily_closure_id: c.id, payment_method_id: x.m.id,
+    DB.daily_closure_payment.filter(d => d.daily_closure_id === c.id).forEach(d => d.active = 0);
+    DB.daily_closure_status.filter(d => d.daily_closure_id === c.id).forEach(d => d.active = 0);
+    k.rows.forEach(x => DB.daily_closure_payment.push({ id: nextId(DB.daily_closure_payment), daily_closure_id: c.id, payment_method_id: x.m.id,
         source: x.source, payments_count: x.payments_count, amount: x.amount, tip: x.tip, created_at: now, updated_at: now, active: 1 }));
-    k.statuses.filter(x => x.count).forEach(x => DB.detail_daily_closure_status.push({ id: nextId(DB.detail_daily_closure_status), daily_closure_id: c.id,
+    k.statuses.filter(x => x.count).forEach(x => DB.daily_closure_status.push({ id: nextId(DB.daily_closure_status), daily_closure_id: c.id,
         sale_status_id: x.id, amount: x.amount, created_at: now, updated_at: now, active: 1 }));
     k.turns.forEach(t => t.daily_closure_id = c.id);
     k.sales.forEach(s => s.daily_closure_id = c.id);

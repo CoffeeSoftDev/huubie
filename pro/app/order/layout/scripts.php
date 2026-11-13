@@ -21,18 +21,22 @@
     <script src="<?= $asset('app/catalogo/src/js/navbar.js') ?>"></script>
     <script src="<?= $asset('app/catalogo/src/js/sidebar.js') ?>"></script>
 
-    <!-- Modal de CostSys: cuelga csModal de Templates. Va antes del modulo. -->
+    <!-- Componentes compartidos: cuelgan de Templates. Van antes del modulo.
+         posCatalog y posTicket/Lines/Totals aprobados el 13/11/2026. -->
     <script src="<?= $asset('assets/components/cs-modal.js') ?>"></script>
+    <script src="<?= $asset('assets/components/pos-catalog.js') ?>"></script>
+    <script src="<?= $asset('assets/components/pos-ticket.js') ?>"></script>
 
     <?php
-    /*  Primero el detalle (lo usa la pagina) y al final la pagina, que lo
+    /*  Primero el detalle (ayudantes esc/money), luego la captura (usa los
+        componentes POS), el turno y el cobro, y al final la pagina, que los
         instancia. index.php sin secciones llega con $script vacio: nada. */
     $local = function ($name) {
         $file = __DIR__ . '/../src/js/' . $name . '.js';
         return is_file($file) ? 'src/js/' . $name . '.js?v=' . filemtime($file) : '';
     };
 
-    $files = $script !== '' ? ['pedido-detalle', $script] : [];
+    $files = $script !== '' ? ['pedido-detalle', 'pedido-captura', 'pedido-turno', 'pedido-cobro', 'pedido-cierre', $script] : [];
 
     foreach ($files as $name):
         $src = $local($name);

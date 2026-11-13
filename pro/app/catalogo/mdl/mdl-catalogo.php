@@ -271,13 +271,34 @@ class mdl extends CRUD {
 
     // -- Productos (kind product | service) --
 
-    public function qListProducts($companyId, $branchId, $active, $categoryId = null) {
-        $where = '';
-        $data  = [$companyId, $branchId, $active];
+    /*  Uno ACTIVO con el mismo nombre en la sucursal del ? (no el mismo registro).
+        Es la regla de Pedidos (qCatalogProducts): si la sucursal tiene el suyo
+        activo, el de la Matriz no se le ofrece. */
+    private function qTwinIn($alias) {
+        return "
+            SELECT 1
+            FROM {$this->pos}product t
+            WHERE t.company_id = {$alias}.company_id
+                AND t.branch_id = ?
+                AND t.id <> {$alias}.id
+                AND LOWER(TRIM(t.name)) = LOWER(TRIM({$alias}.name))
+                AND IFNULL(t.is_custom, 0) = 0
+                AND t.kind IN ('product', 'service')
+                AND IFNULL(t.active, 1) = 1
+        ";
+    }
 
-        if ($categoryId !== null) {
-            $where  = 'AND p.category_id = ?';
-            $data[] = $categoryId;
+    /*  Los de la sucursal. La categoria se filtra por NOMBRE: en una sucursal la
+        misma categoria puede ser suya o de la Matriz (Pedidos tambien agrupa por nombre).
+        twin_main: la Matriz tiene uno activo con ese nombre (este lo reemplaza).
+        own_elsewhere: cuantas otras sucursales venden el suyo (se lee en la Matriz). */
+    public function qListProducts($companyId, $branchId, $active, $categoryName = null, $mainId = 0) {
+        $where = '';
+        $data  = [$mainId, $companyId, $branchId, $active];
+
+        if ($categoryName !== null) {
+            $where  = 'AND TRIM(c.name) = ?';
+            $data[] = $categoryName;
         }
 
         return $this->qRows("
@@ -297,7 +318,16 @@ class mdl extends CRUD {
                 p.subcategory_id,
                 IFNULL(p.active, 1) AS active,
                 c.name AS category,
-                s.name AS subcategory
+                s.name AS subcategory,
+                EXISTS ({$this->qTwinIn('p')}) AS twin_main,
+                (SELECT COUNT(DISTINCT o.branch_id)
+                   FROM {$this->pos}product o
+                  WHERE o.company_id = p.company_id
+                    AND o.branch_id <> p.branch_id
+                    AND LOWER(TRIM(o.name)) = LOWER(TRIM(p.name))
+                    AND IFNULL(o.is_custom, 0) = 0
+                    AND o.kind IN ('product', 'service')
+                    AND IFNULL(o.active, 1) = 1) AS own_elsewhere
             FROM {$this->pos}product p
             LEFT JOIN {$this->pos}category c    ON c.id = p.category_id
             LEFT JOIN {$this->pos}subcategory s ON s.id = p.subcategory_id
@@ -326,6 +356,91 @@ class mdl extends CRUD {
                 AND kind IN ('product', 'service')
             LIMIT 1
         ", [$id, $companyId, $branchId]);
+    }
+
+    // Lo que la sucursal vende de la Matriz: activo y sin uno propio activo con el mismo nombre.
+    public function qListMainProducts($companyId, $branchId, $mainId, $categoryName = null) {
+        $where = '';
+        $data  = [$companyId, $mainId, $branchId];
+
+        if ($categoryName !== null) {
+            $where  = 'AND TRIM(c.name) = ?';
+            $data[] = $categoryName;
+        }
+
+        return $this->qRows("
+            SELECT
+                p.id,
+                p.name,
+                p.sku,
+                p.kind,
+                p.price,
+                p.cost,
+                p.sell_pos,
+                p.in_catalog,
+                IFNULL(p.active, 1) AS active,
+                c.name AS category,
+                s.name AS subcategory
+            FROM {$this->pos}product p
+            LEFT JOIN {$this->pos}category c    ON c.id = p.category_id
+            LEFT JOIN {$this->pos}subcategory s ON s.id = p.subcategory_id
+            WHERE p.company_id = ?
+                AND p.branch_id = ?
+                AND IFNULL(p.is_custom, 0) = 0
+                AND p.kind IN ('product', 'service')
+                AND IFNULL(p.active, 1) = 1
+                AND NOT EXISTS ({$this->qTwinIn('p')})
+                {$where}
+            ORDER BY p.name
+        ", $data);
+    }
+
+    // El de la Matriz que se va a copiar, con todo lo que la copia hereda.
+    public function qGetMainProduct($id, $companyId, $mainId) {
+        return $this->qRow("
+            SELECT
+                p.id, p.name, p.description, p.image, p.sku, p.barcode, p.kind, p.unit_id,
+                p.price, p.cost, p.portion_qty, p.shelf_life_days,
+                p.is_inventoriable, p.sell_pos, p.in_catalog,
+                TRIM(c.name)  AS category,
+                c.description AS category_description,
+                TRIM(s.name)  AS subcategory,
+                s.description AS subcategory_description
+            FROM {$this->pos}product p
+            LEFT JOIN {$this->pos}category c    ON c.id = p.category_id
+            LEFT JOIN {$this->pos}subcategory s ON s.id = p.subcategory_id
+            WHERE p.id = ?
+                AND p.company_id = ?
+                AND p.branch_id = ?
+                AND IFNULL(p.is_custom, 0) = 0
+                AND p.kind IN ('product', 'service')
+                AND IFNULL(p.active, 1) = 1
+            LIMIT 1
+        ", [$id, $companyId, $mainId]);
+    }
+
+    // Filtro de Productos: las categorias activas de la sucursal y de la Matriz, una por nombre.
+    public function qFilterCategories($branchId, $mainId) {
+        return $this->qRows("
+            SELECT MIN(id) AS id, TRIM(name) AS valor
+            FROM {$this->pos}category
+            WHERE branch_id IN (?, ?)
+                AND IFNULL(active, 1) = 1
+            GROUP BY TRIM(name)
+            ORDER BY valor
+        ", [$branchId, $mainId]);
+    }
+
+    public function qCategoryName($id, $branchId, $mainId) {
+        $row = $this->qRow("
+            SELECT TRIM(name) AS name
+            FROM {$this->pos}category
+            WHERE id = ?
+                AND branch_id IN (?, ?)
+            LIMIT 1
+        ", [$id, $branchId, $mainId]);
+
+        return $row ? $row['name'] : null;
     }
 
     // Unico entre productos, servicios y paquetes de la sucursal: en el POS se
@@ -370,8 +485,9 @@ class mdl extends CRUD {
         ", [$companyId, $branchId, $barcode, $exceptId]);
     }
 
-    public function qCountProducts($companyId, $branchId) {
-        return $this->qCount("
+    // Lo que se vende en la sucursal: lo suyo activo y, fuera de la Matriz, lo que hereda de ella.
+    public function qCountProducts($companyId, $branchId, $mainId = 0) {
+        $own = $this->qCount("
             SELECT COUNT(*)
             FROM {$this->pos}product
             WHERE company_id = ?
@@ -380,6 +496,19 @@ class mdl extends CRUD {
                 AND kind IN ('product', 'service')
                 AND IFNULL(active, 1) = 1
         ", [$companyId, $branchId]);
+
+        if ($mainId <= 0 || $mainId === $branchId) return $own;
+
+        return $own + $this->qCount("
+            SELECT COUNT(*)
+            FROM {$this->pos}product p
+            WHERE p.company_id = ?
+                AND p.branch_id = ?
+                AND IFNULL(p.is_custom, 0) = 0
+                AND p.kind IN ('product', 'service')
+                AND IFNULL(p.active, 1) = 1
+                AND NOT EXISTS ({$this->qTwinIn('p')})
+        ", [$companyId, $mainId, $branchId]);
     }
 
     // Paquetes activos que lo llevan: mientras este en uno no se desactiva.

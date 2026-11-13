@@ -1,12 +1,16 @@
 let api = 'ctrl/ctrl-pedidos.php';
-let orders, orderDetail;
+let orders, orderDetail, orderForm, orderTurn, orderPay, orderClosure;
 let dataInit = {};
 
 $(async () => {
     dataInit = (await useFetch({ url: api, data: { opc: 'init' } })) || {};
 
     orderDetail = new OrderDetail(api, 'root');
-    orders      = new Orders(api, 'root');
+    orderForm   = new OrderForm(api, 'root');
+    orderTurn   = new OrderTurn('ctrl/ctrl-turno.php', 'root');
+    orderPay     = new OrderPay('ctrl/ctrl-cobro.php', 'root');
+    orderClosure = new OrderClosure('ctrl/ctrl-cierre.php', 'root');
+    orders       = new Orders(api, 'root');
     orders.init();
 });
 
@@ -176,6 +180,25 @@ class Orders extends Templates {
                 container: [
                     {
                         type:  'div',
+                        class: 'flex items-end justify-between gap-[12px] flex-wrap',
+                        children: [
+                            { type: 'div', id: `headerText${this.PROJECT_NAME}`, class: 'min-w-0' },
+                            { type: 'div', id: `headerActions${this.PROJECT_NAME}`, class: 'shrink-0' }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        this.createLayout({
+            parent: `headerText${this.PROJECT_NAME}`,
+            design: false,
+            data: {
+                id:    `headerTextBody${this.PROJECT_NAME}`,
+                class: 'w-full',
+                container: [
+                    {
+                        type:  'div',
                         class: 'cp-migas',
                         children: [
                             { type: 'span', class: 'cp-migas-raiz', text: 'Huubie' },
@@ -189,6 +212,84 @@ class Orders extends Templates {
                     { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, scope.branch].filter(Boolean).join(' · ') || 'Pedidos y cotizaciones de la sucursal' }
                 ]
             }
+        });
+
+        if (dataInit.status != 200 || !this.can('show')) return;
+
+        this.paintTurn();
+    }
+
+    // Chip del turno o del día y botones del encabezado. orderTurn.sync() lo repinta.
+    paintTurn() {
+        if (!$(`#headerActions${this.PROJECT_NAME}`).length) return;
+
+        const turn    = dataInit.turn;
+        const day     = dataInit.day || {};
+        const pending = day.pending && day.pending.length ? day.pending[0] : '';
+        const create  = this.can('create');
+
+        let tone = 'is-none';
+        let text = 'Sin turno abierto';
+
+        if (turn && turn.old) {
+            tone = 'is-old';
+            text = `Turno ${turn.folio} de otro día`;
+        } else if (turn) {
+            tone = 'is-open';
+            text = `Turno ${turn.folio} · desde ${ordHour(String(turn.opened_at).slice(11, 16))}`;
+        } else if (day.closed) {
+            tone = 'is-closed';
+            text = 'Día cerrado';
+        } else if (pending) {
+            tone = 'is-old';
+            text = `Falta cerrar el ${ordDate(pending).slice(0, 5)}`;
+        }
+
+        this.createLayout({
+            parent: `headerActions${this.PROJECT_NAME}`,
+            design: false,
+            data: {
+                id:    `headerActionsBody${this.PROJECT_NAME}`,
+                class: 'flex items-center gap-[12px] flex-wrap justify-end',
+                container: [
+                    { type: 'span', id: `turnChip${this.PROJECT_NAME}`, class: `ord-turn-chip ${tone}`, html: `<span class="ord-turn-dot"></span>${esc(text)}` },
+                    { type: 'div', id: `headerButtons${this.PROJECT_NAME}`, class: 'flex' }
+                ]
+            }
+        });
+
+        const opens = !turn && create && !day.closed && !pending;
+        const json  = [
+            {
+                opc:       'button',
+                id:        'btnTurnOrders',
+                class:     'col-auto',
+                text:      opens ? 'Abrir turno' : 'Turno y corte',
+                icon:      opens ? 'icon-lock-open' : 'icon-clock',
+                color_btn: 'outline',
+                onClick:   () => orderTurn.open()
+            },
+            {
+                opc:       'button',
+                id:        'btnDayOrders',
+                class:     'col-auto',
+                text:      'Cierre del día',
+                icon:      'icon-calendar-check-o',
+                color_btn: 'outline',
+                onClick:   () => orderClosure.open(pending)
+            }
+        ];
+
+        if (create) {
+            json.push({ opc: 'button', id: 'btnNewOrder', class: 'col-auto', text: 'Nuevo pedido', icon: 'icon-plus', color_btn: 'primary', onClick: () => orderForm.add() });
+        }
+
+        this.coffeeForm({
+            parent:       `headerButtons${this.PROJECT_NAME}`,
+            id:           'formHeaderOrders',
+            class:        'flex gap-[8px]',
+            showRequired: false,
+            json:         json
         });
     }
 

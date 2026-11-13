@@ -8,6 +8,9 @@ class Products extends Templates {
         this.PROJECT_NAME = 'Products';
         this.tab = 'products';
         this.categories = [];
+        this.origins = [];
+        this.isMain = true;
+        this.mainName = '';
     }
 
     // La página completa se recarga al cambiar de sucursal (App.onBranchChange).
@@ -29,11 +32,13 @@ class Products extends Templates {
 
         const category = $('#prod_category_id').val();
         const active   = $('#prod_active').val();
+        const origin   = $('#prod_origin').val();
 
         await this.loadFilter();
         this.filterBar();
         this.restoreFilter('prod_category_id', category);
         this.restoreFilter('prod_active', active);
+        this.restoreFilter('prod_origin', origin);
         this.ls();
     }
 
@@ -50,7 +55,26 @@ class Products extends Templates {
     async loadFilter() {
         const response = await useFetch({ url: this._link, data: { opc: 'init' } });
 
-        if (response && response.status == 200) this.categories = response.categories || [];
+        if (!response || response.status != 200) return;
+
+        this.categories = response.categories || [];
+        this.origins    = response.origins || [];
+        this.isMain     = response.isMain !== false;
+        this.mainName   = response.main || '';
+    }
+
+    originFilter() {
+        if (this.isMain) return [];
+
+        return [{
+            opc: 'select',
+            id: 'origin',
+            lbl: 'Origen',
+            required: false,
+            class: 'col-12 col-md-2',
+            data: this.origins,
+            onchange: 'products.ls()'
+        }];
     }
 
     // Si la opción ya no existe, el select se queda en la primera.
@@ -85,6 +109,7 @@ class Products extends Templates {
                     data: dataInit.statusFilter || [],
                     onchange: 'products.ls()'
                 },
+                ...this.originFilter(),
                 {
                     opc: 'button',
                     id: 'btnNewProduct',
@@ -107,8 +132,8 @@ class Products extends Templates {
                 id: 'tbProducts',
                 theme: 'light',
                 striped: true,
-                right: [4, 5],
-                center: [3, 6, 7]
+                right: [5, 6],
+                center: [4, 7, 8]
             },
             success: (data) => {
                 if (data && data.count !== undefined) this.csTabCount(this.tab, data.count);
@@ -214,7 +239,9 @@ class Products extends Templates {
         this.csModal({
             id: 'modalProduct',
             title: 'Editar producto',
-            subtitle: 'Cambia sus datos, su precio o dónde se vende',
+            subtitle: this.isMain
+                ? 'Lo que cambies aquí lo ven las sucursales que no tienen el suyo'
+                : 'Cambia sus datos, su precio o dónde se vende',
             lucideIcon: 'package-plus',
             json: this.jsonForm(options, response.data),
             onSave: (values, close) => this.save('editProduct', { ...values, id }, close)
@@ -250,12 +277,49 @@ class Products extends Templates {
     }
 
     status(id, active) {
+        const off = this.isMain
+            ? 'Dejará de venderse aquí y en las sucursales que no tienen el suyo. No se borra.'
+            : 'Dejará de venderse. No se borra.';
+
         this.swalQuestion({
             opts: {
                 title: active ? '¿Activar el producto?' : '¿Desactivar el producto?',
-                text: active ? 'Volverá a venderse.' : 'Dejará de venderse. No se borra.'
+                text: active ? 'Volverá a venderse.' : off
             },
             data: { opc: 'statusProduct', id, active },
+            methods: {
+                send: (response) => afterSave(response, () => this.ls())
+            }
+        });
+    }
+
+    // -- Compartido / Propio --
+
+    copy(id) {
+        this.swalQuestion({
+            opts: {
+                title: '¿Hacerlo propio de esta sucursal?',
+                text: 'Se copia con su precio y su categoría. Lo que le cambies aquí no toca la Matriz.'
+            },
+            data: { opc: 'copyProduct', id },
+            methods: {
+                send: (response) => afterSave(response, () => {
+                    this.ls();
+                    if (response.id) this.edit(response.id);
+                })
+            }
+        });
+    }
+
+    backToMain(id) {
+        const main = this.mainName ? `la Matriz (${this.mainName})` : 'la Matriz';
+
+        this.swalQuestion({
+            opts: {
+                title: '¿Volver al de la Matriz?',
+                text: `Tu versión se desactiva (no se borra) y se vende la de ${main}, con su precio.`
+            },
+            data: { opc: 'statusProduct', id, active: 0 },
             methods: {
                 send: (response) => afterSave(response, () => this.ls())
             }

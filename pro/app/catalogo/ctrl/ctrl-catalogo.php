@@ -21,7 +21,7 @@ class ctrl extends core {
             'status' => 200,
             'scope'  => $scope,
             'counts' => [
-                'products'       => $this->qCountProducts($company, $branch),
+                'products'       => $this->qCountProducts($company, $branch, $this->mainBranchId()),
                 'categories'     => $this->qCountCategories($branch),
                 'subcategories'  => $this->qCountSubcategories($branch),
                 'modifierGroups' => $this->qCountModifierGroups($company),

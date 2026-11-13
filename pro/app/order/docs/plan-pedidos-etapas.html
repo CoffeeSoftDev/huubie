@@ -319,9 +319,9 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
         <tbody>
           <tr><td>1</td><td>Alcance</td><td><span class="chip read">Aprobada</span> «Adelante pedidos»</td><td>Primero Pedidos. Vender en mostrador (POS) va después de la Etapa 7 y reutiliza el cobro y la caja que aquí se construyen.</td></tr>
           <tr><td>2</td><td>Dónde vive</td><td><span class="chip read">Aprobada</span></td><td>Carpeta <code>pro/app/order/</code>, una página por sección del menú. Se corrige el inicio de quien no es root, que hoy apunta a una carpeta que no existe.</td></tr>
-          <tr><td>3</td><td>Cancelar un pedido con anticipo</td><td><span class="chip read">Aprobada</span> «ok»</td><td>Se permite, con motivo. Quien cancela elige: devolver el dinero o dejarlo como saldo a favor del cliente. Falta decidir dónde se anota la devolución (decisión D).</td></tr>
-          <tr><td>4</td><td>Corregir un pedido pagado o un corte cerrado</td><td><span class="chip write">Sin respuesta</span></td><td>Abierta. Bloquea la Etapa 5. Propuesta en la lámina 07.</td></tr>
-          <tr><td>5</td><td>Entregar un pedido que aún debe</td><td><span class="chip write">Sin respuesta</span></td><td>Abierta. Bloquea la Etapa 4. Propuesta en la lámina 07.</td></tr>
+          <tr><td>3</td><td>Cancelar un pedido con anticipo</td><td><span class="chip read">Aprobada</span> «ok»</td><td>Se permite, con motivo. El anticipo no se devuelve (decisión D, 13/11/2026): queda como saldo a favor del cliente.</td></tr>
+          <tr><td>4</td><td>Corregir un pedido pagado o un corte cerrado</td><td><span class="chip read">Aprobada</span> 13/11/2026 «Dueño y Supervisor»</td><td>Solo esos dos roles, y va ligado al administrador de permisos (Accesos › Roles). Etapa 5.</td></tr>
+          <tr><td>5</td><td>Entregar un pedido que aún debe</td><td><span class="chip read">Aprobada</span> 13/11/2026</td><td>El restante se cubre al entregar: el usuario abre el pedido y registra lo que el cliente pagó del saldo. Etapa 4.</td></tr>
           <tr><td>6</td><td>Cambios a la estructura de la base</td><td><span class="chip write">Diferida</span> «Aún no lo vemos»</td><td>El plan no agrega tablas ni columnas. Lo que eso deja fuera está marcado en cada etapa.</td></tr>
           <tr><td>7</td><td>Datos de prueba</td><td><span class="chip read">Hecha</span> «Usa pos local»</td><td>Los pedidos de Reginas ya están en la base local, tal como estaba. Detalle en la lámina 06.</td></tr>
           <tr><td>8</td><td>Formato de este plan</td><td><span class="chip read">Hecha</span> «Prefiero en html»</td><td>Este archivo. No se publicó en ningún servicio.</td></tr>
@@ -338,34 +338,34 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
     <p><span class="chip read">0 · Cimientos</span> → <span class="chip read">1 · Ver</span> → <span class="chip write">2 · Capturar</span> → <span class="chip write">3 · Cobrar</span> → <span class="chip write">4 · Producir y entregar</span> → <span class="chip danger">5 · Caja</span> → <span class="chip read">6 · Clientes, avisos y reportes</span> → <span class="chip danger">7 · Producción</span></p>
     <div class="rv-trips">
       <article class="rv-trip">
-        <header><span class="rv-code">E0</span><span class="rv-p preg">Lista para arrancar</span></header>
+        <header><span class="rv-code">E0</span><span class="rv-p preg">Hecha en local · 12/11/2026</span></header>
         <b>Cimientos</b>
         <p>«Pedidos» aparece en el menú de PRO y abre una página con el marco de PRO. Permisos por acción y roles de Reginas.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">E1</span><span class="rv-p preg">Lista para arrancar</span></header>
+        <header><span class="rv-code">E1</span><span class="rv-p preg">Hecha en local · 12/11/2026</span></header>
         <b>Ver pedidos</b>
         <p>La tabla de pedidos con filtros, buscador y el detalle completo. Solo consulta: no guarda nada.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">E2</span><span class="rv-p preg">Lista para arrancar</span></header>
+        <header><span class="rv-code">E2</span><span class="rv-p preg">Hecha en local · 13/11/2026</span></header>
         <b>Capturar</b>
         <p>Pedido nuevo, con pastel personalizado y fotos. Editar y cancelar sin pagos. Queda como cotización.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">E3</span><span class="rv-p media">Espera decisión D</span></header>
+        <header><span class="rv-code">E3</span><span class="rv-p preg">Hecha en local · 13/11/2026</span></header>
         <b>Cobrar</b>
-        <p>Abrir turno, anticipo, liquidación, pago mixto, cambio, descuento con motivo y ticket. Cancelar con anticipo.</p>
+        <p>Abrir turno, anticipo, liquidación, pago mixto, cambio, descuento con motivo y ticket. Cancelar con anticipo. Probada en CLI (48/48) y en navegador.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">E4</span><span class="rv-p media">Espera decisión 5</span></header>
+        <header><span class="rv-code">E4</span><span class="rv-p baja">Después de E3</span></header>
         <b>Producir y entregar</b>
         <p>Calendario por fecha de entrega, palomear lo producido y marcar la entrega desde la lista o el calendario.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">E5</span><span class="rv-p media">Espera decisiones 4 y A</span></header>
+        <header><span class="rv-code">E5</span><span class="rv-p preg">Hecha en local · 13/11/2026</span></header>
         <b>Caja</b>
-        <p>Corte de turno con efectivo contado contra esperado, cierre del día y reapertura con motivo.</p>
+        <p>Abrir turno, corte X, corte Z con efectivo contado contra esperado, reabrir turno con motivo, cierre del día con ticket y reabrir el día con motivo. Probada en CLI (42/42) y en navegador. Corte cerrado bloqueado, recalcular turno y pantalla Cortes (<code>pos-tickets</code>) probados en CLI (33/33) y en navegador.</p>
       </article>
       <article class="rv-trip">
         <header><span class="rv-code">E6</span><span class="rv-p baja">Después</span></header>
@@ -385,9 +385,9 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
           <tr><td>0 · Cimientos</td><td>Entrar a «Pedidos» desde el menú de PRO</td><td>Solo menú y permisos</td><td>Chica</td><td>Decisión B</td></tr>
           <tr><td>1 · Ver pedidos</td><td>Buscar y revisar cualquier pedido de Reginas</td><td>Nada</td><td>Mediana</td><td>Etapa 0 · decisiones C y F</td></tr>
           <tr><td>2 · Capturar</td><td>Tomar un pedido completo y editarlo</td><td>Pedido, líneas, cliente, fotos, bitácora</td><td>Grande</td><td>Etapa 1 · decisión E</td></tr>
-          <tr><td>3 · Cobrar</td><td>Cobrar anticipos y liquidaciones dentro de un turno</td><td>Turno, pagos, estado del pedido</td><td>Grande</td><td>Etapa 2 · decisión D</td></tr>
-          <tr><td>4 · Producir y entregar</td><td>Seguir el pedido hasta que sale de la tienda</td><td>Producido, entregado, bitácora</td><td>Mediana</td><td>Etapa 3 · decisión 5</td></tr>
-          <tr><td>5 · Caja</td><td>Cerrar turno y día con cifras que cuadran</td><td>Corte de turno y cierre del día</td><td>Grande</td><td>Etapa 3 · decisiones 4 y A</td></tr>
+          <tr><td>3 · Cobrar</td><td>Cobrar anticipos y liquidaciones dentro de un turno</td><td>Turno, pagos, estado del pedido</td><td>Grande</td><td>Etapa 2</td></tr>
+          <tr><td>4 · Producir y entregar</td><td>Seguir el pedido hasta que sale de la tienda</td><td>Producido, entregado, bitácora</td><td>Mediana</td><td>Etapa 3</td></tr>
+          <tr><td>5 · Caja</td><td>Cerrar turno y día con cifras que cuadran</td><td>Corte de turno y cierre del día</td><td>Grande</td><td>Etapa 3</td></tr>
           <tr><td>6 · Clientes, avisos y reportes</td><td>Administrar clientes, avisar y consultar cortes</td><td>Clientes, crédito</td><td>Mediana</td><td>Etapa 5</td></tr>
           <tr><td>7 · Salida a producción</td><td>Trabajar en PRO con los datos reales</td><td>Todo, en el servidor</td><td>Mediana</td><td>Etapas 0 a 5 · decisión H</td></tr>
         </tbody>
@@ -520,7 +520,7 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
       <tr><td><b>Lee de la base</b></td><td><code>sale</code>, <code>detail_sale</code>, <code>customer</code>, <code>payment</code>, <code>sale_status</code>, <code>sale_image</code>, <code>history_log</code>, <code>product</code>.</td></tr>
       <tr><td><b>Reglas de alpha que se conservan</b></td><td>El buscador entiende «1557», «P1557» y «P1557-04» · con búsqueda se ignoran fecha y estado · saldo = total − pagos (en la base nueva el total ya trae el descuento restado) · punto verde en los pedidos del turno abierto.</td></tr>
       <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">L2</span> <span class="rv-code">L3</span> <span class="rv-code">L6</span> <span class="rv-code">L7</span> <span class="rv-code">L8</span> <span class="rv-code">L9</span> <span class="rv-code">L17</span> <span class="rv-code">P10</span> <span class="rv-code">P11</span></td></tr>
-      <tr><td><b>Decisiones</b></td><td>C (formato del folio) y F (ver todas las sucursales juntas).</td></tr>
+      <tr><td><b>Decisiones</b></td><td>C: «P1557», sin sufijo (aprobada 13/11/2026) · F: cada sucursal ve lo suyo; el catálogo de la Matriz se comparte a las demás (aprobada 13/11/2026).</td></tr>
       <tr><td><b>Terminado cuando</b></td><td>Los 1,536 pedidos cargados se encuentran · para la misma sucursal y el mismo rango, Total, Abono y Saldo coinciden con alpha · ninguna acción de la pantalla escribe en la base.</td></tr>
     </tbody></table></div>
 
@@ -532,20 +532,21 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
       <tr><td><b>Reglas de alpha que se conservan</b></td><td>Queda guardado quién capturó · cada edición deja en la bitácora qué cambió · clave para editar · el botón se bloquea al primer clic · un pedido pagado no se edita ni pierde líneas.</td></tr>
       <tr><td><b>Dato que lo motiva</b></td><td>120 de las 220 cotizaciones cargadas no tienen productos: el pedido se creaba antes de elegirlos. Y el pastel personalizado es 66 % de las líneas y 85 % del dinero: es el camino principal, no un caso aparte.</td></tr>
       <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">N1</span> <span class="rv-code">N2</span> <span class="rv-code">N3</span> <span class="rv-code">N4</span> <span class="rv-code">N5</span> <span class="rv-code">N8</span> <span class="rv-code">N11</span> <span class="rv-code">N13</span> <span class="rv-code">N14</span></td></tr>
-      <tr><td><b>Decisiones</b></td><td>E (si capturar exige turno abierto).</td></tr>
+      <tr><td><b>Decisiones</b></td><td>E: crear un pedido exige el turno de hoy abierto, como en alpha; editar no (aprobada 13/11/2026) · F: el catálogo es el de la sucursal más el de la Matriz; si la sucursal tiene uno con el mismo nombre, se ofrece el suyo. En Catálogo › Productos cada fila dice «Compartido», «De la Matriz» o «Propio»; «Hacer propio» copia el de la Matriz y «Volver a la Matriz» desactiva la copia (13/11/2026).</td></tr>
+      <tr><td><b>Componentes</b></td><td>Los cuatro de la vista POS (catálogo, ticket, líneas y totales) se aprobaron el 13/11/2026 y viven en <code>pro/assets/components/</code> (<code>pos-catalog.js</code> y <code>pos-ticket.js</code>), listos para Vender en mostrador.</td></tr>
       <tr><td><b>Terminado cuando</b></td><td>Se captura un pedido con pastel personalizado y foto, se edita y se ve igual en la tabla y en el detalle · no puede existir un pedido sin productos · cada cambio aparece en la bitácora con su autor.</td></tr>
     </tbody></table></div>
 
     <h3>Etapa 3 · Cobrar</h3>
     <div class="tscroll"><table><tbody>
       <tr><td style="width:190px"><b>Objetivo</b></td><td>Cobrar anticipos y liquidaciones dentro de un turno, sin cobros dobles ni de más.</td></tr>
-      <tr><td><b>Entrega</b></td><td>Abrir turno con su fondo · anticipo y liquidación · pago con varios métodos a la vez · cuánto entregó el cliente y cuánto se le dio de cambio · descuento con motivo y con tope · ticket · cancelar con anticipo (decisión 3): devolución o saldo a favor.</td></tr>
+      <tr><td><b>Entrega</b></td><td>Abrir turno con su fondo · anticipo y liquidación · pago con varios métodos a la vez · cuánto entregó el cliente y cuánto se le dio de cambio · descuento con motivo y con tope · ticket · cancelar con anticipo (decisión 3): el anticipo queda como saldo a favor; no hay devolución (D).</td></tr>
       <tr><td><b>Guarda en la base</b></td><td><code>turn</code> (al abrir), <code>payment</code>, <code>sale</code> (estado y descuento), <code>customer.wallet</code> (saldo a favor), <code>history_log</code>.</td></tr>
       <tr><td><b>Regla nueva</b></td><td>El estado lo decide el servidor con el saldo real: sin pagos es Cotización, con abono es Pendiente y con saldo $0.00 es Pagado. Nadie lo elige a mano.</td></tr>
       <tr><td><b>Reglas de alpha que se conservan</b></td><td>Candado contra el cobro doble · no se cobra sin turno abierto de hoy · cobro cruzado: el pago cae en la sucursal y el turno de quien cobra · el anticipo de un pedido futuro conserva su fecha · borrar un pago es solo para el administrador.</td></tr>
       <tr><td><b>Dato que lo motiva</b></td><td>En la base local hay 9 pedidos «Pendiente» que ya no deben nada, 1 «Pagado» que aún debe $950.00, 6 cotizaciones con pagos y 8 pedidos cobrados de más por $2,671.00 en total.</td></tr>
       <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">P1</span> <span class="rv-code">P3</span> <span class="rv-code">P5</span> <span class="rv-code">P6</span> <span class="rv-code">P8</span> <span class="rv-code">P9</span> <span class="rv-code">N6</span> <span class="rv-code">N7</span> <span class="rv-code">N9</span> <span class="rv-code">N10</span></td></tr>
-      <tr><td><b>Decisiones</b></td><td>D (dónde se anota la devolución de un anticipo). La decisión 6 deja fuera, por ahora, la propina por pago.</td></tr>
+      <tr><td><b>Decisiones</b></td><td>Ninguna abierta: D se cerró el 13/11/2026 (la devolución no está contemplada). La decisión 6 deja fuera, por ahora, la propina por pago.</td></tr>
       <tr><td><b>Terminado cuando</b></td><td>Un pedido pasa de Cotización a Pendiente y a Pagado solo por sus pagos · no se puede cobrar más que el saldo · dos clics seguidos dejan un solo pago · lo cobrado aparece en el turno de quien cobró.</td></tr>
     </tbody></table></div>
 
@@ -558,7 +559,7 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
       <tr><td><b>Dato que lo motiva</b></td><td>14 pedidos ya entregados todavía deben $11,950.00 en total (12 pendientes, 1 pagado y 1 cotización).</td></tr>
       <tr><td><b>Límite por la decisión 6</b></td><td>La base no tiene dónde guardar la hora de entrega: saldrá de la bitácora.</td></tr>
       <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">K1</span> <span class="rv-code">K2</span> <span class="rv-code">K3</span> <span class="rv-code">K4</span> <span class="rv-code">K5</span> <span class="rv-code">L4</span> <span class="rv-code">L5</span> <span class="rv-code">L10</span></td></tr>
-      <tr><td><b>Decisiones</b></td><td>5 (entregar con saldo) y B (rol Producción).</td></tr>
+      <tr><td><b>Decisiones</b></td><td>5: entregar = cobrar el restante y marcar entregado (aprobada 13/11/2026) · B: el rol Producción ya existe en local, solo con «Ver» del calendario.</td></tr>
       <tr><td><b>Terminado cuando</b></td><td>Un pedido se palomea y se entrega desde la lista o desde el calendario con el mismo resultado · entregar con saldo sigue la regla que se decida · el rol Producción no puede cobrar ni editar.</td></tr>
     </tbody></table></div>
 
@@ -566,12 +567,18 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
     <div class="tscroll"><table><tbody>
       <tr><td style="width:190px"><b>Objetivo</b></td><td>Cerrar el turno y el día con cifras que cuadran.</td></tr>
       <tr><td><b>Entrega</b></td><td>Corte de turno: efectivo esperado contra efectivo contado, con desglose por método de pago y por estado · cierre del día, que suma sus turnos · reabrir con motivo · recalcular un turno ya cerrado · ticket del corte · la sección <code>pos-tickets</code> recibe su ruta.</td></tr>
-      <tr><td><b>Guarda en la base</b></td><td><code>turn</code>, <code>detail_turn_payment</code>, <code>detail_turn_status</code>, <code>daily_closure</code> y sus dos tablas de detalle.</td></tr>
+      <tr><td><b>Guarda en la base</b></td><td><code>turn</code>, <code>turn_payment</code>, <code>turn_status</code>, <code>daily_closure</code>, <code>daily_closure_payment</code> y <code>daily_closure_status</code>.</td></tr>
       <tr><td><b>Reglas de alpha que se conservan</b></td><td>No se cierra el día con turnos abiertos · solo el administrador reabre, con motivo · un día pendiente de cierre bloquea abrir turno.</td></tr>
       <tr><td><b>Dato que lo motiva</b></td><td>20 turnos quedaron abiertos en la carga; el último se abrió el 30/10/2026. Hay que cerrarlos antes de probar el corte.</td></tr>
       <tr><td><b>Límite por la decisión 6</b></td><td>Los retiros y depósitos de efectivo no tienen tabla: el corte no podrá restarlos ni sumarlos. El cierre del día solo guarda sus totales.</td></tr>
       <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">C2</span> <span class="rv-code">C3</span> <span class="rv-code">C4</span> <span class="rv-code">C6</span> <span class="rv-code">C7</span> <span class="rv-code">C8</span> <span class="rv-code">C9</span> <span class="rv-code">C10</span> <span class="rv-code">C12</span></td></tr>
-      <tr><td><b>Decisiones</b></td><td>4 (pedido pagado y corte cerrado) y A (nombres de las dos tablas del cierre).</td></tr>
+      <tr><td><b>Decisiones</b></td><td>4: Dueño y Supervisor corrigen lo pagado o cerrado, vía permisos (aprobada 13/11/2026) · A: ganan los nombres locales, sin <code>detail_</code> (aprobada 13/11/2026) · E: sin turno abierto no se crea pedido (hecho en local 13/11/2026).</td></tr>
+      <tr><td><b>Cómo quedó el cierre del día</b></td><td>Un renglón de <code>daily_closure</code> por cierre, con folio = id · cerrar pide «Crear» y reabrir pide «Cancelar» (Dueño y Supervisor; la cajera no reabre) · reabrir guarda motivo, quién y cuándo, y suelta la liga de turnos y ventas; volver a cerrar crea otro renglón · un día cerrado o pendiente bloquea abrir turno, crear pedido y cobrar · se revisan hasta 15 días atrás, como en alpha.</td></tr>
+      <tr><td><b>Corte cerrado</b></td><td>Si un pedido con anticipo cae en un turno o día cerrado, cambiarle el total, cancelarlo o descontarle al cobrar pide «Cancelar» (Dueño y Supervisor); cobrarle sin descuento sigue libre y el pago entra al turno abierto; la cajera recibe el aviso y no se escribe nada · el cambio queda en la bitácora con «su corte no cambia» · la cotización (sin anticipo) no se bloquea · el corte se lee de su foto; si sus pedidos cambiaron, el turno marca «Cambió» y muestra «hoy $X».</td></tr>
+      <tr><td><b>Recalcular turno</b></td><td>Botón en el turno cerrado que cambió, solo Dueño y Supervisor · rehace vendido, conteos, esperado y la foto por estado · lo contado no cambia · se anota en el turno con fecha y cifras · no se puede si su día ya cerró: hay que reabrir el día · el cierre del día avisa de turnos desfasados, no bloquea.</td></tr>
+      <tr><td><b>Pantalla Cortes</b></td><td><code>app/order/cortes.php</code>, ruta de <code>pos-tickets</code> (menú «Tickets/Cierre») · ver turnos o cierres del día por periodo · abre el turno actual y el cierre del día · los ctrl de datos validan con el permiso de <code>pos-pedidos</code>, no con el de <code>pos-tickets</code>.</td></tr>
+      <tr><td><b>Falta en esta etapa</b></td><td>Los 96 turnos migrados que ya salen desfasados · que los ctrl de Cortes validen <code>pos-tickets</code> · nombre del menú «Tickets/Cierre» contra el título «Cortes» · la propina por método de pago sale en $0: <code>payment</code> no tiene propina · no se reabre un día pasado si ya hay turnos en días posteriores · solo se navega con Anterior, Siguiente y Hoy: no hay calendario · el aviso «sin entregar» depende de la Etapa 4.</td></tr>
+      <tr><td><b>Datos migrados</b></td><td>Los cierres de alpha llegan sin <code>source</code> (no muestran «abono») y con <code>total_cash</code> en 0; la pantalla lo recalcula · <code>total_shifts</code> es un contador de turnos aunque la columna es DOUBLE.</td></tr>
       <tr><td><b>Terminado cuando</b></td><td>El corte de un turno coincide con la suma de sus pagos · el cierre del día coincide con la suma de sus turnos · un día cerrado no se modifica sin reabrirlo.</td></tr>
     </tbody></table></div>
 
@@ -589,7 +596,11 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
     <div class="tscroll"><table><tbody>
       <tr><td style="width:190px"><b>Objetivo</b></td><td>Trabajar en PRO con los datos reales, sin perder un día de pedidos.</td></tr>
       <tr><td><b>Orden de subida</b></td><td>1. Estructura de <code>fayxzvov_pos</code> · 2. Liga con <code>fayxzvov_app</code> · 3. Menú, roles y permisos · 4. Migración de Reginas con el mapa de sucursales y el de usuarios · 5. Piloto en Kafeto, la sucursal con menos pedidos (295) · 6. alpha en solo lectura · 7. Migración final de lo capturado durante el piloto.</td></tr>
-      <tr><td><b>Pendiente antes de subir</b></td><td>El mapa de usuarios: en local las ventas entraron sin usuario porque ese mapa quedó vacío · decidir qué nombres ganan en las dos tablas del cierre (A) y si las nueve tablas más permisivas son a propósito (H) · el archivo de conexión local nunca se sube.</td></tr>
+      <tr><td><b>Subida 1 (sin corte)</b></td><td>Se puede subir ya, sin que nadie deje alpha: estructura, menú, roles, usuarios y Catálogo. Sirve para probar en el servidor real (sesión, contraseñas, fotos en <code>pro_files/</code>). Con la Etapa 3 y la pantalla de turno ya se crea y se cobra; para no duplicar ventas, nadie captura en PRO hasta el piloto. Los datos de Reginas entran como foto del día; lo que se capture después en alpha no pasa, y para el piloto se vacían las tablas cargadas y se vuelve a correr.</td></tr>
+      <tr><td><b>Migraciones, en orden</b></td><td>1. <code>2026-11-06_crear-fayxzvov-pos.sql</code> (ya crea la liga con <code>fayxzvov_app</code>) · 2. <code>2026-11-09_modulo-catalogo.sql</code> · 3. <code>2026-11-09_modulos-pos-h02.sql</code> · 4. <code>2026-11-09_temas-huubie-midnight.sql</code> · 5. <code>2026-11-12_ruta-pos-pedidos.sql</code> · 6. <code>2026-11-13_catalogo-en-tpv.sql</code> (Catálogo pasa a TPV, después de Pedidos) · 7. <code>2026-11-13_ruta-pos-tickets.sql</code> (pantalla Cortes) · 8. <code>2026-11-13_roles-reginas-pro.sql</code> · 9. <code>2026-11-13_usuarios-reginas-pro.sql</code> · 10. <code>2026-11-06_migrar-reginas-a-pos.sql</code>, en dos vueltas. Las de planes del 12/11 son de otro módulo.</td></tr>
+      <tr><td><b>Mapa de usuarios</b></td><td>Correr los usuarios (9) antes de Reginas (10) deja llenar <code>_map_user</code> por correo con un solo UPDATE. En local: de 39 usuarios de alpha en ventas, turnos o bitácora, 9 tienen par, 6 activos no (administradores y vendedores no se copian) y 23 están inactivos. Los que queden sin par se migran sin usuario.</td></tr>
+      <tr><td><b>Archivos</b></td><td><code>pro/app/order/</code> · <code>pro/app/catalogo/</code> · <code>pro/assets/components/</code> · <code>pro/assets/plugins/daterangepicker/</code> · carpeta <code>pro_files/</code> con permiso de escritura. <code>_Conect.php</code> de PRO sí se sube (lee el <code>.env</code>); el <code>pro/core/config/.env</code> local nunca.</td></tr>
+      <tr><td><b>Pendiente antes del piloto</b></td><td>Cerrar los turnos abiertos que trae la carga: en local las sucursales 3 y 4 tienen el 30/10/2026 pendiente y no pueden abrir turno · Etapa 4 (producir y entregar) · probar Catálogo con sesión real · decidir si las nueve tablas más permisivas son a propósito (H) · contraseñas de los 10 usuarios nuevos en Developer › Accesos.</td></tr>
       <tr><td><b>Terminado cuando</b></td><td>Una sucursal trabaja una semana completa en PRO y sus cortes cuadran · alpha deja de recibir pedidos.</td></tr>
     </tbody></table></div>
   </section>
@@ -611,8 +622,8 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
           <tr><td><code>order_payments</code></td><td><code>payment</code></td><td>Guarda cuánto entregó el cliente, el cambio y el turno en que se cobró.</td></tr>
           <tr><td><code>order_images</code></td><td><code>sale_image</code></td><td>La foto va ligada a la línea, no al pedido.</td></tr>
           <tr><td><code>order_histories</code></td><td><code>history_log</code></td><td>Sin cambio de fondo.</td></tr>
-          <tr><td><code>cash_shift</code> y sus dos tablas</td><td><code>turn</code>, <code>detail_turn_payment</code>, <code>detail_turn_status</code></td><td>Gana efectivo contado contra esperado y motivo de reapertura.</td></tr>
-          <tr><td><code>daily_closure</code> y sus dos tablas</td><td><code>daily_closure</code> y sus dos tablas de detalle</td><td>Los nombres de las dos de detalle están por decidirse (A).</td></tr>
+          <tr><td><code>cash_shift</code> y sus dos tablas</td><td><code>turn</code>, <code>turn_payment</code>, <code>turn_status</code></td><td>Gana efectivo contado contra esperado y motivo de reapertura.</td></tr>
+          <tr><td><code>daily_closure</code> y sus dos tablas</td><td><code>daily_closure</code>, <code>daily_closure_payment</code>, <code>daily_closure_status</code></td><td>Sin cambio de fondo.</td></tr>
           <tr><td>Sucursales y usuarios de <code>fayxzvov_alpha</code></td><td>Sucursales y usuarios de <code>fayxzvov_app</code></td><td>Por eso la migración necesita un mapa de sucursales y otro de usuarios.</td></tr>
         </tbody>
       </table>
@@ -713,16 +724,16 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
     </ul>
     <h3>Diferencias contra la estructura oficial</h3>
     <ul class="check">
-      <li>Dos tablas se llaman distinto: en local son <code>daily_closure_payment</code> y <code>daily_closure_status</code>; en el archivo de estructura, en la migración original y en la plantilla son <code>detail_daily_closure_payment</code> y <code>detail_daily_closure_status</code>.</li>
-      <li>Nueve tablas aceptan campos vacíos que la estructura oficial exige: <code>card</code>, <code>card_type</code>, <code>category</code>, <code>customer</code>, <code>daily_closure</code>, sus dos tablas de detalle, <code>detail_turn_payment</code> y <code>detail_turn_status</code>. Se cambiaron a mano la noche del 07/11/2026.</li>
-      <li>No se corrigió ninguna de las dos cosas: falta decidir cuál manda (decisiones A y H).</li>
+      <li>Nombres de las cuatro tablas de detalle del turno y del cierre: resuelto el 13/11/2026 (decisión A). Ganan los locales (<code>turn_payment</code>, <code>turn_status</code>, <code>daily_closure_payment</code>, <code>daily_closure_status</code>) y ya se ajustaron el archivo de estructura, la migración de Reginas y la plantilla.</li>
+      <li>Nueve tablas aceptan campos vacíos que la estructura oficial exige: <code>card</code>, <code>card_type</code>, <code>category</code>, <code>customer</code>, <code>daily_closure</code>, <code>daily_closure_payment</code>, <code>daily_closure_status</code>, <code>turn_payment</code> y <code>turn_status</code>. Se cambiaron a mano la noche del 07/11/2026.</li>
+      <li>Falta decidir si eso último es a propósito (decisión H).</li>
     </ul>
     <h3>Cómo deshacer la carga</h3>
     <p class="foot">Vacía las 17 tablas que se llenaron y deja la estructura como está. No usar la reversa del archivo de estructura: esa borra la base completa.</p>
 <pre class="mono" style="overflow-x:auto;padding:14px 16px;border:1px solid var(--bp-line);border-radius:10px;background:var(--bp-surface);font-size:12.5px;line-height:1.6;color:var(--bp-ink-soft)">USE `fayxzvov_pos`;
 SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE `daily_closure_status`;  TRUNCATE TABLE `daily_closure_payment`;
-TRUNCATE TABLE `detail_turn_status`;    TRUNCATE TABLE `detail_turn_payment`;
+TRUNCATE TABLE `turn_status`;           TRUNCATE TABLE `turn_payment`;
 TRUNCATE TABLE `history_log`;           TRUNCATE TABLE `payment`;
 TRUNCATE TABLE `sale_image`;            TRUNCATE TABLE `detail_sale`;
 TRUNCATE TABLE `sale`;                  TRUNCATE TABLE `turn`;
@@ -736,21 +747,21 @@ SET FOREIGN_KEY_CHECKS = 1;</pre>
   <!-- 07 · Lo que falta decidir -->
   <section>
     <h2><span class="num">07</span> Lo que falta decidir</h2>
-    <p class="intro">Diez decisiones abiertas. Cada una trae una propuesta para que baste con decir «ok» o corregirla. Las letras son decisiones que salieron al preparar este plan.</p>
+    <p class="intro">Diez decisiones. El 13/11/2026 se respondieron ocho; G y H se ven al terminar estas tareas. Las letras son decisiones que salieron al preparar este plan.</p>
     <div class="tscroll">
       <table>
-        <thead><tr><th>#</th><th>Decisión</th><th>Propuesta</th><th>Bloquea</th></tr></thead>
+        <thead><tr><th>#</th><th>Decisión</th><th>Respuesta del 13/11/2026</th><th>Qué se hizo</th></tr></thead>
         <tbody>
-          <tr><td>4</td><td>¿Quién corrige un pedido pagado o un corte cerrado?</td><td>Solo Dueño o Supervisor, con motivo. Un corte cerrado no se toca: primero se reabre.</td><td>Etapa 5</td></tr>
-          <tr><td>5</td><td>¿Se entrega un pedido que aún debe?</td><td>Sí, pero la pantalla avisa el saldo y pide autorización de Dueño o Supervisor; queda en la bitácora. Hoy hay 14 así, por $11,950.00.</td><td>Etapa 4</td></tr>
-          <tr><td>A</td><td>¿Qué nombres ganan en las dos tablas del cierre?</td><td>Los de la estructura oficial (<code>detail_daily_closure_…</code>), porque siguen el mismo patrón que las del turno. Si el cambio del 07/11/2026 fue a propósito, ganan los locales y se ajustan la estructura, la migración y la plantilla.</td><td>Etapa 5 y 7</td></tr>
-          <tr><td>B</td><td>¿Se crean en PRO los roles Cajera, Supervisor y Producción para Reginas?</td><td>Sí, con el mismo alcance que tienen en alpha. Son filas, no cambian la estructura.</td><td>Etapa 0</td></tr>
-          <tr><td>C</td><td>¿Cómo se ve el folio?</td><td>«P1557», sin sufijo, y el buscador sigue aceptando «P1557-04». Un código propio por sucursal necesita una columna nueva: se queda con la decisión 6.</td><td>Etapa 1</td></tr>
-          <tr><td>D</td><td>¿Dónde se anota la devolución de un anticipo?</td><td>Como un pago en negativo en el turno de quien devuelve, con su motivo. Así el corte lo resta solo y no hace falta una tabla nueva.</td><td>Etapa 3</td></tr>
-          <tr><td>E</td><td>¿Capturar un pedido exige turno abierto?</td><td>No. Capturar es una cotización y no mueve dinero; cobrar sí exige turno. En alpha hoy se exige para ambos.</td><td>Etapa 2</td></tr>
-          <tr><td>F</td><td>¿Hace falta ver los pedidos de todas las sucursales en una sola lista?</td><td>Empezar con la sucursal activa de la barra, como Catálogo. «Todas» se agrega después si se extraña.</td><td>Etapa 1</td></tr>
-          <tr><td>G</td><td>¿El tablero de la plantilla se conserva como vista alterna de la tabla?</td><td>Dejarlo fuera hasta terminar la Etapa 4 y decidir entonces.</td><td>Nada</td></tr>
-          <tr><td>H</td><td>¿Las nueve tablas más permisivas son a propósito?</td><td>Revisarlo antes de subir; mientras, no estorba.</td><td>Etapa 7</td></tr>
+          <tr><td>4</td><td>¿Quién corrige un pedido pagado o un corte cerrado?</td><td><span class="chip read">Aprobada</span> Dueño y Supervisor, ligado al administrador de permisos.</td><td>Se aplica en la Etapa 5.</td></tr>
+          <tr><td>5</td><td>¿Se entrega un pedido que aún debe?</td><td><span class="chip read">Aprobada</span> El restante se cubre al entregar: el usuario abre el pedido y registra lo que pagó el cliente.</td><td>Se aplica en la Etapa 4. Hoy hay 14 entregados con saldo, por $11,950.00.</td></tr>
+          <tr><td>A</td><td>¿Qué nombres ganan en las tablas de detalle del turno y del cierre?</td><td><span class="chip read">Aprobada</span> Los locales, sin <code>detail_</code>.</td><td>Estructura, migración de Reginas y plantilla ajustadas.</td></tr>
+          <tr><td>B</td><td>¿Se crean en PRO los roles Cajera, Supervisor y Producción para Reginas?</td><td><span class="chip read">Aprobada</span> Sí.</td><td>Migración <code>2026-11-13_roles-reginas-pro.sql</code>, aplicada en local: 14, 21 y 1 acciones. Falta asignarlos a usuarios.</td></tr>
+          <tr><td>C</td><td>¿Cómo se ve el folio?</td><td><span class="chip read">Aprobada</span> «P1557», sin sufijo.</td><td>Ya era así; el buscador sigue aceptando «P1557-04».</td></tr>
+          <tr><td>D</td><td>¿Dónde se anota la devolución de un anticipo?</td><td><span class="chip read">Respondida</span> No está contemplada: un anticipo no se devuelve.</td><td>La Etapa 3 queda sin bloqueos. Al cancelar, el anticipo queda como saldo a favor.</td></tr>
+          <tr><td>E</td><td>¿Capturar un pedido exige turno abierto?</td><td><span class="chip read">Aprobada</span> Sí, como en alpha.</td><td>Crear pide el turno de hoy abierto; editar no. Sin pantalla de turno, en local nadie puede crear pedidos.</td></tr>
+          <tr><td>F</td><td>¿Cómo se reparte el catálogo entre sucursales?</td><td><span class="chip read">Aprobada</span> La Matriz comparte su catálogo; cada sucursal puede tener lo suyo.</td><td>Matriz = primera sucursal activa de la empresa (Guadalupe). Si la sucursal tiene un producto con el mismo nombre, se ofrece el suyo.</td></tr>
+          <tr><td>G</td><td>¿El tablero de la plantilla se conserva como vista alterna de la tabla?</td><td><span class="chip write">Diferida</span> Al terminar estas tareas.</td><td>—</td></tr>
+          <tr><td>H</td><td>¿Las nueve tablas más permisivas son a propósito?</td><td><span class="chip write">Diferida</span> Al terminar estas tareas.</td><td>—</td></tr>
         </tbody>
       </table>
     </div>

@@ -27,10 +27,10 @@
 -- CAMBIOS CONTRA EL ACTA:
 --   Tablas    order_kind -> sale_type          order_type -> sale_status
 --             sale_item -> detail_sale         sale_images -> sale_image
---             turn_method -> detail_turn_payment
---             turn_order_type -> detail_turn_status
---             daily_closure_method -> detail_daily_closure_payment
---             daily_closure_order_type -> detail_daily_closure_status
+--             turn_method -> turn_payment
+--             turn_order_type -> turn_status
+--             daily_closure_method -> daily_closure_payment
+--             daily_closure_order_type -> daily_closure_status
 --             custom_modifier -> product_modifier (solo order_custom_products;
 --               el pastel personalizado es un product con is_custom = 1)
 --   Columnas  brand_id -> branch_id     client_id -> customer_id
@@ -652,7 +652,7 @@ CREATE TABLE `sale_image` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   COMMENT='Detalle: fotos de una linea del pedido';
 
-CREATE TABLE `detail_turn_payment` (
+CREATE TABLE `turn_payment` (
   `id`                 INT NOT NULL AUTO_INCREMENT,
   `amount`             DOUBLE NOT NULL DEFAULT 0,
   `created_at`         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -663,14 +663,14 @@ CREATE TABLE `detail_turn_payment` (
   PRIMARY KEY (`id`),
   KEY `turn_id` (`turn_id`),
   KEY `payment_method_id` (`payment_method_id`),
-  CONSTRAINT `detail_turn_payment_ibfk_1` FOREIGN KEY (`turn_id`)
+  CONSTRAINT `turn_payment_ibfk_1` FOREIGN KEY (`turn_id`)
     REFERENCES `turn` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `detail_turn_payment_ibfk_2` FOREIGN KEY (`payment_method_id`)
+  CONSTRAINT `turn_payment_ibfk_2` FOREIGN KEY (`payment_method_id`)
     REFERENCES `payment_method` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   COMMENT='Detalle: total del turno por forma de pago';
 
-CREATE TABLE `detail_turn_status` (
+CREATE TABLE `turn_status` (
   `id`              INT NOT NULL AUTO_INCREMENT,
   `amount`          DOUBLE NOT NULL DEFAULT 0,
   `created_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -681,14 +681,14 @@ CREATE TABLE `detail_turn_status` (
   PRIMARY KEY (`id`),
   KEY `turn_id` (`turn_id`),
   KEY `sale_status_id` (`sale_status_id`),
-  CONSTRAINT `detail_turn_status_ibfk_1` FOREIGN KEY (`turn_id`)
+  CONSTRAINT `turn_status_ibfk_1` FOREIGN KEY (`turn_id`)
     REFERENCES `turn` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `detail_turn_status_ibfk_2` FOREIGN KEY (`sale_status_id`)
+  CONSTRAINT `turn_status_ibfk_2` FOREIGN KEY (`sale_status_id`)
     REFERENCES `sale_status` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   COMMENT='Detalle: total del turno por estatus de venta';
 
-CREATE TABLE `detail_daily_closure_payment` (
+CREATE TABLE `daily_closure_payment` (
   `id`                 INT NOT NULL AUTO_INCREMENT,
   `source`             VARCHAR(80) NULL DEFAULT NULL COMMENT 'venta | abono',
   `payments_count`     INT NOT NULL DEFAULT 0,
@@ -702,14 +702,14 @@ CREATE TABLE `detail_daily_closure_payment` (
   PRIMARY KEY (`id`),
   KEY `daily_closure_id` (`daily_closure_id`),
   KEY `payment_method_id` (`payment_method_id`),
-  CONSTRAINT `detail_daily_closure_payment_ibfk_1` FOREIGN KEY (`daily_closure_id`)
+  CONSTRAINT `daily_closure_payment_ibfk_1` FOREIGN KEY (`daily_closure_id`)
     REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `detail_daily_closure_payment_ibfk_2` FOREIGN KEY (`payment_method_id`)
+  CONSTRAINT `daily_closure_payment_ibfk_2` FOREIGN KEY (`payment_method_id`)
     REFERENCES `payment_method` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   COMMENT='Detalle: total del cierre por forma de pago';
 
-CREATE TABLE `detail_daily_closure_status` (
+CREATE TABLE `daily_closure_status` (
   `id`                INT NOT NULL AUTO_INCREMENT,
   `amount`            DOUBLE NOT NULL DEFAULT 0,
   `created_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -720,9 +720,9 @@ CREATE TABLE `detail_daily_closure_status` (
   PRIMARY KEY (`id`),
   KEY `daily_closure_id` (`daily_closure_id`),
   KEY `sale_status_id` (`sale_status_id`),
-  CONSTRAINT `detail_daily_closure_status_ibfk_1` FOREIGN KEY (`daily_closure_id`)
+  CONSTRAINT `daily_closure_status_ibfk_1` FOREIGN KEY (`daily_closure_id`)
     REFERENCES `daily_closure` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `detail_daily_closure_status_ibfk_2` FOREIGN KEY (`sale_status_id`)
+  CONSTRAINT `daily_closure_status_ibfk_2` FOREIGN KEY (`sale_status_id`)
     REFERENCES `sale_status` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   COMMENT='Detalle: total del cierre por estatus de venta';

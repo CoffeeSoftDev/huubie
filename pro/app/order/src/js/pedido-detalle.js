@@ -1,4 +1,5 @@
-/*  Pedidos › detalle e impresion de un pedido. Solo lectura.
+/*  Pedidos › detalle e impresion de un pedido. Si el pedido se puede
+    editar, el boton «Editar pedido» abre la captura: orderForm.edit(id).
 
     Conserva el modal de alpha (showOrder): informacion a la izquierda,
     productos a la derecha, galeria de fotos en los personalizados. Cambia
@@ -42,6 +43,68 @@ function ordHour(value) {
     const h = Number(m[1]);
 
     return `${h % 12 || 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+// Identificador de un envio: el ctrl no guarda dos veces el mismo.
+function ordToken() {
+    return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// '1500' o '1,500.50' -> 1500.5. Vacio, letras o mas de 2 decimales -> null.
+function ordAmount(raw) {
+    const value = String(raw == null ? '' : raw).replace(/[$,\s]/g, '');
+
+    if (!/^\d+(\.\d{1,2})?$/.test(value)) return null;
+
+    const n = Number(value);
+
+    return n > 999999 ? null : n;
+}
+
+function ordRound(n) {
+    return Math.round(Number(n || 0) * 100) / 100;
+}
+
+// Hoja de ~80 mm en un iframe oculto: no abre ventana ni cambia de pagina.
+function ordPrint(title, body) {
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(title)}</title>
+        <style>
+            @page { margin: 4mm; }
+            * { box-sizing: border-box; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; width: 300px; margin: 0 auto; }
+            h1 { font-size: 16px; text-align: center; margin: 0 0 2px; }
+            h2 { font-size: 12px; margin: 0 0 4px; text-transform: uppercase; }
+            .c { text-align: center; } .r { text-align: right; white-space: nowrap; vertical-align: top; }
+            .s { font-size: 10.5px; color: #333; } .b td { font-weight: bold; }
+            hr { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
+            table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; }
+        </style></head><body>${body}</body></html>`;
+
+    $('#ordPrintFrame').remove();
+
+    const frame = $('<iframe>', { id: 'ordPrintFrame', title: 'Impresión', 'aria-hidden': 'true' })
+        .css({ position: 'fixed', right: 0, bottom: 0, width: 0, height: 0, border: 0, visibility: 'hidden' })
+        .appendTo('body')
+        .get(0);
+
+    const doc = frame.contentWindow.document;
+
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    setTimeout(() => {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+    }, 250);
+}
+
+// 'DD/MM/AAAA h:mm AM' de ahora.
+function ordNow() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+
+    return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${ordHour(pad(now.getHours()) + ':' + pad(now.getMinutes()))}`;
 }
 
 // -- Fotos --
@@ -137,9 +200,10 @@ class OrderDetail extends Templates {
             title: `Pedido #P${folio}`,
             lucideIcon: 'cake',
             width: 'max-w-5xl',
-            saveText: false,
+            saveText: data.can && data.can.edit ? 'Editar pedido' : false,
             cancelText: 'Cerrar',
-            info: 'Pedido de consulta — solo lectura',
+            info: !data.can ? '' : !data.can.edit ? (data.can.edit_reason || '') : (data.can.money_reason || ''),
+            onSave: (values, close) => { close(); orderForm.edit(id); },
             action: canPrint ? { text: 'Imprimir', lucideIcon: 'printer', onClick: () => this.printData(data) } : null,
             body: `
                 <div id="orderDetailsContainer" class="flex flex-col lg:flex-row gap-[16px] p-[20px] max-h-[70vh] overflow-y-auto">
@@ -322,7 +386,7 @@ class OrderDetail extends Templates {
 
             <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Abonos (${payments.length})</p>
             ${payments.length
-                ? `<div class="border-l-2 border-gray-200 pl-[12px] flex flex-col gap-2">${payments.map((p) => this.paymentRow(p)).join('')}</div>`
+                ? `<div class="border-l-2 border-gray-200 pl-[12px] flex flex-col gap-2">${payments.map((p) => this.paymentRow(p, o.id, data.can && data.can.delete_payment)).join('')}</div>`
                 : '<p class="text-[12.5px] text-gray-400 mb-0">Sin abonos registrados.</p>'}
 
             <div class="border-t-[1px] border-gray-200 mt-[12px] pt-2">
@@ -330,7 +394,13 @@ class OrderDetail extends Templates {
                 ${balanceHtml}
             </div>`;
 
-        return this.card('wallet', 'Resumen de pago', body);
+        const pay = data.can && data.can.pay
+            ? `<button type="button" class="ord-pay-open" onclick="orderPay.open(${Number(o.id)}, true)">
+                   <i data-lucide="banknote" class="w-4 h-4"></i>Cobrar
+               </button>`
+            : '';
+
+        return this.card('wallet', 'Resumen de pago', body, pay);
     }
 
     paymentIcon(p) {
@@ -343,8 +413,22 @@ class OrderDetail extends Templates {
         return ['wallet', 'text-gray-500'];
     }
 
-    paymentRow(p) {
+    paymentRow(p, orderId, canDelete) {
         const [icon, tone] = this.paymentIcon(p);
+
+        const change = Number(p.change_amount) > 0
+            ? `<div class="text-[11.5px] text-gray-400">Recibió ${money(p.tendered_amount)} · cambio ${money(p.change_amount)}</div>`
+            : '';
+
+        const who = p.received_by && String(p.received_by).trim()
+            ? `<div class="text-[11.5px] text-gray-400">Cobró ${esc(p.received_by)}</div>`
+            : '';
+
+        const remove = canDelete
+            ? `<button type="button" class="ord-pay-del" aria-label="Quitar este pago" onclick="orderPay.removePayment(${Number(orderId)}, ${Number(p.id)})">
+                   <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+               </button>`
+            : '';
 
         return `
             <div class="flex items-start gap-2 text-[12.5px]">
@@ -352,8 +436,10 @@ class OrderDetail extends Templates {
                 <div class="min-w-0">
                     <div class="font-semibold text-gray-700">${esc(p.method || 'Sin método')}</div>
                     <div class="text-[11.5px] text-gray-400">${ordDate(p.paid_at, true)}${p.description ? ' · ' + esc(p.description) : ''}</div>
+                    ${change}${who}
                 </div>
                 <span class="ml-auto font-semibold text-gray-800 whitespace-nowrap">${money(p.amount)}</span>
+                ${remove}
             </div>`;
     }
 
@@ -752,7 +838,6 @@ class OrderDetail extends Templates {
         if (data) this.printData(data);
     }
 
-    // Hoja de ~80 mm en un iframe oculto: no abre ventana ni cambia de pagina.
     printData(data) {
         if (!(data.actions || []).includes('print')) {
             alert({ icon: 'error', text: 'Tu rol no tiene permiso para imprimir pedidos en esta sucursal.', btn1: true });
@@ -764,9 +849,6 @@ class OrderDetail extends Templates {
         const paid    = Number(o.paid || 0);
         const balance = Math.round((total - paid) * 100) / 100;
         const ship    = Number(o.delivery_method) === 1;
-        const now     = new Date();
-        const pad     = (n) => String(n).padStart(2, '0');
-        const printed = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${ordHour(pad(now.getHours()) + ':' + pad(now.getMinutes()))}`;
 
         const row = (a, b, strong) => `<tr${strong ? ' class="b"' : ''}><td>${a}</td><td class="r">${b}</td></tr>`;
 
@@ -780,21 +862,15 @@ class OrderDetail extends Templates {
             return `<tr><td>${Number(l.quantity || 1)} × ${esc(l.name || l.product_name)}${extra}</td><td class="r">${money(this.lineTotal(l))}</td></tr>`;
         }).join('');
 
-        const payments = (data.payments || []).map((p) =>
-            row(`${esc(p.method || 'Pago')} · ${ordDate(p.paid_at, true)}`, money(p.amount))
-        ).join('');
+        const payments = (data.payments || []).map((p) => {
+            const change = Number(p.change_amount) > 0
+                ? `<tr><td colspan="2" class="s">Recibió ${money(p.tendered_amount)} · cambio ${money(p.change_amount)}</td></tr>`
+                : '';
 
-        const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Pedido P${esc(o.folio || o.id)}</title>
-            <style>
-                @page { margin: 4mm; }
-                * { box-sizing: border-box; }
-                body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; width: 300px; margin: 0 auto; }
-                h1 { font-size: 16px; text-align: center; margin: 0 0 2px; }
-                .c { text-align: center; } .r { text-align: right; white-space: nowrap; vertical-align: top; }
-                .s { font-size: 10.5px; color: #333; } .b td { font-weight: bold; }
-                hr { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
-                table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; }
-            </style></head><body>
+            return row(`${esc(p.method || 'Pago')} · ${ordDate(p.paid_at, true)}`, money(p.amount)) + change;
+        }).join('');
+
+        const body = `
             <h1>Pedido P${esc(o.folio || o.id)}</h1>
             <div class="c">${esc(data.branch)}</div>
             <div class="c s">Creado ${ordDate(o.created_at, true)}${o.status ? ' · ' + esc(o.status) : ''}</div>
@@ -820,25 +896,8 @@ class OrderDetail extends Templates {
             </table>
             ${Number(o.sale_status_id) === 4 ? `<hr><div class="c b">CANCELADO</div>${o.cancel_reason ? `<div class="c s">${esc(o.cancel_reason)}</div>` : ''}` : ''}
             <hr>
-            <div class="c s">Impreso ${printed}</div>
-            </body></html>`;
+            <div class="c s">Impreso ${ordNow()}</div>`;
 
-        $('#ordPrintFrame').remove();
-
-        const frame = $('<iframe>', { id: 'ordPrintFrame', title: 'Impresión del pedido', 'aria-hidden': 'true' })
-            .css({ position: 'fixed', right: 0, bottom: 0, width: 0, height: 0, border: 0, visibility: 'hidden' })
-            .appendTo('body')
-            .get(0);
-
-        const doc = frame.contentWindow.document;
-
-        doc.open();
-        doc.write(html);
-        doc.close();
-
-        setTimeout(() => {
-            frame.contentWindow.focus();
-            frame.contentWindow.print();
-        }, 250);
+        ordPrint(`Pedido P${o.folio || o.id}`, body);
     }
 }
