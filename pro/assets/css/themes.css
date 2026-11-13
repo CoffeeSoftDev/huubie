@@ -48,7 +48,8 @@
     --dk-row-alt:   #1F2A37;   /*   alternas = contenedor (alpha usa #111827 y no combina) */
     --dk-row-hover: #334155;   /*   hover de fila */
     --dk-hover:     #1a2332;   /* hover genérico */
-    --dk-input:     #1a2332;   /* bg-input: inputs, selects, textareas */
+    --dk-input:     #1F2A37;   /* inputs, selects, textareas: bg-[#1F2A37] de alpha (plugins.js) */
+    --dk-input-line: #334155;  /*   su borde: !border-slate-700 de alpha */
     --dk-raised:    #333D4C;   /* card de módulo (grid inicial) */
     --dk-raised-hover: #3F4B5C; /*   su hover (alpha/menus/src/js/cards.js) */
     --dk-line:      #374151;   /* border */
@@ -73,6 +74,7 @@
     --dk-row-hover: #26384F;
     --dk-hover:     #1B2C44;
     --dk-input:     #16243A;
+    --dk-input-line: #26384F;
     --dk-raised:    #1B2C44;
     --dk-raised-hover: #26384F;
     --dk-line:      #26384F;
@@ -99,6 +101,7 @@
     --dk-row-hover: #3F2D37;
     --dk-hover:     #2E2128;
     --dk-input:     #2A1E25;
+    --dk-input-line: #3F2D37;
     --dk-raised:    #33242C;
     --dk-raised-hover: #40303A;
     --dk-line:      #3F2D37;

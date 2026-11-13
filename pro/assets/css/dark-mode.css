@@ -47,14 +47,14 @@ body.dark-mode #main__content > div > div {
     color: var(--dk-text) !important;
 }
 
-/* Inputs: bg-input de Huubie (#1a2332) con border #374151. */
+/* Inputs: los de alpha (bg-[#1F2A37] !border-slate-700). */
 body.dark-mode .form-control,
 body.dark-mode input,
 body.dark-mode select,
 body.dark-mode textarea {
     background-color: var(--dk-input) !important;
     color: var(--dk-text) !important;
-    border-color: var(--dk-line) !important;
+    border-color: var(--dk-input-line) !important;
 }
 
 /* Foco con el secundario del tema: border-focus #7C3AED de Huubie UI. En los
@@ -194,6 +194,17 @@ body.dark-mode .modal-content {
     background-color: var(--dk-card) !important;
     color: var(--dk-text) !important;
     border-color: var(--dk-line) !important;
+}
+
+/* Huubie sin contorno en contenedores, como alpha/pedidos: el contenedor
+   (bg-[#1F2A37] rounded p-3), las cards y la tabla oscura de coffeeSoft
+   (border_table vacío en alpha) no llevan borde. Los campos sí
+   (--dk-input-line). Midnight y Rosé conservan el suyo. La tabla trae
+   .border de Bootstrap con !important: por eso el !important aquí. */
+:root[data-scheme="huubie"] body.dark-mode .card,
+:root[data-scheme="huubie"] body.dark-mode .modal-content,
+:root[data-scheme="huubie"] body.dark-mode table.border-gray-700 {
+    border-color: transparent !important;
 }
 
 body.dark-mode .modal-header,
@@ -340,13 +351,13 @@ body.dark-mode .dataTables_wrapper {
 
 body.dark-mode .dataTables_filter input {
     background-color: var(--dk-card) !important;
-    border-color: var(--dk-line) !important;
+    border-color: var(--dk-input-line) !important;
     color: var(--dk-text) !important;
 }
 
 body.dark-mode .dataTables_length select {
     background-color: var(--dk-card) !important;
-    border-color: var(--dk-line) !important;
+    border-color: var(--dk-input-line) !important;
     color: var(--dk-text) !important;
 }
 
@@ -374,7 +385,7 @@ body.dark-mode .dataTables_paginate .paginate_button.current {
 /* Select2 Dark Mode */
 body.dark-mode .select2-container--default .select2-selection--single {
     background-color: var(--dk-card) !important;
-    border-color: var(--dk-line) !important;
+    border-color: var(--dk-input-line) !important;
 }
 
 body.dark-mode .select2-container--default .select2-selection--single .select2-selection__rendered {
@@ -399,7 +410,7 @@ body.dark-mode .select2-results__option--highlighted {
    buscador de la lista con la misma superficie. */
 body.dark-mode .select2-container--bootstrap-5 .select2-selection {
     background-color: var(--dk-input) !important;
-    border-color: var(--dk-line) !important;
+    border-color: var(--dk-input-line) !important;
     color: var(--dk-text) !important;
 }
 
@@ -414,7 +425,7 @@ body.dark-mode .select2-container--bootstrap-5 .select2-selection__placeholder {
 
 body.dark-mode .select2-container--bootstrap-5 .select2-search__field {
     background-color: var(--dk-input) !important;
-    border-color: var(--dk-line) !important;
+    border-color: var(--dk-input-line) !important;
     color: var(--dk-text) !important;
 }
 

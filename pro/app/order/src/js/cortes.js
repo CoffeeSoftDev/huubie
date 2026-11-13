@@ -167,17 +167,6 @@ class Cuts extends Templates {
                 id:    `headerTextBody${this.PROJECT_NAME}`,
                 class: 'w-full',
                 container: [
-                    {
-                        type:  'div',
-                        class: 'cp-migas',
-                        children: [
-                            { type: 'span', class: 'cp-migas-raiz', text: 'Huubie' },
-                            { type: 'span', class: 'cp-migas-sep', text: '/' },
-                            { type: 'span', class: 'cp-migas-raiz', text: 'POS' },
-                            { type: 'span', class: 'cp-migas-sep', text: '/' },
-                            { type: 'span', class: 'cp-migas-actual', text: 'Cortes' }
-                        ]
-                    },
                     { type: 'h1', class: 'cp-pagina-titulo', text: 'Cortes' },
                     { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, scope.branch].filter(Boolean).join(' · ') || 'Turnos de caja y cierres del día' }
                 ]

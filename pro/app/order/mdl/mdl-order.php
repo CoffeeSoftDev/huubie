@@ -238,6 +238,58 @@ class mdl extends CRUD {
         return [implode(' AND ', $where), $data];
     }
 
+    // -- Calendario --
+
+    /*  Los pedidos que se entregan entre fi y ff. La foto es la primera de
+        referencia (pastel personalizado) o, si no hay, la del primer producto. */
+    public function qCalendarOrders($branchId, $fi, $ff) {
+        return $this->qRows("
+            SELECT
+                s.id,
+                s.folio,
+                s.delivery_date,
+                s.delivery_time,
+                s.delivery_method,
+                s.delivery_status,
+                s.sale_status_id,
+                s.location,
+                s.total,
+                s.produced_at,
+                IFNULL(st.name, '') AS status,
+                IFNULL(c.name, '')  AS customer,
+                IFNULL(c.phone, '') AS phone,
+                {$this->qPaidSql('s')} AS paid,
+                {$this->qCustomSql('s')} AS is_custom,
+                COALESCE(
+                    (SELECT si.path
+                       FROM {$this->pos}sale_image si
+                       INNER JOIN {$this->pos}detail_sale di ON di.id = si.detail_sale_id
+                      WHERE di.sale_id = s.id
+                        AND IFNULL(di.active, 1) = 1
+                        AND IFNULL(si.active, 1) = 1
+                      ORDER BY si.id
+                      LIMIT 1),
+                    (SELECT NULLIF(pi.image, '')
+                       FROM {$this->pos}detail_sale dp
+                       INNER JOIN {$this->pos}product pi ON pi.id = dp.product_id
+                      WHERE dp.sale_id = s.id
+                        AND IFNULL(dp.active, 1) = 1
+                        AND IFNULL(pi.image, '') <> ''
+                      ORDER BY dp.id
+                      LIMIT 1),
+                    ''
+                ) AS photo
+            FROM {$this->pos}sale s
+            LEFT JOIN {$this->pos}sale_status st ON st.id = s.sale_status_id
+            LEFT JOIN {$this->pos}customer c     ON c.id = s.customer_id
+            WHERE s.branch_id = ?
+                AND s.sale_type_id = 1
+                AND IFNULL(s.active, 1) = 1
+                AND s.delivery_date BETWEEN ? AND ?
+            ORDER BY s.delivery_date, s.delivery_time, s.id
+        ", [$branchId, $fi, $ff]);
+    }
+
     // -- Detalle --
 
     // Solo si es un pedido de esa sucursal: el id solo no basta.
@@ -569,6 +621,8 @@ class mdl extends CRUD {
                 s.total,
                 s.turn_id,
                 s.daily_closure_id,
+                s.produced_at,
+                s.produced_user_id,
                 {$this->qCutSql('s')},
                 {$this->qPaidSql('s')} AS paid
             FROM {$this->pos}sale s

@@ -22,10 +22,13 @@ class OrderPay extends Templates {
 
     // -- Entrada --
 
-    async open(id, fromDetail) {
+    // opts.deliver: «Cobrar y entregar». Si el cobro deja el saldo en cero, entrega enseguida.
+    async open(id, fromDetail, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
         if (this.loading) return;
+
+        this.thenDeliver = !!(opts && opts.deliver);
 
         this.loading = true;
 
@@ -93,7 +96,7 @@ class OrderPay extends Templates {
             subtitle:   this.o.customer || 'Sin cliente',
             lucideIcon: 'banknote',
             width:      'max-w-2xl',
-            saveText:   'Cobrar',
+            saveText:   this.thenDeliver ? 'Cobrar y entregar' : 'Cobrar',
             cancelText: 'Volver',
             json:       this.fields(),
             onSave:     (values, close) => this.save(close)
@@ -604,19 +607,26 @@ class OrderPay extends Templates {
         const change = Number(data.change) > 0.005
             ? `<p class="text-[12px] font-semibold uppercase tracking-wide mb-0">Cambio</p><p class="text-[32px] font-bold text-emerald-600 leading-tight mb-2">${money(data.change)}</p>`
             : '';
-        const left   = Number(data.balance) > 0.005 ? `Saldo pendiente: <b>${money(data.balance)}</b>` : '<b>Pedido pagado.</b>';
+        const owes   = Number(data.balance) > 0.005;
+        const left   = owes ? `Saldo pendiente: <b>${money(data.balance)}</b>` : '<b>Pedido pagado.</b>';
+
+        // «Cobrar y entregar» solo entrega si el cobro dejó el saldo en cero.
+        const deliver = this.thenDeliver && !owes;
+        const pending = this.thenDeliver && owes ? '<p class="text-[12.5px] text-amber-700 mt-1 mb-0">No se entrega todavía: falta cobrar el saldo.</p>' : '';
 
         const answer = await alert({
             icon:     'success',
             title:    data.message,
-            html:     `${change}<p class="text-[14px] mb-0">${left}</p>`,
+            html:     `${change}<p class="text-[14px] mb-0">${left}</p>${pending}`,
             btn1:     print,
             btn1Text: 'Imprimir ticket',
             btn2:     true,
-            btn2Text: 'Listo'
+            btn2Text: deliver ? 'Entregar pedido' : 'Listo'
         });
 
         if (answer && answer.isConfirmed) await orderDetail.print(this.o.id);
+
+        if (deliver) return orderDetail.deliver(this.o.id, { ask: false, fromDetail: this.fromDetail });
 
         this.back();
     }

@@ -10,6 +10,11 @@
     <script src="../../assets/plugins/daterangepicker/moment.min.js"></script>
     <script src="../../assets/plugins/daterangepicker/daterangepicker.js"></script>
     <script src="../../assets/plugins/lucide/lucide.min.js"></script>
+    <?php if ($script === 'calendario'): ?>
+    <!-- Calendario: FullCalendar 6.1.14, la misma version que alpha, con su idioma español. -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.14/locales/es.global.min.js"></script>
+    <?php endif; ?>
 
     <!-- CoffeeSoft: el framework, y alert()/send_ajax() de complementos.js -->
     <script src="<?= $asset('assets/js/coffeeSoft.js') ?>"></script>
