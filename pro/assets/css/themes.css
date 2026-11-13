@@ -50,14 +50,21 @@
     --ok-soft-fg:    #15803D;
 }
 
-/* Los grises claros de Tailwind (gray-50..300: fondos, hovers y bordes de los
-   componentes de los módulos) toman el mismo punto de lavanda. Solo en claro:
-   en oscuro las variantes dark: usan los tonos de siempre. */
+/* Los grises de Tailwind (gray-*: fondos, hovers, bordes y textos de los
+   componentes de los módulos) toman el mismo punto de lavanda, de --bg (50)
+   a --ink (900). Solo en claro: en oscuro las variantes dark: usan los tonos
+   de siempre. Las hojas de los módulos leen esta misma rampa. */
 html:not(.dark) {
     --gray-50:  250 250 253;
     --gray-100: 245 244 250;
     --gray-200: 236 234 244;
     --gray-300: 219 216 231;
+    --gray-400: 165 162 184;
+    --gray-500: 117 114 138;
+    --gray-600: 88 85 110;
+    --gray-700: 62 59 86;
+    --gray-800: 42 40 66;
+    --gray-900: 29 27 49;
 }
 
 /* -- Superficies de las páginas oscuras --

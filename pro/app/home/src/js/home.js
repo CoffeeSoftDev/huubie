@@ -1,12 +1,16 @@
-/*  El inicio de una empresa: lo primero que ve cualquiera al entrar (root lo ve
-    al elegir una empresa, como su dueño).
+/*  El inicio de una empresa: lo primero que ve cualquiera al entrar. Tiene dos
+    vistas, segun quien entra (data.view, ctrl-home):
 
-    Izquierda, quien eres y con quien: la empresa, tu saludo, tu plan y a quien
-    acudir. Derecha, lo que hay que hacer y saber hoy: tus modulos, los
-    cumpleaños y aniversarios del mes y tu equipo.
+    owner    El dueño (y root, que entra a una empresa como su dueño): el
+             tablero. Izquierda, quien eres y con quien: la empresa, tu saludo,
+             tu plan y a quien acudir. Derecha, lo que hay que hacer y saber
+             hoy: tus modulos, los cumpleaños y aniversarios del mes y tu
+             equipo. Si la empresa no esta al corriente, arriba de todo va el
+             aviso de pago y los modulos salen con candado.
 
-    Si la empresa no esta al corriente, arriba de todo va el aviso de pago y
-    los modulos salen con candado: es lo unico que cambia. */
+    modules  Todos los demas: solo sus modulos, como el hub de alpha
+             (alpha/menus/ventas.php con ModuleCard): saludo, buscador con
+             Ctrl+K y una tarjeta por modulo. Ver renderHub(). */
 const HOME_API = 'ctrl/ctrl-home.php';
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -63,12 +67,159 @@ $(async () => {
         return;
     }
 
+    if (res.data.view === 'modules') {
+        root.innerHTML = renderHub(res.data);
+        Page.icons();
+        hubEvents();
+        return;
+    }
+
     root.innerHTML = renderHome(res.data);
     Page.icons();
 
     const pay = document.getElementById('btnPay');
     if (pay) pay.addEventListener('click', () => payNow(pay));
 });
+
+// -- Vista de modulos: quien no es dueño --
+
+function greeting() {
+    const hour = new Date().getHours();
+    return hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+}
+
+// Solo el primer nombre, y sin gritar: users.name trae a veces el nombre
+// completo y en mayusculas ("PERLA RAMOS" -> "Perla").
+function firstName(name) {
+    const first = String(name || '').trim().split(/\s+/)[0] || '';
+    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+}
+
+// Para buscar sin importar acentos ni mayusculas: "catalogo" encuentra "Catálogo".
+function plain(text) {
+    return String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function renderHub(d) {
+    // Primero los que abren; despues los que todavia no (sin pagina o con candado).
+    const opens   = (m) => !m.locked && !!m.route;
+    const modules = d.modules.filter(opens).concat(d.modules.filter((m) => !opens(m)));
+    const owner   = d.owner && d.owner.name ? d.owner.name : 'tu administrador';
+    const mac     = /Mac|iPhone|iPad/.test(navigator.platform || '');
+
+    const search = modules.length ? `
+        <label class="pg-search">
+            <i data-lucide="search"></i>
+            <input type="search" id="hubSearch" placeholder="Buscar módulo..." autocomplete="off" aria-label="Buscar módulo">
+            <kbd>${mac ? '⌘ K' : 'Ctrl K'}</kbd>
+        </label>` : '';
+
+    const paused = d.plan.ok ? '' : `
+        <div class="pg-trial is-urgent" role="status">
+            <i data-lucide="lock"></i>
+            <p><b>Tus módulos están en pausa</b> mientras tu empresa pone al día su cuenta en Huubie. Avísale a ${Page.esc(owner)}.</p>
+        </div>`;
+
+    const body = modules.length ? `
+        <div class="pg-hub-grid" id="hubGrid">${modules.map(hubCard).join('')}</div>
+        <div class="pg-card" id="hubNone" hidden>
+            <div class="pg-empty" aria-live="polite"><i data-lucide="search-x"></i><span>Ningún módulo coincide con <b id="hubQuery"></b>.</span></div>
+        </div>` : `
+        <div class="pg-card">
+            <div class="pg-empty"><i data-lucide="layout-grid"></i>Tu rol todavía no tiene acceso a ningún módulo. Pídeselo a ${Page.esc(owner)}.</div>
+        </div>`;
+
+    return `
+        <div class="pg-hub">
+            <div class="pg-hub-head">
+                <div class="pg-hub-hello">
+                    <h1 class="pg-h1">¡${greeting()}, ${Page.esc(firstName(d.user.name))}! 👋</h1>
+                    <p class="pg-sub">Nos da gusto verte de vuelta. ¿Por dónde quieres empezar hoy?</p>
+                </div>
+                ${search}
+            </div>
+            ${paused}
+            ${body}
+        </div>`;
+}
+
+/*  Una tarjeta por modulo, con su icono de siempre (modules.icon). La que abre
+    es un enlace de verdad (se puede abrir en otra pestaña); la que no, un
+    bloque apagado con el porque en la esquina. */
+function hubCard(m) {
+    const off = m.locked || !m.route;
+
+    const corner = m.locked
+        ? '<span class="pg-hub-tag"><i data-lucide="lock"></i>Bloqueado</span>'
+        : !m.route
+        ? '<span class="pg-hub-tag">Próximamente</span>'
+        : '<span class="pg-hub-go" aria-hidden="true"><i data-lucide="arrow-up-right"></i></span>';
+
+    const inner = `
+        <span class="pg-hub-top">
+            <span class="pg-hub-ico"><i data-lucide="${Page.esc(m.icon)}"></i></span>
+            ${corner}
+        </span>
+        <span class="pg-hub-name">${Page.esc(m.name)}</span>
+        <span class="pg-hub-text">${Page.esc(m.text)}</span>`;
+
+    const search = Page.esc(plain(`${m.name} ${m.text}`));
+
+    if (off) {
+        const why = m.locked ? 'Disponible cuando tu empresa ponga al día su cuenta' : 'Todavía no está disponible';
+        return `<div class="pg-hub-card is-off" data-search="${search}" aria-disabled="true" title="${why}">${inner}</div>`;
+    }
+
+    return `<a class="pg-hub-card" href="${Page.esc(Page.root + m.route.replace(/^\/+/, ''))}" data-search="${search}">${inner}</a>`;
+}
+
+// Buscador: filtra al escribir, Ctrl+K (⌘K) lo enfoca, Enter abre el primer
+// modulo que coincide y Escape lo limpia.
+function hubEvents() {
+    const input = document.getElementById('hubSearch');
+    if (!input) return;
+
+    const grid  = document.getElementById('hubGrid');
+    const none  = document.getElementById('hubNone');
+    const cards = Array.from(grid.querySelectorAll('.pg-hub-card'));
+
+    const filter = () => {
+        const q = plain(input.value.trim());
+        let shown = 0;
+
+        cards.forEach((card) => {
+            card.hidden = !!q && !card.dataset.search.includes(q);
+            if (!card.hidden) shown++;
+        });
+
+        grid.hidden = shown === 0;
+        none.hidden = shown > 0;
+        document.getElementById('hubQuery').textContent = `“${input.value.trim()}”`;
+    };
+
+    input.addEventListener('input', filter);
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            input.value = '';
+            filter();
+            input.blur();
+        }
+
+        if (e.key === 'Enter') {
+            const first = cards.find((card) => !card.hidden && card.tagName === 'A');
+            if (first) window.location.href = first.href;
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            input.focus();
+            input.select();
+        }
+    });
+}
 
 async function payNow(btn) {
     btn.disabled = true;

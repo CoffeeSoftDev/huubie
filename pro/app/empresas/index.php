@@ -23,7 +23,7 @@ $version = function ($file) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Huubie · Selecciona tu empresa</title>
-    <link rel="icon" href="../../assets/img/huubie192.png" type="image/png">
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml">
     <!-- tailwind-theme.js va JUSTO despues del CDN: le da la config y pinta la
          paleta guardada antes de que se vea nada. Con themes.css, esta pagina
          sigue al tema que se elige en la barra, igual que las de los modulos. -->

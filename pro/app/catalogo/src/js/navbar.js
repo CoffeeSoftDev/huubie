@@ -979,7 +979,6 @@ class Navbar {
             await useFetch({
                 url:  this.ctrlUrl(),
                 data: { opc: 'theme', code: code }
-                data: { opc: 'theme', code: code }
             });
         } catch (e) { /* el tema ya se ve; solo no quedó guardado */ }
 
@@ -1377,7 +1376,6 @@ $(async () => {
     // data-branches="off": una pantalla sin sucursal elegida, donde la píldora no aplica.
     const withBranches = $("#menu-navbar").data("branches") !== "off";
 
-    const branchInfo = withBranches ? await useFetch({ url: ctrlUrl, data: { opc: 'branches' } }) : null;
     const branchInfo = withBranches ? await useFetch({ url: ctrlUrl, data: { opc: 'branches' } }) : null;
 
     const branches = branchInfo?.branches || [];

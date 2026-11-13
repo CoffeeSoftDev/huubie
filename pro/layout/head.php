@@ -27,7 +27,7 @@ $asset = function ($file) use ($root) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Huubie · <?= htmlspecialchars($title) ?></title>
-    <link rel="icon" href="<?= $root ?>assets/img/huubie192.png" type="image/png">
+    <link rel="icon" href="<?= $root ?>assets/img/favicon.svg" type="image/svg+xml">
 
     <link rel="stylesheet" href="<?= $asset('assets/css/general.css') ?>">
     <link rel="stylesheet" href="<?= $asset('assets/css/sidebar.css') ?>">

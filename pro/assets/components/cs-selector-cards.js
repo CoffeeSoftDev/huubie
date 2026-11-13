@@ -28,8 +28,9 @@ Templates.prototype.csSelectorCards = function (options) {
     opts.empty  = Object.assign({}, defaults.empty, (options || {}).empty || {});
 
     const tones = {
-        open:    { dot: 'bg-green-400', text: 'text-green-500' },
-        warning: { dot: 'bg-amber-400', text: 'text-amber-500' },
+        // El 600 y no el 500: sobre blanco el amarillo 500 casi no se leía.
+        open:    { dot: 'bg-green-500', text: 'text-green-600 dark:text-green-400' },
+        warning: { dot: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
         neutral: { dot: 'bg-gray-400',  text: 'sel-muted' }
     };
 

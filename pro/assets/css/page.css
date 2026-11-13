@@ -241,3 +241,145 @@ body.dark-mode .pg-msg.is-err { color: #F87171; }
 .pg-pay-error { font-size: 12px; font-weight: 600; color: #B91C1C; max-width: 220px; text-align: right; }
 .pg-pay-error:empty { display: none; }
 .pg-trial.is-ok { color: var(--ok-soft-fg, #16A34A); background: var(--ok-soft-bg, #DCFCE7); }
+
+
+/* ============================================================
+   INICIO DE QUIEN NO ES DUEÑO: SOLO SUS MÓDULOS (home.js, renderHub)
+   ============================================================
+   El hub de alpha (ModuleCard) en claro y oscuro: saludo, buscador y una
+   tarjeta por módulo con su ícono de siempre. Como lo demás de esta hoja,
+   todo sale de los tokens de themes.css: en oscuro la tarjeta es la de alpha
+   (#1F2A37 sobre #111928, caja del ícono #233876). */
+
+.pg-hub { display: flex; flex-direction: column; gap: 22px; }
+.pg-hub-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.pg-hub-hello { min-width: 0; }
+
+/* -- Buscador -- */
+.pg-search { position: relative; display: flex; align-items: center; width: 360px; max-width: 100%; margin: 0; }
+.pg-search > svg { position: absolute; left: 15px; width: 17px; height: 17px; color: var(--ink-dim); pointer-events: none; }
+.pg .pg-search input {
+    width: 100%; padding: 11px 68px 11px 43px; border-radius: 14px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    font: inherit; font-size: 14px; outline: none; box-shadow: var(--shadow-card, none);
+    -webkit-appearance: none; appearance: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.pg .pg-search input::placeholder { color: var(--ink-dim); opacity: .85; }
+/* Sin la "x" del navegador: se encimaba con el atajo. Escape limpia. */
+.pg .pg-search input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+.pg .pg-search input:hover:not(:focus) { border-color: var(--accent-line); }
+.pg .pg-search input:focus { border-color: rgb(var(--accent-2-600, 192 90 64)); box-shadow: 0 0 0 4px rgb(var(--accent-2-600, 192 90 64) / .14); }
+.pg-search kbd {
+    position: absolute; right: 11px; padding: 4px 7px; border-radius: 8px;
+    font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .02em;
+    color: var(--ink-dim); background: rgb(var(--gray-100, 243 244 246)); border: 1px solid var(--line);
+    pointer-events: none;
+}
+body.dark-mode .pg-search kbd { background: rgb(255 255 255 / .06); }
+/* En pantalla táctil no hay teclado al que señalar. */
+@media (hover: none) {
+    .pg-search kbd { display: none; }
+    .pg .pg-search input { padding-right: 16px; }
+}
+
+/* -- Rejilla: hasta 5 columnas en escritorio -- */
+.pg-hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+
+/* -- Tarjeta --
+   Arriba la caja del ícono y la esquina (flecha, o el porqué si no abre);
+   abajo el nombre y la descripción. Al pasar: sube, el borde toma el acento,
+   la caja se llena del acento y asoma un resplandor en la esquina. */
+.pg-hub-card {
+    position: relative; isolation: isolate; overflow: hidden;
+    display: flex; flex-direction: column; gap: 6px;
+    min-height: 184px; padding: 20px;
+    border-radius: var(--radius-card, 20px); border: 1px solid var(--line);
+    background: var(--surface); box-shadow: var(--shadow-card, none);
+    color: var(--ink); text-decoration: none;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
+}
+.pg-hub-card::before {
+    content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(260px 170px at 100% 0%, rgb(var(--brand-600, 192 90 64) / .11), transparent 70%);
+    opacity: 0; transition: opacity .25s ease;
+}
+a.pg-hub-card:hover,
+a.pg-hub-card:focus-visible { transform: translateY(-4px); border-color: var(--accent-line); box-shadow: var(--shadow-hover, none); outline: none; }
+a.pg-hub-card:focus-visible { box-shadow: var(--shadow-hover, none), 0 0 0 3px rgb(var(--accent-2-600, 192 90 64) / .35); }
+a.pg-hub-card:hover::before,
+a.pg-hub-card:focus-visible::before { opacity: 1; }
+a.pg-hub-card:active { transform: translateY(-1px) scale(.99); }
+
+.pg-hub-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+
+.pg-hub-ico {
+    width: 50px; height: 50px; border-radius: 15px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--icon-box-bg, rgb(var(--brand-100, 247 227 220)));
+    color: var(--icon-box-fg, rgb(var(--brand-600, 192 90 64)));
+    transition: background-color .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.pg-hub-ico svg { width: 24px; height: 24px; }
+a.pg-hub-card:hover .pg-hub-ico,
+a.pg-hub-card:focus-visible .pg-hub-ico {
+    background: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF;
+    box-shadow: 0 10px 22px -10px rgb(var(--brand-600, 192 90 64) / .85);
+}
+
+/* La flecha: tenue siempre (en táctil no hay hover) y plena al pasar. */
+.pg-hub-go {
+    width: 32px; height: 32px; border-radius: 9999px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-dim); opacity: .45;
+    transition: opacity .2s ease, transform .2s ease, color .2s ease, background-color .2s ease;
+}
+.pg-hub-go svg { width: 17px; height: 17px; }
+a.pg-hub-card:hover .pg-hub-go,
+a.pg-hub-card:focus-visible .pg-hub-go { opacity: 1; transform: translate(2px, -2px); color: rgb(var(--brand-600, 192 90 64)); background: var(--tint, transparent); }
+
+.pg-hub-tag {
+    display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+    padding: 5px 9px; border-radius: 9999px;
+    font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; line-height: 1;
+    color: var(--ink-dim); background: rgb(var(--gray-100, 243 244 246));
+}
+.pg-hub-tag svg { width: 12px; height: 12px; }
+body.dark-mode .pg-hub-tag { background: rgb(255 255 255 / .06); }
+
+.pg-hub-name { margin-top: auto; padding-top: 18px; font-size: 16px; font-weight: 700; line-height: 1.25; letter-spacing: -.01em; color: var(--ink); }
+.pg-hub-text {
+    font-size: 13px; line-height: 1.45; color: var(--ink-dim); min-height: 2.9em;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Sin página todavía o con candado: se ve, pero no invita a pulsar. */
+.pg-hub-card.is-off { cursor: not-allowed; box-shadow: none; background: var(--surface-hover, var(--surface)); }
+.pg-hub-card.is-off .pg-hub-ico,
+.pg-hub-card.is-off .pg-hub-name,
+.pg-hub-card.is-off .pg-hub-text { opacity: .55; }
+
+/* Oscuro: la tarjeta de alpha. Al pasar se aclara un punto (#1F2A37 → ~#273343). */
+body.dark-mode a.pg-hub-card:hover,
+body.dark-mode a.pg-hub-card:focus-visible { background-image: linear-gradient(rgb(255 255 255 / .035), rgb(255 255 255 / .035)); }
+body.dark-mode .pg-hub-card.is-off { background: var(--surface); }
+
+/* Teléfono: dos columnas más bajas, sin la flecha. */
+@media (max-width: 640px) {
+    .pg-hub { gap: 18px; }
+    .pg-search { width: 100%; }
+    .pg-hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .pg-hub-card { min-height: 158px; padding: 15px; border-radius: 18px; }
+    .pg-hub-ico { width: 42px; height: 42px; border-radius: 13px; }
+    .pg-hub-ico svg { width: 21px; height: 21px; }
+    .pg-hub-go { display: none; }
+    .pg-hub-tag { padding: 4px 7px; font-size: 9px; }
+    .pg-hub-name { padding-top: 14px; font-size: 14.5px; }
+    .pg-hub-text { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pg-hub-card, .pg-hub-ico, .pg-hub-go, .pg-hub-card::before { transition: none; }
+    a.pg-hub-card:hover, a.pg-hub-card:focus-visible, a.pg-hub-card:active,
+    a.pg-hub-card:hover .pg-hub-go { transform: none; }
+}

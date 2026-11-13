@@ -113,6 +113,10 @@ main {
     flex: 1;
     display: flex;
     flex-direction: column;
+    /* Sin esto main crece al ancho de su contenido (una tabla ancha) y, como
+       body no scrollea, lo que no cabe queda cortado a la derecha. Con 0 se
+       queda en su columna y la tabla scrollea dentro de su contenedor. */
+    min-width: 0;
 }
 
 main > #main__content {
