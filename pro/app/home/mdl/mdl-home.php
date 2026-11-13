@@ -27,6 +27,8 @@ class mdl extends CRUD {
                 c.id,
                 c.name,
                 c.ubication,
+                c.rfc,
+                c.logo,
                 c.status,
                 (SELECT COUNT(*) FROM {$this->bd}branches b WHERE b.company_id = c.id AND b.is_active = 1)     AS branches,
                 (SELECT COUNT(*) FROM {$this->bd}users u    WHERE u.company_id = c.id AND u.status = 'active') AS users

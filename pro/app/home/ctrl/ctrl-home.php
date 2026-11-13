@@ -70,6 +70,8 @@ class ctrl extends mdl {
         $data['company'] = [
             'name'      => $company['name'],
             'ubication' => $company['ubication'] ?: '',
+            'rfc'       => (string) $company['rfc'],
+            'logo'      => companyLogoUrl($company['logo'], 4),
             'status'    => $company['status'],
             'branches'  => (int) $company['branches'],
             'users'     => (int) $company['users'],

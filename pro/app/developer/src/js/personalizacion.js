@@ -447,7 +447,7 @@ class Themes extends Templates {
             paintRail(accent);
         };
 
-        // Mismos tonos que themes.css (data-sidebar) y sidebar.css (rail de la página).
+        // Mismos tonos que el rail de la página (auth/src/js/sidebar.js).
         const paintRail = (accent) => {
             const own    = this.hexOf($sidebar.val(), '');
             const scheme = rails[$scheme.val()] ? $scheme.val() : 'light';

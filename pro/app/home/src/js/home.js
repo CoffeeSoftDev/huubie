@@ -274,7 +274,7 @@ function head(d) {
     return `
         <div class="pg-head">
             <div>
-                <h1 class="pg-h1">Bienvenid@ a Huubie</h1>
+                <h1 class="pg-h1">Bienvenid@ a <span class="pg-brand">Huubie</span><span class="pg-brand-dot">.</span></h1>
                 <p class="pg-sub">${Page.esc(hoy)}</p>
             </div>
             <div class="pg-chips">
@@ -347,14 +347,30 @@ function trialNotice(d) {
 
 // -- Columna izquierda --
 
+// La empresa: su logo (o sus iniciales) y, para su dueño, la entrada a editarla.
 function companyCard(d) {
+    const logo = d.company.logo
+        ? `<span class="pg-avatar is-lg is-logo"><img src="${Page.esc(d.company.logo)}" alt=""></span>`
+        : Page.avatar({ name: d.company.name }, 'lg');
+
     return `
         <div class="pg-card">
             <div class="pg-row">
-                ${Page.avatar({ name: d.company.name }, 'lg')}
+                ${logo}
                 <div class="pg-row-text">
                     <p class="pg-strong pg-ellipsis" style="font-size:16px">${Page.esc(d.company.name)}</p>
                     <p class="pg-dim pg-small pg-ellipsis">${Page.esc(d.company.ubication || 'Tu empresa en Huubie')}</p>
+                </div>
+                <a class="pg-btn is-ghost is-round" href="${Page.root}app/configuracion/" title="Editar los datos de tu empresa" aria-label="Editar los datos de tu empresa"><i data-lucide="pencil"></i></a>
+            </div>
+            <div class="pg-list" style="margin-top:14px">
+                <div class="pg-row">
+                    <span class="pg-ico"><i data-lucide="${d.company.rfc ? 'file-check-2' : 'file-warning'}"></i></span>
+                    <div class="pg-row-text">
+                        <p class="pg-strong pg-ellipsis">${Page.esc(d.company.rfc || 'Sin RFC')}</p>
+                        <p class="pg-dim pg-small">${d.company.rfc ? 'RFC de tu empresa' : 'Complétalo para tus facturas'}</p>
+                    </div>
+                    <a class="pg-link" href="${Page.root}app/configuracion/">Configurar <i data-lucide="arrow-right"></i></a>
                 </div>
             </div>
         </div>`;
@@ -394,6 +410,7 @@ function planCard(d) {
             <div class="pg-card">
                 <div class="pg-card-head"><p class="pg-card-title"><span class="pg-ico"><i data-lucide="badge-check"></i></span>Tu plan</p></div>
                 <p class="pg-dim pg-small">Tu empresa todavía no tiene un plan contratado.</p>
+                <a class="pg-btn is-ghost pg-btn-block" href="${Page.root}app/configuracion/#pagos"><i data-lucide="settings-2"></i>Configurar suscripción</a>
             </div>`;
     }
 
@@ -421,6 +438,7 @@ function planCard(d) {
                     <p class="pg-strong">${Page.esc(Page.date(plan.next))}</p>
                 </div>` : ''}
             </div>
+            <a class="pg-btn is-ghost pg-btn-block" href="${Page.root}app/configuracion/#pagos"><i data-lucide="settings-2"></i>Configurar suscripción</a>
         </div>`;
 }
 

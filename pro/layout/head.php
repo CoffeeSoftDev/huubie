@@ -30,7 +30,6 @@ $asset = function ($file) use ($root) {
     <link rel="icon" href="<?= $root ?>assets/img/favicon.svg" type="image/svg+xml">
 
     <link rel="stylesheet" href="<?= $asset('assets/css/general.css') ?>">
-    <link rel="stylesheet" href="<?= $asset('assets/css/sidebar.css') ?>">
 
     <!-- tailwind-theme.js va JUSTO despues del CDN: le da la config y pinta la paleta guardada. -->
     <script src="https://cdn.tailwindcss.com"></script>

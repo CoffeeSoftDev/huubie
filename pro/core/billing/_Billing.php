@@ -7,6 +7,7 @@
                     si esta pagada, activa.
       handle()      el webhook: lo mismo, mas las renovaciones, los cobros que
                     fallan y las cancelaciones.
+      changePrice() cambio de plan: lo que se cobra desde la siguiente factura.
 
     El mismo pago llega por dos caminos -- el navegador que regresa y el
     webhook -- y no se sabe cual primero, ni si alguno llega. Por eso los dos
@@ -154,6 +155,51 @@ class Billing extends CRUD {
         list($session, $error) = Stripe::request('POST', 'checkout/sessions', $params);
 
         return $error ? [null, $error] : [$session['url'], null];
+    }
+
+    /*  Cambia lo que cobra una suscripcion de Stripe a partir de su SIGUIENTE
+        factura (cambio de plan desde Configuración). Sin prorrateo: lo que
+        queda del periodo ya pagado no se cobra ni se devuelve. Devuelve el
+        error, o null si quedo.
+
+        El precio va en linea, como en checkout(); aqui Stripe pide el producto
+        ya creado, asi que se crea uno con el nombre del plan. */
+    function changePrice($stripeSubscriptionId, $name, $amount, $currency, $cycle, $modules = '') {
+        $interval = self::INTERVALS[$cycle] ?? null;
+
+        if (!$interval)   return 'Ese plan no se cobra de forma recurrente. Contáctanos para cambiarlo.';
+        if ($amount <= 0) return 'Ese plan no tiene un precio para cobrar en línea. Contáctanos.';
+
+        list($stripeSub, $error) = Stripe::request('GET', 'subscriptions/' . rawurlencode($stripeSubscriptionId));
+        if ($error) return $error;
+
+        $item = $stripeSub['items']['data'][0]['id'] ?? null;
+        if (!$item) return 'No encontramos el cobro de tu suscripción en Stripe.';
+
+        $product = ['name' => $name];
+        if ($modules !== '') $product['description'] = 'Módulos: ' . $modules;
+
+        list($product, $error) = Stripe::request('POST', 'products', $product);
+        if ($error) return $error;
+
+        list($tax, $error) = $this->taxRate();
+        if ($error) return $error;
+
+        list(, $error) = Stripe::request('POST', 'subscriptions/' . rawurlencode($stripeSubscriptionId), [
+            'proration_behavior' => 'none',
+            'items' => [[
+                'id'         => $item,
+                'tax_rates'  => [$tax],
+                'price_data' => [
+                    'currency'    => strtolower($currency ?: 'MXN'),
+                    'product'     => $product['id'],
+                    'unit_amount' => (int) round($amount * 100),
+                    'recurring'   => ['interval' => $interval],
+                ],
+            ]],
+        ]);
+
+        return $error;
     }
 
     // El IVA como impuesto de Stripe: se busca el que ya exista y, la primera

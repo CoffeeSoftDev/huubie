@@ -145,6 +145,9 @@ class Navbar {
                                 <a class="nav-menu-row" href="${this.base}/app/perfil/">
                                     <i data-lucide="user-round"></i>Mi perfil
                                 </a>
+                                <a class="nav-menu-row" id="rowSettings" href="${this.base}/app/configuracion/" hidden>
+                                    <i data-lucide="settings"></i>Configuración
+                                </a>
                                 <a class="nav-menu-row nav-only-compact" id="rowEmpresas" href="${this.base}/app/empresas/" hidden>
                                     <i data-lucide="building-2"></i>Cambiar de empresa
                                 </a>
@@ -195,6 +198,7 @@ class Navbar {
 
         document.getElementById('btnEmpresas').hidden = !d.is_root;
         document.getElementById('rowEmpresas').hidden = !d.is_root;
+        document.getElementById('rowSettings').hidden = !d.is_owner;
 
         this.renderBranch();
         this.renderNotices();
