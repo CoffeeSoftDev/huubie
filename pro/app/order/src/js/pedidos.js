@@ -197,17 +197,6 @@ class Orders extends Templates {
                 id:    `headerTextBody${this.PROJECT_NAME}`,
                 class: 'w-full',
                 container: [
-                    {
-                        type:  'div',
-                        class: 'cp-migas',
-                        children: [
-                            { type: 'span', class: 'cp-migas-raiz', text: 'Huubie' },
-                            { type: 'span', class: 'cp-migas-sep', text: '/' },
-                            { type: 'span', class: 'cp-migas-raiz', text: 'POS' },
-                            { type: 'span', class: 'cp-migas-sep', text: '/' },
-                            { type: 'span', class: 'cp-migas-actual', text: 'Pedidos' }
-                        ]
-                    },
                     { type: 'h1', class: 'cp-pagina-titulo', text: 'Pedidos' },
                     { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, scope.branch].filter(Boolean).join(' · ') || 'Pedidos y cotizaciones de la sucursal' }
                 ]
@@ -266,7 +255,7 @@ class Orders extends Templates {
                 class:     'col-auto',
                 text:      opens ? 'Abrir turno' : 'Turno y corte',
                 icon:      opens ? 'icon-lock-open' : 'icon-clock',
-                color_btn: 'outline',
+                color_btn: 'secondary',
                 onClick:   () => orderTurn.open()
             },
             {
@@ -275,7 +264,7 @@ class Orders extends Templates {
                 class:     'col-auto',
                 text:      'Cierre del día',
                 icon:      'icon-calendar-check-o',
-                color_btn: 'outline',
+                color_btn: 'success',
                 onClick:   () => orderClosure.open(pending)
             }
         ];

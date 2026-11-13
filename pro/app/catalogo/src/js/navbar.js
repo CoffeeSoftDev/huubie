@@ -46,11 +46,18 @@ class Navbar {
         return `${this.proBase()}/auth/ctrl/ctrl-nav.php`;
     }
 
+    // Una recarga por tema, no más: ver syncScheme(). La misma llave que auth/src/js/navbar.js.
+    static get RELOAD_KEY() { return 'huubie:pro:theme-reload'; }
+
     init(options) {
+        // Antes de que nada cambie el tema: con qué variante se pintó la página.
+        this.darkAtLoad = document.documentElement.classList.contains('dark');
+
         this.render(options);
         this.initEvents();
         this.buildThemeList();
         this.applyTheme(this.settings.theme);
+        this.syncScheme(this.settings.theme);
     }
 
     /* El color del usuario (users.color) pintando su avatar. Sin color elegido
@@ -924,6 +931,21 @@ class Navbar {
         });
     }
 
+    /* El tema del servidor no coincide con el que este navegador tenía guardado
+       (otro equipo, otra cuenta en el mismo navegador): la página cambió de clara
+       a oscura después de que el módulo armó sus componentes. Se recarga, una
+       sola vez por tema para que un fallo no la deje dando vueltas. */
+    syncScheme(code) {
+        if (this.darkAtLoad === document.documentElement.classList.contains('dark')) return;
+
+        try {
+            if (sessionStorage.getItem(Navbar.RELOAD_KEY) === code) return;
+            sessionStorage.setItem(Navbar.RELOAD_KEY, code);
+        } catch (e) { return; }
+
+        window.location.reload();
+    }
+
     // Los componentes de coffeeSoft se arman una vez con la variante de la
     // página (clara u oscura). Si el tema nuevo cambia eso, lo ya pintado
     // quedaría en la variante vieja: se recarga para rearmarlo todo igual.
@@ -948,11 +970,12 @@ class Navbar {
         try {
             await useFetch({
                 url:  this.ctrlUrl(),
-                data: { opc: 'saveTheme', code: code }
+                data: { opc: 'theme', code: code }
             });
         } catch (e) { /* el tema ya se ve; solo no quedó guardado */ }
 
         if (document.documentElement.classList.contains('dark') !== wasDark) {
+            try { sessionStorage.setItem(Navbar.RELOAD_KEY, code); } catch (e) { /* sin almacenamiento */ }
             if (loader) loader.carry(label);
             window.location.reload();
             return;
@@ -1345,10 +1368,7 @@ $(async () => {
     // data-branches="off": una pantalla sin sucursal elegida, donde la píldora no aplica.
     const withBranches = $("#menu-navbar").data("branches") !== "off";
 
-    const [themeInfo, branchInfo] = await Promise.all([
-        useFetch({ url: ctrlUrl, data: { opc: 'themes' } }),
-        withBranches ? useFetch({ url: ctrlUrl, data: { opc: 'branches' } }) : null
-    ]);
+    const branchInfo = withBranches ? await useFetch({ url: ctrlUrl, data: { opc: 'branches' } }) : null;
 
     const branches = branchInfo?.branches || [];
     const company  = branchInfo?.company  || data.company || '';
@@ -1371,8 +1391,9 @@ $(async () => {
         parent:   "#menu-navbar",
         branches: branches,
         current:  current,
-        themes:   themeInfo?.themes  || [],
-        theme:    themeInfo?.current || Navbar.THEME_FALLBACK.code,
+        // Los temas vienen en la misma sesión, como en auth/src/js/navbar.js.
+        themes:   data.themes || [],
+        theme:    data.theme  || Navbar.THEME_FALLBACK.code,
     });
 
     // La barra nace asíncrona: quien quiera agregarle un botón espera este aviso

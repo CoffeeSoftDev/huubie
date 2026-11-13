@@ -154,6 +154,8 @@ class OrderDetail extends Templates {
         this.PROJECT_NAME = 'PedidoDetalle';
         this.galleries    = {};
         this.loading      = false;
+        this.editable     = true;   // false en el calendario: la captura vive en Pedidos
+        this.delivering   = false;
     }
 
     // Estados de sale_status, iguales a los del ctrl.
@@ -200,9 +202,9 @@ class OrderDetail extends Templates {
             title: `Pedido #P${folio}`,
             lucideIcon: 'cake',
             width: 'max-w-5xl',
-            saveText: data.can && data.can.edit ? 'Editar pedido' : false,
+            saveText: this.editable && data.can && data.can.edit ? 'Editar pedido' : false,
             cancelText: 'Cerrar',
-            info: !data.can ? '' : !data.can.edit ? (data.can.edit_reason || '') : (data.can.money_reason || ''),
+            info: !this.editable || !data.can ? '' : !data.can.edit ? (data.can.edit_reason || '') : (data.can.money_reason || ''),
             onSave: (values, close) => { close(); orderForm.edit(id); },
             action: canPrint ? { text: 'Imprimir', lucideIcon: 'printer', onClick: () => this.printData(data) } : null,
             body: `
@@ -260,7 +262,7 @@ class OrderDetail extends Templates {
     card(icon, title, body, aside) {
         return `
             <section class="ord-panel bg-gray-50 border-[1px] border-gray-200 rounded-xl p-[16px]">
-                <header class="flex items-center justify-between gap-2 mb-[12px]">
+                <header class="flex items-center justify-between flex-wrap gap-2 mb-[12px]">
                     <h4 class="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-0">
                         <i data-lucide="${icon}" class="w-4 h-4 text-blue-600"></i>${title}
                     </h4>
@@ -309,7 +311,42 @@ class OrderDetail extends Templates {
                </div>`
             : '';
 
-        return this.card('info', 'Información del pedido', `<div class="divide-y divide-gray-200">${rows.join('')}</div>${note}${this.cancelBox(o)}`);
+        return this.card('info', 'Información del pedido', `<div class="divide-y divide-gray-200">${rows.join('')}</div>${note}${this.cancelBox(o)}`, this.orderActions(data));
+    }
+
+    /*  Botones del encabezado de Informacion. «Ya se elaboro» solo a Produccion
+        (data.producer, del calendario). Entregar si no hay saldo; con saldo,
+        «Cobrar y entregar» encadena el cobro y la entrega (decision 5). */
+    orderActions(data) {
+        const o   = data.order;
+        const id  = Number(o.id);
+        const can = data.can || {};
+        const out = [];
+
+        if (data.producer && this.producible(o)) {
+            const on = !!o.produced_at;
+
+            out.push(`<button type="button" class="ord-produce${on ? ' is-on' : ''}" onclick="orderDetail.produce(${id}, ${on ? 0 : 1})">
+                          <i data-lucide="${on ? 'rotate-ccw' : 'chef-hat'}" class="w-4 h-4"></i>${on ? 'Quitar elaborado' : 'Ya se elaboró'}
+                      </button>`);
+        }
+
+        if (can.deliver) {
+            out.push(`<button type="button" class="ord-deliver" onclick="orderDetail.deliver(${id}, { fromDetail: true })">
+                          <i data-lucide="package-check" class="w-4 h-4"></i>Entregar
+                      </button>`);
+        } else if (can.settle) {
+            out.push(`<button type="button" class="ord-deliver" onclick="orderPay.open(${id}, true, { deliver: true })">
+                          <i data-lucide="hand-coins" class="w-4 h-4"></i>Cobrar y entregar
+                      </button>`);
+        }
+
+        return out.length ? `<div class="flex flex-wrap gap-[6px]">${out.join('')}</div>` : '';
+    }
+
+    // Pendiente o pagado y sin entregar: lo unico que Produccion palomea.
+    producible(o) {
+        return [2, 3].includes(Number(o.sale_status_id)) && Number(o.delivery_status) !== 1;
     }
 
     // Motivo, quien y cuando. Solo en cancelados.
@@ -448,6 +485,7 @@ class OrderDetail extends Templates {
     historyIcon(type) {
         const icons = {
             delivery:     ['circle-check', 'text-emerald-600'],
+            production:   ['chef-hat', 'text-violet-600'],
             event:        ['sparkles', 'text-amber-500'],
             payment:      ['banknote', 'text-emerald-600'],
             edition:      ['pencil', 'text-sky-600'],
@@ -827,6 +865,66 @@ class OrderDetail extends Templates {
         paint();
 
         if (window.lucide) lucide.createIcons();
+    }
+
+    // -- Entrega y elaboracion --
+
+    /*  Marca el pedido como entregado. Desde la tabla pregunta antes; desde el
+        cobro (ask:false) ya se decidio al pulsar «Cobrar y entregar». Si vino
+        del detalle, lo cierra para el aviso y lo vuelve a abrir al terminar. */
+    async deliver(id, opts = {}) {
+        $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        if (this.delivering) return;
+
+        const fromDetail = !!opts.fromDetail;
+
+        if (fromDetail) $('#modalOrderDetails .cs-modal-x').trigger('click');
+
+        if (opts.ask !== false) {
+            const answer = await alert({
+                icon:     'question',
+                title:    `¿Entregar el pedido P${id}?`,
+                text:     'Queda como entregado y ya no se edita.',
+                btn1Text: 'Sí, entregar',
+                btn2Text: 'Cancelar'
+            });
+
+            if (!answer || !answer.isConfirmed) return fromDetail ? this.show(id) : null;
+        }
+
+        this.delivering = true;
+
+        const data = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id } });
+
+        this.delivering = false;
+
+        if (!data || data.status != 200) {
+            const soft = data && [403, 404, 409].includes(Number(data.status));
+
+            await alert({ icon: soft ? 'info' : 'error', title: 'No se entregó', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+
+            return fromDetail ? this.show(id) : null;
+        }
+
+        orders.lsOrders();
+        alert({ icon: 'success', title: data.message });
+
+        if (fromDetail) this.show(id);
+    }
+
+    // Palomeo desde el detalle (Produccion en el calendario). Lo mismo que la casilla de la tarjeta.
+    async produce(id, want) {
+        const data = await useFetch({ url: this._link, data: { opc: 'toggleProduced', id: id, produced: want ? 1 : 0 } });
+
+        if (!data || data.status != 200) {
+            alert({ icon: 'info', title: 'No se cambió la marca', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        // show() reemplaza el modal abierto con el pedido ya marcado.
+        orders.lsOrders();
+        this.show(id);
     }
 
     // -- Impresion --

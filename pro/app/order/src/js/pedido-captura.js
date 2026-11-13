@@ -162,7 +162,6 @@ class OrderForm extends Templates {
         $('#root').append($('<div>', { id: 'posOrderHost', class: 'flex-1 min-h-0 flex flex-col' }));
 
         this.layout();
-        this.crumbs();
         this.backButton();
         this.catalog();
         this.ticket();
@@ -200,7 +199,6 @@ class OrderForm extends Templates {
                         id:    'posOrderHead',
                         class: 'shrink-0 flex flex-wrap items-center justify-between gap-[12px]',
                         children: [
-                            { id: 'posOrderMigas', class: 'min-w-0' },
                             { id: 'posOrderBack', class: 'shrink-0' }
                         ]
                     },
@@ -228,23 +226,6 @@ class OrderForm extends Templates {
                     { type: 'div', id: 'posOrderLauncher', class: 'shrink-0 md:hidden' }
                 ]
             }
-        });
-    }
-
-    crumbs() {
-        const o    = this.order;
-        const list = [];
-
-        ['Huubie', 'POS', 'Pedidos'].forEach((text) => {
-            list.push({ type: 'span', class: 'cp-migas-raiz', text: text }, { type: 'span', class: 'cp-migas-sep', text: '/' });
-        });
-
-        list.push({ type: 'span', class: 'cp-migas-actual', text: o ? `Editar #P${o.folio || o.id}` : 'Nuevo pedido' });
-
-        this.createLayout({
-            parent: 'posOrderMigas',
-            design: false,
-            data:   { id: 'posOrderCrumbs', class: 'cp-migas', container: list }
         });
     }
 
