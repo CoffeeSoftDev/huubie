@@ -839,6 +839,8 @@
    "Nos vemos pronto" con la sonrisa del logo: el arco se dibuja y luego
    brota el punto. El estado base es el final: con animaciones apagadas
    (prefers-reduced-motion) la sonrisa se ve completa.
+   Las formas salen de huubie_light.png (589 x 557 px): el punto mide
+   82.8 px y el dibujo (sonrisa + punto) 482 x 198.
    ============================================================ */
 
 .bye { text-align: center; }
@@ -855,38 +857,51 @@
     position: relative;
     display: inline-block;
     color: var(--acc-brand);
+    /* Diametro del punto. Es la unica perilla: la sonrisa se escala con el
+       para conservar las proporciones del logo. */
+    --smile-d: .42em;
 }
 
-/* El punto final de la oracion: sentado en la linea base, pegado a "pronto". */
-.bye-dot {
+/* Ancla: aparta el ancho del punto despues de "pronto" y, como mide 0 de
+   alto, su borde superior queda justo en la linea base del texto. */
+.smile-anchor {
+    position: relative;
     display: inline-block;
-    width: .32em;
-    height: .32em;
-    margin-left: .04em;
-    border-radius: 50%;
-    background: var(--acc-cherry);
-    animation: bye-pop .5s cubic-bezier(.34, 1.56, .64, 1) 1.3s backwards;
+    width: var(--smile-d);
+    height: 0;
+    margin-left: .03em;
 }
 
-/* La sonrisa, debajo de "pronto" y terminando bajo el punto. */
-.bye-smile {
+/* En el logo el punto baja un poco de la linea base de "bie" y la sonrisa
+   pasa por debajo de las letras: aqui igual. */
+.smile {
     position: absolute;
-    /* Termina justo antes del punto, como en el logo: no lo rebasa. */
-    left: 17%;
-    top: 98%;
-    width: calc(83% - .52em);
-    height: auto;
+    left: calc(var(--smile-d) * -4.7886);
+    top: calc(var(--smile-d) * -0.8575);
+    width: calc(var(--smile-d) * 5.8213);
+    height: calc(var(--smile-d) * 2.3913);
     overflow: visible;
+    pointer-events: none;
 }
 
-.bye-arc {
+/* Un trazo grueso recorre el centro de la sonrisa y la silueta del logo lo
+   recorta: asi se "dibuja" de izquierda a derecha y al final quedan las
+   puntas cortadas rectas. */
+.smile-arc {
     fill: none;
     stroke: var(--acc-cherry);
-    stroke-width: 15;
-    stroke-linecap: round;
+    stroke-width: 44;
     stroke-dasharray: 1;
     stroke-dashoffset: 0;
     animation: bye-draw 1s cubic-bezier(.65, 0, .35, 1) .35s backwards;
+}
+
+/* El punto brota cuando el trazo llega a la punta derecha. */
+.smile-dot {
+    fill: var(--acc-cherry);
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: bye-pop .5s cubic-bezier(.34, 1.56, .64, 1) 1.3s backwards;
 }
 
 .bye-sub {

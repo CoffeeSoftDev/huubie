@@ -134,7 +134,7 @@ class ctrl extends core {
     // $currentGroup: el grupo que ya tenía al editar; ese se acepta aunque esté inactivo.
     private function modifierInput($currentGroup = 0) {
         $groupId     = $this->selectOrNull('modifier_group_id');
-        $name        = $this->post('name');
+        $name        = $this->nameInput();
         $description = $this->textOrNull('description');
         $price       = $this->amount('price', 0);
         $quantity    = $this->amount('quantity', 0, 3);

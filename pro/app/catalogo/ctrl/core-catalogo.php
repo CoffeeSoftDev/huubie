@@ -146,6 +146,11 @@ class core extends mdl {
         return isset($_POST[$key]) ? trim((string) $_POST[$key]) : $default;
     }
 
+    // Nombre de cualquier cosa del catálogo, ya con mayúsculas parejas (ver catalogName()).
+    protected function nameInput($key = 'name') {
+        return catalogName($this->post($key));
+    }
+
     protected function postId($key = 'id') {
         return (int) $this->post($key, '0');
     }
@@ -301,6 +306,50 @@ class core extends mdl {
                 'onclick'    => "{$jsObj}.status({$id}, " . ($isActive ? 0 : 1) . ')'
             ]
         ];
+    }
+}
+
+// -- Nombres --
+/*  Un solo estilo en todo el catálogo, el que ya traían los nombres capturados
+    a mano: «Tres Leches Fresas con Crema».
+      - TODO EN MAYÚSCULAS: cada palabra pasa a Mayúscula Inicial.
+      - palabra en minúsculas: Mayúscula Inicial.
+      - de, la, con, y… en minúsculas (salvo la primera palabra).
+      - cm, pz, pza… en minúsculas.
+      - Se respeta tal cual: lo que trae número (3D, 15PZ, 12p) y, si el nombre
+        no venía todo en mayúsculas, la palabra que ya traía mayúsculas
+        (KitKat, BBQ, «Decoraciones FLORES»): pueden ser marcas o siglas. */
+if (!function_exists('catalogName')) {
+    function catalogName($text) {
+        $connectors = ['de', 'del', 'la', 'las', 'el', 'los', 'con', 'sin', 'y', 'e', 'o', 'u', 'en', 'a', 'al', 'por', 'para'];
+        $units      = ['cm', 'mm', 'kg', 'gr', 'ml', 'lt', 'pz', 'pzs', 'pza', 'pzas', 'paq'];
+
+        $text = trim(preg_replace('/\s+/u', ' ', (string) $text));
+
+        if ($text === '') return '';
+
+        $allUpper = $text === mb_strtoupper($text, 'UTF-8') && $text !== mb_strtolower($text, 'UTF-8');
+        $words    = explode(' ', $text);
+
+        foreach ($words as $i => $word) {
+            if (preg_match('/\d/', $word)) continue;
+
+            $lower   = mb_strtolower($word, 'UTF-8');
+            $core    = preg_replace('/^[^\p{L}]+|[^\p{L}]+$/u', '', $lower);
+            $rewrite = $allUpper || $word === $lower;
+
+            if ($i > 0 && in_array($core, $connectors, true)) {
+                $words[$i] = $lower;
+            } elseif (in_array($core, $units, true)) {
+                if ($rewrite) $words[$i] = $lower;
+            } elseif ($rewrite) {
+                $words[$i] = preg_replace_callback('/\p{L}/u', function ($m) {
+                    return mb_strtoupper($m[0], 'UTF-8');
+                }, $lower, 1);
+            }
+        }
+
+        return implode(' ', $words);
     }
 }
 

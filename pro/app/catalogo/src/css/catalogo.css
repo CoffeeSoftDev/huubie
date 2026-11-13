@@ -29,6 +29,14 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     }
 }
 
+/* -- Sucursal en el subtitulo --
+   «Reginas · Reginas Guadalupe»: la sucursal en el color de la marca y en
+   negrita, para que se lea de un vistazo en cual se esta trabajando. */
+.cp-pagina-sucursal {
+    font-weight: 700;
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
 /* -- Panel de cada pestaña --
    Llena el alto que queda debajo de las pestañas (#tabbarCatalogo ya es
    flex-1 flex-col). Sin min-height:0: con una tabla larga crece y el scroll
@@ -84,6 +92,97 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     font-size: 18px;
 }
 
+/* -- Formulario de producto (#modalProduct) --
+   compact.css pone `.text-sm { font-size: .8rem !important }` y esa clase le
+   gana a `select, textarea { 1rem !important }` (clase > elemento); el input
+   conserva 1rem por su `input[type]`. Por eso los selectores se veían más
+   chicos que el input de al lado. Mismo arreglo que `.cs-captura select`. */
+#modalProduct select,
+#modalProduct textarea {
+    font-size: 1rem !important;
+    line-height: 1.25 !important;
+}
+
+/* Títulos de sección, como el producto de inventory. */
+#modalProduct .cp-seccion {
+    margin-top: 20px;
+}
+
+#modalProduct .cp-seccion:first-child {
+    margin-top: 4px;
+}
+
+#modalProduct .cp-seccion p {
+    margin: 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #F1F5F9;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #6B7280;
+}
+
+/* Apagadores en tarjetas del mismo alto: la fila del flex-wrap estira el
+   contenedor y la tarjeta (el label) lo llena. */
+#modalProduct .cp-switch {
+    display: flex;
+}
+
+#modalProduct .cp-switch > label {
+    flex: 1 1 auto;
+    padding: 10px 12px;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    background: #fff;
+}
+
+/* Campo de foto: miniatura y botón del alto de un input. */
+.cp-foto-campo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cp-foto-campo .cp-foto {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 15px;
+}
+
+.cp-foto-subir {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.cp-foto-subir:hover {
+    border-color: rgb(var(--brand-600, 192 90 64));
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
+.cp-foto-quitar {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: #DC2626;
+}
+
+.cp-foto-quitar:hover {
+    text-decoration: underline;
+}
+
 .cp-chip {
     display: inline-flex;
     align-items: center;
@@ -111,6 +210,10 @@ body.dark-mode #tabbarCatalogo .cs-tabs {
     border-color: var(--dk-line-hi, #4B5563);
 }
 
+body.dark-mode .cp-pagina-sucursal {
+    color: rgb(var(--brand-300, 232 166 143));
+}
+
 body.dark-mode .cp-celda-titulo {
     color: var(--dk-text, #F3F4F6);
 }
@@ -125,4 +228,23 @@ body.dark-mode .cp-foto {
 
 body.dark-mode .cp-foto-vacia {
     color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode #modalProduct .cp-seccion p {
+    border-color: var(--dk-line, #374151);
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode #modalProduct .cp-switch > label,
+body.dark-mode .cp-foto-subir {
+    background: transparent;
+    border-color: var(--dk-line-hi, #4B5563);
+}
+
+body.dark-mode .cp-foto-subir {
+    color: var(--dk-text, #F3F4F6);
+}
+
+body.dark-mode .cp-foto-quitar {
+    color: #F87171;
 }

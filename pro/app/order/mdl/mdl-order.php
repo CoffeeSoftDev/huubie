@@ -963,6 +963,13 @@ class mdl extends CRUD {
         return $row ? (string) $row['name'] : '';
     }
 
+    // La contraseña cifrada de quien opera. '' = no tiene.
+    public function qUserPassword($userId) {
+        $row = $this->qRow("SELECT password FROM {$this->bd}users WHERE id = ? LIMIT 1", [$userId]);
+
+        return $row ? (string) $row['password'] : '';
+    }
+
     // -- Turno y cobro: escrituras --
 
     public function qCreateTurn($array) {

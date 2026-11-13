@@ -345,7 +345,7 @@ class mdl extends CRUD {
     public function qGetProduct($id, $companyId, $branchId) {
         return $this->qRow("
             SELECT
-                id, name, description, sku, barcode, kind, price, cost,
+                id, name, description, image, sku, barcode, kind, price, cost,
                 sell_pos, in_catalog, is_inventoriable,
                 category_id, subcategory_id,
                 IFNULL(active, 1) AS active
@@ -524,6 +524,16 @@ class mdl extends CRUD {
                 AND b.kind = 'bundle'
                 AND IFNULL(b.active, 1) = 1
         ", [$productId]);
+    }
+
+    // Otros productos con la misma foto (la copia de «Hacer propio» comparte la de la Matriz).
+    public function qCountProductsWithImage($image, $exceptId) {
+        return $this->qCount("
+            SELECT COUNT(*)
+            FROM {$this->pos}product
+            WHERE image = ?
+                AND id <> ?
+        ", [$image, $exceptId]);
     }
 
     // Productos, servicios y paquetes viven en la misma tabla.

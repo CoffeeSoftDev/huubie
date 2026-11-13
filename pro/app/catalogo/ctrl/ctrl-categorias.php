@@ -105,7 +105,7 @@ class ctrl extends core {
 
     // Devuelve ['name','description'] o una respuesta de error (trae 'status').
     private function categoryInput() {
-        $name        = $this->post('name');
+        $name        = $this->nameInput();
         $description = $this->textOrNull('description');
 
         if ($name === '')                       return $this->fail(400, 'Escribe el nombre de la categoría.');

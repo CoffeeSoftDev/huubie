@@ -283,6 +283,8 @@ class OrderCalendar extends Templates {
             views:          { dayGridWeek: { dayMaxEvents: false } },
             moreLinkClick:  'popover',
             moreLinkContent: (arg) => `+${arg.num} más`,
+            navLinks:       true,
+            navLinkDayClick: (date) => this.calendar.changeView('galeriaDia', date),
             // Lo que coincide con el buscador va primero: con dayMaxEvents quedaria dentro del «+N».
             eventOrder:     '-match,hour,title',
             events:         (info, success) => this.source(info, success),
@@ -363,7 +365,7 @@ class OrderCalendar extends Templates {
 
     // Tarjeta del Mes y la Semana: hora y folio, cliente, entrega y la marca de elaborado.
     eventContent(arg) {
-        const p  = arg.event.extendedProps;
+        const p  = { ...arg.event.extendedProps, id: Number(arg.event.id) };
         const el = document.createElement('div');
 
         el.className = 'ord-cal-ev' + (this.dimProduced(p) ? ' is-produced' : '');
@@ -372,7 +374,8 @@ class OrderCalendar extends Templates {
 
         el.innerHTML = `
             <div class="ord-cal-ev-top">
-                <span>${p.hour ? ordHour(p.hour) : 'Sin hora'}</span>
+                <span class="ord-cal-ev-hour">${p.hour ? ordHour(p.hour) : 'Sin hora'}</span>
+                <span class="ord-cal-ev-short">${this.shortHour(p.hour)}</span>
                 <span class="ord-cal-folio">${esc(p.folio)}</span>
             </div>
             <div class="ord-cal-ev-name">${esc(arg.event.title)}</div>
@@ -386,6 +389,17 @@ class OrderCalendar extends Templates {
         if (window.lucide) lucide.createIcons({ root: el });
 
         return { domNodes: [el] };
+    }
+
+    // «9:30a», «4p»: la hora que cabe en la rejilla del celular.
+    shortHour(hour) {
+        const m = String(hour || '').match(/^(\d{1,2}):(\d{2})/);
+
+        if (!m) return 's/h';
+
+        const h = Number(m[1]);
+
+        return `${h % 12 || 12}${m[2] === '00' ? '' : ':' + m[2]}${h < 12 ? 'a' : 'p'}`;
     }
 
     // La casilla de la esquina palomea; el resto de la tarjeta abre el pedido.

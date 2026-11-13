@@ -111,7 +111,7 @@ class ctrl extends core {
 
     // Devuelve ['name','is_extra'] o una respuesta de error (trae 'status').
     private function groupInput() {
-        $name = $this->post('name');
+        $name = $this->nameInput();
 
         if ($name === '')               return $this->fail(400, 'Escribe el nombre del grupo.');
         if ($this->tooLong($name, 100)) return $this->fail(400, 'El nombre admite hasta 100 caracteres.');

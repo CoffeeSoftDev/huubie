@@ -45,8 +45,8 @@ $version = function ($file) {
                         <p class="welcome-sub">Inicia sesión en tu cuenta de Huubie.</p>
                     </div>
                     <!-- Solo en pantallas chicas, donde el logo grande de la derecha no sale. -->
-                    <img class="brand-logo on-light" src="assets/img/huubie_light.png" alt="Huubie">
-                    <img class="brand-logo on-dark" src="assets/img/huubie.png" alt="Huubie">
+                    <img class="brand-logo on-light" src="assets/img/huubie-vector.svg" alt="Huubie">
+                    <img class="brand-logo on-dark" src="assets/img/huubie-vector-dark.svg" alt="Huubie">
                 </div>
 
                 <form id="login-form" class="login-form" novalidate>
@@ -108,10 +108,10 @@ $version = function ($file) {
             </div>
         </main>
 
-        <!-- Marca -->
+        <!-- Marca: logo vectorial, sin el aro del punto -->
         <aside class="auth-hero reveal" style="--i:1" aria-hidden="true">
-            <img class="brand-logo on-light" src="assets/img/huubie_light.png" alt="">
-            <img class="brand-logo on-dark" src="assets/img/huubie.svg" alt="">
+            <img class="brand-logo on-light" src="assets/img/huubie-vector.svg" alt="">
+            <img class="brand-logo on-dark" src="assets/img/huubie-vector-dark.svg" alt="">
         </aside>
     </div>
 
@@ -120,8 +120,8 @@ $version = function ($file) {
         <div class="site-footer-inner">
             <div class="site-footer-main">
                 <span class="site-footer-logo">
-                    <img class="brand-logo on-light" src="assets/img/huubie_light.png" alt="Huubie">
-                    <img class="brand-logo on-dark" src="assets/img/huubie.svg" alt="Huubie">
+                    <img class="brand-logo on-light" src="assets/img/huubie-vector.svg" alt="Huubie">
+                    <img class="brand-logo on-dark" src="assets/img/huubie-vector-dark.svg" alt="Huubie">
                 </span>
 
                 <div class="site-footer-text">

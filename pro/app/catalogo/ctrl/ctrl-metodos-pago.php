@@ -124,7 +124,7 @@ class ctrl extends core {
 
     // Devuelve los campos del método o una respuesta de error (trae 'status').
     private function paymentMethodInput() {
-        $name       = $this->post('name');
+        $name       = $this->nameInput();
         $code       = $this->code('code');
         $kind       = $this->textOrNull('kind');
         $commission = $this->percent('commission', 0);

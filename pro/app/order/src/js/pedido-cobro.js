@@ -376,6 +376,10 @@ class OrderPay extends Templates {
 
         $('#op_sum').html(this.summary(c));
 
+        if (this.thenDeliver) {
+            $('#modalOrderPay .cs-modal-save').text(c.target + 0.005 >= c.balance ? 'Cobrar y entregar' : 'Cobrar');
+        }
+
         this.paintDiscount(c);
 
         if (window.lucide) lucide.createIcons();
@@ -626,7 +630,8 @@ class OrderPay extends Templates {
 
         if (answer && answer.isConfirmed) await orderDetail.print(this.o.id);
 
-        if (deliver) return orderDetail.deliver(this.o.id, { ask: false, fromDetail: this.fromDetail });
+        // La entrega pide la contraseña: esa ventana es la confirmación.
+        if (deliver) return orderDetail.deliver(this.o.id, { fromDetail: this.fromDetail });
 
         this.back();
     }

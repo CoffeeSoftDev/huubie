@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<!--
+    TEMPLATE · Despedida al cerrar sesion (aplicado en pro/logout.php el 13/11/2026)
+
+    Que cambia frente a la despedida actual:
+    - La sonrisa es la del logo, calcada: una media luna de grosor variable con
+      las puntas cortadas rectas (antes: una linea pareja de puntas redondas).
+    - El punto es el del logo: mas grande, encaramado sobre la punta derecha y
+      sin el aro azul.
+    - El panel derecho usa el logo vectorial nuevo (huubie-vector.svg).
+
+    Solo de template: el selector de tema, el boton "Repetir animacion" y que
+    no regresa al login. Nada de eso pasa a logout.php.
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FFFFFF">
+    <title>Huubie · Nos vemos pronto (template)</title>
+    <link rel="icon" href="../../assets/img/huubie192.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../src/css/auth.css">
+    <!-- Sin defer: pone data-theme antes de pintar (sin parpadeo del tema contrario). -->
+    <script src="../src/js/theme.js"></script>
+
+    <style>
+        /* La sonrisa (.smile-*) ya vive en auth.css. Aqui solo lo del template. */
+        .tpl-replay {
+            position: fixed;
+            left: 20px;
+            bottom: 20px;
+            z-index: 5;
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid var(--acc-line);
+            border-radius: 10px;
+            background: var(--acc-panel);
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--acc-ink-2);
+            cursor: pointer;
+        }
+
+        .tpl-replay:hover { color: var(--acc-ink); }
+    </style>
+</head>
+
+<body class="login-body">
+
+    <!-- Solo template: selector de tema -->
+    <div class="theme-switch" role="group" aria-label="Tema de la página">
+        <button type="button" data-theme-set="light" aria-pressed="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            Claro
+        </button>
+        <button type="button" data-theme-set="dark" aria-pressed="false">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            Oscuro
+        </button>
+    </div>
+
+    <div class="auth-split">
+
+        <!-- Despedida -->
+        <main class="auth-side bye-side">
+            <div class="bye">
+                <!-- El punto rojo es el punto final de la oracion y la sonrisa pasa
+                     por debajo de "pronto": juntos son la sonrisa del logo, con sus
+                     mismas formas. Primero se dibuja el arco, despues brota el punto. -->
+                <h1 class="bye-title">Nos vemos <span class="bye-word">pronto<span class="smile-anchor" aria-hidden="true"><svg class="smile" viewBox="108 362 482 198"><defs><clipPath id="smileShape"><path d="M504.44 450.19L490.93 464.43C480.63 475.28 467.84 484.73 455.25 492.75C361.85 552.22 221.64 539.12 149.42 451.84L113.74 451.84L128.16 469.33C145.43 490.28 173.15 512.76 197.01 525.49C209.72 532.27 223.36 537.14 237.08 541.44C288.13 557.42 342.19 561.41 394.25 547.7C446.21 534.02 492.62 503.26 527.29 462.58L504.44 450.19Z" /></clipPath></defs><g clip-path="url(#smileShape)"><path class="smile-arc" pathLength="1" d="M112.08 429.7A256.9 256.9 0 0 0 530.23 440.65" /></g><circle class="smile-dot" cx="545.9" cy="406.5" r="41.4" /></svg></span></span></h1>
+
+                <p class="bye-sub">Cerraste tu sesión de forma segura.</p>
+            </div>
+        </main>
+
+        <!-- Marca: logo vectorial, sin el aro del punto -->
+        <aside class="auth-hero reveal" style="--i:1" aria-hidden="true">
+            <img class="brand-logo on-light" src="../../assets/img/huubie-vector.svg" alt="">
+            <img class="brand-logo on-dark" src="../../assets/img/huubie-vector-dark.svg" alt="">
+        </aside>
+    </div>
+
+    <!-- Solo template -->
+    <button type="button" class="tpl-replay" id="tplReplay">Repetir animación</button>
+
+    <script>
+        // -- Repetir animacion (solo template) --
+        // Cambiar el nodo por una copia reinicia sus animaciones CSS.
+        document.getElementById('tplReplay').addEventListener('click', function () {
+            var bye = document.querySelector('.bye');
+            bye.parentNode.replaceChild(bye.cloneNode(true), bye);
+        });
+
+        // En logout.php aqui va el regreso al login (2600 ms). El template se queda.
+    </script>
+</body>
+
+</html>

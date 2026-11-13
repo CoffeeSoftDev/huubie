@@ -171,7 +171,7 @@ class ctrl extends core {
         $currentCategory: la que ya tenía (se acepta inactiva). $bundleId: el paquete que se edita.
         components llega como JSON: [{"id": 12, "qty": 2}, ...]. */
     private function bundleInput($currentCategory = 0, $bundleId = 0) {
-        $name        = $this->post('name');
+        $name        = $this->nameInput();
         $description = $this->textOrNull('description');
         $price       = $this->amount('price', null);
         $categoryId  = $this->selectOrNull('category_id');

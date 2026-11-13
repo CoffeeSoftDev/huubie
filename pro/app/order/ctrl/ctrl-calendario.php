@@ -11,10 +11,13 @@ require_once __DIR__ . '/core-order.php';
         (Produccion). El detalle lo sirve este ctrl con el mismo armado que Pedidos.
       - Palomear «ya se elaboro» pide 'update' del CALENDARIO (en alpha, solo
         Produccion). Solo llena produced_at y quien; no cambia la entrega.
-      - Entregar pide 'update' de PEDIDOS y sin saldo (decision 5: el saldo se
-        cobra al entregar; la pantalla encadena cobro y entrega).
+      - Entregar pide 'update' de PEDIDOS, sin saldo (decision 5: el saldo se
+        cobra al entregar; la pantalla encadena cobro y entrega) y la contraseña
+        de quien entrega (core::needKey).
       - Quien no ve Pedidos ve solo pendientes y pagados: ni cotizaciones ni
-        cancelados, como Produccion en alpha. */
+        cancelados, como Produccion en alpha. Tampoco ve dinero: el calendario
+        le llega sin total, abonado ni saldo, y el detalle sin importes, abonos
+        ni los renglones de cobro de la bitacora (core::withoutMoney). */
 class ctrl extends core {
 
     const CALENDAR  = 'pos-calendario';
@@ -47,7 +50,7 @@ class ctrl extends core {
         return $this->attempt(function () {
             [$fi, $ff] = $this->calendarRange();
 
-            $limited = $this->need('show') !== null;
+            $limited = $this->limited();
             $events  = [];
 
             foreach ($this->qCalendarOrders($this->branchId(), $fi, $ff) as $o) {
@@ -55,7 +58,7 @@ class ctrl extends core {
 
                 if ($limited && !in_array($status, [self::PENDING, self::PAID], true)) continue;
 
-                $events[] = $this->event($o);
+                $events[] = $this->event($o, $limited);
             }
 
             return [
@@ -85,7 +88,7 @@ class ctrl extends core {
 
         $status = (int) $order['sale_status_id'];
 
-        if ($this->need('show') !== null && !in_array($status, [self::PENDING, self::PAID], true)) {
+        if ($this->limited() && !in_array($status, [self::PENDING, self::PAID], true)) {
             return $this->fail(404, "El pedido P{$id} no está en el calendario de producción.");
         }
 
@@ -205,13 +208,13 @@ class ctrl extends core {
         ]);
     }
 
-    // Una fila del calendario. Los colores los pone la pantalla.
-    private function event($o) {
+    // Una fila del calendario. Los colores los pone la pantalla. Con $limited va sin dinero.
+    private function event($o, $limited = false) {
         $total = (float) $o['total'];
         $paid  = (float) $o['paid'];
         $time  = (string) $o['delivery_time'];
 
-        return [
+        $event = [
             'id'         => (int) $o['id'],
             'title'      => $o['customer'] !== '' ? $o['customer'] : 'Sin cliente',
             'start'      => (string) $o['delivery_date'],
@@ -224,13 +227,18 @@ class ctrl extends core {
             'method'     => (int) $o['delivery_method'],
             'location'   => (string) $o['location'],
             'phone'      => (string) $o['phone'],
-            'total'      => round($total, 2),
-            'paid'       => round($paid, 2),
-            'balance'    => round($total - $paid, 2),
             'custom'     => (int) $o['is_custom'],
             'produced'   => empty($o['produced_at']) ? 0 : 1,
             'producedAt' => (string) $o['produced_at'],
             'photo'      => (string) $o['photo']
+        ];
+
+        if ($limited) return $event;
+
+        return $event + [
+            'total'   => round($total, 2),
+            'paid'    => round($paid, 2),
+            'balance' => round($total - $paid, 2)
         ];
     }
 }

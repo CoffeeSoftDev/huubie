@@ -41,19 +41,19 @@ $version = function ($file) {
         <!-- Despedida -->
         <main class="auth-side bye-side">
             <div class="bye">
-                <!-- Como en alpha: el punto rojo es el punto final de la oracion y
-                     la sonrisa se dibuja debajo de "pronto"; juntos son la
-                     sonrisa del logo. Primero el arco, despues brota el punto. -->
-                <h1 class="bye-title">Nos vemos <span class="bye-word">pronto<span class="bye-dot" aria-hidden="true"></span><svg class="bye-smile" viewBox="0 0 200 62" aria-hidden="true"><path class="bye-arc" pathLength="1" d="M9 9 Q 100 92 191 9" /></svg></span></h1>
+                <!-- El punto rojo es el punto final de la oracion y la sonrisa pasa
+                     por debajo de "pronto": juntos son la sonrisa del logo, con sus
+                     mismas formas. Primero se dibuja el arco, despues brota el punto. -->
+                <h1 class="bye-title">Nos vemos <span class="bye-word">pronto<span class="smile-anchor" aria-hidden="true"><svg class="smile" viewBox="108 362 482 198"><defs><clipPath id="smileShape"><path d="M504.44 450.19L490.93 464.43C480.63 475.28 467.84 484.73 455.25 492.75C361.85 552.22 221.64 539.12 149.42 451.84L113.74 451.84L128.16 469.33C145.43 490.28 173.15 512.76 197.01 525.49C209.72 532.27 223.36 537.14 237.08 541.44C288.13 557.42 342.19 561.41 394.25 547.7C446.21 534.02 492.62 503.26 527.29 462.58L504.44 450.19Z" /></clipPath></defs><g clip-path="url(#smileShape)"><path class="smile-arc" pathLength="1" d="M112.08 429.7A256.9 256.9 0 0 0 530.23 440.65" /></g><circle class="smile-dot" cx="545.9" cy="406.5" r="41.4" /></svg></span></span></h1>
 
                 <p class="bye-sub">Cerraste tu sesión de forma segura.</p>
             </div>
         </main>
 
-        <!-- Marca -->
+        <!-- Marca: logo vectorial, sin el aro del punto -->
         <aside class="auth-hero reveal" style="--i:1" aria-hidden="true">
-            <img class="brand-logo on-light" src="assets/img/huubie_light.png" alt="">
-            <img class="brand-logo on-dark" src="assets/img/huubie.svg" alt="">
+            <img class="brand-logo on-light" src="assets/img/huubie-vector.svg" alt="">
+            <img class="brand-logo on-dark" src="assets/img/huubie-vector-dark.svg" alt="">
         </aside>
     </div>
 

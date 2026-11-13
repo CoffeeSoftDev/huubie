@@ -6,7 +6,13 @@
     el tema (Claro de pro, sobre csModal en vez de bootbox) y suma la
     bitacora y el motivo de cancelacion.
 
-    Lo usa pedidos.js: orderDetail.show(id) y orderDetail.print(id). */
+    Produccion (el ctrl manda limited = true) lo ve sin dinero: ni resumen de
+    pago, ni precios, ni importes. El ctrl ya no manda esas cifras.
+
+    Entregar pide la contraseña de quien opera: deliver() abre la ventana y
+    saveDeliver() la manda al ctrl, que es quien la revisa.
+
+    Lo usan pedidos.js y calendario.js: orderDetail.show(id), .print(id), .deliver(id). */
 
 // -- Ayudantes compartidos con pedidos.js --
 
@@ -156,6 +162,7 @@ class OrderDetail extends Templates {
         this.loading      = false;
         this.editable     = true;   // false en el calendario: la captura vive en Pedidos
         this.delivering   = false;
+        this.limited      = false;  // true = el pedido llego sin dinero (Produccion)
     }
 
     // Estados de sale_status, iguales a los del ctrl.
@@ -181,6 +188,8 @@ class OrderDetail extends Templates {
             alert({ icon: 'error', text: (data && data.message) || 'No se pudo abrir el pedido.', btn1: true });
             return null;
         }
+
+        this.limited = !!data.limited;
 
         return data;
     }
@@ -211,7 +220,7 @@ class OrderDetail extends Templates {
                 <div id="orderDetailsContainer" class="flex flex-col lg:flex-row gap-[16px] p-[20px] max-h-[70vh] overflow-y-auto">
                     <div class="lg:w-1/3 flex flex-col gap-[16px] min-w-0">
                         ${this.infoOrder(data)}
-                        ${this.infoSales(data)}
+                        ${this.limited ? '' : this.infoSales(data)}
                         ${this.historyCard(data.history || [])}
                     </div>
                     <div class="lg:w-2/3 min-w-0">
@@ -578,6 +587,18 @@ class OrderDetail extends Templates {
         return d > 0 ? `<span class="block text-[11px] text-amber-600">Descuento −${money(d)}</span>` : '';
     }
 
+    // El importe de la linea, con su descuento. Sin dinero (limited) no se pinta.
+    lineAmount(l, tone, wrap) {
+        if (this.limited) return '';
+
+        return `
+            <div${wrap ? ` class="${wrap}"` : ''}>
+                <span class="block text-[11px] text-gray-400">Importe</span>
+                <p class="text-lg font-bold ${tone} mb-0">${money(this.lineTotal(l))}</p>
+                ${this.lineDiscount(l)}
+            </div>`;
+    }
+
     textBlock(label, text, big) {
         if (!text || !String(text).trim()) return '';
 
@@ -601,7 +622,7 @@ class OrderDetail extends Templates {
                 <div class="flex-1 min-w-0 flex flex-col gap-2">
                     <div>
                         <h5 class="text-sm font-bold uppercase text-gray-800 mb-0">${esc(name)}</h5>
-                        <p class="text-[12px] text-blue-700 mb-0">${money(l.price)} c/u</p>
+                        ${this.limited ? '' : `<p class="text-[12px] text-blue-700 mb-0">${money(l.price)} c/u</p>`}
                     </div>
                     ${this.textBlock('Dedicatoria', l.dedication)}
                     ${this.textBlock('Observaciones', l.details)}
@@ -609,11 +630,7 @@ class OrderDetail extends Templates {
 
                 <div class="self-stretch flex flex-col items-end justify-between gap-[12px] text-right shrink-0">
                     <span class="text-[12.5px] text-gray-500">Cantidad: <b class="text-gray-800">${Number(l.quantity || 1)}</b></span>
-                    <div>
-                        <span class="block text-[11px] text-gray-400">Importe</span>
-                        <p class="text-lg font-bold text-gray-900 mb-0">${money(this.lineTotal(l))}</p>
-                        ${this.lineDiscount(l)}
-                    </div>
+                    ${this.lineAmount(l, 'text-gray-900')}
                 </div>
             </article>`;
     }
@@ -648,15 +665,11 @@ class OrderDetail extends Templates {
                     ${this.personalizationGrid(l.modifiers)}
                 </div>` : ''}
 
-                <div class="text-right mt-[12px]">
-                    <span class="block text-[11px] text-gray-400">Importe</span>
-                    <p class="text-lg font-bold text-emerald-700 mb-0">${money(this.lineTotal(l))}</p>
-                    ${this.lineDiscount(l)}
-                </div>
+                ${this.lineAmount(l, 'text-emerald-700', 'text-right mt-[12px]')}
             </article>`;
     }
 
-    // Grupos en rejilla de dos; el precio dice "Incluida" si no suma.
+    // Grupos en rejilla de dos; el precio dice "Incluida" si no suma. Sin dinero (limited), solo la cantidad.
     personalizationGrid(modifiers) {
         const groups = {};
 
@@ -673,12 +686,13 @@ class OrderDetail extends Templates {
                         ${groups[g].map((m) => {
                             const qty   = Number(m.quantity || 1);
                             const price = Number(m.price || 0);
-                            const cost  = price > 0 ? `${qty} × +${money(price)}` : 'Incluida';
+                            const cost  = this.limited ? (qty > 1 ? `× ${qty}` : '') : (price > 0 ? `${qty} × +${money(price)}` : 'Incluida');
+                            const bold  = this.limited ? qty > 1 : price > 0;
 
                             return `
                                 <div class="flex items-start justify-between gap-2 text-[12.5px] py-0.5">
                                     <span class="text-gray-700 min-w-0">${esc(m.name)}${m.details ? `<span class="block text-[11px] text-gray-400">${esc(m.details)}</span>` : ''}</span>
-                                    <span class="whitespace-nowrap ${price > 0 ? 'text-gray-800 font-semibold' : 'text-gray-400'}">${cost}</span>
+                                    <span class="whitespace-nowrap ${bold ? 'text-gray-800 font-semibold' : 'text-gray-400'}">${cost}</span>
                                 </div>`;
                         }).join('')}
                     </div>`).join('')}
@@ -869,48 +883,87 @@ class OrderDetail extends Templates {
 
     // -- Entrega y elaboracion --
 
-    /*  Marca el pedido como entregado. Desde la tabla pregunta antes; desde el
-        cobro (ask:false) ya se decidio al pulsar «Cobrar y entregar». Si vino
-        del detalle, lo cierra para el aviso y lo vuelve a abrir al terminar. */
-    async deliver(id, opts = {}) {
+    /*  Entregar pide la contraseña de quien opera: esta ventana es la
+        confirmacion (tabla, detalle o al terminar «Cobrar y entregar»). Si vino
+        del detalle, lo cierra antes y lo vuelve a abrir al terminar o al volver. */
+    deliver(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
         if (this.delivering) return;
 
         const fromDetail = !!opts.fromDetail;
+        const back       = () => (fromDetail ? this.show(id) : null);
 
         if (fromDetail) $('#modalOrderDetails .cs-modal-x').trigger('click');
 
-        if (opts.ask !== false) {
-            const answer = await alert({
-                icon:     'question',
-                title:    `¿Entregar el pedido P${id}?`,
-                text:     'Queda como entregado y ya no se edita.',
-                btn1Text: 'Sí, entregar',
-                btn2Text: 'Cancelar'
-            });
+        this.csModal({
+            id:         'modalOrderDeliver',
+            title:      'Entregar pedido',
+            subtitle:   `Pedido #P${id}`,
+            lucideIcon: 'package-check',
+            width:      'max-w-md',
+            saveText:   'Entregar',
+            cancelText: 'Volver',
+            info:       'Queda como entregado y ya no se edita.',
+            json: [
+                { id: 'dl_key', lbl: 'Tu contraseña', tipo: 'text', required: true, class: 'w-full', help: 'La misma con la que entras a Huubie.' }
+            ],
+            onSave: (values, close) => this.saveDeliver(id, close, back)
+        });
 
-            if (!answer || !answer.isConfirmed) return fromDetail ? this.show(id) : null;
-        }
+        orderPay.onDismiss('modalOrderDeliver', back);
+
+        // csModal no tiene campo de contraseña: se pinta de texto y aqui se oculta lo escrito.
+        // one-time-code: el navegador no la rellena sola (si no, la clave no pediria nada).
+        $('#dl_key')
+            .attr({ type: 'password', autocomplete: 'one-time-code', spellcheck: 'false' })
+            .on('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+
+                e.preventDefault();
+                $('#modalOrderDeliver .cs-modal-save').trigger('click');
+            })
+            .trigger('focus');
+    }
+
+    // El ctrl revisa la contraseña. Si falla (data.key) la ventana sigue abierta y lo dice bajo el campo.
+    async saveDeliver(id, close, back) {
+        if (this.delivering) return;
+
+        const field = $('#dl_key');
+        const key   = String(field.val() || '');
+        const wrong = (text) => {
+            field.next('p').removeClass('text-gray-400').addClass('text-red-600 font-semibold').text(text);
+            field.val('').trigger('focus');
+        };
+
+        if (!key) return wrong('Escribe tu contraseña para entregar.');
 
         this.delivering = true;
 
-        const data = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id } });
+        const button = $('#modalOrderDeliver .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id, key: key } });
 
         this.delivering = false;
+        button.prop('disabled', false);
 
-        if (!data || data.status != 200) {
-            const soft = data && [403, 404, 409].includes(Number(data.status));
+        if (!data)    return wrong('No hubo respuesta. Revisa la conexión y vuelve a intentar.');
+        if (data.key) return wrong(data.message || 'Contraseña incorrecta.');
 
-            await alert({ icon: soft ? 'info' : 'error', title: 'No se entregó', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+        orderPay.closeQuiet('modalOrderDeliver', close);
 
-            return fromDetail ? this.show(id) : null;
+        if (data.status != 200) {
+            const soft = [403, 404, 409].includes(Number(data.status));
+
+            await alert({ icon: soft ? 'info' : 'error', title: 'No se entregó', text: data.message || 'Vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+
+            return back();
         }
 
         orders.lsOrders();
         alert({ icon: 'success', title: data.message });
 
-        if (fromDetail) this.show(id);
+        back();
     }
 
     // Palomeo desde el detalle (Produccion en el calendario). Lo mismo que la casilla de la tarjeta.
@@ -943,6 +996,7 @@ class OrderDetail extends Templates {
         }
 
         const o       = data.order;
+        const limited = !!data.limited;   // sin dinero: ni importes ni totales
         const total   = Number(o.total || 0);
         const paid    = Number(o.paid || 0);
         const balance = Math.round((total - paid) * 100) / 100;
@@ -957,7 +1011,7 @@ class OrderDetail extends Templates {
                 (l.modifiers || []).length ? (l.modifiers || []).map((m) => esc(m.name)).join(', ') : ''
             ].filter(Boolean).map((t) => `<div class="s">${t}</div>`).join('');
 
-            return `<tr><td>${Number(l.quantity || 1)} × ${esc(l.name || l.product_name)}${extra}</td><td class="r">${money(this.lineTotal(l))}</td></tr>`;
+            return `<tr><td>${Number(l.quantity || 1)} × ${esc(l.name || l.product_name)}${extra}</td>${limited ? '' : `<td class="r">${money(this.lineTotal(l))}</td>`}</tr>`;
         }).join('');
 
         const payments = (data.payments || []).map((p) => {
@@ -983,7 +1037,7 @@ class OrderDetail extends Templates {
             ${o.note ? `<div class="s">Nota: ${esc(o.note)}</div>` : ''}
             <hr>
             <table>${lines || '<tr><td>Sin productos</td></tr>'}</table>
-            <hr>
+            ${limited ? '' : `<hr>
             <table>
                 ${row('Subtotal', money(o.subtotal))}
                 ${Number(o.discount_amount) > 0 ? row('Descuento', '−' + money(o.discount_amount)) : ''}
@@ -991,7 +1045,7 @@ class OrderDetail extends Templates {
                 ${payments}
                 ${row('Abonado', money(paid))}
                 ${row(balance < 0 ? 'Saldo a favor' : 'Saldo', money(Math.abs(balance)), true)}
-            </table>
+            </table>`}
             ${Number(o.sale_status_id) === 4 ? `<hr><div class="c b">CANCELADO</div>${o.cancel_reason ? `<div class="c s">${esc(o.cancel_reason)}</div>` : ''}` : ''}
             <hr>
             <div class="c s">Impreso ${ordNow()}</div>`;

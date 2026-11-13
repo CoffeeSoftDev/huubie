@@ -55,9 +55,11 @@ class App extends Templates {
         `);
     }
 
+    // La sucursal va resaltada: es la que manda en todo lo que se ve abajo.
     header() {
-        const scope = dataInit.scope || {};
-        const where = [scope.company, scope.branch].filter(Boolean).map(esc).join(' · ');
+        const scope  = dataInit.scope || {};
+        const branch = scope.branch ? `<span class="cp-pagina-sucursal">${esc(scope.branch)}</span>` : '';
+        const where  = [scope.company ? esc(scope.company) : '', branch].filter(Boolean).join(' · ');
 
         $('#headerCatalogo').html(`
             <h1 class="cp-pagina-titulo">Catálogo</h1>
@@ -188,6 +190,45 @@ function productPhotoError(img) {
     }
 
     $(img).replaceWith('<div class="cp-foto cp-foto-vacia"><i class="icon-birthday"></i></div>');
+}
+
+// La ruta guardada (pro_files/...) relativa a la raíz del sitio, como la pinta ctrl-productos.
+function productPhotoUrl(path) {
+    if (!path) return '';
+    if (/^(https?:|data:)/i.test(path)) return path;
+
+    return '/' + String(path).replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
+}
+
+// La foto lista para guardar: JPEG de máximo `max` px por lado (igual que inventory).
+// Va sobre blanco para que lo transparente de un PNG no salga negro. "" si no se puede abrir.
+function compressPhoto(file, max = 800) {
+    return new Promise((resolve) => {
+        if (!file || !/^image\//.test(file.type)) return resolve('');
+
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+            const scale  = Math.min(1, max / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width  = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve('');
+        };
+        img.src = url;
+    });
 }
 
 function catalogoPlantilla() {

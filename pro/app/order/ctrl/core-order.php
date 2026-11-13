@@ -27,6 +27,10 @@ class core extends mdl {
     // Días hacia atrás en que se buscan días sin cerrar (como alpha).
     const PENDING_WINDOW = 15;
 
+    // Contraseña al entregar: fallos seguidos que se toleran y segundos de espera después.
+    const KEY_TRIES = 5;
+    const KEY_WAIT  = 300;
+
     private $scopeCache = null;
 
     // -- Empresa y sucursal --
@@ -237,6 +241,11 @@ class core extends mdl {
         return ['status' => 403, 'message' => "Tu rol no tiene permiso para {$text} en esta sucursal.", 'row' => []];
     }
 
+    // Quien no ve Pedidos y entra solo por el calendario (Producción): ve el pedido sin dinero.
+    protected function limited() {
+        return $this->need('show') !== null;
+    }
+
     // -- Reglas de cobro --
 
     // '' = se puede cobrar. La entrega no bloquea: el saldo se cubre al entregar.
@@ -351,14 +360,67 @@ class core extends mdl {
             && round((float) $o['total'] - (float) $o['paid'], 2) > 0.005;
     }
 
+    /*  Entregar pide la contraseña de quien opera, la misma con la que entra
+        (como alpha). null = correcta. Las respuestas llevan key = true para que
+        la pantalla deje la ventana abierta y marque el campo.
+        KEY_TRIES fallos seguidos hacen esperar KEY_WAIT segundos: sin ese freno
+        la contraseña se podría adivinar probando desde una caja abierta. */
+    protected function needKey() {
+        $guard = isset($_SESSION['order_key']) && is_array($_SESSION['order_key']) ? $_SESSION['order_key'] : [];
+        $fails = isset($guard['fails']) ? (int) $guard['fails'] : 0;
+        $until = isset($guard['until']) ? (int) $guard['until'] : 0;
+
+        if ($until > time()) {
+            $minutes = (int) ceil(($until - time()) / 60);
+
+            return ['status' => 429, 'message' => 'Demasiados intentos. Espera ' . ($minutes === 1 ? '1 minuto' : "{$minutes} minutos") . ' y vuelve a intentar.', 'key' => true];
+        }
+
+        // Sin trim: la contraseña se compara tal cual se escribió, igual que al entrar.
+        $key  = isset($_POST['key']) ? (string) $_POST['key'] : '';
+        $hash = $this->qUserPassword($this->userId());
+
+        if ($hash === '') {
+            return ['status' => 409, 'message' => 'Tu usuario no tiene contraseña. Pide al Dueño que te asigne una para poder entregar.', 'key' => true];
+        }
+
+        if ($key === '') return ['status' => 401, 'message' => 'Escribe tu contraseña para entregar.', 'key' => true];
+
+        if (!password_verify($key, $hash)) {
+            $fails++;
+
+            $_SESSION['order_key'] = $fails >= self::KEY_TRIES
+                ? ['fails' => 0, 'until' => time() + self::KEY_WAIT]
+                : ['fails' => $fails, 'until' => 0];
+
+            $left = self::KEY_TRIES - $fails;
+
+            return [
+                'status'  => 401,
+                'message' => $left <= 0
+                    ? 'Contraseña incorrecta. Espera ' . (int) ceil(self::KEY_WAIT / 60) . ' minutos y vuelve a intentar.'
+                    : 'Contraseña incorrecta. Te ' . ($left === 1 ? 'queda 1 intento' : "quedan {$left} intentos") . '.',
+                'key'     => true
+            ];
+        }
+
+        unset($_SESSION['order_key']);
+
+        return null;
+    }
+
     /*  Marca entregado. Valida despues de bloquear el pedido (FOR UPDATE): dos
         clics o dos cajas a la vez no lo entregan dos veces. sale no tiene
-        delivered_at: la hora queda en la bitacora. Pide 'update' de Pedidos. */
+        delivered_at: la hora queda en la bitacora. Pide 'update' de Pedidos y
+        la contraseña de quien entrega, antes de tocar la base. */
     protected function deliver($id) {
         $fail = $this->need('update', 'entregar pedidos') ?: $this->needBranch();
         if ($fail) return $fail;
 
         if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
+
+        $fail = $this->needKey();
+        if ($fail) return $fail;
 
         return $this->attempt(function () use ($id) {
             return $this->transaction(function () use ($id) {
@@ -388,7 +450,8 @@ class core extends mdl {
     // -- Detalle --
 
     /*  El detalle completo: lo abren Pedidos y Calendario con el mismo modal.
-        Cada ctrl valida antes su permiso de ver. */
+        Cada ctrl valida antes su permiso de ver. A quien no ve Pedidos
+        (Producción) le llega sin importes ni abonos: limited = true. */
     protected function orderBundle($id) {
         $branch = $this->scope()['branch'];
         $order  = $id > 0 ? $this->qGetOrder($id, $this->branchId()) : null;
@@ -419,7 +482,7 @@ class core extends mdl {
         }
         unset($line);
 
-        return [
+        $bundle = [
             'status'   => 200,
             'branch'   => $branch,
             'order'    => $order,
@@ -427,8 +490,76 @@ class core extends mdl {
             'payments' => $this->qPayments($id),
             'history'  => $this->qHistory($id),
             'actions'  => $this->actions(),
-            'can'      => $this->orderCan($order)
+            'can'      => $this->orderCan($order),
+            'limited'  => false
         ];
+
+        return $this->limited() ? $this->withoutMoney($bundle) : $bundle;
+    }
+
+    /*  El detalle sin dinero. Se quita aquí y no en la pantalla: lo que no viaja
+        no se puede ver ni con las herramientas del navegador. */
+    protected function withoutMoney($bundle) {
+        foreach (['subtotal', 'discount_amount', 'discount_percent', 'discount_note', 'discount_reason', 'total', 'paid'] as $key) {
+            unset($bundle['order'][$key]);
+        }
+
+        foreach ($bundle['lines'] as &$line) {
+            unset($line['price'], $line['discount_amount']);
+
+            foreach ($line['modifiers'] as &$modifier) {
+                unset($modifier['price']);
+            }
+            unset($modifier);
+        }
+        unset($line);
+
+        // Los motivos pueden traer cifras («Tiene saldo de $700…»).
+        foreach (['edit_reason', 'money_reason', 'cancel_reason', 'pay_reason', 'deliver_reason'] as $key) {
+            if (strpos((string) $bundle['can'][$key], '$') !== false) $bundle['can'][$key] = 'No disponible para tu rol.';
+        }
+
+        $bundle['payments'] = [];
+        $bundle['history']  = $this->historyWithoutMoney($bundle['history']);
+        $bundle['limited']  = true;
+
+        return $bundle;
+    }
+
+    /*  La bitácora sin dinero. Cobros, descuentos, precios y pagos quitados no
+        salen. Del resto, cada cambio va separado por « · »: se quitan los que
+        traen «$»; si antes de la raya («Pedido creado — total $800») hay texto
+        limpio, ese se conserva. Un renglón que se queda sin texto no sale,
+        salvo el de creación, que dice quién capturó y cuándo. */
+    protected function historyWithoutMoney(array $rows) {
+        $clean = function ($text) {
+            $parts = [];
+
+            foreach (explode(' · ', (string) $text) as $part) {
+                if (strpos($part, '$') !== false) $part = trim(explode(' — ', $part)[0]);
+
+                if ($part !== '' && strpos($part, '$') === false) $parts[] = $part;
+            }
+
+            return implode(' · ', $parts);
+        };
+
+        $out = [];
+
+        foreach ($rows as $row) {
+            if (in_array($row['type'], ['payment', 'discount', 'price', 'deletion'], true)) continue;
+
+            $had = $row['action'] !== '' || $row['detail'] !== '';
+
+            $row['action'] = $clean($row['action']);
+            $row['detail'] = $clean($row['detail']);
+
+            if ($had && $row['action'] === '' && $row['detail'] === '' && $row['type'] !== 'event') continue;
+
+            $out[] = $row;
+        }
+
+        return $out;
     }
 
     // Lo que se puede hacer con el pedido y, si no, por que.

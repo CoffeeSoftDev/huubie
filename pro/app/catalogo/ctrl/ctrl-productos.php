@@ -11,6 +11,8 @@ require_once __DIR__ . '/core-catalogo.php';
     este activa vende la suya. Desactivarla = volver al de la Matriz. */
 class ctrl extends core {
 
+    const PHOTO_MAX = 5242880;
+
     // Opciones del filtro. Fuera de la Matriz las categorías también incluyen las de ella.
     public function init() {
         $fail = $this->needBranch();
@@ -146,19 +148,35 @@ class ctrl extends core {
         $dup = $this->duplicateError($in);
         if ($dup) return $dup;
 
-        return $this->attempt(function () use ($in) {
-            $this->must($this->qCreateProduct([
-                'values' => [
-                    'name', 'description', 'sku', 'barcode', 'kind', 'price', 'cost',
-                    'is_custom', 'is_inventoriable', 'sell_pos', 'in_catalog',
-                    'company_id', 'branch_id', 'category_id', 'subcategory_id', 'active'
-                ],
-                'data' => [
-                    $in['name'], $in['description'], $in['sku'], $in['barcode'], $in['kind'], $in['price'], $in['cost'],
-                    0, $in['is_inventoriable'], $in['sell_pos'], $in['in_catalog'],
-                    $this->companyId(), $this->branchId(), $in['category_id'], $in['subcategory_id'], 1
-                ]
-            ]), 'addProduct');
+        $photo = $this->photoInput();
+        if (isset($photo['status'])) return $photo;
+
+        // La foto se nombra con el id: primero el producto y luego la foto, todo o nada.
+        return $this->attempt(function () use ($in, $photo) {
+            $this->transaction(function () use ($in, $photo) {
+                $this->must($this->qCreateProduct([
+                    'values' => [
+                        'name', 'description', 'sku', 'barcode', 'kind', 'price', 'cost',
+                        'is_custom', 'is_inventoriable', 'sell_pos', 'in_catalog',
+                        'company_id', 'branch_id', 'category_id', 'subcategory_id', 'active'
+                    ],
+                    'data' => [
+                        $in['name'], $in['description'], $in['sku'], $in['barcode'], $in['kind'], $in['price'], $in['cost'],
+                        0, $in['is_inventoriable'], $in['sell_pos'], $in['in_catalog'],
+                        $this->companyId(), $this->branchId(), $in['category_id'], $in['subcategory_id'], 1
+                    ]
+                ]), 'addProduct');
+
+                if ($photo['b64'] === '') return;
+
+                $id = $this->newId('addProduct');
+
+                $this->must($this->qUpdateProduct([
+                    'values' => ['image'],
+                    'where'  => ['id'],
+                    'data'   => [$this->writePhoto($id, $photo['b64']), $id]
+                ]), 'addProduct/image');
+            });
 
             return $this->ok('Producto creado.');
         }, 'No se pudo guardar el producto.');
@@ -179,18 +197,25 @@ class ctrl extends core {
         $dup = $this->duplicateError($in, $id);
         if ($dup) return $dup;
 
-        return $this->attempt(function () use ($in, $id) {
+        $photo = $this->photoInput();
+        if (isset($photo['status'])) return $photo;
+
+        return $this->attempt(function () use ($in, $id, $photo, $current) {
+            $image = $this->nextPhoto($id, $photo, $current['image']);
+
             $this->must($this->qUpdateProduct([
                 'values' => [
-                    'name', 'description', 'sku', 'barcode', 'kind', 'price', 'cost',
+                    'name', 'description', 'image', 'sku', 'barcode', 'kind', 'price', 'cost',
                     'is_inventoriable', 'sell_pos', 'in_catalog', 'category_id', 'subcategory_id', 'updated_at = NOW()'
                 ],
                 'where' => ['id'],
                 'data'  => [
-                    $in['name'], $in['description'], $in['sku'], $in['barcode'], $in['kind'], $in['price'], $in['cost'],
+                    $in['name'], $in['description'], $image, $in['sku'], $in['barcode'], $in['kind'], $in['price'], $in['cost'],
                     $in['is_inventoriable'], $in['sell_pos'], $in['in_catalog'], $in['category_id'], $in['subcategory_id'], $id
                 ]
             ]), 'editProduct');
+
+            if ($image !== $current['image']) $this->dropPhoto($current['image'], $id);
 
             return $this->ok('Producto actualizado.');
         }, 'No se pudo guardar el producto.');
@@ -291,7 +316,7 @@ class ctrl extends core {
     // $current: el producto al editar; su categoría y subcategoría se aceptan aunque estén inactivas.
     private function productInput($current = null) {
         $kind          = $this->post('kind');
-        $name          = $this->post('name');
+        $name          = $this->nameInput();
         $sku           = $this->textOrNull('sku');
         $barcode       = $this->textOrNull('barcode');
         $description   = $this->textOrNull('description');
@@ -384,6 +409,86 @@ class ctrl extends core {
         if ((int) $dup['active'] === 0) $message .= ' Está en el filtro «Inactivos».';
 
         return $this->fail(409, $message);
+    }
+
+    // -- Foto del producto --
+    /*  Viaja como dataURL en el campo de texto image_b64 (ya achicada en el
+        navegador); image_remove = 1 la quita. Si no se toca, los dos llegan vacíos
+        y la foto se queda. Se guarda junto a las de Pedidos, relativa a la raíz del
+        sitio como las de alpha: la tabla la pinta con «/» delante. */
+
+    // ['b64' => dataURL o '', 'remove' => bool], o la respuesta de error.
+    private function photoInput() {
+        $b64 = isset($_POST['image_b64']) ? (string) $_POST['image_b64'] : '';
+
+        if ($b64 !== '' && !$this->decodePhoto($b64)) {
+            return $this->fail(400, 'La foto debe ser una imagen JPG, PNG o WEBP de hasta 5 MB.');
+        }
+
+        return ['b64' => $b64, 'remove' => $this->flag('image_remove') === 1];
+    }
+
+    // La extensión sale de lo que trae el archivo por dentro, no de lo que dice el dataURL.
+    private function decodePhoto($b64) {
+        if (!preg_match('#^data:image/[a-z0-9.+-]+;base64,#i', $b64)) return null;
+
+        $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
+
+        if ($data === false || strlen($data) > self::PHOTO_MAX) return null;
+
+        $info = @getimagesizefromstring($data);
+        $ext  = $info ? ([IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'][$info[2]] ?? null) : null;
+
+        return $ext ? ['ext' => $ext, 'data' => $data] : null;
+    }
+
+    // Foto nueva: su ruta. Quitar: null. Sin cambios: la que ya tenía.
+    private function nextPhoto($id, $photo, $currentPath) {
+        if ($photo['b64'] !== '') return $this->writePhoto($id, $photo['b64']);
+        if ($photo['remove'])     return null;
+
+        return $currentPath;
+    }
+
+    // El nombre cambia en cada foto para que el navegador no siga mostrando la anterior.
+    private function writePhoto($id, $b64) {
+        $image  = $this->decodePhoto($b64);
+        $folder = 'pro_files/' . $this->companyId() . '/' . $this->branchId() . '/catalogo/productos/';
+        $disk   = $this->diskPath($folder);
+
+        if (!$image) throw new RuntimeException('writePhoto: foto inválida');
+
+        if (!is_dir($disk) && !@mkdir($disk, 0775, true) && !is_dir($disk)) {
+            throw new RuntimeException('writePhoto: no se pudo crear ' . $disk);
+        }
+
+        $name = (int) $id . '_' . bin2hex(random_bytes(6)) . '.' . $image['ext'];
+
+        if (@file_put_contents($disk . $name, $image['data']) === false) {
+            throw new RuntimeException('writePhoto: no se pudo escribir ' . $disk . $name);
+        }
+
+        return $folder . $name;
+    }
+
+    /*  Borra del disco la foto que dejó de usar. Solo las de pro: las de alpha no
+        se tocan. Y solo si ningún otro producto la usa: la copia de «Hacer propio»
+        comparte la de la Matriz. */
+    private function dropPhoto($path, $id) {
+        $path = trim((string) $path);
+
+        if (strpos($path, 'pro_files/') !== 0 || strpos($path, '..') !== false) return;
+        if ($this->qCountProductsWithImage($path, $id) > 0) return;
+
+        $file = $this->diskPath($path);
+
+        if (is_file($file)) @unlink($file);
+    }
+
+    private function diskPath($relative) {
+        $root = isset($_SERVER['DOCUMENT_ROOT']) ? str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']) : '';
+
+        return rtrim($root, '/') . '/' . $relative;
     }
 
     // -- Filas --

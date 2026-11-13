@@ -835,6 +835,10 @@ button.ord-produce.is-on:hover { background: #F5F5F4; }
 
 .ord-cal.is-loading { opacity: .6; }
 
+/* compact.css mete relleno con !important a toda celda: en la rejilla despega encabezado y días. */
+.ord-cal.fc table th,
+.ord-cal.fc table td { padding: 0 !important; }
+
 .ord-cal a { color: inherit; text-decoration: none; }
 
 .ord-cal.fc .fc-header-toolbar { flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
@@ -908,6 +912,7 @@ button.ord-produce.is-on:hover { background: #F5F5F4; }
 
 .ord-cal-ev-top { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; color: var(--ev, #78716C); }
 .ord-cal-folio { font-weight: 600; color: #78716C; }
+.ord-cal-ev-short { display: none; }
 .ord-cal-ev-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ord-cal-ev-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 1px; font-size: 10.5px; color: #78716C; }
 .ord-cal-ev-meta svg { width: 12px; height: 12px; flex-shrink: 0; }
@@ -1035,6 +1040,20 @@ button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow:
     .ord-cal.fc .fc-toolbar-title { font-size: 15px; }
     .ord-cal-total { margin-left: 0; flex-basis: 100%; }
     .ord-cal-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+    /* Rejilla en celular: solo la hora con el color del estado. El número del día abre la vista Día. */
+    .ord-cal .fc-col-header-cell-cushion { padding: 6px 0; font-size: 10px; letter-spacing: 0; }
+    .ord-cal .fc-daygrid-day-number { padding: 4px 5px; }
+    .ord-cal .fc-daygrid-more-link { padding: 0 2px; font-size: 10px; }
+    .ord-cal .fc-daygrid-day-events .ord-cal-event { margin: 1px; }
+    .ord-cal .fc-daygrid-day-events .ord-cal-ev { padding: 3px 2px; border-left-width: 2px; }
+    .ord-cal .fc-daygrid-day-events .ord-cal-ev-top { justify-content: center; font-size: 10px; white-space: nowrap; }
+    .ord-cal .fc-daygrid-day-events .ord-cal-ev-short { display: inline; }
+    .ord-cal .fc-daygrid-day-events .ord-cal-ev-hour,
+    .ord-cal .fc-daygrid-day-events .ord-cal-folio,
+    .ord-cal .fc-daygrid-day-events .ord-cal-ev-name,
+    .ord-cal .fc-daygrid-day-events .ord-cal-ev-meta,
+    .ord-cal .fc-daygrid-day-events .ord-cal-check { display: none; }
 }
 
 /* -- Calendario oscuro -- */

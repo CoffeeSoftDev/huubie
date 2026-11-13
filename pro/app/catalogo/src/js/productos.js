@@ -173,30 +173,104 @@ class Products extends Templates {
         return list.filter((s) => String(s.category_id) === String(categoryId));
     }
 
+    // Como el producto de inventory: secciones y una rejilla de tercios, cada campo en su columna.
     jsonForm(options, row = {}) {
         const data = {
             name: '', kind: 'product', sku: '', barcode: '', category_id: '', subcategory_id: '',
             price: '', cost: '', description: '', sell_pos: 1, in_catalog: 0, is_inventoriable: 0,
             ...row
         };
+        const third = 'w-full sm:w-1/3';
 
         return [
-            { id: 'name', lbl: 'Nombre', tipo: 'text', required: true, maxlength: 255, class: 'w-full', value: data.name },
-            { id: 'kind', lbl: 'Tipo', tipo: 'select', empty: false, class: 'w-full sm:w-1/3', data: options.kinds, value: data.kind },
-            { id: 'sku', lbl: 'SKU', tipo: 'text', maxlength: 80, ph: 'Opcional', class: 'w-full sm:w-1/3', value: data.sku },
-            { id: 'barcode', lbl: 'Código de barras', tipo: 'text', maxlength: 80, ph: 'Opcional', class: 'w-full sm:w-1/3', value: data.barcode },
-            { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', data: options.categories, value: data.category_id },
+            this.formSection('secIdentity', 'Identificación'),
+            { id: 'name', lbl: 'Nombre', tipo: 'text', required: true, maxlength: 255, class: 'w-full sm:w-2/3', value: data.name },
+            { id: 'kind', lbl: 'Tipo', tipo: 'select', empty: false, class: third, data: options.kinds, value: data.kind },
+            { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', class: third, data: options.categories, value: data.category_id },
             {
-                id: 'subcategory_id', lbl: 'Subcategoría', tipo: 'select', empty: 'Sin subcategoría',
+                id: 'subcategory_id', lbl: 'Subcategoría', tipo: 'select', empty: 'Sin subcategoría', class: third,
                 data: this.subcategoriesOf(options.subcategories, data.category_id), value: data.subcategory_id
             },
-            { id: 'price', lbl: 'Precio de venta', tipo: 'number', required: true, min: 0, step: '0.01', ph: '0.00', value: data.price },
-            { id: 'cost', lbl: 'Costo', tipo: 'number', min: 0, step: '0.01', ph: '0.00', value: data.cost },
+            { id: 'sku', lbl: 'SKU', tipo: 'text', maxlength: 80, ph: 'Opcional', class: third, value: data.sku },
+            { id: 'barcode', lbl: 'Código de barras', tipo: 'text', maxlength: 80, ph: 'Opcional', class: third, value: data.barcode },
+            { id: 'photoField', tipo: 'html', class: 'w-full sm:w-2/3', html: this.photoFieldHtml() },
             { id: 'description', lbl: 'Descripción', tipo: 'textarea', rows: 2, maxlength: 1000, class: 'w-full', value: data.description },
-            { id: 'sell_pos', lbl: 'Se vende en el POS', tipo: 'switch', class: 'w-full sm:w-1/3', value: data.sell_pos },
-            { id: 'in_catalog', lbl: 'Sale en el catálogo en línea', tipo: 'switch', class: 'w-full sm:w-1/3', value: data.in_catalog },
-            { id: 'is_inventoriable', lbl: 'Lleva inventario', tipo: 'switch', class: 'w-full sm:w-1/3', value: data.is_inventoriable }
+
+            this.formSection('secPrice', 'Precio'),
+            { id: 'price', lbl: 'Precio de venta', tipo: 'number', required: true, min: 0, step: '0.01', ph: '0.00', class: third, value: data.price },
+            { id: 'cost', lbl: 'Costo', tipo: 'number', min: 0, step: '0.01', ph: '0.00', class: third, value: data.cost },
+
+            // cp-switch: tarjetas del mismo alto aunque el texto de una ocupe dos renglones.
+            this.formSection('secChannels', 'Dónde se vende'),
+            { id: 'sell_pos', lbl: 'Se vende en el POS', tipo: 'switch', class: `${third} cp-switch`, value: data.sell_pos },
+            { id: 'in_catalog', lbl: 'Sale en el catálogo en línea', tipo: 'switch', class: `${third} cp-switch`, value: data.in_catalog },
+            { id: 'is_inventoriable', lbl: 'Lleva inventario', tipo: 'switch', class: `${third} cp-switch`, value: data.is_inventoriable }
         ];
+    }
+
+    // Título de sección: un bloque 'html' de csModal, no viaja en los values.
+    formSection(id, text) {
+        return { id, tipo: 'html', class: 'w-full cp-seccion', html: `<p>${esc(text)}</p>` };
+    }
+
+    // -- Foto --
+    // Se achica en el navegador (compressPhoto) y viaja como dataURL en image_b64;
+    // image_remove = 1 la quita. Sin tocarla, los dos van vacíos y la foto se queda.
+
+    // El label lleva las mismas clases que los de csModal para quedar a la par.
+    photoFieldHtml() {
+        return `
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5">Foto</label>
+            <div class="cp-foto-campo">
+                <div class="cp-foto-thumb"></div>
+                <button type="button" class="cp-foto-subir"><i data-lucide="upload" class="w-4 h-4"></i><span>Subir foto</span></button>
+                <button type="button" class="cp-foto-quitar hidden">Quitar</button>
+                <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden">
+            </div>
+        `;
+    }
+
+    mountPhoto(image = '') {
+        const field = $('#modalProduct #photoField');
+        const file  = field.find('input[type=file]');
+
+        this.photo = { image_b64: '', image_remove: 0 };
+
+        field.on('click', '.cp-foto-subir', () => file.trigger('click'));
+
+        field.on('click', '.cp-foto-quitar', () => {
+            this.photo = { image_b64: '', image_remove: 1 };
+            this.paintPhoto('');
+        });
+
+        file.on('change', async () => {
+            const picked = file[0].files[0];
+
+            file.val('');
+
+            if (!picked) return;
+
+            const dataUrl = await compressPhoto(picked);
+
+            if (!dataUrl) return alert({ icon: 'warning', text: 'No se pudo leer la foto. Usa una imagen JPG, PNG o WEBP.', btn1: true });
+
+            this.photo = { image_b64: dataUrl, image_remove: 0 };
+            this.paintPhoto(dataUrl);
+        });
+
+        this.paintPhoto(productPhotoUrl(image));
+    }
+
+    // Sin foto, o si no carga, el mismo cuadro con el pastel de la tabla.
+    paintPhoto(src) {
+        const field = $('#modalProduct #photoField');
+
+        field.find('.cp-foto-thumb').html(src
+            ? `<img src="${esc(src)}" alt="Foto del producto" class="cp-foto" onerror="productPhotoError(this)">`
+            : '<div class="cp-foto cp-foto-vacia"><i class="icon-birthday"></i></div>');
+
+        field.find('.cp-foto-subir span').text(src ? 'Cambiar foto' : 'Subir foto');
+        field.find('.cp-foto-quitar').toggleClass('hidden', !src);
     }
 
     // Al cambiar la categoría, la subcategoría solo ofrece las suyas.
@@ -225,6 +299,7 @@ class Products extends Templates {
         });
 
         this.bindCategory(options.subcategories);
+        this.mountPhoto();
     }
 
     async edit(id) {
@@ -248,6 +323,7 @@ class Products extends Templates {
         });
 
         this.bindCategory(options.subcategories);
+        this.mountPhoto(response.data.image);
     }
 
     // Vacío vale (se guarda 0); lo demás debe ser un número no negativo.
@@ -265,7 +341,7 @@ class Products extends Templates {
         if (values.subcategory_id && !values.category_id) return warn('Elige primero la categoría de la subcategoría.');
 
         return saveFrom('modalProduct', async () => {
-            const response = await useFetch({ url: this._link, data: { opc, ...values } });
+            const response = await useFetch({ url: this._link, data: { opc, ...values, ...this.photo } });
 
             if (response && response.status == 200) {
                 close();

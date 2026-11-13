@@ -130,7 +130,7 @@ class ctrl extends core {
     // $currentCategory: la que ya tenía al editar; esa se acepta aunque esté inactiva.
     private function subcategoryInput($currentCategory = 0) {
         $categoryId  = $this->selectOrNull('category_id');
-        $name        = $this->post('name');
+        $name        = $this->nameInput();
         $description = $this->textOrNull('description');
 
         if ($categoryId === null)              return $this->fail(400, 'Elige la categoría de la subcategoría.');
