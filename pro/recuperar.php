@@ -24,25 +24,34 @@ $version = function ($file) {
     <link rel="icon" href="assets/img/huubie192.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/plugins/fontello/css/fontello.css">
     <link rel="stylesheet" href="auth/src/css/auth.css?v=<?= $version('auth/src/css/auth.css') ?>">
+    <!-- Sin defer: pone data-theme antes de pintar (sin parpadeo del tema contrario). -->
+    <script src="auth/src/js/theme.js?v=<?= $version('auth/src/js/theme.js') ?>"></script>
 </head>
 
 <body class="login-body">
 
-    <header class="login-top reveal" style="--i:0">
-        <a class="login-wordmark" href="index.php">
-            <span class="login-mark sm" aria-hidden="true"><img src="assets/img/huubie.png" alt=""></span>
-            Huubie
-        </a>
-    </header>
+    <div class="theme-switch" role="group" aria-label="Tema de la página">
+        <button type="button" data-theme-set="light" aria-pressed="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            Claro
+        </button>
+        <button type="button" data-theme-set="dark" aria-pressed="false">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            Oscuro
+        </button>
+    </div>
 
     <main class="login-shell">
 
         <div class="login-card reveal" style="--i:1">
 
-            <span class="login-mark reveal" style="--i:2" aria-hidden="true"><img src="assets/img/huubie.png" alt=""></span>
+            <a class="brand-link reveal" style="--i:2" href="index.php" aria-label="Volver a iniciar sesión">
+                <img class="brand-logo on-light" src="assets/img/huubie_light.png" alt="Huubie">
+                <img class="brand-logo on-dark" src="assets/img/huubie.png" alt="Huubie">
+            </a>
 
             <h1 class="login-title reveal" style="--i:3">Recuperar contraseña</h1>
 

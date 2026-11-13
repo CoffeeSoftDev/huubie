@@ -1,28 +1,85 @@
 /* ============================================================
    Huubie · Acceso (login y recuperar contraseña)
-   Estilo "Porcelana" de inventory/src/css/index.css: fondo hueso con grano,
-   tarjeta blanca con sombras en capas, marca oscura, campos con etiqueta
-   arriba y boton negro con relieve. Tipografia Geist, iconos de fontello.
 
-   Clases que pone auth.js y NO se renombran:
-     .login-error.show, .is-invalid, .loading, .caps.show
+   Dos temas sobre los mismos tokens; los conmuta auth/src/js/theme.js con
+   data-theme="light|dark" en <html>:
+     claro   blanco limpio, bordes finos y el morado de la marca (landing).
+     oscuro  Huubie UI: pagina #111928, tarjeta #1F2A37, campos #374151,
+             boton azul #1C64F2 (el login de alpha/).
+
+   Login: formulario a la izquierda, logo grande a la derecha.
+   Recuperar: una tarjeta centrada.
+
+   Clases que ponen auth.js / recuperar.js y NO se renombran:
+     .login-error.show, .is-invalid, .loading, .caps.show, .hide,
+     .step.on, .notice-ok, .notice-error
    ============================================================ */
 
 :root {
-    --acc-bg:      #F6F6F4;
-    --acc-card:    #FFFFFF;
-    --acc-ink:     #0A0A0A;
-    --acc-ink-2:   #5E5E5E;
-    --acc-ink-3:   #9C9C9C;
-    --acc-line:    rgba(10, 10, 10, 0.08);
-    --acc-line-2:  rgba(10, 10, 10, 0.13);
-    --acc-soft:    #FAFAF9;
-    --acc-brand:   239, 68, 68;
-    --acc-danger:  #C2281D;
-    --acc-warn:    #A15C07;
-    --acc-ease:    cubic-bezier(.16, 1, .3, 1);
-    --acc-sans:    'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    --acc-mono:    'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --acc-bg:         #FFFFFF;
+    --acc-panel:      #FAFAFB;   /* banner de bienvenida, tarjeta recordada */
+    --acc-hero:       #F8F6FC;   /* fondo del pie de pagina */
+    --acc-card:       #FFFFFF;
+    --acc-ink:        #16151C;
+    --acc-ink-2:      #6D6977;
+    --acc-ink-3:      #A2A1A8;
+    --acc-line:       #EEEDF2;
+    --acc-line-2:     #E2E0E9;
+    --acc-input:      #FFFFFF;
+    --acc-input-line: #E2E0E9;
+    --acc-accent:     #5030A5;
+    --acc-accent-hi:  #432690;
+    --acc-accent-soft:#F1EDF9;
+    --acc-on-accent:  #FFFFFF;
+    --acc-link:       #5030A5;
+    --acc-brand:      #5030A5;   /* trazo del titulo de bienvenida */
+    --acc-cherry:     #F04F68;   /* el punto del logo */
+    --acc-focus:      rgba(80, 48, 165, 0.14);
+    --acc-danger:     #D92D20;
+    --acc-danger-bg:  #FEF3F2;
+    --acc-danger-line:rgba(217, 45, 32, 0.16);
+    --acc-ok:         #1F7A3D;
+    --acc-ok-bg:      #F0FAF3;
+    --acc-ok-line:    rgba(31, 122, 61, 0.16);
+    --acc-warn:       #B54708;
+    --acc-shadow:     0 1px 2px rgba(22, 21, 28, 0.04);
+    --acc-card-shadow:0 1px 2px rgba(22, 21, 28, 0.03), 0 24px 60px -24px rgba(50, 27, 115, 0.14);
+    --acc-ease:       cubic-bezier(.16, 1, .3, 1);
+    --acc-sans:       'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --acc-mono:       ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+    --acc-bg:         #111928;
+    --acc-panel:      #1F2A37;
+    --acc-hero:       #1F2A37;
+    --acc-card:       #1F2A37;
+    --acc-ink:        #FFFFFF;
+    --acc-ink-2:      #9CA3AF;
+    --acc-ink-3:      #9CA3AF;
+    --acc-line:       rgba(55, 65, 81, 0.6);
+    --acc-line-2:     #374151;
+    --acc-input:      #374151;
+    --acc-input-line: transparent;
+    --acc-accent:     #1C64F2;
+    --acc-accent-hi:  #1A56DB;
+    --acc-accent-soft:rgba(28, 100, 242, 0.16);
+    --acc-on-accent:  #FFFFFF;
+    --acc-link:       #60A5FA;
+    --acc-brand:      #A78BFA;
+    --acc-cherry:     #F8566B;
+    --acc-focus:      rgba(124, 58, 237, 0.35);
+    --acc-danger:     #F87171;
+    --acc-danger-bg:  rgba(239, 68, 68, 0.12);
+    --acc-danger-line:rgba(239, 68, 68, 0.28);
+    --acc-ok:         #4ADE80;
+    --acc-ok-bg:      rgba(34, 197, 94, 0.12);
+    --acc-ok-line:    rgba(34, 197, 94, 0.28);
+    --acc-warn:       #FACC15;
+    --acc-shadow:     none;
+    --acc-card-shadow:0 24px 60px -24px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
 }
 
 * {
@@ -37,35 +94,17 @@
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    background:
-        radial-gradient(ellipse 60% 50% at 50% 38%, rgba(var(--acc-brand), 0.07), transparent 70%),
-        radial-gradient(ellipse 80% 60% at 50% -10%, #FFFFFF, transparent 70%),
-        var(--acc-bg);
+    background: var(--acc-bg);
     color: var(--acc-ink);
     -webkit-font-smoothing: antialiased;
 }
 
-/* Puntos finos alrededor de la tarjeta, desvanecidos hacia los bordes. */
-.login-body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: radial-gradient(rgba(10, 10, 10, 0.09) 1px, transparent 1px);
-    background-size: 20px 20px;
-    -webkit-mask-image: radial-gradient(ellipse 50% 45% at 50% 45%, #000 20%, transparent 80%);
-    mask-image: radial-gradient(ellipse 50% 45% at 50% 45%, #000 20%, transparent 80%);
-    opacity: .55;
-    pointer-events: none;
-}
-
-/* Grano: le quita lo plano al fondo. */
-.login-body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: .035;
-    pointer-events: none;
+/* Cruce suave de colores solo cuando el tema se cambia a mano (theme.js). */
+.theme-anim,
+.theme-anim *,
+.theme-anim *::before,
+.theme-anim *::after {
+    transition: background-color .3s, border-color .3s, color .3s, box-shadow .3s !important;
 }
 
 /* fontello les pone margen a los lados del glifo; dentro de botones y avisos
@@ -75,120 +114,179 @@
     margin: 0;
 }
 
-/* -- Entrada escalonada (fade + blur) -- */
+/* -- Entrada escalonada -- */
 .reveal {
-    animation: acc-rise .8s var(--acc-ease) backwards;
-    animation-delay: calc(var(--i, 0) * 60ms + 60ms);
+    animation: acc-rise .7s var(--acc-ease) backwards;
+    animation-delay: calc(var(--i, 0) * 60ms + 40ms);
 }
 
 @keyframes acc-rise {
-    from { opacity: 0; transform: translateY(10px); filter: blur(6px); }
-    to   { opacity: 1; transform: none; filter: none; }
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
 }
 
-/* -- Marca: el logo de Huubie es blanco con el punto rojo, va sobre oscuro -- */
-.login-mark {
+/* -- Logo: una imagen por tema (morado sobre claro, blanco sobre oscuro) -- */
+.brand-logo { display: block; object-fit: contain; }
+.brand-logo.on-dark { display: none; }
+
+[data-theme="dark"] .brand-logo.on-light { display: none; }
+[data-theme="dark"] .brand-logo.on-dark  { display: block; }
+
+/* -- Selector de tema: Claro | Oscuro -- */
+.theme-switch {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 5;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid var(--acc-line);
     border-radius: 12px;
-    background: linear-gradient(180deg, #2C2C2E 0%, #0A0A0A 100%);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.16),
-        0 0 0 1px rgba(10, 10, 10, 0.9),
-        0 6px 14px -6px rgba(10, 10, 10, 0.5);
+    background: var(--acc-panel);
 }
 
-.login-mark img { width: 30px; height: 30px; }
-
-.login-mark.sm {
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 0 1px rgba(10, 10, 10, 0.9);
-}
-
-.login-mark.sm img { width: 18px; height: 18px; }
-
-/* -- Barra superior -- */
-.login-top {
-    position: relative;
-    z-index: 1;
+.theme-switch button {
     display: flex;
     align-items: center;
-    height: 68px;
-    padding: 0 28px;
+    gap: 7px;
+    height: 34px;
+    padding: 0 13px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--acc-ink-2);
+    cursor: pointer;
+    transition: color .2s, background .2s;
 }
 
-.login-wordmark {
+.theme-switch button:hover { color: var(--acc-ink); }
+.theme-switch button:focus-visible { outline: 2px solid var(--acc-accent); outline-offset: 2px; }
+
+.theme-switch button[aria-pressed="true"] {
+    background: var(--acc-accent);
+    color: var(--acc-on-accent);
+}
+
+.theme-switch svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* ============================================================
+   LOGIN · formulario a la izquierda, logo a la derecha
+   ============================================================ */
+
+.auth-split {
     display: flex;
-    align-items: center;
-    gap: 9px;
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    align-items: stretch;
+    /* Pantalla completa: el pie queda debajo y aparece al hacer scroll. */
+    flex: 0 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
 }
 
-a.login-wordmark { color: inherit; text-decoration: none; }
-
-/* -- Escena -- */
-.login-shell {
-    position: relative;
-    z-index: 1;
-    flex: 1;
+.auth-side {
+    flex: 1 1 50%;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 24px 16px 40px;
+    padding: 88px 24px 40px;
 }
 
-/* -- Tarjeta -- */
-.login-card {
+.auth-box {
     width: 100%;
-    max-width: 412px;
-    padding: 32px;
-    border: 1px solid transparent;
-    border-radius: 20px;
-    background:
-        linear-gradient(var(--acc-card), var(--acc-card)) padding-box,
-        linear-gradient(180deg, rgba(10, 10, 10, 0.10), rgba(10, 10, 10, 0.05)) border-box;
-    box-shadow:
-        0 1px 1px rgba(10, 10, 10, 0.03),
-        0 2px 4px -1px rgba(10, 10, 10, 0.03),
-        0 12px 24px -8px rgba(10, 10, 10, 0.06),
-        0 32px 64px -24px rgba(10, 10, 10, 0.14);
+    max-width: 760px;
+    padding: 0 clamp(0px, 4vw, 56px);
 }
 
-.login-title {
-    margin-top: 22px;
-    font-size: 22px;
+/* Panel del logo: en claro es una superficie suave y redondeada (como el
+   panel lateral de la referencia); en oscuro se funde con la pagina. */
+.auth-hero {
+    flex: 1 1 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px 20px 20px 0;
+    border-radius: 28px;
+}
+
+.auth-hero .brand-logo { width: min(48%, 440px); height: auto; }
+
+/* -- Banner de bienvenida -- */
+.welcome {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border: 1px solid var(--acc-line);
+    border-radius: 14px;
+    background: var(--acc-panel);
+}
+
+.welcome-title {
+    font-size: clamp(20px, 2.2vw, 25px);
     font-weight: 600;
     line-height: 1.25;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.02em;
 }
 
-.login-sub {
-    margin-top: 6px;
-    font-size: 14.5px;
-    line-height: 1.5;
+.welcome-sub {
+    margin-top: 4px;
+    font-size: 13.5px;
     color: var(--acc-ink-2);
 }
+
+.welcome .brand-logo { width: auto; height: 76px; flex-shrink: 0; }
+
+/* Con el logo grande a la derecha, el del banner sobra: los colores de la
+   marca los llevan el trazo y el punto del titulo. */
+@media (min-width: 861px) {
+    .welcome { padding: 26px 26px 28px; }
+    .welcome-title { font-size: clamp(26px, 2.3vw, 32px); }
+    .welcome-sub { margin-top: 14px; font-size: 14px; }
+    .welcome .brand-logo { display: none !important; }
+}
+
+.swoosh { position: relative; white-space: nowrap; color: var(--acc-brand); }
+.swoosh > span { position: relative; }
+
+.swoosh svg {
+    position: absolute;
+    left: -6%;
+    top: 52%;
+    width: 112%;
+    height: 1em;
+    fill: var(--acc-brand);
+    opacity: .38;
+}
+
+.welcome-dot { color: var(--acc-cherry); }
 
 /* -- Formulario -- */
 .login-form {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    margin-top: 26px;
+    margin-top: 22px;
 }
+
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: start;
+}
+
+.field-col { display: grid; gap: 7px; min-width: 0; }
 
 .field { display: grid; gap: 7px; }
 .field[hidden] { display: none; }
 
-.field-label { font-size: 13px; font-weight: 500; }
+.field-label { font-size: 13.5px; font-weight: 500; }
 
 .label-row {
     display: flex;
@@ -196,80 +294,111 @@ a.login-wordmark { color: inherit; text-decoration: none; }
     justify-content: space-between;
 }
 
-.label-row a {
-    font-size: 13px;
-    color: var(--acc-ink-2);
-    text-decoration: none;
+.control { position: relative; }
+
+.control-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    transform: translateY(-50%);
+    color: var(--acc-ink-3);
+    pointer-events: none;
     transition: color .2s;
 }
 
-.label-row a:hover { color: var(--acc-ink); }
-
-.control { position: relative; }
+.control:focus-within .control-icon { color: var(--acc-accent); }
+[data-theme="dark"] .control:focus-within .control-icon { color: #D1D5DB; }
 
 .field-input {
     width: 100%;
-    height: 42px;
-    padding: 0 13px;
+    height: 52px;
+    padding: 0 14px;
     font-family: inherit;
     font-size: 14.5px;
     color: var(--acc-ink);
-    background: #FFFFFF;
-    border: 1px solid var(--acc-line-2);
+    background: var(--acc-input);
+    border: 1px solid var(--acc-input-line);
     border-radius: 10px;
     outline: none;
-    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05), inset 0 1px 1px rgba(10, 10, 10, 0.02);
+    box-shadow: var(--acc-shadow);
     transition: border-color .2s, box-shadow .2s;
 }
 
-.field-input::placeholder { color: var(--acc-ink-3); }
-.field-input:hover { border-color: rgba(10, 10, 10, 0.2); }
+.field-input.has-icon { padding-left: 44px; }
+.field-input.has-eye  { padding-right: 46px; }
 
-.field-input:focus {
-    border-color: var(--acc-ink);
-    box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.07);
+.field-input::placeholder { color: var(--acc-ink-3); }
+.field-input:hover { border-color: var(--acc-line-2); }
+[data-theme="light"] .field-input:hover { border-color: #CFCBDB; }
+
+.field-input:focus,
+[data-theme="light"] .field-input:focus {
+    border-color: var(--acc-accent);
+    box-shadow: 0 0 0 4px var(--acc-focus);
 }
 
-.field-input.has-eye { padding-right: 42px; }
-.field-input.is-invalid { border-color: var(--acc-danger); }
-.field-input.is-invalid:focus { box-shadow: 0 0 0 4px rgba(194, 40, 29, 0.1); }
+[data-theme="dark"] .field-input:focus { border-color: #7C3AED; }
+
+.field-input.is-invalid,
+[data-theme="light"] .field-input.is-invalid:hover { border-color: var(--acc-danger); }
+.field-input.is-invalid:focus { box-shadow: 0 0 0 4px var(--acc-danger-line); }
+
+.field-input:disabled { opacity: .6; cursor: not-allowed; }
+
+/* El autocompletado del navegador pinta su propio fondo: se tapa con el del tema. */
+.field-input:-webkit-autofill,
+.field-input:-webkit-autofill:hover,
+.field-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--acc-ink);
+    -webkit-box-shadow: 0 0 0 1000px var(--acc-input) inset;
+    caret-color: var(--acc-ink);
+}
+
+[data-theme="dark"] .field-input:-webkit-autofill { -webkit-box-shadow: 0 0 0 1000px #374151 inset; }
 
 /* -- Ojo de la contraseña -- */
-.login-card .eye-btn {
+.login-body .eye-btn {
     position: absolute;
-    right: 5px;
-    top: 5px;
+    right: 8px;
+    top: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
+    transform: translateY(-50%);
     border: none;
     border-radius: 8px;
     background: transparent;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--acc-ink-3);
     cursor: pointer;
     transition: color .2s, background .2s;
 }
 
-.login-card .eye-btn:hover { color: var(--acc-ink); background: rgba(10, 10, 10, 0.05); }
+.login-body .eye-btn:hover { color: var(--acc-ink); background: var(--acc-accent-soft); }
+.login-body .eye-btn:focus-visible { outline: 2px solid var(--acc-accent); outline-offset: 1px; }
 
-/* -- Usuario recordado -- */
+/* -- Usuario recordado: ocupa el lugar del campo de correo -- */
 .remembered {
     display: flex;
     align-items: center;
     gap: 11px;
-    padding: 9px 9px 9px 10px;
-    border: 1px solid var(--acc-line);
-    border-radius: 12px;
-    background: var(--acc-soft);
+    height: 52px;
+    padding: 0 8px 0 10px;
+    border: 1px solid var(--acc-input-line);
+    border-radius: 10px;
+    background: var(--acc-panel);
 }
+
+[data-theme="dark"] .remembered { background: var(--acc-input); }
 
 .remembered[hidden] { display: none; }
 
-/*  Sin color elegido, un degradado oscuro sostiene las iniciales. Con color
-    propio (users.color) el background en linea que pone auth.js lo pisa. */
+/*  Sin color elegido, el acento sostiene las iniciales. Con color propio
+    (users.color) el background en linea que pone auth.js lo pisa. */
 .remembered-avatar {
     display: flex;
     align-items: center;
@@ -278,13 +407,14 @@ a.login-wordmark { color: inherit; text-decoration: none; }
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: linear-gradient(180deg, #3A3A3C, #111111);
+    background: #5030A5;
     font-size: 12.5px;
     font-weight: 600;
     letter-spacing: .02em;
     color: #FFFFFF;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
+
+[data-theme="dark"] .remembered-avatar { background: #7C3AED; }
 
 .remembered-avatar img {
     width: 100%;
@@ -307,27 +437,48 @@ a.login-wordmark { color: inherit; text-decoration: none; }
     white-space: nowrap;
 }
 
-.remembered-name { font-size: 14px; font-weight: 500; }
-.remembered-email { font-family: var(--acc-mono); font-size: 11.5px; color: var(--acc-ink-2); }
+.remembered-name  { font-size: 13.5px; font-weight: 500; }
+.remembered-email { font-size: 12px; color: var(--acc-ink-2); }
 
-.login-card .remembered-x {
+.login-body .remembered-x {
     flex-shrink: 0;
-    height: 30px;
+    height: 32px;
     padding: 0 11px;
-    border: 1px solid var(--acc-line-2);
+    border: none;
     border-radius: 8px;
-    background: #FFFFFF;
+    background: transparent;
     font-family: inherit;
     font-size: 12.5px;
-    color: var(--acc-ink-2);
+    font-weight: 500;
+    color: var(--acc-link);
     cursor: pointer;
-    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05);
-    transition: color .2s, border-color .2s;
+    transition: background .2s;
 }
 
-.login-card .remembered-x:hover { color: var(--acc-ink); border-color: rgba(10, 10, 10, 0.22); }
+.login-body .remembered-x:hover { background: var(--acc-accent-soft); }
 
-/* -- Casilla de recordar (propia, sin la del navegador) -- */
+/* -- Recordar + ¿Olvidaste la contraseña? -- */
+.form-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+}
+
+.link,
+.label-row a,
+.card-foot a {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--acc-link);
+    text-decoration: none;
+}
+
+.link:hover,
+.label-row a:hover,
+.card-foot a:hover { text-decoration: underline; }
+
 .remember-check {
     display: flex;
     align-items: center;
@@ -344,16 +495,17 @@ a.login-wordmark { color: inherit; text-decoration: none; }
     display: grid;
     place-content: center;
     flex-shrink: 0;
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
     margin: 0;
-    border: 1px solid rgba(10, 10, 10, 0.22);
+    border: 1px solid var(--acc-line-2);
     border-radius: 5px;
-    background: #FFFFFF;
-    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05);
+    background: var(--acc-input);
     cursor: pointer;
     transition: background .2s, border-color .2s;
 }
+
+[data-theme="light"] .remember-check input { border-color: #CFCBDB; }
 
 .remember-check input::after {
     content: '';
@@ -366,9 +518,10 @@ a.login-wordmark { color: inherit; text-decoration: none; }
     transition: transform .2s var(--acc-ease);
 }
 
-.remember-check input:checked { background: var(--acc-ink); border-color: var(--acc-ink); }
+.remember-check input:checked,
+[data-theme="light"] .remember-check input:checked { background: var(--acc-accent); border-color: var(--acc-accent); }
 .remember-check input:checked::after { transform: rotate(-45deg) scale(1); }
-.remember-check input:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(10, 10, 10, 0.08); }
+.remember-check input:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--acc-focus); }
 
 /* -- Bloq Mayus -- */
 .caps {
@@ -386,10 +539,10 @@ a.login-wordmark { color: inherit; text-decoration: none; }
     display: none;
     align-items: center;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 11px 13px;
     border-radius: 10px;
-    background: #FEF3F2;
-    box-shadow: inset 0 0 0 1px rgba(194, 40, 29, 0.14);
+    background: var(--acc-danger-bg);
+    box-shadow: inset 0 0 0 1px var(--acc-danger-line);
     font-size: 13px;
     line-height: 1.4;
     color: var(--acc-danger);
@@ -398,74 +551,62 @@ a.login-wordmark { color: inherit; text-decoration: none; }
 .login-error.show { display: flex; animation: acc-rise .4s var(--acc-ease) backwards; }
 .login-error i { flex-shrink: 0; font-size: 15px; }
 
-/* -- Boton principal: negro con relieve --
-   Va con dos clases (.login-card .btn-continue) para ganarle a cualquier
+/* -- Boton principal --
+   Va con dos clases (.login-body .btn-continue) para ganarle a cualquier
    reset que pise [type=submit]. */
-.login-card .btn-continue {
+.login-body .btn-continue {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     width: 100%;
-    height: 44px;
-    margin-top: 2px;
-    border: 1px solid #0A0A0A;
+    height: 52px;
+    margin-top: 4px;
+    border: none;
     border-radius: 10px;
-    background: linear-gradient(180deg, #2E2E30 0%, #0A0A0A 100%);
+    background: var(--acc-accent);
     font-family: inherit;
-    font-size: 14.5px;
-    font-weight: 500;
-    color: #FFFFFF;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--acc-on-accent);
     text-decoration: none;
     cursor: pointer;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.16),
-        0 1px 2px rgba(10, 10, 10, 0.2),
-        0 8px 18px -8px rgba(10, 10, 10, 0.45);
-    transition: transform .15s var(--acc-ease), filter .2s;
+    transition: background .2s, transform .15s var(--acc-ease), box-shadow .2s;
 }
 
-.login-card .btn-continue:hover { filter: brightness(1.18); }
-.login-card .btn-continue:active { transform: scale(.985); }
-.login-card .btn-continue:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 3px; }
-.login-card .btn-continue:disabled { opacity: .6; cursor: not-allowed; filter: none; }
+[data-theme="light"] .login-body .btn-continue { box-shadow: 0 10px 24px -10px rgba(80, 48, 165, 0.5); }
+
+.login-body .btn-continue:hover { background: var(--acc-accent-hi); }
+.login-body .btn-continue:active { transform: scale(.99); }
+.login-body .btn-continue:focus-visible { outline: 2px solid var(--acc-accent); outline-offset: 3px; }
+.login-body .btn-continue:disabled { opacity: .6; cursor: not-allowed; }
 
 .btn-continue .btn-arrow { transition: transform .25s var(--acc-ease); }
 .btn-continue:hover .btn-arrow { transform: translateX(3px); }
 
 /* Cargando: flecha fuera, giro dentro. */
 .btn-continue .btn-spin { display: none; animation: acc-spin .8s linear infinite; }
-.login-card .btn-continue.loading { pointer-events: none; opacity: 1; cursor: progress; }
+.login-body .btn-continue.loading { pointer-events: none; opacity: .85; cursor: progress; }
 .btn-continue.loading .btn-spin { display: block; }
 .btn-continue.loading .btn-arrow { display: none; }
 
 @keyframes acc-spin { to { transform: rotate(360deg); } }
 
-/* -- Pie de la tarjeta -- */
-.card-foot {
-    margin: 26px -32px -32px;
-    padding: 16px 32px;
-    border-top: 1px solid var(--acc-line);
-    border-radius: 0 0 20px 20px;
-    background: var(--acc-soft);
+/* -- Notas al pie del formulario -- */
+.auth-note {
+    margin-top: 22px;
     font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
     color: var(--acc-ink-2);
 }
 
-.card-foot b { font-weight: 500; color: var(--acc-ink); }
-
-.card-foot a {
-    font-weight: 500;
-    color: var(--acc-ink);
-    text-decoration: none;
-}
-
-.card-foot a:hover { text-decoration: underline; }
+.auth-note b { font-weight: 500; color: var(--acc-ink); }
 
 /* En bloque y con el icono en linea: con flex, al partirse el texto en movil
    el escudo se quedaba solo a la izquierda. */
 .login-trust {
-    margin-top: 22px;
+    margin-top: 8px;
     font-size: 12.5px;
     text-align: center;
     color: var(--acc-ink-3);
@@ -474,19 +615,52 @@ a.login-wordmark { color: inherit; text-decoration: none; }
 .login-trust i { margin-right: 5px; }
 
 .login-footer {
-    position: relative;
-    z-index: 1;
     padding: 0 16px 24px;
     text-align: center;
     font-size: 12px;
     color: var(--acc-ink-3);
 }
 
+.auth-side .login-footer { margin-top: 28px; padding-bottom: 0; }
+
 /* ============================================================
-   RECUPERAR CONTRASEÑA
+   RECUPERAR CONTRASEÑA · tarjeta centrada
    Tres pasos en la misma tarjeta; los conmuta recuperar.js con .hide y
    pinta .step.on, .notice-ok y .notice-error.
    ============================================================ */
+
+.login-shell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 88px 16px 40px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 428px;
+    padding: 32px;
+    border: 1px solid var(--acc-line);
+    border-radius: 20px;
+    background: var(--acc-card);
+    box-shadow: var(--acc-card-shadow);
+}
+
+.login-card > .brand-link { display: inline-block; }
+.login-card .brand-logo { width: auto; height: 60px; }
+
+.login-card .field-input,
+.login-card .btn-continue { height: 46px; }
+
+.login-title {
+    margin-top: 20px;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+}
 
 .steps {
     display: flex;
@@ -498,11 +672,11 @@ a.login-wordmark { color: inherit; text-decoration: none; }
     flex: 1;
     height: 3px;
     border-radius: 3px;
-    background: var(--acc-line);
+    background: var(--acc-line-2);
     transition: background .3s;
 }
 
-.step.on { background: var(--acc-ink); }
+.step.on { background: var(--acc-accent); }
 
 .hide { display: none !important; }
 
@@ -515,7 +689,7 @@ a.login-wordmark { color: inherit; text-decoration: none; }
 .step-text span { font-weight: 500; color: var(--acc-ink); }
 
 /* Digitos grandes: el codigo se teclea mirando el correo en el telefono. */
-.field-input.field-code {
+.login-card .field-input.field-code {
     height: 56px;
     padding: 0 14px;
     text-align: center;
@@ -526,7 +700,7 @@ a.login-wordmark { color: inherit; text-decoration: none; }
     text-indent: .45em;
 }
 
-.login-card .btn-ghost {
+.login-body .btn-ghost {
     width: 100%;
     margin-top: -4px;
     padding: 8px 0;
@@ -539,8 +713,8 @@ a.login-wordmark { color: inherit; text-decoration: none; }
     transition: color .2s;
 }
 
-.login-card .btn-ghost:hover { color: var(--acc-ink); }
-.login-card .btn-ghost:disabled { opacity: .6; cursor: not-allowed; }
+.login-body .btn-ghost:hover { color: var(--acc-ink); }
+.login-body .btn-ghost:disabled { opacity: .6; cursor: not-allowed; }
 
 .notice {
     margin-top: 18px;
@@ -551,22 +725,137 @@ a.login-wordmark { color: inherit; text-decoration: none; }
 }
 
 .notice-ok {
-    background: #F0FAF3;
-    box-shadow: inset 0 0 0 1px rgba(31, 122, 61, 0.16);
-    color: #1F7A3D;
+    background: var(--acc-ok-bg);
+    box-shadow: inset 0 0 0 1px var(--acc-ok-line);
+    color: var(--acc-ok);
 }
 
 .notice-error {
-    background: #FEF3F2;
-    box-shadow: inset 0 0 0 1px rgba(194, 40, 29, 0.14);
+    background: var(--acc-danger-bg);
+    box-shadow: inset 0 0 0 1px var(--acc-danger-line);
     color: var(--acc-danger);
 }
 
+.card-foot {
+    margin: 26px -32px -32px;
+    padding: 16px 32px;
+    border-top: 1px solid var(--acc-line);
+    border-radius: 0 0 20px 20px;
+    background: var(--acc-panel);
+    font-size: 13px;
+    color: var(--acc-ink-2);
+}
+
+[data-theme="dark"] .card-foot { background: rgba(17, 25, 40, 0.35); }
+
+.card-foot a { font-size: 13px; }
+
+/* ============================================================
+   PIE DE PAGINA (login)
+   Logo y legales a la izquierda, contacto a la derecha, entre dos lineas finas.
+   ============================================================ */
+
+.site-footer {
+    padding: 0 28px;
+    background: var(--acc-hero);
+    font-size: 13px;
+    color: var(--acc-ink-2);
+}
+
+.site-footer-inner {
+    display: flex;
+    align-items: center;
+    gap: 24px 48px;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 26px 0;
+}
+
+.site-footer-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 26px;
+}
+
+.site-footer-logo {
+    flex-shrink: 0;
+    padding-right: 26px;
+    border-right: 1px solid var(--acc-line-2);
+}
+
+.site-footer-logo .brand-logo { width: auto; height: 52px; }
+
+.site-footer-text { display: grid; gap: 10px; min-width: 0; }
+
+.site-footer-legal {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 16px;
+}
+
+.site-footer-legal a {
+    font-weight: 500;
+    color: var(--acc-ink);
+    text-decoration: none;
+}
+
+.site-footer-help { line-height: 1.5; }
+
+.site-footer-help a { color: var(--acc-link); text-decoration: none; }
+
+.site-footer a:hover { text-decoration: underline; }
+
+.site-footer-contact {
+    flex-shrink: 0;
+    display: grid;
+    gap: 9px;
+}
+
+.site-footer-contact h2 {
+    margin-bottom: 2px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--acc-ink);
+}
+
+.site-footer-contact a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--acc-ink-2);
+    text-decoration: none;
+}
+
+.site-footer-contact svg { width: 15px; height: 15px; flex-shrink: 0; }
+
 /* -- Responsive -- */
-@media (max-width: 480px) {
-    .login-top { padding: 0 18px; }
+@media (max-width: 1100px) {
+    .auth-box { padding: 0; }
+}
+
+@media (max-width: 860px) {
+    .auth-hero { display: none; }
+    .site-footer-inner { flex-direction: column; align-items: flex-start; }
+    .auth-box { max-width: 520px; }
+}
+
+@media (max-width: 560px) {
+    .field-row { grid-template-columns: 1fr; gap: 14px; }
+    .welcome { padding: 14px 16px; }
+    .welcome .brand-logo { height: 56px; }
+    .theme-switch { top: 14px; right: 14px; }
+    .theme-switch button { padding: 0 10px; }
     .login-card { padding: 26px 22px; }
     .card-foot { margin: 22px -22px -26px; padding: 14px 22px; }
+    .site-footer { padding: 0 20px; }
+    .site-footer-main { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .site-footer-logo { padding-right: 0; border-right: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
