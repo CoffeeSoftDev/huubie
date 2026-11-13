@@ -15,7 +15,7 @@ $asset = function ($file) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Huubie · <?= htmlspecialchars($title) ?></title>
-    <link rel="icon" href="../../assets/img/huubie192.png" type="image/png">
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml">
 
     <link rel="stylesheet" href="../../assets/plugins/fontello/css/fontello.css">
     <link rel="stylesheet" href="../../assets/plugins/fontello/css/animation.css">
@@ -42,6 +42,8 @@ $asset = function ($file) {
     <link rel="stylesheet" href="<?= $asset('assets/css/compact.css') ?>">
     <!-- Tokens del tema activo: al final, redefine lo que las hojas de arriba dejaron fijo. -->
     <link rel="stylesheet" href="<?= $asset('assets/css/themes.css') ?>">
+    <!-- Estetica suave de los modulos: tablas, filtros, pestañas y botones. -->
+    <link rel="stylesheet" href="<?= $asset('assets/css/soft.css') ?>">
     <link rel="stylesheet" href="<?= $asset('assets/css/dark-mode.css') ?>">
     <!-- La del modulo despues de dark-mode: le quita a #main__content la tarjeta aliceblue. -->
     <link rel="stylesheet" href="src/css/order.css?v=<?= filemtime(__DIR__ . '/../src/css/order.css') ?>">

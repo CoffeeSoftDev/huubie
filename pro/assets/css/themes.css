@@ -13,24 +13,58 @@
    dos páginas oscuras. Va en TODAS las páginas, también en las que no
    cargan dark-mode.css (modulos/, sucursales/).
 
-   Con tema claro el fondo es gris #F3F4F6 siempre. Con tema de página
+   En modo claro el fondo es el blanco lavanda de --bg. Con tema de página
    oscura (scheme huubie | midnight | rose) InventoryPalette pone body.dark-mode.
    ============================================================ */
 
+/* -- Modo claro: suave --
+   Nada de grises duros ni negro puro: el fondo es un blanco con un punto de
+   lavanda, las líneas casi no se ven, la tinta es un azul noche y el relieve
+   lo da una sombra difusa teñida del acento, no el borde. Los rellenos de
+   hover, chips y cajas de ícono son el acento muy diluido. */
 :root {
-    --bg:            #F3F4F6;
+    --bg:            #F7F7FC;
     --surface:       #FFFFFF;
-    --surface-hover: #F9FAFB;
-    --line:          #E5E7EB;
-    --ink:           #111827;
-    --ink-dim:       #6B7280;
+    --surface-hover: #FAF9FE;
+    --line:          #ECEAF4;
+    --ink:           #1D1B31;
+    --ink-dim:       #75728A;
+
+    /* El acento diluido: relleno de hover, chips y cajas de ícono. */
+    --tint:           rgb(var(--brand-600, 80 48 165) / .06);
+    --accent-soft-bg: rgb(var(--brand-600, 80 48 165) / .09);
+    --accent-soft-fg: rgb(var(--brand-600, 80 48 165));
+    --accent-line:    rgb(var(--brand-600, 80 48 165) / .32);
+
+    /* Forma y relieve de tarjetas y controles. */
+    --radius-card:   20px;
+    --radius-ctl:    12px;
+    --shadow-card:   0 1px 2px rgb(29 27 49 / .04), 0 10px 28px -14px rgb(var(--brand-600, 80 48 165) / .16);
+    --shadow-hover:  0 2px 4px rgb(29 27 49 / .04), 0 18px 36px -14px rgb(var(--brand-600, 80 48 165) / .30);
 
     /* Card de módulo (ModuleCard): borde, caja del ícono y badge verde. */
     --raised-line:   var(--line);
-    --icon-box-bg:   var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)));
-    --icon-box-fg:   rgb(var(--brand-600, 192 90 64));
-    --ok-soft-bg:    #DCFCE7;
-    --ok-soft-fg:    #16A34A;
+    --icon-box-bg:   var(--accent-soft-bg);
+    --icon-box-fg:   rgb(var(--brand-600, 80 48 165));
+    --ok-soft-bg:    #E6F7ED;
+    --ok-soft-fg:    #15803D;
+}
+
+/* Los grises de Tailwind (gray-*: fondos, hovers, bordes y textos de los
+   componentes de los módulos) toman el mismo punto de lavanda, de --bg (50)
+   a --ink (900). Solo en claro: en oscuro las variantes dark: usan los tonos
+   de siempre. Las hojas de los módulos leen esta misma rampa. */
+html:not(.dark) {
+    --gray-50:  250 250 253;
+    --gray-100: 245 244 250;
+    --gray-200: 236 234 244;
+    --gray-300: 219 216 231;
+    --gray-400: 165 162 184;
+    --gray-500: 117 114 138;
+    --gray-600: 88 85 110;
+    --gray-700: 62 59 86;
+    --gray-800: 42 40 66;
+    --gray-900: 29 27 49;
 }
 
 /* -- Superficies de las páginas oscuras --
@@ -124,6 +158,12 @@ body.dark-mode {
     --ink-dim:        var(--dk-muted);
     --accent-soft-bg: rgb(var(--brand-600, 192 90 64) / .18);
     --accent-soft-fg: rgb(var(--brand-300, 232 166 143));
+    --tint:           rgb(255 255 255 / .05);
+    --accent-line:    rgb(var(--accent-2-500, 200 105 76) / .70);
+
+    /* En oscuro el relieve lo dan las superficies, no la sombra. */
+    --shadow-card:    none;
+    --shadow-hover:   0 14px 32px -14px rgb(0 0 0 / .55);
 
     /* Card de módulo como la de alpha/: sin borde, caja del ícono sólida
        (#233876 en Huubie) con el ícono claro, y el badge en velo verde en
@@ -202,10 +242,12 @@ body { background-color: var(--bg); }
 
 #menu-sidebar { border-right-color: var(--line); }
 
+.menu-rail-item { color: var(--ink-dim); border-radius: 14px; }
+
 .menu-rail-item:hover {
-    color: var(--ink);
-    background: rgb(var(--gray-100, 243 244 246));
-    border-color: var(--line);
+    color: rgb(var(--brand-600, 192 90 64));
+    background: var(--tint);
+    border-color: transparent;
 }
 
 .menu-rail-item.is-active {

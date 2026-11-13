@@ -1,0 +1,270 @@
+/* ============================================================
+   MÓDULOS · ESTÉTICA SUAVE
+   ============================================================
+   La misma estética del inicio (page.css) llevada a las páginas de los
+   módulos: Catálogo, Pedidos y Developer. No son páginas hechas a mano: las
+   arma coffeeSoft.js con utilidades de Tailwind (tablas, filtros, botones
+   .tw-btn / .tw-input), DataTables y Bootstrap. Esta hoja viste eso que ya
+   existe, sin tocar el framework:
+
+     tarjetas     redondas (--radius-card), borde casi invisible y sombra difusa
+     tablas       sin franjas ni banda gris: encabezado tenue, renglones
+                  separados por una línea y hover lavanda
+     controles    inputs, selects y botones con --radius-ctl y foco del acento
+     paginación   botones sueltos; el activo, en el acento diluido
+
+   Los tokens (--line, --ink, --tint, --shadow-card...) son los de themes.css.
+   Los COLORES van acotados a `body:not(.dark-mode)`: el modo oscuro conserva
+   los suyos (dark-mode.css). Las FORMAS (radios) aplican a los dos.
+
+   Se carga después de themes.css y antes de dark-mode.css.
+   ============================================================ */
+
+
+/* -- Página -- */
+
+/* Título del módulo (lo inyecta cs-tabs.js): tinta, no el color del botón. */
+body:not(.dark-mode) .cp-pagina-titulo { color: var(--ink); }
+body:not(.dark-mode) .cp-pagina-subtitulo { color: var(--ink-dim); }
+
+/* La tarjeta de fuera de los módulos que la conservan (Developer). */
+main > #main__content:not(.cp-pagina-pro) > div,
+main > #main__content:not(.cp-pagina-pro) > form {
+    border-radius: var(--radius-card, 20px);
+    padding: 22px;
+}
+body:not(.dark-mode) main > #main__content:not(.cp-pagina-pro) > div,
+body:not(.dark-mode) main > #main__content:not(.cp-pagina-pro) > form {
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-card);
+}
+
+@media (max-width: 500px) {
+    main > #main__content:not(.cp-pagina-pro) > div,
+    main > #main__content:not(.cp-pagina-pro) > form { padding: 12px; border-radius: 0; }
+}
+
+
+/* -- Pestañas (cs-tabs.js) y su panel -- */
+
+.cs-tabs { border-radius: 16px; padding: 0 10px; }
+
+/* Cuando no caben todas, la barra scrollea: su barra de scroll, delgada. */
+.cs-tabs::-webkit-scrollbar { height: 9px; }
+.cs-tabs::-webkit-scrollbar-thumb:horizontal { border-width: 3px; }
+.cs-tabs-panels > div { border-radius: var(--radius-card, 20px); padding: 22px; }
+
+body:not(.dark-mode) .cs-tabs,
+body:not(.dark-mode) .cs-tabs-panels > div {
+    background: var(--surface);
+    border-color: var(--line);
+    box-shadow: var(--shadow-card);
+}
+
+body:not(.dark-mode) button.cs-tab { color: var(--ink-dim); border-radius: 10px 10px 0 0; transition: color .15s ease, border-color .15s ease, background .15s ease; }
+body:not(.dark-mode) button.cs-tab:hover { color: rgb(var(--brand-600, 80 48 165)); background: var(--tint); }
+body:not(.dark-mode) button.cs-tab.is-active { color: rgb(var(--brand-600, 80 48 165)); }
+body:not(.dark-mode) .cs-tab-count { background: rgb(var(--gray-100, 243 244 246)); color: var(--ink-dim); }
+
+
+/* -- Tablas (coffeeSoft + DataTables) --
+   El framework pinta cada celda con utilidades: th en bg-gray-200, renglones
+   alternos en bg-gray-100 y la tabla con borde. Aquí se quitan la banda y las
+   franjas: queda una lista limpia. */
+
+table.border-separate { border-radius: 14px; }
+
+/* !important: Bootstrap y DataTables le ponen su propio borde a la tabla. */
+body:not(.dark-mode) table.border-separate { border: 0 !important; }
+
+body:not(.dark-mode) table.border-separate > thead > tr > th {
+    background-color: transparent;
+    color: var(--ink-dim);
+    font-weight: 600;
+    font-size: 12.5px;
+    letter-spacing: .01em;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+}
+
+body:not(.dark-mode) table.border-separate > tbody > tr > td {
+    background-color: transparent;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+    padding-top: 11px;
+    padding-bottom: 11px;
+    transition: background-color .12s ease;
+}
+
+body:not(.dark-mode) table.border-separate > tbody > tr:last-child > td { border-bottom-color: transparent; }
+body:not(.dark-mode) table.border-separate > tbody > tr:hover > td { background-color: var(--tint); }
+
+/* Las tablas con renglón clicable (createCoffeeTable3) inyectan su hover gris
+   con el #id de la tabla y !important. El :not(#_) suma el peso de un id para
+   que gane el del tema sin tener que nombrar cada tabla. */
+body:not(.dark-mode) table.border-separate > tbody > tr.ct3-hoverable:hover > td:not(#_) {
+    background-color: var(--tint) !important;
+}
+
+/* Las flechas de orden de DataTables, más discretas. */
+body:not(.dark-mode) table.dataTable > thead > tr > th.sorting::before,
+body:not(.dark-mode) table.dataTable > thead > tr > th.sorting::after { opacity: .18; }
+body:not(.dark-mode) table.dataTable > thead > tr > th.sorting_asc::before,
+body:not(.dark-mode) table.dataTable > thead > tr > th.sorting_desc::after { opacity: .7; color: rgb(var(--brand-600, 80 48 165)); }
+
+/* Fila elegida (tablas maestro-detalle). */
+body:not(.dark-mode) tr.row-active > td { background-color: var(--accent-soft-bg) !important; }
+
+/* Buscador y pie de DataTables. */
+body:not(.dark-mode) .dataTables_wrapper .dataTables_filter label,
+body:not(.dark-mode) .dataTables_wrapper .dataTables_info,
+body:not(.dark-mode) .dataTables_wrapper .dataTables_length label { color: var(--ink-dim); }
+.dataTables_wrapper .dataTables_filter input { border-radius: 10px; padding: 6px 12px; min-width: 200px; }
+.dataTables_wrapper > .row:last-child { margin-top: 14px; align-items: center; }
+
+/* Las .row de Bootstrap traen margen negativo: dentro del contenedor de la
+   tabla (overflow-x:auto) sobraban 10px y salía una barra de scroll de más. */
+.dataTables_wrapper > .row { margin-left: 0; margin-right: 0; }
+.dataTables_wrapper > .row > [class*="col-"] { padding-left: 0; padding-right: 0; }
+
+/* Paginación: botones sueltos; el activo en el acento diluido. */
+.dataTables_wrapper .pagination {
+    --bs-pagination-border-radius: 10px;
+    gap: 4px;
+    box-shadow: none;
+}
+.dataTables_wrapper .pagination .page-link { border-radius: 10px !important; }
+
+body:not(.dark-mode) .dataTables_wrapper .pagination {
+    --bs-pagination-bg: transparent;
+    --bs-pagination-border-color: transparent;
+    --bs-pagination-hover-bg: var(--tint);
+    --bs-pagination-hover-color: rgb(var(--brand-600, 80 48 165));
+    --bs-pagination-hover-border-color: transparent;
+    --bs-pagination-focus-bg: var(--tint);
+    --bs-pagination-disabled-bg: transparent;
+    --bs-pagination-disabled-border-color: transparent;
+}
+body:not(.dark-mode) .dataTables_wrapper .pagination .active > .page-link,
+body:not(.dark-mode) .dataTables_wrapper .pagination .page-link.active {
+    background-color: var(--accent-soft-bg);
+    border-color: var(--accent-line);
+    color: rgb(var(--brand-600, 80 48 165));
+    font-weight: 700;
+}
+
+
+/* -- Controles: inputs, selects, textareas --
+   .tw-input es el de coffeeForm; .form-control / .form-select, los de
+   Bootstrap (DataTables, bootbox). */
+
+.tw-input,
+.form-control,
+.form-select,
+.select2-container--bootstrap-5 .select2-selection {
+    border-radius: var(--radius-ctl, 12px) !important;
+}
+
+/* Bootstrap pinta .border con !important y su propio gris (--bs-border-color):
+   en claro ese gris es la línea lavanda del tema. */
+body:not(.dark-mode) { --bs-border-color: rgb(var(--gray-200, 229 231 235)); }
+
+/* !important: los campos de coffeeForm también traen la clase .border. */
+body:not(.dark-mode) .tw-input,
+body:not(.dark-mode) .form-control,
+body:not(.dark-mode) .form-select,
+body:not(.dark-mode) .select2-container--bootstrap-5 .select2-selection {
+    border-color: rgb(var(--gray-300, 209 213 219)) !important;
+    color: var(--ink);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+body:not(.dark-mode) .tw-input:hover:not(:focus):not(:disabled),
+body:not(.dark-mode) .form-control:hover:not(:focus):not(:disabled),
+body:not(.dark-mode) .form-select:hover:not(:focus):not(:disabled) {
+    border-color: var(--accent-line) !important;
+}
+
+/* El ícono que coffeeForm encima a la derecha del campo (calendario) lleva
+   el radio viejo y asomaba en la esquina: toma el del campo menos el borde. */
+.relative > .tw-input ~ .rounded-r-lg {
+    border-top-right-radius: calc(var(--radius-ctl, 12px) - 1px);
+    border-bottom-right-radius: calc(var(--radius-ctl, 12px) - 1px);
+}
+
+body:not(.dark-mode) .tw-input:focus,
+body:not(.dark-mode) .form-control:focus,
+body:not(.dark-mode) .form-select:focus {
+    border-color: rgb(var(--accent-2-600, 80 48 165)) !important;
+    box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 80 48 165) / .14) !important;
+}
+
+body:not(.dark-mode) label,
+body:not(.dark-mode) .form-label { color: var(--ink-dim); }
+
+
+/* -- Botones --
+   .tw-btn (coffeeSoft) y .btn (Bootstrap). Los colores los siguen poniendo
+   buttons.css y las utilidades; aquí va la forma y el relieve. */
+
+.tw-btn,
+.btn {
+    border-radius: var(--radius-ctl, 12px) !important;
+    font-weight: 600;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.btn-sm { border-radius: 10px !important; }
+
+body:not(.dark-mode) .tw-btn.bg-main,
+body:not(.dark-mode) .btn-primary {
+    box-shadow: 0 8px 18px -10px rgb(var(--primary-rgb, 80 48 165) / .65);
+}
+body:not(.dark-mode) .tw-btn.bg-main:hover:not(:disabled),
+body:not(.dark-mode) .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px -10px rgb(var(--primary-rgb, 80 48 165) / .70);
+}
+
+/* Botones de contorno y neutros: el hover es el acento diluido, no un relleno sólido. */
+body:not(.dark-mode) .btn-outline-primary { background-color: var(--surface) !important; border-color: var(--accent-line) !important; }
+body:not(.dark-mode) .btn-outline-primary:hover,
+body:not(.dark-mode) .btn-outline-primary:focus,
+body:not(.dark-mode) .btn-outline-primary:active {
+    background-color: var(--accent-soft-bg) !important;
+    color: rgb(var(--brand-600, 80 48 165)) !important;
+    border-color: rgb(var(--brand-600, 80 48 165)) !important;
+}
+
+
+/* -- Modales (bootbox / Bootstrap) y avisos (SweetAlert) -- */
+
+.modal-content { border-radius: var(--radius-card, 20px) !important; overflow: hidden; }
+body:not(.dark-mode) .modal-content { border: 1px solid var(--line); box-shadow: 0 30px 70px -30px rgb(29 27 49 / .45); }
+body:not(.dark-mode) .modal-header,
+body:not(.dark-mode) .modal-footer { border-color: var(--line); }
+body:not(.dark-mode) .modal-title { color: var(--ink); font-weight: 700; }
+body:not(.dark-mode) .modal-backdrop.show { background-color: #1D1B31; opacity: .38; }
+
+.swal2-popup { border-radius: var(--radius-card, 20px) !important; }
+.swal2-styled { border-radius: var(--radius-ctl, 12px) !important; }
+
+
+/* -- Modal de coffeeSoft (cs-modal.js) --
+   Su panel va con utilidades de Tailwind; aquí toma la misma forma que las
+   tarjetas y sus campos, la de los demás controles. */
+
+.cs-modal-panel { border-radius: var(--radius-card, 20px) !important; }
+.cs-modal-panel input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+.cs-modal-panel select,
+.cs-modal-panel textarea,
+.cs-modal-panel .select2-container--default .select2-selection--single { border-radius: var(--radius-ctl, 12px) !important; }
+.cs-modal-panel button { border-radius: var(--radius-ctl, 12px); }
+
+body:not(.dark-mode) .cs-modal-bg { background-color: rgb(29 27 49 / .38); }
+body:not(.dark-mode) .cs-modal-panel { box-shadow: 0 30px 70px -30px rgb(29 27 49 / .45); }
+body:not(.dark-mode) .cs-modal-title { color: var(--ink); }
+body:not(.dark-mode) .cs-modal-panel > .cs-modal-head,
+body:not(.dark-mode) .cs-modal-panel > .cs-modal-foot { border-color: var(--line) !important; }
+body:not(.dark-mode) .cs-modal-panel > .cs-modal-foot { background-color: var(--surface-hover) !important; }

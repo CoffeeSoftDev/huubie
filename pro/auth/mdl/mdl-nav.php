@@ -115,37 +115,16 @@ class mdl extends CRUD {
         return is_array($sql) ? $sql : [];
     }
 
-    // Temas de la barra:
+    // Modo (claro u oscuro):
 
-    function listThemes() {
-        $query = "
-            SELECT code, name, tipo, color, image, accent, primary_color, secondary_color, sidebar_color, scheme, mode, badge, is_default
-            FROM {$this->bd}themes
-            WHERE is_active = 1
-            ORDER BY orden ASC, id ASC
-        ";
-
-        $sql = $this->_Read($query, null);
-        return is_array($sql) ? $sql : [];
+    // El scheme del tema con ese code, de cuando habia catalogo de temas.
+    // [code] -> 'light' | 'huubie' | ... o null si ya no existe.
+    function getThemeScheme($array) {
+        $sql = $this->_Read("SELECT scheme FROM {$this->bd}themes WHERE code = ? LIMIT 1", $array);
+        return empty($sql) ? null : $sql[0]['scheme'];
     }
 
-    // Los de una empresa: los asignados en company_themes mas el de por defecto,
-    // que siempre esta.
-    function listThemesByCompany($array) {
-        $query = "
-            SELECT t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.sidebar_color, t.scheme, t.mode, t.badge, t.is_default
-            FROM {$this->bd}themes t
-            LEFT JOIN {$this->bd}company_themes ct ON ct.theme_id = t.id AND ct.company_id = ?
-            WHERE t.is_active = 1
-                AND (t.is_default = 1 OR ct.id IS NOT NULL)
-            ORDER BY t.orden ASC, t.id ASC
-        ";
-
-        $sql = $this->_Read($query, $array);
-        return is_array($sql) ? $sql : [];
-    }
-
-    // [theme_code, user_id]
+    // [modo, user_id]: 'light' | 'dark'
     function updateUserTheme($array) {
         $query = "UPDATE {$this->bd}users SET theme_code = ? WHERE id = ?";
         return $this->_CUD($query, $array);

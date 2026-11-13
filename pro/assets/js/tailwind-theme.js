@@ -73,7 +73,22 @@
 
     // Hover exacto del primario cuando el tema lo trae de otro sistema.
     var PRIMARY_HOVER = {
-        '#1C64F2': '26 86 219'   // Huubie: #1A56DB, el de alpha/
+        '#1C64F2': '26 86 219',  // Oscuro: #1A56DB, el de alpha/
+        '#5030A5': '67 38 144'   // Claro: #432690, el del login
+    };
+
+    /*  LOS DOS MODOS DE LA APLICACION. No hay mas temas que elegir: claro u
+        oscuro. El modo de cada quien se guarda en users.theme_code
+        ('light' | 'dark') y lo reparte la barra (auth/src/js/navbar.js).
+
+          light  la marca sobre blanco, como el login claro y la landing:
+                 morado #5030A5 en acento, botones y detalles.
+          dark   Huubie UI (la guia de estilos): pagina #111928, barra #141D2B,
+                 rail #0F172A, botones azul #1C64F2 y morado #7C3AED en foco y
+                 hover. */
+    var MODES = {
+        light: { code: 'light', name: 'Claro',  accent: '#5030A5', primary: '#5030A5', secondary: '#5030A5', sidebar: '',        scheme: 'light' },
+        dark:  { code: 'dark',  name: 'Oscuro', accent: '#1C64F2', primary: '#1C64F2', secondary: '#7C3AED', sidebar: '#0F172A', scheme: 'huubie' }
     };
 
     var GRAY = {
@@ -354,7 +369,19 @@
         } catch (e) { /* sin sessionStorage: la carga nueva entra sin aviso */ }
     }
 
+    // Pinta un modo y lo deja guardado para la siguiente carga.
+    function setMode(code) {
+        var mode = MODES[code] || MODES.light;
+
+        apply(mode);
+        save(mode);
+
+        return mode;
+    }
+
     window.InventoryPalette = {
+        MODES: MODES,
+        setMode: setMode,
         ramp: ramp,
         sidebarTone: sidebarTone,
         apply: apply,
@@ -369,9 +396,11 @@
     try {
         var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
 
-
-        if (saved) apply(saved);
-    } catch (e) { /* sin localStorage: arranca en Claro */ }
+        // Sin nada guardado (primera vez en este navegador): modo claro.
+        apply(saved || MODES.light);
+    } catch (e) {
+        apply(MODES.light);   // sin localStorage
+    }
 
     // Recarga pedida por el navbar al cambiar de claro a oscuro (o al revés):
     // el aviso sigue en pantalla hasta que la página nueva terminó de cargar.

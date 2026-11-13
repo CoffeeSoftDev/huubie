@@ -5,23 +5,15 @@
 let level = 0;
 
 class Navbar {
-    /* -- Temas --
-       Un tema tiene cuatro partes:
-         - la BARRA, como en erp-pro/pro: color plano o imagen de temporada,
-           y `mode` decide si su texto va oscuro o claro.
-         - el ACENTO (hex): pestañas, chips, selección.
-         - el PRIMARIO (hex): los botones principales.
-         - el SECUNDARIO (hex): los detalles de esta barra (sucursal,
-           selección, checks), el foco y el hover de las cards.
-         - la SIDEBAR (hex, opcional): el fondo del rail lateral; vacío,
-           sigue a la página.
-       Los colores los pinta en toda la página window.InventoryPalette
-       (assets/js/tailwind-theme.js). El fondo de la página no cambia nunca:
-       siempre gris. El catálogo vive en `fayxzvov_app.themes` y se administra
-       en developer › Personalización. Este fallback entra si la petición
-       falla o si no hay temas. */
+    /* -- Modos --
+       La aplicación solo tiene dos: claro y oscuro. Sus colores viven en
+       window.InventoryPalette.MODES (assets/js/tailwind-theme.js) y el de cada
+       quien llega con la sesión (ctrl-nav :: session, users.theme_code).
+       Navbar.modes() los pasa a la forma de tema que pinta esta barra: color de
+       la barra y `mode`, que decide si su texto va claro (.nav-dark) y qué logo
+       se ve. Este fallback entra si la página no carga tailwind-theme.js. */
     static get THEME_FALLBACK() {
-        return { code: 'light', name: 'Claro', tipo: 'color', color: '#FFFFFF', image: '', accent: '#C05A40', primary: '#292524', secondary: '#C05A40', sidebar: '', scheme: 'light', mode: 'light', badge: '' };
+        return { code: 'light', name: 'Claro', tipo: 'color', color: '#FFFFFF', image: '', accent: '#5030A5', primary: '#5030A5', secondary: '#5030A5', sidebar: '', scheme: 'light', mode: 'light', badge: '' };
     }
 
     /* El velo de los temas con imagen: la capa translúcida entre la foto y el
@@ -29,6 +21,17 @@ class Navbar {
        el gris; uno oscuro la oscurece pero respeta el tono. Valores de erp-pro. */
     static get VEIL_DARK()  { return 'rgba(20, 22, 28, .34)'; }
     static get VEIL_LIGHT() { return 'rgba(255, 255, 255, .55)'; }
+
+    // El color de la barra de cada modo: blanca en claro, bg-header de Huubie UI en oscuro.
+    static modes() {
+        const modes = window.InventoryPalette && InventoryPalette.MODES;
+        if (!modes) return [Navbar.THEME_FALLBACK];
+
+        return [
+            Object.assign({ tipo: 'color', color: '#FFFFFF', image: '', mode: 'light', badge: '' }, modes.light),
+            Object.assign({ tipo: 'color', color: '#141D2B', image: '', mode: 'dark',  badge: '' }, modes.dark)
+        ];
+    }
 
     // -- Rutas de pro --
     // La base sale de la ruta actual para que sirva igual en /pro/ que en /huubie/pro/.
@@ -109,10 +112,12 @@ class Navbar {
             ${this.styles()}
             <nav class="navbar-main border-bottom w-full px-4 py-2 h-16 flex items-center justify-between">
                 <div class="nav-left flex items-center gap-3">
-                    <a class="nav-brand-logo" href="${this.homeUrl()}" title="Ir al inicio" aria-label="Ir al inicio"><img src="${this.proBase()}/assets/img/huubie.png" alt=""></a>
-                    <div class="nav-brand-text flex flex-col leading-tight">
-                        <span class="navbar-title">Huubie</span>
-                        <span class="navbar-subtitle">${this.settings.negocio || this.settings.company}</span>
+                    <a class="nav-brand-logo" href="${this.homeUrl()}" title="Ir al inicio" aria-label="Ir al inicio">
+                        <img class="nav-logo nav-logo-light" src="${this.proBase()}/assets/img/huubie_light.png" alt="Huubie">
+                        <img class="nav-logo nav-logo-dark" src="${this.proBase()}/assets/img/huubie.svg" alt="Huubie">
+                    </a>
+                    <div class="nav-brand-text">
+                        <span class="nav-company">${this.escapeText(this.settings.negocio || this.settings.company)}</span>
                     </div>
                 </div>
 
@@ -315,15 +320,19 @@ class Navbar {
                del instante antes de aplicarlo. */
             .navbar-main { background:#FFFFFF; border-bottom:1px solid var(--nav-accent-line) !important; transition:background .2s ease; }
 
-            .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,var(--nav-accent) 0%,var(--nav-accent-soft) 100%); display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 4px 12px var(--nav-accent-glow); flex-shrink:0; }
             .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
-            /* El logo lleva al inicio (los módulos). Es la marca de Huubie, igual
-               que en la barra de developer (auth/src/js/navbar.js: .nav-brand-mark). */
-            .nav-brand-logo { display:flex; align-items:center; justify-content:center; width:34px; height:34px; flex:none; background:#0A0A0A; border-radius:10px; cursor:pointer; transition:opacity .15s ease; }
+            /* El logo lleva al inicio (los módulos). Uno por modo, igual que en la
+               barra de pro (auth/src/js/navbar.js): morado sobre la barra clara,
+               blanco sobre la oscura. A su lado, la empresa. */
+            .nav-brand-logo { display:flex; align-items:center; flex:none; border-radius:8px; cursor:pointer; transition:opacity .15s ease; }
             .nav-brand-logo:hover { opacity:.8; }
-            .nav-brand-logo:focus-visible { outline:2px solid var(--nav-accent); outline-offset:3px; }
-            .nav-brand-logo img { width:24px; height:24px; }
-            .navbar-subtitle { font-size:10px; color:#9CA3AF; letter-spacing:.12em; text-transform:uppercase; }
+            .nav-brand-logo:focus-visible { outline:2px solid var(--nav-accent); outline-offset:4px; }
+            .nav-logo { height:42px; width:auto; display:block; }
+            .nav-logo-dark { display:none; }
+            .navbar-main.nav-dark .nav-logo-light { display:none; }
+            .navbar-main.nav-dark .nav-logo-dark { display:block; }
+            .nav-company { display:block; padding-left:12px; border-left:1px solid #E8E3F0; font-size:13px; font-weight:600; color:#16151C; line-height:22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
+            .nav-company:empty { display:none; }
 
 
             /* Botones de ícono redondos, como .nav-tool-btn de erp-pro. */
@@ -485,11 +494,10 @@ class Navbar {
                Solo cambia la barra: los desplegables siguen blancos y la
                página sigue gris. Valores de erp-pro. */
             .navbar-main.nav-dark { border-bottom-color:rgba(255,255,255,.12) !important; }
-            .navbar-main.nav-dark .nav-brand-logo { box-shadow:0 0 0 1px rgba(255,255,255,.18); }
-            .navbar-main.nav-dark .navbar-title,
+            .navbar-main.nav-dark .nav-company { border-left-color:rgba(255,255,255,.15); }
+            .navbar-main.nav-dark .nav-company,
             .navbar-main.nav-dark .nav-user-name,
             .navbar-main.nav-dark .branch-pill-name { color:#F8FAFC; }
-            .navbar-main.nav-dark .navbar-subtitle,
             .navbar-main.nav-dark .nav-user-rol,
             .navbar-main.nav-dark .branch-pill-label { color:rgba(255,255,255,.62); }
             .navbar-main.nav-dark .nav-chevron,
@@ -1348,8 +1356,8 @@ class Navbar {
 }
 
 // -- Arranque --
-// La barra nace ya con el catálogo de temas en la mano: init() la pinta y le aplica
-// el tema en el mismo tick, así que no hay parpadeo que evitar.
+// La barra nace ya con los dos modos en la mano: init() la pinta y le aplica
+// el de la sesión en el mismo tick, así que no hay parpadeo que evitar.
 $(async () => {
     const base    = Navbar.proBase();
     const ctrlUrl = `${base}/auth/ctrl/ctrl-nav.php`;
@@ -1391,9 +1399,8 @@ $(async () => {
         parent:   "#menu-navbar",
         branches: branches,
         current:  current,
-        // Los temas vienen en la misma sesión, como en auth/src/js/navbar.js.
-        themes:   data.themes || [],
-        theme:    data.theme  || Navbar.THEME_FALLBACK.code,
+        themes:   Navbar.modes(),
+        theme:    data.theme === 'dark' ? 'dark' : 'light',
     });
 
     // La barra nace asíncrona: quien quiera agregarle un botón espera este aviso

@@ -28,8 +28,9 @@ Templates.prototype.csSelectorCards = function (options) {
     opts.empty  = Object.assign({}, defaults.empty, (options || {}).empty || {});
 
     const tones = {
-        open:    { dot: 'bg-green-400', text: 'text-green-500' },
-        warning: { dot: 'bg-amber-400', text: 'text-amber-500' },
+        // El 600 y no el 500: sobre blanco el amarillo 500 casi no se leía.
+        open:    { dot: 'bg-green-500', text: 'text-green-600 dark:text-green-400' },
+        warning: { dot: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
         neutral: { dot: 'bg-gray-400',  text: 'sel-muted' }
     };
 
@@ -50,10 +51,22 @@ Templates.prototype.csSelectorCards = function (options) {
                     --sel-muted:     var(--dk-muted, #9CA3AF);
                     --sel-pill-bg:   var(--dk-hover, #1D2937);
                 }
-                .sel-card   { background: var(--sel-card); border-color: var(--sel-border); }
+                /* Tarjeta redonda, casi sin borde y con sombra difusa (tokens de
+                   themes.css). Al pasar sube y el borde toma el acento; la que
+                   ya está elegida lo lleva siempre. */
+                .sel-card   { background: var(--sel-card); border: 1px solid var(--sel-border); border-radius: var(--radius-card, 20px); box-shadow: var(--shadow-card, none); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+                button.sel-card:hover, button.sel-card:focus-visible { border-color: var(--accent-line, #7C3AED); box-shadow: var(--shadow-hover, none); transform: translateY(-2px); outline: none; }
+                button.sel-card.is-selected { border-color: var(--accent-line, #7C3AED); }
+                .sel-ico    { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .18s ease, color .18s ease; }
+                .sel-ico.is-soft { background: var(--icon-box-bg, #EDE9F8); color: var(--icon-box-fg, #5030A5); }
+                button.sel-card:hover .sel-ico.is-soft { background: rgb(var(--brand-600, 80 48 165)); color: #FFFFFF; }
+                .sel-badge  { font-size: 10px; font-weight: 700; letter-spacing: .04em; line-height: 1; padding: 5px 10px; border-radius: 9999px; background: var(--accent-soft-bg, #EDE9F8); color: var(--accent-soft-fg, #5030A5); }
+                .sel-arrow  { transition: transform .18s ease, color .18s ease; }
+                button.sel-card:hover .sel-arrow { transform: translateX(3px); color: rgb(var(--brand-600, 80 48 165)); }
+                body.dark-mode button.sel-card:hover .sel-arrow { color: var(--sel-text); }
                 .sel-text   { color: var(--sel-text); }
                 .sel-muted  { color: var(--sel-muted); }
-                .sel-pill   { background: var(--sel-pill-bg); border-color: var(--sel-border); color: var(--sel-muted); }
+                .sel-pill   { background: var(--sel-pill-bg); border-color: var(--sel-border); color: var(--sel-muted); box-shadow: var(--shadow-card, none); }
             </style>`);
     }
 
@@ -62,15 +75,13 @@ Templates.prototype.csSelectorCards = function (options) {
     const card = (item) => {
         const tone = tones[(item.status || {}).tone] || tones.neutral;
 
-        const head = $('<div>', { class: 'flex items-start justify-between mb-3' }).append(
-            $('<div>', { class: `${item.iconClass || 'bg-blue-600'} rounded-lg p-2.5 flex-shrink-0` })
-                .append($('<i>', { 'data-lucide': item.icon || 'store', class: 'w-5 h-5 text-white' })),
+        const head = $('<div>', { class: 'flex items-start justify-between mb-4' }).append(
+            // Sin iconClass, la caja suave del acento; con ella, su color sólido y el ícono blanco.
+            $('<div>', { class: `sel-ico ${item.iconClass ? item.iconClass + ' text-white' : 'is-soft'}` })
+                .append($('<i>', { 'data-lucide': item.icon || 'store', class: 'w-5 h-5' })),
             item.badge
-                ? $('<span>', {
-                    class: 'text-[10px] font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600/[.12] border border-blue-600/30 text-blue-600 self-start leading-none',
-                    text:  item.badge
-                })
-                : $('<i>', { 'data-lucide': 'arrow-right', class: 'w-4 h-4 sel-muted mt-1 flex-shrink-0' })
+                ? $('<span>', { class: 'sel-badge self-start', text: item.badge })
+                : $('<span>', { class: 'sel-arrow sel-muted mt-1 flex-shrink-0' }).append($('<i>', { 'data-lucide': 'arrow-right', class: 'w-4 h-4' }))
         );
 
         const location = item.location
@@ -94,8 +105,7 @@ Templates.prototype.csSelectorCards = function (options) {
         return $('<button>', {
             type:        'button',
             'data-card': item.id,
-            class:       'sel-card w-full flex flex-col cursor-pointer rounded-xl p-4 text-left transition-all duration-200 select-none hover:!border-blue-600 focus:outline-none focus-visible:!border-blue-600 '
-                       + (item.selected ? 'border-2' : 'border')
+            class:       'sel-card w-full flex flex-col cursor-pointer p-5 text-left select-none' + (item.selected ? ' is-selected' : '')
         }).append(
             head,
             $('<h3>', { class: 'text-base font-bold sel-text mb-1 truncate', text: item.title }),
@@ -114,7 +124,7 @@ Templates.prototype.csSelectorCards = function (options) {
     });
 
     const header = $('<div>', { class: 'flex flex-col items-center' }).append(
-        $('<h1>', { class: 'text-2xl font-bold mb-1 sel-text', text: opts.title }),
+        $('<h1>', { class: 'text-[26px] font-bold tracking-tight mb-1 sel-text', text: opts.title }),
         $('<p>', { class: 'sel-muted mb-4 text-sm', text: opts.subtitle })
     );
 
@@ -133,8 +143,8 @@ Templates.prototype.csSelectorCards = function (options) {
 
     // Lo que va debajo del encabezado: la rejilla o, sin opciones, el aviso.
     const body = opts.json.length
-        ? $('<div>', { class: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-4xl' }).append(opts.json.map(card))
-        : $('<div>', { class: 'sel-card w-full max-w-md flex flex-col items-center justify-center text-center border rounded-xl p-8' }).append(
+        ? $('<div>', { class: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full max-w-4xl' }).append(opts.json.map(card))
+        : $('<div>', { class: 'sel-card w-full max-w-md flex flex-col items-center justify-center text-center p-8' }).append(
             $('<i>', { 'data-lucide': opts.empty.icon, class: 'w-10 h-10 sel-muted mb-3' }),
             $('<h3>', { class: 'text-base font-semibold sel-text mb-1', text: opts.empty.title }),
             $('<p>', { class: 'sel-muted text-sm', text: opts.empty.text })

@@ -10,9 +10,12 @@ require_once __DIR__ . '/../../../core/billing/_Billing.php';
 /*  EL INICIO DE UNA EMPRESA.
 
     Es la unica pagina que ve cualquiera con sesion, este como este su empresa:
-    no pasa por Permission::page(). Si la empresa no esta al corriente
-    (Plan::state()) aqui es donde se entera: el inicio le dice por que y cuanto
-    debe, y sus modulos salen con candado. */
+    no pasa por Permission::page(). Tiene dos vistas (data.view):
+
+      owner    el dueño (y root): el tablero de la empresa. Si no esta al
+               corriente (Plan::state()) aqui se entera de por que y cuanto
+               debe, y sus modulos salen con candado.
+      modules  todos los demas: solo sus modulos, para entrar a trabajar. */
 class ctrl extends mdl {
     const OPS = ['init', 'checkout'];
 
@@ -37,38 +40,58 @@ class ctrl extends mdl {
         $user  = $this->getUserById([Session::user()]);
         $state = Plan::state();
 
-        return [
-            'status' => 200,
-            'data'   => [
-                'user' => [
-                    'name'    => trim((string) $user['name']) ?: $_SESSION['user'],
-                    'full'    => trim($user['name'] . ' ' . $user['last_name']),
-                    'rol'     => $_SESSION['rol'],
-                    'photo'   => userPhotoUrl($user['photo'], 4),
-                    'color'   => $user['color'] ?: '',
-                    'branch'  => $_SESSION['branch'],
-                    // root no es de la empresa: la esta viendo como su dueño.
-                    'viewing' => !empty($_SESSION['is_root']) ? 1 : 0,
-                ],
-                'company' => [
-                    'name'      => $company['name'],
-                    'ubication' => $company['ubication'] ?: '',
-                    'status'    => $company['status'],
-                    'branches'  => (int) $company['branches'],
-                    'users'     => (int) $company['users'],
-                ],
-                'paid'          => $paid ? 1 : 0,
-                'plan'          => $this->plan($state),
-                'modules'       => $this->modules($state),
-                'owner'         => $this->owner($companyId),
-                'team'          => [
-                    'total'  => $this->getTeamCount([$companyId]),
-                    'people' => $this->people($this->listTeamByCompany([$companyId])),
-                ],
-                'birthdays'     => $this->people($this->listBirthdaysByCompany([$companyId])),
-                'anniversaries' => $this->people($this->listAnniversariesByCompany([$companyId])),
-            ]
+        $data = [
+            'view' => $this->isOwner() ? 'owner' : 'modules',
+            'user' => [
+                'name'    => trim((string) $user['name']) ?: $_SESSION['user'],
+                'full'    => trim($user['name'] . ' ' . $user['last_name']),
+                'rol'     => $_SESSION['rol'],
+                'photo'   => userPhotoUrl($user['photo'], 4),
+                'color'   => $user['color'] ?: '',
+                'branch'  => $_SESSION['branch'],
+                // root no es de la empresa: la esta viendo como su dueño.
+                'viewing' => !empty($_SESSION['is_root']) ? 1 : 0,
+            ],
+            'modules' => $this->modules($state),
         ];
+
+        // Quien no es dueño solo ve sus modulos: no se le manda el resto del
+        // tablero (precios, equipo, cumpleaños). Del plan, si sus modulos
+        // abren; del dueño, a quien avisarle si no.
+        if ($data['view'] === 'modules') {
+            $owner = $this->getOwnerByCompany([$companyId]);
+
+            $data['plan']  = ['ok' => $state['ok'] ? 1 : 0];
+            $data['owner'] = $owner ? ['name' => $owner['name']] : null;
+
+            return ['status' => 200, 'data' => $data];
+        }
+
+        $data['company'] = [
+            'name'      => $company['name'],
+            'ubication' => $company['ubication'] ?: '',
+            'status'    => $company['status'],
+            'branches'  => (int) $company['branches'],
+            'users'     => (int) $company['users'],
+        ];
+        $data['paid']          = $paid ? 1 : 0;
+        $data['plan']          = $this->plan($state);
+        $data['owner']         = $this->owner($companyId);
+        $data['team']          = [
+            'total'  => $this->getTeamCount([$companyId]),
+            'people' => $this->people($this->listTeamByCompany([$companyId])),
+        ];
+        $data['birthdays']     = $this->people($this->listBirthdaysByCompany([$companyId]));
+        $data['anniversaries'] = $this->people($this->listAnniversariesByCompany([$companyId]));
+
+        return ['status' => 200, 'data' => $data];
+    }
+
+    /*  El inicio completo (empresa, plan, equipo) es del dueño. root entra a
+        una empresa como su dueño (app/empresas pone is_owner), asi que tambien
+        lo ve. Los demas ven solo sus modulos. */
+    private function isOwner() {
+        return !empty($_SESSION['is_owner']) || !empty($_SESSION['is_root']);
     }
 
     /*  "Pagar ahora": manda al dueño a la pagina de pago de Stripe con la
