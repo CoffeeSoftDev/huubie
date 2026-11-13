@@ -178,6 +178,9 @@ main > #main__content > div {
    min-height: 64px;
 }
 
+/* El HUECO del rail: fijo a la izquierda y el <body> le deja 60px. Su aspecto
+   (items, colores, hover, la barra al pie en movil) vive entero en
+   auth/src/js/sidebar.js. */
 #menu-sidebar {
    width: 60px;
    height: calc(100vh - 64px);

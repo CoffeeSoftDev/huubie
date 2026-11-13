@@ -1,0 +1,18 @@
+[ 2026-11-13 16:41:52 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            INSERT INTO fayxzvov_erp.audit_log
+                   (action, entity, entity_id, label, detail, user_id, user_name, is_superadmin, company_id, branch_id, ip)
+            VALUES (?, ?, ?, ?, ?, ?,
+                    (SELECT TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))
+                       FROM fayxzvov_erp.users u WHERE u.id = ? LIMIT 1),
+                    EXISTS (SELECT 1
+                              FROM fayxzvov_erp.users_braches ub
+                              JOIN fayxzvov_erp.roles r ON r.id = ub.role_id AND r.is_active = 1
+                             WHERE ub.user_id = ? AND r.code = 'superadmin'),
+                    ?, ?, ?)
+        
+[ ERROR C.U.D. ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.audit_log' doesn't exist
+
+

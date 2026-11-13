@@ -236,3 +236,16 @@ function userPhotoUrl($photo, $levels) {
 
     return $base . '/uploads/users/' . rawurlencode($photo);
 }
+
+/*  URL del logo de una empresa. companies.logo guarda SOLO el nombre del
+    archivo dentro de pro/uploads/companies/ (lo sube Configuración › Empresa).
+    $levels: los dirname() del script que corre a pro/, como en userPhotoUrl(). */
+function companyLogoUrl($logo, $levels) {
+    $logo = basename(trim((string) $logo));
+    if ($logo === '') return '';
+
+    $base = dirname($_SERVER['SCRIPT_NAME'] ?? '', $levels);
+    $base = rtrim(str_replace('\\', '/', $base), '/');
+
+    return $base . '/uploads/companies/' . rawurlencode($logo);
+}

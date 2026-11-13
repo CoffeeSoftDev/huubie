@@ -7,7 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../../assets/css/general.css">
 <link rel="stylesheet" href="../../../assets/css/colors.css">
-<link rel="stylesheet" href="../../../assets/css/sidebar.css">
+<!-- El CSS del rail viene de sidebar.js; data-rail="static" deja en paz los botones de la plantilla. -->
+<script src="../../../auth/src/js/sidebar.js"></script>
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script src="../../../assets/js/tailwind-theme.js"></script>
 <link rel="stylesheet" href="../../../assets/css/compact.css">
@@ -360,7 +361,7 @@ body.dark-mode .t-orange{background:rgba(249,115,22,.16);color:#fdba74;border-co
 <body>
 
 <!-- Rail lateral (sidebar de pro) -->
-<div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2">
+<div id="menu-sidebar" data-rail="static">
     <button type="button" class="menu-rail-item" data-view="inicio" onclick="setView('inicio')" title="Inicio"><i data-lucide="house"></i><span class="menu-rail-label">Inicio</span></button>
     <button type="button" class="menu-rail-item is-active" data-view="vender" onclick="setView('vender')" title="Vender" aria-current="page"><i data-lucide="shopping-cart"></i><span class="menu-rail-label">Vender</span></button>
     <button type="button" class="menu-rail-item" data-view="pedidos" onclick="setView('pedidos')" title="Pedidos"><i data-lucide="cake"></i><span class="menu-rail-label">Pedidos</span><span id="badgePedidos" class="po-rail-badge hidden">0</span></button>

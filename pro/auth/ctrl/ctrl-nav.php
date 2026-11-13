@@ -9,7 +9,8 @@ require_once __DIR__ . '/../../core/helpers/_CoffeeSoft.php';
 /*  Lo que piden la barra superior y el rail lateral de cada pagina.
 
       session        quien entro, su empresa, sus sucursales y su modo (claro u oscuro)
-      rail           el menu lateral de la pagina que pregunta
+      rail           el menu lateral de la pagina que pregunta (y sus salidas
+                     fijas: Mi perfil y, para el dueño, Configuración)
       theme          guarda el modo elegido
       switchBranch   cambia la sucursal activa
 
@@ -30,6 +31,7 @@ class ctrl extends mdl {
     const ROUTE_PROFILE  = 'app/perfil/';
     const ROUTE_COMPANIES = 'app/empresas/';
     const ROUTE_SETUP     = 'app/configurar/';
+    const ROUTE_SETTINGS  = 'app/configuracion/';
 
     function session() {
         $row = $this->getNavUser([Session::user()]);
@@ -45,6 +47,8 @@ class ctrl extends mdl {
                 'company'  => $_SESSION['company'],
                 'branch'   => $_SESSION['branch'],
                 'is_root'  => (int) $_SESSION['is_root'],
+                // El dueño administra su empresa: la barra le ofrece Configuración.
+                'is_owner' => $this->ownsCompany() ? 1 : 0,
                 // root dentro de una empresa: la esta viendo como su dueño.
                 'viewing'  => !empty($_SESSION['is_root']) && Plan::companyId() > 0 ? 1 : 0,
                 'locked'   => Plan::companyId() > 0 && !Plan::state()['ok'] ? 1 : 0,
@@ -221,7 +225,17 @@ class ctrl extends mdl {
 
         $extras[] = ['name' => 'Mi perfil', 'icon' => 'user-round', 'route' => self::ROUTE_PROFILE];
 
+        // La configuracion de la empresa es de su dueño (root dentro de una
+        // empresa la ve como tal: app/empresas le pone is_owner).
+        if ($this->ownsCompany()) {
+            $extras[] = ['name' => 'Configuración', 'icon' => 'settings', 'route' => self::ROUTE_SETTINGS];
+        }
+
         return $extras;
+    }
+
+    private function ownsCompany() {
+        return Plan::companyId() > 0 && !empty($_SESSION['is_owner']);
     }
 
     /*  El modulo de la pagina sale de su ruta relativa a pro/, contra

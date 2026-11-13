@@ -503,12 +503,7 @@ body.dark-mode .user-menu-btn:hover {
     border-color: var(--dk-line-hi) !important;
 }
 
-/* Sidebar Dark Mode */
-body.dark-mode #menu-sidebar {
-    background-color: var(--dk-chrome) !important;
-    border-right: 1px solid var(--dk-line) !important;
-}
-
+/* El rail (#menu-sidebar) en oscuro lo pinta auth/src/js/sidebar.js. */
 body.dark-mode #sidebar {
     background-color: var(--dk-chrome) !important;
 }

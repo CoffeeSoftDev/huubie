@@ -24,17 +24,27 @@
     En movil (<= MOVIL px) el rail deja el lateral y se vuelve una barra FIJA
     al pie, en fila y con scroll horizontal; el flotante sale hacia arriba.
 
-    Los colores NO viven aqui: los items son .menu-rail-item, que ya pintan
-    assets/css/sidebar.css, themes.css (acento, rail con color propio) y
-    dark-mode.css. Este archivo solo trae lo que el rail viejo no tenia:
-    separadores, items apagados, el flotante y la barra de movil, todo con los
-    tokens del tema.
+    ESTE ARCHIVO ES EL RAIL ENTERO, para todo pro/: su markup y TODO su CSS
+    (injectCSS). Ninguna pagina ni modulo le pone clases al contenedor ni carga
+    una hoja para el: con el <div> vacio y este script basta, y asi se ve igual
+    en todas partes. Los colores salen de los tokens del tema (themes.css:
+    --surface, --line, --ink-dim, --tint, --brand-*, --dk-*), asi que sigue al
+    modo claro u oscuro sin reglas por pagina.
+
+    Lo unico que queda fuera es el HUECO que la pagina le deja (general.css:
+    el rail fijo de 60px y el padding-left del <body>). Va en la hoja de la
+    pagina porque tiene que estar antes del primer pintado, y este script
+    corre al final.
 
     Uso:  <div id="menu-sidebar"></div>
           <script src=".../auth/src/js/sidebar.js"></script>
 
-    Una pagina puede marcar su item a mano con data-active="perfil|inicio"
-    cuando no es ni un modulo ni una seccion. */
+    Una pagina puede marcar su item a mano con
+    data-active="inicio|perfil|configuracion" cuando no es ni un modulo ni una
+    seccion.
+
+    data-rail="static": la pagina trae sus propios botones .menu-rail-item
+    (la plantilla del POS). El script solo pone el CSS y no toca el markup. */
 (function () {
     'use strict';
 
@@ -109,26 +119,49 @@
     function injectCSS() {
         if (document.getElementById('sidebar-rail-css')) return;
 
-        var css = ''
-            /*  general.css ya lo deja fijo a la izquierda, de 60px y bajo la
-                navbar. Aqui el scroll para cuando hay muchas secciones. */
-            + '#menu-sidebar { padding-top: 10px; display:flex; flex-direction:column; align-items:center; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF); }'
-            + '#menu-sidebar::-webkit-scrollbar { display:none; }'
-            + 'body.dark-mode #menu-sidebar { background-color:var(--dk-chrome, #141d2b); border-right-color:var(--dk-line, #374151); }'
+        var acento = 'rgb(var(--brand-600, 80 48 165))';
 
-            + '.menu-rail-item { flex-shrink:0; text-decoration:none !important; font-family:inherit; }'
+        var css = ''
+            /*  El contenedor. general.css ya lo deja fijo a la izquierda, de
+                60px y bajo la navbar. Los !important son por si una pagina le
+                deja clases de utilidad (.py-4, .gap-2, .bg-white de Bootstrap
+                van con !important): el rail mide lo mismo en todas. La fuente
+                va fija y no heredada: cada pagina trae la suya en el <body>. */
+            + '#menu-sidebar { display:flex; flex-direction:column; align-items:center; gap:4px !important; padding:10px 6px 10px !important; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF) !important; border-right-color:var(--line, #E5E7EB); font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif; }'
+            + '#menu-sidebar::-webkit-scrollbar { display:none; }'
+            + 'body.dark-mode #menu-sidebar { background-color:var(--dk-chrome, #141d2b) !important; border-right:1px solid var(--dk-line, #374151); }'
+
+            /*  El item: icono arriba, nombre abajo. El de la pagina abierta va
+                con el tinte del acento; al pasar, el acento muy diluido. */
+            + '.menu-rail-item { position:relative; flex-shrink:0; width:48px; min-height:46px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; margin:0; padding:7px 1px; border:1px solid transparent; border-radius:14px; background:transparent; color:var(--ink-dim, #6B7280); font-family:inherit; text-align:center; text-decoration:none !important; cursor:pointer; transition:color .15s ease, background .15s ease, border-color .15s ease; }'
+            + '.menu-rail-item i, .menu-rail-item svg { width:19px; height:19px; flex-shrink:0; }'
+            + '.menu-rail-label { font-size:8.5px; font-weight:600; letter-spacing:.01em; line-height:1; white-space:nowrap; }'
             // Bootstrap pinta los <a> de azul al pasar: el color lo decide el tema.
             + 'a.menu-rail-item:hover { text-decoration:none; }'
+            + '.menu-rail-item:hover { color:' + acento + '; background:var(--tint, rgb(var(--brand-600, 80 48 165) / .06)); border-color:transparent; }'
+            + '.menu-rail-item:focus-visible { outline:2px solid ' + acento + '; outline-offset:1px; }'
+            + '.menu-rail-item.is-active { color:' + acento + '; background:rgb(var(--brand-600, 80 48 165) / .10); border-color:rgb(var(--brand-600, 80 48 165) / .12); }'
+
+            + 'body.dark-mode .menu-rail-item { color:var(--dk-muted, #9CA3AF); }'
+            + 'body.dark-mode .menu-rail-item:hover { color:#FFFFFF; background:var(--dk-hover, #1a2332); border-color:rgba(55,65,81,.4); }'
+            + 'body.dark-mode .menu-rail-item.is-active { color:rgb(var(--brand-300, 164 202 254)); background:rgb(var(--brand-600, 28 100 242) / .18); border-color:rgb(var(--brand-600, 28 100 242) / .22); }'
+
+            /*  Rail con color propio: InventoryPalette (tailwind-theme.js) pone
+                --sidebar-bg y data-sidebar="dark" en <html> cuando el modo trae
+                un fondo oscuro para el rail (el #0F172A del modo oscuro). Los
+                items van claros y el hover es un velo blanco. `html ... body`
+                para ganarle a las reglas de body.dark-mode de arriba. */
+            + 'html[data-sidebar] body #menu-sidebar { background-color:var(--sidebar-bg) !important; }'
+            + 'html[data-sidebar="dark"] body #menu-sidebar { border-right-color:rgb(0 0 0 / .10); }'
+            + 'html[data-sidebar="dark"] body .menu-rail-item { color:rgb(255 255 255 / .68); }'
+            + 'html[data-sidebar="dark"] body .menu-rail-item:hover { color:#FFFFFF; background:rgb(255 255 255 / .08); border-color:rgb(255 255 255 / .10); }'
+            + 'html[data-sidebar="dark"] body .menu-rail-item.is-active { color:#FFFFFF; background:rgb(255 255 255 / .16); border-color:rgb(255 255 255 / .20); }'
             /*  Etiqueta de UNA linea con puntos suspensivos. En 48px no cabe un
                 nombre real; el completo va en el title del item. Si algun dia
                 se quieren leer enteros, el camino es ensanchar el rail. */
             + '.menu-rail-label { max-width:100%; overflow:hidden; text-overflow:ellipsis; }'
             // La pagina donde estas y no es enlace: no invita a pulsar.
             + '.menu-rail-item[aria-current="page"] { cursor:default; }'
-
-            // sidebar.css le dibujaba una raya al segundo item: ahora hay separador.
-            + '#menu-sidebar .menu-rail-item:nth-child(2) { margin-top:0; }'
-            + '#menu-sidebar .menu-rail-item:nth-child(2)::before { content:none; }'
 
             /*  Apagado: un modulo sin pagina todavia, o cualquiera con la
                 empresa sin pago al corriente. Se ve, no se puede abrir. */
@@ -139,7 +172,6 @@
             + '.menu-rail-sep { width:28px; height:1px; background:var(--line, #E5E7EB); margin:6px 0; flex-shrink:0; }'
             + 'body.dark-mode .menu-rail-sep { background:var(--dk-line, #374151); }'
             + 'html[data-sidebar="dark"] body .menu-rail-sep { background:rgb(255 255 255 / .16); }'
-            + 'html[data-sidebar="tinted"] body .menu-rail-sep { background:rgb(17 24 39 / .14); }'
 
             /*  El pie: margin-top:auto se come el hueco libre del rail y manda
                 el bloque al fondo aunque el modulo tenga dos secciones. Si ya
@@ -175,9 +207,9 @@
                 barra, para que la ultima fila termine encima de ella y no
                 debajo. El safe-area es para el gesto de inicio del iPhone. */
             + '@media (max-width:' + MOVIL + 'px) {'
-            +   'body { padding-left:0 !important; padding-bottom:calc(' + ALTO_MOVIL + 'px + env(safe-area-inset-bottom)) !important; }'
-            +   '#menu-sidebar { top:auto; left:0; right:0; bottom:0; width:auto; box-sizing:border-box; height:calc(' + ALTO_MOVIL + 'px + env(safe-area-inset-bottom)); flex-direction:row; gap:2px !important; padding:6px 8px calc(6px + env(safe-area-inset-bottom)) !important; border-right:0; border-top:1px solid var(--line, #E5E7EB); box-shadow:0 -4px 12px rgba(15,23,42,.06); overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; }'
-            +   'body.dark-mode #menu-sidebar { border-top-color:var(--dk-line, #374151); }'
+            +   'body:not(:has(#menu-sidebar[data-rail="static"])) { padding-left:0 !important; padding-bottom:calc(' + ALTO_MOVIL + 'px + env(safe-area-inset-bottom)) !important; }'
+            +   '#menu-sidebar:not([data-rail="static"]) { top:auto; left:0; right:0; bottom:0; width:auto; box-sizing:border-box; height:calc(' + ALTO_MOVIL + 'px + env(safe-area-inset-bottom)); flex-direction:row; gap:2px !important; padding:6px 8px calc(6px + env(safe-area-inset-bottom)) !important; border-right:0; border-top:1px solid var(--line, #E5E7EB); box-shadow:0 -4px 12px rgba(15,23,42,.06); overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; }'
+            +   'body.dark-mode #menu-sidebar:not([data-rail="static"]) { border-top-color:var(--dk-line, #374151); }'
             +   '.menu-rail-sep { width:1px; height:28px; margin:0 6px; }'
             // Al pie ya va ultimo en la fila: empujarlo al extremo abriria un hueco.
             +   '.menu-rail-foot { margin-top:0; margin-left:auto; flex-direction:row; gap:2px; }'
@@ -261,7 +293,7 @@
         }).join('');
 
         var pie = (tree.extras || []).map(function (s) {
-            return itemHTML(s, s.route === activa || (marca === 'perfil' && norma(s.route) === 'app/perfil'));
+            return itemHTML(s, s.route === activa || (marca === 'perfil' && norma(s.route) === 'app/perfil') || (marca === 'configuracion' && norma(s.route) === 'app/configuracion'));
         }).join('');
 
         host.innerHTML = ''
@@ -482,7 +514,8 @@
         var host = document.getElementById('menu-sidebar');
         if (!host) return;
 
-        injectCSS();
+        // La pagina trae su propio rail (plantilla): solo necesitaba el CSS.
+        if (host.getAttribute('data-rail') === 'static') return;
 
         // Fail-closed: mientras no haya menu, solo Inicio. Es la salida, y no
         // depende de nada.
@@ -552,6 +585,9 @@
         fly.cerrar();
         render(host, estado.tree);
     }
+
+    // El CSS, en cuanto carga el script: no espera al contenedor ni al servidor.
+    injectCSS();
 
     if (document.readyState === 'loading' && !document.getElementById('menu-sidebar')) document.addEventListener('DOMContentLoaded', init);
     else init();

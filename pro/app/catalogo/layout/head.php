@@ -30,7 +30,6 @@ $asset = function ($file) {
     <link rel="stylesheet" href="<?= $asset('assets/css/background.css') ?>">
     <link rel="stylesheet" href="<?= $asset('assets/css/text.css') ?>">
     <link rel="stylesheet" href="<?= $asset('assets/css/style.css') ?>">
-    <link rel="stylesheet" href="<?= $asset('assets/css/sidebar.css') ?>">
 
     <!-- tailwind-theme.js va JUSTO despues del CDN: le da la config y pinta la paleta guardada. -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -74,7 +73,7 @@ $asset = function ($file) {
 </head>
 
 <body>
-    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
+    <div id="menu-sidebar"></div>
     <main>
         <div id="menu-navbar"></div>
 
