@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /*  Huubie · Barra superior de pro/
 
     La misma barra de erp-pro/pro (auth/src/js/navbar.js) en su version de
@@ -63,25 +62,10 @@ class Navbar {
 
         const res = await this.post({ opc: 'session' });
 
-=======
-// Barra superior de pro: marca, en que empresa y sucursal se esta, quien entro, el
-// tema y la salida. Los datos salen de ctrl-nav :: session y themes.
-class Navbar {
-    async init() {
-        this.base   = this.proBase();
-        this.themes = [];
-        this.theme  = '';
-        this.render();
-
-        // Las dos a la vez: ctrl-nav suelta la sesion al leer y no se forman en fila.
-        const [res, themes] = await Promise.all([this.post({ opc: 'session' }), this.post({ opc: 'themes' })]);
-
->>>>>>> 5beb47575ae2da067b536bf2e20567da0e6f2634
         if (res && res.status === 401) {
             window.location.href = this.base + '/index.php';
             return;
         }
-<<<<<<< HEAD
 
         if (!res || res.status !== 200) return;
 
@@ -94,10 +78,6 @@ class Navbar {
 
         // Para las paginas que quieran lo mismo sin volver a pedirlo.
         document.dispatchEvent(new CustomEvent('nav:session', { detail: res.data }));
-=======
-        if (res && res.status === 200) this.renderSession(res.data);
-        if (themes && themes.status === 200) this.renderThemes(themes.themes, themes.current);
->>>>>>> 5beb47575ae2da067b536bf2e20567da0e6f2634
     }
 
     proBase() {
@@ -106,10 +86,6 @@ class Navbar {
         return i >= 0 ? p.slice(0, i + '/pro'.length) : '/pro';
     }
 
-<<<<<<< HEAD
-=======
-    // Una peticion a ctrl-nav. Si falla la red o la respuesta no es JSON, devuelve null.
->>>>>>> 5beb47575ae2da067b536bf2e20567da0e6f2634
     async post(data) {
         try {
             const res = await fetch(this.base + '/auth/ctrl/ctrl-nav.php', {
@@ -123,55 +99,11 @@ class Navbar {
         }
     }
 
-<<<<<<< HEAD
     esc(text) {
         return (text == null ? '' : String(text)).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
     icons() {
-=======
-    render() {
-        $('#menu-navbar').html(`
-            <nav class="flex items-center justify-between gap-3 px-3 bg-white border-b border-gray-200">
-                <div class="flex items-center gap-3 min-w-0">
-                    <button type="button" id="btn-menu" class="p-2 rounded-md text-gray-500 hover:bg-gray-100" title="Menú" aria-controls="menu-sidebar">
-                        <i data-lucide="menu" class="w-5 h-5"></i>
-                    </button>
-                    <a href="${this.base}/index.php" class="flex items-center gap-2 no-underline text-gray-900 shrink-0">
-                        <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-[#0A0A0A]">
-                            <img src="${this.base}/assets/img/huubie.png" alt="" class="w-6 h-6">
-                        </span>
-                        <span class="font-semibold">Huubie</span>
-                    </a>
-                    <span id="nav-context" class="hidden md:flex items-center gap-1.5 text-sm text-gray-500 min-w-0"></span>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <a id="nav-companies" href="${this.base}/app/empresas/" title="Cambiar empresa" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-gray-600 hover:bg-gray-100 no-underline">
-                        <i data-lucide="building-2" class="w-4 h-4"></i><span class="hidden md:inline">Cambiar empresa</span>
-                    </a>
-                    <div id="nav-theme" class="relative hidden">
-                        <button type="button" id="btn-theme" class="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900" title="Tema" aria-haspopup="true" aria-expanded="false" aria-controls="nav-theme-menu">
-                            <i data-lucide="palette" class="w-[18px] h-[18px]"></i>
-                        </button>
-                        <div id="nav-theme-menu" class="hidden absolute right-0 top-full mt-1 w-60 p-1 bg-white border border-gray-200 rounded-lg shadow-lg"></div>
-                    </div>
-                    <div id="nav-user" class="flex items-center gap-2"></div>
-                    <button type="button" id="btn-logout" class="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900" title="Cerrar sesión">
-                        <i data-lucide="log-out" class="w-[18px] h-[18px]"></i>
-                    </button>
-                </div>
-            </nav>
-        `);
-
-        $('#btn-logout').on('click', () => this.logout());
-
-        // El menu de temas se cierra al elegir, con Escape o al hacer clic fuera.
-        $('#btn-theme').on('click', () => this.toggleThemes());
-        $('#nav-theme-menu').on('click', '[data-code]', (e) => this.selectTheme(e.currentTarget.dataset.code));
-        $(document).on('click', (e) => { if (!$(e.target).closest('#nav-theme').length) this.closeThemes(); });
-        $(document).on('keydown', (e) => { if (e.key === 'Escape') this.closeThemes(); });
-
->>>>>>> 5beb47575ae2da067b536bf2e20567da0e6f2634
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
