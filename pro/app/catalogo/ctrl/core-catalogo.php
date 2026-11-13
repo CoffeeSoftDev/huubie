@@ -319,6 +319,13 @@ if (!function_exists('money')) {
     }
 }
 
+// Celda de precio o costo: en cero no dice $0.00, lleva el guion de las celdas vacías.
+if (!function_exists('moneyCell')) {
+    function moneyCell($number) {
+        return abs((float) $number) < 0.005 ? '<span class="cp-celda-sub">—</span>' : money($number);
+    }
+}
+
 if (!function_exists('renderActive')) {
     function renderActive($active) {
         $base = 'px-2 py-1 rounded-md text-sm font-semibold ';

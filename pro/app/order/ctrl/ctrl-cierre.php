@@ -62,7 +62,8 @@ class ctrl extends core {
         }, 'No se pudo leer el cierre del día.');
     }
 
-    // Un turno cerrado muestra lo vendido de su corte; 'live' es lo de hoy si ya no cuadra.
+    /*  Un turno cerrado muestra lo vendido de su corte; 'live' es lo de hoy si ya no cuadra.
+        Esperado y contado solo existen en un turno cerrado (los guarda el corte Z). */
     private function dayTurns($branchId, $from, $to) {
         return array_map(function ($t) {
             $closed = $t['status'] !== 'open';
@@ -70,17 +71,20 @@ class ctrl extends core {
             $cut    = round((float) $t['total_sales'], 2);
 
             return [
-                'id'         => (int) $t['id'],
-                'folio'      => (string) $t['folio'],
-                'closed'     => $closed,
-                'opened_at'  => $t['opened_at'],
-                'closed_at'  => $t['closed_at'],
-                'opened_by'  => trim((string) $t['opened_by']),
-                'sold'       => $closed ? $cut : $live,
-                'live'       => $live,
-                'changed'    => $closed && abs($live - $cut) >= 0.005,
-                'collected'  => round((float) $t['collected'], 2),
-                'difference' => $closed ? round((float) $t['counted_cash'] - (float) $t['expected_cash'], 2) : null
+                'id'            => (int) $t['id'],
+                'folio'         => (string) $t['folio'],
+                'closed'        => $closed,
+                'opened_at'     => $t['opened_at'],
+                'closed_at'     => $t['closed_at'],
+                'opened_by'     => trim((string) $t['opened_by']),
+                'sold'          => $closed ? $cut : $live,
+                'live'          => $live,
+                'changed'       => $closed && abs($live - $cut) >= 0.005,
+                'collected'     => round((float) $t['collected'], 2),
+                'opening_cash'  => round((float) $t['opening_cash'], 2),
+                'expected_cash' => $closed ? round((float) $t['expected_cash'], 2) : null,
+                'counted_cash'  => $closed ? round((float) $t['counted_cash'], 2) : null,
+                'difference'    => $closed ? round((float) $t['counted_cash'] - (float) $t['expected_cash'], 2) : null
             ];
         }, $this->qDayTurns($branchId, $from, $to));
     }

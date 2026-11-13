@@ -237,7 +237,7 @@ class ctrl extends mdl {
         if ($path === '') return null;
 
         $bySection = $this->getModuleBySectionRoute([$path]);
-        if ($bySection > 0) return $bySection;
+        if ($bySection) return $bySection;
 
         foreach ($this->listModulesForMatch() as $module) {
             $route = trim((string) $module['route'], '/');

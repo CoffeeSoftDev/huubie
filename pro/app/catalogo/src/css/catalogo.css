@@ -1,5 +1,5 @@
 /*  Catalogo: pagina al estilo de CostSys nuevo (erp-pro/pro/app/costsys).
-    Migas + titulo + subtitulo, pestañas en su tarjeta (cs-tabs.js) y cada
+    Titulo + subtitulo, pestañas en su tarjeta (cs-tabs.js) y cada
     pestaña en otra tarjeta. Las clases del encabezado (.cp-pagina-titulo y
     .cp-pagina-subtitulo) las inyecta cs-tabs.js. */
 
@@ -29,37 +29,19 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     }
 }
 
-/* -- Migas -- */
-.cp-migas {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    margin-bottom: 16px;
-}
-
-.cp-migas-raiz {
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    font-weight: 600;
-    color: #94A3B8;
-}
-
-.cp-migas-sep {
-    color: #CBD5E1;
-}
-
-.cp-migas-actual {
-    font-weight: 700;
-    color: rgb(var(--brand-700, 168 74 51));
-}
-
-/* -- Panel de cada pestaña -- */
+/* -- Panel de cada pestaña --
+   Llena el alto que queda debajo de las pestañas (#tabbarCatalogo ya es
+   flex-1 flex-col). Sin min-height:0: con una tabla larga crece y el scroll
+   sigue siendo el de #main__content. */
 .cs-tabs-panels {
     margin-top: 16px;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .cs-tabs-panels > div {
+    flex: 1 1 auto;
     background: #fff;
     border: 1px solid #E2E8F0;
     border-radius: 14px;
@@ -84,6 +66,24 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     color: #94A3B8;
 }
 
+/* Foto del producto; sin foto, el cuadro vacío con el pastel. */
+.cp-foto {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #F1F5F9;
+}
+
+.cp-foto-vacia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    font-size: 18px;
+}
+
 .cp-chip {
     display: inline-flex;
     align-items: center;
@@ -95,19 +95,20 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     white-space: nowrap;
 }
 
-/* -- Oscuro -- */
-body.dark-mode .cs-tabs-panels > div {
-    background: var(--dk-card, #1F2A37);
-    border-color: var(--dk-line, #374151);
+/* -- Oscuro --
+   El panel es #container-*: dark-mode.css vuelve transparente todo
+   [id*="container"] con !important y la tarjeta quedaba del color de la
+   pagina. Aqui recupera la superficie de tarjeta. El borde va en --dk-line-hi:
+   con --dk-line (#374151 en Huubie) casi no se distinguia del fondo. La barra
+   de pestañas lleva el mismo; su CSS lo inyecta cs-tabs.js, de ahi el #id. */
+body.dark-mode #tabbarCatalogo .cs-tabs-panels > div {
+    background: var(--dk-card, #1F2A37) !important;
+    border-color: var(--dk-line-hi, #4B5563);
     box-shadow: none;
 }
 
-body.dark-mode .cp-migas-raiz {
-    color: var(--dk-muted, #9CA3AF);
-}
-
-body.dark-mode .cp-migas-sep {
-    color: var(--dk-line, #374151);
+body.dark-mode #tabbarCatalogo .cs-tabs {
+    border-color: var(--dk-line-hi, #4B5563);
 }
 
 body.dark-mode .cp-celda-titulo {
@@ -115,5 +116,13 @@ body.dark-mode .cp-celda-titulo {
 }
 
 body.dark-mode .cp-celda-sub {
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode .cp-foto {
+    background: var(--dk-bg, #111928);
+}
+
+body.dark-mode .cp-foto-vacia {
     color: var(--dk-muted, #9CA3AF);
 }

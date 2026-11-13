@@ -31,6 +31,8 @@ class App extends Templates {
             title:    'Selecciona tu empresa',
             subtitle: 'Elige a qué empresa quieres entrar hoy',
             user:     data.user || 'Usuario',
+            // Fijo: centrado en la ventana quedaba a 366px de la barra en pantallas altas.
+            top:      136,
             json:     this.jsonCards(data),
             empty: {
                 icon:  'building-2',

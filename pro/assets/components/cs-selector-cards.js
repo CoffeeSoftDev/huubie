@@ -18,6 +18,8 @@ Templates.prototype.csSelectorCards = function (options) {
             title: 'Sin opciones disponibles',
             text:  ''
         },
+        // Margen de arriba fijo en px; null = centrado en la ventana (anchor()).
+        top:      null,
         onSelect: () => {},
         onLogout: null
     };
@@ -167,6 +169,11 @@ Templates.prototype.csSelectorCards = function (options) {
     // encabezado ni una fila cambian de alto con más tarjetas, así que el título
     // se queda en su lugar aunque se agreguen empresas.
     const anchor = () => {
+        if (opts.top !== null) {
+            container.css('padding-top', `${opts.top}px`);
+            return;
+        }
+
         const first = opts.json.length ? body.children().first() : body;
         const free  = window.innerHeight - header.outerHeight(true) - (first.outerHeight() || 0);
         container.css('padding-top', `${Math.max(32, Math.round(free / 2))}px`);

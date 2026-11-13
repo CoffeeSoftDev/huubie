@@ -289,6 +289,185 @@ class core extends mdl {
         return $cut === '' ? '' : ucfirst($cut) . ': su corte no cambia.';
     }
 
+    // -- Reglas de captura --
+
+    // '' = se puede editar. Si no, el motivo en una frase.
+    protected function editBlock($o) {
+        $status = (int) $o['sale_status_id'];
+
+        if ($status === self::CANCELLED) return 'Un pedido cancelado no se edita.';
+        if ($status === self::PAID)      return 'Un pedido pagado no se edita.';
+        if ($status !== self::QUOTE && $status !== self::PENDING) return 'Este pedido no se puede editar en su estado actual.';
+        if ((int) $o['delivery_status'] === 1) return 'Un pedido entregado no se edita.';
+
+        return '';
+    }
+
+    // '' = se puede cancelar. Con abonos hace falta cliente: ahi queda el saldo a favor.
+    protected function cancelBlock($o) {
+        $status = (int) $o['sale_status_id'];
+
+        if ($status === self::CANCELLED) return 'El pedido ya está cancelado.';
+        if ($status === self::PAID)      return 'Un pedido pagado no se cancela.';
+        if ($status !== self::QUOTE && $status !== self::PENDING) return 'Este pedido no se puede cancelar en su estado actual.';
+        if ((int) $o['delivery_status'] === 1) return 'Un pedido entregado no se cancela.';
+        if ((float) $o['paid'] > 0 && (int) $o['customer_id'] <= 0) {
+            return 'Tiene abonos por ' . money($o['paid']) . ' y no tiene cliente: no hay a quién dejar el saldo a favor.';
+        }
+
+        return '';
+    }
+
+    /*  Opcion "multiple" del pastel: se suma por cantidad, no por porcion.
+        Igual que alpha: grupo marcado como extra o cuyo nombre dice "decoraci".
+        Sin grupo tambien cuenta como multiple (no hay grupo que limite a una). */
+    protected function isMultiple($isExtra, $groupName, $groupId = 1) {
+        if ((int) $groupId <= 0) return true;
+        if ((int) $isExtra === 1) return true;
+
+        return mb_stripos((string) $groupName, 'decoraci', 0, 'UTF-8') !== false;
+    }
+
+    // -- Entrega --
+
+    /*  '' = se puede marcar entregado. Decisión 5: el saldo se cubre al entregar,
+        así que con saldo primero se cobra; la pantalla encadena las dos cosas. */
+    protected function deliverBlock($o) {
+        $status  = (int) $o['sale_status_id'];
+        $balance = round((float) $o['total'] - (float) $o['paid'], 2);
+
+        if ($status === self::CANCELLED)        return 'Un pedido cancelado no se entrega.';
+        if ((int) $o['delivery_status'] === 1) return 'El pedido ya se entregó.';
+        if ($balance > 0.005)                   return 'Tiene saldo de ' . money($balance) . ': cóbralo antes de entregar.';
+        if (!in_array($status, [self::QUOTE, self::PENDING, self::PAID], true)) return 'Este pedido no se puede entregar en su estado actual.';
+
+        return '';
+    }
+
+    // Solo el saldo impide entregar: se ofrece «Cobrar y entregar».
+    protected function settleFirst($o) {
+        return (int) $o['sale_status_id'] !== self::CANCELLED
+            && (int) $o['delivery_status'] !== 1
+            && round((float) $o['total'] - (float) $o['paid'], 2) > 0.005;
+    }
+
+    /*  Marca entregado. Valida despues de bloquear el pedido (FOR UPDATE): dos
+        clics o dos cajas a la vez no lo entregan dos veces. sale no tiene
+        delivered_at: la hora queda en la bitacora. Pide 'update' de Pedidos. */
+    protected function deliver($id) {
+        $fail = $this->need('update', 'entregar pedidos') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
+
+        return $this->attempt(function () use ($id) {
+            return $this->transaction(function () use ($id) {
+                $order = $this->qLockOrder($id, $this->branchId());
+
+                if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
+
+                $block = $this->deliverBlock($order);
+                if ($block !== '') return $this->fail(409, $block);
+
+                $this->must($this->qUpdateOrder([
+                    'values' => ['delivery_status'],
+                    'where'  => ['id'],
+                    'data'   => [1, $id]
+                ]), 'deliver');
+
+                $how = (int) $order['delivery_method'] === 1 ? 'envío a domicilio' : 'recoge en tienda';
+
+                $this->log($id, 'delivery', 'Pedido entregado',
+                    'Entregado el ' . date('d/m/Y') . ' a las ' . hour12(date('H:i:s')) . " ({$how}).");
+
+                return $this->ok("Pedido P{$id} entregado.", ['id' => $id]);
+            });
+        }, 'No se pudo marcar el pedido como entregado.');
+    }
+
+    // -- Detalle --
+
+    /*  El detalle completo: lo abren Pedidos y Calendario con el mismo modal.
+        Cada ctrl valida antes su permiso de ver. */
+    protected function orderBundle($id) {
+        $branch = $this->scope()['branch'];
+        $order  = $id > 0 ? $this->qGetOrder($id, $this->branchId()) : null;
+
+        if (!$order) return $this->fail(404, "El pedido P{$id} no existe en {$branch}.");
+
+        $lines   = $this->qOrderLines($id);
+        $lineIds = array_map('intval', array_column($lines, 'id'));
+        $images  = $this->groupBy($this->qLineImages($lineIds), 'detail_sale_id');
+        $customs = [];
+
+        foreach ($lines as $line) {
+            if ((int) $line['is_custom'] === 1) $customs[] = (int) $line['product_id'];
+        }
+
+        $modifiers = $this->groupBy($this->qProductModifiers(array_values(array_unique($customs))), 'product_id');
+
+        foreach ($lines as &$line) {
+            $line['images']    = isset($images[$line['id']]) ? $images[$line['id']] : [];
+            $line['modifiers'] = ((int) $line['is_custom'] === 1 && isset($modifiers[$line['product_id']]))
+                               ? $modifiers[$line['product_id']]
+                               : [];
+
+            foreach ($line['modifiers'] as &$modifier) {
+                $modifier['multiple'] = $this->isMultiple($modifier['is_extra'], $modifier['group_name'], $modifier['modifier_group_id']);
+            }
+            unset($modifier);
+        }
+        unset($line);
+
+        return [
+            'status'   => 200,
+            'branch'   => $branch,
+            'order'    => $order,
+            'lines'    => $lines,
+            'payments' => $this->qPayments($id),
+            'history'  => $this->qHistory($id),
+            'actions'  => $this->actions(),
+            'can'      => $this->orderCan($order)
+        ];
+    }
+
+    // Lo que se puede hacer con el pedido y, si no, por que.
+    protected function orderCan($order) {
+        $update  = $this->need('update') === null;
+        $edit    = $update ? $this->editBlock($order) : 'Tu rol no puede editar pedidos.';
+        $cancel  = $this->need('cancel') === null ? $this->cancelBlock($order) : 'Tu rol no puede cancelar pedidos.';
+        $pay     = $this->need('create') === null ? $this->payBlock($order) : 'Tu rol no puede cobrar pedidos.';
+        $deliver = $update ? $this->deliverBlock($order) : 'Tu rol no puede entregar pedidos.';
+        $money   = $this->moneyBlock($order);
+        $alive   = (int) $order['sale_status_id'] !== self::CANCELLED;
+
+        return [
+            'edit'           => $edit === '',
+            'edit_reason'    => $edit,
+            'money'          => $money === '',
+            'money_reason'   => $money,
+            'cut'            => $this->closedCut($order),
+            'cancel'         => $cancel === '',
+            'cancel_reason'  => $cancel,
+            'pay'            => $pay === '',
+            'pay_reason'     => $pay,
+            'deliver'        => $deliver === '',
+            'deliver_reason' => $deliver,
+            'settle'         => $update && $pay === '' && $this->settleFirst($order),
+            'delete_payment' => $alive && $this->need('delete') === null
+        ];
+    }
+
+    protected function groupBy(array $rows, $key) {
+        $groups = [];
+
+        foreach ($rows as $row) {
+            $groups[$row[$key]][] = $row;
+        }
+
+        return $groups;
+    }
+
     // -- Respuestas --
 
     protected function ok($message, $extra = []) {

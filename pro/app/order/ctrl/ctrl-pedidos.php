@@ -148,6 +148,13 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-money', 'text' => 'Cobrar', 'onclick' => "orderPay.open({$id})"];
         }
 
+        // Entregar; con saldo, cobrar primero y entregar al terminar (decision 5).
+        if (in_array('update', $actions, true) && $this->deliverBlock($o) === '') {
+            $menu[] = ['icon' => 'icon-ok-circled', 'text' => 'Entregar', 'onclick' => "orderDetail.deliver({$id})"];
+        } elseif (in_array('update', $actions, true) && in_array('create', $actions, true) && $this->settleFirst($o) && $this->payBlock($o) === '') {
+            $menu[] = ['icon' => 'icon-truck', 'text' => 'Cobrar y entregar', 'onclick' => "orderPay.open({$id}, false, { deliver: true })"];
+        }
+
         if (in_array('print', $actions, true)) {
             $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
         }
@@ -292,110 +299,14 @@ class ctrl extends core {
 
         $id = $this->postId();
 
-        return $this->attempt(function () use ($id) {
-            $branch = $this->scope()['branch'];
-            $order  = $id > 0 ? $this->qGetOrder($id, $this->branchId()) : null;
-
-            if (!$order) {
-                return $this->fail(404, "El pedido P{$id} no existe en {$branch}.");
-            }
-
-            $lines    = $this->qOrderLines($id);
-            $lineIds  = array_map('intval', array_column($lines, 'id'));
-            $images   = $this->groupBy($this->qLineImages($lineIds), 'detail_sale_id');
-            $customs  = [];
-
-            foreach ($lines as $line) {
-                if ((int) $line['is_custom'] === 1) $customs[] = (int) $line['product_id'];
-            }
-
-            $modifiers = $this->groupBy($this->qProductModifiers(array_values(array_unique($customs))), 'product_id');
-
-            foreach ($lines as &$line) {
-                $line['images']    = isset($images[$line['id']]) ? $images[$line['id']] : [];
-                $line['modifiers'] = ((int) $line['is_custom'] === 1 && isset($modifiers[$line['product_id']]))
-                                   ? $modifiers[$line['product_id']]
-                                   : [];
-
-                foreach ($line['modifiers'] as &$modifier) {
-                    $modifier['multiple'] = $this->isMultiple($modifier['is_extra'], $modifier['group_name'], $modifier['modifier_group_id']);
-                }
-                unset($modifier);
-            }
-            unset($line);
-
-            return [
-                'status'   => 200,
-                'branch'   => $branch,
-                'order'    => $order,
-                'lines'    => $lines,
-                'payments' => $this->qPayments($id),
-                'history'  => $this->qHistory($id),
-                'actions'  => $this->actions(),
-                'can'      => $this->orderCan($order)
-            ];
-        }, 'No se pudo abrir el pedido.');
+        return $this->attempt(fn () => $this->orderBundle($id), 'No se pudo abrir el pedido.');
     }
 
-    // Lo que se puede hacer con el pedido y, si no, por que.
-    private function orderCan($order) {
-        $edit   = $this->need('update') === null ? $this->editBlock($order) : 'Tu rol no puede editar pedidos.';
-        $cancel = $this->need('cancel') === null ? $this->cancelBlock($order) : 'Tu rol no puede cancelar pedidos.';
-        $pay    = $this->need('create') === null ? $this->payBlock($order) : 'Tu rol no puede cobrar pedidos.';
-        $money  = $this->moneyBlock($order);
-        $alive  = (int) $order['sale_status_id'] !== self::CANCELLED;
+    // -- Entrega --
 
-        return [
-            'edit'           => $edit === '',
-            'edit_reason'    => $edit,
-            'money'          => $money === '',
-            'money_reason'   => $money,
-            'cut'            => $this->closedCut($order),
-            'cancel'         => $cancel === '',
-            'cancel_reason'  => $cancel,
-            'pay'            => $pay === '',
-            'pay_reason'     => $pay,
-            'delete_payment' => $alive && $this->need('delete') === null
-        ];
-    }
-
-    // -- Reglas de captura --
-
-    // '' = se puede editar. Si no, el motivo en una frase.
-    private function editBlock($o) {
-        $status = (int) $o['sale_status_id'];
-
-        if ($status === self::CANCELLED) return 'Un pedido cancelado no se edita.';
-        if ($status === self::PAID)      return 'Un pedido pagado no se edita.';
-        if ($status !== self::QUOTE && $status !== self::PENDING) return 'Este pedido no se puede editar en su estado actual.';
-        if ((int) $o['delivery_status'] === 1) return 'Un pedido entregado no se edita.';
-
-        return '';
-    }
-
-    // '' = se puede cancelar. Con abonos hace falta cliente: ahi queda el saldo a favor.
-    private function cancelBlock($o) {
-        $status = (int) $o['sale_status_id'];
-
-        if ($status === self::CANCELLED) return 'El pedido ya está cancelado.';
-        if ($status === self::PAID)      return 'Un pedido pagado no se cancela.';
-        if ($status !== self::QUOTE && $status !== self::PENDING) return 'Este pedido no se puede cancelar en su estado actual.';
-        if ((int) $o['delivery_status'] === 1) return 'Un pedido entregado no se cancela.';
-        if ((float) $o['paid'] > 0 && (int) $o['customer_id'] <= 0) {
-            return 'Tiene abonos por ' . money($o['paid']) . ' y no tiene cliente: no hay a quién dejar el saldo a favor.';
-        }
-
-        return '';
-    }
-
-    /*  Opcion "multiple" del pastel: se suma por cantidad, no por porcion.
-        Igual que alpha: grupo marcado como extra o cuyo nombre dice "decoraci".
-        Sin grupo tambien cuenta como multiple (no hay grupo que limite a una). */
-    private function isMultiple($isExtra, $groupName, $groupId = 1) {
-        if ((int) $groupId <= 0) return true;
-        if ((int) $isExtra === 1) return true;
-
-        return mb_stripos((string) $groupName, 'decoraci', 0, 'UTF-8') !== false;
+    // Desde el menu de la fila o desde el detalle. Las reglas viven en core.
+    public function deliverOrder() {
+        return $this->deliver($this->postId());
     }
 
     // Capturar = crear o editar: con una de las dos se abre el formulario.
@@ -1349,18 +1260,6 @@ class ctrl extends core {
         }
 
         return $changes;
-    }
-
-    // -- Ayudantes --
-
-    private function groupBy(array $rows, $key) {
-        $groups = [];
-
-        foreach ($rows as $row) {
-            $groups[$row[$key]][] = $row;
-        }
-
-        return $groups;
     }
 }
 

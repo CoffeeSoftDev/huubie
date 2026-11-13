@@ -8,7 +8,12 @@
     reabrir y recalcular = cancel (Dueño y Supervisor).
 
     Un turno cerrado muestra su corte. Si sus pedidos cambiaron después,
-    t.changed trae las cifras de hoy y el modal ofrece «Recalcular». */
+    t.changed trae las cifras de hoy y el modal ofrece «Recalcular».
+
+    El corte se dibuja como la ventana de Soft Restaurant: franja de datos,
+    tres recuadros (forma de pago, caja, ventas), tabla abajo con su total,
+    barra de avisos y botones con su tecla (F2 guarda, Esc cierra). Las piezas
+    (head, box, line, grid, alertBar, softFoot) las reusa el cierre del día. */
 
 // -- Turno --
 
@@ -184,34 +189,33 @@ class OrderTurn extends Templates {
         const reopen   = t.closed && data.can.reopen;
         const canPrint = orders.can('print');
 
-        let info = '';
-
-        if (!t.closed && t.old) info = 'Turno de otro día: ciérralo para seguir capturando y cobrando.';
-        else if (t.closed && !data.can.reopen && orders.can('cancel')) info = data.can.reopen_reason;
+        const subtitle = t.closed ? 'Corte Z · el turno ya se cerró'
+            : closing ? 'Corte Z · cuenta el efectivo y cierra el turno'
+            : 'Corte X · parcial, el turno sigue abierto';
 
         this.token = ordToken();
 
         const modal = this.csModal({
             id:         'modalOrderTurn',
             title:      `Turno ${t.folio}`,
-            subtitle:   `Abierto ${ordDate(t.opened_at, true)}${t.opened_by ? ' por ' + t.opened_by : ''}`,
+            subtitle:   subtitle,
             lucideIcon: 'calculator',
-            width:      'max-w-3xl',
+            width:      'max-w-4xl',
             saveText:   closing ? 'Cerrar turno' : reopen ? 'Reabrir turno' : false,
             cancelText: 'Volver',
-            info:       info,
-            action:     canPrint ? { text: t.closed ? 'Imprimir corte Z' : 'Imprimir corte X', lucideIcon: 'printer', onClick: () => this.printCut(data) } : null,
             json: [
-                ...this.driftField(t, data.can),
-                { id: 'tc_kpis', tipo: 'html', class: 'w-full', html: this.kpis(t) },
-                { id: 'tc_methods', tipo: 'html', class: 'w-full md:w-1/2', html: this.methodsTable(t) },
-                { id: 'tc_statuses', tipo: 'html', class: 'w-full md:w-1/2', html: this.statusesTable(t) },
-                ...this.closeFields(t, closing)
+                { id: 'tc_head', tipo: 'html', class: 'w-full', html: this.head(this.turnHead(t, data.branch)) },
+                { id: 'tc_boxes', tipo: 'html', class: 'w-full', html: this.cols([this.methodsBox(t.methods, t.collected), this.cashBox(t, closing), this.salesBox(t)]) },
+                { id: 'tc_statuses', tipo: 'html', class: 'w-full', html: this.statusGrid(t.statuses, t.total_sales, Number(t.orders_count) + Number(t.sales_count), 'Sin pedidos en este turno.') },
+                ...this.turnAlerts(t, data.can),
+                ...this.reopens(t)
             ],
-            onSave: (values, close) => closing ? this.saveClose(t, values, close) : this.reopenForm(t, close)
+            onSave: (values, close) => closing ? this.saveClose(t, close) : this.reopenForm(t, close)
         });
 
         $('#modalOrderTurn .cs-modal-title').after(this.badges(t));
+
+        this.softFoot('#modalOrderTurn', canPrint ? { text: t.closed ? 'Imprimir corte Z' : 'Imprimir corte X', onClick: () => this.printCut(data) } : null);
 
         $('#modalOrderTurn').on('click', 'button.ord-recalc', () => this.recalc(t, modal));
 
@@ -237,11 +241,66 @@ class OrderTurn extends Templates {
         return `<div class="flex flex-wrap items-center gap-1.5 mt-1">${state}${old}${reopen}${drift}</div>`;
     }
 
-    // Aviso de corte desfasado: qué cifra cambió y, si se puede, el botón para rehacerlo.
-    driftField(t, can) {
-        const live = t.changed;
-        if (!live) return [];
+    // Datos de la franja de arriba: [etiqueta, valor ya escapado].
+    turnHead(t, branch) {
+        const fields = [
+            ['Turno', esc(t.folio)],
+            ['Apertura', ordDate(t.opened_at, true)],
+            [t.closed ? 'Cierre' : 'Corte al', t.closed ? ordDate(t.closed_at, true) : ordNow()],
+            ['Abrió', esc(t.opened_by || '—')]
+        ];
 
+        if (t.closed) fields.push(['Cerró', esc(t.closed_by || '—')]);
+
+        fields.push(['Sucursal', esc(branch || '—')]);
+
+        return fields;
+    }
+
+    cashBox(t, closing) {
+        let rows = this.line('Fondo inicial', money(t.opening_cash))
+                 + this.line('+ Cobrado en efectivo', money(t.cash_sales))
+                 + this.line('Efectivo esperado', money(t.expected_cash), 'is-total');
+
+        if (closing) {
+            rows += '<div class="ord-cut-row is-strong"><label for="tc_counted">Efectivo contado</label>'
+                  + '<input type="number" id="tc_counted" class="ord-cut-input" min="0" step="0.01" placeholder="0.00" inputmode="decimal" autocomplete="off"></div>'
+                  + '<div class="ord-cut-row"><span>Diferencia</span><b id="tc_diff_box" class="ord-cut-v is-muted">—</b></div>';
+        } else if (t.closed) {
+            const tone = this.diffTone(Number(t.difference));
+
+            rows += this.line('Efectivo contado', money(t.counted_cash), 'is-strong')
+                  + this.line('Diferencia', tone.text, '', `is-${tone.tone}`);
+        }
+
+        return this.box('Caja', rows);
+    }
+
+    salesBox(t) {
+        const count = Number(t.orders_count) + Number(t.sales_count);
+
+        return this.box('Ventas',
+            this.line('Pedidos', Number(t.orders_count))
+            + this.line('Mostrador', Number(t.sales_count))
+            + this.line('Ticket promedio', count ? money(Number(t.total_sales) / count) : '—')
+            + this.line('Total vendido', money(t.total_sales), 'is-total')
+            + '<p class="ord-cut-hint">Vendido = pedidos pendientes y pagados.</p>');
+    }
+
+    // Avisos en la barra de abajo, como el aviso rojo de Soft antes de los botones.
+    turnAlerts(t, can) {
+        const bars = [];
+
+        if (!t.closed && t.old) bars.push(this.alertBar('Turno de otro día: ciérralo para seguir capturando y cobrando.', 'is-warn'));
+        if (t.changed) bars.push(this.driftBar(t, can));
+        if (t.closed && !can.reopen && orders.can('cancel') && can.reopen_reason) bars.push(this.alertBar(esc(can.reopen_reason), 'is-info'));
+
+        return bars.length ? [{ id: 'tc_alerts', tipo: 'html', class: 'w-full', html: bars.join('') }] : [];
+    }
+
+    // Corte desfasado: qué cifra cambió y, si se puede, el botón para rehacerlo.
+    driftBar(t, can) {
+        const live = t.changed;
         const line = (label, cut, now) => Math.abs(Number(cut) - Number(now)) < 0.005 ? '' : `<li>${label}: ${money(cut)} en el corte, ${money(now)} hoy.</li>`;
         const cnt  = (o, s) => `${Number(o)} · ${Number(s)}`;
 
@@ -253,147 +312,127 @@ class OrderTurn extends Templates {
             || '<li>Cambió el reparto por estado (por ejemplo, un pendiente que ya se pagó).</li>';
 
         const action = can.recalc
-            ? '<button type="button" class="ord-recalc"><i data-lucide="refresh-cw" class="w-[14px] h-[14px]"></i>Recalcular corte</button>'
-            : `<p class="text-[12px] mt-2 mb-0">${esc(orders.can('cancel') ? can.recalc_reason : 'Avísale a Dueño o Supervisor para que lo recalcule.')}</p>`;
+            ? '<div class="mt-2"><button type="button" class="ord-recalc"><i data-lucide="refresh-cw" class="w-[14px] h-[14px]"></i>Recalcular corte</button></div>'
+            : `<p class="text-[12px] font-normal mt-2 mb-0">${esc(orders.can('cancel') ? can.recalc_reason : 'Avísale a Dueño o Supervisor para que lo recalcule.')}</p>`;
 
-        return [{
-            id:    'tc_drift',
-            tipo:  'html',
-            class: 'w-full',
-            html:  `
-                <div class="ord-day-alert rounded-xl border-[1px] border-amber-200 bg-amber-50 px-[14px] py-[10px] text-[13px] text-amber-800">
-                    <p class="font-semibold mb-1">Sus pedidos cambiaron después del corte</p>
-                    <ul class="mb-0 pl-[18px] list-disc">${items}</ul>
-                    <p class="text-[12px] mt-1 mb-0">Abajo ves el corte como se cerró. Lo contado no cambia.</p>
-                    ${can.recalc ? `<div class="mt-2">${action}</div>` : action}
-                </div>`
-        }];
+        return this.alertBar(`
+            <p class="mb-1">Sus pedidos cambiaron después del corte</p>
+            <ul class="mb-0 pl-[18px] list-disc font-normal">${items}</ul>
+            <p class="text-[12px] font-normal mt-1 mb-0">Arriba ves el corte como se cerró. Lo contado no cambia.</p>
+            ${action}`, 'is-warn');
     }
 
-    kpis(t) {
-        const tile = (label, value, hint, strong) => `
-            <div class="ord-tile rounded-xl border-[1px] border-gray-200 bg-gray-50 px-[14px] py-[10px]">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">${label}</p>
-                <p class="text-[18px] font-bold mb-0 ${strong ? 'text-blue-700' : 'text-gray-800'}">${value}</p>
-                ${hint ? `<p class="text-[11px] text-gray-400 mt-0.5 mb-0">${hint}</p>` : ''}
-            </div>`;
+    reopens(t) {
+        if (!t.reopen_reason) return [];
+
+        const lines = String(t.reopen_reason).split('\n').map((line) => `<li>${esc(line)}</li>`).join('');
+
+        return [{ id: 'tc_reopens', tipo: 'html', class: 'w-full', html: this.note('Reaperturas y recálculos', `<ul>${lines}</ul>`) }];
+    }
+
+    // -- Piezas tipo Soft --
+
+    // Franja de datos: etiqueta arriba y el valor en su cajita.
+    head(fields) {
+        return `<div class="ord-cut-head">${fields.map(([label, value]) => `<div class="ord-cut-field"><span>${label}</span><b>${value}</b></div>`).join('')}</div>`;
+    }
+
+    cols(boxes) {
+        return `<div class="ord-cut-cols">${boxes.join('')}</div>`;
+    }
+
+    box(legend, body) {
+        return `<fieldset class="ord-cut-box"><legend>${legend}</legend>${body}</fieldset>`;
+    }
+
+    // Renglón del recuadro: texto a la izquierda, cifra en su cajita a la derecha.
+    line(label, value, row, val) {
+        return `<div class="ord-cut-row${row ? ' ' + row : ''}"><span>${label}</span><b class="ord-cut-v${val ? ' ' + val : ''}">${value}</b></div>`;
+    }
+
+    methodsBox(methods, collected) {
+        const rows = (methods || []).map((m) => {
+            const abono = m.source === 'abono' ? ' <small>· abono</small>' : '';
+
+            return this.line(`${esc(m.name || 'Sin método')}${abono} <small>(${Number(m.payments)})</small>`, money(m.amount));
+        }).join('');
+
+        return this.box('Cobrado por forma de pago', (rows || this.line('Sin cobros', money(0), 'is-muted')) + this.line('Total cobrado', money(collected), 'is-total'));
+    }
+
+    // El % solo aplica a lo vendido (pendiente y pagado); cotización y cancelado van en gris.
+    statusGrid(statuses, sold, count, empty) {
+        const total = Number(sold);
+        const sale  = (s) => [2, 3].includes(Number(s.id));
+
+        const body = (statuses || []).map((s) => `
+            <tr${sale(s) ? '' : ' class="is-off"'}>
+                <td>${esc(s.name || 'Sin estado')}</td>
+                <td class="r">${s.orders === null ? '—' : Number(s.orders)}</td>
+                <td class="r">${money(s.amount)}</td>
+                <td class="r">${sale(s) && total > 0 ? (Number(s.amount) / total * 100).toFixed(1) + ' %' : '—'}</td>
+            </tr>`).join('') || `<tr><td colspan="4" class="ord-cut-empty">${empty}</td></tr>`;
+
+        const foot = `<tr><td>Vendido <small>(pendiente + pagado)</small></td><td class="r">${Number(count)}</td><td class="r">${money(total)}</td><td class="r">${total > 0 ? '100.0 %' : '—'}</td></tr>`;
+
+        return this.grid(['Estado', 'Pedidos', 'Importe', '% de lo vendido'], 'lrrr', body, foot);
+    }
+
+    // Tabla de abajo con renglón de total. aligns = una letra por columna: l, r o c.
+    grid(heads, aligns, body, foot) {
+        const cls = { l: '', r: ' class="r"', c: ' class="c"' };
 
         return `
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-[8px]">
-                ${tile('Fondo inicial', money(t.opening_cash))}
-                ${tile('Efectivo cobrado', money(t.cash_sales))}
-                ${tile('Esperado en caja', money(t.expected_cash), 'Fondo + efectivo', true)}
-                ${tile('Cobrado', money(t.collected), 'Todos los métodos')}
-                ${tile('Vendido', money(t.total_sales), 'Pendientes y pagados')}
-                ${tile('Pedidos · Mostrador', `${Number(t.orders_count)} · ${Number(t.sales_count)}`)}
-            </div>`;
-    }
-
-    methodsTable(t) {
-        const rows = (t.methods || []).map((m) => `
-            <tr class="border-t-[1px] border-gray-100">
-                <td class="py-1.5">${esc(m.name || 'Sin método')}</td>
-                <td class="py-1.5 text-right">${Number(m.payments)}</td>
-                <td class="py-1.5 text-right font-semibold">${money(m.amount)}</td>
-            </tr>`).join('');
-
-        const foot = rows
-            ? `<tr class="border-t-[1px] border-gray-200 font-bold"><td class="py-1.5" colspan="2">Total cobrado</td><td class="py-1.5 text-right">${money(t.collected)}</td></tr>`
-            : '';
-
-        return this.miniTable('Cobrado por método', ['Método', 'Pagos', 'Monto'], rows || this.emptyRow('Sin cobros en este turno.'), foot);
-    }
-
-    statusesTable(t) {
-        const rows = (t.statuses || []).map((s) => `
-            <tr class="border-t-[1px] border-gray-100">
-                <td class="py-1.5">${esc(s.name || 'Sin estado')}</td>
-                <td class="py-1.5 text-right">${s.orders === null ? '—' : Number(s.orders)}</td>
-                <td class="py-1.5 text-right font-semibold">${money(s.amount)}</td>
-            </tr>`).join('');
-
-        return this.miniTable('Pedidos por estado', ['Estado', 'Pedidos', 'Monto'], rows || this.emptyRow('Sin pedidos en este turno.'), '');
-    }
-
-    miniTable(title, heads, body, foot) {
-        return `
-            <div class="ord-tile rounded-xl border-[1px] border-gray-200 px-[14px] py-[10px] h-full">
-                <p class="text-[12px] font-semibold text-gray-700 mb-2">${title}</p>
-                <table class="w-full text-[13px]">
-                    <thead><tr class="text-[11px] uppercase tracking-wide text-gray-400">${heads.map((h, i) => `<th class="pb-1 font-semibold ${i ? 'text-right' : 'text-left'}">${h}</th>`).join('')}</tr></thead>
+            <div class="ord-cut-grid">
+                <table>
+                    <thead><tr>${heads.map((h, i) => `<th${cls[aligns[i]] || ''}>${h}</th>`).join('')}</tr></thead>
                     <tbody>${body}</tbody>
                     ${foot ? `<tfoot>${foot}</tfoot>` : ''}
                 </table>
             </div>`;
     }
 
-    emptyRow(text) {
-        return `<tr><td colspan="3" class="py-3 text-center text-gray-400">${text}</td></tr>`;
+    // mod: is-warn (ámbar), is-danger (rojo) o is-info (gris azulado).
+    alertBar(html, mod) {
+        const icon = mod === 'is-info' ? 'info' : 'triangle-alert';
+
+        return `<div class="ord-cut-alert ${mod}"><i data-lucide="${icon}" class="w-[18px] h-[18px] shrink-0 mt-[1px]"></i><div class="min-w-0">${html}</div></div>`;
     }
 
-    closeFields(t, closing) {
-        const fields = [];
+    note(title, html) {
+        return `<div class="ord-cut-note"><p>${title}</p>${html}</div>`;
+    }
 
-        if (closing) {
-            fields.push(
-                { id: 'tc_counted', lbl: 'Efectivo contado en caja', tipo: 'number', required: true, min: 0, step: '0.01', ph: '0.00', class: 'w-full sm:w-1/2', help: `Esperado ahora: ${money(t.expected_cash)}` },
-                {
-                    id:    'tc_diff',
-                    tipo:  'html',
-                    class: 'w-full sm:w-1/2',
-                    html:  `<p class="block text-xs font-semibold text-gray-500 mb-1.5">Diferencia</p><div id="tc_diff_box" class="${this.diffBase()} bg-gray-50 text-gray-400 border-gray-200">Escribe lo contado</div>`
-                }
-            );
+    // Pie como Soft: Imprimir junto a los botones y la tecla de cada uno. F2 guarda, Esc ya lo cierra csModal.
+    softFoot(id, print) {
+        const buttons = $(`${id} .cs-modal-foot > div`).last();
+
+        $(id).addClass('ord-cut');
+
+        if (print) {
+            $(`<button type="button" class="ord-cut-print"><i data-lucide="printer" class="w-4 h-4"></i>${esc(print.text)}</button>`)
+                .on('click', print.onClick)
+                .prependTo(buttons);
         }
 
-        if (t.closed) fields.push({ id: 'tc_result', tipo: 'html', class: 'w-full', html: this.closedBlock(t) });
+        $(`${id} .cs-modal-save`).append('<kbd class="ord-key">F2</kbd>');
+        $(`${id} .cs-modal-cancel`).append('<kbd class="ord-key">Esc</kbd>');
 
-        if (t.reopen_reason) {
-            const lines = String(t.reopen_reason).split('\n').map((line) => `<li>${esc(line)}</li>`).join('');
+        $(document).off('keydown.ordCut').on('keydown.ordCut', (e) => {
+            if (!$(id).length) return $(document).off('keydown.ordCut');
+            if (e.key !== 'F2' || $('.swal2-container').length) return;
 
-            fields.push({
-                id:    'tc_reopens',
-                tipo:  'html',
-                class: 'w-full',
-                html:  `<p class="text-xs font-semibold text-gray-500 mb-1">Reaperturas y recálculos</p><ul class="text-[12.5px] text-gray-600 mb-0 pl-[18px] list-disc">${lines}</ul>`
-            });
-        }
-
-        return fields;
-    }
-
-    closedBlock(t) {
-        const tone = this.diffTone(Number(t.difference));
-        const by   = t.closed_by ? ` por ${esc(t.closed_by)}` : '';
-
-        return `
-            <div class="grid grid-cols-3 gap-[8px]">
-                <div class="ord-tile rounded-xl border-[1px] border-gray-200 px-[14px] py-[10px]">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Contado</p>
-                    <p class="text-[16px] font-bold text-gray-800 mb-0">${money(t.counted_cash)}</p>
-                </div>
-                <div class="ord-tile rounded-xl border-[1px] border-gray-200 px-[14px] py-[10px]">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Esperado</p>
-                    <p class="text-[16px] font-bold text-gray-800 mb-0">${money(t.expected_cash)}</p>
-                </div>
-                <div class="rounded-xl border-[1px] px-[14px] py-[10px] ${tone.cls}">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide mb-1">Diferencia</p>
-                    <p class="text-[16px] font-bold mb-0">${tone.text}</p>
-                </div>
-            </div>
-            <p class="text-[12px] text-gray-400 mt-2 mb-0">Cerró${by} el ${ordDate(t.closed_at, true)}.</p>`;
-    }
-
-    diffBase() {
-        return 'flex items-center h-[38px] px-[12px] rounded-lg border-[1px] text-sm font-semibold';
+            e.preventDefault();
+            $(`${id} .cs-modal-save`).trigger('click');
+        });
     }
 
     diffTone(diff) {
-        if (Math.abs(diff) < 0.005) return { text: 'Cuadra', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+        if (Math.abs(diff) < 0.005) return { text: 'Cuadra', tone: 'ok', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
 
         return diff > 0
-            ? { text: `Sobran ${money(diff)}`, cls: 'bg-amber-50 text-amber-700 border-amber-200' }
-            : { text: `Faltan ${money(-diff)}`, cls: 'bg-rose-50 text-rose-700 border-rose-200' };
+            ? { text: `Sobran ${money(diff)}`, tone: 'over', cls: 'bg-amber-50 text-amber-700 border-amber-200' }
+            : { text: `Faltan ${money(-diff)}`, tone: 'short', cls: 'bg-rose-50 text-rose-700 border-rose-200' };
     }
 
     paintDiff(t) {
@@ -401,21 +440,22 @@ class OrderTurn extends Templates {
         const box     = $('#tc_diff_box');
 
         if (counted === null) {
-            box.attr('class', `${this.diffBase()} bg-gray-50 text-gray-400 border-gray-200`).text('Escribe lo contado');
+            box.attr('class', 'ord-cut-v is-muted').text('—');
             return;
         }
 
         const tone = this.diffTone(ordRound(counted - Number(t.expected_cash)));
 
-        box.attr('class', `${this.diffBase()} ${tone.cls}`).text(tone.text);
+        box.attr('class', `ord-cut-v is-${tone.tone}`).text(tone.text);
     }
 
     // -- Cerrar --
 
-    async saveClose(t, values, close) {
+    // Lo contado vive dentro del recuadro «Caja» (bloque html): se lee del campo, no de values.
+    async saveClose(t, close) {
         if (this.saving) return;
 
-        const counted = ordAmount(values.tc_counted);
+        const counted = ordAmount($('#tc_counted').val());
 
         if (counted === null) return this.warn('Escribe cuánto efectivo contaste en caja. Si no hay, escribe 0.');
 

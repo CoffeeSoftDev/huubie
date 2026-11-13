@@ -393,16 +393,41 @@ class ctrl extends core {
 
         return [
             'id'        => $id,
-            'Producto'  => cellTitle($item['name'], $item['sku']),
+            'Producto'  => $this->productCell($item),
             'Origen'    => $this->originCell($item, $isMain),
             'Categoría' => $this->categoryCell($item),
             'Tipo'      => $item['kind'] === 'service' ? chip('Servicio', 'sky') : chip('Producto', 'slate'),
-            'Precio'    => money($item['price']),
-            'Costo'     => money($item['cost']),
+            'Precio'    => moneyCell($item['price']),
+            'Costo'     => moneyCell($item['cost']),
             'Canales'   => $this->channelsCell($item),
             'Estado'    => renderActive($item['active']),
             'a'         => $this->productActions($item, $id)
         ];
+    }
+
+    // Foto + nombre + SKU, como la celda de producto de alpha.
+    private function productCell($item) {
+        return '<div class="flex items-center gap-3">'
+            . $this->productPhoto($item['image'])
+            . '<div class="min-w-0">' . cellTitle($item['name'], $item['sku']) . '</div>'
+            . '</div>';
+    }
+
+    /*  Sin foto: el cuadro vacío con el pastel (el mismo de alpha). Las rutas son
+        'alpha_files/<empresa>/...' con espacios y acentos: cada tramo va codificado.
+        Si la copia local no la tiene, productPhotoError() (catalogo.js) la busca en
+        producción y, si tampoco está, deja el cuadro vacío. */
+    private function productPhoto($path) {
+        $path  = trim((string) $path);
+        $empty = '<div class="cp-foto cp-foto-vacia"><i class="icon-birthday"></i></div>';
+
+        if ($path === '') return $empty;
+
+        $src = preg_match('#^https?://#i', $path)
+            ? $path
+            : '/' . implode('/', array_map('rawurlencode', explode('/', ltrim($path, '/'))));
+
+        return '<img src="' . h($src) . '" alt="" loading="lazy" class="cp-foto" onerror="productPhotoError(this)">';
     }
 
     /*  Matriz: «Compartido» y cuántas sucursales venden el suyo.

@@ -36,7 +36,7 @@ class ctrl extends core {
                 'id'           => $id,
                 'Paquete'      => cellTitle($item['name'], $item['category']),
                 'Contenido'    => $this->contentCell(isset($items[$id]) ? $items[$id] : []),
-                'Por separado' => money($item['separate_price']),
+                'Por separado' => moneyCell($item['separate_price']),
                 'Precio'       => $this->priceCell($item['price'], $item['separate_price']),
                 'Estado'       => renderActive($item['active']),
                 'a'            => $this->rowActions('bundles', $id, $item['active'])
@@ -287,7 +287,7 @@ class ctrl extends core {
     private function priceCell($price, $separate) {
         $saving = (float) $separate - (float) $price;
 
-        if ($saving <= 0.005) return money($price);
+        if ($saving <= 0.005 || abs((float) $price) < 0.005) return moneyCell($price);
 
         return money($price) . '<div class="cp-celda-sub">Ahorra ' . money($saving) . '</div>';
     }

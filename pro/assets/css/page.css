@@ -14,6 +14,9 @@
     width: 100%;
     max-width: 1320px;
     margin: 0 auto;
+    /* Aire bajo la barra: con solo los 20px de #main__content el titulo
+       quedaba pegado a ella. */
+    padding-top: 40px;
     gap: 16px;
     color: var(--ink);
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -55,7 +58,8 @@ body.dark-mode .pg-chip.is-off  { background: rgb(255 255 255 / .06); }
     .pg-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-    .pg { padding: 12px; }
+    /* El aire de arriba se queda: #main__content pierde su padding a <=500px. */
+    .pg { padding: 28px 12px 12px; }
     .pg-two { grid-template-columns: minmax(0, 1fr); }
     .pg-h1 { font-size: 20px; }
 }

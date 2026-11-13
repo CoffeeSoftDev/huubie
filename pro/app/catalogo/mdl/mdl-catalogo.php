@@ -306,6 +306,7 @@ class mdl extends CRUD {
                 p.id,
                 p.name,
                 p.description,
+                p.image,
                 p.sku,
                 p.barcode,
                 p.kind,
@@ -372,6 +373,7 @@ class mdl extends CRUD {
             SELECT
                 p.id,
                 p.name,
+                p.image,
                 p.sku,
                 p.kind,
                 p.price,

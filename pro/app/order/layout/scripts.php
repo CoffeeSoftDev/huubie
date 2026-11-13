@@ -16,10 +16,10 @@
     <script src="<?= $asset('assets/js/plugins.js') ?>"></script>
     <script src="<?= $asset('assets/js/complementos.js') ?>"></script>
 
-    <!-- Barra y rail: se usan los de Catalogo tal cual (son genericos). No se
-         copian para no tener dos versiones que mantener. -->
+    <!-- Barra: la de Catalogo tal cual (es generica). Rail: el de pro, que pinta
+         los submodulos (TPV, Reportes) y las secciones sin pagina como "Próximamente". -->
     <script src="<?= $asset('app/catalogo/src/js/navbar.js') ?>"></script>
-    <script src="<?= $asset('app/catalogo/src/js/sidebar.js') ?>"></script>
+    <script src="<?= $asset('auth/src/js/sidebar.js') ?>"></script>
 
     <!-- Componentes compartidos: cuelgan de Templates. Van antes del modulo.
          posCatalog y posTicket/Lines/Totals aprobados el 13/11/2026. -->

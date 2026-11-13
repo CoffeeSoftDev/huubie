@@ -42,6 +42,23 @@ class mdl extends CRUD {
         return $this->_Read($query, null);
     }
 
+    /*  El modulo de la seccion cuya ruta es la pagina. Gana sobre modules.route:
+        una seccion puede vivir en otra carpeta que su modulo (catalogo esta en
+        app/catalogo y es del modulo Pedidos, igual que cortes). [path] -> fila o null. */
+    function getModuleBySectionRoute($array) {
+        $query = "
+            SELECT m.id, m.name, m.code, m.icon, m.route
+            FROM {$this->bd}sections s
+            INNER JOIN {$this->bd}modules m ON m.id = s.module_id AND m.is_active = 1
+            WHERE s.is_active = 1
+                AND TRIM(BOTH '/' FROM s.route) = ?
+            LIMIT 1
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return empty($sql) ? null : $sql[0];
+    }
+
     function getModuleByCode($array) {
         $query = "
             SELECT id, name, code, icon, route

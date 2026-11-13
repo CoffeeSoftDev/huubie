@@ -42,7 +42,7 @@ class ctrl extends core {
                 'id'           => $id,
                 'Modificador'  => cellTitle($item['name'], $item['description']),
                 'Grupo'        => $this->groupCell($item),
-                'Precio extra' => money($item['price']),
+                'Precio extra' => moneyCell($item['price']),
                 'Cantidad'     => $this->quantityCell($item['quantity']),
                 'Estado'       => renderActive($item['active']),
                 'a'            => $this->rowActions('modifiers', $id, $item['active'], $locked)

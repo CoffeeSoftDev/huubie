@@ -48,9 +48,9 @@ class App extends Templates {
 
     layout() {
         $('#root').html(`
-            <div class="cp-pagina flex flex-col gap-[16px]">
+            <div class="cp-pagina flex flex-1 flex-col gap-[16px]">
                 <div id="headerCatalogo"></div>
-                <div id="tabbarCatalogo"></div>
+                <div id="tabbarCatalogo" class="flex flex-1 flex-col"></div>
             </div>
         `);
     }
@@ -60,11 +60,6 @@ class App extends Templates {
         const where = [scope.company, scope.branch].filter(Boolean).map(esc).join(' · ');
 
         $('#headerCatalogo').html(`
-            <nav class="cp-migas" aria-label="Ruta">
-                <span class="cp-migas-raiz">Huubie</span>
-                <span class="cp-migas-sep">/</span>
-                <span class="cp-migas-actual">Catálogo</span>
-            </nav>
             <h1 class="cp-pagina-titulo">Catálogo</h1>
             <p class="cp-pagina-subtitulo">${where || 'Productos, precios y formas de cobro del punto de venta'}</p>
         `);
@@ -178,6 +173,21 @@ async function saveFrom(modalId, request) {
     } finally {
         btn.prop('disabled', false);
     }
+}
+
+// -- Foto de producto --
+// Las fotos subidas antes solo existen en producción: se reintenta ahí una vez.
+// Si tampoco carga, queda el cuadro vacío (el mismo que pinta ctrl-productos sin foto).
+const CATALOGO_FILES_REMOTE = 'https://huubie.com.mx';
+
+function productPhotoError(img) {
+    if (!img.dataset.fileFallback) {
+        img.dataset.fileFallback = '1';
+        img.src = CATALOGO_FILES_REMOTE + new URL(img.src, location.origin).pathname;
+        return;
+    }
+
+    $(img).replaceWith('<div class="cp-foto cp-foto-vacia"><i class="icon-birthday"></i></div>');
 }
 
 function catalogoPlantilla() {

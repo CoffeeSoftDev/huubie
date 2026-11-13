@@ -5,8 +5,9 @@
     cuando el día ya se cerró o falta cerrar uno anterior.
 
     Quién puede lo decide el ctrl en data.can: cerrar = create,
-    reabrir = cancel (Dueño y Supervisor). Las tablas y el tono de la
-    diferencia se toman de orderTurn para que ambos cortes se vean igual. */
+    reabrir = cancel (Dueño y Supervisor). Las piezas tipo Soft (franja,
+    recuadros, tabla con total, avisos y pie con teclas) se toman de
+    orderTurn para que el corte del turno y el del día se vean igual. */
 
 // -- Cierre del día --
 
@@ -65,37 +66,38 @@ class OrderClosure extends Templates {
         const closing  = !data.closed && data.can.close;
         const reopen   = data.closed && data.can.reopen;
         const canPrint = orders.can('print');
+        const s        = data.summary;
+        const ot       = orderTurn;
 
-        let info = '';
-
-        if (!data.closed && !data.can.close && orders.can('create') && data.turns.length) info = data.can.close_reason;
-        else if (data.closed && !data.can.reopen && orders.can('cancel')) info = data.can.reopen_reason;
+        const subtitle = data.closed ? 'Cierre Z del día · ya se cerró'
+            : closing ? 'Cierre Z del día · revisa los turnos y ciérralo'
+            : 'Corte X del día · parcial, el día no se ha cerrado';
 
         this.token = ordToken();
 
         const modal = this.csModal({
             id:         'modalOrderClosure',
             title:      `Cierre del día ${ordDate(data.date)}`,
-            subtitle:   data.branch + (data.date === data.today ? ' · hoy' : ''),
+            subtitle:   subtitle,
             lucideIcon: 'calendar-check',
-            width:      'max-w-3xl',
+            width:      'max-w-4xl',
             saveText:   closing ? 'Cerrar día' : reopen ? 'Reabrir día' : false,
             cancelText: 'Volver',
-            info:       info,
-            action:     canPrint && data.turns.length ? { text: data.closed ? 'Imprimir cierre' : 'Imprimir parcial', lucideIcon: 'printer', onClick: () => this.printDay(data) } : null,
             json: [
                 { id: 'dc_nav', tipo: 'html', class: 'w-full', html: this.nav(data) },
+                { id: 'dc_head', tipo: 'html', class: 'w-full', html: ot.head(this.dayHead(data)) },
+                { id: 'dc_boxes', tipo: 'html', class: 'w-full', html: ot.cols([ot.methodsBox(s.methods, s.collected), this.cashBox(data), this.salesBox(s)]) },
+                { id: 'dc_turns', tipo: 'html', class: 'w-full', html: this.turnsGrid(data) },
+                { id: 'dc_statuses', tipo: 'html', class: 'w-full', html: ot.statusGrid(s.statuses, s.total, Number(s.orders_count) + Number(s.sales_count), 'Sin pedidos este día.') },
                 ...this.alerts(data),
-                { id: 'dc_kpis', tipo: 'html', class: 'w-full', html: this.kpis(data) },
-                { id: 'dc_methods', tipo: 'html', class: 'w-full md:w-1/2', html: this.methodsTable(data.summary) },
-                { id: 'dc_statuses', tipo: 'html', class: 'w-full md:w-1/2', html: this.statusesTable(data.summary) },
-                { id: 'dc_turns', tipo: 'html', class: 'w-full', html: this.turnsTable(data) },
                 ...this.closeFields(data, closing)
             ],
             onSave: (values, close) => closing ? this.saveClose(data, values, close) : this.reopenForm(data, close)
         });
 
         $('#modalOrderClosure .cs-modal-title').after(this.badges(data));
+
+        ot.softFoot('#modalOrderClosure', canPrint && data.turns.length ? { text: data.closed ? 'Imprimir cierre' : 'Imprimir parcial', onClick: () => this.printDay(data) } : null);
 
         // csModal enfoca la nota y baja hasta ella: aquí se lee primero el resumen.
         $('#modalOrderClosure :focus').trigger('blur');
@@ -155,109 +157,124 @@ class OrderClosure extends Templates {
             </div>`;
     }
 
-    alerts(data) {
-        if (!(data.warnings || []).length) return [];
+    // Datos de la franja de arriba: [etiqueta, valor ya escapado].
+    dayHead(data) {
+        const s     = data.summary;
+        const c     = data.closure;
+        const total = data.turns.length || (c ? Number(c.turns) : 0);
+        const open  = data.turns.filter((t) => !t.closed).length;
 
-        const items = data.warnings.map((w) => `<li>${esc(w)}</li>`).join('');
+        const fields = [
+            ['Día', ordDate(data.date) + (data.date === data.today ? ' · hoy' : '')],
+            ['Sucursal', esc(data.branch || '—')],
+            ['Turnos', `${total}${open ? ` · ${open} abierto${open > 1 ? 's' : ''}` : ''}`],
+            ['Folios', s.first_folio ? `${esc(s.first_folio)} a ${esc(s.last_folio)}` : '—']
+        ];
 
-        return [{
-            id:    'dc_alerts',
-            tipo:  'html',
-            class: 'w-full',
-            html:  `<div class="ord-day-alert rounded-xl border-[1px] border-amber-200 bg-amber-50 px-[14px] py-[10px] text-[13px] text-amber-800"><ul class="mb-0 pl-[18px] list-disc">${items}</ul></div>`
-        }];
+        if (c) fields.push(['Cierre', esc(c.folio)], ['Cerró', `${esc(c.closed_by || '—')} · ${ordDate(c.closed_at, true)}`]);
+
+        return fields;
     }
 
-    kpis(data) {
-        const s      = data.summary;
+    // Solo turnos cerrados: esperado y contado existen hasta el corte Z de cada turno.
+    cashBox(data) {
+        const ot     = orderTurn;
         const closed = data.turns.filter((t) => t.closed);
-        const open   = data.turns.length - closed.length;
-        const turns  = data.turns.length || (data.closure ? data.closure.turns : 0);
-        const abono  = (s.methods || []).filter((m) => m.source === 'abono').reduce((sum, m) => sum + Number(m.amount), 0);
-        const diff   = ordRound(closed.reduce((sum, t) => sum + Number(t.difference || 0), 0));
-        const tone   = closed.length ? orderTurn.diffTone(diff) : null;
+        const sum    = (key) => ordRound(closed.reduce((acc, t) => acc + Number(t[key] || 0), 0));
+        const count  = ot.line('Turnos cerrados', `${closed.length} de ${data.turns.length}`);
 
-        // tone = clases de color de la diferencia; sin tone es un mosaico gris normal.
-        const tile = (label, value, hint, tone, strong) => `
-            <div class="${tone || 'ord-tile border-gray-200 bg-gray-50'} rounded-xl border-[1px] px-[14px] py-[10px]">
-                <p class="text-[11px] font-semibold uppercase tracking-wide mb-1 ${tone ? '' : 'text-gray-500'}">${label}</p>
-                <p class="text-[18px] font-bold mb-0 ${tone ? '' : strong ? 'text-blue-700' : 'text-gray-800'}">${value}</p>
-                ${hint ? `<p class="text-[11px] mt-0.5 mb-0 ${tone ? 'opacity-70' : 'text-gray-400'}">${hint}</p>` : ''}
-            </div>`;
+        if (!closed.length) return ot.box('Caja · turnos cerrados', count + '<p class="ord-cut-hint">La caja se cuadra al cerrar cada turno.</p>');
 
-        return `
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-[8px]">
-                ${tile('Vendido', money(s.total), 'Pendientes y pagados', '', true)}
-                ${tile('Cobrado', money(s.collected), abono > 0.004 ? `Incluye ${money(abono)} de abonos` : 'Todos los métodos')}
-                ${tile('Efectivo', money(s.cash), 'Cobrado en efectivo')}
-                ${tone ? tile('Caja', tone.text, 'Contado vs esperado', tone.cls) : tile('Caja', '—', 'Sin turnos cerrados')}
-                ${tile('Pedidos · Mostrador', `${Number(s.orders_count)} · ${Number(s.sales_count)}`, s.first_folio ? `Folios ${esc(s.first_folio)} a ${esc(s.last_folio)}` : '')}
-                ${tile('Canceladas', Number(s.cancelled_count))}
-                ${tile('Descuentos', money(s.discount), Number(s.tip) > 0 ? `Propinas ${money(s.tip)}` : '')}
-                ${tile('Turnos', Number(turns), open ? `${open} sigue${open > 1 ? 'n' : ''} abierto${open > 1 ? 's' : ''}` : '')}
-            </div>`;
+        const tone = ot.diffTone(sum('difference'));
+
+        return ot.box('Caja · turnos cerrados',
+            count
+            + ot.line('Fondo inicial', money(sum('opening_cash')))
+            + ot.line('+ Cobrado en efectivo', money(ordRound(sum('expected_cash') - sum('opening_cash'))))
+            + ot.line('Efectivo esperado', money(sum('expected_cash')), 'is-total')
+            + ot.line('Efectivo contado', money(sum('counted_cash')), 'is-strong')
+            + ot.line('Diferencia', tone.text, '', `is-${tone.tone}`));
     }
 
-    methodsTable(s) {
-        const rows = (s.methods || []).map((m) => `
-            <tr class="border-t-[1px] border-gray-100">
-                <td class="py-1.5">${esc(m.name || 'Sin método')}${m.source === 'abono' ? ' <span class="text-[11px] text-gray-400">· abono</span>' : ''}</td>
-                <td class="py-1.5 text-right">${Number(m.payments)}</td>
-                <td class="py-1.5 text-right font-semibold">${money(m.amount)}</td>
-            </tr>`).join('');
+    salesBox(s) {
+        const ot    = orderTurn;
+        const count = Number(s.orders_count) + Number(s.sales_count);
 
-        const foot = rows
-            ? `<tr class="border-t-[1px] border-gray-200 font-bold"><td class="py-1.5" colspan="2">Total cobrado</td><td class="py-1.5 text-right">${money(s.collected)}</td></tr>`
-            : '';
-
-        return orderTurn.miniTable('Cobrado por método', ['Método', 'Pagos', 'Monto'], rows || this.emptyRow('Sin cobros este día.', 3), foot);
+        return ot.box('Ventas',
+            ot.line('Subtotal', money(s.subtotal))
+            + ot.line('Descuentos', money(s.discount))
+            + (Number(s.tip) > 0 ? ot.line('Propinas', money(s.tip)) : '')
+            + ot.line('Pedidos · Mostrador', `${Number(s.orders_count)} · ${Number(s.sales_count)}`)
+            + ot.line('Canceladas', Number(s.cancelled_count))
+            + ot.line('Ticket promedio', count ? money(Number(s.total) / count) : '—')
+            + ot.line('Total vendido', money(s.total), 'is-total'));
     }
 
-    statusesTable(s) {
-        const rows = (s.statuses || []).map((st) => `
-            <tr class="border-t-[1px] border-gray-100">
-                <td class="py-1.5">${esc(st.name || 'Sin estado')}</td>
-                <td class="py-1.5 text-right">${Number(st.orders)}</td>
-                <td class="py-1.5 text-right font-semibold">${money(st.amount)}</td>
-            </tr>`).join('');
+    // Un renglón por turno con su caja; el total suma esperado y contado solo de los cerrados.
+    turnsGrid(data) {
+        const closed = data.turns.filter((t) => t.closed);
+        const sum    = (list, key) => ordRound(list.reduce((acc, t) => acc + Number(t[key] || 0), 0));
+        const pill   = (tone, text) => `<span class="ord-cut-pill is-${tone}">${text}</span>`;
 
-        return orderTurn.miniTable('Pedidos por estado', ['Estado', 'Pedidos', 'Monto'], rows || this.emptyRow('Sin pedidos este día.', 3), '');
-    }
-
-    turnsTable(data) {
-        const pill = 'inline-flex items-center px-2 py-0.5 rounded-full border-[1px] text-[11px] font-semibold whitespace-nowrap';
-
-        const rows = data.turns.map((t) => {
+        const body = data.turns.map((t) => {
             const start = ordHour(String(t.opened_at || '').slice(11, 16));
-            const end   = !t.closed ? `Desde ${start} · sigue abierto`
+            const end   = !t.closed ? `Desde ${start}`
                 : String(t.closed_at).slice(0, 10) === data.date ? `${start} a ${ordHour(String(t.closed_at).slice(11, 16))}`
                 : `${start} a ${ordDate(t.closed_at, true)}`;
-            const tone  = t.closed ? orderTurn.diffTone(Number(t.difference)) : { text: 'Abierto', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
-            const by    = t.opened_by ? ` · ${esc(t.opened_by)}` : '';
+            const tone  = t.closed ? orderTurn.diffTone(Number(t.difference)) : null;
 
             return `
-                <tr class="border-t-[1px] border-gray-100">
-                    <td class="py-1.5">
-                        <span class="font-semibold">Turno ${esc(t.folio)}</span>
-                        <span class="block text-[11px] text-gray-400">${end}${by}</span>
-                    </td>
-                    <td class="py-1.5 text-right">
-                        ${money(t.sold)}
-                        ${t.changed ? `<span class="block text-[11px] text-amber-700">hoy ${money(t.live)}</span>` : ''}
-                    </td>
-                    <td class="py-1.5 text-right">${money(t.collected)}</td>
-                    <td class="py-1.5 text-right"><span class="${pill} ${tone.cls}">${tone.text}</span></td>
-                    <td class="py-1.5 text-right"><button type="button" class="ord-day-turn" data-id="${Number(t.id)}">Ver corte</button></td>
+                <tr>
+                    <td><b>${esc(t.folio)}</b></td>
+                    <td>${end}<small>${esc(t.opened_by || '—')}</small></td>
+                    <td class="r">${money(t.sold)}${t.changed ? `<small class="is-over">hoy ${money(t.live)}</small>` : ''}</td>
+                    <td class="r">${money(t.collected)}</td>
+                    <td class="r">${t.closed ? money(t.expected_cash) : '—'}</td>
+                    <td class="r">${t.closed ? money(t.counted_cash) : '—'}</td>
+                    <td class="c">${tone ? pill(tone.tone, tone.text) : pill('open', 'Abierto')}</td>
+                    <td class="r"><button type="button" class="ord-day-turn" data-id="${Number(t.id)}">Ver corte</button></td>
                 </tr>`;
         }).join('');
 
-        return orderTurn.miniTable('Turnos del día', ['Turno', 'Vendido', 'Cobrado', 'Caja', ''], rows || this.emptyRow('No hubo turnos este día.', 5), '');
+        if (!body) return orderTurn.grid(['Turno', 'Horario · abrió', 'Vendido', 'Cobrado', 'Esperado', 'Contado', 'Caja', ''], 'llrrrrcr', '<tr><td colspan="8" class="ord-cut-empty">No hubo turnos este día.</td></tr>', '');
+
+        const tone = closed.length ? orderTurn.diffTone(sum(closed, 'difference')) : null;
+        const foot = `
+            <tr>
+                <td colspan="2">Total · ${data.turns.length} turno${data.turns.length > 1 ? 's' : ''}</td>
+                <td class="r">${money(sum(data.turns, 'sold'))}</td>
+                <td class="r">${money(sum(data.turns, 'collected'))}</td>
+                <td class="r">${closed.length ? money(sum(closed, 'expected_cash')) : '—'}</td>
+                <td class="r">${closed.length ? money(sum(closed, 'counted_cash')) : '—'}</td>
+                <td class="c">${tone ? pill(tone.tone, tone.text) : '—'}</td>
+                <td></td>
+            </tr>`;
+
+        return orderTurn.grid(['Turno', 'Horario · abrió', 'Vendido', 'Cobrado', 'Esperado', 'Contado', 'Caja', ''], 'llrrrrcr', body, foot);
     }
 
-    emptyRow(text, cols) {
-        return `<tr><td colspan="${cols}" class="py-3 text-center text-gray-400">${text}</td></tr>`;
+    // Avisos abajo, junto a los botones: lo que falta y por qué no se puede cerrar o reabrir.
+    alerts(data) {
+        const bars = [];
+        const why  = this.reason(data);
+
+        if ((data.warnings || []).length) {
+            bars.push(orderTurn.alertBar(`<ul class="mb-0 pl-[18px] list-disc">${data.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>`, 'is-warn'));
+        }
+
+        if (why) bars.push(orderTurn.alertBar(esc(why), 'is-info'));
+
+        return bars.length ? [{ id: 'dc_alerts', tipo: 'html', class: 'w-full', html: bars.join('') }] : [];
     }
 
+    reason(data) {
+        if (!data.closed && !data.can.close && orders.can('create') && data.turns.length) return data.can.close_reason;
+        if (data.closed && !data.can.reopen && orders.can('cancel')) return data.can.reopen_reason;
+
+        return '';
+    }
+
+    // La nota es campo del formulario (values.dc_note); lo demás es solo lectura.
     closeFields(data, closing) {
         const fields = [];
         const c      = data.closure;
@@ -266,26 +283,14 @@ class OrderClosure extends Templates {
             fields.push({ id: 'dc_note', lbl: 'Nota del cierre (opcional)', tipo: 'textarea', maxlength: 255, rows: 2, ph: 'Ej. El efectivo se entregó a Dirección', class: 'w-full' });
         }
 
-        if (c) {
-            const note = c.note ? `<p class="text-[12.5px] text-gray-600 mt-1 mb-0">Nota: ${esc(c.note)}</p>` : '';
-
-            fields.push({
-                id:    'dc_closed',
-                tipo:  'html',
-                class: 'w-full',
-                html:  `<p class="text-[12px] text-gray-400 mb-0">Cierre ${esc(c.folio)} · cerró ${esc(c.closed_by || '—')} el ${ordDate(c.closed_at, true)}.</p>${note}`
-            });
+        if (c && c.note) {
+            fields.push({ id: 'dc_closed', tipo: 'html', class: 'w-full', html: orderTurn.note('Nota del cierre', `<p class="mb-0">${esc(c.note)}</p>`) });
         }
 
         if ((data.reopens || []).length) {
             const items = data.reopens.map((r) => `<li>Cierre ${esc(r.folio)} (${money(r.total)}): reabrió ${esc(r.reopened_by || '—')} el ${ordDate(r.reopened_at, true)}. ${esc(r.reopen_reason)}</li>`).join('');
 
-            fields.push({
-                id:    'dc_reopens',
-                tipo:  'html',
-                class: 'w-full',
-                html:  `<p class="text-xs font-semibold text-gray-500 mb-1">Reaperturas</p><ul class="text-[12.5px] text-gray-600 mb-0 pl-[18px] list-disc">${items}</ul>`
-            });
+            fields.push({ id: 'dc_reopens', tipo: 'html', class: 'w-full', html: orderTurn.note('Reaperturas', `<ul>${items}</ul>`) });
         }
 
         return fields;
