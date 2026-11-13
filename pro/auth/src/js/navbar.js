@@ -1,21 +1,17 @@
 /*  Huubie · Barra superior de pro/
 
-    La misma barra de erp-pro/pro (auth/src/js/navbar.js) en su version de
-    Huubie, la que ya corria en inventory/acceso: marca, en que empresa y
-    sucursal se esta, el selector de TEMAS y el menu del usuario.
+    La marca, en que empresa y sucursal se esta, el modo (claro u oscuro) y el
+    menu del usuario.
 
-    Un tema tiene dos mitades y esta barra reparte las dos:
-      - la BARRA (color plano o imagen; `mode` decide si su texto va claro u
-        oscuro) la pinta applyTheme() aqui mismo.
-      - la PAGINA (acento, primario, secundario, rail y fondo) la pinta
-        window.InventoryPalette (assets/js/tailwind-theme.js), que ademas la
-        guarda para que la siguiente carga salga ya pintada desde el <head>.
-    Por eso el tema se aplica en TODA pagina que lleve esta barra y ese script:
-    los modulos, el inicio, el perfil, Developer y Empresas.
+    La aplicacion tiene DOS MODOS y nada mas. Sus colores viven en
+    window.InventoryPalette.MODES (assets/js/tailwind-theme.js), que pinta la
+    pagina y deja el modo guardado para que la siguiente carga salga ya pintada
+    desde el <head>. Esta barra solo lo conmuta, se viste con .nav-dark y cambia
+    de logo:
+      claro   barra blanca,   assets/img/huubie_light.png (morado y rojo)
+      oscuro  barra #141D2B,  assets/img/huubie.svg       (blanco)
 
-    El catalogo vive en la tabla themes y se administra en Developer ›
-    Personalización. Cada quien ve los de su empresa (company_themes) mas el de
-    por defecto; root, todos.
+    El modo de cada quien se guarda en users.theme_code ('light' | 'dark').
 
     Uso:  <div id="menu-navbar"></div>
           <script src=".../auth/src/js/navbar.js"></script>
@@ -24,40 +20,18 @@
     depender de coffeeSoft.js: la barra tiene que poder vivir en una pagina que
     no lo cargue. */
 class Navbar {
-    static get THEME_FALLBACK() {
-        return { code: 'light', name: 'Claro', tipo: 'color', color: '#FFFFFF', image: '', accent: '#C05A40', primary: '#292524', secondary: '#C05A40', sidebar: '', scheme: 'light', mode: 'light', badge: '' };
-    }
-
-    /* El velo de los temas con imagen: la capa translucida entre la foto y el
-       texto. Casi negro y no gris: un gris arrastra el color de la foto hacia
-       el gris; uno oscuro la oscurece pero respeta el tono. Valores de erp-pro. */
-    static get VEIL_DARK()  { return 'rgba(20, 22, 28, .34)'; }
-    static get VEIL_LIGHT() { return 'rgba(255, 255, 255, .55)'; }
-
-    // El fondo de pagina de cada scheme (assets/css/themes.css): la parte de
-    // abajo de la muestra de cada tema.
-    static get SCHEME_PAGE() {
-        return { light: '#F3F4F6', huubie: '#111928', midnight: '#0B1420', rose: '#1A1216' };
-    }
-
-    // Como se veia la barra la ultima vez: se pinta asi antes de que conteste
-    // el servidor, para que no parpadee en blanco con un tema oscuro.
-    static get BAR_KEY() { return 'huubie:pro:bar'; }
-
-    // Una recarga por tema, no mas: ver syncScheme().
+    // Una recarga por modo, no mas: ver syncScheme().
     static get RELOAD_KEY() { return 'huubie:pro:theme-reload'; }
 
     async init() {
-        this.base   = this.proBase();
-        this.host   = document.getElementById('menu-navbar');
-        this.themes = [];
-        this.data   = {};
+        this.base = this.proBase();
+        this.host = document.getElementById('menu-navbar');
+        this.data = {};
 
         if (!this.host) return;
 
         this.injectCSS();
         this.render();
-        this.paintBar(this.savedBar());
         this.initEvents();
 
         const res = await this.post({ opc: 'session' });
@@ -69,12 +43,11 @@ class Navbar {
 
         if (!res || res.status !== 200) return;
 
-        this.data   = res.data;
-        this.themes = res.data.themes || [];
+        this.data = res.data;
 
         this.renderSession();
-        this.buildThemeList();
-        this.syncScheme(this.applyTheme(res.data.theme));
+        this.applyMode(res.data.theme);
+        this.syncScheme();
 
         // Para las paginas que quieran lo mismo sin volver a pedirlo.
         document.dispatchEvent(new CustomEvent('nav:session', { detail: res.data }));
@@ -114,11 +87,9 @@ class Navbar {
             <nav class="navbar-main">
                 <div class="nav-left">
                     <a class="nav-brand" href="${this.base}/app/home/" title="Ir al inicio" aria-label="Ir al inicio">
-                        <span class="nav-brand-mark"><img src="${this.base}/assets/img/huubie.png" alt=""></span>
-                        <span class="nav-brand-text">
-                            <span class="navbar-title">Huubie</span>
-                            <span class="navbar-subtitle" id="navCompany"></span>
-                        </span>
+                        <img class="nav-logo nav-logo-light" src="${this.base}/assets/img/huubie_light.png" alt="Huubie">
+                        <img class="nav-logo nav-logo-dark" src="${this.base}/assets/img/huubie.svg" alt="Huubie">
+                        <span class="nav-company" id="navCompany"></span>
                     </a>
                     <span id="navViewing" class="nav-viewing" hidden>
                         <i data-lucide="eye"></i><span>Viendo como dueño</span>
@@ -133,7 +104,7 @@ class Navbar {
                             <i data-lucide="bell"></i>
                             <span id="navNotifCount" class="nav-count"></span>
                         </button>
-                        <div id="navNotifPanel" class="nav-color-menu nav-notif-panel" hidden>
+                        <div id="navNotifPanel" class="nav-panel nav-notif-panel" hidden>
                             <p class="nav-dd-label">Notificaciones</p>
                             <div id="navNotifList"></div>
                         </div>
@@ -143,15 +114,10 @@ class Navbar {
                         <i data-lucide="building-2"></i>
                     </a>
 
-                    <div class="nav-tool" id="navThemeTool" hidden>
-                        <button type="button" id="btnTheme" class="nav-tool-btn nav-hide-compact" title="Tema" aria-expanded="false">
-                            <i data-lucide="palette"></i>
-                        </button>
-                        <div id="navColorMenu" class="nav-color-menu" hidden>
-                            <p class="nav-dd-label">Tema</p>
-                            <div id="navColorList"></div>
-                        </div>
-                    </div>
+                    <button type="button" id="btnMode" class="nav-tool-btn nav-hide-compact">
+                        <span class="nav-mode-to-dark"><i data-lucide="moon"></i></span>
+                        <span class="nav-mode-to-light"><i data-lucide="sun"></i></span>
+                    </button>
 
                     <div class="nav-user">
                         <button type="button" id="btnUserMenu" class="nav-user-pill" aria-expanded="false">
@@ -182,8 +148,16 @@ class Navbar {
                                 <a class="nav-menu-row nav-only-compact" id="rowEmpresas" href="${this.base}/app/empresas/" hidden>
                                     <i data-lucide="building-2"></i>Cambiar de empresa
                                 </a>
-                                <button type="button" class="nav-menu-row nav-only-compact" id="rowTheme" hidden>
-                                    <i data-lucide="palette"></i>Tema
+                            </div>
+
+                            <div class="nav-divider"></div>
+
+                            <div class="nav-mode" role="group" aria-label="Modo de la aplicación">
+                                <button type="button" class="nav-mode-opt" data-mode="light" aria-pressed="false">
+                                    <i data-lucide="sun"></i>Claro
+                                </button>
+                                <button type="button" class="nav-mode-opt" data-mode="dark" aria-pressed="false">
+                                    <i data-lucide="moon"></i>Oscuro
                                 </button>
                             </div>
 
@@ -199,6 +173,10 @@ class Navbar {
 
         this.nav = this.host.querySelector('.navbar-main');
         this.icons();
+
+        // Como quedo la pagina desde el <head> (tailwind-theme.js): la barra nace
+        // ya en su modo, sin esperar al servidor.
+        this.paintMode(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
     }
 
     renderSession() {
@@ -314,106 +292,42 @@ class Navbar {
         window.location.reload();
     }
 
-    // -- Temas --
+    // -- Modo: claro u oscuro --
 
-    hex(value, fallback) {
-        return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(value || '') ? value : fallback;
-    }
+    // La barra: su color y su logo cuelgan de .nav-dark; el boton y el
+    // selector del menu marcan en cual se esta.
+    paintMode(mode) {
+        const dark = mode === 'dark';
 
-    themeByCode(code) {
-        return this.themes.find((t) => t.code === code) || null;
-    }
+        this.current = dark ? 'dark' : 'light';
+        this.nav.classList.toggle('nav-dark', dark);
 
-    // Lo que se necesita de un tema, ya saneado: nada de esto llega a un
-    // style="" sin pasar por aqui.
-    look(theme) {
-        const fb     = Navbar.THEME_FALLBACK;
-        const accent = this.hex(theme.accent, fb.accent);
+        const btn   = document.getElementById('btnMode');
+        const label = dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
 
-        return {
-            code:      theme.code,
-            name:      theme.name || '',
-            color:     this.hex(theme.color, fb.color),
-            image:     theme.tipo === 'imagen' && theme.image ? theme.image : '',
-            dark:      theme.mode === 'dark',
-            accent:    accent,
-            primary:   this.hex(theme.primary, fb.primary),
-            // Sin secundario propio, la barra sigue al acento.
-            secondary: this.hex(theme.secondary, accent),
-            // Sin color propio, cadena vacia: el rail sigue a la pagina.
-            sidebar:   this.hex(theme.sidebar, ''),
-            scheme:    Navbar.SCHEME_PAGE[theme.scheme] ? theme.scheme : 'light',
-            badge:     theme.badge || ''
-        };
-    }
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
 
-    // Barra con color (no blanca): con texto oscuro lleva .nav-tinted. Casi
-    // blanco (todos los canales arriba de 235) cuenta como blanca.
-    isTinted(color) {
-        let hex = String(color || '').replace('#', '');
-        if (hex.length === 3) hex = hex.replace(/(.)/g, '$1$1');
-        if (!/^[0-9A-Fa-f]{6}$/.test(hex)) return false;
-
-        return [0, 2, 4].some((i) => parseInt(hex.substr(i, 2), 16) < 235);
-    }
-
-    savedBar() {
-        try { return JSON.parse(localStorage.getItem(Navbar.BAR_KEY) || 'null'); } catch (e) { return null; }
-    }
-
-    /* Un tema de imagen va en tres capas: el color de base (se ve mientras
-       carga y queda si la foto falla), el velo y la foto. El velo va como
-       box-shadow interior porque se pinta encima del fondo y debajo del
-       contenido. */
-    paintBar(bar) {
-        if (!bar || !this.nav) return;
-
-        const color = this.hex(bar.color, '#FFFFFF');
-
-        if (bar.image) {
-            this.nav.style.setProperty('background', `url("${encodeURI(bar.image)}") center/cover no-repeat, ${color}`, 'important');
-            this.nav.style.setProperty('box-shadow', `inset 0 0 0 9999px ${bar.dark ? Navbar.VEIL_DARK : Navbar.VEIL_LIGHT}`, 'important');
-        } else {
-            this.nav.style.setProperty('background', color, 'important');
-            this.nav.style.removeProperty('box-shadow');
-        }
-
-        this.nav.classList.toggle('nav-dark', !!bar.dark);
-        this.nav.classList.toggle('nav-imagen', !!bar.image);
-        this.nav.classList.toggle('nav-tinted', !bar.dark && !bar.image && this.isTinted(color));
-    }
-
-    // Pinta barra y pagina. Devuelve el look aplicado.
-    applyTheme(code) {
-        const look = this.look(this.themeByCode(code) || Navbar.THEME_FALLBACK);
-        const bar  = { color: look.color, image: look.image, dark: look.dark };
-
-        if (window.InventoryPalette) {
-            const palette = { accent: look.accent, primary: look.primary, secondary: look.secondary, sidebar: look.sidebar, scheme: look.scheme };
-
-            InventoryPalette.apply(palette);
-            InventoryPalette.save(palette);
-        }
-
-        this.paintBar(bar);
-        try { localStorage.setItem(Navbar.BAR_KEY, JSON.stringify(bar)); } catch (e) {}
-
-        this.current = look.code;
-
-        this.host.querySelectorAll('.nav-color-opt').forEach((el) => {
-            el.classList.toggle('is-active', el.dataset.code === look.code);
+        this.host.querySelectorAll('.nav-mode-opt').forEach((el) => {
+            el.setAttribute('aria-pressed', el.dataset.mode === this.current ? 'true' : 'false');
         });
+    }
 
-        return look;
+    // Pinta la pagina (InventoryPalette) y la barra.
+    applyMode(mode) {
+        mode = mode === 'dark' ? 'dark' : 'light';
+
+        if (window.InventoryPalette) InventoryPalette.setMode(mode);
+        this.paintMode(mode);
     }
 
     /*  Los componentes de coffeeSoft se arman UNA vez con la variante de la
-        pagina (clara u oscura) que habia al pintarse. Si el tema del servidor
+        pagina (clara u oscura) que habia al pintarse. Si el modo del servidor
         no coincide con el que este navegador tenia guardado -- otro equipo,
         otra cuenta en el mismo navegador -- lo ya pintado quedaria en la
-        variante vieja: se recarga, una sola vez por tema para que un fallo no
+        variante vieja: se recarga, una sola vez por modo para que un fallo no
         deje la pagina dando vueltas. */
-    syncScheme(look) {
+    syncScheme() {
         const wasDark = this.darkAtLoad;
         const isDark  = document.documentElement.classList.contains('dark');
 
@@ -421,85 +335,37 @@ class Navbar {
 
         let done = '';
         try { done = sessionStorage.getItem(Navbar.RELOAD_KEY) || ''; } catch (e) { return; }
-        if (done === look.code) return;
+        if (done === this.current) return;
 
-        try { sessionStorage.setItem(Navbar.RELOAD_KEY, look.code); } catch (e) { return; }
+        try { sessionStorage.setItem(Navbar.RELOAD_KEY, this.current); } catch (e) { return; }
         window.location.reload();
     }
 
-    buildThemeList() {
-        const tool = document.getElementById('navThemeTool');
-
-        // Con un solo tema no hay nada que elegir: sin boton, en vez de un menu
-        // de una opcion.
-        if (this.themes.length < 2) {
-            tool.hidden = true;
-            document.getElementById('rowTheme').hidden = true;
-            return;
-        }
-
-        tool.hidden = false;
-        document.getElementById('rowTheme').hidden = false;
-
-        /* La muestra es una ventanita del tema: la barra arriba (su color, o
-           la foto), la pagina abajo, el rail si trae color y el acento y el
-           primario como dos botones. Asi se distinguen hasta los que comparten
-           barra blanca. */
-        document.getElementById('navColorList').innerHTML = this.themes.map((t) => {
-            const look = this.look(t);
-            const bar  = look.image
-                ? `background:url('${encodeURI(look.image)}') center/cover no-repeat, ${look.color};`
-                : `background:${look.color};`;
-
-            return `
-                <button type="button" class="nav-color-opt" data-code="${this.esc(look.code)}">
-                    <span class="nav-color-swatch ${look.sidebar ? 'has-side' : ''}" style="background:${Navbar.SCHEME_PAGE[look.scheme]};">
-                        <span class="nav-swatch-bar" style="${bar}"></span>
-                        ${look.sidebar ? `<span class="nav-swatch-side" style="background:${look.sidebar};"></span>` : ''}
-                        <span class="nav-swatch-acc" style="background:${look.accent};"></span>
-                        <span class="nav-swatch-pri" style="background:${look.primary};"></span>
-                    </span>
-                    <span class="nav-color-name">${this.esc(look.name)}</span>
-                    ${look.badge ? `<span class="nav-color-badge">${this.esc(look.badge)}</span>` : ''}
-                    <i data-lucide="check" class="nav-color-check"></i>
-                </button>`;
-        }).join('');
-
-        this.icons();
-    }
-
     /* El cambio corre detras del aviso "Aplicando tema": primero entra el velo
-       y despues se pintan los colores. Si el tema nuevo cambia de pagina clara
-       a oscura (o al reves) se recarga, por lo mismo que en syncScheme(). */
-    async selectTheme(code) {
-        if (code === this.current) return this.closeAll();
+       y despues se pintan los colores. Cambiar de modo siempre cambia la
+       variante de la pagina: se recarga, por lo mismo que en syncScheme(). */
+    async selectMode(mode) {
+        if (mode === this.current) return this.closeAll();
 
-        const wasDark = document.documentElement.classList.contains('dark');
-        const theme   = this.themeByCode(code);
-        const loader  = window.InventoryPalette && InventoryPalette.loader;
-        const started = Date.now();
+        const P      = window.InventoryPalette;
+        const loader = P && P.loader;
+        const name   = P && P.MODES[mode] ? P.MODES[mode].name : '';
 
         this.closeAll();
 
         if (loader) {
-            loader.show(theme ? theme.name : '');
+            loader.show(name);
             await new Promise((resolve) => setTimeout(resolve, 180));
         }
 
-        this.applyTheme(code);
+        this.applyMode(mode);
 
-        // Si no se guarda, el tema ya se ve: solo no queda para la proxima.
-        await this.post({ opc: 'theme', code: code });
+        // Si no se guarda, el modo ya se ve: solo no queda para otro equipo.
+        await this.post({ opc: 'theme', code: mode });
 
-        if (document.documentElement.classList.contains('dark') !== wasDark) {
-            try { sessionStorage.setItem(Navbar.RELOAD_KEY, code); } catch (e) {}
-            if (loader) loader.carry(theme ? theme.name : '');
-            window.location.reload();
-            return;
-        }
-
-        // Tiempo minimo en pantalla para que el aviso alcance a leerse.
-        if (loader) setTimeout(loader.hide, Math.max(0, 750 - (Date.now() - started)));
+        try { sessionStorage.setItem(Navbar.RELOAD_KEY, mode); } catch (e) {}
+        if (loader) loader.carry(name);
+        window.location.reload();
     }
 
     // -- Menus --
@@ -507,7 +373,6 @@ class Navbar {
     panels() {
         return [
             { btn: 'btnUserMenu', panel: 'userMenuDropdown' },
-            { btn: 'btnTheme',    panel: 'navColorMenu' },
             { btn: 'btnNotifs',   panel: 'navNotifPanel' },
             { btn: 'btnBranch',   panel: 'branchDropdown' }
         ];
@@ -531,21 +396,20 @@ class Navbar {
     }
 
     initEvents() {
-        // Antes de que nada cambie el tema: con que variante se pinto la pagina.
+        // Antes de que nada cambie el modo: con que variante se pinto la pagina.
         this.darkAtLoad = document.documentElement.classList.contains('dark');
 
         this.host.addEventListener('click', (e) => {
             const on = (selector) => e.target.closest(selector);
 
             if (on('#btnUserMenu')) return this.toggle('userMenuDropdown');
-            if (on('#btnTheme'))    return this.toggle('navColorMenu');
+            if (on('#btnMode'))     return this.selectMode(this.current === 'dark' ? 'light' : 'dark');
             if (on('#btnNotifs'))   return this.toggle('navNotifPanel');
-            if (on('#rowTheme'))    return this.toggle('navColorMenu');
             if (on('#btnBranch'))   return this.toggle('branchDropdown');
             if (on('#btnLogout'))   return this.logout();
 
-            const theme = on('.nav-color-opt');
-            if (theme) return this.selectTheme(theme.dataset.code);
+            const mode = on('.nav-mode-opt');
+            if (mode) return this.selectMode(mode.dataset.mode);
 
             const branch = on('.branch-card');
             if (branch) {
@@ -607,10 +471,12 @@ class Navbar {
     /*  Va inyectado y no en un .css aparte: la barra se entrega con un <script>,
         asi que atarle el CSS a ese script hace imposible tener uno sin el otro.
 
-        Los colores de marca salen de la rampa del SECUNDARIO del tema
+        La barra clara lleva los neutros del login y la landing (tinta #16151C,
+        linea #E8E3F0, hover #F1EDF9); la oscura (.nav-dark), los de Huubie UI.
+        Los colores de marca salen de la rampa del SECUNDARIO del modo
         (--accent-2-*), que escribe InventoryPalette. Las superficies de los
         desplegables, de los tokens de pagina (--surface, --line, --ink) y, en
-        pagina oscura, de los --dk-*: asi siguen al tema sin saber cual es.
+        pagina oscura, de los --dk-*.
 
         Varias reglas llevan !important: Bootstrap (las paginas de Developer lo
         cargan) trae a:hover, button y p con sus propios colores y margenes. */
@@ -639,7 +505,7 @@ class Navbar {
 
             /* Sin general.css (Empresas) el anfitrion no trae alto ni capa. */
             #menu-navbar { flex:none; z-index:50; }
-            .navbar-main { position:relative; height:64px; min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px; background:#FFFFFF; border-bottom:1px solid var(--nav-accent-line); font-family:'Inter',system-ui,sans-serif; transition:background .2s ease; }
+            .navbar-main { position:relative; height:64px; min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px; background:#FFFFFF; border-bottom:1px solid #E8E3F0; font-family:'Inter',system-ui,sans-serif; transition:background .2s ease; }
             .navbar-main button { font-family:inherit; }
             .navbar-main [hidden] { display:none !important; }
             .navbar-main p { margin:0; }
@@ -647,14 +513,15 @@ class Navbar {
             .nav-left, .nav-right { display:flex; align-items:center; gap:10px; min-width:0; }
             .nav-right { flex-shrink:0; }
 
-            /* Marca */
-            .nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none !important; min-width:0; }
-            .nav-brand-mark { width:34px; height:34px; border-radius:10px; background:#0A0A0A; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-            .nav-brand-mark img { width:24px; height:24px; }
-            .nav-brand-text { display:flex; flex-direction:column; line-height:1.15; min-width:0; }
-            .navbar-title { font-size:15px; font-weight:700; color:#111827; }
-            .navbar-subtitle { font-size:10px; color:#9CA3AF; letter-spacing:.12em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
-            .navbar-subtitle:empty { display:none; }
+            /* Marca: un logo por modo y, a su lado, la empresa. */
+            .nav-brand { display:flex; align-items:center; gap:12px; text-decoration:none !important; min-width:0; border-radius:8px; }
+            .nav-brand:focus-visible { outline:2px solid var(--nav-accent); outline-offset:4px; }
+            .nav-logo { height:42px; width:auto; display:block; flex-shrink:0; }
+            .nav-logo-dark { display:none; }
+            .navbar-main.nav-dark .nav-logo-light { display:none; }
+            .navbar-main.nav-dark .nav-logo-dark { display:block; }
+            .nav-company { padding-left:12px; border-left:1px solid #E8E3F0; font-size:13px; font-weight:600; color:#16151C; line-height:22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
+            .nav-company:empty { display:none; }
 
             /* root dentro de una empresa: que no se le olvide que no es la suya. */
             .nav-viewing { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:600; color:#92400E; background:#FEF3C7; border:1px solid #FDE68A; white-space:nowrap; }
@@ -662,9 +529,10 @@ class Navbar {
 
             /* Botones de icono redondos, como .nav-tool-btn de erp-pro. */
             .nav-tool { position:relative; }
-            .nav-tool-btn { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#6B7280 !important; border:none; background:transparent; cursor:pointer; border-radius:9999px; transition:color .15s ease, background .15s ease; }
+            .nav-tool-btn { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#6D6977 !important; border:none; background:transparent; cursor:pointer; border-radius:9999px; transition:color .15s ease, background .15s ease; }
             .nav-tool-btn svg { width:18px; height:18px; }
-            .nav-tool-btn:hover { color:#111827 !important; background:#F3F4F6; }
+            .nav-tool-btn:hover { color:#16151C !important; background:#F1EDF9; }
+            .nav-tool-btn:focus-visible { outline:2px solid var(--nav-accent); outline-offset:2px; }
             .nav-tool-btn[aria-expanded="true"] { color:var(--nav-accent) !important; background:var(--nav-accent-tint); }
 
             /* Pildora de sucursal */
@@ -677,14 +545,14 @@ class Navbar {
             .branch-pill-icon { width:30px; height:30px; border-radius:8px; background:var(--nav-accent-tint); display:flex; align-items:center; justify-content:center; color:var(--nav-accent); flex-shrink:0; }
             .branch-pill-icon svg { width:17px; height:17px; }
             .branch-pill-text { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; min-width:0; }
-            .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#9CA3AF; font-weight:600; }
-            .branch-pill-name { font-size:13px; font-weight:700; color:#111827; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-            .branch-pill-chev { width:16px; height:16px; color:#9CA3AF; transition:transform .2s ease; }
+            .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#6D6977; font-weight:600; }
+            .branch-pill-name { font-size:13px; font-weight:700; color:#16151C; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .branch-pill-chev { width:16px; height:16px; color:#6D6977; transition:transform .2s ease; }
             #btnBranch[aria-expanded="true"] .branch-pill-chev { transform:rotate(180deg); }
 
             /* Desplegables: una sola piel para los tres. */
-            .branch-dd, .nav-color-menu, .nav-dropdown { position:absolute; right:0; top:calc(100% + 10px); background:var(--nav-pop); border:1px solid var(--nav-pop-line); border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); z-index:60; color:var(--nav-pop-ink); text-align:left; }
-            body.dark-mode .branch-dd, body.dark-mode .nav-color-menu, body.dark-mode .nav-dropdown { box-shadow:0 16px 40px rgba(0,0,0,.45); }
+            .branch-dd, .nav-panel, .nav-dropdown { position:absolute; right:0; top:calc(100% + 10px); background:var(--nav-pop); border:1px solid var(--nav-pop-line); border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); z-index:60; color:var(--nav-pop-ink); text-align:left; }
+            body.dark-mode .branch-dd, body.dark-mode .nav-panel, body.dark-mode .nav-dropdown { box-shadow:0 16px 40px rgba(0,0,0,.45); }
             .nav-dd-label { padding:8px 10px 4px; font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--nav-pop-dim); font-weight:700; }
 
             .branch-dd { width:300px; }
@@ -704,29 +572,24 @@ class Navbar {
             .branch-radio-inner { width:7px; height:7px; border-radius:9999px; background:var(--nav-accent); opacity:0; }
             .branch-card-sel .branch-radio-inner { opacity:1; }
 
-            /* Selector de temas */
-            .nav-color-menu { width:260px; padding:6px; }
-            .nav-color-opt { width:100%; display:flex; align-items:center; gap:10px; padding:8px 10px; border:none; border-radius:10px; background:transparent; cursor:pointer; text-align:left; transition:background .15s ease; }
-            .nav-color-opt:hover { background:var(--nav-pop-hover); }
-            .nav-color-opt.is-active { background:var(--nav-accent-tint); }
-            .nav-color-swatch { position:relative; width:30px; height:22px; border-radius:6px; overflow:hidden; flex-shrink:0; }
-            .nav-color-swatch::after { content:""; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 0 0 1px rgba(15,23,42,.16); pointer-events:none; }
-            body.dark-mode .nav-color-swatch::after { box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
-            .nav-swatch-bar { position:absolute; left:0; right:0; top:0; height:7px; }
-            .nav-swatch-acc, .nav-swatch-pri { position:absolute; bottom:4px; height:5px; border-radius:3px; }
-            .nav-swatch-acc { left:4px; width:12px; }
-            .nav-swatch-pri { right:4px; width:7px; }
-            .nav-swatch-side { position:absolute; left:0; top:7px; bottom:0; width:6px; }
-            .nav-color-swatch.has-side .nav-swatch-acc { left:9px; width:9px; }
-            .nav-color-name { font-size:13px; font-weight:600; color:var(--nav-pop-ink); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-            .nav-color-badge { font-size:8.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:2px 6px; border-radius:9999px; background:#7AAB20; color:#FFFFFF; flex-shrink:0; }
-            .nav-color-check { width:16px; height:16px; color:var(--nav-accent); opacity:0; flex-shrink:0; }
-            .nav-color-opt.is-active .nav-color-check { opacity:1; }
+            /* Modo. En la barra, un boton que muestra a donde se va: luna en
+               claro, sol en oscuro. En el menu del usuario, las dos opciones. */
+            .nav-mode-to-dark, .nav-mode-to-light { display:flex; }
+            .nav-mode-to-light { display:none; }
+            .navbar-main.nav-dark .nav-mode-to-dark { display:none; }
+            .navbar-main.nav-dark .nav-mode-to-light { display:flex; }
+
+            .nav-mode { display:flex; gap:4px; margin:12px; padding:4px; border:1px solid var(--nav-pop-line); border-radius:12px; }
+            .nav-mode-opt { flex:1; display:flex; align-items:center; justify-content:center; gap:7px; height:34px; border:none; border-radius:9px; background:transparent; color:var(--nav-pop-dim); font-size:13px; font-weight:600; cursor:pointer; transition:color .15s ease, background .15s ease; }
+            .nav-mode-opt svg { width:15px; height:15px; }
+            .nav-mode-opt:hover { color:var(--nav-pop-ink); }
+            .nav-mode-opt:focus-visible { outline:2px solid var(--nav-accent); outline-offset:2px; }
+            .nav-mode-opt[aria-pressed="true"] { background:rgb(var(--primary-rgb, 80 48 165)); color:#FFFFFF; }
 
             /* Notificaciones */
             .nav-tool-btn { position:relative; }
             .nav-count { position:absolute; top:3px; right:3px; min-width:16px; height:16px; padding:0 4px; border-radius:9999px; background:#DC2626; color:#FFFFFF; font-size:10px; font-weight:700; line-height:16px; text-align:center; }
-            .nav-notif-panel { width:300px; }
+            .nav-notif-panel { width:300px; padding:6px; }
             .nav-notif { display:flex; align-items:flex-start; gap:10px; padding:10px; border-radius:10px; text-decoration:none !important; transition:background .15s ease; }
             .nav-notif:hover { background:var(--nav-pop-hover); }
             .nav-notif-ico { width:32px; height:32px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--nav-accent-tint); color:var(--nav-accent); }
@@ -737,18 +600,18 @@ class Navbar {
 
             /* Usuario */
             .nav-user { position:relative; }
-            .nav-user-pill { display:flex; align-items:center; gap:10px; padding:4px 8px 4px 13px; border:1px solid transparent; border-left:1px solid #E5E7EB; border-radius:8px; background:transparent; cursor:pointer; transition:background .15s ease, border-color .15s ease; }
-            .nav-user-pill:hover { background:#F3F4F6; border-color:#E5E7EB; }
+            .nav-user-pill { display:flex; align-items:center; gap:10px; padding:4px 8px 4px 13px; border:1px solid transparent; border-left:1px solid #E8E3F0; border-radius:8px; background:transparent; cursor:pointer; transition:background .15s ease, border-color .15s ease; }
+            .nav-user-pill:hover { background:#F1EDF9; border-color:#E8E3F0; }
             .nav-avatar, .nav-head-avatar { border-radius:9999px; background:#9CA3AF; display:flex; align-items:center; justify-content:center; color:#FFFFFF; font-weight:700; flex-shrink:0; overflow:hidden; }
             .nav-avatar { width:36px; height:36px; font-size:12.5px; }
             .nav-head-avatar { width:46px; height:46px; font-size:15px; }
             .nav-avatar img, .nav-head-avatar img { width:100%; height:100%; object-fit:cover; }
             .nav-avatar svg { width:18px; height:18px; }
             .nav-user-text { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
-            .nav-user-name { font-size:13px; font-weight:600; color:#111827; white-space:nowrap; max-width:170px; overflow:hidden; text-overflow:ellipsis; }
-            .nav-user-rol { font-size:11px; color:#6B7280; }
+            .nav-user-name { font-size:13px; font-weight:600; color:#16151C; white-space:nowrap; max-width:170px; overflow:hidden; text-overflow:ellipsis; }
+            .nav-user-rol { font-size:11px; color:#6D6977; }
             .nav-user-rol:empty { display:none; }
-            .nav-chevron { width:16px; height:16px; color:#9CA3AF; transition:transform .2s ease; }
+            .nav-chevron { width:16px; height:16px; color:#6D6977; transition:transform .2s ease; }
             #btnUserMenu[aria-expanded="true"] .nav-chevron { transform:rotate(180deg); }
 
             .nav-dropdown { width:280px; overflow:hidden; }
@@ -763,23 +626,22 @@ class Navbar {
             .nav-menu-row svg { width:16px; height:16px; color:var(--nav-pop-dim); }
             .nav-menu-row:hover { background:var(--nav-pop-hover); }
             .nav-only-compact { display:none; }
-            .nav-logout { padding:4px 12px 12px; }
+            .nav-logout { padding:0 12px 12px; }
             .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1px solid var(--nav-pop-line); color:#DC2626; border-radius:12px; font-weight:600; font-size:14px; background:transparent; cursor:pointer; transition:background .15s ease, border-color .15s ease; }
             .nav-logout-btn svg { width:16px; height:16px; }
             .nav-logout-btn:hover { background:rgba(220,38,38,.08); border-color:rgba(220,38,38,.35); }
             body.dark-mode .nav-logout-btn { color:#F87171; }
 
-            /* ── Barra oscura (mode: dark): solo cambia la barra. ── */
-            .navbar-main.nav-dark { border-bottom-color:rgba(255,255,255,.12); }
-            .navbar-main.nav-dark .navbar-title,
+            /* ── Modo oscuro: la barra de Huubie UI (bg-header #141D2B). ── */
+            .navbar-main.nav-dark { background:#141D2B; border-bottom-color:#374151; }
+            .navbar-main.nav-dark .nav-company { border-left-color:rgba(255,255,255,.15); }
+            .navbar-main.nav-dark .nav-company,
             .navbar-main.nav-dark .nav-user-name,
             .navbar-main.nav-dark .branch-pill-name { color:#F8FAFC; }
-            .navbar-main.nav-dark .navbar-subtitle,
             .navbar-main.nav-dark .nav-user-pill .nav-user-rol,
             .navbar-main.nav-dark .branch-pill-label { color:rgba(255,255,255,.62); }
             .navbar-main.nav-dark .nav-chevron,
             .navbar-main.nav-dark .branch-pill-chev { color:#CBD5E1; }
-            .navbar-main.nav-dark .nav-brand-mark { box-shadow:0 0 0 1px rgba(255,255,255,.18); }
             .navbar-main.nav-dark .nav-user-pill { border-left-color:rgba(255,255,255,.15); }
             .navbar-main.nav-dark .nav-user-pill:hover { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.15); }
             .navbar-main.nav-dark .nav-avatar { box-shadow:0 0 0 1px rgba(255,255,255,.25); }
@@ -790,43 +652,14 @@ class Navbar {
             .navbar-main.nav-dark .nav-tool-btn:hover,
             .navbar-main.nav-dark .nav-tool-btn[aria-expanded="true"] { color:#FFFFFF !important; background:rgba(255,255,255,.10); }
 
-            /* ── Barra clara con color (rosa, menta...): los grises de la barra
-               blanca se pierden sobre un color; aqui van en tinta translucida. ── */
-            .navbar-main.nav-tinted { border-bottom-color:rgba(17,24,39,.10); }
-            .navbar-main.nav-tinted .navbar-subtitle,
-            .navbar-main.nav-tinted .nav-user-pill .nav-user-rol,
-            .navbar-main.nav-tinted .branch-pill-label { color:rgba(17,24,39,.72); }
-            .navbar-main.nav-tinted .nav-chevron,
-            .navbar-main.nav-tinted .branch-pill-chev { color:rgba(17,24,39,.78); }
-            .navbar-main.nav-tinted .nav-tool-btn { color:rgba(17,24,39,.78) !important; }
-            .navbar-main.nav-tinted .nav-tool-btn:hover,
-            .navbar-main.nav-tinted .nav-tool-btn[aria-expanded="true"] { color:#111827 !important; background:rgba(255,255,255,.45); }
-            .navbar-main.nav-tinted .nav-user-pill { border-left-color:rgba(17,24,39,.14); }
-            .navbar-main.nav-tinted .nav-user-pill:hover { background:rgba(255,255,255,.40); border-color:rgba(17,24,39,.10); }
-            .navbar-main.nav-tinted .nav-avatar { box-shadow:0 0 0 2px rgba(255,255,255,.70); }
-            .navbar-main.nav-tinted .branch-pill { background:rgba(255,255,255,.22); border-color:rgba(255,255,255,.40); }
-            .navbar-main.nav-tinted .branch-pill:not(.branch-pill-static):hover { background:rgba(255,255,255,.34); border-color:rgba(255,255,255,.60); }
-            .navbar-main.nav-tinted .branch-pill-icon { background:rgba(255,255,255,.32); color:rgba(17,24,39,.78); }
-
-            /* ── Barra con imagen: el velo es flojo para que la foto se vea; lo
-               que hace legible el texto es esta sombra. ── */
-            .navbar-main.nav-imagen .navbar-title,
-            .navbar-main.nav-imagen .nav-user-name,
-            .navbar-main.nav-imagen .branch-pill-name { text-shadow:0 1px 3px rgba(0,0,0,.55); }
-            .navbar-main.nav-imagen:not(.nav-dark) .navbar-title,
-            .navbar-main.nav-imagen:not(.nav-dark) .nav-user-name,
-            .navbar-main.nav-imagen:not(.nav-dark) .branch-pill-name { text-shadow:0 1px 3px rgba(255,255,255,.85); }
-            .navbar-main.nav-imagen .nav-tool-btn { background:rgba(255,255,255,.14); }
-            .navbar-main.nav-imagen.nav-dark .nav-tool-btn { background:rgba(0,0,0,.18); }
-
-            /* ── Telefono (< 768px): quedan la marca sin texto, la sucursal
-               (sin icono ni flecha) y el avatar. Empresas y Tema pasan al menu
-               del usuario. Los desplegables van a lo ancho de la pantalla para
-               no salirse por la izquierda. ── */
+            /* ── Telefono (< 768px): quedan el logo sin la empresa, la sucursal
+               (sin icono ni flecha) y el avatar. Empresas pasa al menu del
+               usuario, donde tambien esta el modo. Los desplegables van a lo
+               ancho de la pantalla para no salirse por la izquierda. ── */
             @media (max-width: 767.98px) {
                 .navbar-main { padding:0 10px; gap:8px; }
                 .nav-right { gap:6px; flex-shrink:1; }
-                .navbar-main .nav-brand-text,
+                .navbar-main .nav-company,
                 .navbar-main .nav-viewing span,
                 .navbar-main .nav-hide-compact,
                 .navbar-main .branch-pill-label,
@@ -841,7 +674,7 @@ class Navbar {
                 .nav-tool { position:static; }
                 .nav-branch { position:static; }
                 .nav-user { position:static; }
-                .branch-dd, .nav-color-menu, .nav-dropdown { position:fixed; left:10px; right:10px; top:70px; width:auto; }
+                .branch-dd, .nav-panel, .nav-dropdown { position:fixed; left:10px; right:10px; top:70px; width:auto; }
             }`;
 
         const tag = document.createElement('style');

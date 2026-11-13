@@ -8,9 +8,9 @@ require_once __DIR__ . '/../../core/helpers/_CoffeeSoft.php';
 
 /*  Lo que piden la barra superior y el rail lateral de cada pagina.
 
-      session        quien entro, su empresa, sus sucursales y los temas
+      session        quien entro, su empresa, sus sucursales y su modo (claro u oscuro)
       rail           el menu lateral de la pagina que pregunta
-      theme          guarda el tema elegido
+      theme          guarda el modo elegido
       switchBranch   cambia la sucursal activa
 
     Todas las rutas que salen de aqui son relativas a pro/: este ctrl lo llaman
@@ -22,20 +22,17 @@ class ctrl extends mdl {
     // en fila las demas peticiones que la pagina lanza al mismo tiempo.
     const READ_ONLY = ['session', 'rail', 'theme'];
 
+    // La aplicacion solo tiene dos modos. Sus colores estan en
+    // assets/js/tailwind-theme.js (MODES); aqui solo se guarda cual eligio cada quien.
+    const MODES = ['light', 'dark'];
+
     const ROUTE_HOME     = 'app/home/';
     const ROUTE_PROFILE  = 'app/perfil/';
     const ROUTE_COMPANIES = 'app/empresas/';
     const ROUTE_SETUP     = 'app/configurar/';
 
     function session() {
-        $row    = $this->getNavUser([Session::user()]);
-        $themes = $this->themes();
-        $codes  = array_column($themes, 'code');
-
-        // Un tema elegido que despues se apago (o que su empresa ya no tiene)
-        // no esta en la lista: esa persona ve el de por defecto.
-        $current = $row['theme_code'] ?? null;
-        if (!in_array($current, $codes, true)) $current = $this->defaultTheme($themes);
+        $row = $this->getNavUser([Session::user()]);
 
         return [
             'status' => 200,
@@ -53,8 +50,7 @@ class ctrl extends mdl {
                 'locked'   => Plan::companyId() > 0 && !Plan::state()['ok'] ? 1 : 0,
                 'notices'  => $this->notices(),
                 'branches' => $this->branches(),
-                'themes'   => $themes,
-                'theme'    => $current,
+                'theme'    => $this->mode($row['theme_code'] ?? null),
             ]
         ];
     }
@@ -81,18 +77,17 @@ class ctrl extends mdl {
     }
 
     function theme() {
-        $code  = trim((string) $_POST['code']);
-        $codes = array_column($this->themes(), 'code');
+        $code = trim((string) $_POST['code']);
 
-        if (!in_array($code, $codes, true)) {
-            return ['status' => 403, 'message' => 'Ese tema no está disponible para tu empresa.'];
+        if (!in_array($code, self::MODES, true)) {
+            return ['status' => 400, 'message' => 'Ese modo no existe.'];
         }
 
         $ok = $this->updateUserTheme([$code, Session::user()]);
 
         return $ok === true
-             ? ['status' => 200, 'message' => 'Tema guardado.']
-             : ['status' => 500, 'message' => 'No se pudo guardar el tema.'];
+             ? ['status' => 200, 'message' => 'Modo guardado.']
+             : ['status' => 500, 'message' => 'No se pudo guardar el modo.'];
     }
 
     function switchBranch() {
@@ -275,57 +270,20 @@ class ctrl extends mdl {
         return $list;
     }
 
-    // -- Temas --
+    // -- Modo --
 
-    // root elige entre todos; los demas, entre los de su empresa.
-    private function themes() {
-        $rows = !empty($_SESSION['is_root'])
-              ? $this->listThemes()
-              : $this->listThemesByCompany([Plan::companyId()]);
+    /*  users.theme_code guarda 'light' o 'dark'. Quien nunca eligio ve el claro.
+        Puede traer el code de un tema de cuando habia catalogo (themes): esa
+        persona sigue en oscuro si la pagina de su tema lo era. */
+    private function mode($code) {
+        $code = trim((string) $code);
 
-        $themes = [];
+        if (in_array($code, self::MODES, true)) return $code;
+        if ($code === '') return 'light';
 
-        foreach ($rows as $t) {
-            $themes[] = [
-                'code'      => $t['code'],
-                'name'      => $t['name'],
-                'tipo'      => $t['tipo'],
-                'color'     => $t['color'],
-                'image'     => $t['tipo'] === 'imagen' ? $this->themeImageUrl($t['image']) : '',
-                'accent'    => $t['accent'],
-                'primary'   => $t['primary_color'],
-                'secondary' => $t['secondary_color'],
-                'sidebar'   => $t['sidebar_color'] ?: '',
-                'scheme'    => $t['scheme'],
-                'mode'      => $t['mode'],
-                'badge'     => $t['badge'] ?: '',
-                'default'   => (int) $t['is_default'],
-            ];
-        }
+        $scheme = $this->getThemeScheme([$code]);
 
-        return $themes;
-    }
-
-    private function defaultTheme($themes) {
-        foreach ($themes as $theme) {
-            if ($theme['default'] === 1) return $theme['code'];
-        }
-
-        return empty($themes) ? '' : $themes[0]['code'];
-    }
-
-    // themes.image es relativa a pro/ ('uploads/themes/x.png'). El ?v= cambia al
-    // resubirla: el archivo conserva su nombre y el navegador serviria la vieja.
-    private function themeImageUrl($image) {
-        $image = trim((string) $image);
-        if ($image === '') return '';
-
-        $file = __DIR__ . '/../../' . $image;
-        if (!is_file($file)) return '';
-
-        $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '', 3)), '/');
-
-        return $base . '/' . $image . '?v=' . filemtime($file);
+        return $scheme !== null && $scheme !== 'light' ? 'dark' : 'light';
     }
 }
 
