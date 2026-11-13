@@ -107,7 +107,7 @@ class ctrl extends core {
 
     // Devuelve los campos del descuento o una respuesta de error (trae 'status').
     private function discountInput() {
-        $name    = $this->post('name');
+        $name    = $this->nameInput();
         $code    = $this->code('code');
         $percent = $this->percent('max_percent', 0);
 

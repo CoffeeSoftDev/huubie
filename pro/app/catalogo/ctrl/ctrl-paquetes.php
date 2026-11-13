@@ -55,6 +55,7 @@ class ctrl extends core {
             return [
                 'id'     => (int) $item['component_id'],
                 'name'   => $item['name'],
+                'sku'    => (string) $item['sku'],
                 'kind'   => $item['kind'],
                 'qty'    => (float) $item['quantity'],
                 'price'  => (float) $item['price'],

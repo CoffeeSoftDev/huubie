@@ -783,12 +783,10 @@ class Navbar {
         });
 
         if (!response || response.status != 200) {
-            Swal.fire({
-                ...this.swalTheme(),
-                icon:              'error',
-                title:             'No se pudo cambiar de sucursal',
-                text:              (response && response.message) || 'Inténtalo nuevamente.',
-                confirmButtonText: 'Ok',
+            this.alertBox({
+                type:       'error',
+                title:      'No se pudo cambiar de sucursal',
+                detailHtml: this.escapeText((response && response.message) || 'Inténtalo nuevamente.')
             });
             return;
         }
@@ -1317,34 +1315,19 @@ class Navbar {
         return `hace ${meses} ${meses === 1 ? 'mes' : 'meses'}`;
     }
 
-    // Colores de los avisos de la navbar según el tema de la página. No pueden
-    // depender de dark-mode.css: no todas las páginas lo cargan y ahí el aviso
-    // se quedaba blanco aunque el tema fuera oscuro.
-    swalTheme() {
-        return document.body.classList.contains('dark-mode')
-            ? { background: 'var(--dk-bg, #111928)', color: 'var(--dk-text, #F9FAFB)' }
-            : { background: '#FFFFFF' };
+    // La barra no hereda de Templates: toma prestado su alertBox (no usa `this`).
+    // En oscuro lo repinta dark-mode.css, que cargan Catálogo y Pedidos.
+    alertBox(options) {
+        return Templates.prototype.alertBox.call(this, options);
     }
 
     logout() {
-        Swal.fire({
-            ...this.swalTheme(),
-            title: "¿Está seguro?",
-            text: "Está a punto de cerrar su sesión actual.",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Cerrar sesión",
-            cancelButtonText: "Cancelar",
-            customClass: {
-                popup: "rounded-lg shadow-lg",
-                title: "text-2xl font-semibold",
-                confirmButton: "py-2 px-4 rounded",
-                cancelButton: "bg-secondary border border-gray-500 py-2 px-4 rounded hover:bg-[#555555]",
-            },
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-        }).then((result) => {
-            if (result.isConfirmed) {
+        this.alertBox({
+            type:       'cancel',
+            title:      '¿Cerrar sesión?',
+            detailHtml: 'Está a punto de cerrar su sesión actual.',
+            okLabel:    'Cerrar sesión',
+            onOk: () => {
                 // El menú que la sidebar guardó en la pestaña es de este usuario.
                 try {
                     Object.keys(sessionStorage).filter((k) => k.startsWith('pro:sidebar:')).forEach((k) => sessionStorage.removeItem(k));

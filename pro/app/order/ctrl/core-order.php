@@ -18,6 +18,9 @@ class core extends mdl {
 
     const SECTION = 'pos-pedidos';
 
+    // El visor de Cortes (menú «Tickets/Cierre») tiene su propia sección.
+    const TICKETS = 'pos-tickets';
+
     // Estados de sale_status (plantillas de Huubie, iguales en todas las bases).
     const QUOTE     = 1;
     const PENDING   = 2;
@@ -241,6 +244,13 @@ class core extends mdl {
         return ['status' => 403, 'message' => "Tu rol no tiene permiso para {$text} en esta sucursal.", 'row' => []];
     }
 
+    // El visor de Cortes pide ver la sección pos-tickets, no la de Pedidos.
+    protected function needTickets() {
+        if (Permission::can(self::TICKETS, 'show')) return null;
+
+        return ['status' => 403, 'message' => 'Tu rol no tiene permiso para ver los cortes en esta sucursal.', 'row' => []];
+    }
+
     // Quien no ve Pedidos y entra solo por el calendario (Producción): ve el pedido sin dinero.
     protected function limited() {
         return $this->need('show') !== null;
@@ -296,6 +306,39 @@ class core extends mdl {
         $cut = $this->closedCut($o);
 
         return $cut === '' ? '' : ucfirst($cut) . ': su corte no cambia.';
+    }
+
+    // -- Detalle del corte --
+
+    /*  El modo Detallado del visor de Cortes: cada pedido y cada cobro de esos
+        turnos. Es en vivo: la foto del corte Z solo guarda totales. */
+    protected function cutDetail(array $turnIds) {
+        $sales = array_map(function ($s) {
+            return [
+                'id'        => (int) $s['id'],
+                'folio'     => (string) $s['folio'],
+                'customer'  => trim((string) $s['customer']),
+                'status_id' => (int) $s['sale_status_id'],
+                'status'    => (string) $s['status'],
+                'order'     => (int) $s['sale_type_id'] === 1,
+                'total'     => round((float) $s['total'], 2),
+                'at'        => $s['created_at']
+            ];
+        }, $this->qCutSales($turnIds));
+
+        $payments = array_map(function ($p) {
+            return [
+                'id'       => (int) $p['id'],
+                'folio'    => (string) $p['folio'],
+                'customer' => trim((string) $p['customer']),
+                'method'   => (string) $p['method'],
+                'amount'   => round((float) $p['amount'], 2),
+                'at'       => $p['paid_at'],
+                'other'    => (int) $p['other'] === 1
+            ];
+        }, $this->qCutPayments($turnIds));
+
+        return ['sales' => $sales, 'payments' => $payments];
     }
 
     // -- Reglas de captura --
@@ -447,6 +490,50 @@ class core extends mdl {
         }, 'No se pudo marcar el pedido como entregado.');
     }
 
+    // '' = se puede deshacer la entrega.
+    protected function undeliverBlock($o) {
+        if ((int) $o['sale_status_id'] === self::CANCELLED) return 'Un pedido cancelado no tiene entrega que deshacer.';
+        if ((int) $o['delivery_status'] !== 1)              return 'El pedido no está entregado.';
+
+        return '';
+    }
+
+    /*  Regresa el pedido a «sin entregar» (se marcó por error). Lo autoriza
+        Dueño o Supervisor (permiso cancel, decisión 4) y pide motivo, como los
+        demás reversos; sin contraseña. El motivo queda en la bitácora. */
+    protected function undeliver($id) {
+        $fail = $this->need('cancel', 'deshacer entregas') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
+
+        $reason = trim((string) preg_replace('/\s+/u', ' ', $this->post('reason')));
+
+        if ($reason === '')               return $this->fail(422, 'Escribe por qué se deshace la entrega.');
+        if ($this->tooLong($reason, 200)) return $this->fail(422, 'El motivo admite hasta 200 caracteres.');
+
+        return $this->attempt(function () use ($id, $reason) {
+            return $this->transaction(function () use ($id, $reason) {
+                $order = $this->qLockOrder($id, $this->branchId());
+
+                if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
+
+                $block = $this->undeliverBlock($order);
+                if ($block !== '') return $this->fail(409, $block);
+
+                $this->must($this->qUpdateOrder([
+                    'values' => ['delivery_status'],
+                    'where'  => ['id'],
+                    'data'   => [0, $id]
+                ]), 'undeliver');
+
+                $this->log($id, 'delivery', 'Entrega deshecha', "Motivo: {$reason}");
+
+                return $this->ok("Se deshizo la entrega del pedido P{$id}.", ['id' => $id]);
+            });
+        }, 'No se pudo deshacer la entrega.');
+    }
+
     // -- Detalle --
 
     /*  El detalle completo: lo abren Pedidos y Calendario con el mismo modal.
@@ -571,6 +658,8 @@ class core extends mdl {
         $deliver = $update ? $this->deliverBlock($order) : 'Tu rol no puede entregar pedidos.';
         $money   = $this->moneyBlock($order);
         $alive   = (int) $order['sale_status_id'] !== self::CANCELLED;
+        $given   = (int) $order['delivery_status'] === 1;
+        $undo    = $this->need('cancel') === null && $this->undeliverBlock($order) === '';
 
         return [
             'edit'           => $edit === '',
@@ -585,7 +674,9 @@ class core extends mdl {
             'deliver'        => $deliver === '',
             'deliver_reason' => $deliver,
             'settle'         => $update && $pay === '' && $this->settleFirst($order),
-            'delete_payment' => $alive && $this->need('delete') === null
+            'undeliver'      => $undo,
+            // Entregado = el dinero ya se cerró con el cliente: primero se deshace la entrega.
+            'delete_payment' => $alive && !$given && $this->need('delete') === null
         ];
     }
 
@@ -763,6 +854,25 @@ if (!function_exists('dmy')) {
         $time = $date ? strtotime($date) : false;
 
         return $time ? date('d/m/Y', $time) : '';
+    }
+}
+
+// Fecha de la lista como en alpha/pedidos (formatSpanishDate): "Hoy" resaltado,
+// "Ayer" o '13/nov/2026'. Sin strftime (deprecado). Vacio o invalido -> ''.
+if (!function_exists('shortDate')) {
+    function shortDate($date) {
+        $time = $date && strpos($date, '0000-00-00') !== 0 ? strtotime($date) : false;
+
+        if (!$time) return '';
+
+        $day = date('Y-m-d', $time);
+
+        if ($day === date('Y-m-d'))                      return '<span class="text-amber-600 font-semibold">Hoy</span>';
+        if ($day === date('Y-m-d', strtotime('-1 day'))) return 'Ayer';
+
+        $months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+        return date('d', $time) . '/' . $months[(int) date('n', $time) - 1] . '/' . date('Y', $time);
     }
 }
 

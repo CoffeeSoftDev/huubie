@@ -164,6 +164,10 @@ class ctrl extends core {
         return $this->deliver($this->postId());
     }
 
+    public function undeliverOrder() {
+        return $this->undeliver($this->postId());
+    }
+
     // -- Ayudantes --
 
     // null si puede; si no, el 403 con la frase completa.

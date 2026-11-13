@@ -605,6 +605,7 @@ class mdl extends CRUD {
                 r.quantity,
                 r.cost,
                 x.name,
+                x.sku,
                 x.kind,
                 x.price,
                 x.cost AS unit_cost,
@@ -620,7 +621,7 @@ class mdl extends CRUD {
     // Lo que se puede meter a un paquete: productos y servicios activos de la sucursal.
     public function qComponentOptions($companyId, $branchId) {
         return $this->qRows("
-            SELECT id, name AS valor, kind, price, cost
+            SELECT id, name AS valor, sku, kind, price, cost
             FROM {$this->pos}product
             WHERE company_id = ?
                 AND branch_id = ?
@@ -803,16 +804,6 @@ class mdl extends CRUD {
                 AND id <> ?
             LIMIT 1
         ", [$groupId, $name, $exceptId]);
-    }
-
-    public function qCountModifiers($companyId) {
-        return $this->qCount("
-            SELECT COUNT(*)
-            FROM {$this->pos}modifier m
-            INNER JOIN {$this->pos}modifier_group g ON g.id = m.modifier_group_id
-            WHERE (g.company_id = ? OR g.company_id IS NULL)
-                AND IFNULL(m.active, 1) = 1
-        ", [$companyId]);
     }
 
     public function qCreateModifier($array) {

@@ -47,6 +47,31 @@ class Products extends Templates {
             <div id="filterBarProducts" class="mb-[8px]"></div>
             <div id="containerProducts"></div>
         `);
+
+        // Clic en la foto de la tabla: la vista previa en grande. El cuadro vacío no abre nada.
+        $('#container-products')
+            .off('click.preview')
+            .on('click.preview', '#containerProducts img.cp-foto', (e) => this.preview(e.currentTarget));
+    }
+
+    // -- Vista previa de la foto --
+
+    // Nombre y SKU salen de la misma celda (cellTitle de ctrl-productos).
+    preview(img) {
+        const cell = $(img).parent();
+        const name = cell.find('.cp-celda-titulo').first().text();
+        const sku  = cell.find('.cp-celda-sub').first().text();
+
+        this.csModal({
+            id: 'modalProductPhoto',
+            title: name || 'Foto del producto',
+            subtitle: sku,
+            lucideIcon: 'image',
+            width: 'max-w-lg',
+            saveText: false,
+            cancelText: 'Cerrar',
+            body: `<div class="cp-foto-vista"><img src="${esc(img.currentSrc || img.src)}" alt="${esc(name)}"></div>`
+        });
     }
 
     // -- Filtro --
@@ -71,7 +96,7 @@ class Products extends Templates {
             id: 'origin',
             lbl: 'Origen',
             required: false,
-            class: 'col-12 col-md-2',
+            class: 'col-12 col-lg-2',
             data: this.origins,
             onchange: 'products.ls()'
         }];
@@ -96,7 +121,7 @@ class Products extends Templates {
                     id: 'category_id',
                     lbl: 'Categoría',
                     required: false,
-                    class: 'col-12 col-md-3',
+                    class: 'col-12 col-lg-2',
                     data: [{ id: '', valor: 'Todas' }, ...this.categories],
                     onchange: 'products.ls()'
                 },
@@ -105,7 +130,7 @@ class Products extends Templates {
                     id: 'active',
                     lbl: 'Estado',
                     required: false,
-                    class: 'col-12 col-md-2',
+                    class: 'col-12 col-lg-2',
                     data: dataInit.statusFilter || [],
                     onchange: 'products.ls()'
                 },
@@ -113,7 +138,7 @@ class Products extends Templates {
                 {
                     opc: 'button',
                     id: 'btnNewProduct',
-                    class: 'col-12 col-md-3 col-lg-2',
+                    class: 'col-12 col-lg-2',
                     text: 'Nuevo producto',
                     onClick: () => this.add()
                 }
@@ -184,21 +209,21 @@ class Products extends Templates {
 
         return [
             this.formSection('secIdentity', 'Identificación'),
-            { id: 'name', lbl: 'Nombre', tipo: 'text', required: true, maxlength: 255, class: 'w-full sm:w-2/3', value: data.name },
+            { id: 'name', lbl: 'Nombre', tipo: 'text', icon: 'package', required: true, maxlength: 255, class: 'w-full sm:w-2/3', value: data.name },
             { id: 'kind', lbl: 'Tipo', tipo: 'select', empty: false, class: third, data: options.kinds, value: data.kind },
             { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', class: third, data: options.categories, value: data.category_id },
             {
                 id: 'subcategory_id', lbl: 'Subcategoría', tipo: 'select', empty: 'Sin subcategoría', class: third,
                 data: this.subcategoriesOf(options.subcategories, data.category_id), value: data.subcategory_id
             },
-            { id: 'sku', lbl: 'SKU', tipo: 'text', maxlength: 80, ph: 'Opcional', class: third, value: data.sku },
-            { id: 'barcode', lbl: 'Código de barras', tipo: 'text', maxlength: 80, ph: 'Opcional', class: third, value: data.barcode },
-            { id: 'photoField', tipo: 'html', class: 'w-full sm:w-2/3', html: this.photoFieldHtml() },
+            { id: 'sku', lbl: 'SKU', tipo: 'text', icon: 'hash', maxlength: 80, ph: 'Opcional', class: third, value: data.sku },
+            { id: 'barcode', lbl: 'Código de barras', tipo: 'text', icon: 'barcode', maxlength: 80, ph: 'Opcional', class: third, value: data.barcode },
+            { id: 'photoField', tipo: 'html', class: 'w-full', html: this.photoFieldHtml() },
             { id: 'description', lbl: 'Descripción', tipo: 'textarea', rows: 2, maxlength: 1000, class: 'w-full', value: data.description },
 
             this.formSection('secPrice', 'Precio'),
-            { id: 'price', lbl: 'Precio de venta', tipo: 'number', required: true, min: 0, step: '0.01', ph: '0.00', class: third, value: data.price },
-            { id: 'cost', lbl: 'Costo', tipo: 'number', min: 0, step: '0.01', ph: '0.00', class: third, value: data.cost },
+            { id: 'price', lbl: 'Precio de venta', tipo: 'number', icon: 'dollar-sign', required: true, min: 0, step: '0.01', ph: '0.00', class: third, value: data.price },
+            { id: 'cost', lbl: 'Costo', tipo: 'number', icon: 'dollar-sign', min: 0, step: '0.01', ph: '0.00', class: third, value: data.cost },
 
             // cp-switch: tarjetas del mismo alto aunque el texto de una ocupe dos renglones.
             this.formSection('secChannels', 'Dónde se vende'),
@@ -220,11 +245,13 @@ class Products extends Templates {
     // El label lleva las mismas clases que los de csModal para quedar a la par.
     photoFieldHtml() {
         return `
-            <label class="block text-xs font-semibold text-gray-500 mb-1.5">Foto</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5 text-center">Foto</label>
             <div class="cp-foto-campo">
                 <div class="cp-foto-thumb"></div>
-                <button type="button" class="cp-foto-subir"><i data-lucide="upload" class="w-4 h-4"></i><span>Subir foto</span></button>
-                <button type="button" class="cp-foto-quitar hidden">Quitar</button>
+                <div class="cp-foto-botones">
+                    <button type="button" class="cp-foto-subir"><i data-lucide="upload" class="w-4 h-4"></i><span>Subir foto</span></button>
+                    <button type="button" class="cp-foto-quitar hidden">Quitar</button>
+                </div>
                 <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden">
             </div>
         `;
@@ -252,7 +279,7 @@ class Products extends Templates {
 
             const dataUrl = await compressPhoto(picked);
 
-            if (!dataUrl) return alert({ icon: 'warning', text: 'No se pudo leer la foto. Usa una imagen JPG, PNG o WEBP.', btn1: true });
+            if (!dataUrl) return warnBox('No se pudo leer la foto. Usa una imagen JPG, PNG o WEBP.');
 
             this.photo = { image_b64: dataUrl, image_remove: 0 };
             this.paintPhoto(dataUrl);
@@ -332,7 +359,7 @@ class Products extends Templates {
     }
 
     save(opc, values, close) {
-        const warn = (text) => alert({ icon: 'warning', text, btn1: true });
+        const warn = (text) => warnBox(text);
         const price = String(values.price || '').trim();
 
         if (!String(values.name || '').trim()) return warn('Escribe el nombre del producto.');
@@ -357,48 +384,37 @@ class Products extends Templates {
             ? 'Dejará de venderse aquí y en las sucursales que no tienen el suyo. No se borra.'
             : 'Dejará de venderse. No se borra.';
 
-        this.swalQuestion({
-            opts: {
-                title: active ? '¿Activar el producto?' : '¿Desactivar el producto?',
-                text: active ? 'Volverá a venderse.' : off
-            },
+        confirmSend(this, {
+            title: active ? '¿Activar el producto?' : '¿Desactivar el producto?',
+            text: active ? 'Volverá a venderse.' : off,
+            danger: !active,
             data: { opc: 'statusProduct', id, active },
-            methods: {
-                send: (response) => afterSave(response, () => this.ls())
-            }
+            done: (response) => afterSave(response, () => this.ls())
         });
     }
 
     // -- Compartido / Propio --
 
     copy(id) {
-        this.swalQuestion({
-            opts: {
-                title: '¿Hacerlo propio de esta sucursal?',
-                text: 'Se copia con su precio y su categoría. Lo que le cambies aquí no toca la Matriz.'
-            },
+        confirmSend(this, {
+            title: '¿Hacerlo propio de esta sucursal?',
+            text: 'Se copia con su precio y su categoría. Lo que le cambies aquí no toca la Matriz.',
             data: { opc: 'copyProduct', id },
-            methods: {
-                send: (response) => afterSave(response, () => {
-                    this.ls();
-                    if (response.id) this.edit(response.id);
-                })
-            }
+            done: (response) => afterSave(response, () => {
+                this.ls();
+                if (response.id) this.edit(response.id);
+            })
         });
     }
 
     backToMain(id) {
         const main = this.mainName ? `la Matriz (${this.mainName})` : 'la Matriz';
 
-        this.swalQuestion({
-            opts: {
-                title: '¿Volver al de la Matriz?',
-                text: `Tu versión se desactiva (no se borra) y se vende la de ${main}, con su precio.`
-            },
+        confirmSend(this, {
+            title: '¿Volver al de la Matriz?',
+            text: `Tu versión se desactiva (no se borra) y se vende la de ${main}, con su precio.`,
             data: { opc: 'statusProduct', id, active: 0 },
-            methods: {
-                send: (response) => afterSave(response, () => this.ls())
-            }
+            done: (response) => afterSave(response, () => this.ls())
         });
     }
 }

@@ -39,14 +39,14 @@ class Categories extends Templates {
                     id: 'active',
                     lbl: 'Estado',
                     required: false,
-                    class: 'col-12 col-md-2',
+                    class: 'col-12 col-lg-2',
                     data: dataInit.statusFilter || [],
                     onchange: 'categories.ls()'
                 },
                 {
                     opc: 'button',
                     id: 'btnNewCategory',
-                    class: 'col-12 col-md-3 col-lg-2',
+                    class: 'col-12 col-lg-2',
                     text: 'Nueva categoría',
                     onClick: () => this.add()
                 }
@@ -110,7 +110,7 @@ class Categories extends Templates {
 
     save(opc, values, close) {
         if (!String(values.name || '').trim()) {
-            alert({ icon: 'warning', text: 'Escribe el nombre de la categoría.', btn1: true });
+            warnBox('Escribe el nombre de la categoría.');
             return;
         }
 
@@ -127,15 +127,12 @@ class Categories extends Templates {
     }
 
     status(id, active) {
-        this.swalQuestion({
-            opts: {
-                title: active ? '¿Activar la categoría?' : '¿Desactivar la categoría?',
-                text: active ? 'Volverá a aparecer en los formularios.' : 'Dejará de aparecer en los formularios. Sus productos no se borran.'
-            },
+        confirmSend(this, {
+            title: active ? '¿Activar la categoría?' : '¿Desactivar la categoría?',
+            text: active ? 'Volverá a aparecer en los formularios.' : 'Dejará de aparecer en los formularios. Sus productos no se borran.',
+            danger: !active,
             data: { opc: 'statusCategory', id, active },
-            methods: {
-                send: (response) => afterSave(response, () => this.ls())
-            }
+            done: (response) => afterSave(response, () => this.ls())
         });
     }
 }

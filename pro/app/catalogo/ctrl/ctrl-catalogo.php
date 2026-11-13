@@ -24,8 +24,7 @@ class ctrl extends core {
                 'products'       => $this->qCountProducts($company, $branch, $this->mainBranchId()),
                 'categories'     => $this->qCountCategories($branch),
                 'subcategories'  => $this->qCountSubcategories($branch),
-                'modifierGroups' => $this->qCountModifierGroups($company),
-                'modifiers'      => $this->qCountModifiers($company),
+                'modifiers'      => $this->qCountModifierGroups($company),
                 'bundles'        => $this->qCountBundles($company, $branch),
                 'paymentMethods' => $this->qCountPaymentMethods($company),
                 'discounts'      => $this->qCountDiscounts($company)

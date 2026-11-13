@@ -398,6 +398,10 @@ class ctrl extends core {
                     return $this->fail(409, 'El pedido está cancelado: lo pagado ya pasó a saldo a favor.');
                 }
 
+                if ((int) $order['delivery_status'] === 1) {
+                    return $this->fail(409, 'El pedido ya se entregó: para quitar un pago, primero deshaz la entrega.');
+                }
+
                 $payment = $this->qGetPayment($paymentId, $id);
 
                 if (!$payment) return $this->fail(404, 'Ese pago ya no existe o ya se quitó.');

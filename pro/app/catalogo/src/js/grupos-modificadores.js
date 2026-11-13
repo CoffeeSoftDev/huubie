@@ -1,30 +1,25 @@
-// -- Pestaña Grupos de modificadores --
-// Las globales (modifierGroups, dataInit) y los ayudantes (notify, afterSave, saveFrom) viven en catalogo.js.
+// -- Grupos de modificadores --
+// Ya no es pestaña: es la lista de la izquierda en la pestaña Modificadores.
+// Al elegir un grupo, Modifiers pinta sus opciones a la derecha.
+// Las globales (modifierGroups, modifiers, dataInit) y los ayudantes (notify, afterSave, saveFrom, esc) viven en catalogo.js.
 
 class ModifierGroups extends Templates {
 
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = 'ModifierGroups';
-        this.tab = 'modifierGroups';
+        this.tab     = 'modifiers';
+        this.groups  = [];
+        this.groupId = 0;
     }
 
     // La página completa se recarga al cambiar de sucursal (App.onBranchChange).
     onBranchChange() {}
 
-    render() {
-        if ($('#filterBarModifierGroups').length) return;
-
-        this.layout();
+    // Modifiers.layout() ya pintó #filterBarModifierGroups y #modGroupList.
+    mount() {
         this.filterBar();
-        this.ls();
-    }
-
-    layout() {
-        $('#container-modifierGroups').html(`
-            <div id="filterBarModifierGroups" class="mb-[8px]"></div>
-            <div id="containerModifierGroups"></div>
-        `);
+        return this.loadList();
     }
 
     filterBar() {
@@ -37,16 +32,16 @@ class ModifierGroups extends Templates {
                 {
                     opc: 'select',
                     id: 'active',
-                    lbl: 'Estado',
+                    lbl: 'Grupos',
                     required: false,
-                    class: 'col-12 col-md-2',
+                    class: 'col-6',
                     data: dataInit.statusFilter || [],
-                    onchange: 'modifierGroups.ls()'
+                    onchange: 'modifierGroups.loadList()'
                 },
                 {
                     opc: 'button',
                     id: 'btnNewModifierGroup',
-                    class: 'col-12 col-md-3 col-lg-2',
+                    class: 'col-6',
                     text: 'Nuevo grupo',
                     onClick: () => this.add()
                 }
@@ -54,31 +49,105 @@ class ModifierGroups extends Templates {
         });
     }
 
-    ls() {
-        this.createTable({
-            parent: 'containerModifierGroups',
-            idFilterBar: 'filterBarModifierGroups',
-            data: { opc: 'lsModifierGroups' },
-            coffeesoft: true,
-            conf: { datatable: true, pag: 10 },
-            attr: {
-                id: 'tbModifierGroups',
-                theme: 'light',
-                striped: true,
-                center: [2, 3, 4, 5]
-            },
-            success: (data) => {
-                if (data && data.count !== undefined) this.csTabCount(this.tab, data.count);
-            }
-        });
+    // -- Lista --
+
+    // Relee los grupos; se queda el elegido si sigue en la lista, si no el primero.
+    async loadList() {
+        const response = await useFetch({ url: this._link, data: { opc: 'lsModifierGroups', active: $('#mg_active').val() } });
+
+        if (!response || response.status != 200) return notify(response);
+
+        this.groups = response.groups || [];
+
+        if (response.count !== undefined) this.csTabCount(this.tab, response.count);
+        if (!this.groups.some((g) => g.id === this.groupId)) this.groupId = this.groups.length ? this.groups[0].id : 0;
+
+        this.renderList();
+        this.select(this.groupId);
+    }
+
+    renderList() {
+        if (!this.groups.length) {
+            const inactive = $('#mg_active').val() === '0';
+
+            $('#modGroupList').html(`<p class="cp-mod-vacio">${inactive ? 'No hay grupos inactivos.' : 'Aún no hay grupos. Crea el primero con «Nuevo grupo».'}</p>`);
+            return;
+        }
+
+        $('#modGroupList').html(this.groups.map((g) => `
+            <button type="button" class="cp-mod-grupo" data-id="${g.id}" onclick="modifierGroups.select(${g.id})">
+                <span class="cp-mod-grupo-nombre">${esc(g.name)}</span>
+                <span class="cp-mod-grupo-meta">${g.multiple ? 'Elige varias' : 'Elige una'} · ${this.optionsText(g.modifiers)}</span>
+                ${g.template ? '<span class="cp-chip bg-violet-50 text-violet-700">Plantilla</span>' : ''}
+            </button>
+        `).join(''));
+    }
+
+    optionsText(count) {
+        return count === 1 ? '1 opción' : `${count} opciones`;
+    }
+
+    select(id) {
+        const group = this.groups.find((g) => g.id === id) || null;
+
+        this.groupId = group ? group.id : 0;
+
+        $('#modGroupList .cp-mod-grupo').removeClass('is-active').filter(`[data-id="${this.groupId}"]`).addClass('is-active');
+
+        this.renderHead(group);
+        modifiers.openGroup(group);
+    }
+
+    // -- Encabezado del grupo elegido --
+
+    renderHead(group) {
+        if (!group) {
+            $('#modGroupHead').html('');
+            return;
+        }
+
+        const actions = group.template
+            ? '<span class="cp-mod-candado"><i class="icon-lock"></i> Plantilla de Huubie · solo lectura</span>'
+            : `<button type="button" class="cp-mod-accion" onclick="modifierGroups.edit(${group.id})"><i class="icon-pencil"></i> Editar grupo</button>
+               <button type="button" class="cp-mod-accion${group.active ? ' is-danger' : ''}" onclick="modifierGroups.status(${group.id}, ${group.active ? 0 : 1})">
+                   <i class="${group.active ? 'icon-toggle-on' : 'icon-toggle-off'}"></i> ${group.active ? 'Desactivar' : 'Activar'}
+               </button>`;
+
+        $('#modGroupHead').html(`
+            <div class="cp-mod-head">
+                <div class="min-w-0">
+                    <h3 class="cp-mod-head-titulo">${esc(group.name)}</h3>
+                    <p class="cp-mod-head-texto">${this.explain(group)}</p>
+                </div>
+                <div class="cp-mod-head-acciones">${actions}</div>
+            </div>
+        `);
+    }
+
+    // Lo que pasa al capturar el pedido, dicho como lo vive quien cobra.
+    explain(group) {
+        return group.multiple
+            ? 'Al armar el pedido se eligen <b>varias</b> opciones, cada una con su cantidad. El precio se cobra <b>por pieza</b>.'
+            : 'Al armar el pedido se elige <b>una sola</b> opción. Su precio se cobra <b>por porción</b>.';
     }
 
     // -- Formulario --
 
     jsonForm(row = {}) {
         return [
-            { id: 'name', lbl: 'Nombre', tipo: 'text', required: true, maxlength: 100, class: 'w-full', value: row.name || '' },
-            { id: 'is_extra', lbl: 'Se cobra aparte', tipo: 'switch', class: 'w-full', value: row.is_extra || 0 }
+            { id: 'name', lbl: 'Nombre del grupo', tipo: 'text', required: true, maxlength: 100, ph: 'Ej. Relleno', class: 'w-full', value: row.name || '' },
+            {
+                id: 'is_extra',
+                lbl: '¿Cuántas opciones se eligen al armar el pedido?',
+                tipo: 'select',
+                empty: false,
+                class: 'w-full',
+                data: [
+                    { id: 0, valor: 'Una sola (ej. Relleno) · precio por porción' },
+                    { id: 1, valor: 'Varias, con cantidad (ej. Decoraciones) · precio por pieza' }
+                ],
+                value: row.is_extra || 0
+            }
         ];
     }
 
@@ -86,7 +155,7 @@ class ModifierGroups extends Templates {
         this.csModal({
             id: 'modalModifierGroup',
             title: 'Nuevo grupo',
-            subtitle: 'Agrupa opciones como betún, relleno o decoración',
+            subtitle: 'Lo que se pregunta al armar el pedido: forma, relleno, decoraciones…',
             lucideIcon: 'layers',
             json: this.jsonForm(),
             onSave: (values, close) => this.save('addModifierGroup', values, close)
@@ -101,7 +170,7 @@ class ModifierGroups extends Templates {
         this.csModal({
             id: 'modalModifierGroup',
             title: 'Editar grupo',
-            subtitle: 'Cambia el nombre o cómo se cobra',
+            subtitle: 'Cambia el nombre o cuántas opciones se eligen',
             lucideIcon: 'layers',
             json: this.jsonForm(response.data),
             onSave: (values, close) => this.save('editModifierGroup', { ...values, id }, close)
@@ -110,7 +179,7 @@ class ModifierGroups extends Templates {
 
     save(opc, values, close) {
         if (!String(values.name || '').trim()) {
-            alert({ icon: 'warning', text: 'Escribe el nombre del grupo.', btn1: true });
+            warnBox('Escribe el nombre del grupo.');
             return;
         }
 
@@ -119,7 +188,7 @@ class ModifierGroups extends Templates {
 
             if (response && response.status == 200) {
                 close();
-                afterSave(response, () => this.ls());
+                afterSave(response, () => this.loadList());
             } else {
                 notify(response);
             }
@@ -127,15 +196,12 @@ class ModifierGroups extends Templates {
     }
 
     status(id, active) {
-        this.swalQuestion({
-            opts: {
-                title: active ? '¿Activar el grupo?' : '¿Desactivar el grupo?',
-                text: active ? 'Sus modificadores volverán a ofrecerse.' : 'Sus modificadores dejarán de ofrecerse. No se borran.'
-            },
+        confirmSend(this, {
+            title: active ? '¿Activar el grupo?' : '¿Desactivar el grupo?',
+            text: active ? 'Sus opciones volverán a ofrecerse.' : 'Sus opciones dejarán de ofrecerse. No se borran.',
+            danger: !active,
             data: { opc: 'statusModifierGroup', id, active },
-            methods: {
-                send: (response) => afterSave(response, () => this.ls())
-            }
+            done: (response) => afterSave(response, () => this.loadList())
         });
     }
 }

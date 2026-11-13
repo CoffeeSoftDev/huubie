@@ -51,7 +51,7 @@ body.dark-mode #main__content.cp-pagina-pro > div {
 .cs-tabs-panels > div {
     flex: 1 1 auto;
     background: #fff;
-    border: 1px solid rgb(var(--gray-200, 226 232 240));
+    border: 1px solid #E2E8F0;
     border-radius: 14px;
     box-shadow: 0 1px 3px rgba(15, 23, 42, .04);
     padding: 20px;
@@ -70,7 +70,7 @@ body.dark-mode #main__content.cp-pagina-pro > div {
 }
 
 .cp-celda-sub {
-    font-size: 12px;
+    font-size: 1rem;
     color: rgb(var(--gray-400, 148 163 184));
 }
 
@@ -92,6 +92,24 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     font-size: 18px;
 }
 
+/* En la tabla la foto abre la vista previa (Products.preview). */
+#containerProducts img.cp-foto {
+    cursor: zoom-in;
+}
+
+.cp-foto-vista {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+}
+
+.cp-foto-vista img {
+    max-width: 100%;
+    max-height: 70vh;
+    border-radius: 12px;
+    object-fit: contain;
+}
+
 /* -- Formulario de producto (#modalProduct) --
    compact.css pone `.text-sm { font-size: .8rem !important }` y esa clase le
    gana a `select, textarea { 1rem !important }` (clase > elemento); el input
@@ -101,6 +119,47 @@ body.dark-mode #main__content.cp-pagina-pro > div {
 #modalProduct textarea {
     font-size: 1rem !important;
     line-height: 1.25 !important;
+}
+
+/* La Descripción de los formularios de todas las pestañas (categoría,
+   subcategoría, opción, paquete): el mismo text-sm la dejaba en .8rem. */
+.cs-modal-panel textarea {
+    font-size: 1rem !important;
+    line-height: 1.25 !important;
+}
+
+/* -- Un solo tamaño de letra --
+   Todo el texto del catálogo va a 1rem (14px), el mismo de las celdas de la
+   tabla (f_size 14). compact.css achica con !important `.text-sm` (.8rem),
+   `.text-xs` (.7rem), los label (.875rem), los .btn (.85rem) y los controles
+   de DataTables (.75rem); cs-tabs.js trae la pestaña en 13.5px, su contador
+   en 11px y el subtítulo en 13px. Este archivo solo carga en el catálogo:
+   Pedidos y las demás apps no cambian. Títulos e íconos conservan su tamaño. */
+#root .text-xs,
+#root .text-sm,
+#root label,
+#root .btn,
+.cs-modal-panel .text-xs,
+.cs-modal-panel .text-sm,
+.cs-modal-panel label {
+    font-size: 1rem !important;
+}
+
+#root .dataTables_wrapper,
+#root .dataTables_wrapper .dataTables_length,
+#root .dataTables_wrapper .dataTables_filter,
+#root .dataTables_wrapper .dataTables_info,
+#root .dataTables_wrapper .dataTables_paginate,
+#root .dataTables_wrapper .dataTables_length select,
+#root .dataTables_wrapper .dataTables_filter input,
+#root .dataTables_wrapper .dataTables_paginate .paginate_button {
+    font-size: 1rem !important;
+}
+
+#tabbarCatalogo button.cs-tab,
+#tabbarCatalogo .cs-tab-count,
+#headerCatalogo .cp-pagina-subtitulo {
+    font-size: 1rem;
 }
 
 /* Títulos de sección, como el producto de inventory. */
@@ -116,7 +175,7 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     margin: 0;
     padding-bottom: 6px;
     border-bottom: 1px solid #F1F5F9;
-    font-size: 11px;
+    font-size: 1rem;
     font-weight: 600;
     letter-spacing: .05em;
     text-transform: uppercase;
@@ -137,18 +196,25 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     background: #fff;
 }
 
-/* Campo de foto: miniatura y botón del alto de un input. */
+/* Campo de foto: miniatura grande y centrada, los botones debajo. */
 .cp-foto-campo {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 10px;
 }
 
 .cp-foto-campo .cp-foto {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    font-size: 15px;
+    width: 120px;
+    height: 120px;
+    border-radius: 12px;
+    font-size: 40px;
+}
+
+.cp-foto-botones {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .cp-foto-subir {
@@ -160,7 +226,7 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     border: 1px solid #D1D5DB;
     border-radius: 8px;
     background: #fff;
-    font-size: 13px;
+    font-size: 1rem;
     font-weight: 600;
     color: #374151;
 }
@@ -174,7 +240,7 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     padding: 0;
     border: 0;
     background: none;
-    font-size: 13px;
+    font-size: 1rem;
     font-weight: 600;
     color: #DC2626;
 }
@@ -183,13 +249,308 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     text-decoration: underline;
 }
 
+/* -- Modificadores: grupos a la izquierda, opciones del grupo a la derecha -- */
+.cp-mod-ayuda {
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgb(var(--gray-50, 248 250 252));
+    font-size: 1rem;
+    color: rgb(var(--gray-600, 75 85 99));
+}
+
+.cp-mod {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .cp-mod {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.cp-mod-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.cp-mod-grupo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid rgb(var(--gray-200, 226 232 240));
+    border-radius: 10px;
+    background: #fff;
+    text-align: left;
+}
+
+.cp-mod-grupo:hover {
+    border-color: rgb(var(--brand-600, 192 90 64) / .5);
+}
+
+.cp-mod-grupo.is-active {
+    border-color: rgb(var(--brand-600, 192 90 64));
+    box-shadow: inset 3px 0 0 rgb(var(--brand-600, 192 90 64));
+}
+
+.cp-mod-grupo-nombre {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    color: rgb(var(--gray-800, 31 41 55));
+}
+
+.cp-mod-grupo-meta {
+    order: 3;
+    flex: 1 0 100%;
+    font-size: 1rem;
+    color: rgb(var(--gray-500, 107 114 128));
+}
+
+.cp-mod-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgb(var(--gray-200, 226 232 240));
+}
+
+.cp-mod-head-titulo {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: rgb(var(--gray-800, 31 41 55));
+}
+
+.cp-mod-head-texto {
+    margin: 2px 0 0;
+    font-size: 1rem;
+    color: rgb(var(--gray-500, 107 114 128));
+}
+
+.cp-mod-head-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.cp-mod-accion {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: 1px solid rgb(var(--gray-200, 226 232 240));
+    border-radius: 8px;
+    background: #fff;
+    font-size: 1rem;
+    color: rgb(var(--gray-600, 75 85 99));
+}
+
+.cp-mod-accion:hover {
+    background: rgb(var(--gray-50, 248 250 252));
+    color: rgb(var(--gray-900, 17 24 39));
+}
+
+.cp-mod-accion.is-danger {
+    border-color: #FECACA;
+    color: #EF4444;
+}
+
+.cp-mod-accion.is-danger:hover {
+    background: #FEF2F2;
+    color: #DC2626;
+}
+
+.cp-mod-candado {
+    font-size: 1rem;
+    color: rgb(var(--gray-500, 107 114 128));
+}
+
+.cp-mod-vacio {
+    margin: 12px 0;
+    font-size: 1rem;
+    color: rgb(var(--gray-400, 148 163 184));
+}
+
+/* -- Paquete: rejilla al estilo del POS de Soft --
+   Referencia: «Producto compuesto» de erp-pro/pro/app/pos (pos.css, .rej).
+   Encabezado fijo, renglones alternados, la fila de captura teñida y el
+   total al pie. compact.css fuerza 1rem y height:auto en los input: aquí
+   llevan !important para quedar del alto del renglón. */
+.cp-rej {
+    max-height: 320px;
+    overflow: auto;
+    border: 1px solid rgb(var(--gray-300, 203 213 225));
+    border-radius: 10px;
+    background: #fff;
+}
+
+.cp-rej table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1rem;
+}
+
+.cp-rej th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 7px 8px;
+    border-bottom: 1px solid rgb(var(--gray-200, 226 232 240));
+    background: rgb(var(--gray-50, 248 250 252));
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    text-align: left;
+    white-space: nowrap;
+    color: #6B7280;
+}
+
+.cp-rej td {
+    padding: 5px 8px;
+    border-top: 1px solid rgb(var(--gray-100, 241 245 249));
+    vertical-align: middle;
+    color: rgb(var(--gray-800, 31 41 55));
+}
+
+.cp-rej #bundleRows tr:nth-child(even) td {
+    background: rgb(var(--gray-50, 248 250 252));
+}
+
+.cp-rej .n {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.cp-rej .cp-rej-clave {
+    width: 90px;
+    white-space: nowrap;
+    color: #6B7280;
+}
+
+.cp-rej-cant {
+    width: 96px;
+}
+
+.cp-rej-boton {
+    width: 1%;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.cp-rej td.ed {
+    padding: 4px 6px;
+}
+
+.cp-rej td.ed input {
+    width: 100%;
+    height: 30px !important;
+    padding: 0 8px !important;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 1rem !important;
+}
+
+.cp-rej td.ed input.n {
+    text-align: right;
+}
+
+.cp-rej td.ed input:focus {
+    outline: none;
+    border-color: rgb(var(--brand-600, 192 90 64));
+    box-shadow: 0 0 0 2px rgb(var(--brand-600, 192 90 64) / .15);
+}
+
+.cp-rej tr.baja td {
+    color: #9CA3AF;
+}
+
+/* La fila de captura, como tr.nuevo de Soft en el tema corporativo. */
+.cp-rej tr.nuevo td {
+    border-top: 1px solid rgb(var(--brand-600, 192 90 64) / .25);
+    background: rgb(var(--brand-600, 192 90 64) / .06);
+}
+
+.cp-rej tfoot td {
+    border-top: 1px solid rgb(var(--gray-200, 226 232 240));
+    font-weight: 700;
+}
+
+.cp-rej-vacia {
+    padding: 14px 8px !important;
+    text-align: center;
+    color: #9CA3AF !important;
+}
+
+button.cp-rej-quitar {
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    font-size: 18px;
+    line-height: 1;
+    color: #9CA3AF;
+}
+
+button.cp-rej-quitar:hover {
+    background: #FEF2F2;
+    color: #DC2626;
+}
+
+button.cp-rej-agregar {
+    height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 6px;
+    background: rgb(var(--brand-600, 192 90 64));
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+button.cp-rej-agregar:hover {
+    filter: brightness(.92);
+}
+
+.cp-rej-nota {
+    margin: 6px 0 0;
+    font-size: 1rem;
+    color: #6B7280;
+}
+
+.cp-rej-ahorro {
+    font-weight: 600;
+    color: #15803D;
+}
+
+.cp-rej-caro {
+    font-weight: 600;
+    color: #DC2626;
+}
+
 .cp-chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 1rem;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -197,17 +558,17 @@ body.dark-mode #main__content.cp-pagina-pro > div {
 /* -- Oscuro --
    El panel es #container-*: dark-mode.css vuelve transparente todo
    [id*="container"] con !important y la tarjeta quedaba del color de la
-   pagina. Aqui recupera la superficie de tarjeta. El borde va en --dk-line-hi:
-   con --dk-line (#374151 en Huubie) casi no se distinguia del fondo. La barra
-   de pestañas lleva el mismo; su CSS lo inyecta cs-tabs.js, de ahi el #id. */
+   pagina. Aqui recupera la superficie de tarjeta, sin borde (como Huubie). */
 body.dark-mode #tabbarCatalogo .cs-tabs-panels > div {
     background: var(--dk-card, #1F2A37) !important;
-    border-color: var(--dk-line-hi, #4B5563);
     box-shadow: none;
 }
 
-body.dark-mode #tabbarCatalogo .cs-tabs {
-    border-color: var(--dk-line-hi, #4B5563);
+/* Solo en oscuro los contenedores van sin borde: la tarjeta se separa de la
+   página por su fondo. El #id gana al borde que inyecta cs-tabs.js. */
+body.dark-mode #tabbarCatalogo .cs-tabs,
+body.dark-mode #tabbarCatalogo .cs-tabs-panels > div {
+    border: 0;
 }
 
 body.dark-mode .cp-pagina-sucursal {
@@ -246,5 +607,96 @@ body.dark-mode .cp-foto-subir {
 }
 
 body.dark-mode .cp-foto-quitar {
+    color: #F87171;
+}
+
+body.dark-mode .cp-mod-ayuda {
+    background: var(--dk-bg, #111928);
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode .cp-mod-grupo,
+body.dark-mode .cp-mod-accion {
+    background: transparent;
+    border-color: var(--dk-line-hi, #4B5563);
+}
+
+body.dark-mode .cp-mod-grupo.is-active {
+    border-color: rgb(var(--brand-300, 232 166 143));
+    box-shadow: inset 3px 0 0 rgb(var(--brand-300, 232 166 143));
+}
+
+body.dark-mode .cp-mod-grupo-nombre,
+body.dark-mode .cp-mod-head-titulo {
+    color: var(--dk-text, #F3F4F6);
+}
+
+body.dark-mode .cp-mod-grupo-meta,
+body.dark-mode .cp-mod-head-texto,
+body.dark-mode .cp-mod-candado,
+body.dark-mode .cp-mod-accion {
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode .cp-mod-head {
+    border-color: var(--dk-line, #374151);
+}
+
+body.dark-mode .cp-mod-accion:hover {
+    background: var(--dk-bg, #111928);
+    color: var(--dk-text, #F3F4F6);
+}
+
+body.dark-mode .cp-mod-accion.is-danger {
+    border-color: #7F1D1D;
+    color: #F87171;
+}
+
+body.dark-mode .cp-rej {
+    background: transparent;
+    border-color: var(--dk-line-hi, #4B5563);
+}
+
+body.dark-mode .cp-rej th {
+    background: var(--dk-bg, #111928);
+    border-color: var(--dk-line, #374151);
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode .cp-rej td {
+    border-color: var(--dk-line, #374151);
+    color: var(--dk-text, #F3F4F6);
+}
+
+body.dark-mode .cp-rej #bundleRows tr:nth-child(even) td {
+    background: rgb(255 255 255 / .03);
+}
+
+body.dark-mode .cp-rej td.ed input {
+    background: var(--dk-bg, #111928);
+    border-color: var(--dk-line-hi, #4B5563);
+    color: var(--dk-text, #F3F4F6);
+}
+
+body.dark-mode .cp-rej tr.nuevo td {
+    background: rgb(var(--brand-300, 232 166 143) / .08);
+}
+
+body.dark-mode .cp-rej .cp-rej-clave,
+body.dark-mode .cp-rej tr.baja td,
+body.dark-mode .cp-rej-nota {
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode button.cp-rej-quitar:hover {
+    background: rgb(127 29 29 / .35);
+    color: #F87171;
+}
+
+body.dark-mode .cp-rej-ahorro {
+    color: #4ADE80;
+}
+
+body.dark-mode .cp-rej-caro {
     color: #F87171;
 }

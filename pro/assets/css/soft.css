@@ -8,10 +8,8 @@
    existe, sin tocar el framework:
 
      tarjetas     redondas (--radius-card), borde casi invisible y sombra difusa
-     tablas       sin franjas ni banda gris: encabezado tenue, renglones
-                  separados por una línea y hover lavanda
+     tablas       se quedan con el diseño del framework (13/11/2026)
      controles    inputs, selects y botones con --radius-ctl y foco del acento
-     paginación   botones sueltos; el activo, en el acento diluido
 
    Los tokens (--line, --ink, --tint, --shadow-card...) son los de themes.css.
    Los COLORES van acotados a `body:not(.dark-mode)`: el modo oscuro conserva
@@ -69,91 +67,14 @@ body:not(.dark-mode) .cs-tab-count { background: rgb(var(--gray-100, 243 244 246
 
 
 /* -- Tablas (coffeeSoft + DataTables) --
-   El framework pinta cada celda con utilidades: th en bg-gray-200, renglones
-   alternos en bg-gray-100 y la tabla con borde. Aquí se quitan la banda y las
-   franjas: queda una lista limpia. */
-
-table.border-separate { border-radius: 14px; }
-
-/* !important: Bootstrap y DataTables le ponen su propio borde a la tabla. */
-body:not(.dark-mode) table.border-separate { border: 0 !important; }
-
-body:not(.dark-mode) table.border-separate > thead > tr > th {
-    background-color: transparent;
-    color: var(--ink-dim);
-    font-weight: 600;
-    font-size: 12.5px;
-    letter-spacing: .01em;
-    padding-top: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--line);
-}
-
-body:not(.dark-mode) table.border-separate > tbody > tr > td {
-    background-color: transparent;
-    color: var(--ink);
-    border-bottom: 1px solid var(--line);
-    padding-top: 11px;
-    padding-bottom: 11px;
-    transition: background-color .12s ease;
-}
-
-body:not(.dark-mode) table.border-separate > tbody > tr:last-child > td { border-bottom-color: transparent; }
-body:not(.dark-mode) table.border-separate > tbody > tr:hover > td { background-color: var(--tint); }
-
-/* Las tablas con renglón clicable (createCoffeeTable3) inyectan su hover gris
-   con el #id de la tabla y !important. El :not(#_) suma el peso de un id para
-   que gane el del tema sin tener que nombrar cada tabla. */
-body:not(.dark-mode) table.border-separate > tbody > tr.ct3-hoverable:hover > td:not(#_) {
-    background-color: var(--tint) !important;
-}
-
-/* Las flechas de orden de DataTables, más discretas. */
-body:not(.dark-mode) table.dataTable > thead > tr > th.sorting::before,
-body:not(.dark-mode) table.dataTable > thead > tr > th.sorting::after { opacity: .18; }
-body:not(.dark-mode) table.dataTable > thead > tr > th.sorting_asc::before,
-body:not(.dark-mode) table.dataTable > thead > tr > th.sorting_desc::after { opacity: .7; color: rgb(var(--brand-600, 80 48 165)); }
-
-/* Fila elegida (tablas maestro-detalle). */
-body:not(.dark-mode) tr.row-active > td { background-color: var(--accent-soft-bg) !important; }
-
-/* Buscador y pie de DataTables. */
-body:not(.dark-mode) .dataTables_wrapper .dataTables_filter label,
-body:not(.dark-mode) .dataTables_wrapper .dataTables_info,
-body:not(.dark-mode) .dataTables_wrapper .dataTables_length label { color: var(--ink-dim); }
-.dataTables_wrapper .dataTables_filter input { border-radius: 10px; padding: 6px 12px; min-width: 200px; }
-.dataTables_wrapper > .row:last-child { margin-top: 14px; align-items: center; }
+   13/11/2026: a pedido del usuario las tablas regresan al diseño del framework
+   (th en bg-gray-200, renglones alternos en bg-gray-100, tabla con borde,
+   paginación de Bootstrap). Aquí solo queda el arreglo de la barra de scroll. */
 
 /* Las .row de Bootstrap traen margen negativo: dentro del contenedor de la
    tabla (overflow-x:auto) sobraban 10px y salía una barra de scroll de más. */
 .dataTables_wrapper > .row { margin-left: 0; margin-right: 0; }
 .dataTables_wrapper > .row > [class*="col-"] { padding-left: 0; padding-right: 0; }
-
-/* Paginación: botones sueltos; el activo en el acento diluido. */
-.dataTables_wrapper .pagination {
-    --bs-pagination-border-radius: 10px;
-    gap: 4px;
-    box-shadow: none;
-}
-.dataTables_wrapper .pagination .page-link { border-radius: 10px !important; }
-
-body:not(.dark-mode) .dataTables_wrapper .pagination {
-    --bs-pagination-bg: transparent;
-    --bs-pagination-border-color: transparent;
-    --bs-pagination-hover-bg: var(--tint);
-    --bs-pagination-hover-color: rgb(var(--brand-600, 80 48 165));
-    --bs-pagination-hover-border-color: transparent;
-    --bs-pagination-focus-bg: var(--tint);
-    --bs-pagination-disabled-bg: transparent;
-    --bs-pagination-disabled-border-color: transparent;
-}
-body:not(.dark-mode) .dataTables_wrapper .pagination .active > .page-link,
-body:not(.dark-mode) .dataTables_wrapper .pagination .page-link.active {
-    background-color: var(--accent-soft-bg);
-    border-color: var(--accent-line);
-    color: rgb(var(--brand-600, 80 48 165));
-    font-weight: 700;
-}
 
 
 /* -- Controles: inputs, selects, textareas --
@@ -207,25 +128,16 @@ body:not(.dark-mode) .form-label { color: var(--ink-dim); }
 
 /* -- Botones --
    .tw-btn (coffeeSoft) y .btn (Bootstrap). Los colores los siguen poniendo
-   buttons.css y las utilidades; aquí va la forma y el relieve. */
+   buttons.css y las utilidades; aquí va solo la forma.
+   13/11/2026: sin sombra ni brinco al pasar el mouse, a pedido del usuario. */
 
 .tw-btn,
 .btn {
     border-radius: var(--radius-ctl, 12px) !important;
     font-weight: 600;
-    transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .15s ease;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 }
 .btn-sm { border-radius: 10px !important; }
-
-body:not(.dark-mode) .tw-btn.bg-main,
-body:not(.dark-mode) .btn-primary {
-    box-shadow: 0 8px 18px -10px rgb(var(--primary-rgb, 80 48 165) / .65);
-}
-body:not(.dark-mode) .tw-btn.bg-main:hover:not(:disabled),
-body:not(.dark-mode) .btn-primary:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 12px 22px -10px rgb(var(--primary-rgb, 80 48 165) / .70);
-}
 
 /* Botones de contorno y neutros: el hover es el acento diluido, no un relleno sólido. */
 body:not(.dark-mode) .btn-outline-primary { background-color: var(--surface) !important; border-color: var(--accent-line) !important; }

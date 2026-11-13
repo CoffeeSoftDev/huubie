@@ -76,7 +76,8 @@ class ctrl extends core {
             }
         }
 
-        usort($items, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+        // El último creado arriba: el id crece con cada alta (propios y de la Matriz viven en la misma tabla).
+        usort($items, fn ($a, $b) => (int) $b['id'] <=> (int) $a['id']);
 
         $row = array_map(fn ($item) => $this->productRow($item, $isMain), $items);
 

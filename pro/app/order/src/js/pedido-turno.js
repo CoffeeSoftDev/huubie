@@ -353,8 +353,9 @@ class OrderTurn extends Templates {
     methodsBox(methods, collected) {
         const rows = (methods || []).map((m) => {
             const abono = m.source === 'abono' ? ' <small>· abono</small>' : '';
+            const tip   = Number(m.tip) > 0 ? ` <small>· propina ${money(m.tip)}</small>` : '';
 
-            return this.line(`${esc(m.name || 'Sin método')}${abono} <small>(${Number(m.payments)})</small>`, money(m.amount));
+            return this.line(`${esc(m.name || 'Sin método')}${abono}${tip} <small>(${Number(m.payments)})</small>`, money(m.amount));
         }).join('');
 
         return this.box('Cobrado por forma de pago', (rows || this.line('Sin cobros', money(0), 'is-muted')) + this.line('Total cobrado', money(collected), 'is-total'));
@@ -571,7 +572,15 @@ class OrderTurn extends Templates {
 
     // -- Impresion --
 
-    printCut(data) {
+    printCut(data, detail) {
+        const t     = data.turn;
+        const title = t.closed ? 'Corte Z' : 'Corte X';
+
+        ordPrint(`${title} turno ${t.folio}`, `${this.cutTicket(data, detail)}<hr><p class="c s">Impreso ${ordNow()}</p>`);
+    }
+
+    // El papel del corte: lo imprime printCut y lo muestra el visor de Cortes. detail = modo Detallado.
+    cutTicket(data, detail) {
         const t     = data.turn;
         const title = t.closed ? 'Corte Z' : 'Corte X';
         const row   = (a, b, strong) => `<tr${strong ? ' class="b"' : ''}><td>${a}</td><td class="r">${b}</td></tr>`;
@@ -611,10 +620,38 @@ class OrderTurn extends Templates {
                 ${row('Pedidos', Number(t.orders_count))}
                 ${row('Ventas de mostrador', Number(t.sales_count))}
             </table>
-            ${reopens}
-            <hr><p class="c s">Impreso ${ordNow()}</p>`;
+            ${reopens}`;
 
-        ordPrint(`${title} turno ${t.folio}`, body);
+        return body + (detail ? this.detailTicket(detail, 'abono de otro turno') : '');
+    }
+
+    // Cada pedido y cada cobro, uno por renglón. other = el texto para un abono de fuera.
+    detailTicket(detail, other) {
+        const sales    = detail.sales || [];
+        const payments = detail.payments || [];
+        const hour     = (at) => ordHour(String(at || '').slice(11, 16));
+        const line     = (a, sub, b, off) => `<tr${off ? ' class="x"' : ''}><td>${a}<span class="s d">${sub}</span></td><td class="r">${b}</td></tr>`;
+
+        const saleRows = sales.length
+            ? sales.map((s) => line(
+                `#${esc(s.folio)} ${esc(s.customer || (s.order ? 'Sin cliente' : 'Mostrador'))}`,
+                `${esc(s.status)} · ${hour(s.at)}`,
+                money(s.total),
+                [1, 4].includes(Number(s.status_id))
+            )).join('')
+            : line('Sin pedidos', '', money(0));
+
+        const payRows = payments.length
+            ? payments.map((p) => line(
+                `${hour(p.at)} · ${esc(p.method)}`,
+                `${p.folio ? `#${esc(p.folio)} ` : ''}${esc(p.customer || 'Sin cliente')}${p.other ? ` · ${other}` : ''}`,
+                money(p.amount)
+            )).join('')
+            : line('Sin cobros', '', money(0));
+
+        return `
+            <hr><h2>Pedidos y ventas (${sales.length})</h2><table>${saleRows}</table>
+            <hr><h2>Cobros (${payments.length})</h2><table>${payRows}</table>`;
     }
 
     // -- Complements --

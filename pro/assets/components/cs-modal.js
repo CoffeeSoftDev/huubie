@@ -41,6 +41,9 @@
 
     'icon' usa el selector de cs-icon-picker.js; sin esa hoja cae a texto.
 
+    En text y number, la propiedad icon (nombre Lucide) pinta ese ícono dentro
+    del campo, a la izquierda: { id: 'price', tipo: 'number', icon: 'dollar-sign' }.
+
     Opciones opcionales:
       - body:       contenido libre. Si viene, sustituye a los campos de json.
       - lucideIcon: ícono junto al título.
@@ -241,7 +244,17 @@ Templates.prototype.csModal = function (options) {
         } else {
             const type = f.tipo === 'number' ? 'number' : f.tipo === 'date' ? 'date' : 'text';
 
-            input = `<input type="${type}" id="${esc(f.id)}" value="${esc(f.value)}" class="${base}" placeholder="${esc(f.ph || '')}"${limits(f)}${bloqueo}>`;
+            const sangria = f.icon ? ' pl-[36px]' : '';
+
+            input = `<input type="${type}" id="${esc(f.id)}" value="${esc(f.value)}" class="${base}${sangria}" placeholder="${esc(f.ph || '')}"${limits(f)}${bloqueo}>`;
+
+            // Ícono dentro del campo: no recibe clics, el foco sigue en el input.
+            if (f.icon) {
+                input = '<div class="relative">'
+                    +   `<i data-lucide="${esc(f.icon)}" class="absolute left-[12px] top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>`
+                    +   input
+                    + '</div>';
+            }
         }
 
         return ''

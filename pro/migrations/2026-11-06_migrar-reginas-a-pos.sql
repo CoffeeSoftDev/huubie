@@ -4,6 +4,10 @@
 -- Antes:  2026-11-06_crear-fayxzvov-pos.sql (la base tiene que estar vacia)
 -- Deshacer: 2026-11-06_crear-fayxzvov-pos-rollback.sql y volver a crearla.
 --           fayxzvov_reginas NO se modifica: solo se lee.
+-- Despues: 2026-11-13_foto-cortes-alpha.sql (rehace las fotos de turnos y
+--          dias con la regla de pro; sin ella 96 turnos y 65 dias no cuadran).
+--          Correrla con  mysql ... -e "source <ruta>"  para no romper los
+--          acentos de las notas.
 --
 -- COMO SE CORRE (dos vueltas)
 --   1a vuelta: crea los mapas _map_branch y _map_user, los precarga con los

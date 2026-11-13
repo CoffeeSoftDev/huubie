@@ -27,6 +27,7 @@ class Orders extends Templates {
         this.ranges       = { today: 'Hoy', yesterday: 'Ayer', week: 'Semana actual', month: 'Mes actual', lastMonth: 'Mes anterior' };
         this.request      = 0;
         this.searchTimer  = null;
+        this.pageLength   = 15;
     }
 
     get filters() {
@@ -54,6 +55,7 @@ class Orders extends Templates {
         if (!this.can('show')) return this.blocked('Tu rol no tiene permiso para ver pedidos en esta sucursal.');
 
         this.filterBar();
+        this.searchBar();
         this.lsOrders();
     }
 
@@ -82,6 +84,20 @@ class Orders extends Templates {
                 container: { class: 'w-full' }
             }
         });
+
+        // El buscador va fuera de la tabla: createCoffeeTable3 la reescribe en cada búsqueda y el input perdería el foco.
+        this.createLayout({
+            parent: `container${this.PROJECT_NAME}`,
+            design: false,
+            data: {
+                id:    `list${this.PROJECT_NAME}`,
+                class: 'w-full',
+                container: [
+                    { type: 'div', id: `search${this.PROJECT_NAME}`, class: 'w-full' },
+                    { type: 'div', id: `table${this.PROJECT_NAME}`, class: 'w-full' }
+                ]
+            }
+        });
     }
 
     filterBar() {
@@ -93,15 +109,6 @@ class Orders extends Templates {
             prefijo:    'ord_',
             coffeesoft: true,
             data: [
-                {
-                    opc:         'input',
-                    id:          'q',
-                    lbl:         'Buscar',
-                    type:        'search',
-                    placeholder: 'Folio, cliente o teléfono',
-                    required:    false,
-                    class:       'col-12 col-xl-3'
-                },
                 {
                     opc:      'select',
                     id:       'date_type',
@@ -161,9 +168,29 @@ class Orders extends Templates {
             },
             onSelect: () => this.onPeriodChange()
         });
+    }
+
+    // Sobre la tabla, a la derecha de "Mostrar N registros" (como en alpha/pedidos).
+    searchBar() {
+        this.createfilterBar({
+            parent:     `search${this.PROJECT_NAME}`,
+            id:         `fbSearch${this.PROJECT_NAME}`,
+            prefijo:    'ord_',
+            coffeesoft: true,
+            data: [
+                {
+                    opc:         'input',
+                    id:          'q',
+                    type:        'search',
+                    placeholder: 'Buscar folio, cliente o teléfono',
+                    required:    false,
+                    class:       'col-12'
+                }
+            ]
+        });
 
         $('#ord_q')
-            .attr({ maxlength: 60, autocomplete: 'off' })
+            .attr({ maxlength: 60, autocomplete: 'off', 'aria-label': 'Buscar pedido' })
             .on('input', (e) => this.onSearchInput(e))
             .on('keydown', (e) => this.onSearchKeydown(e));
     }
@@ -311,7 +338,7 @@ class Orders extends Templates {
         const filters = this.filters;
 
         $('.ord-period').toggleClass('opacity-50', filters.q !== '');
-        $(`#container${this.PROJECT_NAME}`).addClass('opacity-50');
+        $(`#table${this.PROJECT_NAME}`).addClass('opacity-50');
 
         const data = await useFetch({ url: this._link, data: { opc: 'lsOrders', ...filters } });
 
@@ -322,10 +349,10 @@ class Orders extends Templates {
         if (!loaded) alert({ icon: 'error', title: 'No se pudo cargar la lista', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
 
         $('ul.ct3-dropdown-menu').remove();
-        $(`#container${this.PROJECT_NAME}`).removeClass('opacity-50');
+        $(`#table${this.PROJECT_NAME}`).removeClass('opacity-50');
 
         this.createCoffeeTable3({
-            parent:  `container${this.PROJECT_NAME}`,
+            parent:  `table${this.PROJECT_NAME}`,
             id:      `tb${this.PROJECT_NAME}`,
             theme:   'light',
             data:    loaded && data.row ? data : { thead: [], row: [] },
@@ -334,7 +361,7 @@ class Orders extends Templates {
             f_size:  13,
             right:   [4, 5, 6],
             center:  [2, 7, 8, 9, 10],
-            ...this.caption(loaded ? data : null, filters)
+            ...this.emptyState(loaded ? data : null)
         });
 
         if (!loaded || !data.row || !data.row.length) return;
@@ -342,14 +369,16 @@ class Orders extends Templates {
         $(`#tb${this.PROJECT_NAME} [data-cancelled]`).closest('tr').addClass('ord-row-cancel');
 
         $(`#tb${this.PROJECT_NAME}`).DataTable({
-            dom:          '<"ord-dt-scroll"t><"ord-dt-foot"ip>',
-            pageLength:   15,
+            dom:          '<"ord-dt-top"l><"ord-dt-scroll"t><"ord-dt-foot"ip>',
+            pageLength:   this.pageLength,
+            lengthMenu:   [10, 15, 25, 50],
             ordering:     false,
             searching:    false,
-            lengthChange: false,
+            lengthChange: true,
             destroy:      true,
             autoWidth:    false,
             language: {
+                lengthMenu: 'Mostrar _MENU_ registros por página',
                 info:       'Mostrando _START_ a _END_ de _TOTAL_ pedidos',
                 infoEmpty:  'Sin pedidos',
                 emptyTable: 'Sin pedidos',
@@ -359,7 +388,7 @@ class Orders extends Templates {
                 $('ul.ct3-dropdown-menu').addClass('hidden');
                 if (window.lucide) lucide.createIcons();
             }
-        });
+        }).on('length.dt', (e, settings, len) => { this.pageLength = len; });
     }
 
     // -- Complements --
@@ -447,31 +476,12 @@ class Orders extends Templates {
         return Object.keys(this.ranges).find(same) || 'custom';
     }
 
-    caption(data, filters) {
-        if (!data) return { title: null, subtitle: null, emptyMessage: 'No se pudo cargar la lista de pedidos', emptyIcon: 'icon-attention' };
+    // Mensaje de la tabla vacía. Sin título ni subtítulo.
+    emptyState(data) {
+        if (!data) return { emptyMessage: 'No se pudo cargar la lista de pedidos', emptyIcon: 'icon-attention' };
 
-        const branch = esc(data.branch || (dataInit.scope || {}).branch || '');
-        const count  = Number(data.count || 0);
-        const shift  = (data.row || []).some((row) => String(row.Folio || '').includes('ord-dot')) ? ' El punto verde marca los pedidos del turno abierto.' : '';
+        if (data.mode === 'search') return { emptyMessage: 'Ningún pedido coincide con la búsqueda', emptyIcon: 'icon-search' };
 
-        if (data.mode === 'search') {
-            const total = Number(data.total || 0);
-
-            return {
-                title:        count ? `${count} de ${total} ${total === 1 ? 'coincidencia' : 'coincidencias'}` : 'Sin coincidencias',
-                subtitle:     `Búsqueda «${esc(filters.q)}» en ${branch}. Se ignoran el periodo y el estado.${data.exact ? ' El folio exacto va primero.' : ''}${shift}`,
-                emptyMessage: 'Ningún pedido coincide con la búsqueda',
-                emptyIcon:    'icon-search'
-            };
-        }
-
-        const by = filters.date_type === 'delivery' ? 'fecha de entrega' : 'fecha de captura';
-
-        return {
-            title:        count ? `${count} ${count === 1 ? 'pedido' : 'pedidos'}` : 'Sin pedidos',
-            subtitle:     `Por ${by}, del ${ordDate(filters.fi)} al ${ordDate(filters.ff)} en ${branch}.${shift}`,
-            emptyMessage: 'No hay pedidos en este periodo',
-            emptyIcon:    'icon-calendar-1'
-        };
+        return { emptyMessage: 'No hay pedidos en este periodo', emptyIcon: 'icon-calendar-1' };
     }
 }

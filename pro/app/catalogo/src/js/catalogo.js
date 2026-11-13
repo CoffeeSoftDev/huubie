@@ -72,7 +72,7 @@ class App extends Templates {
             { id: 'products',       tab: 'Productos',               icon: 'package',            obj: () => products },
             { id: 'categories',     tab: 'Categorías',              icon: 'folder',             obj: () => categories },
             { id: 'subcategories',  tab: 'Subcategorías',           icon: 'folder-tree',        obj: () => subcategories },
-            { id: 'modifierGroups', tab: 'Grupos de modificadores', icon: 'layers',             obj: () => modifierGroups },
+            // Grupos y sus opciones en una sola pestaña: modifierGroups es su lista de la izquierda.
             { id: 'modifiers',      tab: 'Modificadores',           icon: 'sliders-horizontal', obj: () => modifiers },
             { id: 'bundles',        tab: 'Paquetes',                icon: 'gift',               obj: () => bundles },
             { id: 'paymentMethods', tab: 'Métodos de pago',         icon: 'credit-card',        obj: () => paymentMethods },
@@ -142,10 +142,28 @@ class App extends Templates {
 }
 
 // -- Ayudantes compartidos por las pestañas --
+// Los avisos y las preguntas van con el alertBox del framework, no con SweetAlert.
 
 function notify(r) {
-    if (r && r.status == 200) alert({ icon: 'success', text: r.message, timer: 1400 });
-    else alert({ icon: 'error', text: (r && r.message) || 'Ocurrió un error', btn1: true });
+    if (r && r.status == 200) app.alertBox({ type: 'success', title: esc(r.message), timer: 1400 });
+    else app.alertBox({ type: 'error', title: esc((r && r.message) || 'Ocurrió un error') });
+}
+
+// Aviso con un solo botón: 'warning' (falta algo) o 'message' (informativo).
+function warnBox(text, type = 'warning') {
+    app.alertBox({ type, title: esc(text) });
+}
+
+/*  Pregunta antes de mandar `data` al ctrl de la pestaña; si confirma, done(response)
+    recibe la respuesta tal cual. danger: true pinta la advertencia roja (desactivar). */
+function confirmSend(tab, { title, text, data, done, danger = false }) {
+    tab.alertBox({
+        type: danger ? 'cancel' : 'confirm',
+        title: esc(title),
+        detailHtml: esc(text),
+        okLabel: 'Sí, continuar',
+        onOk: async () => done(await useFetch({ url: tab._link, data }))
+    });
 }
 
 function afterSave(response, reload) {
@@ -232,5 +250,5 @@ function compressPhoto(file, max = 800) {
 }
 
 function catalogoPlantilla() {
-    alert({ icon: 'info', text: 'Es una plantilla de Huubie: la ven todas las empresas y no se edita.', btn1: true });
+    warnBox('Es una plantilla de Huubie: la ven todas las empresas y no se edita.', 'message');
 }

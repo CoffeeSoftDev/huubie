@@ -4,37 +4,41 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-catalogo.php';
 
-// Pestaña Grupos de modificadores: cada grupo es de una empresa o una plantilla de Huubie (company_id NULL).
+// Grupos de la pestaña Modificadores (lista de la izquierda): cada grupo es de una empresa
+// o una plantilla de Huubie (company_id NULL).
 class ctrl extends core {
 
+    // Datos crudos: el JS pinta cada grupo como una tarjeta de la lista.
     public function lsModifierGroups() {
         $fail = $this->needCompany();
-        if ($fail) return $fail;
+        if ($fail) return array_merge($fail, ['groups' => []]);
 
         $company = $this->companyId();
-        $row     = [];
+        $groups  = [];
 
         foreach ($this->qListModifierGroups($company, $this->activeFilter()) as $item) {
-            $id = (int) $item['id'];
-
-            $row[] = [
-                'id'            => $id,
-                'Grupo'         => cellTitle($item['name']),
-                'Tipo'          => (int) $item['is_extra'] === 1 ? chip('Se cobra aparte', 'amber') : chip('Incluido', 'slate'),
-                'Modificadores' => (int) $item['modifiers'],
-                'Origen'        => originBadge($item['company_id']),
-                'Estado'        => renderActive($item['active']),
-                'a'             => $this->rowActions('modifierGroups', $id, $item['active'], $this->isTemplate($item))
+            $groups[] = [
+                'id'        => (int) $item['id'],
+                'name'      => $item['name'],
+                'multiple'  => $this->groupMultiple($item['is_extra'], $item['name']),
+                'modifiers' => (int) $item['modifiers'],
+                'template'  => $this->isTemplate($item),
+                'active'    => (int) $item['active']
             ];
         }
 
-        return ['status' => 200, 'row' => $row, 'count' => $this->qCountModifierGroups($company)];
+        return ['status' => 200, 'groups' => $groups, 'count' => $this->qCountModifierGroups($company)];
     }
 
+    // is_extra sale como lo trata Pedidos: el formulario muestra lo que de verdad pasa.
     public function getModifierGroup() {
         $data = $this->qGetModifierGroup($this->postId(), $this->companyId());
 
-        return $data ? ['status' => 200, 'data' => $data] : $this->fail(404, 'El grupo no existe.');
+        if (!$data) return $this->fail(404, 'El grupo no existe.');
+
+        $data['is_extra'] = $this->groupMultiple($data['is_extra'], $data['name']) ? 1 : 0;
+
+        return ['status' => 200, 'data' => $data];
     }
 
     public function addModifierGroup() {

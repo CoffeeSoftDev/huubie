@@ -15,6 +15,10 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.14/locales/es.global.min.js"></script>
     <?php endif; ?>
+    <?php if ($script === 'dashboard'): ?>
+    <!-- Dashboard: Chart.js 4.4.0 (alpha usa Chart.js; aquí con versión fija). -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <?php endif; ?>
 
     <!-- CoffeeSoft: el framework, y alert()/send_ajax() de complementos.js -->
     <script src="<?= $asset('assets/js/coffeeSoft.js') ?>"></script>

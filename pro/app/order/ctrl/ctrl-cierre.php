@@ -27,7 +27,7 @@ class ctrl extends core {
 
     // Sin fecha: hoy. Un día cerrado se lee de su foto; uno abierto, en vivo.
     public function getDay() {
-        $fail = $this->need('show') ?: $this->needBranch();
+        $fail = ($this->post('detail') === '1' ? $this->needTickets() : $this->need('show')) ?: $this->needBranch();
         if ($fail) return $fail;
 
         $today = date('Y-m-d');
@@ -52,6 +52,7 @@ class ctrl extends core {
                 'closure'  => $closure ? $this->closureInfo($closure) : null,
                 'summary'  => $closure ? $this->closureStats($closure) : $this->dayStats($branchId, $from, $to),
                 'turns'    => $turns,
+                'detail'   => $this->post('detail') === '1' ? $this->cutDetail(array_column($turns, 'id')) : null,
                 'reopens'  => array_map([$this, 'closureInfo'], $this->qDayReopens($branchId, $from, $to)),
                 'pending'  => $pending,
                 'warnings' => $closure ? [] : $this->dayWarnings($day, $turns),
@@ -89,40 +90,79 @@ class ctrl extends core {
         }, $this->qDayTurns($branchId, $from, $to));
     }
 
-    // -- Lista de cierres (pos-tickets) --
+    // -- Lista de días (visor de Cortes) --
 
+    // Los días con turnos o con cierre en el periodo, cerrados y por cerrar, del más reciente al más viejo.
     public function lsDays() {
-        $fail = $this->need('show') ?: $this->needBranch();
+        $fail = $this->needTickets() ?: $this->needBranch();
         if ($fail) return $fail;
 
         return $this->attempt(function () {
             [$from, $to] = $this->postRange();
+            $branchId    = $this->branchId();
+            $turns       = [];
+            $closures    = [];
 
-            $rows = array_map([$this, 'closureRow'], $this->qClosureList($this->branchId(), $from, $to));
+            foreach ($this->qTurnList($branchId, $from, $to) as $t) {
+                $turns[substr((string) $t['opened_at'], 0, 10)][] = $t;
+            }
 
-            return ['status' => 200, 'row' => $rows, 'count' => count($rows), 'branch' => $this->scope()['branch']];
-        }, 'No se pudieron leer los cierres del día.');
+            // La lista viene del cierre más nuevo al más viejo: el primero de cada fecha es el vigente.
+            foreach ($this->qClosureList($branchId, $from, $to) as $c) {
+                $date = substr((string) $c['closure_date'], 0, 10);
+
+                if (!isset($closures[$date])) $closures[$date] = $c;
+            }
+
+            $dates = array_unique(array_merge(array_keys($turns), array_keys($closures)));
+            rsort($dates);
+
+            $items = array_map(function ($date) use ($turns, $closures) {
+                return $this->dayItem($date, $turns[$date] ?? [], $closures[$date] ?? null);
+            }, $dates);
+
+            $pending = count(array_filter($items, function ($d) { return !$d['closed']; }));
+
+            return ['status' => 200, 'items' => $items, 'count' => count($items), 'pending' => $pending, 'branch' => $this->scope()['branch']];
+        }, 'No se pudieron leer los días.');
     }
 
-    // Cifras de la foto del cierre: no se mueven aunque un pedido cambie después.
-    private function closureRow($c) {
-        $info   = $this->closureInfo($c);
-        $day    = substr((string) $c['closure_date'], 0, 10);
-        $orders = (int) $c['orders_count'];
-        $sales  = (int) $c['sales_count'];
-        $off    = (int) $c['cancelled_count'];
-        $note   = $info['note'] !== '' ? '<span class="block text-[11px] text-gray-400 truncate max-w-[220px]">' . h($info['note']) . '</span>' : '';
+    /*  Un día cerrado muestra lo vendido de su cierre (la foto); uno sin cerrar, lo vivo.
+        difference: lo que sobró o faltó en caja, sumando sus turnos cerrados. */
+    private function dayItem($date, array $turns, $closure) {
+        $live   = 0;
+        $diff   = 0;
+        $open   = 0;
+        $counts = 0;
+
+        foreach ($turns as $t) {
+            $live += (float) $t['sold'];
+
+            if ($t['status'] === 'open') {
+                $open++;
+                continue;
+            }
+
+            $counts++;
+            $diff += (float) $t['counted_cash'] - (float) $t['expected_cash'];
+        }
+
+        $live = round($live, 2);
+        $info = $closure ? $this->closureInfo($closure) : null;
 
         return [
-            'id'          => $info['id'],
-            'Día'         => '<span class="font-semibold whitespace-nowrap">' . dmy($day) . '</span>' . $note,
-            'Folio'       => '<span class="text-gray-600">' . h($info['folio']) . '</span>',
-            'Turnos'      => $info['turns'],
-            'Pedidos'     => $orders . ' · ' . $sales . ($off ? '<span class="block text-[11px] text-red-600 whitespace-nowrap">' . $off . ($off === 1 ? ' cancelado' : ' cancelados') . '</span>' : ''),
-            'Vendido'     => '<span class="font-semibold">' . money($info['total']) . '</span>',
-            'Efectivo'    => money($c['total_cash']),
-            'Cerró'       => '<span class="text-gray-600 whitespace-nowrap">' . dmy($info['closed_at']) . ' · ' . hour12(substr((string) $info['closed_at'], 11)) . '</span><span class="block text-[11px] text-gray-400">' . h($info['closed_by'] ?: '—') . '</span>',
-            'dropdown'    => [['icon' => 'icon-eye', 'text' => 'Ver cierre', 'onclick' => "orderClosure.open('{$day}')"]]
+            'date'       => $date,
+            'closed'     => (bool) $info,
+            'folio'      => $info ? $info['folio'] : '',
+            'closed_at'  => $info ? $info['closed_at'] : null,
+            'closed_by'  => $info ? $info['closed_by'] : '',
+            'note'       => $info ? $info['note'] : '',
+            'sold'       => $info ? $info['total'] : $live,
+            'live'       => $live,
+            'changed'    => $info && $turns && abs($live - $info['total']) >= 0.005,
+            'turns'      => count($turns) ?: ($info ? $info['turns'] : 0),
+            'open_turns' => $open,
+            'difference' => $counts ? round($diff, 2) : null
         ];
     }
 
@@ -175,6 +215,7 @@ class ctrl extends core {
 
         foreach ($methods as &$method) {
             $method['amount']   = round((float) $method['amount'], 2);
+            $method['tip']      = round((float) ($method['tip'] ?? 0), 2);
             $method['payments'] = (int) $method['payments'];
             $collected += $method['amount'];
 
@@ -280,14 +321,15 @@ class ctrl extends core {
         return '';
     }
 
-    // '' = se puede reabrir.
+    /*  '' = se puede reabrir. Un día pasado reabierto vuelve a «pendiente»: no frena el turno
+        abierto, pero sí abrir el siguiente y cerrar hoy. Por eso solo dentro de la ventana de
+        pendientes: más atrás nadie lo vería y se quedaría abierto. */
     private function dayReopenBlock($closure, $day) {
         if (!$closure) return 'El día no está cerrado.';
 
-        $branchId = $this->branchId();
+        $oldest = date('Y-m-d', strtotime(date('Y-m-d') . ' -' . self::PENDING_WINDOW . ' days'));
 
-        if ((int) $closure['id'] !== $this->qLastClosureId($branchId)) return 'Solo se reabre el último día cerrado de la sucursal.';
-        if ($this->qTurnsAfter($branchId, $this->dayRange($day)[1]) > 0) return 'Ya hay turnos en días posteriores: este día ya no se reabre.';
+        if ($day < $oldest) return 'Solo se reabren los días de las últimas ' . self::PENDING_WINDOW . ' jornadas: este ya es historia.';
 
         return '';
     }
@@ -351,7 +393,7 @@ class ctrl extends core {
                 $byMethod = [];
 
                 foreach ($stats['methods'] as $method) {
-                    $byMethod[] = [$id, $method['id'] !== null ? (int) $method['id'] : null, $method['source'], $method['payments'], $method['amount'], 0, 1];
+                    $byMethod[] = [$id, $method['id'] !== null ? (int) $method['id'] : null, $method['source'], $method['payments'], $method['amount'], $method['tip'], 1];
                 }
 
                 if ($byMethod) {
@@ -424,7 +466,9 @@ class ctrl extends core {
 
                 $this->must($this->qUnlinkClosure($id), 'reopenDay ligas');
 
-                return $this->ok('Día ' . dmy($day) . ' reabierto.', ['id' => $id]);
+                $again = $day < date('Y-m-d') ? ' Ciérralo otra vez antes de abrir el siguiente turno.' : '';
+
+                return $this->ok('Día ' . dmy($day) . ' reabierto.' . $again, ['id' => $id]);
             });
         }, 'No se pudo reabrir el día.');
 
@@ -437,4 +481,8 @@ class ctrl extends core {
     }
 }
 
-Permission::dispatch(new ctrl(), core::SECTION);
+// La lista y el modo Detallado son del visor de Cortes: entran por pos-tickets.
+$opc   = isset($_POST['opc']) ? (string) $_POST['opc'] : '';
+$visor = $opc === 'lsDays' || ($opc === 'getDay' && ($_POST['detail'] ?? '') === '1');
+
+Permission::dispatch(new ctrl(), $visor ? core::TICKETS : core::SECTION);

@@ -72,7 +72,7 @@ class Subcategories extends Templates {
                     id: 'category_id',
                     lbl: 'Categoría',
                     required: false,
-                    class: 'col-12 col-md-3',
+                    class: 'col-12 col-lg-2',
                     data: [{ id: '', valor: 'Todas' }, ...this.categories],
                     onchange: 'subcategories.ls()'
                 },
@@ -81,14 +81,14 @@ class Subcategories extends Templates {
                     id: 'active',
                     lbl: 'Estado',
                     required: false,
-                    class: 'col-12 col-md-2',
+                    class: 'col-12 col-lg-2',
                     data: dataInit.statusFilter || [],
                     onchange: 'subcategories.ls()'
                 },
                 {
                     opc: 'button',
                     id: 'btnNewSubcategory',
-                    class: 'col-12 col-md-3 col-lg-2',
+                    class: 'col-12 col-lg-2',
                     text: 'Nueva subcategoría',
                     onClick: () => this.add()
                 }
@@ -143,7 +143,7 @@ class Subcategories extends Templates {
         if (!categories) return;
 
         if (!categories.length) {
-            alert({ icon: 'info', text: 'Primero crea una categoría en la pestaña Categorías.', btn1: true });
+            warnBox('Primero crea una categoría en la pestaña Categorías.', 'message');
             return;
         }
 
@@ -177,7 +177,7 @@ class Subcategories extends Templates {
     }
 
     save(opc, values, close) {
-        const warn = (text) => alert({ icon: 'warning', text, btn1: true });
+        const warn = (text) => warnBox(text);
 
         if (!values.category_id) return warn('Elige la categoría de la subcategoría.');
         if (!String(values.name || '').trim()) return warn('Escribe el nombre de la subcategoría.');
@@ -195,15 +195,12 @@ class Subcategories extends Templates {
     }
 
     status(id, active) {
-        this.swalQuestion({
-            opts: {
-                title: active ? '¿Activar la subcategoría?' : '¿Desactivar la subcategoría?',
-                text: active ? 'Volverá a aparecer al clasificar productos.' : 'Dejará de aparecer al clasificar productos. No se borra.'
-            },
+        confirmSend(this, {
+            title: active ? '¿Activar la subcategoría?' : '¿Desactivar la subcategoría?',
+            text: active ? 'Volverá a aparecer al clasificar productos.' : 'Dejará de aparecer al clasificar productos. No se borra.',
+            danger: !active,
             data: { opc: 'statusSubcategory', id, active },
-            methods: {
-                send: (response) => afterSave(response, () => this.ls())
-            }
+            done: (response) => afterSave(response, () => this.ls())
         });
     }
 }

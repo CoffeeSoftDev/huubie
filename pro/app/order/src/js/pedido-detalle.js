@@ -82,6 +82,7 @@ function ordPrint(title, body) {
             h2 { font-size: 12px; margin: 0 0 4px; text-transform: uppercase; }
             .c { text-align: center; } .r { text-align: right; white-space: nowrap; vertical-align: top; }
             .s { font-size: 10.5px; color: #333; } .b td { font-weight: bold; }
+            .d { display: block; } .x td { color: #666; }
             hr { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
             table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; }
         </style></head><body>${body}</body></html>`;
@@ -350,6 +351,12 @@ class OrderDetail extends Templates {
                       </button>`);
         }
 
+        if (can.undeliver) {
+            out.push(`<button type="button" class="ord-undeliver" onclick="orderDetail.undeliver(${id}, { fromDetail: true })">
+                          <i data-lucide="undo-2" class="w-4 h-4"></i>Deshacer entrega
+                      </button>`);
+        }
+
         return out.length ? `<div class="flex flex-wrap gap-[6px]">${out.join('')}</div>` : '';
     }
 
@@ -491,7 +498,9 @@ class OrderDetail extends Templates {
 
     // -- Bitacora --
 
-    historyIcon(type) {
+    historyIcon(type, title = '') {
+        if (type === 'delivery' && /deshecha/i.test(title)) return ['undo-2', 'text-amber-600'];
+
         const icons = {
             delivery:     ['circle-check', 'text-emerald-600'],
             production:   ['chef-hat', 'text-violet-600'],
@@ -517,8 +526,8 @@ class OrderDetail extends Templates {
         }
 
         const items = history.map((h, i) => {
-            const [icon, tone] = this.historyIcon(h.type);
             const title        = h.title || h.action || 'Movimiento';
+            const [icon, tone] = this.historyIcon(h.type, title);
 
             return `
                 <li class="flex items-start gap-2 text-[12.5px] ${i >= SHOWN ? 'hidden ord-hist-more' : ''}">
@@ -962,6 +971,74 @@ class OrderDetail extends Templates {
 
         orders.lsOrders();
         alert({ icon: 'success', title: data.message });
+
+        back();
+    }
+
+    // Regresa el pedido a «sin entregar». Solo Dueño o Supervisor; pide motivo, no contraseña.
+    undeliver(id, opts = {}) {
+        $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        if (this.undelivering) return;
+
+        const fromDetail = !!opts.fromDetail;
+        const back       = () => (fromDetail ? this.show(id) : null);
+
+        if (fromDetail) $('#modalOrderDetails .cs-modal-x').trigger('click');
+
+        this.csModal({
+            id:         'modalOrderUndeliver',
+            title:      'Deshacer entrega',
+            subtitle:   `Pedido #P${id}`,
+            lucideIcon: 'undo-2',
+            width:      'max-w-lg',
+            saveText:   'Deshacer entrega',
+            cancelText: 'Volver',
+            info:       'El pedido vuelve a «sin entregar». El motivo queda en la bitácora.',
+            json: [
+                { id: 'ud_reason', lbl: 'Motivo', tipo: 'textarea', required: true, maxlength: 200, rows: 3, ph: 'Ej. Se marcó entregado por error', class: 'w-full' }
+            ],
+            onSave: (values, close) => this.saveUndeliver(id, values, close, back)
+        });
+
+        orderPay.onDismiss('modalOrderUndeliver', back);
+
+        $('#ud_reason').trigger('focus');
+    }
+
+    async saveUndeliver(id, values, close, back) {
+        if (this.undelivering) return;
+
+        const reason = String(values.ud_reason || '').trim();
+
+        if (!reason) {
+            alert({ icon: 'warning', title: 'Falta el motivo', text: 'Escribe por qué se deshace la entrega.', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        this.undelivering = true;
+
+        const button = $('#modalOrderUndeliver .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({ url: this._link, data: { opc: 'undeliverOrder', id: id, reason: reason } });
+
+        this.undelivering = false;
+        button.prop('disabled', false);
+
+        if (!data || data.status != 200) {
+            alert({
+                icon:     data && [403, 404, 409].includes(Number(data.status)) ? 'info' : 'error',
+                title:    'No se deshizo la entrega',
+                text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
+                btn1:     true,
+                btn1Text: 'Entendido'
+            });
+            return;
+        }
+
+        orderPay.closeQuiet('modalOrderUndeliver', close);
+
+        orders.lsOrders();
+        alert({ icon: 'success', title: data.message, timer: 1800 });
 
         back();
     }

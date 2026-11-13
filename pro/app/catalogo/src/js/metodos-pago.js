@@ -39,14 +39,14 @@ class PaymentMethods extends Templates {
                     id: 'active',
                     lbl: 'Estado',
                     required: false,
-                    class: 'col-12 col-md-2',
+                    class: 'col-12 col-lg-2',
                     data: dataInit.statusFilter || [],
                     onchange: 'paymentMethods.ls()'
                 },
                 {
                     opc: 'button',
                     id: 'btnNewPaymentMethod',
-                    class: 'col-12 col-md-3 col-lg-2',
+                    class: 'col-12 col-lg-2',
                     text: 'Nuevo método',
                     onClick: () => this.add()
                 }
@@ -141,7 +141,7 @@ class PaymentMethods extends Templates {
         const problem = this.validate(values);
 
         if (problem) {
-            alert({ icon: 'warning', text: problem, btn1: true });
+            warnBox(problem);
             return;
         }
 
@@ -158,15 +158,12 @@ class PaymentMethods extends Templates {
     }
 
     status(id, active) {
-        this.swalQuestion({
-            opts: {
-                title: active ? '¿Activar el método de pago?' : '¿Desactivar el método de pago?',
-                text: active ? 'Volverá a estar disponible para cobrar.' : 'Dejará de estar disponible para cobrar. Los cobros ya registrados no cambian.'
-            },
+        confirmSend(this, {
+            title: active ? '¿Activar el método de pago?' : '¿Desactivar el método de pago?',
+            text: active ? 'Volverá a estar disponible para cobrar.' : 'Dejará de estar disponible para cobrar. Los cobros ya registrados no cambian.',
+            danger: !active,
             data: { opc: 'statusPaymentMethod', id, active },
-            methods: {
-                send: (response) => afterSave(response, () => this.ls())
-            }
+            done: (response) => afterSave(response, () => this.ls())
         });
     }
 }

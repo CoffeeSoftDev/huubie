@@ -103,6 +103,16 @@ class core extends mdl {
         return $this->fail(409, 'Es una plantilla de Huubie: la ven todas las empresas y no se edita.');
     }
 
+    /*  Cómo pregunta el grupo al capturar el pedido, con la misma regla de
+        Pedidos (isMultiple en pro/app/order/ctrl/core-order.php):
+        is_extra = 1 o un nombre que dice "decoraci" = varias con cantidad;
+        lo demás = una sola. */
+    protected function groupMultiple($isExtra, $name) {
+        if ((int) $isExtra === 1) return true;
+
+        return mb_stripos((string) $name, 'decoraci', 0, 'UTF-8') !== false;
+    }
+
     // -- Respuestas --
 
     protected function ok($message, $extra = []) {
@@ -314,15 +324,22 @@ class core extends mdl {
     a mano: «Tres Leches Fresas con Crema».
       - TODO EN MAYÚSCULAS: cada palabra pasa a Mayúscula Inicial.
       - palabra en minúsculas: Mayúscula Inicial.
-      - de, la, con, y… en minúsculas (salvo la primera palabra).
-      - cm, pz, pza… en minúsculas.
+      - de, la, con, y… y «c/» (con) en minúsculas, salvo la primera palabra:
+        «Tarta de Camarón c/Elote».
+      - cm, pz, oz… en minúsculas, salvo la primera palabra («Pz de Rollito»).
       - Se respeta tal cual: lo que trae número (3D, 15PZ, 12p) y, si el nombre
         no venía todo en mayúsculas, la palabra que ya traía mayúsculas
         (KitKat, BBQ, «Decoraciones FLORES»): pueden ser marcas o siglas. */
 if (!function_exists('catalogName')) {
     function catalogName($text) {
         $connectors = ['de', 'del', 'la', 'las', 'el', 'los', 'con', 'sin', 'y', 'e', 'o', 'u', 'en', 'a', 'al', 'por', 'para'];
-        $units      = ['cm', 'mm', 'kg', 'gr', 'ml', 'lt', 'pz', 'pzs', 'pza', 'pzas', 'paq'];
+        $units      = ['cm', 'mm', 'kg', 'g', 'gr', 'lb', 'oz', 'ml', 'lt', 'lts', 'pz', 'pzs', 'pza', 'pzas', 'paq'];
+
+        $capital = function ($lower) {
+            return preg_replace_callback('/\p{L}/u', function ($m) {
+                return mb_strtoupper($m[0], 'UTF-8');
+            }, $lower, 1);
+        };
 
         $text = trim(preg_replace('/\s+/u', ' ', (string) $text));
 
@@ -338,14 +355,15 @@ if (!function_exists('catalogName')) {
             $core    = preg_replace('/^[^\p{L}]+|[^\p{L}]+$/u', '', $lower);
             $rewrite = $allUpper || $word === $lower;
 
-            if ($i > 0 && in_array($core, $connectors, true)) {
+            if ($i > 0 && preg_match('/^c\/(.*)$/u', $lower, $m)) {
+                $rest      = mb_substr($word, 2, null, 'UTF-8');
+                $words[$i] = 'c/' . ($rewrite ? $capital($m[1]) : $rest);
+            } elseif ($i > 0 && in_array($core, $connectors, true)) {
                 $words[$i] = $lower;
-            } elseif (in_array($core, $units, true)) {
+            } elseif ($i > 0 && in_array($core, $units, true)) {
                 if ($rewrite) $words[$i] = $lower;
             } elseif ($rewrite) {
-                $words[$i] = preg_replace_callback('/\p{L}/u', function ($m) {
-                    return mb_strtoupper($m[0], 'UTF-8');
-                }, $lower, 1);
+                $words[$i] = $capital($lower);
             }
         }
 

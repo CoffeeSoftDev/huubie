@@ -39,14 +39,14 @@ class Discounts extends Templates {
                     id: 'active',
                     lbl: 'Estado',
                     required: false,
-                    class: 'col-12 col-md-2',
+                    class: 'col-12 col-lg-2',
                     data: dataInit.statusFilter || [],
                     onchange: 'discounts.ls()'
                 },
                 {
                     opc: 'button',
                     id: 'btnNewDiscount',
-                    class: 'col-12 col-md-3 col-lg-2',
+                    class: 'col-12 col-lg-2',
                     text: 'Nuevo descuento',
                     onClick: () => this.add()
                 }
@@ -126,7 +126,7 @@ class Discounts extends Templates {
         const problem = this.validate(values);
 
         if (problem) {
-            alert({ icon: 'warning', text: problem, btn1: true });
+            warnBox(problem);
             return;
         }
 
@@ -143,15 +143,12 @@ class Discounts extends Templates {
     }
 
     status(id, active) {
-        this.swalQuestion({
-            opts: {
-                title: active ? '¿Activar el descuento?' : '¿Desactivar el descuento?',
-                text: active ? 'Volverá a ofrecerse en caja.' : 'Dejará de ofrecerse en caja. Los descuentos ya aplicados no cambian.'
-            },
+        confirmSend(this, {
+            title: active ? '¿Activar el descuento?' : '¿Desactivar el descuento?',
+            text: active ? 'Volverá a ofrecerse en caja.' : 'Dejará de ofrecerse en caja. Los descuentos ya aplicados no cambian.',
+            danger: !active,
             data: { opc: 'statusDiscount', id, active },
-            methods: {
-                send: (response) => afterSave(response, () => this.ls())
-            }
+            done: (response) => afterSave(response, () => this.ls())
         });
     }
 }

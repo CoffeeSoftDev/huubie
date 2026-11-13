@@ -40,6 +40,7 @@ class ctrl extends core {
             'status'   => 200,
             'scope'    => ['company' => $scope['company'], 'branch' => $scope['branch']],
             'actions'  => $this->actions(),
+            'tickets'  => Permission::actions(self::TICKETS),
             'statuses' => $scope['company_id'] > 0 ? $this->qStatuses($scope['company_id']) : [],
             'today'    => date('Y-m-d'),
             'turn'     => $this->turnBrief(),
@@ -155,6 +156,11 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-truck', 'text' => 'Cobrar y entregar', 'onclick' => "orderPay.open({$id}, false, { deliver: true })"];
         }
 
+        // Entregado por error: lo regresa Dueño o Supervisor (permiso cancel).
+        if (in_array('cancel', $actions, true) && $this->undeliverBlock($o) === '') {
+            $menu[] = ['icon' => 'icon-undo', 'text' => 'Deshacer entrega', 'onclick' => "orderDetail.undeliver({$id})"];
+        }
+
         if (in_array('print', $actions, true)) {
             $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
         }
@@ -166,7 +172,7 @@ class ctrl extends core {
         return [
             'id'               => $id,
             'Folio'            => $this->cellFolio($id, $o['folio'], $inTurn, $cancelled),
-            'Creación'         => '<span class="text-gray-600">' . dmy($o['created_at']) . '</span>',
+            'Creación'         => '<span class="text-gray-600">' . shortDate($o['created_at']) . '</span>',
             'Cliente'          => $this->cellCustomer($o['customer'], $o['phone'], $custom),
             'Total'            => $this->cellTotal($o['total'], $o['subtotal'], $o['discount_amount']),
             'Abono'            => $this->cellPaid($o['paid']),
@@ -205,8 +211,15 @@ class ctrl extends core {
         return $html;
     }
 
+    // Monto en cero: un guion en lugar de $0.00.
+    private function cellZero() {
+        return '<span class="text-gray-400">-</span>';
+    }
+
     // Con descuento: el neto en verde y el bruto tachado debajo.
     private function cellTotal($total, $subtotal, $discount) {
+        if (abs((float) $total) < 0.005) return $this->cellZero();
+
         if ((float) $discount > 0) {
             return '<div class="font-bold text-emerald-700 whitespace-nowrap">' . money($total) . '</div>'
                  . '<div class="text-[11px] text-gray-400 line-through whitespace-nowrap">' . money($subtotal) . '</div>';
@@ -216,9 +229,9 @@ class ctrl extends core {
     }
 
     private function cellPaid($paid) {
-        $tone = (float) $paid > 0 ? 'text-emerald-700' : 'text-gray-400';
+        if (abs((float) $paid) < 0.005) return $this->cellZero();
 
-        return '<span class="' . $tone . ' whitespace-nowrap">' . money($paid) . '</span>';
+        return '<span class="text-emerald-700 whitespace-nowrap">' . money($paid) . '</span>';
     }
 
     // Negativo = pago de mas: se muestra como saldo a favor del cliente.
@@ -234,21 +247,17 @@ class ctrl extends core {
                  . '<div class="ord-sub">a favor</div>';
         }
 
-        return '<span class="text-gray-400 whitespace-nowrap">$0.00</span>';
+        return $this->cellZero();
     }
 
-    // "Hoy" y "Mañana" en ambar debajo de la fecha.
+    // Formato de alpha (shortDate): "Hoy" ya sale en la fecha; "Mañana" en ambar debajo.
     private function cellDeliveryDate($date) {
         if (!$date) return '<span class="text-gray-400">Sin fecha</span>';
 
-        $day  = date('Y-m-d', strtotime($date));
-        $tag  = '';
+        $tomorrow = date('Y-m-d', strtotime($date)) === date('Y-m-d', strtotime('+1 day'));
 
-        if ($day === date('Y-m-d'))                         $tag = 'Hoy';
-        if ($day === date('Y-m-d', strtotime('+1 day')))    $tag = 'Mañana';
-
-        return '<span class="text-gray-800 whitespace-nowrap">' . dmy($date) . '</span>'
-             . ($tag !== '' ? '<div class="text-[11px] font-semibold text-amber-600">' . $tag . '</div>' : '');
+        return '<span class="text-gray-800 whitespace-nowrap">' . shortDate($date) . '</span>'
+             . ($tomorrow ? '<div class="text-[11px] font-semibold text-amber-600">Mañana</div>' : '');
     }
 
     private function statusPill($statusId, $name) {
@@ -307,6 +316,11 @@ class ctrl extends core {
     // Desde el menu de la fila o desde el detalle. Las reglas viven en core.
     public function deliverOrder() {
         return $this->deliver($this->postId());
+    }
+
+    // Regresa a «sin entregar». Las reglas viven en core.
+    public function undeliverOrder() {
+        return $this->undeliver($this->postId());
     }
 
     // Capturar = crear o editar: con una de las dos se abre el formulario.

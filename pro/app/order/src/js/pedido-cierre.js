@@ -105,6 +105,8 @@ class OrderClosure extends Templates {
 
         $('#modalOrderClosure').on('click', 'button.ord-day-nav', (e) => this.go($(e.currentTarget).attr('data-date'), modal));
 
+        this.picker(data, modal);
+
         $('#modalOrderClosure').on('click', 'button.ord-day-turn', (e) => {
             modal.close();
             orderTurn.open(Number($(e.currentTarget).attr('data-id')));
@@ -153,8 +155,43 @@ class OrderClosure extends Templates {
                 <button type="button" class="ord-day-nav" data-date="${prev}" aria-label="Día anterior"><i data-lucide="chevron-left" class="w-4 h-4"></i>Anterior</button>
                 <button type="button" class="ord-day-nav" data-date="${next}" aria-label="Día siguiente" ${next > data.today ? 'disabled' : ''}>Siguiente<i data-lucide="chevron-right" class="w-4 h-4"></i></button>
                 ${data.date !== data.today ? `<button type="button" class="ord-day-nav" data-date="${data.today}">Hoy</button>` : ''}
+                <label class="ord-day-pick" aria-label="Elegir un día del calendario">
+                    <i data-lucide="calendar-days" class="w-4 h-4"></i>
+                    <input type="text" id="dc_pick" readonly autocomplete="off">
+                </label>
                 ${chips}
             </div>`;
+    }
+
+    // Calendario de un solo día, hasta hoy. El popup vive en <body>: se borra el del modal anterior.
+    picker(data, modal) {
+        $('.daterangepicker.ord-day-picker').remove();
+
+        dataPicker({
+            parent: 'dc_pick',
+            type:   'simple',
+            rangeDefault: {
+                singleDatePicker: true,
+                showDropdowns:    true,
+                autoApply:        true,
+                startDate:        moment(data.date, 'YYYY-MM-DD'),
+                maxDate:          moment(data.today, 'YYYY-MM-DD'),
+                opens:            'left',
+                locale: {
+                    format:     'DD/MM/YYYY',
+                    firstDay:   1,
+                    daysOfWeek: ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'],
+                    monthNames: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+                }
+            },
+            onSelect: (start) => {
+                const date = start.format('YYYY-MM-DD');
+                if (date !== data.date) this.go(date, modal);
+            }
+        });
+
+        const dp = $('#dc_pick').data('daterangepicker');
+        if (dp) dp.container.addClass('ord-day-picker');
     }
 
     // Datos de la franja de arriba: [etiqueta, valor ya escapado].
@@ -395,13 +432,18 @@ class OrderClosure extends Templates {
 
     // -- Impresion --
 
-    printDay(data) {
+    printDay(data, detail) {
+        ordPrint(`Cierre del día ${ordDate(data.date)}`, `${this.dayTicket(data, detail)}<hr><p class="c s">Impreso ${ordNow()}</p>`);
+    }
+
+    // El papel del cierre: lo imprime printDay y lo muestra el visor de Cortes. detail = modo Detallado.
+    dayTicket(data, detail) {
         const s   = data.summary;
         const c   = data.closure;
         const row = (a, b, strong) => `<tr${strong ? ' class="b"' : ''}><td>${a}</td><td class="r">${b}</td></tr>`;
 
         const methods = (s.methods || []).length
-            ? s.methods.map((m) => row(`${esc(m.name || 'Sin método')}${m.source === 'abono' ? ' · abono' : ''} (${Number(m.payments)})`, money(m.amount))).join('') + row('Total cobrado', money(s.collected), true)
+            ? s.methods.map((m) => row(`${esc(m.name || 'Sin método')}${m.source === 'abono' ? ' · abono' : ''}${Number(m.tip) > 0 ? ' · propina ' + money(m.tip) : ''} (${Number(m.payments)})`, money(m.amount))).join('') + row('Total cobrado', money(s.collected), true)
             : row('Sin cobros', money(0));
 
         const statuses = (s.statuses || []).length
@@ -430,10 +472,9 @@ class OrderClosure extends Templates {
             <hr><h2>Cobrado por método</h2><table>${methods}${row('Efectivo', money(s.cash))}</table>
             <hr><h2>Pedidos por estado</h2><table>${statuses}</table>
             <hr><h2>Turnos</h2><table>${turns}</table>
-            ${c && c.note ? `<hr><p class="s">Nota: ${esc(c.note)}</p>` : ''}
-            <hr><p class="c s">Impreso ${ordNow()}</p>`;
+            ${c && c.note ? `<hr><p class="s">Nota: ${esc(c.note)}</p>` : ''}`;
 
-        ordPrint(`Cierre del día ${ordDate(data.date)}`, body);
+        return body + (detail ? orderTurn.detailTicket(detail, 'abono de otro día') : '');
     }
 
     // -- Complements --

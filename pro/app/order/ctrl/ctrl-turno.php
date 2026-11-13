@@ -32,7 +32,7 @@ class ctrl extends core {
 
     // Sin id: el turno abierto; si no hay, el ultimo cerrado.
     public function getTurn() {
-        $fail = $this->need('show') ?: $this->needBranch();
+        $fail = ($this->post('detail') === '1' ? $this->needTickets() : $this->need('show')) ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id = $this->postId();
@@ -54,6 +54,7 @@ class ctrl extends core {
                 'branch' => $this->scope()['branch'],
                 'today'  => date('Y-m-d'),
                 'turn'   => $turn ? $this->turnView($turn) : null,
+                'detail' => $turn && $this->post('detail') === '1' ? $this->cutDetail([(int) $turn['id']]) : null,
                 'brief'  => $this->turnBrief(),
                 'day'    => $this->dayBrief(),
                 'can'    => $this->turnCan($turn, $open)
@@ -61,69 +62,45 @@ class ctrl extends core {
         }, 'No se pudo leer el turno.');
     }
 
-    // -- Lista de turnos (pos-tickets) --
+    // -- Lista de turnos (visor de Cortes) --
 
     public function lsTurns() {
-        $fail = $this->need('show') ?: $this->needBranch();
+        $fail = $this->needTickets() ?: $this->needBranch();
         if ($fail) return $fail;
 
         return $this->attempt(function () {
             [$from, $to] = $this->postRange();
 
-            $turns   = $this->qTurnList($this->branchId(), $from, $to);
-            $rows    = array_map([$this, 'turnRow'], $turns);
-            $changed = count(array_filter($turns, [$this, 'turnChanged']));
+            $items   = array_map([$this, 'turnItem'], $this->qTurnList($this->branchId(), $from, $to));
+            $changed = count(array_filter($items, function ($t) { return $t['changed']; }));
 
-            return ['status' => 200, 'row' => $rows, 'count' => count($rows), 'changed' => $changed, 'branch' => $this->scope()['branch']];
+            return ['status' => 200, 'items' => $items, 'count' => count($items), 'changed' => $changed, 'branch' => $this->scope()['branch']];
         }, 'No se pudieron leer los turnos.');
     }
 
-    // Aviso rápido de la lista: cerrado y lo vendido en vivo ya no es lo del corte. El modal compara todo.
-    private function turnChanged($t) {
-        return $t['status'] !== 'open' && abs(round((float) $t['sold'], 2) - round((float) $t['total_sales'], 2)) >= 0.005;
-    }
-
-    // Un turno cerrado muestra lo vendido de su corte; si lo vivo ya no cuadra, «hoy $X» debajo.
-    private function turnRow($t) {
-        $id      = (int) $t['id'];
-        $closed  = $t['status'] !== 'open';
-        $live    = round((float) $t['sold'], 2);
-        $cut     = round((float) $t['total_sales'], 2);
-        $changed = $this->turnChanged($t);
-        $diff    = round((float) $t['counted_cash'] - (float) $t['expected_cash'], 2);
-
-        $sold = '<span class="font-semibold">' . money($closed ? $cut : $live) . '</span>'
-              . ($changed ? '<span class="block text-[11px] text-amber-700 whitespace-nowrap">hoy ' . money($live) . '</span>' : '');
-
-        $state = $closed
-            ? '<span class="ord-pill bg-gray-100 text-gray-600">Cerrado</span>'
-            : '<span class="ord-pill bg-emerald-50 text-emerald-700">Abierto</span>';
-
-        if (!empty($t['reopened_at']))   $state .= ' <span class="ord-pill bg-[#EAF0FA] text-[#2A55A3]">Reabierto</span>';
-        if ((int) $t['day_closed'] > 0)  $state .= ' <span class="ord-pill bg-slate-100 text-slate-600">Día cerrado</span>';
-        if ($changed)                    $state .= ' <span class="ord-pill bg-amber-50 text-amber-700">Cambió</span>';
+    /*  Un turno cerrado muestra lo vendido de su corte; 'live' es lo de hoy.
+        changed: lo vivo ya no cuadra con el corte (aviso rápido; el modal compara todo). */
+    private function turnItem($t) {
+        $closed = $t['status'] !== 'open';
+        $live   = round((float) $t['sold'], 2);
+        $cut    = round((float) $t['total_sales'], 2);
 
         return [
-            'id'        => $id,
-            'Turno'     => '<span class="font-semibold">' . h($t['folio']) . '</span><span class="block text-[11px] text-gray-400">' . h(trim((string) $t['opened_by']) ?: '—') . '</span>',
-            'Abrió'     => '<span class="text-gray-600 whitespace-nowrap">' . dmy($t['opened_at']) . ' · ' . hour12(substr((string) $t['opened_at'], 11)) . '</span>',
-            'Cerró'     => $closed
-                ? '<span class="text-gray-600 whitespace-nowrap">' . dmy($t['closed_at']) . ' · ' . hour12(substr((string) $t['closed_at'], 11)) . '</span><span class="block text-[11px] text-gray-400">' . h(trim((string) $t['closed_by']) ?: '—') . '</span>'
-                : '<span class="text-gray-400">—</span>',
-            'Fondo'     => money($t['opening_cash']),
-            'Vendido'   => $sold,
-            'Caja'      => $closed ? $this->diffPill($diff) : '<span class="text-gray-400">—</span>',
-            'Estado'    => '<span class="inline-flex flex-wrap gap-1">' . $state . '</span>',
-            'dropdown'  => [['icon' => 'icon-eye', 'text' => 'Ver corte', 'onclick' => "orderTurn.open({$id})"]]
+            'id'           => (int) $t['id'],
+            'folio'        => (string) $t['folio'],
+            'closed'       => $closed,
+            'opened_at'    => $t['opened_at'],
+            'closed_at'    => $t['closed_at'],
+            'opened_by'    => trim((string) $t['opened_by']),
+            'closed_by'    => trim((string) $t['closed_by']),
+            'opening_cash' => round((float) $t['opening_cash'], 2),
+            'sold'         => $closed ? $cut : $live,
+            'live'         => $live,
+            'changed'      => $closed && abs($live - $cut) >= 0.005,
+            'difference'   => $closed ? round((float) $t['counted_cash'] - (float) $t['expected_cash'], 2) : null,
+            'reopened'     => !empty($t['reopened_at']),
+            'day_closed'   => (int) $t['day_closed'] > 0
         ];
-    }
-
-    private function diffPill($diff) {
-        if (abs($diff) < 0.005) return '<span class="ord-pill bg-emerald-50 text-emerald-700">Cuadra</span>';
-
-        return $diff > 0
-            ? '<span class="ord-pill bg-amber-50 text-amber-700">Sobran ' . money($diff) . '</span>'
-            : '<span class="ord-pill bg-red-50 text-red-700">Faltan ' . money(-$diff) . '</span>';
     }
 
     private function turnView($turn) {
@@ -531,4 +508,8 @@ class ctrl extends core {
     }
 }
 
-Permission::dispatch(new ctrl(), core::SECTION);
+// La lista y el modo Detallado son del visor de Cortes: entran por pos-tickets.
+$opc   = isset($_POST['opc']) ? (string) $_POST['opc'] : '';
+$visor = $opc === 'lsTurns' || ($opc === 'getTurn' && ($_POST['detail'] ?? '') === '1');
+
+Permission::dispatch(new ctrl(), $visor ? core::TICKETS : core::SECTION);
