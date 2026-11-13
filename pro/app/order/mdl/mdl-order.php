@@ -2,7 +2,8 @@
 require_once __DIR__ . '/../../../core/database/_CRUD.php';
 require_once __DIR__ . '/../../../core/helpers/_Utileria.php';
 
-/*  Modelo de Pedidos. Hoy SOLO LEE: ninguna funcion de aqui escribe.
+/*  Modelo de Pedidos. Lee la lista y el detalle; escribe la captura (Etapa 2).
+    Las escrituras (qCreate*, qUpdate*) solo se llaman dentro de transaction().
 
     Dos bases en el mismo servidor:
       fayxzvov_app  (la del .env) empresas, sucursales y usuarios. Sin prefijo: $this->bd.
@@ -260,6 +261,7 @@ class mdl extends CRUD {
                 s.produced_at,
                 s.created_at,
                 s.sale_status_id,
+                s.customer_id,
                 s.turn_id,
                 IFNULL(st.name, '')  AS status,
                 IFNULL(c.name, '')   AS customer,
@@ -329,7 +331,10 @@ class mdl extends CRUD {
 
         return $this->qRows("
             SELECT
+                pm.id,
                 pm.product_id,
+                pm.modifier_id,
+                mo.modifier_group_id,
                 IFNULL(mg.name, 'Otros')          AS group_name,
                 IFNULL(mg.is_extra, 0)            AS is_extra,
                 IFNULL(mo.name, '')               AS name,
@@ -380,5 +385,219 @@ class mdl extends CRUD {
                 AND IFNULL(h.active, 1) = 1
             ORDER BY h.created_at DESC, h.id DESC
         ", [$saleId]);
+    }
+
+    // -- Captura: opciones del formulario --
+
+    /*  Clientes vivos de la sucursal. $keepId deja en la lista al cliente que ya
+        tenia el pedido aunque sea de otra sucursal o este dado de baja. */
+    public function qCustomerOptions($branchId, $keepId = 0) {
+        return $this->qRows("
+            SELECT id, IFNULL(name, '') AS name, IFNULL(phone, '') AS phone
+            FROM {$this->pos}customer
+            WHERE (branch_id = ? AND IFNULL(active, 1) = 1)
+                OR id = ?
+            ORDER BY name, id
+        ", [$branchId, $keepId]);
+    }
+
+    public function qGetCustomer($id) {
+        return $this->qRow("
+            SELECT
+                id,
+                IFNULL(name, '')   AS name,
+                IFNULL(phone, '')  AS phone,
+                branch_id,
+                IFNULL(active, 1)  AS active
+            FROM {$this->pos}customer
+            WHERE id = ?
+            LIMIT 1
+        ", [$id]);
+    }
+
+    // El telefono se compara sin espacios ni guiones.
+    public function qFindCustomerByPhone($branchId, $phone) {
+        return $this->qRow("
+            SELECT id, IFNULL(name, '') AS name, IFNULL(phone, '') AS phone
+            FROM {$this->pos}customer
+            WHERE branch_id = ?
+                AND IFNULL(active, 1) = 1
+                AND REPLACE(REPLACE(IFNULL(phone, ''), ' ', ''), '-', '') = ?
+            ORDER BY id
+            LIMIT 1
+        ", [$branchId, $phone]);
+    }
+
+    // Lo que se puede pedir del catalogo: el mismo filtro de Catalogo.
+    public function qCatalogProducts($companyId, $branchId) {
+        return $this->qRows("
+            SELECT p.id, p.name, IFNULL(p.price, 0) AS price
+            FROM {$this->pos}product p
+            WHERE p.company_id = ?
+                AND p.branch_id = ?
+                AND IFNULL(p.is_custom, 0) = 0
+                AND p.kind IN ('product', 'service')
+                AND IFNULL(p.active, 1) = 1
+            ORDER BY p.name, p.id
+        ", [$companyId, $branchId]);
+    }
+
+    public function qGetCatalogProduct($id, $companyId, $branchId) {
+        return $this->qRow("
+            SELECT p.id, p.name, IFNULL(p.price, 0) AS price
+            FROM {$this->pos}product p
+            WHERE p.id = ?
+                AND p.company_id = ?
+                AND p.branch_id = ?
+                AND IFNULL(p.is_custom, 0) = 0
+                AND p.kind IN ('product', 'service')
+                AND IFNULL(p.active, 1) = 1
+            LIMIT 1
+        ", [$id, $companyId, $branchId]);
+    }
+
+    // Opciones vivas del pastel: grupos de la empresa y plantillas (company_id NULL).
+    public function qModifierOptions($companyId) {
+        return $this->qRows("
+            SELECT
+                mo.id,
+                IFNULL(mo.name, '')    AS name,
+                IFNULL(mo.price, 0)    AS price,
+                mg.id                  AS group_id,
+                IFNULL(mg.name, '')    AS group_name,
+                IFNULL(mg.is_extra, 0) AS is_extra
+            FROM {$this->pos}modifier mo
+            INNER JOIN {$this->pos}modifier_group mg ON mg.id = mo.modifier_group_id
+            WHERE (mg.company_id = ? OR mg.company_id IS NULL)
+                AND IFNULL(mg.active, 1) = 1
+                AND IFNULL(mo.active, 1) = 1
+            ORDER BY mg.id, mo.id
+        ", [$companyId]);
+    }
+
+    // Los modificadores pedidos, vivos o no: el ctrl decide cual acepta.
+    public function qModifiersByIds(array $ids, $companyId) {
+        if (empty($ids)) return [];
+
+        $data   = array_values($ids);
+        $data[] = $companyId;
+
+        return $this->qRows("
+            SELECT
+                mo.id,
+                IFNULL(mo.name, '')    AS name,
+                IFNULL(mo.price, 0)    AS price,
+                mg.id                  AS group_id,
+                IFNULL(mg.name, '')    AS group_name,
+                IFNULL(mg.is_extra, 0) AS is_extra,
+                IF(IFNULL(mo.active, 1) = 1 AND IFNULL(mg.active, 1) = 1, 1, 0) AS alive
+            FROM {$this->pos}modifier mo
+            INNER JOIN {$this->pos}modifier_group mg ON mg.id = mo.modifier_group_id
+            WHERE mo.id IN ({$this->qIn($ids)})
+                AND (mg.company_id = ? OR mg.company_id IS NULL)
+        ", $data);
+    }
+
+    // -- Captura: candado --
+
+    /*  El pedido bloqueado hasta el commit (FOR UPDATE): dos personas editando o
+        cobrando a la vez esperan turno en vez de pisarse. Solo en transaction(). */
+    public function qLockOrder($id, $branchId) {
+        return $this->qRow("
+            SELECT
+                s.id,
+                s.customer_id,
+                s.sale_status_id,
+                s.delivery_status,
+                s.delivery_method,
+                s.delivery_date,
+                s.delivery_time,
+                s.location,
+                s.note,
+                s.subtotal,
+                s.discount_amount,
+                s.total,
+                {$this->qPaidSql('s')} AS paid
+            FROM {$this->pos}sale s
+            WHERE s.id = ?
+                AND s.branch_id = ?
+                AND s.sale_type_id = 1
+                AND IFNULL(s.active, 1) = 1
+            LIMIT 1
+            FOR UPDATE
+        ", [$id, $branchId]);
+    }
+
+    // -- Captura: escrituras --
+    // Devuelven true o el aviso del CRUD (string o false); el ctrl usa must().
+
+    protected function qInsertInto($table, $array) {
+        return $this->_Insert([
+            'table'  => $this->pos . $table,
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    protected function qUpdateIn($table, $array) {
+        return $this->_Update([
+            'table'  => $this->pos . $table,
+            'values' => $array['values'],
+            'where'  => $array['where'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    // Solo dentro de transaction(): fuera, _CUD ya cerro la conexion.
+    public function qLastInsertId() {
+        return (int) $this->mysql->lastInsertId();
+    }
+
+    public function qCreateOrder($array) {
+        return $this->qInsertInto('sale', $array);
+    }
+
+    public function qUpdateOrder($array) {
+        return $this->qUpdateIn('sale', $array);
+    }
+
+    public function qCreateLine($array) {
+        return $this->qInsertInto('detail_sale', $array);
+    }
+
+    public function qUpdateLine($array) {
+        return $this->qUpdateIn('detail_sale', $array);
+    }
+
+    public function qCreateProduct($array) {
+        return $this->qInsertInto('product', $array);
+    }
+
+    public function qUpdateProduct($array) {
+        return $this->qUpdateIn('product', $array);
+    }
+
+    public function qCreateProductModifier($array) {
+        return $this->qInsertInto('product_modifier', $array);
+    }
+
+    public function qUpdateProductModifier($array) {
+        return $this->qUpdateIn('product_modifier', $array);
+    }
+
+    public function qCreateImage($array) {
+        return $this->qInsertInto('sale_image', $array);
+    }
+
+    public function qUpdateImage($array) {
+        return $this->qUpdateIn('sale_image', $array);
+    }
+
+    public function qCreateCustomer($array) {
+        return $this->qInsertInto('customer', $array);
+    }
+
+    public function qCreateHistory($array) {
+        return $this->qInsertInto('history_log', $array);
     }
 }

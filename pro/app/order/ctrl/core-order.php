@@ -10,7 +10,10 @@ require_once __DIR__ . '/../mdl/mdl-order.php';
     se escriben publicas en cada ctrl.
 
     dispatch valida que se vea la SECCION. Cada operacion pide ademas su accion
-    con need(): ver no es lo mismo que imprimir o cancelar. */
+    con need(): ver no es lo mismo que imprimir o cancelar.
+
+    Escrituras: siempre dentro de transaction() y cada _Insert/_Update pasa por
+    must(), que vuelve excepcion el string o false con el que avisa el CRUD. */
 class core extends mdl {
 
     const SECTION = 'pos-pedidos';
@@ -139,6 +142,67 @@ class core extends mdl {
         $date  = DateTime::createFromFormat('Y-m-d', $value);
 
         return ($date && $date->format('Y-m-d') === $value) ? $value : $default;
+    }
+
+    // 'HH:MM' o 'HH:MM:SS' valida -> 'HH:MM:00'. Otra cosa = null.
+    protected function postTime($key) {
+        $value = $this->post($key);
+
+        if (!preg_match('/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/', $value, $m)) return null;
+
+        return $m[1] . ':' . $m[2] . ':00';
+    }
+
+    protected function textOrNull($key) {
+        $value = $this->post($key);
+
+        return $value === '' ? null : $value;
+    }
+
+    // Arreglo mandado como JSON. Lo que no sea arreglo = null.
+    protected function postedJson($key) {
+        $value = json_decode($this->post($key), true);
+
+        return is_array($value) ? $value : null;
+    }
+
+    // -- Validacion --
+
+    protected function tooLong($value, $max) {
+        return $value !== null && mb_strlen((string) $value, 'UTF-8') > $max;
+    }
+
+    // Monto >= 0 de un valor suelto. Vacio = $default. Invalido o negativo = null.
+    protected function amountOf($raw, $default = 0, $decimals = 2) {
+        $raw = str_replace(['$', ',', ' '], '', trim((string) $raw));
+
+        if ($raw === '') return $default;
+        if (!preg_match('/^(\d+(\.\d*)?|\.\d+)$/', $raw)) return null;
+
+        return round((float) $raw, $decimals);
+    }
+
+    // Entero de un valor suelto. Otra cosa = null.
+    protected function intOf($raw) {
+        $raw = trim((string) $raw);
+
+        return preg_match('/^-?\d+$/', $raw) ? (int) $raw : null;
+    }
+
+    // -- Escritura --
+
+    // _Insert, _Update y _CUD avisan con un string o false; aqui se vuelve excepcion.
+    protected function must($result, $what) {
+        if ($result !== true) {
+            throw new RuntimeException($what . ': ' . (is_string($result) ? $result : 'sin respuesta de la base'));
+        }
+
+        return true;
+    }
+
+    // Quien hace la operacion. 0 = sesion sin usuario.
+    protected function userId() {
+        return isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
     }
 }
 
