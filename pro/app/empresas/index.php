@@ -24,32 +24,26 @@ $version = function ($file) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Huubie · Selecciona tu empresa</title>
     <link rel="icon" href="../../assets/img/huubie192.png" type="image/png">
+    <!-- tailwind-theme.js va JUSTO despues del CDN: le da la config y pinta la
+         paleta guardada antes de que se vea nada. Con themes.css, esta pagina
+         sigue al tema que se elige en la barra, igual que las de los modulos. -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../assets/js/tailwind-theme.js?v=<?= $version('assets/js/tailwind-theme.js') ?>"></script>
+    <link rel="stylesheet" href="../../assets/css/themes.css?v=<?= $version('assets/css/themes.css') ?>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        :root          { --emp-bg: #F3F4F6; }
-        body.dark-mode { --emp-bg: #111928; }
-
-        body { font-family: 'Inter', sans-serif; background: var(--emp-bg); transition: background .2s ease; }
-
-        /* Icono flotante de tema (solo icono, sin recuadro de boton). */
-        .emp-theme-toggle {
-            position: fixed; top: 18px; right: 18px; z-index: 50;
-            width: 40px; height: 40px;
-            display: flex; align-items: center; justify-content: center;
-            color: #6B7280; border: none; background: transparent;
-            transition: color .15s ease; cursor: pointer;
-        }
-        .emp-theme-toggle:hover { color: #111827; }
-        body.dark-mode .emp-theme-toggle       { color: #9CA3AF; }
-        body.dark-mode .emp-theme-toggle:hover { color: #F9FAFB; }
+        /* El fondo lo pone themes.css (--bg): gris en claro, la superficie del
+           scheme en oscuro. */
+        body { font-family: 'Inter', sans-serif; transition: background .2s ease; }
     </style>
 </head>
 
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <button id="btn-theme" class="emp-theme-toggle" title="Cambiar tema claro/oscuro" type="button"></button>
+    <!-- La barra de pro: quien entro, el selector de temas y la salida. Aqui
+         va sin rail: root todavia no esta dentro de ninguna empresa. -->
+    <div id="menu-navbar"></div>
 
     <main class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col">
         <div class="w-full flex-1 flex flex-col" id="root"></div>
@@ -60,6 +54,7 @@ $version = function ($file) {
     <script src="../../assets/plugins/lucide/lucide.min.js"></script>
     <script src="../../assets/js/coffeeSoft.js?v=<?= $version('assets/js/coffeeSoft.js') ?>"></script>
     <script src="../../assets/components/cs-selector-cards.js?v=<?= $version('assets/components/cs-selector-cards.js') ?>"></script>
+    <script src="../../auth/src/js/navbar.js?v=<?= $version('auth/src/js/navbar.js') ?>"></script>
     <script src="src/js/app.js?v=<?= filemtime(__DIR__ . '/src/js/app.js') ?>"></script>
 </body>
 

@@ -10,9 +10,14 @@ class ctrl extends mdl {
     const OPS = ['login', 'forgotPassword', 'verifyCode', 'resetPassword'];
 
     // A donde entra cada quien, relativo a pro/ (donde vive index.php). root
-    // elige empresa primero; los demas ya traen la suya.
+    // elige empresa primero; los demas ya traen la suya y caen en su inicio.
     const HOME_ROOT = 'app/empresas/';
-    const HOME      = 'app/pedidos/';
+    const HOME      = 'app/home/';
+
+    // El dueño que entra por PRIMERA vez a una empresa sin configurar va aqui a
+    // completar sus datos. Despues ya no se le manda: queda como recordatorio
+    // en la campana de la barra (auth/ctrl/ctrl-nav.php).
+    const SETUP     = 'app/configurar/';
 
     // Contraseñas equivocadas seguidas antes de bloquear la cuenta. Se abre
     // recuperando la contraseña (setNewPassword limpia el contador).
@@ -67,7 +72,7 @@ class ctrl extends mdl {
         $branch = null;
 
         if (!$root) {
-            $denied = companyDenied($user['company_id'], $user['company_status']);
+            $denied = companyDenied($user['company_id']);
 
             if ($denied !== null) {
                 return ['status' => 403, 'message' => $denied, 'data' => null];
@@ -100,11 +105,17 @@ class ctrl extends mdl {
         $_SESSION['rol']        = $root ? $root['name'] : ($branch['rol'] ?? '');
         $_SESSION['home']       = $home;
 
+        // ¿Ya habia entrado alguna vez? Se lee antes de marcar este ingreso.
+        $first = empty($user['first_login_at']);
+        $this->markLogin([$user['id']]);
+
+        $setup = !$root && $first && (int) $user['is_owner'] === 1 && empty($user['setup_done_at']);
+
         return [
             'status'  => 200,
             'message' => 'Sesión iniciada.',
             'data'    => [
-                'redirect' => $home,
+                'redirect' => $setup ? self::SETUP : $home,
                 'user'     => $fullName,
                 'email'    => $user['email'],
                 'photo'    => userPhotoUrl($user['photo'], 3),
@@ -292,15 +303,14 @@ class ctrl extends mdl {
 
 // Complements.
 
-// Solo entran las empresas activas; las demas reciben por que no.
-function companyDenied($companyId, $status) {
-    if (empty($companyId) || $status === null) return 'Tu cuenta no pertenece a ninguna empresa. Contacta a soporte.';
-    if ($status === 'active')                  return null;
-    if ($status === 'pending')                 return 'Tu empresa todavía no está activa. Contacta a soporte.';
-    if ($status === 'suspended')               return 'El acceso de tu empresa está suspendido. Contacta a soporte.';
-    if ($status === 'cancelled')               return 'La cuenta de tu empresa fue cancelada. Contacta a soporte.';
+/*  Una empresa que no esta activa (pendiente, suspendida, cancelada) SI entra:
+    cae en su inicio, que es lo unico que ve, y ahi se le pide el pago
+    (core/security/_Plan.php). Dejarla fuera del login le quitaba justo la
+    pantalla donde se entera de que debe y de cuanto.
 
-    return 'Tu empresa no tiene acceso. Contacta a soporte.';
+    Lo unico que sigue sin entrar es la cuenta que no pertenece a ninguna. */
+function companyDenied($companyId) {
+    return empty($companyId) ? 'Tu cuenta no pertenece a ninguna empresa. Contacta a soporte.' : null;
 }
 
 function lockedMessage() {

@@ -22,13 +22,15 @@ class mdl extends CRUD {
                 u.email,
                 u.password,
                 u.login_attempts,
+                u.first_login_at,
                 u.photo,
                 u.color,
                 u.is_owner,
                 u.company_id,
                 u.branch_id,
                 c.name   AS company,
-                c.status AS company_status
+                c.status AS company_status,
+                c.setup_done_at
             FROM {$this->bd}users u
             LEFT JOIN {$this->bd}companies c ON c.id = u.company_id
             WHERE LOWER(u.email) = LOWER(?)
@@ -75,6 +77,17 @@ class mdl extends CRUD {
         ";
 
         return $this->_Read($query, $array);
+    }
+
+    // La primera vez se escribe una sola vez; la ultima, en cada ingreso.
+    function markLogin($array) {
+        $query = "
+            UPDATE {$this->bd}users
+               SET first_login_at = COALESCE(first_login_at, NOW()),
+                   last_login_at  = NOW()
+             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
     }
 
     function addLoginAttempt($array) {

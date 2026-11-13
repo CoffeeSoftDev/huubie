@@ -10,9 +10,15 @@
     base a otra, el code no.
 
     Es la misma regla con la que el sidebar arma su menu (sections()), asi que
-    lo que se ve en el menu y lo que deja entrar la pagina no pueden discrepar. */
+    lo que se ve en el menu y lo que deja entrar la pagina no pueden discrepar.
+
+    Y antes que el rol va el PLAN (core/security/_Plan.php): la seccion tiene que
+    ser de un modulo que la empresa contrato, y la empresa tiene que estar al
+    corriente. Vale tambien para root cuando entro a una empresa: la ve como su
+    dueño, con lo que esa empresa pago y nada mas. */
 require_once __DIR__ . '/../database/_CRUD.php';
 require_once __DIR__ . '/_Session.php';
+require_once __DIR__ . '/_Plan.php';
 
 class Permission extends CRUD {
     private static $db = null;
@@ -26,21 +32,36 @@ class Permission extends CRUD {
         return !empty($_SESSION['is_root']);
     }
 
+    /*  root, o su rol lo concede. Espera tres placeholders: root, user_id y
+        branch_id.
+
+        Developer es SOLO de root, diga lo que diga permissions_roles: es la
+        administracion de la plataforma (empresas, planes, cobros, accesos de
+        todos). Un rol de empresa -- ni el Dueño -- no entra aunque alguien le
+        marque esos permisos por error en Accesos. */
+    private static function canSee($alias) {
+        return "(? = 1 OR (COALESCE(m.code, '') <> 'developer' AND " . self::grantedTo($alias) . "))";
+    }
+
+    private static function who($userId) {
+        return [self::isRoot() ? 1 : 0, $userId, (int) ($_SESSION['branch_id'] ?? 0)];
+    }
+
     static function section($code) {
         $userId = Session::user();
         if ($userId === null || $code === '') return false;
 
         $sql = self::db()->_Read("
-            SELECT 1
+            SELECT s.module_id, m.code AS module_code
             FROM sections s
             INNER JOIN modules m ON m.id = s.module_id AND m.is_active = 1
             WHERE s.code = ?
                 AND s.is_active = 1
-                AND (? = 1 OR " . self::grantedTo('s') . ")
+                AND " . self::canSee('s') . "
             LIMIT 1
-        ", [$code, self::isRoot() ? 1 : 0, $userId, (int) ($_SESSION['branch_id'] ?? 0)]);
+        ", array_merge([$code], self::who($userId)));
 
-        return !empty($sql);
+        return !empty($sql) && Plan::allows($sql[0]['module_id'], $sql[0]['module_code']);
     }
 
     // 0 si no existe o esta apagado.
@@ -54,15 +75,50 @@ class Permission extends CRUD {
         $userId = Session::user();
         if ($userId === null) return [];
 
-        return self::db()->_Read("
-            SELECT s.id, s.name, s.code, s.icon, s.route, s.module_id
+        $sql = self::db()->_Read("
+            SELECT s.id, s.name, s.code, s.icon, s.route, s.module_id, s.submodule_id, m.code AS module_code
             FROM sections s
             INNER JOIN modules m ON m.id = s.module_id AND m.is_active = 1
             WHERE s.is_active = 1
                 AND (? = 0 OR s.module_id = ?)
-                AND (? = 1 OR " . self::grantedTo('s') . ")
+                AND " . self::canSee('s') . "
             ORDER BY m.orden IS NULL, m.orden, s.orden IS NULL, s.orden, s.id
-        ", [$moduleId, $moduleId, self::isRoot() ? 1 : 0, $userId, (int) ($_SESSION['branch_id'] ?? 0)]);
+        ", array_merge([$moduleId, $moduleId], self::who($userId)));
+
+        return array_values(array_filter(is_array($sql) ? $sql : [], function ($section) {
+            return Plan::allows($section['module_id'], $section['module_code']);
+        }));
+    }
+
+    /*  Los modulos contratados que le tocan a quien pregunta: lo que pintan el
+        rail y el inicio. El dueño y root los ven todos. Los demas, aquellos
+        donde su rol tiene alguna seccion; un modulo que aun no tiene secciones
+        no puede concederse a nadie, y esconderlo dejaria a la empresa sin ver
+        lo que contrato.
+
+        Se listan aunque la empresa no este al corriente (Plan::state()): el
+        inicio los enseña con candado. */
+    static function modules() {
+        $modules = Plan::modules();
+
+        if (self::isRoot() || !empty($_SESSION['is_owner'])) return $modules;
+
+        $userId = Session::user();
+        if ($userId === null) return [];
+
+        $withSections = self::db()->_Read("SELECT DISTINCT module_id FROM sections WHERE is_active = 1");
+        $withSections = array_column(is_array($withSections) ? $withSections : [], 'module_id');
+
+        // Por rol y sin pasar por el plan: aqui solo importa a cuales tiene derecho.
+        $granted = self::db()->_Read("
+            SELECT DISTINCT s.module_id
+            FROM sections s
+            WHERE s.is_active = 1 AND " . self::grantedTo('s'), [$userId, (int) ($_SESSION['branch_id'] ?? 0)]);
+        $granted = array_column(is_array($granted) ? $granted : [], 'module_id');
+
+        return array_values(array_filter($modules, function ($module) use ($withSections, $granted) {
+            return !in_array($module['id'], $withSections) || in_array($module['id'], $granted);
+        }));
     }
 
     // Para las paginas: sin sesion al login; sin acceso, a su inicio.

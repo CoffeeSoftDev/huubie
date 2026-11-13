@@ -5,8 +5,6 @@ let app;
 const PRO_ROOT = '../../';
 
 $(async () => {
-    initTheme();
-
     const data = await useFetch({ url: api, data: { opc: 'init' } });
 
     if (data && data.status === 401) {
@@ -72,10 +70,24 @@ class App extends Templates {
             location: company.ubication,
             badge:    company.current ? 'ACTUAL' : '',
             selected: !!company.current,
-            status:   company.branches > 0
-                ? { text: `${company.branches} sucursal${company.branches !== 1 ? 'es' : ''} activa${company.branches !== 1 ? 's' : ''}`, tone: 'open' }
-                : { text: 'Sin sucursales activas', tone: 'neutral' }
+            status:   this.companyStatus(company)
         })));
+    }
+
+    /*  Lo que dice la tarjeta de cada empresa. Al corriente: su plan y sus
+        sucursales. Si no lo esta, por que: es justo lo que root va a ver al
+        entrar, el inicio con el aviso de pago. */
+    companyStatus(company) {
+        if (company.branches === 0) return { text: 'Sin sucursales activas', tone: 'neutral' };
+
+        const branches = `${company.branches} sucursal${company.branches !== 1 ? 'es' : ''}`;
+
+        if (company.ok) return { text: `${company.plan} · ${branches}`, tone: 'open' };
+
+        const reason = { pending: 'Pendiente de activar', suspended: 'Suspendida', cancelled: 'Cancelada' }[company.status]
+            || (company.trial_over ? 'Prueba terminada' : (company.plan ? 'Pago pendiente' : 'Sin plan'));
+
+        return { text: `${reason} · ${branches}`, tone: 'warning' };
     }
 
     // -- Event handlers --
@@ -92,6 +104,12 @@ class App extends Templates {
         const res = await useFetch({ url: this._link, data: { opc: 'enterCompany', id: item.id } });
 
         if (res && res.status === 200) {
+            // El rail guardado en esta pestaña es de la empresa anterior
+            // (auth/src/js/sidebar.js): se olvida para no pintarlo ni un instante.
+            try {
+                Object.keys(sessionStorage).filter((k) => k.startsWith('pro:sidebar:')).forEach((k) => sessionStorage.removeItem(k));
+            } catch (e) {}
+
             window.location.href = PRO_ROOT + res.redirect;
             return;
         }
@@ -127,26 +145,8 @@ class App extends Templates {
 }
 
 // -- Tema --
-
-// Claro por defecto; la preferencia se guarda por navegador.
-function initTheme() {
-    const apply = (dark) => {
-        document.body.classList.toggle('dark-mode', dark);
-        $('#btn-theme').html(`<i data-lucide="${dark ? 'sun' : 'moon'}" class="w-[18px] h-[18px]"></i>`);
-        if (window.lucide) lucide.createIcons();
-    };
-
-    let dark = false;
-    try { dark = localStorage.getItem('huubie:pro:dark') === 'true'; } catch (e) {}
-
-    apply(dark);
-
-    $('#btn-theme').on('click', () => {
-        const next = !document.body.classList.contains('dark-mode');
-        try { localStorage.setItem('huubie:pro:dark', next ? 'true' : 'false'); } catch (e) {}
-        apply(next);
-    });
-}
+// El tema lo elige la barra (auth/src/js/navbar.js) y lo pinta
+// assets/js/tailwind-theme.js; aqui solo se viste el aviso igual que la pagina.
 
 function swalTheme() {
     const dark = document.body.classList.contains('dark-mode');

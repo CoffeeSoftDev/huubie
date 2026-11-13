@@ -671,13 +671,13 @@ class ctrl extends core {
         $modules = $this->subscriptionModulesInput($plan);
         if (isset($modules['error'])) return ['status' => 400, 'message' => $modules['error']];
 
-        return $this->saveInTransaction(function () use ($companyId, $planId, $status, $modules) {
+        return $this->saveInTransaction(function () use ($companyId, $planId, $status, $modules, $plan) {
             $ok = $this->qInsertSubscription([
                 $companyId,
                 $planId,
                 $status,
                 $this->dateOrNull($_POST['starts_at'] ?? ''),
-                $this->dateOrNull($_POST['ends_at'] ?? ''),
+                $this->trialEnd($status, $plan),
                 $this->dateOrNull($_POST['next_billing_date'] ?? ''),
                 trim($_POST['external_reference'] ?? '') ?: null
             ]);
@@ -720,13 +720,13 @@ class ctrl extends core {
         $modules = $this->subscriptionModulesInput($plan, $kept);
         if (isset($modules['error'])) return ['status' => 400, 'message' => $modules['error']];
 
-        return $this->saveInTransaction(function () use ($id, $companyId, $planId, $status, $modules) {
+        return $this->saveInTransaction(function () use ($id, $companyId, $planId, $status, $modules, $plan) {
             $ok = $this->qUpdateSubscription([
                 $companyId,
                 $planId,
                 $status,
                 $this->dateOrNull($_POST['starts_at'] ?? ''),
-                $this->dateOrNull($_POST['ends_at'] ?? ''),
+                $this->trialEnd($status, $plan),
                 $this->dateOrNull($_POST['next_billing_date'] ?? ''),
                 trim($_POST['external_reference'] ?? '') ?: null,
                 $id
@@ -736,6 +736,20 @@ class ctrl extends core {
 
             return ['status' => 200, 'message' => 'Suscripción actualizada correctamente'];
         }, 'No se pudo actualizar la suscripción');
+    }
+
+    /*  El fin de vigencia que se guarda. Una PRUEBA siempre lleva fecha de
+        caducidad: si no se capturó, es su inicio (u hoy) más los días de prueba
+        del plan, o Plan::TRIAL_DAYS si el plan no dice cuántos. Sin fecha, la
+        prueba no tendría con qué vencer (core/security/_Plan.php). */
+    private function trialEnd($status, $plan) {
+        $end = $this->dateOrNull($_POST['ends_at'] ?? '');
+        if ($status !== 'trial' || $end !== null) return $end;
+
+        $days  = (int) ($plan['trial_days'] ?? 0) ?: Plan::TRIAL_DAYS;
+        $start = $this->dateOrNull($_POST['starts_at'] ?? '') ?: date('Y-m-d');
+
+        return date('Y-m-d', strtotime($start . " +{$days} days"));
     }
 
     /*  Los módulos de una suscripción a un plan Personalizado (module_ids), con

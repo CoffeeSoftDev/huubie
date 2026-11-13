@@ -9,7 +9,8 @@ class ctrl extends mdl {
     const OPS = ['init', 'enterCompany'];
 
     // El mismo HOME de auth/ctrl/ctrl-auth.php: a donde entra quien ya tiene empresa.
-    const HOME = 'app/pedidos/';
+    const HOME = 'app/home/';
+
 
     function init() {
         $currentId = (int) $_SESSION['company_id'];
@@ -21,6 +22,12 @@ class ctrl extends mdl {
                 'name'      => $company['name'],
                 'ubication' => $company['ubication'] ?: '',
                 'branches'  => (int) $company['branches'],
+                'plan'      => $company['plan'] ?: '',
+                // Al corriente: empresa activa y suscripcion vigente. Si no, su
+                // inicio solo enseña el aviso de pago.
+                'ok'        => $company['status'] === 'active' && in_array($company['sub_status'], Plan::SUB_OK, true) && empty($company['trial_over']) ? 1 : 0,
+                'trial_over' => empty($company['trial_over']) ? 0 : 1,
+                'status'    => $company['status'],
                 'current'   => (int) $company['id'] === $currentId ? 1 : 0,
             ];
         }
@@ -42,12 +49,14 @@ class ctrl extends mdl {
     }
 
     // Deja la sesion en la empresa elegida, como si fuera su dueño: ve todas
-    // sus sucursales. Al volver a la misma empresa conserva su sucursal.
+    // sus sucursales, los modulos que ESA empresa contrato y, si no esta al
+    // corriente, el mismo aviso de pago. Al volver a la misma empresa conserva
+    // su sucursal.
     function enterCompany() {
         $company = $this->getCompanyById([$_POST['id']]);
 
         if (!$company) {
-            return ['status' => 404, 'message' => 'Esa empresa no existe o no está activa.'];
+            return ['status' => 404, 'message' => 'Esa empresa no existe.'];
         }
 
         $branches = $this->listBranchesByCompany([$company['id']]);
