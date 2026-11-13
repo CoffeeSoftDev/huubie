@@ -33,7 +33,7 @@
     --acc-on-accent:  #FFFFFF;
     --acc-link:       #5030A5;
     --acc-brand:      #5030A5;   /* trazo del titulo de bienvenida */
-    --acc-cherry:     #F04F68;   /* el punto del logo */
+    --acc-cherry:     #F64444;   /* el rojo del logo (sonrisa y punto) */
     --acc-focus:      rgba(80, 48, 165, 0.14);
     --acc-danger:     #D92D20;
     --acc-danger-bg:  #FEF3F2;
@@ -68,7 +68,7 @@
     --acc-on-accent:  #FFFFFF;
     --acc-link:       #60A5FA;
     --acc-brand:      #A78BFA;
-    --acc-cherry:     #F8566B;
+    --acc-cherry:     #F64444;
     --acc-focus:      rgba(124, 58, 237, 0.35);
     --acc-danger:     #F87171;
     --acc-danger-bg:  rgba(239, 68, 68, 0.12);
@@ -833,6 +833,78 @@
 }
 
 .site-footer-contact svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* ============================================================
+   DESPEDIDA (logout.php)
+   "Nos vemos pronto" con la sonrisa del logo: el arco se dibuja y luego
+   brota el punto. El estado base es el final: con animaciones apagadas
+   (prefers-reduced-motion) la sonrisa se ve completa.
+   ============================================================ */
+
+.bye { text-align: center; }
+
+.bye-title {
+    font-size: clamp(34px, 4.2vw, 56px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.035em;
+    animation: acc-rise .7s var(--acc-ease) backwards;
+}
+
+.bye-word {
+    position: relative;
+    display: inline-block;
+    color: var(--acc-brand);
+}
+
+/* El punto final de la oracion: sentado en la linea base, pegado a "pronto". */
+.bye-dot {
+    display: inline-block;
+    width: .32em;
+    height: .32em;
+    margin-left: .04em;
+    border-radius: 50%;
+    background: var(--acc-cherry);
+    animation: bye-pop .5s cubic-bezier(.34, 1.56, .64, 1) 1.3s backwards;
+}
+
+/* La sonrisa, debajo de "pronto" y terminando bajo el punto. */
+.bye-smile {
+    position: absolute;
+    /* Termina justo antes del punto, como en el logo: no lo rebasa. */
+    left: 17%;
+    top: 98%;
+    width: calc(83% - .52em);
+    height: auto;
+    overflow: visible;
+}
+
+.bye-arc {
+    fill: none;
+    stroke: var(--acc-cherry);
+    stroke-width: 15;
+    stroke-linecap: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+    animation: bye-draw 1s cubic-bezier(.65, 0, .35, 1) .35s backwards;
+}
+
+.bye-sub {
+    margin-top: clamp(64px, 6.5vw, 92px);
+    font-size: 14.5px;
+    color: var(--acc-ink-2);
+    animation: acc-rise .7s var(--acc-ease) 1.5s backwards;
+}
+
+@keyframes bye-draw {
+    from { stroke-dashoffset: 1; }
+    to   { stroke-dashoffset: 0; }
+}
+
+@keyframes bye-pop {
+    from { opacity: 0; transform: scale(0); }
+    to   { opacity: 1; transform: scale(1); }
+}
 
 /* -- Responsive -- */
 @media (max-width: 1100px) {
