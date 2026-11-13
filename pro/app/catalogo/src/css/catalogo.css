@@ -1,0 +1,119 @@
+/*  Catalogo: pagina al estilo de CostSys nuevo (erp-pro/pro/app/costsys).
+    Migas + titulo + subtitulo, pestañas en su tarjeta (cs-tabs.js) y cada
+    pestaña en otra tarjeta. Las clases del encabezado (.cp-pagina-titulo y
+    .cp-pagina-subtitulo) las inyecta cs-tabs.js. */
+
+/* -- Pagina --
+   general.css pinta #main__content > div como tarjeta aliceblue y dark-mode.css
+   como tarjeta oscura con !important. Aqui las tarjetas son las pestañas y su
+   panel, asi que la de fuera se quita. */
+main > #main__content.cp-pagina-pro {
+    padding: 24px 24px 20px;
+}
+
+main > #main__content.cp-pagina-pro > div {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+body.dark-mode #main__content.cp-pagina-pro > div {
+    background-color: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+}
+
+@media (max-width: 640px) {
+    main > #main__content.cp-pagina-pro {
+        padding: 16px;
+    }
+}
+
+/* -- Migas -- */
+.cp-migas {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 16px;
+}
+
+.cp-migas-raiz {
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+    color: #94A3B8;
+}
+
+.cp-migas-sep {
+    color: #CBD5E1;
+}
+
+.cp-migas-actual {
+    font-weight: 700;
+    color: rgb(var(--brand-700, 168 74 51));
+}
+
+/* -- Panel de cada pestaña -- */
+.cs-tabs-panels {
+    margin-top: 16px;
+}
+
+.cs-tabs-panels > div {
+    background: #fff;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .04);
+    padding: 20px;
+}
+
+@media (max-width: 640px) {
+    .cs-tabs-panels > div {
+        padding: 14px;
+    }
+}
+
+/* -- Celdas de la tabla -- */
+.cp-celda-titulo {
+    font-weight: 600;
+    color: #1F2937;
+}
+
+.cp-celda-sub {
+    font-size: 12px;
+    color: #94A3B8;
+}
+
+.cp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* -- Oscuro -- */
+body.dark-mode .cs-tabs-panels > div {
+    background: var(--dk-card, #1F2A37);
+    border-color: var(--dk-line, #374151);
+    box-shadow: none;
+}
+
+body.dark-mode .cp-migas-raiz {
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode .cp-migas-sep {
+    color: var(--dk-line, #374151);
+}
+
+body.dark-mode .cp-celda-titulo {
+    color: var(--dk-text, #F3F4F6);
+}
+
+body.dark-mode .cp-celda-sub {
+    color: var(--dk-muted, #9CA3AF);
+}

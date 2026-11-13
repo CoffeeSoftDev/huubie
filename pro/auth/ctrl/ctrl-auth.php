@@ -12,7 +12,7 @@ class ctrl extends mdl {
     // A donde entra cada quien, relativo a pro/ (donde vive index.php). root
     // elige empresa primero; los demas ya traen la suya.
     const HOME_ROOT = 'app/empresas/';
-    const HOME      = 'app/pedidos/';
+    const HOME      = 'app/order/';
 
     // Contraseñas equivocadas seguidas antes de bloquear la cuenta. Se abre
     // recuperando la contraseña (setNewPassword limpia el contador).

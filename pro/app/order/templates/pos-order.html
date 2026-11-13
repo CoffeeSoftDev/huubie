@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POS y Pedidos</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/general.css">
+<link rel="stylesheet" href="../../../assets/css/colors.css">
+<link rel="stylesheet" href="../../../assets/css/sidebar.css">
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="../../../assets/js/tailwind-theme.js"></script>
+<link rel="stylesheet" href="../../../assets/css/compact.css">
+<link rel="stylesheet" href="../../../assets/css/themes.css">
+<link rel="stylesheet" href="../../../assets/css/dark-mode.css">
+<script src="../../../assets/plugins/lucide/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js"></script>
+<style>
+/* -- Tokens -- */
+:root{--po-surface:#FFF;--po-sunken:#F9FAFB;--po-line:#E5E7EB;--po-line-hi:#D1D5DB;--po-ink:#111827;--po-ink-2:#374151;--po-muted:#6B7280;--po-hover:#F3F4F6;--po-brand:rgb(var(--brand-600,192 90 64));--po-brand-700:rgb(var(--brand-700,160 72 51));--po-brand-soft:rgb(var(--brand-50,253 243 240));--po-brand-line:rgb(var(--brand-200,243 199 186));--po-ring:rgb(var(--brand-600,192 90 64) / .18);--po-main:rgb(var(--primary-rgb,41 37 36));--po-main-hover:rgb(var(--primary-hover-rgb,68 64 60));--po-def-line:#E5E7EB}
+body.dark-mode{--po-surface:var(--dk-card,#1F2A37);--po-sunken:var(--dk-sunken,#1a2332);--po-line:var(--dk-line,#374151);--po-line-hi:var(--dk-line-hi,#4B5563);--po-ink:var(--dk-text,#f5f5f5);--po-ink-2:#D1D5DB;--po-muted:var(--dk-muted,#9CA3AF);--po-hover:var(--dk-row-hover,#334155);--po-brand-soft:rgb(var(--brand-600,192 90 64) / .16);--po-brand-line:rgb(var(--brand-600,192 90 64) / .45);--po-def-line:var(--dk-line,#374151)}
+body *{border-color:var(--po-def-line)}
+body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif}
+main{min-width:0}
+
+/* -- Shell de pro -- */
+body.sidebar-animated #menu-sidebar{transition:transform .3s ease-in-out}
+@media (max-width:1023px){body{padding-left:0 !important;width:100% !important;overflow-x:hidden}main{width:100% !important;max-width:100vw !important}#main__content{width:100% !important;max-width:100% !important;overflow-x:auto}#menu-sidebar{transform:translateX(-100%);z-index:40}#menu-sidebar.sidebar-open{transform:translateX(0)}}
+@media (min-width:1024px){#menu-sidebar{transform:translateX(0) !important}#sidebar-overlay{display:none !important}body.sidebar-hidden #menu-sidebar{transform:translateX(-100%) !important}body.sidebar-hidden{padding-left:0}body.sidebar-animated{transition:padding-left .3s ease-in-out}}
+@media (max-width:500px){main > #main__content > #root{padding:8px}}
+.scrollbar-thin{scrollbar-width:thin;scrollbar-color:var(--po-line-hi) transparent}
+.scrollbar-none{scrollbar-width:none}.scrollbar-none::-webkit-scrollbar{display:none}
+.po-view.flex{animation:poFade .15s ease-out}
+.po-rail-badge{position:absolute;top:3px;right:5px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ea580c;color:#fff;font-size:9.5px;font-weight:700;line-height:16px;text-align:center;box-shadow:0 0 0 2px var(--po-surface)}
+
+/* -- Botones -- */
+.po-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid transparent;font-size:13px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;user-select:none;transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s}
+.po-btn svg{width:16px;height:16px;flex-shrink:0}
+.po-btn.sm{height:28px;padding:0 9px;gap:5px;font-size:12px;border-radius:7px}
+.po-btn.sm svg{width:14px;height:14px}
+.po-btn.lg{height:44px;padding:0 16px;font-size:14px;border-radius:10px}
+.po-btn:disabled{opacity:.45;cursor:not-allowed}
+.po-btn:focus-visible,.po-icon-btn:focus-visible,.po-opt:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}
+.po-btn-ghost,button.po-btn-ghost{background:var(--po-surface);border-color:var(--po-line-hi);color:var(--po-ink-2)}
+.po-btn-ghost:not(:disabled):hover{background:var(--po-hover);color:var(--po-ink)}
+.po-btn-ghost.danger{color:#e11d48}
+.po-btn-ghost.danger:not(:disabled):hover{background:#FFF1F2;border-color:#FECDD3;color:#be123c}
+.po-btn-main,button.po-btn-main{background:var(--po-main);color:#fff}
+.po-btn-main:not(:disabled):hover{background:var(--po-main-hover)}
+.po-btn-brand,button.po-btn-brand{background:var(--po-brand);color:#fff}
+.po-btn-brand:not(:disabled):hover{background:var(--po-brand-700)}
+.po-btn-ok,button.po-btn-ok{background:#059669;color:#fff}
+.po-btn-ok:not(:disabled):hover{background:#047857}
+.po-btn-danger,button.po-btn-danger{background:#e11d48;color:#fff}
+.po-btn-danger:not(:disabled):hover{background:#be123c}
+.po-btn-warn,button.po-btn-warn{background:#ea580c;color:#fff}
+.po-btn-warn:not(:disabled):hover{background:#c2410c}
+body.dark-mode .po-btn-main,body.dark-mode button.po-btn-main{background:#E5E7EB;color:#111827}
+body.dark-mode .po-btn-main:not(:disabled):hover{background:#fff}
+body.dark-mode .po-btn-ghost.danger{color:#fb7185}
+body.dark-mode .po-btn-ghost.danger:not(:disabled):hover{background:rgba(225,29,72,.12);border-color:rgba(251,113,133,.35);color:#fda4af}
+.po-kbd{display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:5px;border:1px solid var(--po-line-hi);background:var(--po-sunken);color:var(--po-muted);font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}
+.po-btn-ok .po-kbd,.po-btn-warn .po-kbd,.po-btn-brand .po-kbd,.po-btn-main .po-kbd,.po-btn-danger .po-kbd{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.28);color:#fff}
+body.dark-mode .po-btn-main .po-kbd{background:rgba(0,0,0,.08);border-color:rgba(0,0,0,.15);color:#111827}
+.po-mob-n{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:rgba(255,255,255,.2);font-size:11px;font-weight:700}
+body.dark-mode .po-mob-n{background:rgba(0,0,0,.1)}
+.po-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;border-radius:8px;border:1px solid transparent;color:var(--po-muted);cursor:pointer;transition:background-color .15s,color .15s}
+.po-icon-btn svg{width:16px;height:16px}
+.po-icon-btn:hover{background:var(--po-hover);color:var(--po-ink)}
+.po-icon-btn.sm{width:26px;height:26px;border-radius:7px}
+.po-icon-btn.sm svg{width:14px;height:14px}
+.po-icon-btn.danger:hover{background:#FFF1F2;color:#e11d48}
+body.dark-mode .po-icon-btn.danger:hover{background:rgba(225,29,72,.14);color:#fb7185}
+.po-icon-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* -- Inputs -- */
+.po-inp{display:block;width:100%;background:var(--po-surface);border:1px solid var(--po-line-hi);border-radius:8px;padding:0 10px;color:var(--po-ink);outline:none;transition:border-color .15s,box-shadow .15s}
+.po-inp.po-inp:not(textarea){height:36px !important}
+.po-inp.po-inp.po-inp-lg:not(textarea){height:40px !important}
+.po-inp.po-inp.po-inp-xl:not(textarea){height:56px !important;font-size:1.75rem !important;font-weight:700;padding-left:30px}
+textarea.po-inp{padding:8px 10px;min-height:72px;resize:vertical;line-height:1.45}
+select.po-inp{padding-right:28px}
+.po-inp::placeholder{color:#9CA3AF}
+.po-inp:focus{border-color:var(--po-brand);box-shadow:0 0 0 3px var(--po-ring)}
+.po-inp:disabled{opacity:.55;cursor:not-allowed;background:var(--po-sunken)}
+.po-inp-xl::-webkit-outer-spin-button,.po-inp-xl::-webkit-inner-spin-button,.po-money input::-webkit-outer-spin-button,.po-money input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.po-inp-xl,.po-money input{-moz-appearance:textfield}
+body.dark-mode input[type=date],body.dark-mode input[type=time]{color-scheme:dark}
+.po-money{display:flex;align-items:center;gap:4px;width:118px;height:36px;flex-shrink:0;padding:0 8px;border:1px solid var(--po-line-hi);border-radius:8px;background:var(--po-surface)}
+.po-money > span{color:var(--po-muted);font-size:13px;font-weight:600}
+.po-money > input[type=number]{flex:1;min-width:0;width:100%;height:100% !important;padding:0;border:0;outline:none;background:transparent;text-align:right;font-size:13px !important;font-weight:700;color:var(--po-ink)}
+body.dark-mode .po-money{background:var(--dk-input,#1a2332)}
+body.dark-mode .po-money > input,body.dark-mode .po-money > input:focus{background:transparent !important;box-shadow:none !important;border:0 !important}
+
+/* -- Labels, secciones, cajas -- */
+.po-lbl{display:block;font-size:11px !important;font-weight:600;color:var(--po-muted);margin:0 0 4px !important;letter-spacing:.01em}
+.po-lbl small{font-weight:500;color:#9CA3AF;margin-left:4px}
+body.dark-mode .po-lbl{color:#9CA3AF !important}
+.po-sec{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--po-muted)}
+.po-box{background:var(--po-sunken);border:1px solid var(--po-line);border-radius:10px;padding:10px 12px}
+label.po-check{display:flex;align-items:flex-start;gap:8px;cursor:pointer;color:inherit !important;margin:0 !important;font-size:inherit !important;font-weight:500;line-height:1.35}
+.po-check input[type=checkbox]{width:16px;height:16px;margin-top:1px;flex-shrink:0;accent-color:var(--po-brand);cursor:pointer}
+
+/* -- Opciones y segmentos -- */
+.po-opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;padding:8px 10px;border-radius:10px;border:1px solid var(--po-line-hi);color:var(--po-ink);text-align:left;cursor:pointer;transition:border-color .15s,background-color .15s,box-shadow .15s}
+.po-opt,button.po-opt{background:var(--po-surface)}
+.po-opt:hover{border-color:var(--po-muted)}
+.po-opt.active{border-color:var(--po-brand);background:var(--po-brand-soft);box-shadow:inset 0 0 0 1px var(--po-brand)}
+.po-opt:disabled{opacity:.45;cursor:not-allowed}
+.po-opt-sm{align-items:center;justify-content:center;text-align:center;padding:7px 8px;font-size:12px;font-weight:600}
+.po-seg{display:inline-flex;align-items:center;gap:2px;padding:3px;border-radius:9px;border:1px solid var(--po-line);background:var(--po-hover)}
+.po-seg > button{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:28px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:600;color:var(--po-muted);white-space:nowrap;cursor:pointer;transition:background-color .15s,color .15s,box-shadow .15s}
+.po-seg > button svg{width:14px;height:14px}
+.po-seg > button:hover{color:var(--po-ink)}
+.po-seg > button.active{background:var(--po-surface);color:var(--po-ink);box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px var(--po-line)}
+.po-seg.w-full{display:flex}.po-seg.w-full > button{flex:1}
+.po-seg > button.mode-btn.active[data-mode="3"]{color:var(--po-brand)}
+.po-seg > button.mode-btn.active[data-mode="1"]{color:#c2410c}
+body.dark-mode .po-seg > button.mode-btn.active[data-mode="3"]{color:rgb(var(--brand-400,216 120 96))}
+body.dark-mode .po-seg > button.mode-btn.active[data-mode="1"]{color:#fb923c}
+
+/* -- Modales, popovers, dropdown -- */
+.po-modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(17,24,39,.5);backdrop-filter:blur(2px)}
+.po-modal.open{display:flex;animation:poFade .15s ease-out}
+.po-modal.open > .po-dialog{animation:poPop .18s ease-out}
+.po-dialog{width:100%;max-height:min(90vh,900px);display:flex;flex-direction:column;overflow:hidden;background:var(--po-surface);border:1px solid var(--po-line);border-radius:14px;box-shadow:0 20px 50px -12px rgba(0,0,0,.35);color:var(--po-ink)}
+.po-dialog-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--po-line);flex-shrink:0}
+.po-dialog-title{font-size:15px;font-weight:700;line-height:1.25;color:var(--po-ink)}
+.po-dialog-sub{font-size:12px;line-height:1.3;color:var(--po-muted);margin-top:1px}
+.po-dialog-body{flex:1;min-height:0;padding:16px;overflow-y:auto;scrollbar-width:thin}
+.po-dialog-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--po-line);background:var(--po-sunken);flex-shrink:0}
+.po-print-body{background:var(--po-sunken)}
+@keyframes poFade{from{opacity:0}to{opacity:1}}
+@keyframes poPop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes poSheet{from{opacity:.6;transform:translateY(24px)}to{opacity:1;transform:none}}
+@media (max-width:640px){.po-modal{align-items:flex-end;padding:0}.po-dialog{max-width:none !important;max-height:92vh;border-radius:16px 16px 0 0}.po-modal.open > .po-dialog{animation:poSheet .22s ease-out}}
+.po-pop{background:var(--po-surface);border:1px solid var(--po-line);border-radius:12px;box-shadow:0 12px 32px -8px rgba(0,0,0,.22);overflow-y:auto}
+.po-dd{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:55;min-width:220px;padding:6px;background:var(--po-surface);border:1px solid var(--po-line);border-radius:12px;box-shadow:0 12px 32px -8px rgba(0,0,0,.25)}
+.po-dd.open{display:block;animation:poFade .12s ease-out}
+.po-dd-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--po-ink-2);text-align:left;white-space:nowrap;cursor:pointer}
+.po-dd-item svg{width:16px;height:16px;flex-shrink:0;color:var(--po-muted)}
+.po-dd-item small{margin-left:auto;font-size:10.5px;color:var(--po-muted)}
+.po-dd-item:hover{background:var(--po-hover);color:var(--po-ink)}
+.po-dd-item:hover svg{color:var(--po-ink)}
+.po-dd-item:disabled{opacity:.45;cursor:not-allowed}
+.po-dd-sep{height:1px;margin:5px 4px;background:var(--po-line)}
+
+/* -- Chips, iconos, notas -- */
+.po-avatar{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;border-radius:999px;background:var(--po-brand);color:#fff;font-size:11px;font-weight:700;letter-spacing:.02em}
+.po-tone-ico{color:var(--tone,#6B7280)}
+body.dark-mode .po-tone-ico{color:color-mix(in srgb,var(--tone,#9CA3AF) 60%,#fff)}
+.po-qty{display:inline-flex;align-items:center;gap:2px;height:28px;padding:2px;border-radius:8px;border:1px solid var(--po-line-hi);background:var(--po-surface)}
+.po-qty button,.po-qty span[role=button]{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;color:var(--po-muted);font-size:13px;font-weight:700;line-height:1;cursor:pointer;user-select:none}
+.po-qty button:hover,.po-qty span[role=button]:hover{background:var(--po-hover);color:var(--po-ink)}
+.po-qty svg{width:14px;height:14px}
+.po-qty b{min-width:22px;text-align:center;font-size:13px;font-weight:700;color:var(--po-ink)}
+.po-chip{display:inline-flex;align-items:center;gap:4px;height:22px;max-width:100%;padding:0 8px;border-radius:999px;border:1px solid var(--po-line);color:var(--po-ink-2);font-size:11px;font-weight:600;line-height:1;white-space:nowrap}
+.po-chip,button.po-chip{background:var(--po-hover)}
+.po-chip svg{width:12px;height:12px;flex-shrink:0}
+button.po-chip{cursor:pointer;transition:filter .15s}
+button.po-chip:hover{filter:brightness(.96)}
+.po-m-ico{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;border-radius:9px;border:1px solid var(--po-line);background:var(--po-hover);color:var(--po-ink-2)}
+.po-m-ico svg{width:18px;height:18px}
+.po-m-ico.sm{width:26px;height:26px;border-radius:7px}
+.po-m-ico.sm svg{width:14px;height:14px}
+.po-note{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:9px;border:1px solid var(--po-line);background:var(--po-sunken);color:var(--po-ink-2);font-size:12px;line-height:1.4}
+.po-note svg{width:14px;height:14px;flex-shrink:0;margin-top:2px}
+
+/* -- Ticket impreso -- */
+.po-paper{width:80mm;max-width:100%;margin:0 auto;padding:14px 12px;background:#fff !important;color:#111 !important;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,'Courier New',monospace;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 8px 24px -12px rgba(0,0,0,.25)}
+.po-paper *{color:#111 !important;border-color:#111 !important}
+body.dark-mode .po-paper td,body.dark-mode .po-paper th{background:transparent !important;color:#111 !important}
+@page{margin:4mm}
+@media print{body *{visibility:hidden !important}#ticketPaper,#ticketPaper *{visibility:visible !important}#ticketPaper{position:fixed;left:0;top:0;margin:0;box-shadow:none}body{padding:0 !important;background:#fff !important}}
+
+/* -- Turno, pestañas, tabla -- */
+.po-turn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid var(--po-line);border-radius:999px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:filter .15s}
+.po-turn:hover{filter:brightness(.97)}
+body.dark-mode .po-turn:hover{filter:brightness(1.12)}
+.po-turn svg{width:14px;height:14px;flex-shrink:0}
+.po-tabs{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--po-line);overflow-x:auto;scrollbar-width:none}
+.po-tabs::-webkit-scrollbar{display:none}
+.po-tab{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 10px;margin-bottom:-1px;border-bottom:2px solid transparent;font-size:13px;font-weight:600;color:var(--po-muted);white-space:nowrap;cursor:pointer;transition:color .15s,border-color .15s}
+.po-tab svg{width:15px;height:15px}
+.po-tab:hover{color:var(--po-ink)}
+.po-tab.active{color:var(--po-brand);border-bottom-color:var(--po-brand)}
+body.dark-mode .po-tab.active{color:rgb(var(--brand-400,216 120 96));border-bottom-color:rgb(var(--brand-400,216 120 96))}
+.po-tab-n{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--po-hover);color:var(--po-muted);font-size:10.5px;font-weight:700}
+.po-tab.active .po-tab-n{background:var(--po-brand-soft);color:var(--po-brand)}
+table.po-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+table.po-table th{padding:8px 10px !important;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;color:var(--po-muted);background:var(--po-sunken);border-bottom:1px solid var(--po-line)}
+:where(table.po-table th){text-align:left}
+table.po-table td{padding:8px 10px !important;border-bottom:1px solid var(--po-line);color:var(--po-ink);vertical-align:middle}
+table.po-table tbody tr:hover td{background:var(--po-hover)}
+
+/* -- Listas, tablero, Inicio -- */
+.row-sale{cursor:pointer;border-bottom:1px solid var(--po-line);transition:background-color .12s}
+.row-sale,button.row-sale{background:transparent}
+.row-sale:hover{background:var(--po-hover)}
+.row-sale.active{background:var(--po-brand-soft);box-shadow:inset 3px 0 0 var(--po-brand)}
+.kb-col{display:flex;flex-direction:column;min-height:180px;overflow:hidden;background:var(--po-sunken);border:1px solid var(--po-line);border-radius:12px}
+@media (min-width:768px){.kb-col{min-height:0}}
+.kb-card{padding:10px;background:var(--po-surface);border:1px solid var(--po-line);border-radius:10px;transition:border-color .15s,box-shadow .15s}
+.kb-card:hover{border-color:var(--po-line-hi);box-shadow:0 4px 12px -8px rgba(0,0,0,.3)}
+.po-ring-bg,.po-ring-fg{fill:none}
+.po-ring-bg{stroke:var(--po-line)}
+.po-ring-fg{stroke:var(--po-brand);stroke-linecap:round;transition:stroke-dashoffset .6s ease}
+.po-tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:84px;padding:12px 8px;border-radius:12px;border:1px solid var(--po-line);color:var(--po-ink-2);font-size:12px;font-weight:600;text-align:center;cursor:pointer;transition:border-color .15s,box-shadow .15s,color .15s}
+.po-tile,button.po-tile{background:var(--po-surface)}
+.po-tile svg{width:20px;height:20px;color:var(--po-brand)}
+.po-tile:hover{border-color:var(--po-brand-line);color:var(--po-ink);box-shadow:0 6px 16px -10px rgba(0,0,0,.3)}
+.po-tile .po-kbd{position:absolute;top:6px;right:6px}
+
+/* -- Cobro -- */
+.po-fp{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:11px;border:1px solid var(--po-line);text-align:left;cursor:pointer;transition:border-color .15s,background-color .15s}
+.po-fp,button.po-fp{background:var(--po-surface)}
+.po-fp:not(:disabled):hover{border-color:var(--tone,var(--po-brand));background:color-mix(in srgb,var(--tone,#C05A40) 6%,var(--po-surface))}
+.po-fp:disabled{opacity:.45;cursor:not-allowed}
+.po-fp-ico{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;border-radius:9px;color:var(--tone,var(--po-muted))}
+.po-fp-ico,button.po-fp-ico{background:color-mix(in srgb,var(--tone,#9CA3AF) 12%,var(--po-surface))}
+.po-fp-ico svg{width:18px;height:18px}
+body.dark-mode .po-fp-ico,body.dark-mode button.po-fp-ico{background:color-mix(in srgb,var(--tone,#9CA3AF) 20%,var(--po-surface));color:color-mix(in srgb,var(--tone,#9CA3AF) 65%,#fff)}
+.po-mrow{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:11px;border:1px solid var(--po-line);background:var(--po-surface);transition:border-color .15s,box-shadow .15s,opacity .15s}
+.po-mrow:focus-within{border-color:var(--tone,var(--po-brand));box-shadow:0 0 0 3px color-mix(in srgb,var(--tone,#C05A40) 15%,transparent)}
+.po-bill{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;height:50px;border-radius:10px;border:1px solid var(--po-line-hi);color:var(--po-ink);cursor:pointer;transition:border-color .15s,background-color .15s}
+.po-bill,button.po-bill{background:var(--po-surface)}
+.po-bill b{font-size:15px;font-weight:700}
+.po-bill small{font-size:10.5px;font-weight:500;color:var(--po-muted)}
+.po-bill:hover{border-color:#059669;background:#ECFDF5}
+.po-bill.exact{border-color:#6EE7B7;background:#ECFDF5;color:#047857}
+.po-bill.exact small{color:#059669}
+body.dark-mode .po-bill:hover,body.dark-mode .po-bill.exact{background:rgba(16,185,129,.14);border-color:rgba(52,211,153,.45)}
+body.dark-mode .po-bill.exact{color:#34d399}
+body.dark-mode .po-bill.exact small{color:#6ee7b7}
+.po-done-ico{display:flex;align-items:center;justify-content:center;width:64px;height:64px;margin:0 auto;border-radius:999px;border:1px solid var(--po-line);background:var(--po-hover);color:var(--po-ink-2);animation:poPop .3s ease-out}
+.po-done-ico svg{width:30px;height:30px}
+
+/* -- Catálogo -- */
+.product-card{position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden;text-align:left;border:1px solid var(--po-line);border-radius:12px;cursor:pointer;transition:box-shadow .15s,border-color .15s,transform .15s}
+.product-card,button.product-card{background:var(--po-surface)}
+.product-card:hover{border-color:var(--po-line-hi);box-shadow:0 6px 18px -8px rgba(0,0,0,.25)}
+.product-card:active{transform:scale(.985)}
+.product-card:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}
+.pc-top{position:relative;display:flex;align-items:center;justify-content:center;height:68px;background:color-mix(in srgb,var(--tone,#9CA3AF) 9%,var(--po-surface))}
+body.dark-mode .pc-top{background:color-mix(in srgb,var(--tone,#9CA3AF) 16%,var(--po-surface))}
+.pc-badge{position:absolute;top:6px;left:6px}
+.pc-stock{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:999px;border:1px solid var(--po-line);background:rgba(255,255,255,.85);color:var(--po-ink-2);font-size:10px;font-weight:700}
+body.dark-mode .pc-stock{background:rgba(17,24,39,.6)}
+.pc-body{display:flex;flex-direction:column;gap:6px;flex:1;padding:8px 10px 10px}
+.pc-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em;font-size:12.5px;font-weight:600;line-height:1.3;color:var(--po-ink)}
+.pc-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:auto}
+.pc-foot b{font-size:14px;font-weight:700;color:var(--po-ink)}
+.pc-add{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:999px;background:var(--po-brand-soft);color:var(--po-brand);transition:background-color .15s,color .15s}
+.product-card:hover .pc-add{background:var(--po-brand);color:#fff}
+.product-card.is-out{opacity:.55}.product-card.is-out .pc-top{filter:grayscale(1)}
+.cat-btn{display:inline-flex;align-items:center;gap:7px;height:36px;flex-shrink:0;padding:0 12px;border-radius:10px;border:1px solid var(--po-line);color:var(--po-ink-2);font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+.cat-btn,button.cat-btn{background:var(--po-surface)}
+.cat-btn svg{width:16px;height:16px;flex-shrink:0}
+.cat-btn small{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;padding:0 6px;border-radius:999px;background:var(--po-hover);color:var(--po-muted);font-size:10.5px;font-weight:700}
+.cat-btn:hover{border-color:var(--po-line-hi);color:var(--po-ink)}
+.cat-btn.active{background:var(--po-main);border-color:var(--po-main);color:#fff}
+.cat-btn.active small{background:rgba(255,255,255,.18);color:#fff}
+body.dark-mode .cat-btn.active{background:#E5E7EB;border-color:#E5E7EB;color:#111827}
+body.dark-mode .cat-btn.active small{background:rgba(0,0,0,.1);color:#111827}
+.sub-btn{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:999px;border:1px solid var(--po-line);color:var(--po-muted);font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer}
+.sub-btn,button.sub-btn{background:var(--po-surface)}
+.sub-btn:hover{border-color:var(--po-line-hi);color:var(--po-ink)}
+.sub-btn.active{background:var(--po-brand-soft);border-color:var(--po-brand-line);color:var(--po-brand)}
+.fd-item{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border-radius:9px;text-align:left;color:var(--po-ink);cursor:pointer}
+.fd-item,button.fd-item{background:transparent}
+.fd-item:hover,.fd-item.active{background:var(--po-hover)}
+.fd-item.active{box-shadow:inset 0 0 0 1px var(--po-line-hi)}
+.fd-ico{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;border-radius:8px;background:color-mix(in srgb,var(--tone,#9CA3AF) 12%,var(--po-surface))}
+.fd-ico svg{width:16px;height:16px}
+.fd-create{color:var(--po-brand)}
+.fd-create .fd-ico{background:transparent;border:1.5px dashed var(--po-brand-line);color:var(--po-brand)}
+
+/* -- Ticket -- */
+.po-ticket{background:var(--po-surface);border:1px solid var(--po-line);border-radius:14px;color:var(--po-ink)}
+.po-ticket-foot{background:var(--po-sunken);border-radius:0 0 14px 14px}
+.po-rowbtn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;cursor:pointer;transition:background-color .12s}
+.po-rowbtn,button.po-rowbtn{background:transparent}
+.po-rowbtn:hover{background:var(--po-hover)}
+.po-pedido{border-bottom:1px solid var(--po-line);background:color-mix(in srgb,#ea580c 5%,var(--po-surface))}
+.tab-ticket{display:inline-flex;align-items:center;gap:6px;height:30px;flex-shrink:0;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;color:var(--po-muted);white-space:nowrap;cursor:pointer;transition:background-color .12s,color .12s}
+.tab-ticket,button.tab-ticket{background:transparent}
+.tab-ticket:hover{background:var(--po-hover);color:var(--po-ink)}
+.tab-ticket.active{background:var(--po-hover);color:var(--po-ink);box-shadow:inset 0 0 0 1px var(--po-line-hi)}
+.tab-n{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--po-main);color:#fff;font-size:10px;font-weight:700}
+body.dark-mode .tab-n{background:#E5E7EB;color:#111827}
+.tab-x{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-right:-4px;border-radius:999px;color:var(--po-muted)}
+.tab-x:hover{background:#FFE4E6;color:#e11d48}
+body.dark-mode .tab-x:hover{background:rgba(225,29,72,.18);color:#fb7185}
+.tab-add{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;border-radius:999px;border:1.5px dashed var(--po-line-hi);color:var(--po-muted);cursor:pointer}
+.tab-add,button.tab-add{background:transparent}
+.tab-add:hover{border-color:var(--po-brand);color:var(--po-brand)}
+.cart-item{display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--po-line);border-radius:11px;background:var(--po-surface);transition:border-color .15s,box-shadow .15s}
+.cart-item:hover{border-color:var(--po-line-hi)}
+.cart-item.is-new{animation:poNew .9s ease-out}
+.cart-item.has-disc{border-color:#FDE68A}
+body.dark-mode .cart-item.has-disc{border-color:rgba(251,191,36,.4)}
+@keyframes poNew{0%{background:var(--po-brand-soft);box-shadow:0 0 0 2px var(--po-brand-line)}100%{background:var(--po-surface);box-shadow:none}}
+.ci-ico{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;border-radius:9px;color:var(--po-muted);cursor:pointer;transition:background-color .15s,color .15s}
+.ci-ico,button.ci-ico{background:var(--po-hover)}
+.ci-ico:hover{background:var(--po-brand-soft);color:var(--po-brand)}
+.ci-name{display:block;max-width:100%;text-align:left;font-size:13px;font-weight:600;line-height:1.3;color:var(--po-ink);cursor:pointer}
+.ci-name:hover{color:var(--po-brand);text-decoration:underline;text-underline-offset:2px}
+.ci-sub{margin-top:1px;font-size:11px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-actions{display:flex;align-items:center;justify-content:flex-end;gap:2px;margin-top:4px}
+@media (max-width:767px){#ticketPanel{display:none}body.ticket-open #ticketPanel{display:flex;position:fixed;inset:64px 0 0 0;z-index:45;width:auto;border-radius:0}}
+
+/* -- PIN y varios -- */
+.pin-key{display:flex;align-items:center;justify-content:center;height:52px;border-radius:12px;border:1px solid var(--po-line);font-size:20px;font-weight:600;color:var(--po-ink);cursor:pointer;user-select:none;transition:background-color .1s,transform .1s}
+.pin-key,button.pin-key{background:var(--po-sunken)}
+.pin-key:hover{background:var(--po-hover)}.pin-key:active{transform:scale(.96)}
+.pin-key svg{width:20px;height:20px}
+.pin-dot{width:14px;height:14px;border-radius:999px;border:2px solid var(--po-line-hi);transition:background-color .12s,border-color .12s}
+.pin-dot.on{background:var(--po-brand);border-color:var(--po-brand)}
+#pinDots.shake{animation:poShake .35s}
+@keyframes poShake{0%,100%{transform:none}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.pulse-dot{animation:poPulse 2.4s ease-in-out infinite}
+@keyframes poPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.huubie-swal{border-radius:14px !important;font-family:'Inter',sans-serif}
+body.dark-mode .huubie-swal{background:#1F2A37 !important;color:#f5f5f5 !important;border:1px solid #374151}
+body.dark-mode .huubie-swal .swal2-title,body.dark-mode .huubie-swal .swal2-html-container{color:#f5f5f5 !important}
+
+/* -- Textos y fondos de color en oscuro -- */
+body.dark-mode .text-emerald-600,body.dark-mode .text-emerald-700{color:#34d399}
+body.dark-mode .text-rose-600,body.dark-mode .text-rose-700{color:#fb7185}
+body.dark-mode .text-amber-600,body.dark-mode .text-amber-700{color:#fbbf24}
+body.dark-mode .text-orange-600,body.dark-mode .text-orange-700{color:#fb923c}
+body.dark-mode .text-violet-600,body.dark-mode .text-violet-700{color:#a78bfa}
+body.dark-mode .text-pink-600,body.dark-mode .text-pink-700{color:#f472b6}
+body.dark-mode .text-sky-600,body.dark-mode .text-sky-700{color:#38bdf8}
+body.dark-mode .text-blue-600,body.dark-mode .text-blue-700{color:rgb(var(--brand-400,216 120 96))}
+body.dark-mode .bg-emerald-50{background-color:rgba(16,185,129,.12)}
+body.dark-mode .bg-rose-50{background-color:rgba(244,63,94,.12)}
+body.dark-mode .bg-amber-50{background-color:rgba(245,158,11,.12)}
+body.dark-mode .bg-orange-50{background-color:rgba(249,115,22,.12)}
+
+/* -- Tonos (siempre al final) -- */
+.t-red,button.t-red{background:#FEF2F2;color:#B91C1C;border-color:#FECACA}
+.t-amber,button.t-amber{background:#FFFBEB;color:#B45309;border-color:#FDE68A}
+.t-purple,button.t-purple{background:#F5F3FF;color:#6D28D9;border-color:#DDD6FE}
+.t-sky,button.t-sky{background:#F0F9FF;color:#0369A1;border-color:#BAE6FD}
+.t-green,button.t-green{background:#ECFDF5;color:#047857;border-color:#A7F3D0}
+.t-blue,button.t-blue{background:rgb(var(--brand-50,253 243 240));color:rgb(var(--brand-700,160 72 51));border-color:rgb(var(--brand-200,243 199 186))}
+.t-gray,button.t-gray{background:#F3F4F6;color:#4B5563;border-color:#E5E7EB}
+.t-orange,button.t-orange{background:#FFF7ED;color:#C2410C;border-color:#FED7AA}
+body.dark-mode .t-red{background:rgba(239,68,68,.16);color:#fca5a5;border-color:rgba(248,113,113,.35)}
+body.dark-mode .t-amber{background:rgba(245,158,11,.16);color:#fcd34d;border-color:rgba(251,191,36,.35)}
+body.dark-mode .t-purple{background:rgba(139,92,246,.16);color:#c4b5fd;border-color:rgba(167,139,250,.35)}
+body.dark-mode .t-sky{background:rgba(14,165,233,.16);color:#7dd3fc;border-color:rgba(56,189,248,.35)}
+body.dark-mode .t-green{background:rgba(16,185,129,.16);color:#6ee7b7;border-color:rgba(52,211,153,.35)}
+body.dark-mode .t-blue{background:rgb(var(--brand-600,192 90 64) / .16);color:rgb(var(--brand-300,232 160 139));border-color:rgb(var(--brand-600,192 90 64) / .4)}
+body.dark-mode .t-gray{background:rgba(148,163,184,.12);color:#D1D5DB;border-color:rgba(148,163,184,.25)}
+body.dark-mode .t-orange{background:rgba(249,115,22,.16);color:#fdba74;border-color:rgba(251,146,60,.35)}
+</style>
+</head>
+<body>
+
+<!-- Rail lateral (sidebar de pro) -->
+<div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2">
+    <button type="button" class="menu-rail-item" data-view="inicio" onclick="setView('inicio')" title="Inicio"><i data-lucide="house"></i><span class="menu-rail-label">Inicio</span></button>
+    <button type="button" class="menu-rail-item is-active" data-view="vender" onclick="setView('vender')" title="Vender" aria-current="page"><i data-lucide="shopping-cart"></i><span class="menu-rail-label">Vender</span></button>
+    <button type="button" class="menu-rail-item" data-view="pedidos" onclick="setView('pedidos')" title="Pedidos"><i data-lucide="cake"></i><span class="menu-rail-label">Pedidos</span><span id="badgePedidos" class="po-rail-badge hidden">0</span></button>
+    <button type="button" class="menu-rail-item" data-view="ventas" onclick="setView('ventas')" title="Ventas"><i data-lucide="receipt"></i><span class="menu-rail-label">Ventas</span></button>
+    <button type="button" class="menu-rail-item" data-view="caja" onclick="setView('caja')" title="Caja"><i data-lucide="wallet"></i><span class="menu-rail-label">Caja</span></button>
+    <button type="button" class="menu-rail-item" data-view="clientes" onclick="setView('clientes')" title="Clientes"><i data-lucide="users"></i><span class="menu-rail-label">Clientes</span></button>
+    <button type="button" class="menu-rail-item" data-view="reportes" onclick="setView('reportes')" title="Reportes"><i data-lucide="chart-column"></i><span class="menu-rail-label">Reportes</span></button>
+</div>
+
+<main>
+    <!-- Barra superior (navbar de pro) -->
+    <div id="menu-navbar">
+        <nav class="flex items-center justify-between gap-3 px-3 bg-white border-b border-gray-200">
+            <div class="flex items-center gap-3 min-w-0">
+                <button type="button" id="btn-menu" onclick="toggleSidebar()" class="p-2 rounded-md text-gray-500 hover:bg-gray-100" title="Menú" aria-controls="menu-sidebar"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                <a href="../../../index.php" class="flex items-center gap-2 no-underline text-gray-900 shrink-0">
+                    <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-[#0A0A0A]"><img src="../../../assets/img/huubie.png" alt="" class="w-6 h-6"></span>
+                    <span class="hidden sm:inline font-semibold">Huubie</span>
+                </a>
+                <span id="nav-context" class="hidden md:flex items-center gap-1.5 text-sm text-gray-500 min-w-0"><span class="text-gray-300">/</span><span id="lblBranch" class="truncate">Empresa · Sucursal</span></span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <div class="relative">
+                    <button type="button" id="turnBadge" class="po-turn t-red" data-dd="ddCaja" aria-haspopup="menu" aria-expanded="false" onclick="toggleDropdown('ddCaja', event)">
+                        <span id="turnDot" class="w-1.5 h-1.5 rounded-full shrink-0 bg-current"></span>
+                        <span id="lblTurnName">Sin turno</span>
+                        <span id="lblTurnInfo" class="hidden xl:block font-medium opacity-75"></span>
+                        <span class="hidden sm:block w-px h-4" style="background:color-mix(in srgb,currentColor 25%,transparent)"></span>
+                        <span class="hidden sm:inline-flex items-center gap-1"><i data-lucide="banknote"></i><span id="lblTurnSales">$0</span></span>
+                        <span class="hidden md:inline-flex items-center gap-1"><i data-lucide="receipt"></i><span id="lblTurnOrders">0</span></span>
+                        <i data-lucide="chevron-down" class="opacity-60"></i>
+                    </button>
+                    <div id="ddCaja" class="po-dd" role="menu">
+                        <button type="button" id="ddAbrirTurno" class="po-dd-item" onclick="openAbrirTurno()"><i data-lucide="door-open"></i><span>Abrir turno</span></button>
+                        <button type="button" class="po-dd-item caja-needs-turn" onclick="openMovCaja('out')"><i data-lucide="arrow-up-from-line"></i><span>Retiro de efectivo</span></button>
+                        <button type="button" class="po-dd-item caja-needs-turn" onclick="openMovCaja('in')"><i data-lucide="arrow-down-to-line"></i><span>Depósito a caja</span></button>
+                        <button type="button" class="po-dd-item caja-needs-turn" onclick="openCorte('x')"><i data-lucide="receipt-text"></i><span>Corte X</span><small>parcial</small></button>
+                        <button type="button" class="po-dd-item caja-needs-turn" onclick="openCorte('z')"><i data-lucide="lock"></i><span>Cerrar turno</span><small>corte Z</small></button>
+                        <div class="po-dd-sep"></div>
+                        <button type="button" class="po-dd-item" onclick="openCierreModal()"><i data-lucide="calendar-check"></i><span>Cierre del día</span></button>
+                        <button type="button" class="po-dd-item" onclick="setView('caja')"><i data-lucide="vault"></i><span>Ir a Caja</span></button>
+                    </div>
+                </div>
+                <button type="button" id="btnDark" onclick="toggleDark()" class="p-2 rounded-md text-gray-500 hover:bg-gray-100" title="Modo oscuro"><i data-lucide="moon" class="w-[18px] h-[18px]"></i></button>
+                <div id="nav-user" class="flex items-center gap-2">
+                    <span class="w-8 h-8 flex items-center justify-center rounded-full text-white text-xs font-semibold" style="background:#C05A40">AM</span>
+                    <div class="hidden sm:flex flex-col leading-tight"><span id="lblUser" class="text-sm font-medium text-gray-900">Andrea M.</span><span class="text-xs text-gray-500">Cajera</span></div>
+                </div>
+                <button type="button" id="btn-logout" onclick="logoutDemo()" class="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900" title="Cerrar sesión"><i data-lucide="log-out" class="w-[18px] h-[18px]"></i></button>
+            </div>
+        </nav>
+    </div>
+
+    <div id="main__content">
+        <div id="root">
+            <div class="flex-1 min-h-0 flex flex-col">
+
+                <!-- Inicio -->
+                <section id="view-inicio" class="po-view hidden flex-col flex-1 min-h-0">
+                    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin"><div id="inicioWrap" class="space-y-3"></div></div>
+                </section>
+
+                <!-- Vender: catálogo + ticket -->
+                <section id="view-vender" class="po-view flex flex-col flex-1 min-h-0">
+                    <div class="flex-1 min-h-0 flex gap-3">
+
+                        <!-- Catálogo -->
+                        <div class="flex-1 min-w-0 min-h-0 flex flex-col gap-2.5">
+                            <div id="finderWrap" class="relative shrink-0">
+                                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                                <input id="inputSearch" type="text" class="po-inp po-inp-lg pl-9 pr-16" placeholder="Buscar producto, SKU o código de barras" autocomplete="off">
+                                <span class="po-kbd absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline-flex">Ctrl K</span>
+                                <div id="searchResults" class="po-pop hidden absolute left-0 right-0 top-full mt-1.5 z-30 max-h-[60vh] p-1.5 scrollbar-thin"></div>
+                            </div>
+                            <div id="catContainer" class="flex gap-2 overflow-x-auto scrollbar-thin pb-1 shrink-0"></div>
+                            <div id="subcatContainer" class="hidden flex flex-wrap gap-1.5 shrink-0"></div>
+                            <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+                                <div id="productGrid" class="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-2.5 pb-2"></div>
+                                <div id="productEmpty" class="hidden flex flex-col items-center justify-center text-center py-16">
+                                    <span class="po-m-ico t-gray"><i data-lucide="search"></i></span>
+                                    <p class="mt-3 text-[13px] font-semibold text-gray-700">Sin productos</p>
+                                    <p class="text-[12px] text-gray-500">Prueba otra búsqueda o categoría.</p>
+                                </div>
+                            </div>
+                            <div class="shrink-0 flex gap-1.5 overflow-x-auto scrollbar-thin pb-0.5 lg:flex-wrap">
+                                <button type="button" class="po-btn po-btn-ghost sm" onclick="openDiscountModal('cuenta')"><i data-lucide="percent"></i><span>Descuento</span><span class="po-kbd">F9</span></button>
+                                <button type="button" class="po-btn po-btn-ghost sm" onclick="openManualModal()"><i data-lucide="pencil"></i><span>Manual</span></button>
+                                <button type="button" class="po-btn po-btn-ghost sm" onclick="focusCustomer()"><i data-lucide="user-round"></i><span>Cliente</span><span class="po-kbd">F8</span></button>
+                                <button type="button" class="po-btn po-btn-ghost sm" onclick="openSellerModal()"><i data-lucide="user"></i><span>Vendedor</span></button>
+                                <button type="button" class="po-btn po-btn-ghost sm" onclick="openNotaModal()"><i data-lucide="sticky-note"></i><span id="lblBtnNota">Nota</span></button>
+                                <button type="button" class="po-btn po-btn-ghost sm" onclick="openPreciosModal()"><i data-lucide="tag"></i><span>Precios</span><span class="po-kbd">F6</span></button>
+                                <button type="button" class="po-btn po-btn-ghost sm" onclick="holdTicket()"><i data-lucide="clock-3"></i><span>En espera</span></button>
+                                <button type="button" class="po-btn po-btn-ghost sm" onclick="openDrawer()"><i data-lucide="vault"></i><span>Abrir cajón</span></button>
+                                <button type="button" class="po-btn po-btn-ghost sm" onclick="openImprimirModal()"><i data-lucide="printer"></i><span>Pre-cuenta</span></button>
+                                <button type="button" class="po-btn po-btn-ghost sm danger" onclick="clearTicket()"><i data-lucide="trash-2"></i><span>Vaciar</span></button>
+                            </div>
+                            <p class="hidden lg:flex shrink-0 items-center gap-1.5 text-[11px] text-gray-500"><i data-lucide="keyboard" class="w-3.5 h-3.5"></i>F3 quita la última partida · F5 descuento a la última · Esc cierra</p>
+                            <button type="button" class="md:hidden shrink-0 po-btn po-btn-main lg w-full justify-between" onclick="toggleTicketPanel(true)">
+                                <span class="flex items-center gap-2"><i data-lucide="shopping-cart"></i><span>Ver ticket</span><span id="lblMobileCount" class="po-mob-n">0</span></span>
+                                <span id="lblMobileTotal" class="text-[15px] font-bold">$0.00</span>
+                            </button>
+                        </div>
+
+                        <!-- Ticket -->
+                        <aside id="ticketPanel" class="po-ticket md:w-[320px] lg:w-[360px] xl:w-[390px] shrink-0 min-h-0 flex flex-col">
+                            <div class="shrink-0 border-b border-gray-200 px-2.5 pt-2.5 pb-2 space-y-2">
+                                <div class="flex items-center gap-1">
+                                    <div id="ticketTabs" class="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto scrollbar-none"></div>
+                                    <button type="button" class="po-icon-btn sm md:hidden" onclick="toggleTicketPanel(false)" title="Cerrar ticket"><i data-lucide="x"></i></button>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="po-seg">
+                                        <button type="button" class="mode-btn active" data-mode="3" onclick="setMode(3)"><i data-lucide="receipt"></i><span>Venta</span></button>
+                                        <button type="button" class="mode-btn" data-mode="1" onclick="setMode(1)"><i data-lucide="calendar-days"></i><span>Pedido</span></button>
+                                    </div>
+                                    <span id="chipEditing" class="po-chip t-amber hidden"><i data-lucide="pencil-line"></i>Editando folio</span>
+                                    <span id="lblFolio" class="ml-auto text-[12px] font-semibold text-gray-500 tabular-nums"></span>
+                                </div>
+                            </div>
+
+                            <div class="shrink-0 border-b border-gray-200 px-2.5 py-2 space-y-1.5">
+                                <div id="customerSelected" class="hidden items-center gap-2.5">
+                                    <span id="custAvatar" class="po-avatar"></span>
+                                    <div class="flex-1 min-w-0">
+                                        <p id="custName" class="text-[13px] font-semibold text-gray-900 truncate"></p>
+                                        <p id="custPhone" class="text-[11px] text-gray-500 truncate"></p>
+                                    </div>
+                                    <button type="button" class="po-btn po-btn-ghost sm" onclick="focusCustomer()">Cambiar</button>
+                                    <button type="button" class="po-icon-btn sm danger" onclick="clearCustomer()" title="Quitar cliente"><i data-lucide="x"></i></button>
+                                </div>
+                                <div id="customerSearchWrap" class="flex items-center gap-1.5">
+                                    <div class="relative flex-1 min-w-0">
+                                        <i data-lucide="user-round" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                                        <input id="inputCustomer" type="text" class="po-inp pl-8 pr-12" placeholder="Cliente: nombre, teléfono o tarjeta" autocomplete="off">
+                                        <span class="po-kbd absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">F8</span>
+                                        <div id="customerResults" class="po-pop hidden absolute left-0 right-0 top-full mt-1.5 z-30 max-h-[50vh] p-1.5 scrollbar-thin"></div>
+                                    </div>
+                                    <button type="button" id="btnCancelCustSearch" class="po-btn po-btn-ghost sm hidden" onclick="endCustomerSearch()">Cancelar</button>
+                                </div>
+                                <div id="customerChips" class="hidden flex flex-wrap gap-1"></div>
+                            </div>
+
+                            <button type="button" class="po-rowbtn shrink-0 border-b border-gray-200 px-3 py-2" onclick="openSellerModal()">
+                                <i data-lucide="user" class="w-4 h-4 text-gray-400 shrink-0"></i>
+                                <span class="text-[12px] text-gray-500">Atiende</span>
+                                <span id="lblSeller" class="flex-1 min-w-0 truncate text-[12px] font-semibold text-gray-900"></span>
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 shrink-0"></i>
+                            </button>
+
+                            <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+                                <div id="pedidoPanel" class="hidden po-pedido">
+                                    <button type="button" class="po-rowbtn px-3 py-2.5" onclick="togglePedidoPanel()">
+                                        <span class="po-m-ico sm t-orange"><i data-lucide="calendar-days"></i></span>
+                                        <span class="flex-1 min-w-0">
+                                            <span class="block text-[12px] font-semibold text-gray-900">Datos del pedido</span>
+                                            <span id="lblPedidoResumen" class="block text-[11px] text-gray-500 truncate"></span>
+                                        </span>
+                                        <span id="icoPedidoPanel" class="inline-flex transition-transform text-gray-400"><i data-lucide="chevron-down" class="w-4 h-4"></i></span>
+                                    </button>
+                                    <div id="pedidoBody" class="px-3 pb-3 space-y-2.5">
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div><label class="po-lbl" for="pDeliveryDate">Entrega</label><input id="pDeliveryDate" type="date" class="po-inp" onchange="setPedidoField('delivery_date', this.value)"></div>
+                                            <div><label class="po-lbl" for="pDeliveryTime">Hora</label><input id="pDeliveryTime" type="time" class="po-inp" onchange="setPedidoField('delivery_time', this.value)"></div>
+                                        </div>
+                                        <div id="segDelivery" class="po-seg w-full">
+                                            <button type="button" data-v="0" onclick="setPedidoField('delivery_method', 0)"><i data-lucide="store"></i><span>Sucursal</span></button>
+                                            <button type="button" data-v="1" onclick="setPedidoField('delivery_method', 1)"><i data-lucide="truck"></i><span>Domicilio</span></button>
+                                        </div>
+                                        <div id="wrapLocation" class="hidden"><label class="po-lbl" for="pLocation">Dirección de entrega</label><input id="pLocation" type="text" class="po-inp" placeholder="Calle, número, colonia y referencias" autocomplete="off" oninput="setPedidoField('location', this.value)"></div>
+                                        <div><label class="po-lbl" for="pBirthday">Cumpleaños <small>opcional</small></label><input id="pBirthday" type="date" class="po-inp" onchange="setPedidoField('birthday_date', this.value)"></div>
+                                    </div>
+                                </div>
+                                <div id="contenedorProductos" class="hidden p-2 space-y-1.5"></div>
+                                <div id="cartEmpty" class="flex flex-col items-center justify-center text-center px-6 py-12">
+                                    <span class="po-m-ico t-gray"><i data-lucide="shopping-cart"></i></span>
+                                    <p class="mt-3 text-[13px] font-semibold text-gray-700">Ticket vacío</p>
+                                    <p class="mt-0.5 text-[12px] text-gray-500">Toca un producto o búscalo con <span class="po-kbd">Ctrl K</span></p>
+                                </div>
+                            </div>
+
+                            <div class="po-ticket-foot shrink-0 border-t border-gray-200 px-3 pt-2.5 pb-3 space-y-1">
+                                <div class="flex justify-between text-[12px] text-gray-500"><span>Subtotal</span><span id="lblSubtotal" class="tabular-nums">$0.00</span></div>
+                                <div id="rowDescuento" class="hidden flex justify-between text-[12px] text-amber-600"><span id="lblDescuentoTxt">Descuento</span><span id="lblDescuento" class="tabular-nums"></span></div>
+                                <div id="rowTarjeta" class="hidden flex justify-between text-[12px] text-violet-600"><span id="lblTarjetaTxt">Tarjeta</span><span id="lblTarjeta" class="tabular-nums"></span></div>
+                                <div class="flex justify-between text-[11px] text-gray-500"><span>IVA incluido</span><span id="lblIva" class="tabular-nums">$0.00</span></div>
+                                <div class="flex items-end justify-between gap-2 pt-1">
+                                    <div class="min-w-0"><p class="po-sec">Total</p><p id="lblItemsCount" class="text-[11px] text-gray-500"></p></div>
+                                    <span id="lblTotal" class="text-[22px] font-bold tabular-nums leading-none">$0.00</span>
+                                </div>
+                                <div id="rowPagado" class="hidden flex justify-between text-[12px] text-emerald-600"><span>Pagado</span><span id="lblPagado" class="tabular-nums"></span></div>
+                                <div id="rowSaldo" class="hidden flex justify-between text-[12px] font-semibold text-orange-600"><span>Saldo</span><span id="lblSaldo" class="tabular-nums"></span></div>
+                                <div class="flex gap-2 pt-2">
+                                    <button type="button" id="btnCotizar" class="po-btn po-btn-ghost lg" onclick="saveQuote()" title="Guardar como cotización"><i data-lucide="file-text"></i><span class="hidden xl:inline">Cotizar</span></button>
+                                    <button type="button" id="btnPagar" class="po-btn po-btn-ok lg flex-1" onclick="openCobroModal()" disabled><span id="lblBtnPagar">Cobrar</span><span id="lblBtnPagarAmt" class="tabular-nums"></span><span class="po-kbd hidden xl:inline-flex">F2</span></button>
+                                </div>
+                            </div>
+                        </aside>
+                    </div>
+                </section>
+
+                <!-- Pedidos: tablero de producción y entregas -->
+                <section id="view-pedidos" class="po-view hidden flex-col flex-1 min-h-0 gap-3">
+                    <div class="shrink-0 flex flex-wrap items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <span class="text-[18px] font-bold text-gray-900">Pedidos</span>
+                            <div class="text-[12px] text-gray-500 mt-0.5">Producción y entregas: pendientes, listos y entregados</div>
+                            <div id="boardSummary" class="flex flex-wrap gap-1.5 mt-2"></div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" class="po-btn po-btn-ghost" onclick="openHistorial('pedidos')"><i data-lucide="history"></i><span>Ver en historial</span></button>
+                            <button type="button" class="po-btn po-btn-brand" onclick="newPedido()"><i data-lucide="plus"></i><span>Nuevo pedido</span></button>
+                        </div>
+                    </div>
+                    <div class="shrink-0 flex flex-wrap items-center gap-2">
+                        <div class="relative flex-1 min-w-[200px] max-w-md">
+                            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                            <input id="boardSearch" type="text" class="po-inp pl-9" placeholder="Buscar por folio, cliente o teléfono" autocomplete="off" oninput="setBoardSearch(this.value)">
+                        </div>
+                        <div id="segBoard" class="po-seg"></div>
+                    </div>
+                    <div id="boardCols" class="flex-1 min-h-0 grid md:grid-cols-3 md:grid-rows-[minmax(0,1fr)] gap-3 overflow-y-auto md:overflow-hidden"></div>
+                </section>
+
+                <!-- Ventas: historial -->
+                <section id="view-ventas" class="po-view hidden flex-col flex-1 min-h-0 gap-3">
+                    <div class="shrink-0 min-w-0">
+                        <span class="text-[18px] font-bold text-gray-900">Ventas</span>
+                        <div class="text-[12px] text-gray-500 mt-0.5">Historial de tickets, pedidos y cotizaciones</div>
+                        <div id="histSummary" class="flex flex-wrap gap-1.5 mt-2"></div>
+                    </div>
+                    <div class="shrink-0 flex flex-wrap items-center gap-2">
+                        <div class="relative flex-1 min-w-[200px] max-w-md">
+                            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                            <input id="histSearch" type="text" class="po-inp pl-9" placeholder="Buscar por folio, cliente, teléfono o producto" autocomplete="off" oninput="setHistSearch(this.value)">
+                        </div>
+                        <input id="histDate" type="date" class="po-inp w-auto" title="Fecha" onchange="setHistDate(this.value)">
+                        <button type="button" class="po-btn po-btn-ghost" onclick="setHistDate(TODAY)">Hoy</button>
+                        <button type="button" class="po-btn po-btn-ghost" onclick="setHistDate('')">Todas las fechas</button>
+                    </div>
+                    <div id="histTabs" class="po-tabs shrink-0"></div>
+                    <div class="flex-1 min-h-0 grid grid-rows-[minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-3">
+                        <div id="histListCol" class="flex md:flex flex-col min-h-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
+                            <div id="histStatusChips" class="shrink-0 flex flex-wrap gap-1.5 px-3 py-2 border-b border-gray-200"></div>
+                            <div id="histList" class="flex-1 min-h-0 overflow-y-auto scrollbar-thin"></div>
+                            <div id="histFooter" class="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-t border-gray-200 text-[12px] text-gray-500"></div>
+                        </div>
+                        <div id="histDetail" class="hidden md:flex flex-col min-h-0 bg-white border border-gray-200 rounded-xl overflow-hidden"></div>
+                    </div>
+                </section>
+
+                <!-- Caja -->
+                <section id="view-caja" class="po-view hidden flex-col flex-1 min-h-0">
+                    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin"><div id="cajaWrap" class="space-y-3"></div></div>
+                </section>
+
+                <!-- Clientes -->
+                <section id="view-clientes" class="po-view hidden flex-col flex-1 min-h-0">
+                    <div id="clientesHead" class="shrink-0"></div>
+                    <div class="shrink-0 relative max-w-md mb-3">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                        <input id="clSearch" type="text" class="po-inp pl-9" placeholder="Buscar por nombre, teléfono o tarjeta" autocomplete="off" oninput="setClientesSearch(this.value)">
+                    </div>
+                    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin"><div id="clientesList"></div></div>
+                </section>
+
+                <!-- Reportes -->
+                <section id="view-reportes" class="po-view hidden flex-col flex-1 min-h-0">
+                    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin"><div id="reportesWrap" class="space-y-3"></div></div>
+                </section>
+
+            </div>
+        </div>
+    </div>
+</main>
+
+<div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden" onclick="closeSidebar()"></div>
+
+<!-- Modal: nota del ticket -->
+<div id="modalNota" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[460px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-amber"><i data-lucide="sticky-note"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">Nota del ticket</p><p class="po-dialog-sub">Sale impresa en el ticket y en la orden de producción</p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalNota')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <label class="po-lbl" for="notaText">Nota</label>
+            <textarea id="notaText" class="po-inp" rows="3" placeholder="Ej. sin azúcar, entregar en recepción…"></textarea>
+            <div id="notaQuick" class="flex flex-wrap gap-1.5 mt-2"></div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalNota')">Cancelar</button>
+            <button type="button" class="po-btn po-btn-main" onclick="saveNota()"><i data-lucide="check"></i><span>Guardar nota</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: captura manual -->
+<div id="modalManual" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[460px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-gray"><i data-lucide="pencil"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">Captura manual</p><p class="po-dialog-sub">Un producto que no está en el catálogo</p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalManual')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <label class="po-lbl" for="maName">Descripción</label>
+            <input id="maName" type="text" class="po-inp" placeholder="Ej. Vela de número" autocomplete="off" onkeydown="onEnter(event, addManualToCart)">
+            <div class="grid grid-cols-2 gap-3 mt-3">
+                <div><label class="po-lbl" for="maPrice">Precio unitario</label><input id="maPrice" type="number" min="0" step=".5" class="po-inp" placeholder="0.00" onkeydown="onEnter(event, addManualToCart)"></div>
+                <div><label class="po-lbl" for="maQty">Cantidad</label><input id="maQty" type="number" min="1" value="1" class="po-inp" onkeydown="onEnter(event, addManualToCart)"></div>
+            </div>
+            <div class="mt-3"><label class="po-lbl" for="maDetails">Detalles <small>opcional</small></label><textarea id="maDetails" class="po-inp" rows="2" placeholder="Indicaciones para producción"></textarea></div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalManual')">Cancelar</button>
+            <button type="button" class="po-btn po-btn-main" onclick="addManualToCart()"><i data-lucide="plus"></i><span>Agregar al ticket</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: editar partida -->
+<div id="modalLine" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[480px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-blue"><i data-lucide="pencil"></i></span>
+            <div class="flex-1 min-w-0"><p id="lineName" class="po-dialog-title truncate">Partida</p><p class="po-dialog-sub">Cantidad, precio, detalles y fotos</p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalLine')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="po-lbl" for="lineQty">Cantidad</label>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" class="po-icon-btn po-btn-ghost w-[36px] h-[36px]" onclick="stepInput('lineQty', -1)" title="Menos"><i data-lucide="minus"></i></button>
+                        <input id="lineQty" type="number" min="1" class="po-inp text-center font-bold" onkeydown="onEnter(event, saveLine)">
+                        <button type="button" class="po-icon-btn po-btn-ghost w-[36px] h-[36px]" onclick="stepInput('lineQty', 1)" title="Más"><i data-lucide="plus"></i></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="po-lbl" for="linePrice">Precio unitario</label>
+                    <input id="linePrice" type="number" min="0" step=".5" class="po-inp" onkeydown="onEnter(event, saveLine)">
+                    <p id="linePriceHint" class="mt-1 text-[11px] text-gray-500"></p>
+                </div>
+            </div>
+            <div id="lineMods" class="hidden po-note t-blue text-[12px] items-center mt-3"></div>
+            <div class="mt-3"><label class="po-lbl" for="lineDedication">Dedicatoria <small>opcional</small></label><input id="lineDedication" type="text" class="po-inp" placeholder="Ej. ¡Feliz cumpleaños, Ana!" autocomplete="off"></div>
+            <div class="mt-3"><label class="po-lbl" for="lineDetails">Detalles <small>opcional</small></label><textarea id="lineDetails" class="po-inp" rows="2" placeholder="Indicaciones para producción"></textarea></div>
+            <div class="mt-3">
+                <p class="po-lbl">Fotos de referencia</p>
+                <button type="button" class="po-btn po-btn-ghost sm" onclick="this.nextElementSibling.click()"><i data-lucide="image-plus"></i><span>Agregar fotos</span></button>
+                <input type="file" multiple accept="image/*" class="hidden" onchange="addImages(this, 'line')">
+                <div id="lineImages" class="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-2 empty:hidden"></div>
+            </div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalLine')">Cancelar</button>
+            <button type="button" class="po-btn po-btn-main" onclick="saveLine()"><i data-lucide="check"></i><span>Guardar</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: nuevo cliente -->
+<div id="modalCustomer" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[480px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-purple"><i data-lucide="user-plus"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">Nuevo cliente</p><p class="po-dialog-sub">Queda disponible en ventas y pedidos</p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalCustomer')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <label class="po-lbl" for="cuName">Nombre</label>
+            <input id="cuName" type="text" class="po-inp" placeholder="Nombre y apellido" autocomplete="off">
+            <div class="grid sm:grid-cols-2 gap-3 mt-3">
+                <div><label class="po-lbl" for="cuPhone">Teléfono</label><input id="cuPhone" type="tel" inputmode="numeric" maxlength="10" class="po-inp" placeholder="10 dígitos" autocomplete="off"></div>
+                <div><label class="po-lbl" for="cuEmail">Correo <small>opcional</small></label><input id="cuEmail" type="email" class="po-inp" placeholder="nombre@correo.com" autocomplete="off"></div>
+            </div>
+            <div class="po-box mt-3">
+                <label class="po-check" for="cuCredit">
+                    <input id="cuCredit" type="checkbox" onchange="$id('cuCreditLimit').disabled = !this.checked">
+                    <span class="min-w-0"><span class="block text-[13px] font-semibold">Crédito</span><span class="block text-[11px] text-gray-500">Se lleva hoy y paga después, hasta su límite</span></span>
+                </label>
+                <div class="mt-2.5"><label class="po-lbl" for="cuCreditLimit">Límite de crédito</label><input id="cuCreditLimit" type="number" min="0" step="100" class="po-inp" placeholder="0.00" disabled></div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3 mt-3">
+                <div><label class="po-lbl" for="cuCardType">Tarjeta de lealtad</label><select id="cuCardType" class="po-inp"></select></div>
+                <div><label class="po-lbl" for="cuCardNumber">Número de tarjeta <small>opcional</small></label><input id="cuCardNumber" type="text" class="po-inp" placeholder="Folio impreso" autocomplete="off"></div>
+            </div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalCustomer')">Cancelar</button>
+            <button type="button" class="po-btn po-btn-main" onclick="saveCustomer()"><i data-lucide="check"></i><span>Guardar cliente</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: lista de precios -->
+<div id="modalPrecios" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[720px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-sky"><i data-lucide="tag"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">Lista de precios</p><p class="po-dialog-sub">Precio, existencia y código de cada producto</p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalPrecios')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="px-[16px] pt-3 shrink-0">
+            <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                <input id="prSearch" type="text" class="po-inp pl-9" placeholder="Buscar producto, SKU o código" autocomplete="off" oninput="renderPrecios()">
+            </div>
+        </div>
+        <div class="po-dialog-body"><div id="prList"></div></div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalPrecios')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: vendedor -->
+<div id="modalVendedor" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[480px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-blue"><i data-lucide="user"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">¿Quién atiende?</p><p class="po-dialog-sub">La venta queda a nombre de quien elijas</p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalVendedor')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <div id="sellerList" class="grid sm:grid-cols-2 gap-1.5"></div>
+            <div class="po-note t-gray mt-3"><i data-lucide="info"></i><span><code>seller_id</code> no existe en fayxzvov_pos: el vendedor elegido solo vive en esta demo.</span></div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalVendedor')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: descuento -->
+<div id="modalDescuento" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[520px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-amber"><i data-lucide="percent"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">Descuento</p><p id="discTarget" class="po-dialog-sub truncate"></p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalDescuento')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <div class="flex items-end gap-2">
+                <div id="segDiscType" class="po-seg shrink-0">
+                    <button type="button" data-v="pct" onclick="setDiscType('pct')">%</button>
+                    <button type="button" data-v="amt" onclick="setDiscType('amt')">$</button>
+                </div>
+                <div class="flex-1 min-w-0"><label class="po-lbl" for="discValue">Valor</label><input id="discValue" type="number" min="0" step="any" class="po-inp font-bold" placeholder="0" oninput="calcDiscount()" onkeydown="onEnter(event, applyDiscount)"></div>
+            </div>
+            <div id="discQuick" class="flex flex-wrap gap-1.5 mt-2"></div>
+            <p class="po-sec mt-3 mb-1.5">Motivo</p>
+            <div id="discReasons" class="grid grid-cols-2 gap-1.5"></div>
+            <div class="mt-3"><label class="po-lbl" for="discNote">Comentario <small>opcional</small></label><input id="discNote" type="text" class="po-inp" placeholder="Ej. cliente frecuente" autocomplete="off" onkeydown="onEnter(event, applyDiscount)"></div>
+            <div class="po-box mt-3 space-y-1 text-[12px]">
+                <div class="flex justify-between"><span class="text-gray-500">Importe</span><span id="discBase" class="tabular-nums">$0.00</span></div>
+                <div class="flex justify-between text-amber-600"><span>Descuento</span><span id="discCalc" class="tabular-nums">$0.00</span></div>
+                <div class="flex justify-between items-baseline border-t border-gray-200 pt-1.5 mt-1.5"><span class="font-semibold">Queda en</span><span id="discFinal" class="text-[15px] font-bold tabular-nums">$0.00</span></div>
+            </div>
+            <div id="discWarn" class="hidden po-note t-amber mt-3"><i data-lucide="triangle-alert"></i><span id="discWarnTxt"></span></div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" id="btnQuitarDesc" class="po-btn po-btn-ghost danger hidden mr-auto" onclick="removeDiscount()"><i data-lucide="trash-2"></i><span>Quitar descuento</span></button>
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalDescuento')">Cancelar</button>
+            <button type="button" class="po-btn po-btn-main" onclick="applyDiscount()"><i data-lucide="check"></i><span>Aplicar</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: PIN de gerente -->
+<div id="modalPin" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[320px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-amber"><i data-lucide="lock"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">Autorización de gerente</p><p class="po-dialog-sub">Escribe el PIN de 4 dígitos</p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closePin()" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <p id="pinReason" class="text-[12px] text-gray-500 text-center"></p>
+            <div id="pinDots" class="flex justify-center gap-3 my-3"></div>
+            <p id="pinError" class="text-[12px] font-semibold text-rose-600 text-center min-h-[18px]"></p>
+            <div id="pinPad" class="grid grid-cols-3 gap-2 mt-2"></div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost w-full" onclick="closePin()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: producto personalizado (pastel) -->
+<div id="modalCustom" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[640px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-orange"><i data-lucide="cake"></i></span>
+            <div class="flex-1 min-w-0"><p id="customTitle" class="po-dialog-title truncate">Personalizado</p><p id="customSub" class="po-dialog-sub truncate"></p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalCustom')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <div id="customGroups" class="space-y-4"></div>
+            <div class="grid sm:grid-cols-2 gap-3 mt-4">
+                <div class="po-box">
+                    <p class="po-sec mb-1.5">Resumen</p>
+                    <div id="customSummary" class="space-y-1 text-[12px]"></div>
+                    <div class="flex justify-between border-t border-gray-200 pt-1.5 mt-1.5 text-[12px]"><span class="text-gray-500">Sugerido</span><b id="customSuggested" class="tabular-nums">$0.00</b></div>
+                    <div id="rowCustomPortions" class="flex justify-between text-[12px] mt-1"><span class="text-gray-500">Porciones</span><b id="customPortions">0</b></div>
+                </div>
+                <div class="space-y-3">
+                    <div id="wrapCustomPrice"><label class="po-lbl" for="customPrice">Precio de venta</label><input id="customPrice" type="number" min="0" step=".5" class="po-inp font-bold" oninput="S.custom.priceTouched = true; renderCustomTotals()"></div>
+                    <div>
+                        <label class="po-lbl" for="customQty">Cantidad</label>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" class="po-icon-btn po-btn-ghost w-[36px] h-[36px]" onclick="stepInput('customQty', -1); renderCustomTotals()" title="Menos"><i data-lucide="minus"></i></button>
+                            <input id="customQty" type="number" min="1" value="1" class="po-inp text-center font-bold" oninput="renderCustomTotals()">
+                            <button type="button" class="po-icon-btn po-btn-ghost w-[36px] h-[36px]" onclick="stepInput('customQty', 1); renderCustomTotals()" title="Más"><i data-lucide="plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3"><label class="po-lbl" for="customDedication">Dedicatoria <small>opcional</small></label><input id="customDedication" type="text" class="po-inp" placeholder="Ej. ¡Feliz cumpleaños, Ana!" autocomplete="off"></div>
+            <div class="mt-3"><label class="po-lbl" for="customDetails">Detalles <small>opcional</small></label><textarea id="customDetails" class="po-inp" rows="2" placeholder="Colores, decoración, alergias"></textarea></div>
+            <div class="mt-3">
+                <p class="po-lbl">Fotos de referencia</p>
+                <button type="button" class="po-btn po-btn-ghost sm" onclick="this.nextElementSibling.click()"><i data-lucide="image-plus"></i><span>Agregar fotos</span></button>
+                <input type="file" multiple accept="image/*" class="hidden" onchange="addImages(this, 'custom')">
+                <div id="customImages" class="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-2 empty:hidden"></div>
+            </div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalCustom')">Cancelar</button>
+            <button type="button" class="po-btn po-btn-ok" onclick="addCustomToCart()"><i data-lucide="plus"></i><span>Agregar · <span id="customBtnTotal">$0.00</span></span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: cobro -->
+<div id="modalCobro" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[560px]">
+        <div id="cobroHead" class="po-dialog-head">
+            <span class="po-m-ico t-green"><i data-lucide="hand-coins"></i></span>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 min-w-0"><p id="cobroTitle" class="po-dialog-title truncate">Registrar venta</p><span id="cobroModeChip" class="po-chip t-blue">Venta</span></div>
+                <p class="po-dialog-sub truncate"><span id="modalFolio"></span> · <span id="modalCliente"></span></p>
+            </div>
+            <button type="button" class="po-icon-btn sm" onclick="cobroEsc()" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div id="cobro_pay" class="po-dialog-body">
+            <div class="text-center">
+                <p id="cobroTotalLbl" class="po-lbl">Total a cobrar</p>
+                <p id="cobroTotal" class="text-[30px] font-bold tabular-nums leading-tight">$0.00</p>
+                <p id="cobroTotalSub" class="text-[12px] text-gray-500"></p>
+            </div>
+            <div id="tipWrap" class="mt-3">
+                <p class="po-sec mb-1.5">Propina</p>
+                <div id="tipChips" class="flex flex-wrap gap-1.5"></div>
+                <div id="tipCustomWrap" class="hidden mt-2"><input id="tipCustom" type="number" min="0" step="any" class="po-inp" placeholder="Propina en pesos" oninput="setTip('custom', this.value)"></div>
+            </div>
+            <div id="goalWrap" class="hidden mt-3">
+                <p class="po-sec mb-1.5">¿Cuánto cobra hoy?</p>
+                <div id="goalChips" class="grid grid-cols-3 gap-1.5"></div>
+            </div>
+            <div id="cobro_simple" class="mt-3">
+                <div id="cashBlock">
+                    <label class="po-lbl" for="cashInput">Efectivo recibido</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[22px] font-bold text-gray-400 pointer-events-none">$</span>
+                        <input id="cashInput" type="number" min="0" step="any" inputmode="decimal" class="po-inp po-inp-xl tabular-nums" placeholder="0.00" oninput="onCashInput(this.value)">
+                    </div>
+                    <div id="cashBills" class="grid grid-cols-3 gap-2 mt-2"></div>
+                </div>
+                <p id="cobroStatus" class="text-[12px] font-semibold mt-2 text-gray-500"></p>
+                <div id="cobroRows" class="flex flex-col gap-1.5 mt-3"></div>
+            </div>
+            <div id="cobro_multi" class="hidden mt-3">
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                    <p class="po-sec">Métodos de pago</p>
+                    <button type="button" id="btnToggleAllMethods" class="text-[11px] font-semibold text-blue-600 hover:underline" onclick="toggleAllMethods()">Ver todos</button>
+                </div>
+                <div id="multiMethods" class="flex flex-col gap-1.5"></div>
+                <div class="mt-2.5">
+                    <label id="boxCredito" class="po-check po-box" for="chkCredito">
+                        <input id="chkCredito" type="checkbox" onchange="S.cobro.credit = this.checked; renderCobroState()">
+                        <span class="min-w-0"><span id="lblCreditoTxt" class="block text-[13px] font-semibold">Dejar el resto a crédito</span><span id="lblCreditoInfo" class="block text-[11px] text-gray-500"></span></span>
+                    </label>
+                </div>
+                <div id="multiSummary" class="grid grid-cols-3 gap-2 mt-2.5"></div>
+                <div id="lblCobroError" class="hidden po-note t-red mt-2.5"></div>
+            </div>
+            <div id="cobroPoints" class="hidden po-note t-purple mt-3"></div>
+        </div>
+        <div id="cobroFoot" class="po-dialog-foot">
+            <button type="button" id="btnCobroBack" class="po-btn po-btn-ghost lg" onclick="cobroBack()">Cancelar</button>
+            <button type="button" id="btnCobrar" class="po-btn po-btn-ok lg flex-1" onclick="cobroPrimary()"><span>Cobrar</span><span class="po-kbd">Enter</span></button>
+        </div>
+        <div id="cobro_done" class="hidden po-dialog-body text-center relative">
+            <button type="button" class="po-icon-btn sm absolute top-3 right-3" onclick="closeCobro()" title="Cerrar"><i data-lucide="x"></i></button>
+            <div class="pt-2"><span id="doneIcon" class="po-done-ico t-green"><i data-lucide="circle-check"></i></span></div>
+            <p id="doneTitle" class="mt-3 text-[18px] font-bold"></p>
+            <p id="doneFolio" class="text-[12px] font-semibold text-gray-500"></p>
+            <p id="doneSub" class="mt-1 text-[12px] text-gray-500"></p>
+            <div id="doneChangeWrap" class="hidden po-box t-green mt-3"><p class="po-lbl">Cambio</p><p id="doneChange" class="text-[28px] font-bold tabular-nums leading-tight">$0.00</p></div>
+            <div id="doneLines" class="po-box mt-3 text-left text-[12px] space-y-1"></div>
+            <div class="grid grid-cols-2 gap-2 mt-3">
+                <button type="button" id="btnDoneWa" class="po-btn po-btn-ghost" onclick="sendWhatsApp(S.done.sale.id)"><i data-lucide="message-circle"></i><span>WhatsApp</span></button>
+                <button type="button" id="btnDonePrint" class="po-btn po-btn-ghost" onclick="openImprimirModal(S.done.sale.id)"><i data-lucide="printer"></i><span>Imprimir</span></button>
+            </div>
+            <button type="button" id="btnDoneNew" class="po-btn po-btn-main lg w-full mt-2" onclick="doneNew()"><i data-lucide="plus"></i><span>Nueva venta</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: vista de impresión -->
+<div id="modalImprimir" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[420px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-gray"><i data-lucide="printer"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">Vista de impresión</p><p id="printSub" class="po-dialog-sub truncate"></p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalImprimir')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body po-print-body"><div id="ticketPaper" class="po-paper"></div></div>
+        <div class="po-dialog-foot">
+            <button type="button" id="btnPrintWa" class="po-btn po-btn-ghost mr-auto" onclick="sendWhatsApp(S.printSaleId)"><i data-lucide="message-circle"></i><span>WhatsApp</span></button>
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalImprimir')">Cerrar</button>
+            <button type="button" class="po-btn po-btn-main" onclick="window.print()"><i data-lucide="printer"></i><span>Imprimir</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: abrir turno -->
+<div id="modalAbrirTurno" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[440px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-green"><i data-lucide="door-open"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">Abrir turno</p><p class="po-dialog-sub">Cuenta el efectivo con el que arranca la caja</p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalAbrirTurno')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <div class="po-box grid grid-cols-3 gap-2">
+                <div class="min-w-0"><p class="po-lbl">Cajero</p><p id="otUser" class="text-[13px] font-semibold truncate"></p></div>
+                <div class="min-w-0"><p class="po-lbl">Hora</p><p id="otTime" class="text-[13px] font-semibold truncate"></p></div>
+                <div class="min-w-0"><p class="po-lbl">Sucursal</p><p id="otBranch" class="text-[13px] font-semibold truncate"></p></div>
+            </div>
+            <div class="mt-3">
+                <label class="po-lbl" for="otCash">Fondo de caja</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[22px] font-bold text-gray-400 pointer-events-none">$</span>
+                    <input id="otCash" type="number" min="0" step="any" inputmode="decimal" class="po-inp po-inp-xl tabular-nums" placeholder="0.00" onkeydown="onEnter(event, confirmAbrirTurno)">
+                </div>
+                <div id="otQuick" class="grid grid-cols-4 gap-1.5 mt-2"></div>
+            </div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalAbrirTurno')">Cancelar</button>
+            <button type="button" class="po-btn po-btn-ok" onclick="confirmAbrirTurno()"><i data-lucide="door-open"></i><span>Abrir turno</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: entrada o salida de efectivo -->
+<div id="modalMovCaja" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[460px]">
+        <div class="po-dialog-head">
+            <span id="mcIcon" class="po-m-ico t-green"><i data-lucide="arrow-down-to-line"></i></span>
+            <div class="flex-1 min-w-0"><p id="mcTitle" class="po-dialog-title">Movimiento de caja</p><p class="po-dialog-sub">Queda en la bitácora del turno</p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalMovCaja')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <div id="segMov" class="po-seg w-full">
+                <button type="button" data-v="in" onclick="setMovType('in')"><i data-lucide="arrow-down-to-line"></i><span>Entrada</span></button>
+                <button type="button" data-v="out" onclick="setMovType('out')"><i data-lucide="arrow-up-from-line"></i><span>Salida</span></button>
+            </div>
+            <div class="grid grid-cols-[120px_minmax(0,1fr)] gap-2 mt-3">
+                <div><label class="po-lbl" for="mcAmount">Importe</label><input id="mcAmount" type="number" min="0" step="any" class="po-inp font-bold" placeholder="0.00" onkeydown="onEnter(event, confirmMovCaja)"></div>
+                <div><label class="po-lbl" for="mcConcept">Concepto</label><input id="mcConcept" type="text" class="po-inp" placeholder="Ej. pago a proveedor" autocomplete="off" onkeydown="onEnter(event, confirmMovCaja)"></div>
+            </div>
+            <div id="mcQuick" class="flex flex-wrap gap-1.5 mt-2"></div>
+            <p class="po-sec mt-4 mb-1.5">Movimientos del turno</p>
+            <div id="mcList"></div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalMovCaja')">Cancelar</button>
+            <button type="button" class="po-btn po-btn-main" onclick="confirmMovCaja()"><i data-lucide="check"></i><span>Registrar</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: corte X / cerrar turno Z -->
+<div id="modalCorte" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[640px]">
+        <div class="po-dialog-head">
+            <span id="corteIcon" class="po-m-ico t-blue"><i data-lucide="receipt-text"></i></span>
+            <div class="flex-1 min-w-0"><p id="corteTitle" class="po-dialog-title">Corte</p><p id="corteSub" class="po-dialog-sub"></p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalCorte')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <div id="corteKpis" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+            <div class="grid md:grid-cols-2 gap-3 mt-3">
+                <div class="min-w-0"><p class="po-sec mb-1.5">Formas de pago</p><div id="cortePayments"></div></div>
+                <div class="min-w-0"><p class="po-sec mb-1.5">Por estado</p><div id="corteStatus"></div></div>
+            </div>
+            <p class="po-sec mt-3 mb-1.5">Efectivo en caja</p>
+            <div id="corteCash"></div>
+            <div id="corteCountWrap" class="po-box mt-3 grid grid-cols-2 gap-3">
+                <div><label class="po-lbl" for="corteCounted">Efectivo contado</label><input id="corteCounted" type="number" min="0" step="any" class="po-inp font-bold" placeholder="0.00" oninput="calcCorteDiff()" onkeydown="if (S.corteMode === 'z') onEnter(event, confirmCerrarTurno)"></div>
+                <div><p class="po-lbl">Diferencia</p><div class="h-[36px] flex items-center"><p id="corteDiff" class="text-[15px] font-bold text-gray-400">—</p></div></div>
+            </div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost mr-auto" onclick="printCorte()"><i data-lucide="printer"></i><span>Imprimir</span></button>
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalCorte')">Cerrar</button>
+            <button type="button" id="btnCerrarTurno" class="po-btn po-btn-danger hidden"><i data-lucide="lock"></i><span>Cerrar turno Z</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: cierre del día -->
+<div id="modalCierre" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[720px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-purple"><i data-lucide="calendar-check"></i></span>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 min-w-0"><p class="po-dialog-title">Cierre del día</p><span id="cierreStatusChip" class="po-chip t-gray">Abierto</span></div>
+                <p id="cierreSub" class="po-dialog-sub"></p>
+            </div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalCierre')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <div id="cierreWarn" class="po-note t-amber hidden mb-3"></div>
+            <div id="cierreKpis" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+            <div class="grid md:grid-cols-2 gap-3 mt-3">
+                <div class="min-w-0"><p class="po-sec mb-1.5">Formas de pago</p><div id="cierrePayments"></div></div>
+                <div class="min-w-0"><p class="po-sec mb-1.5">Importes</p><div id="cierreAmounts"></div></div>
+            </div>
+            <p class="po-sec mt-3 mb-1.5">Por estado</p>
+            <div id="cierreStatus"></div>
+            <p class="po-sec mt-3 mb-1.5">Turnos del día</p>
+            <div id="cierreTurns"></div>
+            <div id="cierreReopenInfo" class="hidden po-note t-purple mt-3"></div>
+            <div class="mt-3"><label class="po-lbl" for="cierreNote">Nota del cierre <small>opcional</small></label><textarea id="cierreNote" class="po-inp" rows="2" placeholder="Ej. faltante justificado, incidencia del día"></textarea></div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" id="btnReabrirDia" class="po-btn po-btn-ghost hidden mr-auto" onclick="reopenDay()"><i data-lucide="lock-open"></i><span>Reabrir día</span></button>
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalCierre')">Cancelar</button>
+            <button type="button" id="btnCerrarDia" class="po-btn po-btn-main" onclick="confirmCierreDia()"><i data-lucide="calendar-check"></i><span>Cerrar día</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: cancelar venta -->
+<div id="modalCancel" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[480px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-red"><i data-lucide="ban"></i></span>
+            <div class="flex-1 min-w-0"><p class="po-dialog-title">Cancelar venta</p><p id="cancelSub" class="po-dialog-sub truncate"></p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalCancel')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <label class="po-lbl" for="cancelReason">Motivo</label>
+            <textarea id="cancelReason" class="po-inp" rows="2" placeholder="¿Por qué se cancela?"></textarea>
+            <div id="cancelQuick" class="flex flex-wrap gap-1.5 mt-2"></div>
+            <div id="wrapCancelRefund" class="po-box mt-3">
+                <label class="po-check" for="cancelRefund">
+                    <input id="cancelRefund" type="checkbox" checked>
+                    <span class="min-w-0"><span class="block text-[13px] font-semibold">Devolver lo pagado</span><span id="cancelRefundInfo" class="block text-[11px] text-gray-500"></span></span>
+                </label>
+            </div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalCancel')">Volver</button>
+            <button type="button" class="po-btn po-btn-danger" onclick="confirmCancelSale()"><i data-lucide="ban"></i><span>Cancelar venta</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: abono a pedido -->
+<div id="modalAbono" class="po-modal" role="dialog" aria-modal="true">
+    <div class="po-dialog max-w-[480px]">
+        <div class="po-dialog-head">
+            <span class="po-m-ico t-green"><i data-lucide="hand-coins"></i></span>
+            <div class="flex-1 min-w-0"><p id="abTitle" class="po-dialog-title truncate">Abonar</p><p id="abSub" class="po-dialog-sub truncate"></p></div>
+            <button type="button" class="po-icon-btn sm" onclick="closeModal('modalAbono')" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="po-dialog-body">
+            <div class="po-box flex items-center justify-between gap-3"><span class="text-[12px] font-semibold text-gray-500">Saldo pendiente</span><span id="abSaldo" class="text-[20px] font-bold tabular-nums text-orange-600">$0.00</span></div>
+            <div id="wrapAbonoDeliver" class="mt-3">
+                <label class="po-check po-box" for="abDeliver">
+                    <input id="abDeliver" type="checkbox">
+                    <span class="min-w-0"><span class="block text-[13px] font-semibold">Entregar al liquidar</span><span class="block text-[11px] text-gray-500">Si el abono cubre el saldo, el pedido queda entregado</span></span>
+                </label>
+            </div>
+            <div class="mt-3">
+                <label class="po-lbl" for="abAmount">Importe del abono</label>
+                <div class="flex gap-2">
+                    <input id="abAmount" type="number" min="0" step="any" class="po-inp po-inp-lg font-bold" placeholder="0.00" oninput="calcAbono()" onkeydown="onEnter(event, confirmAbono)">
+                    <button type="button" class="po-btn po-btn-ghost h-[40px]" onclick="fillAbonoTotal()">Todo</button>
+                </div>
+            </div>
+            <p class="po-sec mt-3 mb-1.5">Forma de pago</p>
+            <div id="abMethods" class="grid grid-cols-3 gap-1.5"></div>
+            <div id="abCashWrap" class="grid grid-cols-2 gap-3 mt-3">
+                <div><label class="po-lbl" for="abTendered">Recibido</label><input id="abTendered" type="number" min="0" step="any" class="po-inp" placeholder="0.00" oninput="calcAbono()" onkeydown="onEnter(event, confirmAbono)"></div>
+                <div><p class="po-lbl">Cambio</p><div class="h-[36px] flex items-center"><p id="abChange" class="text-[18px] font-bold tabular-nums text-emerald-600">$0.00</p></div></div>
+            </div>
+        </div>
+        <div class="po-dialog-foot">
+            <button type="button" class="po-btn po-btn-ghost" onclick="closeModal('modalAbono')">Cancelar</button>
+            <button type="button" class="po-btn po-btn-ok" onclick="confirmAbono()"><i data-lucide="check"></i><span>Registrar abono</span></button>
+        </div>
+    </div>
+</div>
+
+<script src="js/pos-order-data.js"></script>
+<script src="js/pos-order-venta.js"></script>
+<script src="js/pos-order-cobro.js"></script>
+<script src="js/pos-order-caja.js"></script>
+<script src="js/pos-order-ventas.js"></script>
+<script src="js/pos-order-vistas.js"></script>
+</body>
+</html>

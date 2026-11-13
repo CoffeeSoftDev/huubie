@@ -116,6 +116,38 @@ class Permission extends CRUD {
         echo json_encode($obj->{$opc}());
     }
 
+    // ¿Puede hacer esa accion ('show', 'create', 'update', 'cancel', 'delete', 'print') en la seccion?
+    static function can($sectionCode, $actionCode) {
+        return in_array($actionCode, self::actions($sectionCode), true);
+    }
+
+    // Los codes de las acciones concedidas en la seccion, en la sucursal activa.
+    // root trae todas las que la seccion tiene dadas de alta.
+    static function actions($sectionCode) {
+        $userId = Session::user();
+        if ($userId === null || $sectionCode === '') return [];
+
+        $sql = self::db()->_Read("
+            SELECT DISTINCT tp.code
+            FROM sections s
+            INNER JOIN modules m           ON m.id = s.module_id AND m.is_active = 1
+            INNER JOIN permissions p       ON p.section_id = s.id AND p.is_active = 1
+            INNER JOIN type_permissions tp ON tp.id = p.type_permission_id AND tp.is_active = 1
+            WHERE s.code = ?
+                AND s.is_active = 1
+                AND (? = 1 OR EXISTS (
+                        SELECT 1
+                        FROM users_braches ub
+                        INNER JOIN roles r              ON r.id = ub.role_id AND r.is_active = 1
+                        INNER JOIN permissions_roles pr ON pr.role_id = r.id
+                        WHERE ub.user_id = ? AND ub.branch_id = ?
+                            AND pr.permission_id = p.id
+                    ))
+        ", [$sectionCode, self::isRoot() ? 1 : 0, $userId, (int) ($_SESSION['branch_id'] ?? 0)]);
+
+        return is_array($sql) ? array_column($sql, 'code') : [];
+    }
+
     // ¿El rol del usuario en la sucursal activa tiene alguna accion en la seccion?
     // Espera dos placeholders: user_id y branch_id.
     private static function grantedTo($alias) {

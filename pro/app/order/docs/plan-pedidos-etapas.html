@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan por etapas · Pedidos en Huubie PRO</title>
+<style>
+/* @piel plantilla-plano */
+:root{
+  color-scheme: light dark;
+  --bp-ground:    light-dark(#F1F3F6, #0C1116);
+  --bp-surface:   light-dark(#FFFFFF, #141B21);
+  --bp-surface-2: light-dark(#F5F7F9, #1B242B);
+  --bp-line:      light-dark(#DDE3E8, #2A353D);
+  --bp-line-soft: light-dark(#E9EDF1, #212A31);
+  --bp-ink:       light-dark(#0F1A21, #E4EAEE);
+  --bp-ink-soft:  light-dark(#4A5A64, #A8B7C0);
+  --bp-ink-dim:   light-dark(#6E7F8A, #7E8F99);
+  --bp-ac:        light-dark(#0B6E77, #4FB8C2);
+  --bp-ac-soft:   light-dark(#E0EFF0, #12343A);
+  --bp-read:      light-dark(#1D4ED8, #93C5FD);
+  --bp-write:     light-dark(#A15C08, #FCD34D);
+  --bp-danger:    light-dark(#B3261E, #FCA5A5);
+  --bp-ui:   "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{
+  background:var(--bp-ground); color:var(--bp-ink);
+  font-family:var(--bp-ui); font-size:15px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{ max-width:1000px; margin:0 auto; padding:0 22px 80px }
+
+/* — Cajetín — */
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:26px;
+  display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,44px);
+  line-height:1.08; letter-spacing:-.015em; text-wrap:balance; max-width:20ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55;
+  color:var(--bp-ink-soft); max-width:62ch; text-wrap:pretty }
+.meta{ display:flex; flex-wrap:wrap; gap:6px 26px; font-family:var(--bp-mono);
+  font-size:11.5px; color:var(--bp-ink-dim) }
+.meta b{ color:var(--bp-ink-soft); font-weight:600 }
+
+/* — Cifras — */
+.tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px;
+  margin-bottom:44px }
+.tile{ border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface);
+  padding:14px 16px }
+.tile b{ display:block; font-family:var(--bp-serif); font-size:26px; line-height:1;
+  color:var(--bp-ink); font-variant-numeric:tabular-nums }
+.tile small{ display:block; margin-top:5px; font-size:11.5px; color:var(--bp-ink-dim) }
+
+/* — Secciones — */
+section{ display:flex; flex-direction:column; gap:16px; margin-bottom:56px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:25px; line-height:1.2;
+  letter-spacing:-.01em; text-wrap:balance; display:flex; align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em;
+  color:var(--bp-ac); flex:none; transform:translateY(-2px) }
+h3{ font-size:14.5px; font-weight:650; margin-top:6px }
+.intro{ color:var(--bp-ink-soft); max-width:68ch; text-wrap:pretty }
+.foot{ font-size:12.5px; color:var(--bp-ink-dim) }
+code,.mono{ font-family:var(--bp-mono); font-size:.875em }
+code{ background:var(--bp-surface-2); border:1px solid var(--bp-line-soft);
+  border-radius:4px; padding:.08em .34em }
+figcaption{ font-size:13px; color:var(--bp-ink-dim); line-height:1.55;
+  border-top:1px solid var(--bp-line-soft); padding-top:11px; text-wrap:pretty }
+figcaption b{ color:var(--bp-ink-soft) }
+
+/* — Tablas: nunca se desplazan salvo dentro de su contenedor — */
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px;
+  background:var(--bp-surface) }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px }
+th,td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft);
+  vertical-align:top }
+thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--bp-ink-dim); font-weight:500;
+  background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line); white-space:nowrap }
+tbody tr:last-child td{ border-bottom:0 }
+.chip{ display:inline-block; font-family:var(--bp-mono); font-size:9.5px;
+  letter-spacing:.05em; text-transform:uppercase; padding:2px 7px; border-radius:99px;
+  border:1px solid currentColor; margin-right:5px }
+.chip.read{ color:var(--bp-read) } .chip.write{ color:var(--bp-write) }
+.chip.danger{ color:var(--bp-danger) }
+
+/* — Vocabulario y notas — */
+.voc{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px }
+.voc > div{ border:1px solid var(--bp-line); border-radius:10px; padding:13px 15px;
+  background:var(--bp-surface) }
+dt{ font-weight:650; font-size:13.5px; margin-bottom:4px }
+dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
+.note{ border-left:2px solid var(--bp-write); background:var(--bp-surface);
+  border-radius:0 8px 8px 0; padding:14px 18px; display:flex; flex-direction:column;
+  gap:9px; font-size:13.5px; color:var(--bp-ink-soft) }
+.check{ padding-left:20px; display:flex; flex-direction:column; gap:6px;
+  color:var(--bp-ink-soft); font-size:13.5px }
+
+/* — Pie — */
+.src-files{ border-top:1px solid var(--bp-line); padding-top:18px; display:flex;
+  flex-wrap:wrap; gap:8px 14px; align-items:baseline; font-size:11.5px;
+  color:var(--bp-ink-dim) }
+.src-files b{ font-family:var(--bp-ui); font-size:12px; color:var(--bp-ink-soft);
+  width:100%; margin-bottom:2px }
+
+/* — La interfaz: el marco solo encuadra; los colores los declara él con los --ui-* — */
+.shot{ margin:0; display:flex; flex-direction:column; gap:9px; min-width:0 }
+.shot-frame{ border:1px solid var(--bp-line); border-radius:12px; overflow:hidden; display:flex;
+  background:var(--ui-bg); color:var(--ui-tx); font:13px/1.45 var(--ui-font,var(--bp-ui)) }
+.shot-frame *{ box-sizing:border-box }
+.shot figcaption{ font:10.5px var(--bp-mono); color:var(--bp-ink-dim); border-top:0; padding-top:0 }
+.shot figcaption code{ color:var(--bp-ink-soft) }
+.sf{ flex:1; min-width:0; display:grid; gap:14px; padding:18px; align-content:start }
+.sf-head{ display:flex; align-items:center; gap:12px; min-width:0 }
+.sf-head h4{ margin:0; font-size:16px; font-weight:650; letter-spacing:-.01em }
+.sf-head small{ display:block; font-size:12px; color:var(--ui-mut) }
+.sf-tile{ flex:none; width:36px; height:36px; border-radius:10px; display:grid; place-items:center;
+  background:var(--ui-ac-tint); color:var(--ui-ac) }
+.sf-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:8px }
+.sf-bar .push{ margin-left:auto }
+.sf-in,.sf-btn{ display:inline-flex; align-items:center; gap:8px; height:36px; padding:0 12px; min-width:0;
+  border:1px solid var(--ui-line); border-radius:8px; background:var(--ui-card); color:var(--ui-tx);
+  font-size:12.5px; white-space:nowrap }
+.sf-in{ min-width:150px }
+.sf-in small,.sf-in em{ font-size:12.5px; font-style:normal; color:var(--ui-mut) }
+.sf-in > .ic:last-child{ margin-left:auto; color:var(--ui-mut) }
+.sf-btn{ font-weight:600 }
+.sf-btn.pri{ background:var(--ui-ac); border-color:var(--ui-ac); color:var(--ui-on-ac) }
+.sf-cards{ display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:12px }
+.sf-card{ display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:2px 12px;
+  padding:14px 16px; border:1px solid var(--ui-line); border-radius:12px; background:var(--ui-card) }
+.sf-card > b,.sf-card > small{ grid-column:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.sf-card b{ font-size:22px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums }
+.sf-card small{ font-size:12px; color:var(--ui-mut) }
+.sf-table{ border:1px solid var(--ui-line); border-radius:12px; background:var(--ui-card); overflow:hidden }
+.sf-tr{ display:grid; grid-template-columns:var(--tpl,repeat(var(--cols,4),minmax(0,1fr))); gap:12px;
+  align-items:center; padding:10px 16px; border-top:1px solid var(--ui-line) }
+.sf-tr:first-child{ border-top:0 }
+.sf-tr.th{ padding:9px 16px; background:var(--ui-bg); font-size:11px; font-weight:600;
+  letter-spacing:.05em; text-transform:uppercase; color:var(--ui-mut) }
+.sf-tr > *{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.sf-who{ display:flex; align-items:center; gap:10px }
+.sf-who small{ display:block; font-size:11.5px; color:var(--ui-mut); overflow:hidden; text-overflow:ellipsis }
+.sf-pill{ display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:99px;
+  font-size:11.5px; font-weight:600; white-space:nowrap; --c:var(--ui-mut); color:var(--c);
+  background:color-mix(in srgb,var(--c) 12%,transparent) }
+.sf-pill::before{ content:""; width:6px; height:6px; border-radius:50%; background:currentColor }
+.sf-pill.ok{ --c:var(--ui-ok,#15803D) } .sf-pill.warn{ --c:var(--ui-warn,#B45309) }
+.sf-pill.er{ --c:var(--ui-er,#B91C1C) } .sf-pill.ac{ --c:var(--ui-ac) }
+.sf-modal{ display:grid; overflow:hidden; border:1px solid var(--ui-line); border-radius:14px;
+  background:var(--ui-card); box-shadow:0 12px 32px rgba(15,23,42,.12) }
+.sf-mh{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--ui-line);
+  font-size:14.5px; font-weight:650 }
+.sf-mh > .ic:last-child{ margin-left:auto; color:var(--ui-mut) }
+.sf-mb{ display:grid; gap:12px; padding:16px 18px }
+.sf-mf{ display:flex; justify-content:flex-end; gap:8px; padding:12px 18px;
+  border-top:1px solid var(--ui-line); background:var(--ui-bg) }
+.sf-fields{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px }
+.sf-fields{ align-items:start }
+.sf-fields label{ display:grid; gap:5px; min-width:0; font-size:12px; font-weight:600; align-content:start }
+.sf-fields label > span{ display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; overflow:hidden;
+  white-space:nowrap; border:1px solid var(--ui-line); border-radius:8px; font-size:13px; font-weight:400 }
+@media (max-width:640px){
+  .wrap{ padding:0 14px 60px }
+  .sf-cards{ grid-auto-flow:row }
+  .sf-fields{ grid-template-columns:1fr }
+}
+.sf .mut{color:var(--ui-mut)}
+.sf-acts{margin-left:auto;display:flex;gap:8px}
+.sf-card .sf-tile{grid-row:1 / 3;grid-column:2}
+.sf-in.grow{flex:1}
+.sf-btn.ghost{background:none;border-color:transparent;color:var(--ui-mut);padding:0 8px}
+.sf-btn.sm{height:30px;padding:0 10px;font-size:12px}
+.sf-tr.sel{background:var(--ui-ac-tint)}
+.sf-tr.off{color:var(--ui-mut)}
+.sf-fields em{font-style:normal;color:var(--ui-mut)}
+.sf-fields .full{grid-column:1 / -1}
+.sf-tabs{display:flex;gap:2px;border-bottom:1px solid var(--ui-line);overflow:hidden}
+.sf-tabs>span{display:inline-flex;align-items:center;gap:6px;padding:9px 12px;margin-bottom:-1px;
+  border-bottom:2px solid transparent;color:var(--ui-mut);white-space:nowrap}
+.sf-tabs>.sel{color:var(--ui-ac);border-color:var(--ui-ac);font-weight:600}
+.sf-split{display:grid;grid-template-columns:var(--split,270px minmax(0,1fr));gap:14px;align-items:start}
+.sf-panel{display:grid;gap:12px;align-content:start;min-width:0;padding:14px;
+  border:1px solid var(--ui-line);border-radius:12px;background:var(--ui-card)}
+.sf-label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ui-mut)}
+.sf-av{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+  font-size:11px;font-weight:700;background:var(--ui-ac-tint);color:var(--ui-ac)}
+.sf-list{display:grid;gap:8px;align-content:start}
+.sf-item{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 12px;
+  border:1px solid var(--ui-line);border-radius:10px;background:var(--ui-card)}
+.sf-item small{display:block;font-size:11.5px;color:var(--ui-mut)}
+.sf-item .push{margin-left:auto}
+.sf-item.sel{border-color:var(--ui-ac);background:var(--ui-ac-tint);box-shadow:inset 3px 0 0 var(--ui-ac)}
+.sf-item.off{opacity:.55}
+.sf-empty{display:grid;justify-items:center;gap:6px;padding:26px 18px;text-align:center;
+  border:1px dashed var(--ui-line);border-radius:12px;color:var(--ui-mut);font-size:12.5px}
+.sf-empty b{color:var(--ui-tx);font-size:13.5px}
+.sf-alert{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-radius:10px;
+  font-size:12.5px;--c:var(--ui-warn,#B45309);color:var(--c);
+  border:1px solid color-mix(in srgb,var(--c) 30%,transparent);background:color-mix(in srgb,var(--c) 8%,transparent)}
+.sf-alert.er{--c:var(--ui-er,#B91C1C)}
+.sf-alert b{display:block;color:var(--ui-tx)}
+.sf .sf-o{display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;
+  margin:0 6px 0 0;padding:0;border:0;border-radius:50%;background:var(--ui-ac);color:var(--ui-on-ac);
+  font-size:10px;font-weight:700;line-height:1;vertical-align:-3px}
+.sf-note{display:block;margin-top:6px;font-size:11.5px;line-height:1.45;color:var(--ui-mut)}
+@media (max-width:720px){ .sf-split{grid-template-columns:1fr} }
+
+/* — Íconos: máscara con el trazo de Lucide, toman el color del texto — */
+.ic{ --i:linear-gradient(transparent,transparent); display:inline-block; flex:none; width:16px; height:16px;
+  background:currentColor; -webkit-mask:var(--i) center / contain no-repeat; mask:var(--i) center / contain no-repeat }
+.sf-tile .ic{ width:18px; height:18px }
+.i-plus{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M12 5v14'/></svg>")}
+.i-x{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 6 6 18M6 6l12 12'/></svg>")}
+.i-chevron-down{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>")}
+.i-search{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>")}
+.i-ellipsis{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='1'/><circle cx='19' cy='12' r='1'/><circle cx='5' cy='12' r='1'/></svg>")}
+.i-pencil{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z'/><path d='m15 5 4 4'/></svg>")}
+.i-calendar{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2v4M16 2v4'/><rect width='18' height='18' x='3' y='4' rx='2'/><path d='M3 10h18'/></svg>")}
+.i-menu{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h16M4 6h16M4 18h16'/></svg>")}
+.i-printer{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2'/><path d='M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6'/><rect x='6' y='14' width='12' height='8' rx='1'/></svg>")}
+.i-banknote{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='20' height='12' x='2' y='6' rx='2'/><circle cx='12' cy='12' r='2'/><path d='M6 12h.01M18 12h.01'/></svg>")}
+.i-truck{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2'/><path d='M15 18H9'/><path d='M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14'/><circle cx='17' cy='18' r='2'/><circle cx='7' cy='18' r='2'/></svg>")}
+.i-package{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z'/><path d='M12 22V12M3.3 7l7.703 4.734a2 2 0 0 0 1.994 0L20.7 7M7.5 4.27l9 5.15'/></svg>")}
+.i-check{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>")}
+.i-house{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8'/><path d='M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/></svg>")}
+.i-clipboard-list{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='8' height='4' x='8' y='2' rx='1' ry='1'/><path d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/><path d='M12 11h4M12 16h4M8 11h.01M8 16h.01'/></svg>")}
+.i-book-open{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 7v14'/><path d='M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z'/></svg>")}
+.i-bell{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10.268 21a2 2 0 0 0 3.464 0'/><path d='M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326'/></svg>")}
+.i-cake{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8'/><path d='M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1'/><path d='M2 21h20'/><path d='M7 8v3M12 8v3M17 8v3M7 4h.01M12 4h.01M17 4h.01'/></svg>")}
+.i-image{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='18' height='18' x='3' y='3' rx='2' ry='2'/><circle cx='9' cy='9' r='2'/><path d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/></svg>")}
+
+/* @piel revision */
+:root{ color-scheme: light !important }
+.sf .sf-o.rv,.sf .sf-o.fx{width:auto;min-width:22px;padding:0 6px;border-radius:9px}
+.sf .sf-o.rv{background:var(--bp-write);color:var(--bp-surface)}
+.rv-trips{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.rv-trip{border:1px solid var(--bp-line);border-radius:10px;background:var(--bp-surface);
+  padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.rv-trip header{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rv-trip b{font-family:var(--bp-ui);font-size:14.5px;line-height:1.35}
+.rv-trip p{margin:0;color:var(--bp-ink-soft);font-size:13.5px}
+.rv-notes{display:grid;gap:12px;margin-top:14px}
+.rv-h{border-left:3px solid var(--bp-line);padding:2px 0 2px 12px}
+.rv-h header{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rv-h header b{font-family:var(--bp-ui);font-size:14px}
+.rv-h p{margin:4px 0 0;color:var(--bp-ink-soft);font-size:13.5px;max-width:96ch}
+.wrap{max-width:none;padding-inline:clamp(16px,3vw,40px)}
+.sf.sf-full{padding:0;gap:0}
+.sf-box{flex:1;display:flex;flex-wrap:wrap;min-width:0;background:var(--ui-card);overflow:hidden}
+.sf-col{flex:1 1 560px;min-width:0;display:flex;flex-direction:column}
+.sf-band{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;
+  border-bottom:1px solid var(--ui-line);background:var(--ui-card)}
+.sf-band > *{flex:1;min-width:0}
+.sf-band.alt{background:var(--ui-bg)}
+.sf-band.grow{flex:1;flex-direction:column;flex-wrap:nowrap;align-items:stretch;border-bottom:0}
+.sf-band > .sf-tabs{border-bottom:0}
+.sf-band .sf-cards{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.sf-band .sf-card small,.sf-band .sf-tr > *{white-space:normal;line-height:1.25}
+.sf-side{flex:1 0 clamp(280px,30%,var(--side,340px));max-width:var(--side,340px);display:flex;
+  flex-direction:column;border-left:1px solid var(--ui-line);background:var(--ui-card)}
+.sf-side > .sf-empty{flex:1;align-content:center;border:0;border-radius:0}
+.sf-veil{flex:1;display:grid;place-items:center;padding:32px 16px;
+  background:color-mix(in srgb,var(--ui-tx) 40%,var(--ui-bg))}
+@media (max-width:720px){ .sf-box{flex-direction:column}
+  .sf-side{width:auto;max-width:none;border-left:0;border-top:1px solid var(--ui-line)} }
+.rv-code{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;
+  padding:0 7px;border-radius:999px;background:var(--bp-write);color:var(--bp-surface);
+  font:700 10.5px var(--bp-mono)}
+.rv-p{font:600 10.5px var(--bp-mono);text-transform:uppercase;letter-spacing:.06em;
+  padding:1px 7px;border-radius:4px;border:1px solid currentColor}
+.rv-p.alta{color:var(--bp-danger)} .rv-p.media{color:var(--bp-write)}
+.rv-p.baja{color:var(--bp-ink-dim)} .rv-p.preg{color:var(--bp-ac)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- Cajetín -->
+  <header class="head">
+    <p class="eyebrow">Huubie PRO · Pedidos · Plan por etapas</p>
+    <h1>Pedidos en Huubie PRO, <em>por etapas</em></h1>
+    <p class="lede">
+      Plan para llevar los pedidos de la pastelería de alpha a Huubie PRO, sobre la base nueva del
+      punto de venta. Son ocho etapas y cada una deja algo que ya se puede usar. Nada está construido:
+      este documento sirve para decidir el orden y destrabar lo que falta.
+    </p>
+    <div class="meta">
+      <span><b>Fecha</b> 12/11/2026</span>
+      <span><b>Origen</b> alpha/pedidos · base fayxzvov_reginas</span>
+      <span><b>Destino</b> pro/app/order · base fayxzvov_pos</span>
+      <span><b>Referencia</b> pro/app/order/templates/pos-order.html</span>
+      <span><b>Estado</b> plan; ninguna etapa construida</span>
+    </div>
+  </header>
+
+  <div class="tiles">
+    <div class="tile"><b>8</b><small>etapas, de la 0 a la 7</small></div>
+    <div class="tile"><b>1,536</b><small>pedidos de Reginas ya cargados en la base local</small></div>
+    <div class="tile"><b>$1,331,478.39</b><small>cobrados en 1,968 pagos (base local)</small></div>
+    <div class="tile"><b>3</b><small>decisiones aprobadas el 12/11/2026</small></div>
+    <div class="tile"><b>10</b><small>decisiones abiertas, cada una con propuesta</small></div>
+  </div>
+
+  <!-- 01 · Decisiones -->
+  <section>
+    <h2><span class="num">01</span> Lo que ya se decidió</h2>
+    <p class="intro">Respuestas del 12/11/2026 a las ocho decisiones del análisis, más una corrección: la tabla de pedidos se conserva.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>#</th><th>Decisión</th><th>Respuesta</th><th>Qué significa para el plan</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Alcance</td><td><span class="chip read">Aprobada</span> «Adelante pedidos»</td><td>Primero Pedidos. Vender en mostrador (POS) va después de la Etapa 7 y reutiliza el cobro y la caja que aquí se construyen.</td></tr>
+          <tr><td>2</td><td>Dónde vive</td><td><span class="chip read">Aprobada</span></td><td>Carpeta <code>pro/app/order/</code>, una página por sección del menú. Se corrige el inicio de quien no es root, que hoy apunta a una carpeta que no existe.</td></tr>
+          <tr><td>3</td><td>Cancelar un pedido con anticipo</td><td><span class="chip read">Aprobada</span> «ok»</td><td>Se permite, con motivo. Quien cancela elige: devolver el dinero o dejarlo como saldo a favor del cliente. Falta decidir dónde se anota la devolución (decisión D).</td></tr>
+          <tr><td>4</td><td>Corregir un pedido pagado o un corte cerrado</td><td><span class="chip write">Sin respuesta</span></td><td>Abierta. Bloquea la Etapa 5. Propuesta en la lámina 07.</td></tr>
+          <tr><td>5</td><td>Entregar un pedido que aún debe</td><td><span class="chip write">Sin respuesta</span></td><td>Abierta. Bloquea la Etapa 4. Propuesta en la lámina 07.</td></tr>
+          <tr><td>6</td><td>Cambios a la estructura de la base</td><td><span class="chip write">Diferida</span> «Aún no lo vemos»</td><td>El plan no agrega tablas ni columnas. Lo que eso deja fuera está marcado en cada etapa.</td></tr>
+          <tr><td>7</td><td>Datos de prueba</td><td><span class="chip read">Hecha</span> «Usa pos local»</td><td>Los pedidos de Reginas ya están en la base local, tal como estaba. Detalle en la lámina 06.</td></tr>
+          <tr><td>8</td><td>Formato de este plan</td><td><span class="chip read">Hecha</span> «Prefiero en html»</td><td>Este archivo. No se publicó en ningún servicio.</td></tr>
+          <tr><td>—</td><td>La lista de pedidos</td><td><span class="chip read">Corrección</span> «La tabla sí consérvala»</td><td>La pantalla principal sigue siendo la tabla de pedidos. El tablero de la plantilla queda, si acaso, como vista alterna (decisión G).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 02 · El plan en una vista -->
+  <section>
+    <h2><span class="num">02</span> El plan en una vista</h2>
+    <p class="intro">Cada etapa termina en algo que se puede abrir y probar. El orden sigue el camino de un pedido: verlo, capturarlo, cobrarlo, entregarlo y cerrarlo en caja.</p>
+    <p><span class="chip read">0 · Cimientos</span> → <span class="chip read">1 · Ver</span> → <span class="chip write">2 · Capturar</span> → <span class="chip write">3 · Cobrar</span> → <span class="chip write">4 · Producir y entregar</span> → <span class="chip danger">5 · Caja</span> → <span class="chip read">6 · Clientes, avisos y reportes</span> → <span class="chip danger">7 · Producción</span></p>
+    <div class="rv-trips">
+      <article class="rv-trip">
+        <header><span class="rv-code">E0</span><span class="rv-p preg">Lista para arrancar</span></header>
+        <b>Cimientos</b>
+        <p>«Pedidos» aparece en el menú de PRO y abre una página con el marco de PRO. Permisos por acción y roles de Reginas.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">E1</span><span class="rv-p preg">Lista para arrancar</span></header>
+        <b>Ver pedidos</b>
+        <p>La tabla de pedidos con filtros, buscador y el detalle completo. Solo consulta: no guarda nada.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">E2</span><span class="rv-p preg">Lista para arrancar</span></header>
+        <b>Capturar</b>
+        <p>Pedido nuevo, con pastel personalizado y fotos. Editar y cancelar sin pagos. Queda como cotización.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">E3</span><span class="rv-p media">Espera decisión D</span></header>
+        <b>Cobrar</b>
+        <p>Abrir turno, anticipo, liquidación, pago mixto, cambio, descuento con motivo y ticket. Cancelar con anticipo.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">E4</span><span class="rv-p media">Espera decisión 5</span></header>
+        <b>Producir y entregar</b>
+        <p>Calendario por fecha de entrega, palomear lo producido y marcar la entrega desde la lista o el calendario.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">E5</span><span class="rv-p media">Espera decisiones 4 y A</span></header>
+        <b>Caja</b>
+        <p>Corte de turno con efectivo contado contra esperado, cierre del día y reapertura con motivo.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">E6</span><span class="rv-p baja">Después</span></header>
+        <b>Clientes, avisos y reportes</b>
+        <p>Clientes, crédito, avisos por WhatsApp y reportes. Lealtad al final.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">E7</span><span class="rv-p baja">Al final</span></header>
+        <b>Salida a producción</b>
+        <p>Subir estructura, menú y datos; piloto en una sucursal; alpha en solo lectura; migración final.</p>
+      </article>
+    </div>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Etapa</th><th>Al terminar se puede</th><th>Guarda en la base</th><th>Tamaño</th><th>Depende de</th></tr></thead>
+        <tbody>
+          <tr><td>0 · Cimientos</td><td>Entrar a «Pedidos» desde el menú de PRO</td><td>Solo menú y permisos</td><td>Chica</td><td>Decisión B</td></tr>
+          <tr><td>1 · Ver pedidos</td><td>Buscar y revisar cualquier pedido de Reginas</td><td>Nada</td><td>Mediana</td><td>Etapa 0 · decisiones C y F</td></tr>
+          <tr><td>2 · Capturar</td><td>Tomar un pedido completo y editarlo</td><td>Pedido, líneas, cliente, fotos, bitácora</td><td>Grande</td><td>Etapa 1 · decisión E</td></tr>
+          <tr><td>3 · Cobrar</td><td>Cobrar anticipos y liquidaciones dentro de un turno</td><td>Turno, pagos, estado del pedido</td><td>Grande</td><td>Etapa 2 · decisión D</td></tr>
+          <tr><td>4 · Producir y entregar</td><td>Seguir el pedido hasta que sale de la tienda</td><td>Producido, entregado, bitácora</td><td>Mediana</td><td>Etapa 3 · decisión 5</td></tr>
+          <tr><td>5 · Caja</td><td>Cerrar turno y día con cifras que cuadran</td><td>Corte de turno y cierre del día</td><td>Grande</td><td>Etapa 3 · decisiones 4 y A</td></tr>
+          <tr><td>6 · Clientes, avisos y reportes</td><td>Administrar clientes, avisar y consultar cortes</td><td>Clientes, crédito</td><td>Mediana</td><td>Etapa 5</td></tr>
+          <tr><td>7 · Salida a producción</td><td>Trabajar en PRO con los datos reales</td><td>Todo, en el servidor</td><td>Mediana</td><td>Etapas 0 a 5 · decisión H</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">«Tamaño» es una estimación mía para comparar etapas entre sí; no es un plazo. Después de la Etapa 7: Vender en mostrador (POS), que usa el mismo cobro y la misma caja.</p>
+  </section>
+
+  <!-- 03 · La pantalla de Pedidos -->
+  <section>
+    <h2><span class="num">03</span> La pantalla de Pedidos</h2>
+    <p class="intro">La tabla de pedidos se queda como pantalla principal, con las mismas doce columnas que hoy tiene alpha. Lo que cambia es lo que la revisión del 04/10/2026 encontró confuso.</p>
+
+    <div class="note">
+      <b style="color:var(--bp-ink)">Propuesta de mejora</b>
+      <ol class="check">
+        <li><b>La tabla se queda y el dinero se lee de corrido.</b> Total, Abono y Saldo, en ese orden, siempre con $ y miles; $0.00 en lugar de un guion. Resuelve <span class="rv-code">L9</span></li>
+        <li><b>El filtro dice qué fecha usa.</b> «Fecha de captura» (como hoy, en «Mes actual») o «Fecha de entrega», con el rango escrito en DD/MM/AAAA. Resuelve <span class="rv-code">L2</span> <span class="rv-code">L3</span></li>
+        <li><b>El buscador avisa qué encontró.</b> El folio exacto primero, «15 de N coincidencias» cuando hay más, y respeta el tipo de pedido. Resuelve <span class="rv-code">L7</span> <span class="rv-code">L8</span></li>
+        <li><b>Un solo botón de caja, con su estado.</b> «Abrir turno» cuando no hay turno y «Turno y cierre» cuando sí; al lado, desde qué hora está abierto. Resuelve <span class="rv-code">L4</span> <span class="rv-code">L5</span> <span class="rv-code">N6</span> <span class="rv-code">N7</span></li>
+        <li><b>La sucursal siempre a la vista.</b> Manda la de la barra superior y se repite bajo el título; los avisos la nombran. Resuelve <span class="rv-code">L6</span></li>
+        <li><b>El menú de cada fila ofrece solo lo que se puede hacer.</b> Según el estado y el permiso de quien lo abre. Un Pendiente gana «Cancelar»; «Eliminar» desaparece si hay pagos. Resuelve <span class="rv-code">L15</span> <span class="rv-code">P7</span></li>
+        <li><b>La entrega se dice con palabras.</b> «Recoge en tienda» o «Envío a domicilio»; «En producción» y «Sin entregar» en lugar de «Para producir» y «No entregado». Resuelve <span class="rv-code">L17</span> <span class="rv-code">K3</span> <span class="rv-code">K4</span></li>
+      </ol>
+    </div>
+
+    <h3>Así quedaría con la propuesta</h3>
+    <figure class="shot">
+<div class="shot-frame" style="--ui-bg:#F8FAFC; --ui-card:#FFFFFF; --ui-line:#E2E8F0; --ui-tx:#1F2937; --ui-mut:#64748B; --ui-ac:#C05A40; --ui-ac-tint:#F7E9E4; --ui-on-ac:#FFFFFF; --ui-ok:#15803D; --ui-warn:#B45309; --ui-er:#B91C1C; overflow-x:auto"><div class="sf sf-full" style="min-width:1250px"><div class="sf-box" style="flex-direction:row">
+<div class="sf-band" style="flex:1 1 100%"><div class="sf-bar"><span class="sf-tile" style="width:32px;height:32px;font-weight:700">H</span><i class="ic i-menu" style="color:var(--ui-mut)"></i><span class="sf-in" style="min-width:210px"><b style="font-weight:600">Reginas Guadalupe</b><i class="ic i-chevron-down"></i></span><span class="push" style="display:flex;align-items:center;gap:14px;color:var(--ui-mut)"><i class="ic i-bell"></i><span class="sf-who" style="padding-left:12px;border-left:1px solid var(--ui-line);color:var(--ui-tx);font-size:12px"><span class="sf-av">CR</span><span><b>Carla Ríos</b><small>Cajera</small></span></span></span></div></div>
+<div class="sf-side" style="flex:0 0 76px;max-width:76px;border-left:0;border-top:0;border-right:1px solid var(--ui-line);padding:10px 6px;gap:4px;font-size:10.5px;color:var(--ui-mut)">
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px"><i class="ic i-house" style="width:18px;height:18px"></i>Inicio</span>
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px;background:var(--ui-ac-tint);color:var(--ui-ac);font-weight:600"><i class="ic i-clipboard-list" style="width:18px;height:18px"></i>Pedidos</span>
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px"><i class="ic i-calendar" style="width:18px;height:18px"></i>Calendario</span>
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px"><i class="ic i-book-open" style="width:18px;height:18px"></i>Catálogo</span>
+</div>
+<div class="sf-col" style="background:var(--ui-bg)">
+<div class="sf-band alt" style="border-bottom:0;align-items:flex-end;padding-top:18px">
+<div><div style="display:flex;gap:8px;font-size:12px"><span style="text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:#94A3B8">Huubie</span><span style="color:#CBD5E1">/</span><b style="color:var(--ui-ac)">Pedidos</b></div><div style="font-size:22px;font-weight:700;letter-spacing:-.01em;line-height:1.3">Pedidos</div><div class="mut" style="font-size:12.5px"><span class="sf-o">5</span>Reginas · Reginas Guadalupe</div></div>
+<div class="sf-bar" style="flex:none"><span class="sf-pill ok">Turno abierto desde las 9:02 AM</span><span class="sf-btn"><span class="sf-o">4</span><i class="ic i-banknote"></i>Turno y cierre</span><span class="sf-btn"><i class="ic i-calendar"></i>Calendario</span><span class="sf-btn pri"><i class="ic i-plus"></i>Nuevo pedido</span></div>
+</div>
+<div class="sf-band alt" style="border-bottom:0"><div class="sf-bar"><span class="sf-in" style="min-width:176px"><span class="sf-o">2</span>Fecha de captura<i class="ic i-chevron-down"></i></span><span class="sf-in" style="min-width:270px"><i class="ic i-calendar" style="color:var(--ui-mut)"></i>Mes actual <em>· 01/11/2026 – 30/11/2026</em></span><span class="sf-in"><em>Estado:</em> Todos<i class="ic i-chevron-down"></i></span><span class="sf-in"><em>Tipo:</em> Todos<i class="ic i-chevron-down"></i></span><span class="sf-in grow"><span class="sf-o">3</span><i class="ic i-search" style="color:var(--ui-mut)"></i><em>Buscar folio, cliente o teléfono</em></span></div></div>
+<div class="sf-band alt grow">
+<div class="sf-table" style="flex:none;font-variant-numeric:tabular-nums;--tpl:72px 78px minmax(150px,1fr) 80px 76px 76px 80px 62px 100px 98px 126px 30px">
+<div class="sf-tr th" style="gap:14px"><span>Folio</span><span>Creación</span><span>Cliente</span><span style="text-align:right"><span class="sf-o">1</span>Total</span><span style="text-align:right">Abono</span><span style="text-align:right">Saldo</span><span>Fecha de entrega</span><span>Hora</span><span>Estado</span><span>Entregado</span><span><span class="sf-o">7</span>Entrega</span><span><span class="sf-o" style="margin:0">6</span></span></div>
+<div class="sf-tr" style="gap:14px"><b><span style="display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:var(--ui-ok);vertical-align:2px"></span>P1583</b><span class="mut">12/11/2026</span><span><b>Mariana López</b> <i class="ic i-cake" style="width:13px;height:13px;color:var(--ui-ac);vertical-align:-2px"></i><small class="mut" style="display:block;font-size:11.5px">961 555 0142</small></span><span style="text-align:right">$1,450.00</span><span style="text-align:right;color:var(--ui-ok)">$700.00</span><span style="text-align:right;color:var(--ui-er);font-weight:600">$750.00</span><span>14/11/2026</span><span>4:00 PM</span><span><span class="sf-pill warn">Pendiente</span></span><span class="mut">Sin entregar</span><span><i class="ic i-package" style="width:14px;height:14px;margin-right:5px;color:var(--ui-mut);vertical-align:-2px"></i>Recoge en tienda</span><i class="ic i-ellipsis" style="color:var(--ui-mut)"></i></div>
+<div class="sf-tr" style="gap:14px"><b><span style="display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:var(--ui-ok);vertical-align:2px"></span>P1582</b><span class="mut">12/11/2026</span><span><b>Jorge Ramírez</b><small class="mut" style="display:block;font-size:11.5px">961 555 0117</small></span><span style="text-align:right">$380.00</span><span style="text-align:right;color:var(--ui-ok)">$380.00</span><span style="text-align:right" class="mut">$0.00</span><span>12/11/2026</span><span>6:30 PM</span><span><span class="sf-pill ok">Pagado</span></span><span><span class="sf-pill ok">Entregado</span></span><span><i class="ic i-package" style="width:14px;height:14px;margin-right:5px;color:var(--ui-mut);vertical-align:-2px"></i>Recoge en tienda</span><i class="ic i-ellipsis" style="color:var(--ui-mut)"></i></div>
+<div class="sf-tr" style="gap:14px"><b>P1581</b><span class="mut">11/11/2026</span><span><b>Daniela Cruz</b> <i class="ic i-cake" style="width:13px;height:13px;color:var(--ui-ac);vertical-align:-2px"></i><small class="mut" style="display:block;font-size:11.5px">961 555 0163</small></span><span style="text-align:right">$2,300.00</span><span style="text-align:right;color:var(--ui-ok)">$1,000.00</span><span style="text-align:right;color:var(--ui-er);font-weight:600">$1,300.00</span><span>15/11/2026</span><span>11:00 AM</span><span><span class="sf-pill warn">Pendiente</span></span><span style="color:var(--ui-ac);font-weight:600">En producción</span><span><i class="ic i-truck" style="width:14px;height:14px;margin-right:5px;color:var(--ui-mut);vertical-align:-2px"></i>Envío a domicilio</span><i class="ic i-ellipsis" style="color:var(--ui-mut)"></i></div>
+<div class="sf-tr" style="gap:14px"><b>P1580</b><span class="mut">11/11/2026</span><span><b>Luis Hernández</b><small class="mut" style="display:block;font-size:11.5px">961 555 0128</small></span><span style="text-align:right">$620.00</span><span style="text-align:right" class="mut">$0.00</span><span style="text-align:right;color:var(--ui-er);font-weight:600">$620.00</span><span>16/11/2026</span><span>1:00 PM</span><span><span class="sf-pill" style="--c:#2A55A3">Cotización</span></span><span class="mut">No aplica</span><span><i class="ic i-package" style="width:14px;height:14px;margin-right:5px;color:var(--ui-mut);vertical-align:-2px"></i>Recoge en tienda</span><i class="ic i-ellipsis" style="color:var(--ui-mut)"></i></div>
+<div class="sf-tr" style="gap:14px"><b>P1579</b><span class="mut">10/11/2026</span><span><b>Paola Gómez</b> <i class="ic i-cake" style="width:13px;height:13px;color:var(--ui-ac);vertical-align:-2px"></i><small class="mut" style="display:block;font-size:11.5px">961 555 0171</small></span><span style="text-align:right"><span style="color:var(--ui-ok);font-weight:600">$1,800.00</span><small class="mut" style="display:block;font-size:11px;text-decoration:line-through">$2,000.00</small></span><span style="text-align:right;color:var(--ui-ok)">$1,800.00</span><span style="text-align:right" class="mut">$0.00</span><span>13/11/2026</span><span>5:00 PM</span><span><span class="sf-pill ok">Pagado</span></span><span class="mut">Sin entregar</span><span><i class="ic i-truck" style="width:14px;height:14px;margin-right:5px;color:var(--ui-mut);vertical-align:-2px"></i>Envío a domicilio</span><i class="ic i-ellipsis" style="color:var(--ui-mut)"></i></div>
+<div class="sf-tr off" style="gap:14px"><b>P1578</b><span>10/11/2026</span><span><b>Ricardo Sánchez</b><small style="display:block;font-size:11.5px">961 555 0109</small></span><span style="text-align:right">$450.00</span><span style="text-align:right">$0.00</span><span style="text-align:right">$450.00</span><span>12/11/2026</span><span>10:00 AM</span><span><span class="sf-pill er">Cancelado</span></span><span>No aplica</span><span><i class="ic i-package" style="width:14px;height:14px;margin-right:5px;vertical-align:-2px"></i>Recoge en tienda</span><i class="ic i-ellipsis"></i></div>
+<div class="sf-tr" style="gap:14px"><b>P1577</b><span class="mut">09/11/2026</span><span><b>Fernanda Ruiz</b> <i class="ic i-cake" style="width:13px;height:13px;color:var(--ui-ac);vertical-align:-2px"></i><small class="mut" style="display:block;font-size:11.5px">961 555 0155</small></span><span style="text-align:right">$950.00</span><span style="text-align:right;color:var(--ui-ok)">$500.00</span><span style="text-align:right;color:var(--ui-er);font-weight:600">$450.00</span><span>12/11/2026</span><span>3:00 PM</span><span><span class="sf-pill warn">Pendiente</span></span><span class="mut">Sin entregar</span><span><i class="ic i-package" style="width:14px;height:14px;margin-right:5px;color:var(--ui-mut);vertical-align:-2px"></i>Recoge en tienda</span><i class="ic i-ellipsis" style="color:var(--ui-mut)"></i></div>
+</div>
+<div class="sf-bar" style="flex:none"><span class="mut" style="font-size:12.5px">Mostrando 1 a 10 de 46 pedidos</span><span class="push" style="display:flex;gap:6px"><span class="sf-btn sm">Anterior</span><span class="sf-btn sm pri">1</span><span class="sf-btn sm">2</span><span class="sf-btn sm">3</span><span class="sf-btn sm">4</span><span class="sf-btn sm">5</span><span class="sf-btn sm">Siguiente</span></span></div>
+</div>
+</div>
+</div></div></div>
+<figcaption>Propuesta · Pedidos en PRO, tema Claro — marco calcado de <code>pro/app/catalogo</code> (barra, menú lateral, migas y título) y columnas de <code>listOrders()</code> en alpha · datos inventados; se dibujan 7 de las 10 filas de la página · los números en círculo son los siete cambios de la propuesta · el punto verde marca los pedidos del turno abierto y el pastel, los personalizados</figcaption>
+    </figure>
+
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Tema</th><th>Antes (alpha)</th><th>Después (PRO)</th></tr></thead>
+        <tbody>
+          <tr><td>Columnas</td><td>Folio, Creación, Cliente, Abono, Total, Saldo, Fecha de entrega, Hora, Estado, Entregado, Entrega y menú</td><td>Las mismas doce. Solo cambia el orden del dinero: Total, Abono, Saldo</td></tr>
+          <tr><td>Tema</td><td>Oscuro</td><td>Claro, con acento terracota (el tema por defecto de PRO)</td></tr>
+          <tr><td>Fecha del filtro</td><td>Filtra por fecha de captura sin decirlo claro</td><td>Se elige: fecha de captura o fecha de entrega</td></tr>
+          <tr><td>Buscador</td><td>Trae hasta 15 pedidos y no avisa si hay más</td><td>«15 de N coincidencias», el folio exacto primero</td></tr>
+          <tr><td>Folio</td><td>P1557-04 (número y sucursal de alpha)</td><td>P1557 mientras se decide el sufijo (decisión C). El buscador sigue aceptando P1557-04</td></tr>
+          <tr><td>Menú de un Pendiente</td><td>No ofrece «Cancelar»</td><td>«Cancelar» con motivo; «Eliminar» solo si no tiene pagos</td></tr>
+          <tr><td>Detalle del pedido</td><td>Uno en la lista y otro en el calendario (16 funciones repetidas)</td><td>Uno solo, el mismo en los dos lugares</td></tr>
+          <tr><td>Página</td><td>10 pedidos por página</td><td>Igual</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>El detalle del pedido</h3>
+    <p class="intro">Se abre al tocar el folio, la fecha o el cliente, igual que hoy. Es una sola ventana para la lista y para el calendario. Los botones del pie se encienden conforme llega su etapa.</p>
+    <figure class="shot">
+<div class="shot-frame" style="--ui-bg:#F8FAFC; --ui-card:#FFFFFF; --ui-line:#E2E8F0; --ui-tx:#1F2937; --ui-mut:#64748B; --ui-ac:#C05A40; --ui-ac-tint:#F7E9E4; --ui-on-ac:#FFFFFF; --ui-ok:#15803D; --ui-warn:#B45309; --ui-er:#B91C1C"><div class="sf sf-full"><div class="sf-veil"><div class="sf-modal" style="width:min(100%,780px)">
+<div class="sf-mh"><span>Pedido P1583</span><span class="sf-pill warn">Pendiente</span><span class="mut" style="font-size:12px;font-weight:400">Reginas Guadalupe · capturó Carla Ríos el 12/11/2026 a las 10:12 AM</span><i class="ic i-x"></i></div>
+<div class="sf-mb">
+<div class="sf-fields">
+<label>Cliente<span>Mariana López</span></label>
+<label>Teléfono<span>961 555 0142</span></label>
+<label>Entrega<span><i class="ic i-calendar" style="color:var(--ui-mut)"></i>14/11/2026 · 4:00 PM</span></label>
+<label>Forma de entrega<span><i class="ic i-package" style="color:var(--ui-mut)"></i>Recoge en tienda</span></label>
+</div>
+<div class="sf-split" style="--split:minmax(0,1fr) 250px">
+<div class="sf-list">
+<span class="sf-label">Productos</span>
+<div class="sf-item"><span class="sf-tile"><i class="ic i-cake"></i></span><span style="min-width:0"><b>Pastel personalizado · 30 personas</b><small>Pan de vainilla · relleno de fresa · betún de mantequilla</small><small>Dedicatoria: «Felices 15, Sofi» · 2 fotos de referencia</small></span><span class="push" style="text-align:right;flex:none"><b>$1,200.00</b><small>1 pieza</small></span></div>
+<div class="sf-item"><span class="sf-tile"><i class="ic i-package"></i></span><span style="min-width:0"><b>Galletas decoradas</b><small>Caja de 12</small></span><span class="push" style="text-align:right;flex:none"><b>$250.00</b><small>1 pieza</small></span></div>
+<span class="sf-label" style="margin-top:6px">Bitácora</span>
+<div style="display:grid;gap:5px;font-size:12px;color:var(--ui-mut)"><span><b style="color:var(--ui-tx)">12/11/2026 10:12 AM</b> · Carla Ríos capturó el pedido</span><span><b style="color:var(--ui-tx)">12/11/2026 10:14 AM</b> · Carla Ríos cobró $700.00 en efectivo</span></div>
+</div>
+<div class="sf-panel">
+<span class="sf-label">Cuenta</span>
+<div style="display:grid;gap:6px;font-variant-numeric:tabular-nums"><span style="display:flex;justify-content:space-between"><span class="mut">Total</span><b>$1,450.00</b></span><span style="display:flex;justify-content:space-between"><span class="mut">Pagado</span><b style="color:var(--ui-ok)">$700.00</b></span><span style="display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid var(--ui-line)"><span class="mut">Saldo</span><b style="color:var(--ui-er);font-size:16px">$750.00</b></span></div>
+<span class="sf-label">Pagos</span>
+<div class="sf-item" style="padding:8px 10px"><i class="ic i-banknote" style="color:var(--ui-mut)"></i><span style="min-width:0">Efectivo · anticipo<small>12/11/2026 10:14 AM</small></span><b class="push" style="flex:none">$700.00</b></div>
+</div>
+</div>
+</div>
+<div class="sf-mf"><span class="sf-btn"><i class="ic i-printer"></i>Imprimir</span><span class="sf-btn"><i class="ic i-pencil"></i>Editar</span><span class="sf-btn"><i class="ic i-check"></i>Marcar entregado</span><span class="sf-btn pri"><i class="ic i-banknote"></i>Cobrar $750.00</span></div>
+</div></div></div></div>
+<figcaption>Propuesta · detalle del pedido, a su ancho real · «Imprimir» llega en la Etapa 1, «Editar» en la 2, «Cobrar» en la 3 y «Marcar entregado» en la 4 · datos inventados</figcaption>
+    </figure>
+  </section>
+
+  <!-- 04 · Etapa por etapa -->
+  <section>
+    <h2><span class="num">04</span> Etapa por etapa</h2>
+    <p class="intro">Para cada etapa: qué entrega, qué partes de la base toca, qué reglas de alpha se conservan porque ya probaron que funcionan, qué hallazgos de la revisión del 04/10/2026 resuelve y cómo se sabe que terminó.</p>
+    <p class="foot">Sobre los hallazgos: C1 y L1 ya están corregidos en alpha. Siguen vigentes, comprobados en el código el 11/11/2026: L2 (la lista filtra por fecha de captura) y N8 (el pedido se crea antes de tener productos). También sigue igual, aunque el plano no le dio código propio, que cancelar no pide motivo ni revisa si el pedido ya tiene pagos; lo resuelve la decisión 3. Los demás códigos no se volvieron a revisar; se comprueban al empezar su etapa.</p>
+
+    <h3>Etapa 0 · Cimientos</h3>
+    <div class="tscroll"><table><tbody>
+      <tr><td style="width:190px"><b>Objetivo</b></td><td>Que «Pedidos» exista en el menú de PRO y abra una página con el marco de PRO.</td></tr>
+      <tr><td><b>Entrega</b></td><td>Carpeta <code>pro/app/order/</code> con la misma forma que Catálogo: una página, un controlador base, un modelo contra <code>fayxzvov_pos</code>, su JS y su CSS · la sección <code>pos-pedidos</code> recibe su ruta (migración de menú con su reversa) · el inicio de quien no es root deja de apuntar a <code>app/pedidos/</code>, carpeta que no existe · revisión de permiso por acción con las seis que ya están sembradas: ver, crear, editar, cancelar, eliminar e imprimir · roles de Reginas que faltan (decisión B).</td></tr>
+      <tr><td><b>Toca en la base</b></td><td>Solo filas de menú, roles y permisos en <code>fayxzvov_app</code>. Nada en <code>fayxzvov_pos</code>. Sin cambios de estructura.</td></tr>
+      <tr><td><b>Dato que lo motiva</b></td><td>Hoy el permiso solo se revisa por sección: quien entra a Pedidos podría llamar cualquier operación. Y en PRO, Reginas solo tiene los roles Dueño y Almacenista.</td></tr>
+      <tr><td><b>Terminado cuando</b></td><td>El Dueño de Reginas ve «Pedidos» en el menú lateral y la página abre con migas, título y sucursal · una cajera sin permiso no la ve · «Inicio» ya no manda a una ruta rota.</td></tr>
+    </tbody></table></div>
+
+    <h3>Etapa 1 · Ver pedidos</h3>
+    <div class="tscroll"><table><tbody>
+      <tr><td style="width:190px"><b>Objetivo</b></td><td>Encontrar y revisar cualquier pedido. Solo consulta: esta etapa no guarda nada.</td></tr>
+      <tr><td><b>Entrega</b></td><td>La tabla de la lámina 03 con sus filtros (fecha de captura o de entrega, estado, tipo y la sucursal de la barra) · buscador por folio, cliente o teléfono · detalle con cliente, productos con fotos, pagos y bitácora · menú de fila con «Ver» e «Imprimir».</td></tr>
+      <tr><td><b>Lee de la base</b></td><td><code>sale</code>, <code>detail_sale</code>, <code>customer</code>, <code>payment</code>, <code>sale_status</code>, <code>sale_image</code>, <code>history_log</code>, <code>product</code>.</td></tr>
+      <tr><td><b>Reglas de alpha que se conservan</b></td><td>El buscador entiende «1557», «P1557» y «P1557-04» · con búsqueda se ignoran fecha y estado · saldo = total − pagos (en la base nueva el total ya trae el descuento restado) · punto verde en los pedidos del turno abierto.</td></tr>
+      <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">L2</span> <span class="rv-code">L3</span> <span class="rv-code">L6</span> <span class="rv-code">L7</span> <span class="rv-code">L8</span> <span class="rv-code">L9</span> <span class="rv-code">L17</span> <span class="rv-code">P10</span> <span class="rv-code">P11</span></td></tr>
+      <tr><td><b>Decisiones</b></td><td>C (formato del folio) y F (ver todas las sucursales juntas).</td></tr>
+      <tr><td><b>Terminado cuando</b></td><td>Los 1,536 pedidos cargados se encuentran · para la misma sucursal y el mismo rango, Total, Abono y Saldo coinciden con alpha · ninguna acción de la pantalla escribe en la base.</td></tr>
+    </tbody></table></div>
+
+    <h3>Etapa 2 · Capturar</h3>
+    <div class="tscroll"><table><tbody>
+      <tr><td style="width:190px"><b>Objetivo</b></td><td>Tomar un pedido completo, editarlo y cancelarlo mientras no tenga pagos.</td></tr>
+      <tr><td><b>Entrega</b></td><td>«Nuevo pedido»: cliente (búsqueda, alta rápida, teléfono de 10 dígitos), productos del catálogo o línea libre, pastel personalizado con sus opciones y fotos, y datos de entrega (fecha, hora, recoge o envío, dirección, nota, dedicatoria) · el pedido se guarda hasta que tiene al menos un producto · editar · cancelar sin pagos, con motivo.</td></tr>
+      <tr><td><b>Guarda en la base</b></td><td><code>sale</code>, <code>detail_sale</code>, <code>customer</code>, <code>product</code> (el pastel personalizado), <code>product_modifier</code>, <code>sale_image</code>, <code>history_log</code>.</td></tr>
+      <tr><td><b>Reglas de alpha que se conservan</b></td><td>Queda guardado quién capturó · cada edición deja en la bitácora qué cambió · clave para editar · el botón se bloquea al primer clic · un pedido pagado no se edita ni pierde líneas.</td></tr>
+      <tr><td><b>Dato que lo motiva</b></td><td>120 de las 220 cotizaciones cargadas no tienen productos: el pedido se creaba antes de elegirlos. Y el pastel personalizado es 66 % de las líneas y 85 % del dinero: es el camino principal, no un caso aparte.</td></tr>
+      <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">N1</span> <span class="rv-code">N2</span> <span class="rv-code">N3</span> <span class="rv-code">N4</span> <span class="rv-code">N5</span> <span class="rv-code">N8</span> <span class="rv-code">N11</span> <span class="rv-code">N13</span> <span class="rv-code">N14</span></td></tr>
+      <tr><td><b>Decisiones</b></td><td>E (si capturar exige turno abierto).</td></tr>
+      <tr><td><b>Terminado cuando</b></td><td>Se captura un pedido con pastel personalizado y foto, se edita y se ve igual en la tabla y en el detalle · no puede existir un pedido sin productos · cada cambio aparece en la bitácora con su autor.</td></tr>
+    </tbody></table></div>
+
+    <h3>Etapa 3 · Cobrar</h3>
+    <div class="tscroll"><table><tbody>
+      <tr><td style="width:190px"><b>Objetivo</b></td><td>Cobrar anticipos y liquidaciones dentro de un turno, sin cobros dobles ni de más.</td></tr>
+      <tr><td><b>Entrega</b></td><td>Abrir turno con su fondo · anticipo y liquidación · pago con varios métodos a la vez · cuánto entregó el cliente y cuánto se le dio de cambio · descuento con motivo y con tope · ticket · cancelar con anticipo (decisión 3): devolución o saldo a favor.</td></tr>
+      <tr><td><b>Guarda en la base</b></td><td><code>turn</code> (al abrir), <code>payment</code>, <code>sale</code> (estado y descuento), <code>customer.wallet</code> (saldo a favor), <code>history_log</code>.</td></tr>
+      <tr><td><b>Regla nueva</b></td><td>El estado lo decide el servidor con el saldo real: sin pagos es Cotización, con abono es Pendiente y con saldo $0.00 es Pagado. Nadie lo elige a mano.</td></tr>
+      <tr><td><b>Reglas de alpha que se conservan</b></td><td>Candado contra el cobro doble · no se cobra sin turno abierto de hoy · cobro cruzado: el pago cae en la sucursal y el turno de quien cobra · el anticipo de un pedido futuro conserva su fecha · borrar un pago es solo para el administrador.</td></tr>
+      <tr><td><b>Dato que lo motiva</b></td><td>En la base local hay 9 pedidos «Pendiente» que ya no deben nada, 1 «Pagado» que aún debe $950.00, 6 cotizaciones con pagos y 8 pedidos cobrados de más por $2,671.00 en total.</td></tr>
+      <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">P1</span> <span class="rv-code">P3</span> <span class="rv-code">P5</span> <span class="rv-code">P6</span> <span class="rv-code">P8</span> <span class="rv-code">P9</span> <span class="rv-code">N6</span> <span class="rv-code">N7</span> <span class="rv-code">N9</span> <span class="rv-code">N10</span></td></tr>
+      <tr><td><b>Decisiones</b></td><td>D (dónde se anota la devolución de un anticipo). La decisión 6 deja fuera, por ahora, la propina por pago.</td></tr>
+      <tr><td><b>Terminado cuando</b></td><td>Un pedido pasa de Cotización a Pendiente y a Pagado solo por sus pagos · no se puede cobrar más que el saldo · dos clics seguidos dejan un solo pago · lo cobrado aparece en el turno de quien cobró.</td></tr>
+    </tbody></table></div>
+
+    <h3>Etapa 4 · Producir y entregar</h3>
+    <div class="tscroll"><table><tbody>
+      <tr><td style="width:190px"><b>Objetivo</b></td><td>Seguir el pedido hasta que sale de la tienda.</td></tr>
+      <tr><td><b>Entrega</b></td><td>Calendario por fecha de entrega (la sección <code>pos-calendario</code> recibe su ruta), con el mismo detalle de la lista · Producción palomea lo que ya hizo · «Marcar entregado» desde la lista o el calendario · entrega con saldo según la decisión 5.</td></tr>
+      <tr><td><b>Guarda en la base</b></td><td><code>sale</code> (producido, quién y cuándo; estado de entrega) y <code>history_log</code>.</td></tr>
+      <tr><td><b>Reglas de alpha que se conservan</b></td><td>Producción solo ve el calendario, sin cotizaciones ni cancelados, y solo palomea · clave para marcar la entrega.</td></tr>
+      <tr><td><b>Dato que lo motiva</b></td><td>14 pedidos ya entregados todavía deben $11,950.00 en total (12 pendientes, 1 pagado y 1 cotización).</td></tr>
+      <tr><td><b>Límite por la decisión 6</b></td><td>La base no tiene dónde guardar la hora de entrega: saldrá de la bitácora.</td></tr>
+      <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">K1</span> <span class="rv-code">K2</span> <span class="rv-code">K3</span> <span class="rv-code">K4</span> <span class="rv-code">K5</span> <span class="rv-code">L4</span> <span class="rv-code">L5</span> <span class="rv-code">L10</span></td></tr>
+      <tr><td><b>Decisiones</b></td><td>5 (entregar con saldo) y B (rol Producción).</td></tr>
+      <tr><td><b>Terminado cuando</b></td><td>Un pedido se palomea y se entrega desde la lista o desde el calendario con el mismo resultado · entregar con saldo sigue la regla que se decida · el rol Producción no puede cobrar ni editar.</td></tr>
+    </tbody></table></div>
+
+    <h3>Etapa 5 · Caja</h3>
+    <div class="tscroll"><table><tbody>
+      <tr><td style="width:190px"><b>Objetivo</b></td><td>Cerrar el turno y el día con cifras que cuadran.</td></tr>
+      <tr><td><b>Entrega</b></td><td>Corte de turno: efectivo esperado contra efectivo contado, con desglose por método de pago y por estado · cierre del día, que suma sus turnos · reabrir con motivo · recalcular un turno ya cerrado · ticket del corte · la sección <code>pos-tickets</code> recibe su ruta.</td></tr>
+      <tr><td><b>Guarda en la base</b></td><td><code>turn</code>, <code>detail_turn_payment</code>, <code>detail_turn_status</code>, <code>daily_closure</code> y sus dos tablas de detalle.</td></tr>
+      <tr><td><b>Reglas de alpha que se conservan</b></td><td>No se cierra el día con turnos abiertos · solo el administrador reabre, con motivo · un día pendiente de cierre bloquea abrir turno.</td></tr>
+      <tr><td><b>Dato que lo motiva</b></td><td>20 turnos quedaron abiertos en la carga; el último se abrió el 30/10/2026. Hay que cerrarlos antes de probar el corte.</td></tr>
+      <tr><td><b>Límite por la decisión 6</b></td><td>Los retiros y depósitos de efectivo no tienen tabla: el corte no podrá restarlos ni sumarlos. El cierre del día solo guarda sus totales.</td></tr>
+      <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">C2</span> <span class="rv-code">C3</span> <span class="rv-code">C4</span> <span class="rv-code">C6</span> <span class="rv-code">C7</span> <span class="rv-code">C8</span> <span class="rv-code">C9</span> <span class="rv-code">C10</span> <span class="rv-code">C12</span></td></tr>
+      <tr><td><b>Decisiones</b></td><td>4 (pedido pagado y corte cerrado) y A (nombres de las dos tablas del cierre).</td></tr>
+      <tr><td><b>Terminado cuando</b></td><td>El corte de un turno coincide con la suma de sus pagos · el cierre del día coincide con la suma de sus turnos · un día cerrado no se modifica sin reabrirlo.</td></tr>
+    </tbody></table></div>
+
+    <h3>Etapa 6 · Clientes, avisos y reportes</h3>
+    <div class="tscroll"><table><tbody>
+      <tr><td style="width:190px"><b>Objetivo</b></td><td>Lo que rodea al pedido: a quién se le vende, a quién se le avisa y cómo se consulta.</td></tr>
+      <tr><td><b>Entrega</b></td><td>Clientes con «Desactivar» y «Reactivar» y su historial de pedidos · crédito a clientes con límite · avisos por WhatsApp (pedido nuevo, cierre de turno, cierre del día), traídos de alpha · reportes de cortes y ventas · tarjetas de lealtad, al final.</td></tr>
+      <tr><td><b>Guarda en la base</b></td><td><code>customer</code>, <code>receivable</code>, <code>card</code>.</td></tr>
+      <tr><td><b>Regla que fija la plantilla</b></td><td>El crédito no cuenta como pagado. Un abono baja primero el crédito y lo que sobra es pago.</td></tr>
+      <tr><td><b>Hallazgos que resuelve</b></td><td><span class="rv-code">C11</span> <span class="rv-code">A3</span> <span class="rv-code">A4</span> <span class="rv-code">L16</span></td></tr>
+      <tr><td><b>Terminado cuando</b></td><td>Un cliente se desactiva sin perder sus pedidos · el aviso de un pedido nuevo llega con folio y sucursal · el reporte de un día coincide con su cierre.</td></tr>
+    </tbody></table></div>
+
+    <h3>Etapa 7 · Salida a producción</h3>
+    <div class="tscroll"><table><tbody>
+      <tr><td style="width:190px"><b>Objetivo</b></td><td>Trabajar en PRO con los datos reales, sin perder un día de pedidos.</td></tr>
+      <tr><td><b>Orden de subida</b></td><td>1. Estructura de <code>fayxzvov_pos</code> · 2. Liga con <code>fayxzvov_app</code> · 3. Menú, roles y permisos · 4. Migración de Reginas con el mapa de sucursales y el de usuarios · 5. Piloto en Kafeto, la sucursal con menos pedidos (295) · 6. alpha en solo lectura · 7. Migración final de lo capturado durante el piloto.</td></tr>
+      <tr><td><b>Pendiente antes de subir</b></td><td>El mapa de usuarios: en local las ventas entraron sin usuario porque ese mapa quedó vacío · decidir qué nombres ganan en las dos tablas del cierre (A) y si las nueve tablas más permisivas son a propósito (H) · el archivo de conexión local nunca se sube.</td></tr>
+      <tr><td><b>Terminado cuando</b></td><td>Una sucursal trabaja una semana completa en PRO y sus cortes cuadran · alpha deja de recibir pedidos.</td></tr>
+    </tbody></table></div>
+  </section>
+
+  <!-- 05 · De alpha a la base nueva -->
+  <section>
+    <h2><span class="num">05</span> De alpha a la base nueva</h2>
+    <p class="intro">La base nueva guarda en una sola tabla, <code>sale</code>, lo que antes eran cosas separadas: pedidos, ventas de mostrador, POS y tienda en línea. Un pedido es una venta de tipo «Pedido».</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>En alpha</th><th>En PRO</th><th>Qué cambia</th></tr></thead>
+        <tbody>
+          <tr><td><code>order</code></td><td><code>sale</code></td><td>El total ya trae el descuento restado. El folio queda guardado.</td></tr>
+          <tr><td><code>order_package</code></td><td><code>detail_sale</code></td><td>Cada línea puede llevar su propio descuento y su dedicatoria.</td></tr>
+          <tr><td><code>order_custom</code> y <code>order_custom_products</code></td><td><code>product</code> marcado como personalizado y <code>product_modifier</code></td><td>El pastel personalizado es un producto más, con sus opciones.</td></tr>
+          <tr><td><code>order_products</code> y <code>order_category</code></td><td><code>product</code>, <code>category</code> y <code>subcategory</code></td><td>Ya se administra en Catálogo de PRO.</td></tr>
+          <tr><td><code>order_modifier</code> y <code>order_modifier_products</code></td><td><code>modifier_group</code> y <code>modifier</code></td><td>Sin cambio de fondo.</td></tr>
+          <tr><td><code>order_clients</code></td><td><code>customer</code></td><td>Gana saldo a favor y crédito con límite.</td></tr>
+          <tr><td><code>order_payments</code></td><td><code>payment</code></td><td>Guarda cuánto entregó el cliente, el cambio y el turno en que se cobró.</td></tr>
+          <tr><td><code>order_images</code></td><td><code>sale_image</code></td><td>La foto va ligada a la línea, no al pedido.</td></tr>
+          <tr><td><code>order_histories</code></td><td><code>history_log</code></td><td>Sin cambio de fondo.</td></tr>
+          <tr><td><code>cash_shift</code> y sus dos tablas</td><td><code>turn</code>, <code>detail_turn_payment</code>, <code>detail_turn_status</code></td><td>Gana efectivo contado contra esperado y motivo de reapertura.</td></tr>
+          <tr><td><code>daily_closure</code> y sus dos tablas</td><td><code>daily_closure</code> y sus dos tablas de detalle</td><td>Los nombres de las dos de detalle están por decidirse (A).</td></tr>
+          <tr><td>Sucursales y usuarios de <code>fayxzvov_alpha</code></td><td>Sucursales y usuarios de <code>fayxzvov_app</code></td><td>Por eso la migración necesita un mapa de sucursales y otro de usuarios.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Lo nuevo que la base ya permite</h3>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Función</th><th>Para qué sirve</th><th>Etapa</th></tr></thead>
+        <tbody>
+          <tr><td>Cambio entregado</td><td>El ticket dice con cuánto pagó el cliente y cuánto se le regresó</td><td>3</td></tr>
+          <tr><td>Motivo de descuento con tope</td><td>Cortesía, cliente frecuente, promoción, empleado u otro; algunos piden autorización</td><td>3</td></tr>
+          <tr><td>Descuento por línea</td><td>Descontar un solo producto sin tocar el resto del pedido</td><td>3</td></tr>
+          <tr><td>Saldo a favor</td><td>El anticipo de un pedido cancelado se queda a nombre del cliente</td><td>3</td></tr>
+          <tr><td>Cancelación con motivo y autor</td><td>Saber quién canceló, cuándo y por qué</td><td>2 y 3</td></tr>
+          <tr><td>Producido con autor y hora</td><td>Saber quién palomeó el pedido y a qué hora</td><td>4</td></tr>
+          <tr><td>Efectivo contado contra esperado</td><td>El corte muestra la diferencia de caja</td><td>5</td></tr>
+          <tr><td>Reapertura con motivo</td><td>Un turno o un día reabierto deja rastro</td><td>5</td></tr>
+          <tr><td>Crédito a clientes</td><td>Vender a cuenta, con límite por cliente</td><td>6</td></tr>
+          <tr><td>Tarjetas de lealtad</td><td>Puntos o descuento por cliente</td><td>6</td></tr>
+          <tr><td>Paquetes</td><td>Un producto hecho de varios; ya funciona en Catálogo</td><td>Hecho</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">De la plantilla <code>pos-order.html</code> se toman las reglas de dinero y la pantalla de cobro (billetes sugeridos, metas de anticipo «Sin anticipo», «50 %» y «Todo», corte parcial y corte de cierre, papel de 80 mm). Su tablero de pedidos no reemplaza a la tabla.</p>
+  </section>
+
+  <!-- 06 · Base local de pruebas -->
+  <section>
+    <h2><span class="num">06</span> La base local de pruebas</h2>
+    <p class="intro">«Usa pos local» se leyó así: la base <code>fayxzvov_pos</code> de esta máquina, tal como estaba. No se recreó, no se borró ni se renombró ninguna tabla y no cambió su estructura. Se corrió una copia de la migración; el archivo original quedó intacto y la base de alpha no se tocó.</p>
+    <div class="note">
+      <b style="color:var(--bp-ink)">Los dos ajustes de la copia</b>
+      <ol class="check">
+        <li>El mapa de sucursales ya va lleno: Guadalupe (4 en alpha) es la 2 en PRO, Kafeto (25) es la 3 y Cuarta (22) es la 4.</li>
+        <li>Los totales del cierre se guardan en <code>daily_closure_payment</code> y <code>daily_closure_status</code>, que es como se llaman esas dos tablas en la base local.</li>
+      </ol>
+    </div>
+    <h3>Lo que quedó cargado</h3>
+    <p class="foot">Conteos de <code>fayxzvov_pos</code> local del 12/11/2026. En todas las tablas, lo que salió de alpha es igual a lo que entró.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Qué</th><th>Filas</th><th>Nota</th></tr></thead>
+        <tbody>
+          <tr><td>Pedidos</td><td>1,536</td><td>Sus totales suman $1,576,041.39, contando cotizaciones y cancelados</td></tr>
+          <tr><td>Líneas de pedido</td><td>1,587</td><td>535 de catálogo y 1,052 de pastel personalizado</td></tr>
+          <tr><td>Pagos</td><td>1,968</td><td>$1,331,478.39</td></tr>
+          <tr><td>Clientes</td><td>1,172</td><td>Todos con teléfono</td></tr>
+          <tr><td>Productos</td><td>1,291</td><td>185 de catálogo y 1,106 pasteles personalizados</td></tr>
+          <tr><td>Fotos</td><td>651</td><td>En 547 líneas</td></tr>
+          <tr><td>Bitácora</td><td>2,038</td><td></td></tr>
+          <tr><td>Turnos</td><td>917</td><td>20 siguen abiertos</td></tr>
+          <tr><td>Cierres del día</td><td>421</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Estado contra saldo</h3>
+    <p class="foot">Saldo = total del pedido − pagos, consulta a <code>fayxzvov_pos</code> local del 12/11/2026. Es la evidencia de las decisiones 4 y 5 y de la regla nueva de la Etapa 3.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Estado</th><th>Pedidos</th><th>Con saldo</th><th>Por cobrar</th><th>Cobrados de más</th><th>En ceros</th><th>Entregados con saldo</th></tr></thead>
+        <tbody>
+          <tr><td>Cotización</td><td>220</td><td>100</td><td>$161,922.00</td><td>1 · $55.00</td><td>119</td><td>1 · $4,600.00</td></tr>
+          <tr><td>Pendiente</td><td>132</td><td>123</td><td>$84,074.00</td><td>5 · $2,206.00</td><td>4</td><td>12 · $6,400.00</td></tr>
+          <tr><td>Pagado</td><td>1,178</td><td>1</td><td>$950.00</td><td>2 · $410.00</td><td>1,175</td><td>1 · $950.00</td></tr>
+          <tr><td>Cancelado</td><td>6</td><td>1</td><td>$288.00</td><td>0</td><td>5</td><td>0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Por sucursal y por método de pago</h3>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Sucursal</th><th>Pedidos</th><th>Total</th><th>Del</th><th>Al</th><th>Con entrega futura</th></tr></thead>
+        <tbody>
+          <tr><td>Reginas Guadalupe</td><td>880</td><td>$894,461.00</td><td>08/12/2025</td><td>30/10/2026</td><td>7</td></tr>
+          <tr><td>Reginas Cuarta</td><td>348</td><td>$366,502.00</td><td>15/12/2025</td><td>28/10/2026</td><td>5</td></tr>
+          <tr><td>Reginas Kafeto</td><td>295</td><td>$298,826.39</td><td>25/02/2026</td><td>28/10/2026</td><td>4</td></tr>
+          <tr><td>Sin sucursal</td><td>13</td><td>$16,252.00</td><td>07/03/2026</td><td>13/05/2026</td><td>0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Método</th><th>Pagos</th><th>Monto</th></tr></thead>
+        <tbody>
+          <tr><td>Transferencia</td><td>850</td><td>$602,002.39</td></tr>
+          <tr><td>Efectivo</td><td>716</td><td>$445,108.00</td></tr>
+          <tr><td>Tarjeta</td><td>402</td><td>$284,368.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Lo que la carga no pudo traer</h3>
+    <ul class="check">
+      <li>Ningún pedido trae usuario: el mapa de usuarios de alpha a PRO quedó vacío.</li>
+      <li>13 pedidos, 9 pagos, 14 clientes y 18 turnos quedaron sin sucursal: ya venían con la sucursal vacía en alpha (consulta a la base de alpha del 12/11/2026).</li>
+      <li>360 pagos quedaron sin turno y 43 notas de bitácora sin pedido.</li>
+      <li>20 turnos siguen abiertos; el último se abrió el 30/10/2026.</li>
+      <li>4 pedidos tienen un subtotal que no coincide con la suma de sus líneas.</li>
+    </ul>
+    <h3>Diferencias contra la estructura oficial</h3>
+    <ul class="check">
+      <li>Dos tablas se llaman distinto: en local son <code>daily_closure_payment</code> y <code>daily_closure_status</code>; en el archivo de estructura, en la migración original y en la plantilla son <code>detail_daily_closure_payment</code> y <code>detail_daily_closure_status</code>.</li>
+      <li>Nueve tablas aceptan campos vacíos que la estructura oficial exige: <code>card</code>, <code>card_type</code>, <code>category</code>, <code>customer</code>, <code>daily_closure</code>, sus dos tablas de detalle, <code>detail_turn_payment</code> y <code>detail_turn_status</code>. Se cambiaron a mano la noche del 07/11/2026.</li>
+      <li>No se corrigió ninguna de las dos cosas: falta decidir cuál manda (decisiones A y H).</li>
+    </ul>
+    <h3>Cómo deshacer la carga</h3>
+    <p class="foot">Vacía las 17 tablas que se llenaron y deja la estructura como está. No usar la reversa del archivo de estructura: esa borra la base completa.</p>
+<pre class="mono" style="overflow-x:auto;padding:14px 16px;border:1px solid var(--bp-line);border-radius:10px;background:var(--bp-surface);font-size:12.5px;line-height:1.6;color:var(--bp-ink-soft)">USE `fayxzvov_pos`;
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE `daily_closure_status`;  TRUNCATE TABLE `daily_closure_payment`;
+TRUNCATE TABLE `detail_turn_status`;    TRUNCATE TABLE `detail_turn_payment`;
+TRUNCATE TABLE `history_log`;           TRUNCATE TABLE `payment`;
+TRUNCATE TABLE `sale_image`;            TRUNCATE TABLE `detail_sale`;
+TRUNCATE TABLE `sale`;                  TRUNCATE TABLE `turn`;
+TRUNCATE TABLE `daily_closure`;         TRUNCATE TABLE `product_modifier`;
+TRUNCATE TABLE `product`;               TRUNCATE TABLE `customer`;
+TRUNCATE TABLE `modifier`;              TRUNCATE TABLE `modifier_group`;
+TRUNCATE TABLE `category`;
+SET FOREIGN_KEY_CHECKS = 1;</pre>
+  </section>
+
+  <!-- 07 · Lo que falta decidir -->
+  <section>
+    <h2><span class="num">07</span> Lo que falta decidir</h2>
+    <p class="intro">Diez decisiones abiertas. Cada una trae una propuesta para que baste con decir «ok» o corregirla. Las letras son decisiones que salieron al preparar este plan.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>#</th><th>Decisión</th><th>Propuesta</th><th>Bloquea</th></tr></thead>
+        <tbody>
+          <tr><td>4</td><td>¿Quién corrige un pedido pagado o un corte cerrado?</td><td>Solo Dueño o Supervisor, con motivo. Un corte cerrado no se toca: primero se reabre.</td><td>Etapa 5</td></tr>
+          <tr><td>5</td><td>¿Se entrega un pedido que aún debe?</td><td>Sí, pero la pantalla avisa el saldo y pide autorización de Dueño o Supervisor; queda en la bitácora. Hoy hay 14 así, por $11,950.00.</td><td>Etapa 4</td></tr>
+          <tr><td>A</td><td>¿Qué nombres ganan en las dos tablas del cierre?</td><td>Los de la estructura oficial (<code>detail_daily_closure_…</code>), porque siguen el mismo patrón que las del turno. Si el cambio del 07/11/2026 fue a propósito, ganan los locales y se ajustan la estructura, la migración y la plantilla.</td><td>Etapa 5 y 7</td></tr>
+          <tr><td>B</td><td>¿Se crean en PRO los roles Cajera, Supervisor y Producción para Reginas?</td><td>Sí, con el mismo alcance que tienen en alpha. Son filas, no cambian la estructura.</td><td>Etapa 0</td></tr>
+          <tr><td>C</td><td>¿Cómo se ve el folio?</td><td>«P1557», sin sufijo, y el buscador sigue aceptando «P1557-04». Un código propio por sucursal necesita una columna nueva: se queda con la decisión 6.</td><td>Etapa 1</td></tr>
+          <tr><td>D</td><td>¿Dónde se anota la devolución de un anticipo?</td><td>Como un pago en negativo en el turno de quien devuelve, con su motivo. Así el corte lo resta solo y no hace falta una tabla nueva.</td><td>Etapa 3</td></tr>
+          <tr><td>E</td><td>¿Capturar un pedido exige turno abierto?</td><td>No. Capturar es una cotización y no mueve dinero; cobrar sí exige turno. En alpha hoy se exige para ambos.</td><td>Etapa 2</td></tr>
+          <tr><td>F</td><td>¿Hace falta ver los pedidos de todas las sucursales en una sola lista?</td><td>Empezar con la sucursal activa de la barra, como Catálogo. «Todas» se agrega después si se extraña.</td><td>Etapa 1</td></tr>
+          <tr><td>G</td><td>¿El tablero de la plantilla se conserva como vista alterna de la tabla?</td><td>Dejarlo fuera hasta terminar la Etapa 4 y decidir entonces.</td><td>Nada</td></tr>
+          <tr><td>H</td><td>¿Las nueve tablas más permisivas son a propósito?</td><td>Revisarlo antes de subir; mientras, no estorba.</td><td>Etapa 7</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">Diferida, no abierta: la decisión 6. Mientras no se vea, quedan fuera la hora de entrega guardada, los retiros y depósitos de caja, los permisos para cobrar, entregar, descontar y reabrir como acciones propias, la propina por pago y el código de folio por sucursal.</p>
+
+    <h3>Qué está comprobado y qué no</h3>
+    <dl class="voc">
+      <div><dt>Comprobado el 12/11/2026</dt><dd>Las cifras de la lámina 06 (consultas a la base local) · el menú, los roles y los permisos de PRO (consultas a <code>fayxzvov_app</code> local) · las columnas reales de las tablas · las reglas de alpha citadas, leídas en su código · la forma de construir de Catálogo.</dd></div>
+      <div><dt>Sin comprobar</dt><dd>Nada del servidor de producción · nada probado en el navegador con sesión · que cada pedido cargado coincida fila por fila con alpha: solo se compararon conteos y sumas · los hallazgos del 04/10/2026 que no se nombran como vigentes · si PRO ya tiene pantalla para dar de alta roles · tres archivos de la plantilla (captura, vistas y lista de ventas), que solo se revisaron por encima.</dd></div>
+      <div><dt>Sin construir</dt><dd>Todo. En el proyecto solo se agregó este archivo. Lo único que cambió fuera de él son los datos de la base local.</dd></div>
+    </dl>
+  </section>
+
+  <div class="src-files">
+    <b>Fuentes</b>
+    <span>alpha/pedidos/ctrl/ctrl-pedidos.php</span>
+    <span>alpha/pedidos/src/js/app.js</span>
+    <span>alpha/pedidos/docs/plano-pedidos-revision.html</span>
+    <span>pro/app/order/templates/pos-order.html</span>
+    <span>pro/app/catalogo/</span>
+    <span>pro/core/security/_Permission.php</span>
+    <span>pro/migrations/2026-11-06_crear-fayxzvov-pos.sql</span>
+    <span>pro/migrations/2026-11-06_migrar-reginas-a-pos.sql</span>
+    <span>bases locales fayxzvov_pos y fayxzvov_app</span>
+  </div>
+
+</div>
+</body>
+</html>

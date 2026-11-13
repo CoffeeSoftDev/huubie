@@ -9,7 +9,7 @@ class ctrl extends mdl {
     const OPS = ['init', 'enterCompany'];
 
     // El mismo HOME de auth/ctrl/ctrl-auth.php: a donde entra quien ya tiene empresa.
-    const HOME = 'app/pedidos/';
+    const HOME = 'app/order/';
 
     function init() {
         $currentId = (int) $_SESSION['company_id'];
