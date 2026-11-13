@@ -19,7 +19,7 @@ $version = function ($file) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Huubie · Iniciar sesión</title>
     <meta name="theme-color" content="#FFFFFF">
-    <link rel="icon" href="assets/img/huubie192.png" type="image/png">
+    <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

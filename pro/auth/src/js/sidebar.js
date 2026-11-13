@@ -112,7 +112,7 @@
         var css = ''
             /*  general.css ya lo deja fijo a la izquierda, de 60px y bajo la
                 navbar. Aqui el scroll para cuando hay muchas secciones. */
-            + '#menu-sidebar { display:flex; flex-direction:column; align-items:center; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF); }'
+            + '#menu-sidebar { padding-top: 10px; display:flex; flex-direction:column; align-items:center; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF); }'
             + '#menu-sidebar::-webkit-scrollbar { display:none; }'
             + 'body.dark-mode #menu-sidebar { background-color:var(--dk-chrome, #141d2b); border-right-color:var(--dk-line, #374151); }'
 

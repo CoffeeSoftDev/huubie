@@ -55,8 +55,6 @@ class App extends Templates {
                 type:         'dev',
                 title:        String(data.dev.name).toUpperCase(),
                 icon:         data.dev.icon,
-                // El anillo la despega de la tarjeta en tema oscuro (gray-800 ≈ el fondo).
-                iconClass:    'bg-gray-800 ring-1 ring-inset ring-white/20',
                 location:     data.dev.description,
                 locationIcon: 'wrench',
                 route:        data.dev.route,

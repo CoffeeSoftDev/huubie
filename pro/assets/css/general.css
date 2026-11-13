@@ -16,7 +16,7 @@
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: #C1C7CD transparent;
+    scrollbar-color: #D5D2E3 transparent;
   }
 }
 /* WebKit (Chrome, Edge, Safari). El carril mide 16px pero el pulgar se
@@ -31,7 +31,7 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #C1C7CD;
+  background: #D5D2E3;
   background-clip: padding-box;
   border: 3px solid transparent;
   border-radius: 9999px;
@@ -43,7 +43,7 @@
   border-top-width: 7px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #9AA0A6;
+  background: #B4B0C8;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-corner {
