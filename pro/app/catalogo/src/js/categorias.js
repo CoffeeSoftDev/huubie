@@ -55,6 +55,7 @@ class Categories extends Templates {
     }
 
     ls() {
+
         this.createTable({
             parent: 'containerCategories',
             idFilterBar: 'filterBarCategories',

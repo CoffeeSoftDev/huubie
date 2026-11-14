@@ -21,34 +21,39 @@ require_once __DIR__ . '/core-order.php';
         o Supervisor (moneyBlock): mueve lo vendido de ese corte.
       - Quitar un pago = borrado logico (active 0 + deleted_at) con motivo y solo
         con permiso delete. Un pago de un turno cerrado no se quita: se reabre antes.
+      - La ventana de pagos (payOptions) abre aunque no se pueda cobrar: trae los
+        pagos del pedido y dice en can_pay / pay_block por que no (rol, pedido o
+        turno). Quien decide de verdad son payOrder y deletePayment.
+      - La observacion del cobro va pegada al concepto del pago
+        (payment.description): «Abono · Ref. 4471».
       - Se valida todo ANTES de la primera escritura: transaction() solo deshace
         si algo lanza una excepcion. */
 class ctrl extends core {
 
     const MAX_PAYMENTS = 6;
     const MAX_AMOUNT   = 1000000;
+    const MAX_NOTE     = 200;
 
-    // -- Opciones del cobro --
+    // -- Ventana de pagos --
 
+    // La abre quien cobra o quien ve el dinero del pedido. Sin saldo o sin turno abre en consulta.
     public function payOptions() {
-        $fail = $this->need('create', 'cobrar pedidos') ?: $this->needBranch();
+        $access = $this->need('create') === null ? null : $this->need('show', 'ver los pagos de un pedido');
+        $fail   = $access ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id = $this->postId();
 
         return $this->attempt(function () use ($id) {
-            $closed = $this->needTurn();
-            if ($closed) return $closed;
-
             $order = $id > 0 ? $this->qGetOrder($id, $this->branchId()) : null;
 
             if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
 
-            $block = $this->payBlock($order);
-            if ($block !== '') return $this->fail(409, $block);
-
             $total = round((float) $order['total'], 2);
             $paid  = round((float) $order['paid'], 2);
+            $stop  = $this->payStop($order);
+            $alive = (int) $order['sale_status_id'] !== self::CANCELLED;
+            $given = (int) $order['delivery_status'] === 1;
 
             return [
                 'status' => 200,
@@ -59,6 +64,8 @@ class ctrl extends core {
                     'phone'           => $order['phone'],
                     'status_id'       => (int) $order['sale_status_id'],
                     'status'          => $order['status'],
+                    'cancelled'       => !$alive,
+                    'delivered'       => $given,
                     'subtotal'        => round((float) $order['subtotal'], 2),
                     'discount_amount' => round((float) $order['discount_amount'], 2),
                     'discount_reason' => $order['discount_reason'],
@@ -66,13 +73,39 @@ class ctrl extends core {
                     'paid'            => $paid,
                     'balance'         => round($total - $paid, 2)
                 ],
+                'payments'      => $this->qPayments($id),
+                'can_pay'       => $stop === null,
+                'pay_block'     => $stop,
+                // La misma regla que el detalle (orderCan): entregado o cancelado no suelta pagos.
+                'can_delete'    => $alive && !$given && $this->need('delete') === null,
                 'methods'       => $this->qPaymentMethods($this->companyId()),
                 'reasons'       => $this->qDiscountReasons($this->companyId()),
                 'can_authorize' => $this->need('cancel') === null,
                 'disc_block'    => $this->moneyBlock($order),
                 'turn'          => $this->turnBrief()
             ];
-        }, 'No se pudo preparar el cobro.');
+        }, 'No se pudieron abrir los pagos.');
+    }
+
+    // null = se puede cobrar. Si no, quien lo impide: el rol, el pedido o el turno.
+    private function payStop($order) {
+        if ($this->need('create') !== null) {
+            return ['kind' => 'role', 'title' => 'Solo consulta', 'message' => 'Tu rol no puede cobrar pedidos en esta sucursal.', 'day' => false];
+        }
+
+        $block = $this->payBlock($order);
+
+        if ($block !== '') {
+            return ['kind' => 'order', 'title' => 'No se puede cobrar', 'message' => $block, 'day' => false];
+        }
+
+        $closed = $this->needTurn();
+
+        if ($closed) {
+            return ['kind' => 'turn', 'title' => $closed['title'], 'message' => $closed['message'], 'day' => !empty($closed['day'])];
+        }
+
+        return null;
     }
 
     // -- Cobrar --
@@ -95,13 +128,17 @@ class ctrl extends core {
         $discount = $this->discountInput();
         if (isset($discount['status'])) return $discount;
 
+        $note = trim((string) preg_replace('/\s+/u', ' ', $this->post('note')));
+
+        if ($this->tooLong($note, self::MAX_NOTE)) return $this->fail(422, 'La observación admite hasta ' . self::MAX_NOTE . ' caracteres.');
+
         if (empty($payments) && $discount === null) return $this->fail(422, 'Escribe cuánto paga el cliente.');
 
         $closed = $this->needTurn();
         if ($closed) return $closed;
 
-        $answer = $this->attempt(function () use ($id, $payments, $discount) {
-            return $this->transaction(function () use ($id, $payments, $discount) {
+        $answer = $this->attempt(function () use ($id, $payments, $discount, $note) {
+            return $this->transaction(function () use ($id, $payments, $discount, $note) {
                 $order = $this->qLockOrder($id, $this->branchId());
 
                 if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
@@ -160,13 +197,14 @@ class ctrl extends core {
 
                 if ($rows) {
                     $description = $paid + 0.005 >= $total ? 'Liquidación' : ($paidBefore <= 0 ? 'Anticipo' : 'Abono');
+                    $concept     = $note !== '' ? $description . ' · ' . $note : $description;
                     $now         = date('Y-m-d H:i:s');
                     $data        = [];
 
                     foreach ($rows as $row) {
                         $data[] = [
                             $id, $this->branchId(), $this->userId() ?: null, (int) $turn['id'], $row['method_id'],
-                            $row['amount'], $row['tendered'], $row['change'], $description, $now, 1
+                            $row['amount'], $row['tendered'], $row['change'], $concept, $now, 1
                         ];
                     }
 
@@ -175,7 +213,9 @@ class ctrl extends core {
                         'data'   => $data
                     ]), 'payOrder payment');
 
-                    $this->log($id, 'payment', $description, $this->paymentsText($rows) . ' ' . $this->leftText($left));
+                    $remark = $note !== '' ? ' Observación: ' . $note . (preg_match('/[.!?]$/u', $note) ? '' : '.') : '';
+
+                    $this->log($id, 'payment', $description, $this->paymentsText($rows) . ' ' . $this->leftText($left) . $remark);
                 }
 
                 if ($status !== (int) $order['sale_status_id']) {

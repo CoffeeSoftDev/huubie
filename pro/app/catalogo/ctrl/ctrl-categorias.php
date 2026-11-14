@@ -15,13 +15,15 @@ class ctrl extends core {
         $row    = [];
 
         foreach ($this->qListCategories($branch, $this->activeFilter()) as $item) {
-            $id = (int) $item['id'];
+            $id   = (int) $item['id'];
+            $subs = (int) $item['subcategories'];
 
             $row[] = [
                 'id'            => $id,
                 'Categoría'     => cellTitle($item['name']),
                 'Descripción'   => $this->shortDescription($item['description']),
-                'Subcategorías' => (int) $item['subcategories'],
+                // Sin subcategorías: la raya gris de las celdas vacías (como Descripción), no un 0.
+                'Subcategorías' => $subs > 0 ? $subs : '<span class="cp-celda-sub">—</span>',
                 'Productos'     => (int) $item['products'],
                 'Estado'        => renderActive($item['active']),
                 'a'             => $this->rowActions('categories', $id, $item['active'])

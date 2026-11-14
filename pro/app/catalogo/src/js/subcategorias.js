@@ -97,6 +97,7 @@ class Subcategories extends Templates {
     }
 
     ls() {
+
         this.createTable({
             parent: 'containerSubcategories',
             idFilterBar: 'filterBarSubcategories',

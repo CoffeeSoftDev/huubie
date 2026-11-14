@@ -86,6 +86,7 @@ class Orders extends Templates {
         });
 
         // El buscador va fuera de la tabla: createCoffeeTable3 la reescribe en cada búsqueda y el input perdería el foco.
+        // "Mostrar N registros" de DataTables se mueve a length (lsOrders) para quedar junto al buscador.
         this.createLayout({
             parent: `container${this.PROJECT_NAME}`,
             design: false,
@@ -93,7 +94,16 @@ class Orders extends Templates {
                 id:    `list${this.PROJECT_NAME}`,
                 class: 'w-full',
                 container: [
-                    { type: 'div', id: `search${this.PROJECT_NAME}`, class: 'w-full' },
+                    {
+                        type:  'div',
+                        id:    `search${this.PROJECT_NAME}`,
+                        class: 'w-full',
+                        children: [
+                            // dataTables_wrapper: el selector movido conserva el estilo de DataTables y de compact.css.
+                            { type: 'div', id: `length${this.PROJECT_NAME}`, class: 'ord-dt-length dataTables_wrapper' },
+                            { type: 'div', id: `searchBox${this.PROJECT_NAME}`, class: 'ord-dt-search' }
+                        ]
+                    },
                     { type: 'div', id: `table${this.PROJECT_NAME}`, class: 'w-full' }
                 ]
             }
@@ -102,6 +112,7 @@ class Orders extends Templates {
 
     filterBar() {
         const saved = this.savedRange();
+        const col   = 'col-12 col-sm-6 col-lg-3 col-xl-2';   // los cuatro filtros miden lo mismo
 
         this.createfilterBar({
             parent:     `filterBar${this.PROJECT_NAME}`,
@@ -114,7 +125,7 @@ class Orders extends Templates {
                     id:       'date_type',
                     lbl:      'Filtrar por',
                     required: false,
-                    class:    'col-12 col-sm-5 col-lg-3 col-xl-2 ord-period',
+                    class:    `${col} ord-period`,
                     data:     [{ id: 'created', valor: 'Fecha de captura' }, { id: 'delivery', valor: 'Fecha de entrega' }],
                     value:    saved.dateType,
                     onchange: 'orders.onPeriodChange()'
@@ -125,14 +136,14 @@ class Orders extends Templates {
                     lbl:      'Periodo',
                     required: false,
                     readonly: true,
-                    class:    'col-12 col-sm-7 col-lg-4 col-xl-3 ord-period'
+                    class:    `${col} ord-period`
                 },
                 {
                     opc:      'select',
                     id:       'status',
                     lbl:      'Estado',
                     required: false,
-                    class:    'col-6 col-lg-2 ord-period',
+                    class:    `${col} ord-period`,
                     data:     [{ id: '', valor: 'Todos' }, ...(dataInit.statuses || [])],
                     onchange: 'orders.lsOrders()'
                 },
@@ -141,7 +152,7 @@ class Orders extends Templates {
                     id:       'order_type',
                     lbl:      'Tipo',
                     required: false,
-                    class:    'col-6 col-lg-3 col-xl-2',
+                    class:    col,
                     data:     [{ id: '', valor: 'Todos' }, { id: 'custom', valor: 'Personalizado' }, { id: 'normal', valor: 'Normal' }],
                     onchange: 'orders.lsOrders()'
                 }
@@ -170,10 +181,10 @@ class Orders extends Templates {
         });
     }
 
-    // Sobre la tabla, a la derecha de "Mostrar N registros" (como en alpha/pedidos).
+    // Sobre la tabla, pegado a la derecha de "Mostrar N registros".
     searchBar() {
         this.createfilterBar({
-            parent:     `search${this.PROJECT_NAME}`,
+            parent:     `searchBox${this.PROJECT_NAME}`,
             id:         `fbSearch${this.PROJECT_NAME}`,
             prefijo:    'ord_',
             coffeesoft: true,
@@ -364,12 +375,15 @@ class Orders extends Templates {
             ...this.emptyState(loaded ? data : null)
         });
 
+        // El selector de la tabla anterior ya no sirve; sin filas no hay qué paginar.
+        $(`#length${this.PROJECT_NAME}`).empty();
+
         if (!loaded || !data.row || !data.row.length) return;
 
         $(`#tb${this.PROJECT_NAME} [data-cancelled]`).closest('tr').addClass('ord-row-cancel');
 
-        $(`#tb${this.PROJECT_NAME}`).DataTable({
-            dom:          '<"ord-dt-top"l><"ord-dt-scroll"t><"ord-dt-foot"ip>',
+        const table = $(`#tb${this.PROJECT_NAME}`).DataTable({
+            dom:          'l<"ord-dt-scroll"t><"ord-dt-foot"ip>',
             pageLength:   this.pageLength,
             lengthMenu:   [10, 15, 25, 50],
             ordering:     false,
@@ -389,6 +403,9 @@ class Orders extends Templates {
                 if (window.lucide) lucide.createIcons();
             }
         }).on('length.dt', (e, settings, len) => { this.pageLength = len; });
+
+        // DataTables enlaza el cambio en el propio <select>: moverlo no le quita el evento.
+        $(`#length${this.PROJECT_NAME}`).append($(table.table().container()).find('.dataTables_length'));
     }
 
     // -- Complements --

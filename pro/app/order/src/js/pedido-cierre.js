@@ -19,13 +19,16 @@ class OrderClosure extends Templates {
         this.loading      = false;
         this.saving       = false;
         this.token        = '';
+        this.afterClose   = null;
     }
 
     // -- Entrada --
 
-    // Sin fecha abre hoy.
-    async open(date) {
+    // Sin fecha abre hoy. opts.afterClose: lo que sigue tras cerrar el día (abrir turno y volver al cobro).
+    async open(date, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        this.afterClose = (opts && opts.afterClose) || null;
 
         const data = await this.fetchDay(date);
 
@@ -370,7 +373,11 @@ class OrderClosure extends Templates {
 
         orderTurn.sync(answer.brief, true, answer.day);
 
+        const next  = today ? null : this.afterClose;
         const print = orders.can('print');
+
+        this.afterClose = null;
+
         const done  = await alert({
             icon:     'success',
             title:    answer.message,
@@ -378,14 +385,17 @@ class OrderClosure extends Templates {
             btn1:     print,
             btn1Text: 'Imprimir cierre',
             btn2:     true,
-            btn2Text: 'Listo'
+            btn2Text: next ? 'Seguir' : 'Listo'
         });
 
-        if (!done || !done.isConfirmed) return;
+        if (done && done.isConfirmed) {
+            const fresh = await this.fetchDay(data.date);
 
-        const fresh = await this.fetchDay(data.date);
+            if (fresh) this.printDay(fresh);
+        }
 
-        if (fresh) this.printDay(fresh);
+        // Venía de un cobro frenado por este día: sigue con el turno de hoy.
+        if (next) orderTurn.open(0, { afterOpen: next });
     }
 
     // -- Reabrir --

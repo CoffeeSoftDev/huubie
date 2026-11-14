@@ -59,6 +59,7 @@ class Bundles extends Templates {
     }
 
     ls() {
+
         this.createTable({
             parent: 'containerBundles',
             idFilterBar: 'filterBarBundles',
@@ -95,10 +96,12 @@ class Bundles extends Templates {
     jsonForm(categories, row = {}) {
         const data = { name: '', category_id: '', price: '', description: '', sell_pos: 1, in_catalog: 0, ...row };
 
+        // photoField se acomoda a la izquierda de nombre, categoría y precio (photoBeside).
         return [
-            { id: 'name', lbl: 'Nombre', tipo: 'text', required: true, maxlength: 255, class: 'w-full', value: data.name },
-            { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', data: categories, value: data.category_id },
-            { id: 'price', lbl: 'Precio del paquete', tipo: 'number', required: true, min: 0, step: '0.01', ph: '0.00', value: data.price },
+            { id: 'name', lbl: 'Nombre', tipo: 'text', icon: 'package', required: true, maxlength: 255, class: 'w-full', value: data.name },
+            { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', class: 'w-full sm:w-1/2', data: categories, value: data.category_id },
+            { id: 'price', lbl: 'Precio del paquete', tipo: 'number', icon: 'dollar-sign', required: true, min: 0, step: '0.01', ph: '0.00', class: 'w-full sm:w-1/2', value: data.price },
+            { id: 'photoField', tipo: 'html', class: 'w-full', html: photoFieldHtml() },
             { id: 'bundleEditor', tipo: 'html', class: 'w-full', html: this.editorHtml() },
             { id: 'description', lbl: 'Descripción', tipo: 'textarea', rows: 2, maxlength: 1000, class: 'w-full', value: data.description },
             { id: 'sell_pos', lbl: 'Se vende en el POS', tipo: 'switch', value: data.sell_pos },
@@ -355,6 +358,8 @@ class Bundles extends Templates {
             onSave: (values, close) => this.save('addBundle', values, close)
         });
 
+        photoBeside('modalBundle', ['name', 'category_id', 'price']);
+        this.photo = mountPhoto('modalBundle', '', 'icon-gift');
         this.bindEditor();
     }
 
@@ -388,6 +393,8 @@ class Bundles extends Templates {
             onSave: (values, close) => this.save('editBundle', { ...values, id }, close)
         });
 
+        photoBeside('modalBundle', ['name', 'category_id', 'price']);
+        this.photo = mountPhoto('modalBundle', response.data.image, 'icon-gift');
         this.bindEditor();
     }
 
@@ -411,7 +418,7 @@ class Bundles extends Templates {
         const components = JSON.stringify(this.draft.map((item) => ({ id: item.id, qty: Number(item.qty) })));
 
         return saveFrom('modalBundle', async () => {
-            const response = await useFetch({ url: this._link, data: { opc, ...values, components } });
+            const response = await useFetch({ url: this._link, data: { opc, ...values, components, ...this.photo } });
 
             if (response && response.status == 200) {
                 close();

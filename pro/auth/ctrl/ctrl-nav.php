@@ -62,8 +62,8 @@ class ctrl extends mdl {
     /*  EL RAIL. Dos formas, segun desde donde se pregunte:
 
         Dentro de un modulo (module resuelve contra modules.route): sus
-        secciones, las que el usuario puede ver. Primero las sueltas y despues
-        los submodulos, cada uno con las suyas.
+        secciones, las que el usuario puede ver, cada una con su boton (ver
+        railModule).
 
         En cualquier otra pagina (inicio, perfil): los modulos que la empresa
         contrato. Uno sin ruta todavia se manda igual, sin a donde ir: el rail
@@ -149,6 +149,10 @@ class ctrl extends mdl {
 
     // -- Rail --
 
+    /*  Dentro de un modulo el rail no agrupa: cada seccion es su propio boton.
+        Primero las sueltas y despues las de cada submodulo, en su orden. El
+        submodulo solo sobrevive como `group`: el rail pinta una linea donde
+        cambia de grupo. */
     private function railModule($module) {
         $loose  = [];
         $bySub  = [];
@@ -159,31 +163,24 @@ class ctrl extends mdl {
                 'name'  => $section['name'],
                 'icon'  => $section['icon'] ?: 'square',
                 'route' => trim((string) $section['route']),
+                'group' => (int) $section['submodule_id'],
             ];
 
             if ($section['submodule_id'] === null) $loose[] = $item;
             else $bySub[(int) $section['submodule_id']][] = $item;
         }
 
-        $submodules = [];
+        $items = $loose;
 
-        // Un submodulo sin secciones visibles no se pinta: abriria un flotante vacio.
         foreach ($bySub ? $this->listSubmodulesByModule([$module['id']]) : [] as $sub) {
-            if (empty($bySub[(int) $sub['id']])) continue;
-
-            $submodules[] = [
-                'id'       => (int) $sub['id'],
-                'name'     => $sub['name'],
-                'icon'     => $sub['icon'] ?: 'folder',
-                'sections' => $bySub[(int) $sub['id']],
-            ];
+            foreach ($bySub[(int) $sub['id']] ?? [] as $item) $items[] = $item;
         }
 
         return [
             'mode'       => 'module',
             'title'      => $module['name'],
-            'items'      => $loose,
-            'submodules' => $submodules,
+            'items'      => $items,
+            'submodules' => [],
         ];
     }
 

@@ -11,8 +11,6 @@ require_once __DIR__ . '/core-catalogo.php';
     este activa vende la suya. Desactivarla = volver al de la Matriz. */
 class ctrl extends core {
 
-    const PHOTO_MAX = 5242880;
-
     // Opciones del filtro. Fuera de la Matriz las categorías también incluyen las de ella.
     public function init() {
         $fail = $this->needBranch();
@@ -412,86 +410,6 @@ class ctrl extends core {
         return $this->fail(409, $message);
     }
 
-    // -- Foto del producto --
-    /*  Viaja como dataURL en el campo de texto image_b64 (ya achicada en el
-        navegador); image_remove = 1 la quita. Si no se toca, los dos llegan vacíos
-        y la foto se queda. Se guarda junto a las de Pedidos, relativa a la raíz del
-        sitio como las de alpha: la tabla la pinta con «/» delante. */
-
-    // ['b64' => dataURL o '', 'remove' => bool], o la respuesta de error.
-    private function photoInput() {
-        $b64 = isset($_POST['image_b64']) ? (string) $_POST['image_b64'] : '';
-
-        if ($b64 !== '' && !$this->decodePhoto($b64)) {
-            return $this->fail(400, 'La foto debe ser una imagen JPG, PNG o WEBP de hasta 5 MB.');
-        }
-
-        return ['b64' => $b64, 'remove' => $this->flag('image_remove') === 1];
-    }
-
-    // La extensión sale de lo que trae el archivo por dentro, no de lo que dice el dataURL.
-    private function decodePhoto($b64) {
-        if (!preg_match('#^data:image/[a-z0-9.+-]+;base64,#i', $b64)) return null;
-
-        $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
-
-        if ($data === false || strlen($data) > self::PHOTO_MAX) return null;
-
-        $info = @getimagesizefromstring($data);
-        $ext  = $info ? ([IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'][$info[2]] ?? null) : null;
-
-        return $ext ? ['ext' => $ext, 'data' => $data] : null;
-    }
-
-    // Foto nueva: su ruta. Quitar: null. Sin cambios: la que ya tenía.
-    private function nextPhoto($id, $photo, $currentPath) {
-        if ($photo['b64'] !== '') return $this->writePhoto($id, $photo['b64']);
-        if ($photo['remove'])     return null;
-
-        return $currentPath;
-    }
-
-    // El nombre cambia en cada foto para que el navegador no siga mostrando la anterior.
-    private function writePhoto($id, $b64) {
-        $image  = $this->decodePhoto($b64);
-        $folder = 'pro_files/' . $this->companyId() . '/' . $this->branchId() . '/catalogo/productos/';
-        $disk   = $this->diskPath($folder);
-
-        if (!$image) throw new RuntimeException('writePhoto: foto inválida');
-
-        if (!is_dir($disk) && !@mkdir($disk, 0775, true) && !is_dir($disk)) {
-            throw new RuntimeException('writePhoto: no se pudo crear ' . $disk);
-        }
-
-        $name = (int) $id . '_' . bin2hex(random_bytes(6)) . '.' . $image['ext'];
-
-        if (@file_put_contents($disk . $name, $image['data']) === false) {
-            throw new RuntimeException('writePhoto: no se pudo escribir ' . $disk . $name);
-        }
-
-        return $folder . $name;
-    }
-
-    /*  Borra del disco la foto que dejó de usar. Solo las de pro: las de alpha no
-        se tocan. Y solo si ningún otro producto la usa: la copia de «Hacer propio»
-        comparte la de la Matriz. */
-    private function dropPhoto($path, $id) {
-        $path = trim((string) $path);
-
-        if (strpos($path, 'pro_files/') !== 0 || strpos($path, '..') !== false) return;
-        if ($this->qCountProductsWithImage($path, $id) > 0) return;
-
-        $file = $this->diskPath($path);
-
-        if (is_file($file)) @unlink($file);
-    }
-
-    private function diskPath($relative) {
-        $root = isset($_SERVER['DOCUMENT_ROOT']) ? str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']) : '';
-
-        return rtrim($root, '/') . '/' . $relative;
-    }
-
     // -- Filas --
 
     private function productRow($item, $isMain) {
@@ -517,23 +435,6 @@ class ctrl extends core {
             . $this->productPhoto($item['image'])
             . '<div class="min-w-0">' . cellTitle($item['name'], $item['sku']) . '</div>'
             . '</div>';
-    }
-
-    /*  Sin foto: el cuadro vacío con el pastel (el mismo de alpha). Las rutas son
-        'alpha_files/<empresa>/...' con espacios y acentos: cada tramo va codificado.
-        Si la copia local no la tiene, productPhotoError() (catalogo.js) la busca en
-        producción y, si tampoco está, deja el cuadro vacío. */
-    private function productPhoto($path) {
-        $path  = trim((string) $path);
-        $empty = '<div class="cp-foto cp-foto-vacia"><i class="icon-birthday"></i></div>';
-
-        if ($path === '') return $empty;
-
-        $src = preg_match('#^https?://#i', $path)
-            ? $path
-            : '/' . implode('/', array_map('rawurlencode', explode('/', ltrim($path, '/'))));
-
-        return '<img src="' . h($src) . '" alt="" loading="lazy" class="cp-foto" onerror="productPhotoError(this)">';
     }
 
     /*  Matriz: «Compartido» y cuántas sucursales venden el suyo.
@@ -566,8 +467,8 @@ class ctrl extends core {
     private function productActions($item, $id) {
         if ((int) $item['from_main'] === 1) {
             return [[
-                'class'      => $this->actionBtnClass('neutral', true),
-                'html'       => '<i class="icon-docs"></i> Hacer propio',
+                'class'      => $this->actionBtnClass('text'),
+                'html'       => $this->lucideSvg('copy') . ' Hacer propio',
                 'aria-label' => 'Copiarlo a esta sucursal para cambiarlo',
                 'onclick'    => "products.copy({$id})"
             ]];
@@ -577,8 +478,8 @@ class ctrl extends core {
 
         if ((int) $item['twin_main'] === 1 && (int) $item['active'] === 1) {
             $actions[1] = [
-                'class'      => $this->actionBtnClass('neutral', true),
-                'html'       => '<i class="icon-reply"></i>',
+                'class'      => $this->actionBtnClass('warn'),
+                'html'       => $this->lucideSvg('undo-2'),
                 'aria-label' => 'Volver al de la Matriz',
                 'onclick'    => "products.backToMain({$id})"
             ];

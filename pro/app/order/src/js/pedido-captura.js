@@ -15,6 +15,7 @@ class OrderForm extends Templates {
         this.loading      = false;
         this.initial      = '';
         this.cake         = null;
+        this.cakeBox      = null;
         this.ticketBox    = null;
         this.looks        = {};
         this.flash        = -1;
@@ -87,7 +88,7 @@ class OrderForm extends Templates {
         this.loading = false;
 
         if (!data || data.status != 200) {
-            this.warnFail(data, 'No se pudo abrir la captura');
+            this.warnFail(data, 'No se pudo abrir la captura', isNew ? () => this.add() : null);
             return false;
         }
 
@@ -183,6 +184,7 @@ class OrderForm extends Templates {
         $('#main__content').scrollTop(this.scrollTop);
 
         this.cake      = null;
+        this.cakeBox   = null;
         this.ticketBox = null;
     }
 
@@ -450,6 +452,7 @@ class OrderForm extends Templates {
         const paid     = o ? Number(o.paid) || 0 : 0;
         const total    = this.round2(subtotal - discount);
         const caption  = count === 0 ? 'Sin productos' : `${count} ${count === 1 ? 'partida' : 'partidas'} · ${pieces} ${pieces === 1 ? 'pieza' : 'piezas'}`;
+        const canPay   = orders.can('create') && (!o || this.round2(total - paid) > 0.005);
         const json     = [];
         const after    = [];
 
@@ -467,9 +470,14 @@ class OrderForm extends Templates {
             json:   json,
             total:  { label: 'Total', caption: caption, value: money(count ? total : 0) },
             after:  after,
-            actions: [
-                { id: 'btnOrderSave', text: o ? 'Guardar cambios' : 'Guardar pedido', icon: 'check', class: 'ok', disabled: this.saving, onClick: () => this.submit() }
-            ]
+            actions: canPay
+                ? [
+                    { id: 'btnOrderSave', text: 'Solo guardar', icon: 'check', class: 'ghost', disabled: this.saving, onClick: () => this.submit() },
+                    { id: 'btnOrderSavePay', text: o ? 'Guardar y cobrar' : 'Guardar y dejar anticipo', icon: 'wallet', class: 'ok', disabled: this.saving, onClick: () => this.submit(true) }
+                ]
+                : [
+                    { id: 'btnOrderSave', text: o ? 'Guardar cambios' : 'Guardar pedido', icon: 'check', class: 'ok', disabled: this.saving, onClick: () => this.submit() }
+                ]
         });
 
         $('#posOrderTkLauncherCount').text(pieces);
@@ -650,197 +658,69 @@ class OrderForm extends Templates {
 
         if (!line && !this.canAdd()) return;
 
-        const groups  = this.opts.groups || [];
-        const singles = groups.filter((g) => !g.multiple);
-        const extras  = [];
+        const saved   = line ? line.saved.map((m) => ({ ...m })) : [];
+        const groups  = this.cakeGroups(saved);
+        const options = {};
 
-        groups.filter((g) => g.multiple).forEach((g) => {
-            (g.options || []).forEach((o) => extras.push({ id: o.id, valor: `${g.name} · ${o.valor}` }));
+        groups.forEach((g) => {
+            g.options.forEach((o) => {
+                options[o.id] = { id: o.id, name: o.name, price: o.price, group_id: g.id, group_name: g.name, multiple: g.multiple };
+            });
         });
 
         this.cake = {
-            index:     index,
-            line:      line,
-            singles:   singles.map((g) => Number(g.id)),
-            saved:     line ? line.saved.map((m) => ({ ...m })) : [],
-            modifiers: line ? line.modifiers.map((m) => ({ ...m })) : [],
-            images:    line ? line.images.map((img) => ({ ...img })) : []
+            index:   index,
+            line:    line,
+            saved:   saved,
+            options: options,
+            images:  line ? line.images.map((img) => ({ ...img })) : []
         };
-
-        const groupFields = singles.map((g) => {
-            const current = this.cake.modifiers.find((m) => !m.multiple && m.group_id === Number(g.id));
-            const data    = (g.options || []).map((o) => ({ id: o.id, valor: o.valor }));
-
-            if (current) {
-                const label = `${current.name} · ${money(current.price)}`;
-                const found = data.find((o) => Number(o.id) === current.id);
-
-                if (found) found.valor = label;
-                else data.unshift({ id: current.id, valor: label });
-            }
-
-            return { id: `oc_g${g.id}`, lbl: g.name, tipo: 'select2', data: data, value: current ? current.id : '', empty: '— Sin elegir —', class: 'w-full sm:w-1/3' };
-        });
-
-        const extraFields = !extras.length ? [] : [
-            { id: 'oc_extra', lbl: 'Extras y decoración', tipo: 'select2', data: extras, empty: '— Elige un extra —', class: 'w-full sm:w-1/2' },
-            { id: 'oc_extra_qty', lbl: 'Cantidad', tipo: 'number', min: 1, max: 999, step: 1, value: 1, class: 'w-1/2 sm:w-1/4' },
-            { id: 'ocExtraAdd', tipo: 'html', class: 'w-1/2 sm:w-1/4' }
-        ];
 
         this.subModal({
             id:         'modalOrderCake',
             title:      line ? 'Editar pastel personalizado' : 'Pastel personalizado',
-            subtitle:   'El precio sugerido sale de las opciones que elijas',
+            subtitle:   'Arma el pastel paso a paso; el precio sugerido se calcula solo',
             lucideIcon: 'cake-slice',
-            width:      'max-w-4xl',
+            width:      'max-w-6xl',
             saveText:   line ? 'Guardar' : 'Agregar',
-            info:       'Importe de la línea: $0.00',
-            json: [
-                { id: 'oc_name', lbl: 'Nombre del pastel', required: true, maxlength: 150, value: line ? line.name : 'Pastel personalizado', class: 'w-full sm:w-1/2' },
-                { id: 'oc_portions', lbl: 'Porciones', tipo: 'number', required: true, min: 1, max: 999, step: 1, value: line ? line.portions : '', ph: 'Ej. 20', class: 'w-1/2 sm:w-1/4' },
-                { id: 'oc_quantity', lbl: 'Pasteles', tipo: 'number', required: true, min: 1, max: 9999, step: 1, value: line ? line.quantity : 1, class: 'w-1/2 sm:w-1/4' },
-                ...groupFields,
-                ...extraFields,
-                { id: 'ocExtras', tipo: 'html', class: 'w-full' },
-                { id: 'oc_suggested', lbl: 'Precio sugerido', disabled: true, value: '$0.00', class: 'w-1/2 sm:w-1/4' },
-                { id: 'oc_price', lbl: 'Precio por pastel', tipo: 'number', min: 0, step: '0.01', value: line ? line.priceInput : '', help: 'Déjalo vacío para usar el sugerido.', class: 'w-1/2 sm:w-1/4' },
-                { id: 'oc_dedication', lbl: 'Dedicatoria', maxlength: 255, value: line ? line.dedication : '', ph: 'Ej. Feliz cumpleaños, Ana', class: 'w-full sm:w-1/2' },
-                { id: 'oc_details', lbl: 'Indicaciones', tipo: 'textarea', rows: 2, maxlength: 255, value: line ? line.details : '', ph: 'Colores, forma, alergias…', class: 'w-full' },
-                { id: 'ocPhotoForm', tipo: 'html', class: 'w-full' },
-                { id: 'ocPhotoList', tipo: 'html', class: 'w-full' }
-            ],
-            onSave: (values, close) => this.saveCake(values, close)
+            body:       '<div id="ocWizard"></div>',
+            onSave:     (values, close) => this.saveCake(close)
         });
 
-        singles.forEach((g) => $(`#oc_g${g.id}`).on('change', () => this.onGroupChange(g)));
-
-        $('#oc_portions, #oc_quantity, #oc_price').on('input', () => this.refreshCake());
-
-        if (extras.length) {
-            this.coffeeForm({
-                parent:       'ocExtraAdd',
-                id:           'formOcExtraAdd',
-                showRequired: false,
-                json: [
-                    { opc: 'button', id: 'btnOcExtraAdd', class: 'col-12', text: 'Agregar', icon: 'icon-plus', color_btn: 'outline', onClick: () => this.addExtra() }
-                ]
-            });
-        }
-
-        this.coffeeForm({
-            parent:       'ocPhotoForm',
-            id:           'formOcPhotos',
-            showRequired: false,
-            json: [
-                { opc: 'input-file', id: 'oc_photo_file', lbl: 'Fotos de referencia', class: 'col-12 col-sm-4', text: '<i class="icon-upload"></i> Subir fotos', accept: 'image/*', fn: 'orderForm.onPhotos(this)', color_btn: 'outline' }
-            ]
+        this.cakeBox = this.posCake({
+            parent: 'ocWizard',
+            id:     'posOrderCake',
+            json:   groups,
+            value: {
+                name:       line ? line.name : 'Pastel personalizado',
+                portions:   line ? line.portions : '',
+                quantity:   line ? line.quantity : 1,
+                price:      line ? line.priceInput : '',
+                dedication: line ? line.dedication : '',
+                details:    line ? line.details : '',
+                modifiers:  line ? line.modifiers.map((m) => ({ id: m.id, quantity: m.quantity })) : []
+            },
+            images:        this.cakeImages(),
+            maxImages:     10,
+            onFiles:       (files) => this.addPhotos(files),
+            onRemoveImage: (i) => this.removePhoto(i)
         });
-
-        $('#oc_photo_file').attr('multiple', true);
-
-        this.renderExtras();
-        this.renderPhotos();
-        this.refreshCake();
     }
 
-    onGroupChange(g) {
-        const value = Number($(`#oc_g${g.id}`).val()) || 0;
+    async addPhotos(files) {
+        const cake = this.cake;
+        const box  = this.cakeBox;
 
-        this.cake.modifiers = this.cake.modifiers.filter((m) => m.multiple || m.group_id !== Number(g.id));
+        if (!files.length || !cake || !box || this.saving) return;
 
-        if (value) {
-            const modifier = this.modifier(value, 1);
-            if (modifier) this.cake.modifiers.push(modifier);
-        }
+        const images = files.filter((file) => /^image\//.test(file.type));
 
-        this.refreshCake();
-    }
-
-    addExtra() {
-        const id       = Number($('#oc_extra').val()) || 0;
-        const quantity = this.qty($('#oc_extra_qty').val(), 999);
-
-        if (!id) return this.warn('Elige un extra.');
-        if (quantity === null) return this.warn('La cantidad de cada extra va de 1 a 999.');
-
-        const current = this.cake.modifiers.find((m) => m.id === id);
-
-        if (current) {
-            current.quantity = Math.min(999, current.quantity + quantity);
-        } else {
-            const modifier = this.modifier(id, quantity);
-            if (modifier) this.cake.modifiers.push(modifier);
-        }
-
-        $('#oc_extra').val('').trigger('change');
-        $('#oc_extra_qty').val(1);
-
-        this.renderExtras();
-        this.refreshCake();
-    }
-
-    removeExtra(id) {
-        this.cake.modifiers = this.cake.modifiers.filter((m) => m.id !== Number(id));
-
-        this.renderExtras();
-        this.refreshCake();
-    }
-
-    renderExtras() {
-        const list = this.extras();
-
-        if (!list.length) {
-            $('#ocExtras').empty();
+        if (!images.length) {
+            this.warn('Solo se pueden subir imágenes.');
             return;
         }
 
-        this.createCoffeeTable3({
-            parent: 'ocExtras',
-            id:     'tbOrderExtras',
-            theme:  'light',
-            f_size: 13,
-            center: [2],
-            right:  [3, 4],
-            data: {
-                thead: ['Extra', 'Cant.', 'Precio', 'Importe', ''],
-                row: list.map((m) => ({
-                    id:      m.id,
-                    xName:   `${esc(m.group_name)} · ${esc(m.name)}`,
-                    xQty:    m.multiple ? String(m.quantity) : 'Por porción',
-                    xPrice:  money(m.price),
-                    xAmount: { html: m.multiple ? money(m.price * m.quantity) : '—', class: 'font-semibold' },
-                    a: [
-                        { class: 'of-act of-act-del', html: '<i class="icon-trash-empty"></i>', role: 'button', 'aria-label': 'Quitar extra', onclick: `orderForm.removeExtra(${m.id})` }
-                    ]
-                }))
-            }
-        });
-    }
-
-    refreshCake() {
-        if (!this.cake) return;
-
-        const portions  = this.qty($('#oc_portions').val(), 999) || 0;
-        const quantity  = this.qty($('#oc_quantity').val(), 9999) || 0;
-        const suggested = this.suggested({ portions: portions, modifiers: this.cake.modifiers });
-        const raw       = String($('#oc_price').val() || '').trim();
-        const unit      = raw === '' ? suggested : (this.amount(raw) || 0);
-
-        $('#oc_suggested').val(money(suggested));
-        $('#oc_price').attr('placeholder', money(suggested));
-        $('#modalOrderCake .cs-modal-info').text(`Importe de la línea: ${money(unit * quantity)}`);
-    }
-
-    async onPhotos(input) {
-        const files = Array.from(input.files || []);
-        const cake  = this.cake;
-
-        input.value = '';
-
-        if (!files.length || !cake || this.saving) return;
-
-        if (cake.images.length + files.length > 10) {
+        if (cake.images.length + images.length > 10) {
             this.warn(`Un pastel admite hasta 10 fotos. Le quedan ${10 - cake.images.length}.`);
             return;
         }
@@ -848,10 +728,11 @@ class OrderForm extends Templates {
         const form = new FormData();
 
         form.append('opc', 'uploadImages');
-        files.forEach((file) => form.append('archivos[]', file));
+        images.forEach((file) => form.append('archivos[]', file));
 
         this.saving = true;
-        $('#oc_photo_file').prop('disabled', true);
+        box.busy(true);
+        $('#modalOrderCake .cs-modal-save').prop('disabled', true);
 
         let data = null;
 
@@ -863,9 +744,11 @@ class OrderForm extends Templates {
         }
 
         this.saving = false;
-        $('#oc_photo_file').prop('disabled', false);
 
         if (this.cake !== cake || !$('#modalOrderCake').length) return;
+
+        box.busy(false);
+        $('#modalOrderCake .cs-modal-save').prop('disabled', false);
 
         if (!data || data.status != 200) {
             alert({ icon: 'error', title: 'No se subieron las fotos', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
@@ -874,47 +757,18 @@ class OrderForm extends Templates {
 
         (data.images || []).forEach((img) => cake.images.push({ id: 0, path: img.path, name: img.name, original_name: img.original_name }));
 
-        this.renderPhotos();
+        box.images(this.cakeImages());
 
         if ((data.errors || []).length) {
             alert({ icon: 'warning', title: data.message, text: data.errors.join(' '), btn1: true, btn1Text: 'Entendido' });
         }
     }
 
-    renderPhotos() {
-        const list = this.cake ? this.cake.images : [];
-
-        if (!list.length) {
-            $('#ocPhotoList').empty();
-            return;
-        }
-
-        this.createCoffeeTable3({
-            parent: 'ocPhotoList',
-            id:     'tbOrderPhotos',
-            theme:  'light',
-            f_size: 13,
-            center: [1, 3],
-            data: {
-                thead: ['Foto', 'Archivo', 'Estado', ''],
-                row: list.map((img, i) => ({
-                    id:     i,
-                    pPhoto: orderImg(img.path, 'of-thumb', img.name),
-                    pFile:  esc(img.original_name || img.name),
-                    pState: img.id ? 'Guardada' : 'Por guardar',
-                    a: [
-                        { class: 'of-act of-act-del', html: '<i class="icon-trash-empty"></i>', role: 'button', 'aria-label': 'Quitar foto', onclick: `orderForm.removePhoto(${i})` }
-                    ]
-                }))
-            }
-        });
-    }
-
     removePhoto(index) {
-        if (!this.cake) return;
+        if (!this.cake || !this.cakeBox || this.saving) return;
 
         this.cake.images.splice(index, 1);
-        this.renderPhotos();
+        this.cakeBox.images(this.cakeImages());
     }
 
     // -- CRUD --
@@ -947,7 +801,8 @@ class OrderForm extends Templates {
         });
     }
 
-    submit() {
+    // pay = true: al guardar abre «Gestión de pagos» para dejar el anticipo.
+    submit(pay) {
         const customer = String($('#of_customer_id').val() || '');
 
         const values = {
@@ -967,10 +822,10 @@ class OrderForm extends Templates {
             $('#posOrderTk .pos-tk-body').scrollTop(0);
         }
 
-        this.save(values);
+        this.save(values, !!pay);
     }
 
-    async save(values) {
+    async save(values, pay) {
         if (this.saving) return;
 
         const delivery = values.of_delivery_method === '1';
@@ -984,7 +839,7 @@ class OrderForm extends Templates {
         this.saving = true;
 
         const host   = $('#posOrderHost').addClass('is-saving');
-        const button = $('#btnOrderSave').prop('disabled', true);
+        const button = $('#btnOrderSave, #btnOrderSavePay').prop('disabled', true);
 
         const data = await useFetch({
             url: this._link,
@@ -1014,9 +869,14 @@ class OrderForm extends Templates {
         this.initial = this.snapshot();
         this.close();
 
-        alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 1600 });
-
         orders.lsOrders();
+
+        if (pay && data.id) {
+            await alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 900 });
+            return orderPay.open(Number(data.id));
+        }
+
+        alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 1600 });
     }
 
     saveProduct(index, values, close) {
@@ -1102,19 +962,21 @@ class OrderForm extends Templates {
         else alert({ icon: 'success', title: data.message, timer: 1400 });
     }
 
-    saveCake(values, close) {
-        if (this.saving || !this.cake) return;
+    saveCake(close) {
+        if (this.saving || !this.cake || !this.cakeBox) return;
 
         const cake       = this.cake;
-        const name       = String(values.oc_name || '').trim().replace(/\s+/g, ' ');
-        const portions   = this.qty(values.oc_portions, 999);
-        const quantity   = this.qty(values.oc_quantity, 9999);
-        const priceInput = String(values.oc_price || '').trim();
+        const data       = this.cakeBox.get();
+        const name       = data.name.trim().replace(/\s+/g, ' ');
+        const portions   = this.qty(data.portions, 999);
+        const quantity   = this.qty(data.quantity, 9999);
+        const priceInput = data.price.trim();
+        const modifiers  = data.modifiers.map((m) => this.modifier(m.id, m.quantity)).filter(Boolean);
 
         if (!name) return this.warn('Escribe el nombre del pastel.');
         if (portions === null) return this.warn('Las porciones van de 1 a 999.');
         if (quantity === null) return this.warn('La cantidad de pasteles va de 1 a 9,999.');
-        if (!cake.modifiers.length) return this.warn('Elige al menos una opción del pastel.');
+        if (!modifiers.length) return this.warn('Elige al menos una opción del pastel.');
         if (priceInput !== '' && this.amount(priceInput) === null) return this.warn('Escribe un precio válido o déjalo vacío para usar el sugerido.');
 
         close();
@@ -1127,14 +989,15 @@ class OrderForm extends Templates {
             portions:   portions,
             quantity:   quantity,
             priceInput: priceInput,
-            details:    String(values.oc_details || '').trim().replace(/\s+/g, ' '),
-            dedication: String(values.oc_dedication || '').trim(),
-            modifiers:  cake.modifiers,
+            details:    data.details.trim().replace(/\s+/g, ' '),
+            dedication: data.dedication.trim(),
+            modifiers:  modifiers,
             images:     cake.images,
             saved:      cake.saved
         });
 
-        this.cake = null;
+        this.cake    = null;
+        this.cakeBox = null;
     }
 
     async cancel(id) {
@@ -1210,25 +1073,61 @@ class OrderForm extends Templates {
     }
 
     modifier(id, quantity) {
-        const source = this.cake.saved.find((m) => m.id === Number(id)) || this.optionIndex[id];
+        const source = this.cake.options[Number(id)];
 
         if (!source) return null;
 
         return {
-            id:         Number(id),
+            id:         source.id,
             name:       source.name,
             price:      Number(source.price),
-            quantity:   quantity,
+            quantity:   Number(quantity) || 1,
             group_id:   Number(source.group_id),
             group_name: source.group_name,
             multiple:   Boolean(source.multiple)
         };
     }
 
-    extras() {
-        if (!this.cake) return [];
+    cakeGroups(saved) {
+        const groups = (this.opts.groups || []).map((g) => ({
+            id:       Number(g.id),
+            name:     g.name,
+            multiple: Boolean(g.multiple),
+            options:  (g.options || []).map((o) => ({ id: Number(o.id), name: o.name, price: Number(o.price) || 0 }))
+        }));
 
-        return this.cake.modifiers.filter((m) => m.multiple || !this.cake.singles.includes(m.group_id));
+        saved.forEach((m) => {
+            const found = groups.reduce((hit, g) => hit || g.options.find((o) => o.id === m.id), null);
+
+            if (found) {
+                found.name  = m.name;
+                found.price = m.price;
+                return;
+            }
+
+            let group = groups.find((g) => g.id === m.group_id);
+
+            if (!group) {
+                group = { id: m.group_id, name: m.group_name || 'Opciones guardadas', multiple: m.multiple, options: [] };
+                groups.push(group);
+            }
+
+            group.options.push({ id: m.id, name: m.name, price: m.price });
+        });
+
+        return groups;
+    }
+
+    cakeImages() {
+        return (this.cake ? this.cake.images : []).map((img) => {
+            const path = String(img.path || '').trim();
+
+            return {
+                src:      fileUrl(path),
+                fallback: /^https?:\/\//i.test(path) ? '' : ORDER_FILES_REMOTE + encodeURI(path.replace(/^\/+/, '')),
+                name:     img.original_name || img.name || ''
+            };
+        });
     }
 
     lineLook(line) {
@@ -1286,8 +1185,9 @@ class OrderForm extends Templates {
         alert({ icon: 'warning', title: 'Falta un dato', text: text, btn1: true, btn1Text: 'Entendido' });
     }
 
-    warnFail(data, title) {
-        if (data && data.status == 423) return orderTurn.locked(data);
+    // next: con 423, lo que sigue cuando quede un turno abierto hoy.
+    warnFail(data, title, next) {
+        if (data && data.status == 423) return orderTurn.locked(data, next);
 
         alert({
             icon:     data && data.status == 409 ? 'warning' : 'error',

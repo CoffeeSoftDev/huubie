@@ -29,8 +29,11 @@ class OrderTurn extends Templates {
 
     // -- Entrada --
 
-    async open(id) {
+    // opts.afterOpen: lo que sigue cuando el turno queda abierto (p. ej. volver al cobro).
+    async open(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        this.afterOpen = (opts && opts.afterOpen) || null;
 
         const data = await this.fetchTurn(id);
         if (!data) return;
@@ -38,7 +41,7 @@ class OrderTurn extends Templates {
         if (!id && !data.brief && data.can.open) return this.openForm(data);
 
         if (!id && !data.brief && data.can.open_reason) {
-            return this.locked({ title: dataInit.day && dataInit.day.closed ? 'Día cerrado' : 'Día pendiente de cierre', message: data.can.open_reason, day: true });
+            return this.locked({ title: dataInit.day && dataInit.day.closed ? 'Día cerrado' : 'Día pendiente de cierre', message: data.can.open_reason, day: true }, this.afterOpen);
         }
 
         if (!data.turn) {
@@ -50,7 +53,8 @@ class OrderTurn extends Templates {
     }
 
     // 423 del ctrl. Con day = true el bloqueo es el día (cerrado o pendiente), no el turno.
-    async locked(data) {
+    // next: lo que sigue cuando quede un turno abierto hoy (p. ej. volver al cobro).
+    async locked(data, next) {
         const title = (data && data.title) || 'Sin turno abierto';
         const old   = /otro d[ií]a/i.test(title);
         const day   = !!(data && data.day);
@@ -69,9 +73,9 @@ class OrderTurn extends Templates {
 
         $('#modalOrderDetails .cs-modal-x').trigger('click');
 
-        if (day) return orderClosure.open(this.blockedDay());
+        if (day) return orderClosure.open(this.blockedDay(), { afterClose: next });
 
-        this.open();
+        this.open(0, { afterOpen: next });
     }
 
     // El día que hay que atender: el pendiente más viejo o, si no, hoy.
@@ -121,64 +125,72 @@ class OrderTurn extends Templates {
 
     // -- Abrir --
 
+    // Igual al "Abrir Turno" de alpha/pedidos: createCoffeeModalForm con sucursal,
+    // responsable y fondo inicial, y una confirmación antes de abrir.
     openForm(data) {
-        const last  = data.turn;
-        const quick = [500, 1000, 1500, 2000];
+        const last   = data.turn;
+        const branch = data.branch || '';
+        const icon   = (name) => `<i data-lucide="${name}" class="w-4 h-4"></i>`;
 
         this.token = ordToken();
 
-        const modal = this.csModal({
-            id:         'modalOrderTurnOpen',
-            title:      'Abrir turno',
-            subtitle:   data.branch,
-            lucideIcon: 'lock-open',
-            width:      'max-w-md',
-            saveText:   'Abrir turno',
-            cancelText: 'Cancelar',
-            info:       last ? `Último: turno ${last.folio}, cerrado ${ordDate(last.closed_at, true)}` : '',
-            action:     last ? { text: 'Último corte', lucideIcon: 'receipt', onClick: () => { modal.close(); this.cut(data); } } : null,
+        const modal = this.createCoffeeModalForm({
+            id:          'modalOrderTurnOpen',
+            title:       'Abrir turno',
+            iconSvg:     '<i data-lucide="clock" class="w-5 h-5"></i>',
+            iconBg:      'bg-emerald-600',
+            confirmText: 'Confirmar apertura',
+            cancelText:  'Cancelar',
+            footerNote:  last
+                ? `Último: turno ${esc(last.folio)}, cerrado ${esc(ordDate(last.closed_at, true))} · <button type="button" class="ord-last-cut underline underline-offset-2">Ver corte</button>`
+                : '',
             json: [
-                {
-                    id:    'to_note',
-                    tipo:  'html',
-                    class: 'w-full',
-                    html:  '<p class="text-[13px] text-gray-500 mb-0">Cuenta el efectivo con el que empieza la caja. Si no hay, escribe 0.</p>'
-                },
-                { id: 'to_cash', lbl: 'Fondo inicial en caja', tipo: 'number', required: true, min: 0, step: '0.01', ph: '0.00', class: 'w-full' },
-                {
-                    id:    'to_quick',
-                    tipo:  'html',
-                    class: 'w-full',
-                    html:  `<div class="flex flex-wrap gap-[8px]">${quick.map((n) => `<button type="button" class="ord-quick" data-amount="${n}">$${n.toLocaleString('es-MX')}</button>`).join('')}</div>`
-                }
+                { opc: 'display', id: 'sucursal',    lbl: 'Sucursal',              icon: icon('house'), value: esc(branch) },
+                { opc: 'display', id: 'responsable', lbl: 'Responsable',           icon: icon('user'),  value: esc(data.user || 'Sin asignar') },
+                { opc: 'money',   id: 'openingAmount', lbl: 'Fondo inicial de caja', placeholder: '0.00', min: 0, step: 0.01, autofocus: true }
             ],
-            onSave: (values, close) => this.saveOpen(values, close)
+            onConfirm: (values, modal) => { this.saveOpen(values, modal, branch); }
         });
 
-        $('#modalOrderTurnOpen').on('click', 'button.ord-quick', (e) => {
-            $('#to_cash').val($(e.currentTarget).data('amount')).trigger('focus');
+        modal.el.on('click', 'button.ord-last-cut', () => {
+            modal.close();
+            this.cut(data);
         });
 
-        this.enterSaves('#modalOrderTurnOpen', '#to_cash');
-
-        $('#to_cash').trigger('focus');
+        this.enterSaves('#modalOrderTurnOpen', '#modalOrderTurnOpen-openingAmount');
     }
 
-    async saveOpen(values, close) {
+    async saveOpen(values, modal, branch) {
         if (this.saving) return;
 
-        const cash = ordAmount(values.to_cash);
+        const cash = ordAmount(values.openingAmount);
 
-        if (cash === null) return this.warn('Escribe el fondo inicial en caja. Si no hay efectivo, escribe 0.');
+        if (cash === null) return this.warn('Escribe el fondo inicial de caja. Si no hay efectivo, escribe 0.');
+
+        const answer = await alert({
+            icon:     'question',
+            title:    '¿Aperturar turno?',
+            html:     `<p>Se abrirá un nuevo turno de caja en <strong>${esc(branch)}</strong> con un fondo inicial de <strong>${money(cash)}</strong>.</p>`,
+            btn1Text: 'Sí, aperturar',
+            btn2Text: 'Cancelar'
+        });
+
+        if (!answer || !answer.isConfirmed) return;
 
         const data = await this.send('#modalOrderTurnOpen', { opc: 'openTurn', opening_cash: cash, token: this.token }, 'No se abrió el turno');
         if (!data) return;
 
-        close();
+        modal.close();
 
         this.sync(data.brief, true);
 
-        alert({ icon: 'success', title: data.message, timer: 1800 });
+        const next = this.afterOpen;
+
+        this.afterOpen = null;
+
+        await alert({ icon: 'success', title: data.message, timer: next ? 1200 : 1800 });
+
+        if (next) next();
     }
 
     // -- Corte --
@@ -480,7 +492,11 @@ class OrderTurn extends Templates {
 
         this.sync(data.brief, true);
 
+        const next   = this.afterOpen;
         const print  = orders.can('print');
+
+        this.afterOpen = null;
+
         const answer = await alert({
             icon:     'success',
             title:    data.message,
@@ -488,14 +504,17 @@ class OrderTurn extends Templates {
             btn1:     print,
             btn1Text: 'Imprimir corte',
             btn2:     true,
-            btn2Text: 'Listo'
+            btn2Text: next ? 'Seguir' : 'Listo'
         });
 
-        if (!answer || !answer.isConfirmed) return;
+        if (answer && answer.isConfirmed) {
+            const fresh = await this.fetchTurn(t.id);
 
-        const fresh = await this.fetchTurn(t.id);
+            if (fresh) this.printCut(fresh);
+        }
 
-        if (fresh) this.printCut(fresh);
+        // Venía de un cobro frenado por este turno: sigue con el de hoy (cierre del día o apertura).
+        if (next) this.open(0, { afterOpen: next });
     }
 
     // -- Reabrir --
@@ -659,7 +678,8 @@ class OrderTurn extends Templates {
     async send(modal, payload, title) {
         this.saving = true;
 
-        const button = $(`${modal} .cs-modal-save`).prop('disabled', true);
+        // .cs-modal-save en csModal; .cf-confirm en createCoffeeModalForm (abrir turno).
+        const button = $(`${modal} .cs-modal-save, ${modal} .cf-confirm`).prop('disabled', true);
         const data   = await useFetch({ url: this._link, data: payload });
 
         this.saving = false;
@@ -681,7 +701,7 @@ class OrderTurn extends Templates {
             if (e.key !== 'Enter') return;
 
             e.preventDefault();
-            $(`${modal} .cs-modal-save`).trigger('click');
+            $(`${modal} .cs-modal-save, ${modal} .cf-confirm`).first().trigger('click');
         });
     }
 

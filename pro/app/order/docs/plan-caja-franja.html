@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap · Franja de caja en Huubie PRO</title>
+<style>
+/* @piel plantilla-plano */
+:root{
+  color-scheme: light dark;
+  --bp-ground:    light-dark(#F1F3F6, #0C1116);
+  --bp-surface:   light-dark(#FFFFFF, #141B21);
+  --bp-surface-2: light-dark(#F5F7F9, #1B242B);
+  --bp-line:      light-dark(#DDE3E8, #2A353D);
+  --bp-line-soft: light-dark(#E9EDF1, #212A31);
+  --bp-ink:       light-dark(#0F1A21, #E4EAEE);
+  --bp-ink-soft:  light-dark(#4A5A64, #A8B7C0);
+  --bp-ink-dim:   light-dark(#6E7F8A, #7E8F99);
+  --bp-ac:        light-dark(#0B6E77, #4FB8C2);
+  --bp-ac-soft:   light-dark(#E0EFF0, #12343A);
+  --bp-read:      light-dark(#1D4ED8, #93C5FD);
+  --bp-write:     light-dark(#A15C08, #FCD34D);
+  --bp-danger:    light-dark(#B3261E, #FCA5A5);
+  --bp-ui:   "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{
+  background:var(--bp-ground); color:var(--bp-ink);
+  font-family:var(--bp-ui); font-size:15px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{ max-width:1000px; margin:0 auto; padding:0 22px 80px }
+
+/* — Cajetín — */
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:26px;
+  display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,44px);
+  line-height:1.08; letter-spacing:-.015em; text-wrap:balance; max-width:20ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55;
+  color:var(--bp-ink-soft); max-width:62ch; text-wrap:pretty }
+.meta{ display:flex; flex-wrap:wrap; gap:6px 26px; font-family:var(--bp-mono);
+  font-size:11.5px; color:var(--bp-ink-dim) }
+.meta b{ color:var(--bp-ink-soft); font-weight:600 }
+
+/* — Cifras — */
+.tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px;
+  margin-bottom:44px }
+.tile{ border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface);
+  padding:14px 16px }
+.tile b{ display:block; font-family:var(--bp-serif); font-size:26px; line-height:1;
+  color:var(--bp-ink); font-variant-numeric:tabular-nums }
+.tile small{ display:block; margin-top:5px; font-size:11.5px; color:var(--bp-ink-dim) }
+
+/* — Secciones — */
+section{ display:flex; flex-direction:column; gap:16px; margin-bottom:56px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:25px; line-height:1.2;
+  letter-spacing:-.01em; text-wrap:balance; display:flex; align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em;
+  color:var(--bp-ac); flex:none; transform:translateY(-2px) }
+h3{ font-size:14.5px; font-weight:650; margin-top:6px }
+.intro{ color:var(--bp-ink-soft); max-width:68ch; text-wrap:pretty }
+.foot{ font-size:12.5px; color:var(--bp-ink-dim) }
+code,.mono{ font-family:var(--bp-mono); font-size:.875em }
+code{ background:var(--bp-surface-2); border:1px solid var(--bp-line-soft);
+  border-radius:4px; padding:.08em .34em }
+
+/* — Tablas: nunca se desplazan salvo dentro de su contenedor — */
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px;
+  background:var(--bp-surface) }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px }
+th,td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft);
+  vertical-align:top }
+thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--bp-ink-dim); font-weight:500;
+  background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line); white-space:nowrap }
+tbody tr:last-child td{ border-bottom:0 }
+.chip{ display:inline-block; font-family:var(--bp-mono); font-size:9.5px;
+  letter-spacing:.05em; text-transform:uppercase; padding:2px 7px; border-radius:99px;
+  border:1px solid currentColor; margin-right:5px }
+.chip.read{ color:var(--bp-read) } .chip.write{ color:var(--bp-write) }
+.chip.danger{ color:var(--bp-danger) }
+
+/* — Vocabulario y notas — */
+.voc{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px }
+.voc > div{ border:1px solid var(--bp-line); border-radius:10px; padding:13px 15px;
+  background:var(--bp-surface) }
+dt{ font-weight:650; font-size:13.5px; margin-bottom:4px }
+dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
+.note{ border-left:2px solid var(--bp-write); background:var(--bp-surface);
+  border-radius:0 8px 8px 0; padding:14px 18px; display:flex; flex-direction:column;
+  gap:9px; font-size:13.5px; color:var(--bp-ink-soft) }
+.check{ padding-left:20px; display:flex; flex-direction:column; gap:6px;
+  color:var(--bp-ink-soft); font-size:13.5px }
+
+/* — Pie — */
+.src-files{ border-top:1px solid var(--bp-line); padding-top:18px; display:flex;
+  flex-wrap:wrap; gap:8px 14px; align-items:baseline; font-size:11.5px;
+  color:var(--bp-ink-dim) }
+.src-files b{ font-family:var(--bp-ui); font-size:12px; color:var(--bp-ink-soft);
+  width:100%; margin-bottom:2px }
+
+/* @piel revision */
+:root{ color-scheme: light !important }
+.wrap{max-width:none;padding-inline:clamp(16px,3vw,40px)}
+.rv-trips{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.rv-trip{border:1px solid var(--bp-line);border-radius:10px;background:var(--bp-surface);
+  padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.rv-trip header{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rv-trip b{font-family:var(--bp-ui);font-size:14.5px;line-height:1.35}
+.rv-trip p{margin:0;color:var(--bp-ink-soft);font-size:13.5px}
+.rv-code{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;
+  padding:0 7px;border-radius:999px;background:var(--bp-write);color:var(--bp-surface);
+  font:700 10.5px var(--bp-mono)}
+.rv-p{font:600 10.5px var(--bp-mono);text-transform:uppercase;letter-spacing:.06em;
+  padding:1px 7px;border-radius:4px;border:1px solid currentColor}
+.rv-p.alta{color:var(--bp-danger)} .rv-p.media{color:var(--bp-write)}
+.rv-p.baja{color:var(--bp-ink-dim)} .rv-p.preg{color:var(--bp-ac)}
+
+/* @piel caja · estados de la plantilla y tabla de dos columnas */
+.chip.off{ color:var(--bp-ink-dim) } .chip.ask{ color:var(--bp-ac) }
+.kv td:first-child{ width:190px; font-weight:650; color:var(--bp-ink) }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- Cajetín -->
+  <header class="head">
+    <p class="eyebrow">Huubie PRO · Turno de caja · Roadmap</p>
+    <h1>Una franja de caja <em>para todas las pantallas</em></h1>
+    <p class="lede">
+      Plan para llevar a PRO la propuesta C: una franja fija debajo de la barra superior que dice
+      cómo está la caja y ofrece la acción que toca. Sustituye el chip y los botones de turno que hoy
+      cada pantalla pinta por su cuenta. La franja solo maneja el turno: «Cierre del día» se queda en Cortes.
+      Su botón se elige entre C3 y C4 (decisión D1).
+    </p>
+    <div class="meta">
+      <span><b>Fecha</b> 14/11/2026</span>
+      <span><b>Maquetas</b> pro/app/order/templates/turno-franja-propuesta-c3.html · -c4</span>
+      <span><b>Destino</b> pro/app/order · base fayxzvov_pos</span>
+      <span><b>Estado</b> sin empezar; nada construido ni subido</span>
+    </div>
+  </header>
+
+  <div class="tiles">
+    <div class="tile"><b>5</b><small>estados de caja: sin turno, abierto, de otro día, falta cierre y día cerrado</small></div>
+    <div class="tile"><b>4</b><small>copias de <code>paintTurn()</code> con chip y botones de turno: Pedidos, Ventas, Calendario y Cortes</small></div>
+    <div class="tile"><b>5</b><small>pantallas con turno que ganan la franja (Clientes incluida)</small></div>
+    <div class="tile"><b>0</b><small>migraciones: las cifras salen de columnas que ya existen</small></div>
+    <div class="tile"><b>7</b><small>fases, de F0 a F6</small></div>
+    <div class="tile"><b>10</b><small>decisiones abiertas, cada una con propuesta</small></div>
+  </div>
+
+  <!-- 01 · Qué se construye -->
+  <section>
+    <h2><span class="num">01</span> Qué se construye</h2>
+    <p class="intro">Hoy el turno se ve distinto en cada pantalla. La franja lo junta en un solo lugar, con los mismos textos y tonos que ya usa <code>paintTurn()</code>.</p>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Dónde</td><td>Entre <code>#menu-navbar</code> y <code>#main__content</code>, en <code>layout/head.php</code>. Ocupa todo el ancho y no se desplaza con la página.</td></tr>
+          <tr><td>Qué dice</td><td>Ícono de caja, el estado con su punto de color («Turno 12 abierto»), una frase de qué significa y, con el turno abierto, las cifras: Fondo, Vendido y cuántos pedidos y ventas lleva.</td></tr>
+          <tr><td>Qué ofrece</td><td>Una sola acción de turno según el estado (sección 03): abrir, ver o cerrar. Se presenta como C3 o C4 (sección 02).</td></tr>
+          <tr><td>Qué no lleva</td><td>«Cierre del día» ni un acceso a Cortes. El cierre ya vive en Cortes (<code>btnDayCuts</code>), y Cortes ya está en el menú lateral.</td></tr>
+          <tr><td>Qué no cambia</td><td>El aviso cuando el ctrl contesta 423 (<code>orderTurn.locked</code>), los modales de «Turno y corte» y «Cierre del día», y los permisos: abrir y cerrar siguen pidiendo <code>create</code>.</td></tr>
+          <tr><td>Qué se quita</td><td>El chip de turno y los botones «Turno actual», «Turno y corte» y «Cierre del día» de Pedidos, Ventas y Calendario. «Cierre del día» se queda solo en Cortes (D9). Las acciones propias de la pantalla (Nuevo pedido) se quedan.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 02 · Los botones -->
+  <section>
+    <h2><span class="num">02</span> El botón: C3 o C4</h2>
+    <p class="intro">La franja es la misma en las dos y lleva una sola acción. C1 (grupo) y C2 (acción + menú) se descartaron el 14/11/2026. Propongo C3.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Punto</th><th>C3 · Botón de contorno</th><th>C4 · La franja se toca</th></tr></thead>
+        <tbody>
+          <tr><td>Cómo se ve</td><td>Contorno sin relleno, como Soft Restaurant (34 px, esquinas de 6 px): borde y letra verdes para abrir y ver, ámbar para cerrar o ir a Cortes; un tinte al pasar el mouse.</td><td>Sin botón: a la derecha, el nombre de la acción y una flecha redonda de color. Toda la franja se tiñe al pasar el mouse.</td></tr>
+          <tr><td>Piezas de CoffeeSoft</td><td>Un botón de <code>coffeeForm</code> con <code>color_btn:'outline'</code>. Solo el color por estado va en <code>order.css</code>.</td><td>No hay pieza: la franja de <code>createLayout</code> con un clic, más CSS propio para la flecha y el tinte.</td></tr>
+          <tr><td>Alto en escritorio</td><td>49 px fijos</td><td>48 px</td></tr>
+          <tr><td>Celular (390 px)</td><td>Dos renglones (89 px) cuando hay botón.</td><td>Un renglón (48 px); dos solo en «De otro día» (83 px).</td></tr>
+          <tr><td>Riesgo</td><td>Bajo: es el botón de siempre.</td><td>Medio: hay que enseñar que la franja se toca; con teclado se activa con Enter.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 03 · Estados -->
+  <section>
+    <h2><span class="num">03</span> Los cinco estados</h2>
+    <p class="intro">Todo sale de <code>dataInit.turn</code> y <code>dataInit.day</code>, que ya mandan los cinco <code>init</code> de los ctrl. «Puede» = tiene permiso <code>create</code>.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Estado</th><th>Cuándo</th><th>Tono</th><th>Acción</th><th>Qué abre</th></tr></thead>
+        <tbody>
+          <tr><td>Sin turno</td><td><code>turn</code> vacío, día abierto y sin pendientes</td><td>Gris</td><td>«Abrir turno» (si puede)</td><td><code>orderTurn.open()</code></td></tr>
+          <tr><td>Abierto</td><td><code>turn</code> con <code>old = false</code></td><td>Verde</td><td>«Turno y corte»</td><td><code>orderTurn.open()</code></td></tr>
+          <tr><td>De otro día</td><td><code>turn.old = true</code></td><td>Ámbar</td><td>«Cerrar turno N» (si puede)</td><td><code>orderTurn.open()</code></td></tr>
+          <tr><td>Falta cierre</td><td><code>turn</code> vacío y <code>day.pending</code> con fechas</td><td>Ámbar</td><td>«Ir a Cortes» (si puede)</td><td>La página de Cortes; ahí se cierra el día</td></tr>
+          <tr><td>Día cerrado</td><td><code>day.closed = true</code></td><td>Azul</td><td>Ninguna: solo informa</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">Quien no puede (Consulta) ve el estado y «Turno y corte» en solo lectura, nunca Abrir, Cerrar ni «Ir a Cortes».</p>
+  </section>
+
+  <!-- 04 · Fases -->
+  <section>
+    <h2><span class="num">04</span> Fases</h2>
+    <p class="intro">Siete fases cortas. Cada una se prueba en local antes de pasar a la siguiente.</p>
+    <div class="rv-trips">
+      <article class="rv-trip">
+        <header><span class="rv-code">F0</span><span class="rv-p preg">Decidir</span></header>
+        <b>Elegir botones y cerrar decisiones</b>
+        <p>C3 o C4, y las decisiones D2 a D10 de la sección 07.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">F1</span><span class="rv-p alta">Primero</span></header>
+        <b>Datos de la franja</b>
+        <p><code>turnBrief()</code> suma fondo, quién abrió y lo vendido. Solo lectura.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">F2</span><span class="rv-p alta">Primero</span></header>
+        <b>Componente <code>CajaStrip</code></b>
+        <p>Un archivo que pinta los cinco estados con una sola acción de turno.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">F3</span><span class="rv-p media">Después</span></header>
+        <b>Montaje en el esqueleto</b>
+        <p>El hueco en <code>head.php</code> y el script en <code>scripts.php</code>.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">F4</span><span class="rv-p media">Después</span></header>
+        <b>Conectar y limpiar</b>
+        <p><code>sync()</code> repinta la franja; se quitan chips y botones de turno, y «Cierre del día» queda solo en Cortes.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">F5</span><span class="rv-p baja">Al final</span></header>
+        <b>Pruebas en local</b>
+        <p>5 estados × 2 roles, celular y oscuro, en Kafeto con el usuario 23.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">F6</span><span class="rv-p baja">Al final</span></header>
+        <b>Subir a producción</b>
+        <p>Solo archivos; sin SQL.</p>
+      </article>
+    </div>
+
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Fase</th><th>Qué se hace</th><th>Archivos</th><th>Hecho cuando</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>F1</td>
+            <td><span class="chip read">Lectura</span> <code>qOpenTurn</code> trae también <code>opening_cash</code> y quién abrió. <code>turnBrief()</code> agrega <code>opening_cash</code>, <code>opened_by</code> y lo de <code>qTurnTotals($turnId)</code>: <code>total_sales</code>, <code>orders_count</code>, <code>sales_count</code>. Con el turno de otro día no hace falta sumar.</td>
+            <td><code>ctrl/core-order.php</code> · <code>mdl/mdl-order.php</code></td>
+            <td>El <code>init</code> de Pedidos y el <code>getTurn</code> devuelven las cifras; la pantalla de hoy no cambia.</td>
+          </tr>
+          <tr>
+            <td>F2</td>
+            <td><code>class CajaStrip extends Templates</code> con <code>paint()</code>. Lee <code>dataInit.turn</code>, <code>dataInit.day</code> y <code>orders.can('create')</code>, arma el modelo de la sección 03 y pinta con <code>createLayout</code>. Con C3 la acción es un botón de <code>coffeeForm</code>; con C4, un clic en la franja. Llama lo que ya existe: <code>orderTurn.open()</code> o la página de Cortes. Estilos en <code>order.css</code>, con los tonos de <code>.ord-turn-chip</code>.</td>
+            <td><code>src/js/components/caja-strip.js</code> (nuevo) · <code>src/css/order.css</code></td>
+            <td>Pintada a mano en una página, la franja muestra los cinco estados.</td>
+          </tr>
+          <tr>
+            <td>F3</td>
+            <td><code>&lt;div id="cajaStrip"&gt;&lt;/div&gt;</code> entre <code>#menu-navbar</code> y <code>#main__content</code>. <code>'components/caja-strip'</code> en la lista de <code>scripts.php</code>, antes de la página. <code>#cajaStrip:empty</code> no ocupa lugar, así Inicio y Dashboard quedan igual.</td>
+            <td><code>layout/head.php</code> · <code>layout/scripts.php</code></td>
+            <td>Las 7 páginas cargan sin errores; las que no tienen turno no cambian.</td>
+          </tr>
+          <tr>
+            <td>F4</td>
+            <td><code>cajaStrip = new CajaStrip(...)</code> donde hoy se crea <code>orderTurn</code> (5 archivos). <code>OrderTurn.sync()</code> llama <code>cajaStrip.paint()</code>. Cada <code>paintTurn()</code> se queda solo con las acciones de su pantalla (sección 05).</td>
+            <td><code>pedido-turno.js</code> · <code>pedidos.js</code> · <code>ventas.js</code> · <code>calendario.js</code> · <code>cortes.js</code> · <code>clientes.js</code></td>
+            <td>Abrir, cerrar, cobrar y cerrar el día repintan la franja sin recargar.</td>
+          </tr>
+          <tr>
+            <td>F5</td>
+            <td>La matriz completa: 5 estados × Cajera y Consulta, claro y oscuro, 1440 px y 390 px, y los tres caminos del 423 (captura, cobro y venta). En sucursal 3 Kafeto, usuario 23. El turno 980 no se toca.</td>
+            <td>—</td>
+            <td>Cero errores en consola y cada caso con captura en <code>.playwright-mcp/</code>.</td>
+          </tr>
+          <tr>
+            <td>F6</td>
+            <td><span class="chip write">Producción</span> Subir los archivos de F1 a F4. No hay SQL. Nunca el <code>_Conect.php</code> local.</td>
+            <td>Los de F1 a F4</td>
+            <td>En prod, Pedidos y Ventas muestran la franja con el turno real.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 05 · Qué se quita de cada pantalla -->
+  <section>
+    <h2><span class="num">05</span> Qué se quita de cada pantalla</h2>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Pantalla</th><th>Hoy</th><th>Se quita</th><th>Se queda</th></tr></thead>
+        <tbody>
+          <tr><td>Pedidos</td><td><code>pedidos.js:250-321</code></td><td>Chip, <code>btnTurnOrders</code>, <code>btnDayOrders</code> («Cierre del día»)</td><td><code>btnNewOrder</code></td></tr>
+          <tr><td>Ventas</td><td><code>ventas.js:349-427</code></td><td>Chip, <code>btnTurnSale</code>, <code>btnDaySale</code> («Cierre del día»)</td><td>La ayuda de teclas (F2 Cobrar · F8 Cliente · F9 Descuento)</td></tr>
+          <tr><td>Calendario</td><td><code>calendario.js:185</code></td><td>Chip y <code>btnTurnCalendar</code></td><td>Lo demás del encabezado</td></tr>
+          <tr><td>Cortes</td><td><code>cortes.js:211</code></td><td>Chip y <code>btnTurnCuts</code> («Turno actual»)</td><td><code>btnDayCuts</code> («Cierre del día», <code>cortes.js:255</code>): es su único lugar. Filtros y tabla.</td></tr>
+          <tr><td>Clientes</td><td><code>clientes.js:550</code> (vacío)</td><td>Nada</td><td>Gana la franja</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">Calendario lo revisé solo por encima: confirmar en F4 qué otros botones viven junto al chip.</p>
+  </section>
+
+  <!-- 06 · Riesgos -->
+  <section>
+    <h2><span class="num">06</span> Riesgos</h2>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Riesgo</th><th>Por qué</th><th>Cómo se evita</th></tr></thead>
+        <tbody>
+          <tr><td>Fondos que no se ven</td><td>El preflight de Tailwind CDN pinta <code>[type=button]</code> y gana a una clase sola.</td><td>C3 usa el botón de <code>coffeeForm</code> tal cual. Si algo propio lleva fondo, selector con etiqueta o id.</td></tr>
+          <tr><td>Alturas que no respetan</td><td><code>compact.css</code> fija alturas con <code>!important</code>.</td><td>La altura propia de la franja también con <code>!important</code>.</td></tr>
+          <tr><td>Cifras viejas</td><td>Fondo y Vendido se leen en el <code>init</code>.</td><td>Se refrescan con cada <code>sync()</code>: el cobro y la venta ya lo llaman al terminar.</td></tr>
+          <tr><td>Una consulta más por carga</td><td><code>qTurnTotals</code> suma las ventas del turno.</td><td>Es una suma por <code>turn_id</code>. Si pesa, se quitan las cifras (D2) y F1 se omite.</td></tr>
+          <tr><td>Doble pintado</td><td><code>sync()</code> hoy llama <code>orders.paintTurn()</code>.</td><td>F4 cambia los dos en el mismo paso.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 07 · Decisiones abiertas -->
+  <section>
+    <h2><span class="num">07</span> Decisiones abiertas</h2>
+    <p class="intro">Diez preguntas, cada una con lo que propongo. Ya decidido: «Cierre del día» no va en la franja.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>#</th><th>Pregunta</th><th>Propuesta</th><th>Si se decide otra cosa</th></tr></thead>
+        <tbody>
+          <tr><td>D1</td><td>¿Botón C3 o C4?</td><td><span class="chip ask">Propuesta</span> C3: botón de contorno de <code>coffeeForm</code>; no compite con «Nuevo pedido».</td><td>C4 pide la franja con clic y CSS propio; a cambio queda más limpia y en celular ocupa un renglón.</td></tr>
+          <tr><td>D2</td><td>¿La franja muestra cifras?</td><td><span class="chip ask">Propuesta</span> Sí: Fondo, Vendido y «Pedidos · Ventas». «Movs.» de la maqueta no existe como dato; se cambia por esos dos conteos.</td><td>Sin cifras, F1 desaparece y la franja solo dice el estado.</td></tr>
+          <tr><td>D3</td><td>¿Consulta ve la franja?</td><td><span class="chip ask">Propuesta</span> Sí, sin Abrir ni Cerrar.</td><td>Se oculta cuando no hay <code>create</code>.</td></tr>
+          <tr><td>D4</td><td>¿Inicio y Dashboard la muestran?</td><td><span class="chip ask">Propuesta</span> No en esta etapa: no cargan el turno.</td><td>Hay que mandar <code>turn</code> y <code>day</code> en sus <code>init</code> y cargar <code>pedido-turno</code>.</td></tr>
+          <tr><td>D5</td><td>¿Un permiso propio de caja (<code>pos-caja</code>)?</td><td><span class="chip ask">Propuesta</span> No: se queda <code>create</code> de cada sección, como hoy.</td><td>Migración de permisos y revisar los checks del ctrl de turno.</td></tr>
+          <tr><td>D6</td><td>¿Fondo propuesto al abrir el turno?</td><td><span class="chip ask">Propuesta</span> Fuera de este plan.</td><td>Necesita dónde guardarlo (Configuración); sería estructura nueva.</td></tr>
+          <tr><td>D7</td><td>¿Celular en dos renglones?</td><td><span class="chip ask">Propuesta</span> Sí cuando no cabe: estado arriba, acción abajo; sin frase ni cifras.</td><td>Un solo renglón obliga a quitar el texto de la acción.</td></tr>
+          <tr><td>D8</td><td>¿Se borran las maquetas B, C1 y C2?</td><td><span class="chip ask">Propuesta</span> Sí, ya se descartaron.</td><td>Se quedan como referencia en <code>templates/</code>.</td></tr>
+          <tr><td>D9</td><td>¿«Cierre del día» sale también de Pedidos y Ventas?</td><td><span class="chip ask">Propuesta</span> Sí: queda solo en Cortes (<code>btnDayCuts</code>), que ya existe.</td><td>Se quedan <code>btnDayOrders</code> y <code>btnDaySale</code> en sus encabezados.</td></tr>
+          <tr><td>D10</td><td>Con un día pendiente, ¿la franja lleva a Cortes?</td><td><span class="chip ask">Propuesta</span> Sí, «Ir a Cortes». El día no se cierra desde la franja.</td><td>Solo avisa; el aviso 423 al capturar sigue abriendo el cierre, como hoy.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 08 · Qué está comprobado -->
+  <section>
+    <h2><span class="num">08</span> Qué está comprobado</h2>
+    <dl class="voc">
+      <div>
+        <dt>Comprobado (código y maquetas, 14/11/2026)</dt>
+        <dd><code>turnBrief()</code> devuelve solo <code>id</code>, <code>folio</code>, <code>opened_at</code> y <code>old</code> (<code>core-order.php:130-141</code>). <code>dayBrief()</code> devuelve <code>closed</code> y <code>pending</code> (<code>core-order.php:201-208</code>). Los <code>init</code> de Pedidos, Ventas, Calendario, Clientes y el ctrl de turno mandan los dos. <code>OrderTurn.sync()</code> llama <code>orders.paintTurn()</code> (<code>pedido-turno.js:114-124</code>). <code>turn.opening_cash</code> ya se lee en <code>mdl-order.php</code> y <code>qTurnTotals</code> existe (<code>mdl-order.php:843</code>). <code>head.php</code> no tiene hueco para la franja. «Cierre del día» ya existe en Cortes (<code>btnDayCuts</code>, <code>cortes.js:255</code>). Las maquetas C3 y C4 se probaron en el navegador: 5 estados × 2 roles, claro y oscuro, el clic y el Enter de la franja en C4, el paso a Cortes con un día pendiente, y 390 px sin desplazamiento horizontal.</dd>
+      </div>
+      <div>
+        <dt>Supuesto (no lo verifiqué)</dt>
+        <dd>Que <code>qTurnTotals</code> es ligera en cada carga. Que la franja se ve bien con los otros temas de <code>themes.css</code>. Qué otros botones viven junto al chip en Calendario y Cortes. Nada se revisó en producción.</dd>
+      </div>
+      <div>
+        <dt>Sin construir</dt>
+        <dd>Todo el plan. Hoy solo existen las maquetas en <code>pro/app/order/templates/</code>.</dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="src-files">
+    <b>Fuentes</b>
+    <span>pro/app/order/templates/turno-franja-propuesta-c3.html · -c4.html</span>
+    <span>pro/app/order/templates/js/turno-propuesta.js · css/turno-propuesta.css</span>
+    <span>pro/app/order/ctrl/core-order.php</span>
+    <span>pro/app/order/mdl/mdl-order.php</span>
+    <span>pro/app/order/src/js/pedido-turno.js · pedidos.js · ventas.js · calendario.js · cortes.js · clientes.js</span>
+    <span>pro/app/order/layout/head.php · scripts.php</span>
+    <span>pro/assets/js/coffeeSoft.js</span>
+  </div>
+
+</div>
+</body>
+</html>

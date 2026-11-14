@@ -147,6 +147,7 @@ class Products extends Templates {
     }
 
     ls() {
+
         this.createTable({
             parent: 'containerProducts',
             idFilterBar: 'filterBarProducts',
@@ -209,16 +210,16 @@ class Products extends Templates {
 
         return [
             this.formSection('secIdentity', 'Identificación'),
-            { id: 'name', lbl: 'Nombre', tipo: 'text', icon: 'package', required: true, maxlength: 255, class: 'w-full sm:w-2/3', value: data.name },
+            { id: 'name', lbl: 'Nombre', tipo: 'text', icon: 'package', required: true, maxlength: 255, class: 'w-full', value: data.name },
             { id: 'kind', lbl: 'Tipo', tipo: 'select', empty: false, class: third, data: options.kinds, value: data.kind },
             { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', class: third, data: options.categories, value: data.category_id },
             {
                 id: 'subcategory_id', lbl: 'Subcategoría', tipo: 'select', empty: 'Sin subcategoría', class: third,
                 data: this.subcategoriesOf(options.subcategories, data.category_id), value: data.subcategory_id
             },
-            { id: 'sku', lbl: 'SKU', tipo: 'text', icon: 'hash', maxlength: 80, ph: 'Opcional', class: third, value: data.sku },
-            { id: 'barcode', lbl: 'Código de barras', tipo: 'text', icon: 'barcode', maxlength: 80, ph: 'Opcional', class: third, value: data.barcode },
-            { id: 'photoField', tipo: 'html', class: 'w-full', html: this.photoFieldHtml() },
+            { id: 'sku', lbl: 'SKU', tipo: 'text', icon: 'hash', maxlength: 80, ph: 'Opcional', class: 'w-full sm:w-1/2', value: data.sku },
+            { id: 'barcode', lbl: 'Código de barras', tipo: 'text', icon: 'barcode', maxlength: 80, ph: 'Opcional', class: 'w-full sm:w-1/2', value: data.barcode },
+            { id: 'photoField', tipo: 'html', class: 'w-full', html: photoFieldHtml() },
             { id: 'description', lbl: 'Descripción', tipo: 'textarea', rows: 2, maxlength: 1000, class: 'w-full', value: data.description },
 
             this.formSection('secPrice', 'Precio'),
@@ -238,66 +239,9 @@ class Products extends Templates {
         return { id, tipo: 'html', class: 'w-full cp-seccion', html: `<p>${esc(text)}</p>` };
     }
 
-    // -- Foto --
-    // Se achica en el navegador (compressPhoto) y viaja como dataURL en image_b64;
-    // image_remove = 1 la quita. Sin tocarla, los dos van vacíos y la foto se queda.
-
-    // El label lleva las mismas clases que los de csModal para quedar a la par.
-    photoFieldHtml() {
-        return `
-            <label class="block text-xs font-semibold text-gray-500 mb-1.5 text-center">Foto</label>
-            <div class="cp-foto-campo">
-                <div class="cp-foto-thumb"></div>
-                <div class="cp-foto-botones">
-                    <button type="button" class="cp-foto-subir"><i data-lucide="upload" class="w-4 h-4"></i><span>Subir foto</span></button>
-                    <button type="button" class="cp-foto-quitar hidden">Quitar</button>
-                </div>
-                <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden">
-            </div>
-        `;
-    }
-
-    mountPhoto(image = '') {
-        const field = $('#modalProduct #photoField');
-        const file  = field.find('input[type=file]');
-
-        this.photo = { image_b64: '', image_remove: 0 };
-
-        field.on('click', '.cp-foto-subir', () => file.trigger('click'));
-
-        field.on('click', '.cp-foto-quitar', () => {
-            this.photo = { image_b64: '', image_remove: 1 };
-            this.paintPhoto('');
-        });
-
-        file.on('change', async () => {
-            const picked = file[0].files[0];
-
-            file.val('');
-
-            if (!picked) return;
-
-            const dataUrl = await compressPhoto(picked);
-
-            if (!dataUrl) return warnBox('No se pudo leer la foto. Usa una imagen JPG, PNG o WEBP.');
-
-            this.photo = { image_b64: dataUrl, image_remove: 0 };
-            this.paintPhoto(dataUrl);
-        });
-
-        this.paintPhoto(productPhotoUrl(image));
-    }
-
-    // Sin foto, o si no carga, el mismo cuadro con el pastel de la tabla.
-    paintPhoto(src) {
-        const field = $('#modalProduct #photoField');
-
-        field.find('.cp-foto-thumb').html(src
-            ? `<img src="${esc(src)}" alt="Foto del producto" class="cp-foto" onerror="productPhotoError(this)">`
-            : '<div class="cp-foto cp-foto-vacia"><i class="icon-birthday"></i></div>');
-
-        field.find('.cp-foto-subir span').text(src ? 'Cambiar foto' : 'Subir foto');
-        field.find('.cp-foto-quitar').toggleClass('hidden', !src);
+    // Foto a la izquierda y la identificación a la derecha (photoBeside, catalogo.js).
+    layoutIdentity() {
+        photoBeside('modalProduct', ['name', 'kind', 'category_id', 'subcategory_id', 'sku', 'barcode']);
     }
 
     // Al cambiar la categoría, la subcategoría solo ofrece las suyas.
@@ -325,8 +269,9 @@ class Products extends Templates {
             onSave: (values, close) => this.save('addProduct', values, close)
         });
 
+        this.layoutIdentity();
         this.bindCategory(options.subcategories);
-        this.mountPhoto();
+        this.photo = mountPhoto('modalProduct');
     }
 
     async edit(id) {
@@ -349,8 +294,9 @@ class Products extends Templates {
             onSave: (values, close) => this.save('editProduct', { ...values, id }, close)
         });
 
+        this.layoutIdentity();
         this.bindCategory(options.subcategories);
-        this.mountPhoto(response.data.image);
+        this.photo = mountPhoto('modalProduct', response.data.image);
     }
 
     // Vacío vale (se guarda 0); lo demás debe ser un número no negativo.

@@ -137,7 +137,7 @@ body:not(.dark-mode) .form-label { color: var(--ink-dim); }
     font-weight: 600;
     transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 }
-.btn-sm { border-radius: 10px !important; }
+.btn-sm { border-radius: 8px !important; }
 
 /* Botones de contorno y neutros: el hover es el acento diluido, no un relleno sólido. */
 body:not(.dark-mode) .btn-outline-primary { background-color: var(--surface) !important; border-color: var(--accent-line) !important; }

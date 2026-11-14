@@ -554,6 +554,7 @@ class mdl extends CRUD {
                 p.id,
                 p.name,
                 p.description,
+                p.image,
                 p.price,
                 p.cost,
                 p.sell_pos,
@@ -580,7 +581,7 @@ class mdl extends CRUD {
     public function qGetBundle($id, $companyId, $branchId) {
         return $this->qRow("
             SELECT
-                id, name, description, price, cost,
+                id, name, description, image, price, cost,
                 sell_pos, in_catalog, category_id,
                 IFNULL(active, 1) AS active
             FROM {$this->pos}product
@@ -819,7 +820,7 @@ class mdl extends CRUD {
     public function qListPaymentMethods($companyId, $active) {
         return $this->qRows("
             SELECT
-                id, name, code, kind, commission, sort,
+                id, name, code, kind, icon, color, commission, sort,
                 is_cash, is_visible, earns_points, company_id,
                 IFNULL(active, 1) AS active
             FROM {$this->pos}payment_method
@@ -832,7 +833,7 @@ class mdl extends CRUD {
     public function qGetPaymentMethod($id, $companyId) {
         return $this->qRow("
             SELECT
-                id, name, code, kind, commission, sort,
+                id, name, code, kind, icon, color, commission, sort,
                 is_cash, is_visible, earns_points, company_id,
                 IFNULL(active, 1) AS active
             FROM {$this->pos}payment_method

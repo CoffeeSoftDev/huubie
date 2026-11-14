@@ -63,6 +63,67 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     }
 }
 
+/* -- Espacio entre filas --
+   compact.css aprieta toda celda a `.4rem .5rem !important` (5.6px arriba y
+   abajo). Costsys no carga compact.css y sus celdas quedan en 8px: el #id
+   le gana a la regla de compact.css. */
+#tabbarCatalogo table tbody td {
+    padding: 8px !important;
+}
+
+/* -- Botones de la fila --
+   Los de costsys (.cp-btn-icon de costsys.css): cuadro de 30px con borde.
+   Al pasar el mouse toman el color de la marca; Desactivar en ámbar y
+   Activar en verde. Son <a> sin href: de ahí el cursor y sin subrayado. */
+a.cp-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid #E2E8F0;
+    border-radius: 7px;
+    background: #fff;
+    color: #64748B;
+    text-decoration: none;
+    cursor: pointer;
+    transition: .15s;
+}
+
+a.cp-btn-icon + a.cp-btn-icon {
+    margin-left: 2px;
+}
+
+a.cp-btn-icon svg {
+    pointer-events: none;
+}
+
+a.cp-btn-icon:hover {
+    border-color: #CBD5E1;
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
+a.cp-btn-icon--warn:hover {
+    border-color: rgba(180, 83, 9, .3);
+    background: #FEF6E7;
+    color: #B45309;
+}
+
+a.cp-btn-icon--ok:hover {
+    border-color: rgba(122, 171, 32, .35);
+    background: #F3F8E8;
+    color: #3F5C0F;
+}
+
+/* «Hacer propio»: el mismo botón con texto. */
+a.cp-btn-icon--text {
+    width: auto;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
 /* -- Celdas de la tabla -- */
 .cp-celda-titulo {
     font-weight: 600;
@@ -163,15 +224,18 @@ body.dark-mode #main__content.cp-pagina-pro > div {
 }
 
 /* Títulos de sección, como el producto de inventory. */
-#modalProduct .cp-seccion {
+#modalProduct .cp-seccion,
+#modalPaymentMethod .cp-seccion {
     margin-top: 20px;
 }
 
-#modalProduct .cp-seccion:first-child {
+#modalProduct .cp-seccion:first-child,
+#modalPaymentMethod .cp-seccion:first-child {
     margin-top: 4px;
 }
 
-#modalProduct .cp-seccion p {
+#modalProduct .cp-seccion p,
+#modalPaymentMethod .cp-seccion p {
     margin: 0;
     padding-bottom: 6px;
     border-bottom: 1px solid #F1F5F9;
@@ -184,11 +248,13 @@ body.dark-mode #main__content.cp-pagina-pro > div {
 
 /* Apagadores en tarjetas del mismo alto: la fila del flex-wrap estira el
    contenedor y la tarjeta (el label) lo llena. */
-#modalProduct .cp-switch {
+#modalProduct .cp-switch,
+#modalPaymentMethod .cp-switch {
     display: flex;
 }
 
-#modalProduct .cp-switch > label {
+#modalProduct .cp-switch > label,
+#modalPaymentMethod .cp-switch > label {
     flex: 1 1 auto;
     padding: 10px 12px;
     border: 1px solid #E5E7EB;
@@ -196,11 +262,146 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     background: #fff;
 }
 
-/* Campo de foto: miniatura grande y centrada, los botones debajo. */
+/* -- Método de pago: icono y color --
+   --pm-color lo fija metodos-pago.js en el panel del modal; en la tabla viene
+   en el style del distintivo (methodCell en ctrl-metodos-pago.php). */
+.cp-pm-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: var(--pm-color, #64748B);
+    background: color-mix(in srgb, var(--pm-color, #64748B) 14%, #fff);
+}
+
+.cp-pm-badge svg {
+    width: 18px;
+    height: 18px;
+}
+
+.cp-pm-badge--lg {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+}
+
+.cp-pm-badge--lg svg {
+    width: 24px;
+    height: 24px;
+}
+
+.cp-pm-muestra {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px dashed #D1D5DB;
+    border-radius: 12px;
+    background: #F9FAFB;
+}
+
+.cp-pm-iconos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 8px;
+}
+
+button.cp-pm-icono {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    background: #fff;
+    color: #6B7280;
+    transition: border-color .15s, color .15s, background-color .15s;
+}
+
+button.cp-pm-icono:hover {
+    border-color: var(--pm-color, #64748B);
+    color: var(--pm-color, #64748B);
+}
+
+button.cp-pm-icono.is-active {
+    border-color: var(--pm-color, #64748B);
+    color: var(--pm-color, #64748B);
+    background: color-mix(in srgb, var(--pm-color, #64748B) 10%, #fff);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--pm-color, #64748B) 30%, transparent);
+}
+
+.cp-pm-nota {
+    margin: 6px 0 0;
+    font-size: 1rem;
+    color: #9CA3AF;
+}
+
+.cp-pm-colores {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+}
+
+button.cp-pm-color {
+    width: 28px;
+    height: 28px;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px #E5E7EB;
+    transition: box-shadow .15s;
+}
+
+button.cp-pm-color:hover,
+button.cp-pm-color.is-active {
+    box-shadow: 0 0 0 2px var(--pm-color, #64748B);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button.cp-pm-icono,
+    button.cp-pm-color {
+        transition: none;
+    }
+}
+
+/* -- Identificación: foto a la izquierda, campos a la derecha --
+   photoBeside() (catalogo.js) arma el renglón al abrir el modal de producto
+   o de paquete. En celular la foto queda arriba y los campos debajo. */
+.cp-ident {
+    display: flex;
+    align-items: flex-start;
+}
+
+.cp-ident-foto {
+    flex: 0 0 160px;
+}
+
+.cp-ident-campos {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+@media (max-width: 639px) {
+    .cp-ident {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .cp-ident-foto {
+        flex: 0 0 auto;
+    }
+}
+
+/* Campo de foto: miniatura de 120px pegada a la izquierda, los botones
+   debajo, uno sobre otro para caber en la columna. */
 .cp-foto-campo {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
 }
 
@@ -213,8 +414,9 @@ body.dark-mode #main__content.cp-pagina-pro > div {
 
 .cp-foto-botones {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
 }
 
 .cp-foto-subir {
@@ -250,13 +452,73 @@ body.dark-mode #main__content.cp-pagina-pro > div {
 }
 
 /* -- Modificadores: grupos a la izquierda, opciones del grupo a la derecha -- */
-.cp-mod-ayuda {
-    margin: 0 0 14px;
-    padding: 10px 12px;
+
+/* Ícono de info: una línea discreta; la explicación sale en un globo
+   al pasar el mouse o al tocarlo (foco). */
+.cp-mod-info {
+    position: relative;
+    display: inline-block;
+    margin: 0 0 12px;
+}
+
+.cp-info-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 1rem;
+    color: rgb(var(--gray-500, 107 114 128));
+    cursor: help;
+}
+
+.cp-info-btn svg {
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
+.cp-info-btn:hover span,
+.cp-info-btn:focus-visible span {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.cp-info-pop {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 20;
+    width: min(340px, 85vw);
+    padding: 12px 14px;
+    border: 1px solid rgb(var(--gray-200, 226 232 240));
     border-radius: 10px;
-    background: rgb(var(--gray-50, 248 250 252));
+    background: #fff;
+    box-shadow: 0 10px 25px -5px rgb(15 23 42 / .12);
     font-size: 1rem;
     color: rgb(var(--gray-600, 75 85 99));
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity .15s, transform .15s, visibility .15s;
+}
+
+.cp-info-pop p {
+    margin: 0;
+}
+
+.cp-info-pop p + p {
+    margin-top: 6px;
+}
+
+.cp-info-pop b {
+    color: rgb(var(--gray-800, 31 41 55));
+}
+
+.cp-mod-info:hover .cp-info-pop,
+.cp-mod-info:focus-within .cp-info-pop {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
 }
 
 .cp-mod {
@@ -575,6 +837,26 @@ body.dark-mode .cp-pagina-sucursal {
     color: rgb(var(--brand-300, 232 166 143));
 }
 
+body.dark-mode a.cp-btn-icon {
+    border-color: var(--dk-line-hi, #4B5563);
+    background: transparent;
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode a.cp-btn-icon:hover {
+    color: rgb(var(--brand-300, 232 166 143));
+}
+
+body.dark-mode a.cp-btn-icon--warn:hover {
+    background: rgb(180 83 9 / .18);
+    color: #FBBF24;
+}
+
+body.dark-mode a.cp-btn-icon--ok:hover {
+    background: rgb(122 171 32 / .18);
+    color: #A3E635;
+}
+
 body.dark-mode .cp-celda-titulo {
     color: var(--dk-text, #F3F4F6);
 }
@@ -591,15 +873,48 @@ body.dark-mode .cp-foto-vacia {
     color: var(--dk-muted, #9CA3AF);
 }
 
-body.dark-mode #modalProduct .cp-seccion p {
+body.dark-mode #modalProduct .cp-seccion p,
+body.dark-mode #modalPaymentMethod .cp-seccion p {
     border-color: var(--dk-line, #374151);
     color: var(--dk-muted, #9CA3AF);
 }
 
 body.dark-mode #modalProduct .cp-switch > label,
+body.dark-mode #modalPaymentMethod .cp-switch > label,
 body.dark-mode .cp-foto-subir {
     background: transparent;
     border-color: var(--dk-line-hi, #4B5563);
+}
+
+body.dark-mode .cp-pm-badge {
+    background: color-mix(in srgb, var(--pm-color, #64748B) 22%, transparent);
+}
+
+body.dark-mode .cp-pm-muestra {
+    background: var(--dk-card, #1F2A37);
+    border-color: var(--dk-line-hi, #4B5563);
+}
+
+body.dark-mode button.cp-pm-icono {
+    background: transparent;
+    border-color: var(--dk-line-hi, #4B5563);
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode button.cp-pm-icono.is-active {
+    background: color-mix(in srgb, var(--pm-color, #64748B) 18%, transparent);
+    border-color: var(--pm-color, #64748B);
+    color: var(--pm-color, #64748B);
+}
+
+body.dark-mode button.cp-pm-color {
+    border-color: var(--dk-card, #1F2A37);
+    box-shadow: 0 0 0 1px var(--dk-line-hi, #4B5563);
+}
+
+body.dark-mode button.cp-pm-color:hover,
+body.dark-mode button.cp-pm-color.is-active {
+    box-shadow: 0 0 0 2px var(--pm-color, #64748B);
 }
 
 body.dark-mode .cp-foto-subir {
@@ -610,9 +925,22 @@ body.dark-mode .cp-foto-quitar {
     color: #F87171;
 }
 
-body.dark-mode .cp-mod-ayuda {
-    background: var(--dk-bg, #111928);
+body.dark-mode .cp-info-btn {
     color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode .cp-info-btn svg {
+    color: rgb(var(--brand-300, 232 166 143));
+}
+
+body.dark-mode .cp-info-pop {
+    border-color: var(--dk-line, #374151);
+    background: var(--dk-card, #1F2A37);
+    color: var(--dk-muted, #9CA3AF);
+}
+
+body.dark-mode .cp-info-pop b {
+    color: var(--dk-text-soft, #D1D5DB);
 }
 
 body.dark-mode .cp-mod-grupo,

@@ -34,7 +34,7 @@ class ctrl extends core {
 
             $row[] = [
                 'id'           => $id,
-                'Paquete'      => cellTitle($item['name'], $item['category']),
+                'Paquete'      => $this->bundleCell($item),
                 'Contenido'    => $this->contentCell(isset($items[$id]) ? $items[$id] : []),
                 'Por separado' => moneyCell($item['separate_price']),
                 'Precio'       => $this->priceCell($item['price'], $item['separate_price']),
@@ -77,9 +77,12 @@ class ctrl extends core {
         $dup = $this->qFindProductByName($this->companyId(), $this->branchId(), $in['name']);
         if ($dup) return $this->nameTaken($dup, 'bundles');
 
-        return $this->attempt(function () use ($in) {
-            // El paquete y su receta se guardan juntos o no se guarda nada.
-            $this->transaction(function () use ($in) {
+        $photo = $this->photoInput();
+        if (isset($photo['status'])) return $photo;
+
+        return $this->attempt(function () use ($in, $photo) {
+            // El paquete, su receta y su foto se guardan juntos o no se guarda nada.
+            $this->transaction(function () use ($in, $photo) {
                 $this->must($this->qCreateProduct([
                     'values' => [
                         'name', 'description', 'kind', 'price', 'cost', 'is_custom', 'is_inventoriable',
@@ -96,6 +99,14 @@ class ctrl extends core {
                 if ($id <= 0) throw new RuntimeException('addBundle: sin id del paquete');
 
                 $this->saveRecipe($id, $in['components']);
+
+                if ($photo['b64'] === '') return;
+
+                $this->must($this->qUpdateProduct([
+                    'values' => ['image'],
+                    'where'  => ['id'],
+                    'data'   => [$this->writePhoto($id, $photo['b64'], 'paquetes'), $id]
+                ]), 'addBundle/image');
             });
 
             return $this->ok('Paquete creado.');
@@ -117,16 +128,23 @@ class ctrl extends core {
         $dup = $this->qFindProductByName($this->companyId(), $this->branchId(), $in['name'], $id);
         if ($dup) return $this->nameTaken($dup, 'bundles');
 
-        return $this->attempt(function () use ($in, $id) {
-            $this->transaction(function () use ($in, $id) {
+        $photo = $this->photoInput();
+        if (isset($photo['status'])) return $photo;
+
+        return $this->attempt(function () use ($in, $id, $photo, $current) {
+            $image = $this->nextPhoto($id, $photo, $current['image'], 'paquetes');
+
+            $this->transaction(function () use ($in, $id, $image) {
                 $this->must($this->qUpdateProduct([
-                    'values' => ['name', 'description', 'price', 'sell_pos', 'in_catalog', 'category_id', 'updated_at = NOW()'],
+                    'values' => ['name', 'description', 'image', 'price', 'sell_pos', 'in_catalog', 'category_id', 'updated_at = NOW()'],
                     'where'  => ['id'],
-                    'data'   => [$in['name'], $in['description'], $in['price'], $in['sell_pos'], $in['in_catalog'], $in['category_id'], $id]
+                    'data'   => [$in['name'], $in['description'], $image, $in['price'], $in['sell_pos'], $in['in_catalog'], $in['category_id'], $id]
                 ]), 'editBundle');
 
                 $this->saveRecipe($id, $in['components']);
             });
+
+            if ($image !== $current['image']) $this->dropPhoto($current['image'], $id);
 
             return $this->ok('Paquete actualizado.');
         }, 'No se pudo guardar el paquete.');
@@ -252,6 +270,14 @@ class ctrl extends core {
             'where'  => ['id'],
             'data'   => [round($total, 2), $bundleId]
         ]), 'saveRecipe: costo del paquete');
+    }
+
+    // Foto + nombre + categoría, como la celda de Productos; sin foto, el regalo.
+    private function bundleCell($item) {
+        return '<div class="flex items-center gap-3">'
+            . $this->productPhoto($item['image'], 'icon-gift')
+            . '<div class="min-w-0">' . cellTitle($item['name'], $item['category']) . '</div>'
+            . '</div>';
     }
 
     // Lo que lleva cada paquete de la lista, en una sola consulta: [bundle_id => [componentes]].

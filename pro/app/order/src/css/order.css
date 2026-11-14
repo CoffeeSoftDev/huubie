@@ -130,37 +130,70 @@ tr.ord-row-cancel td:not(:last-child) {
     opacity: .55;
 }
 
-/* Buscador: vive fuera de #tableOrders (se reescribe en cada busqueda) y se
-   encima a la derecha de la fila "Mostrar N registros", como en alpha/pedidos.
-   En celular se apila arriba de la tabla. */
-#searchOrders {
-    position: relative;
-    z-index: 2;
+/* Total, Abono y Saldo de la fila: cada importe abre la gestión de pagos. */
+button.ord-money {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    margin: -4px -8px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: transparent;
+    text-align: right;
+    line-height: 1.25;
+    cursor: pointer;
 }
 
-#searchOrders > div {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: min(280px, 50%);
+button.ord-money:hover { background: rgb(var(--brand-600, 192 90 64) / .08); }
+button.ord-money:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 1px; }
+
+.ord-row-pay {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border: 1px solid rgb(var(--brand-600, 192 90 64) / .45);
+    border-radius: 999px;
+    color: rgb(var(--brand-700, 168 74 51));
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+button.ord-money:hover .ord-row-pay { background: rgb(var(--brand-600, 192 90 64)); border-color: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+/* "Mostrar N registros" y el buscador en una sola fila, uno junto al otro.
+   El buscador vive fuera de #tableOrders (se reescribe en cada busqueda) y
+   lsOrders mueve aqui el selector de DataTables. En celular se apilan. */
+#searchOrders {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    min-height: 42px;
+    margin-bottom: 10px;
+}
+
+#searchOrders .ord-dt-length:empty {
+    display: none;
+}
+
+#searchOrders .ord-dt-length .dataTables_length label {
+    margin: 0;
+}
+
+#searchOrders .ord-dt-search {
+    width: min(320px, 100%);
 }
 
 #fbSearchOrders > div {
     margin-top: 0;
 }
 
-#containerOrders .ord-dt-top {
-    display: flex;
-    align-items: center;
-    min-height: 42px;
-    margin-bottom: 10px;
-}
-
 @media (max-width: 767.98px) {
-    #searchOrders > div {
-        position: static;
+    #searchOrders .ord-dt-search {
         width: 100%;
-        margin-bottom: 10px;
     }
 }
 
@@ -278,6 +311,9 @@ body.dark-mode .ord-aviso-titulo { color: var(--dk-text, #F3F4F6); }
 body.dark-mode #tbOrders tbody tr.ct3-hoverable:hover td,
 body.dark-mode #tbCustomers tbody tr.ct3-hoverable:hover td { background-color: var(--dk-row-hover, #334155) !important; }
 
+body.dark-mode button.ord-money:hover { background: rgb(var(--brand-600, 192 90 64) / .16); }
+body.dark-mode .ord-row-pay { color: var(--dk-text, #F3F4F6); border-color: rgb(var(--brand-600, 192 90 64) / .6); }
+
 /* -- Detalle oscuro --
    Escala del showOrder de alpha: modal #1F2A37 y dentro tarjetas #29374A sin
    borde. Sin esto las tarjetas (bg-gray-50) caian al negro de la pagina y los
@@ -337,58 +373,6 @@ body.dark-mode #modalOrderDetails .ord-well {
 /* Mientras se guarda no se puede tocar ni el catalogo ni el ticket. */
 #posOrderHost.is-saving #posOrderBody { pointer-events: none; opacity: 0.6; }
 
-/* -- Pastel: tablas de extras y fotos -- */
-#ocExtras,
-#ocPhotoList { overflow-x: auto; }
-
-#tbOrderExtras thead th,
-#tbOrderPhotos thead th { text-transform: none; white-space: nowrap; }
-
-a.of-act {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    color: rgb(var(--gray-500, 120 113 108));
-    cursor: pointer;
-    text-decoration: none;
-}
-
-a.of-act:hover { color: rgb(var(--brand-600, 192 90 64)); background: rgb(var(--gray-100, 245 245 244)); }
-a.of-act-del:hover { color: #DC2626; background: #FEF2F2; }
-
-.of-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
-
-#modalOrderCake .cs-modal-info { color: rgb(var(--gray-700, 68 64 60)); font-weight: 600; font-size: 13px; }
-
-/* -- Pastel: botones Agregar extra y Subir fotos --
-   Bootstrap fuerza mt-4 con !important en la etiqueta del input-file. */
-#formOcExtraAdd > div,
-#formOcPhotos > div { margin-top: 0 !important; }
-
-/* Rejilla de 12 columnas con hueco de 16 px: en movil el contenedor mide
-   141 px y los 11 huecos (176 px) empujaban «Agregar» fuera del panel. Cada
-   form tiene un solo campo, asi que el hueco no separa nada. */
-#formOcExtraAdd,
-#formOcPhotos { column-gap: 0; }
-
-#ocPhotoForm label.tw-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    margin-top: 0 !important;
-}
-
-/* -- Captura oscura -- */
-body.dark-mode a.of-act { color: var(--dk-muted, #9CA3AF); }
-body.dark-mode a.of-act:hover { background: var(--dk-row, #283341); }
-body.dark-mode a.of-act-del:hover { color: #F87171; background: rgba(220, 38, 38, 0.15); }
-body.dark-mode #modalOrderCake .cs-modal-info { color: var(--dk-text, #F3F4F6); }
-
 /* -- Turno en el encabezado --
    Chip con el turno abierto y el boton «Turno y corte» junto a «Nuevo pedido». */
 #formHeaderOrders { gap: 8px; }
@@ -423,8 +407,8 @@ body.dark-mode #modalOrderCake .cs-modal-info { color: var(--dk-text, #F3F4F6); 
 /* -- Turno y cobro: botones dentro de los modales --
    Todos con button.X: el preflight de Tailwind ([type=button]) pisa los fondos
    que vengan solo de clase. */
-button.ord-quick,
 button.ord-goal,
+button.ord-tip,
 button.ord-method,
 button.ord-bill,
 button.ord-disc-toggle,
@@ -444,8 +428,8 @@ button.ord-day-turn {
     white-space: nowrap;
 }
 
-button.ord-quick:hover,
 button.ord-goal:hover,
+button.ord-tip:hover,
 button.ord-method:hover,
 button.ord-bill:hover,
 button.ord-disc-toggle:hover,
@@ -488,6 +472,7 @@ label.ord-day-pick input {
 body.dark-mode label.ord-day-pick { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
 
 button.ord-goal.is-active,
+button.ord-tip.is-active,
 button.ord-method.is-active,
 button.ord-disc-toggle.is-active {
     border-color: rgb(var(--brand-600, 192 90 64));
@@ -579,6 +564,241 @@ body.dark-mode button.ord-recalc { background: transparent; border-color: rgba(2
 
 .ord-sum-big { font-size: 24px; font-weight: 700; line-height: 1.15; margin-bottom: 0; }
 
+/* -- Gestión de pagos --
+   Mosaicos Total / Pagado / Restante, pestañas, tarjetas de método,
+   aviso cuando no se cobra e historial de pagos. */
+
+.ord-pay-tile {
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border-radius: 12px;
+    background: #FFFFFF;
+}
+
+.ord-pay-tile-lbl { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-pay-tile-val { margin: 2px 0 0; font-size: 19px; font-weight: 700; line-height: 1.2; color: rgb(var(--gray-800, 41 37 36)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ord-pay-tile-sub { margin: 2px 0 0; font-size: 11.5px; line-height: 1.3; color: rgb(var(--gray-500, 120 113 108)); }
+
+.ord-pay-tile.is-paid,
+.ord-pay-tile.is-done { background: #ECFDF5; border-color: #A7F3D0; }
+.ord-pay-tile.is-paid .ord-pay-tile-val,
+.ord-pay-tile.is-done .ord-pay-tile-val { color: #047857; }
+
+.ord-pay-tile.is-due { background: #FEF2F2; border-color: #FECACA; }
+.ord-pay-tile.is-due .ord-pay-tile-val { color: #DC2626; }
+
+.ord-pay-tile.is-credit { background: #F0F9FF; border-color: #BAE6FD; }
+.ord-pay-tile.is-credit .ord-pay-tile-val { color: #0369A1; }
+
+.ord-pay-tile.is-muted .ord-pay-tile-val { color: rgb(var(--gray-400, 168 162 158)); }
+
+@media (max-width: 480px) {
+    .ord-pay-tile { padding: 8px 10px; }
+    .ord-pay-tile-val { font-size: 15px; }
+}
+
+.ord-pay-bar { height: 6px; margin-top: 10px; border-radius: 999px; background: rgb(var(--gray-200, 231 229 228)); overflow: hidden; }
+.ord-pay-bar > span { display: block; height: 100%; width: 0; border-radius: 999px; background: #10B981; transition: width .3s ease; }
+
+.ord-pay-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: rgb(var(--gray-100, 245 245 244)); }
+
+button.ord-pay-tab {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: transparent;
+    color: rgb(var(--gray-600, 87 83 78));
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+button.ord-pay-tab:hover { color: rgb(var(--brand-700, 168 74 51)); }
+button.ord-pay-tab.is-active { background: #FFFFFF; color: rgb(var(--brand-700, 168 74 51)); box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
+
+.ord-pay-count {
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgb(var(--gray-200, 231 229 228));
+    color: rgb(var(--gray-700, 68 64 60));
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+}
+
+button.ord-pay-tab.is-active .ord-pay-count { background: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+@media (max-width: 480px) {
+    button.ord-pay-tab svg { display: none; }
+}
+
+.ord-method-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+
+@media (max-width: 480px) {
+    .ord-method-grid { grid-template-columns: 1fr; }
+}
+
+button.ord-method.is-card {
+    justify-content: flex-start;
+    gap: 10px;
+    min-height: 58px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    text-align: left;
+    white-space: normal;
+}
+
+.ord-method-ico {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: rgb(var(--gray-100, 245 245 244));
+    color: rgb(var(--gray-600, 87 83 78));
+}
+
+button.ord-method.is-active .ord-method-ico { background: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+.ord-method-name { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.25; }
+.ord-method-hint { display: block; font-size: 11.5px; font-weight: 400; line-height: 1.25; color: rgb(var(--gray-500, 120 113 108)); }
+button.ord-method.is-card .ord-method-check { flex-shrink: 0; margin-left: auto; }
+
+.ord-pay-state {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border-radius: 12px;
+    background: rgb(var(--gray-50, 250 250 249));
+}
+
+.ord-pay-state-ico {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    background: rgb(var(--gray-200, 231 229 228));
+    color: rgb(var(--gray-600, 87 83 78));
+}
+
+.ord-pay-state-title { margin: 0; font-size: 14px; font-weight: 700; color: rgb(var(--gray-800, 41 37 36)); }
+.ord-pay-state-text  { margin: 2px 0 0; font-size: 12.5px; line-height: 1.4; color: rgb(var(--gray-600, 87 83 78)); }
+
+.ord-pay-state.is-ok { background: #ECFDF5; border-color: #A7F3D0; }
+.ord-pay-state.is-ok .ord-pay-state-ico { background: #D1FAE5; color: #047857; }
+.ord-pay-state.is-ok .ord-pay-state-title { color: #047857; }
+
+.ord-pay-state.is-warn { background: #FFFBEB; border-color: #FDE68A; }
+.ord-pay-state.is-warn .ord-pay-state-ico { background: #FEF3C7; color: #B45309; }
+.ord-pay-state.is-warn .ord-pay-state-title { color: #B45309; }
+
+.ord-pay-state.is-muted .ord-pay-state-title { color: rgb(var(--gray-500, 120 113 108)); }
+
+button.ord-pay-go {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    margin-top: 10px;
+    padding: 0 14px;
+    border-radius: 8px;
+    background: rgb(var(--brand-600, 192 90 64));
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+button.ord-pay-go:hover { background: rgb(var(--brand-700, 168 74 51)); }
+
+.ord-pay-list { display: flex; flex-direction: column; gap: 8px; }
+
+.ord-pay-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border-radius: 10px;
+    background: #FFFFFF;
+}
+
+.ord-pay-row-ico {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgb(var(--gray-100, 245 245 244));
+    color: rgb(var(--gray-600, 87 83 78));
+}
+
+.ord-pay-row-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font-size: 13.5px; font-weight: 600; color: rgb(var(--gray-800, 41 37 36)); }
+.ord-pay-row-title > span { padding: 0 7px; border-radius: 999px; background: rgb(var(--gray-100, 245 245 244)); color: rgb(var(--gray-600, 87 83 78)); font-size: 11px; font-weight: 500; line-height: 18px; }
+.ord-pay-row-title > span:empty { display: none; }
+
+.ord-pay-row-meta { margin: 2px 0 0; font-size: 11.5px; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-pay-row-meta > span + span::before { content: '·'; margin: 0 6px; }
+
+.ord-pay-row-amount { flex-shrink: 0; font-size: 14px; font-weight: 700; color: rgb(var(--gray-800, 41 37 36)); white-space: nowrap; }
+
+.ord-pay-lock {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: rgb(var(--gray-400, 168 162 158));
+    white-space: nowrap;
+}
+
+.ord-pay-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #ECFDF5;
+    color: #047857;
+    font-size: 13px;
+}
+
+.ord-pay-total b { font-size: 15px; }
+
+.ord-pay-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px;
+    border: 1px dashed rgb(var(--gray-300, 214 211 209));
+    border-radius: 12px;
+    color: rgb(var(--gray-400, 168 162 158));
+    text-align: center;
+}
+
+.ord-pay-empty-title { margin: 8px 0 0; font-size: 14px; font-weight: 600; color: rgb(var(--gray-600, 87 83 78)); }
+.ord-pay-empty-text  { margin: 2px 0 0; font-size: 12.5px; color: rgb(var(--gray-500, 120 113 108)); }
+
+#modalOrderPay.is-history .op-pane-pay,
+#modalOrderPay:not(.is-history) .op-pane-history,
+#modalOrderPay.is-history .cs-modal-save { display: none !important; }
+
 /* -- Turno y cobro oscuros -- */
 body.dark-mode .ord-turn-chip.is-open { color: #6EE7B7; background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); }
 body.dark-mode .ord-turn-chip.is-old  { color: #FCD34D; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
@@ -587,8 +807,8 @@ body.dark-mode .ord-turn-chip.is-closed { color: #93B4E8; background: rgba(42, 8
 
 body.dark-mode button.ord-day-nav.is-warn { color: #FCD34D; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
 
-body.dark-mode button.ord-quick,
 body.dark-mode button.ord-goal,
+body.dark-mode button.ord-tip,
 body.dark-mode button.ord-method,
 body.dark-mode button.ord-bill,
 body.dark-mode button.ord-disc-toggle,
@@ -597,6 +817,7 @@ body.dark-mode button.ord-day-turn,
 body.dark-mode button.ord-seg { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
 
 body.dark-mode button.ord-goal.is-active,
+body.dark-mode button.ord-tip.is-active,
 body.dark-mode button.ord-method.is-active,
 body.dark-mode button.ord-disc-toggle.is-active { background: rgb(var(--brand-600, 192 90 64) / .18); border-color: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
 
@@ -608,6 +829,68 @@ body.dark-mode .ord-line { background: var(--dk-card, #1F2A37); border-color: va
 
 body.dark-mode button.ord-line-del:hover,
 body.dark-mode button.ord-pay-del:hover { color: #F87171; background: rgba(220, 38, 38, 0.15); }
+
+/* -- Gestión de pagos oscura -- */
+body.dark-mode .ord-pay-tile,
+body.dark-mode .ord-pay-state,
+body.dark-mode .ord-pay-row { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
+
+body.dark-mode .ord-pay-tile-val,
+body.dark-mode .ord-pay-state-title,
+body.dark-mode .ord-pay-row-title,
+body.dark-mode .ord-pay-row-amount,
+body.dark-mode .ord-pay-empty-title { color: var(--dk-text, #F3F4F6); }
+
+body.dark-mode .ord-pay-tile-lbl,
+body.dark-mode .ord-pay-tile-sub,
+body.dark-mode .ord-pay-state-text,
+body.dark-mode .ord-pay-row-meta,
+body.dark-mode .ord-pay-empty-text,
+body.dark-mode .ord-method-hint { color: var(--dk-muted, #9CA3AF); }
+
+body.dark-mode .ord-pay-tile.is-paid,
+body.dark-mode .ord-pay-tile.is-done,
+body.dark-mode .ord-pay-state.is-ok { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); }
+body.dark-mode .ord-pay-tile.is-paid .ord-pay-tile-val,
+body.dark-mode .ord-pay-tile.is-done .ord-pay-tile-val,
+body.dark-mode .ord-pay-state.is-ok .ord-pay-state-title { color: #6EE7B7; }
+
+body.dark-mode .ord-pay-tile.is-due { background: rgba(220, 38, 38, 0.12); border-color: rgba(220, 38, 38, 0.35); }
+body.dark-mode .ord-pay-tile.is-due .ord-pay-tile-val { color: #FCA5A5; }
+
+body.dark-mode .ord-pay-tile.is-credit { background: rgba(14, 165, 233, 0.12); border-color: rgba(14, 165, 233, 0.35); }
+body.dark-mode .ord-pay-tile.is-credit .ord-pay-tile-val { color: #7DD3FC; }
+
+body.dark-mode .ord-pay-tile.is-muted .ord-pay-tile-val,
+body.dark-mode .ord-pay-state.is-muted .ord-pay-state-title { color: var(--dk-muted, #9CA3AF); }
+
+body.dark-mode .ord-pay-state.is-warn { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
+body.dark-mode .ord-pay-state.is-warn .ord-pay-state-title,
+body.dark-mode .ord-pay-state.is-warn .ord-pay-state-ico { color: #FCD34D; }
+
+body.dark-mode .ord-pay-state-ico,
+body.dark-mode .ord-pay-row-ico,
+body.dark-mode .ord-method-ico,
+body.dark-mode .ord-pay-state.is-ok .ord-pay-state-ico,
+body.dark-mode .ord-pay-state.is-warn .ord-pay-state-ico { background: var(--dk-row, #283341); }
+body.dark-mode .ord-pay-state-ico,
+body.dark-mode .ord-pay-row-ico,
+body.dark-mode .ord-method-ico { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-pay-state.is-ok .ord-pay-state-ico { color: #6EE7B7; }
+body.dark-mode button.ord-method.is-active .ord-method-ico { background: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+body.dark-mode .ord-pay-bar { background: var(--dk-line, #374151); }
+
+body.dark-mode .ord-pay-tabs { background: var(--dk-bg, #111928); }
+body.dark-mode button.ord-pay-tab { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode button.ord-pay-tab.is-active { background: var(--dk-row, #283341); color: #FFFFFF; box-shadow: inset 0 0 0 1px var(--dk-line, #374151); }
+body.dark-mode .ord-pay-count { background: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode button.ord-split { color: rgb(var(--brand-300, 232 166 143)); }
+
+body.dark-mode .ord-pay-row-title > span { background: var(--dk-row, #283341); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-pay-total { background: rgba(16, 185, 129, 0.12); color: #6EE7B7; }
+body.dark-mode .ord-pay-empty { border-color: var(--dk-line, #374151); color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-pay-lock { color: var(--dk-muted, #9CA3AF); }
 
 /* -- Corte tipo Soft (turno y día) --
    Franja de datos, tres recuadros con cifras en cajita, tabla con total,
@@ -1727,3 +2010,52 @@ body.dark-mode .cus-order.is-static .cus-order-folio { color: var(--dk-muted, #9
 
 body.dark-mode .cus-tile.is-due .cus-tile-value,
 body.dark-mode .cus-order-due.is-due { color: #F87171; }
+
+/* -- Ventas (mostrador) --
+   Pestañas de tickets en espera (tabLayout), «+ Ticket», turno del encabezado
+   y los dos botones de solo ícono del pie del ticket. Los chips de propina
+   (ord-tip) comparten estilo con ord-goal, arriba. En oscuro las pestañas ya
+   se ven bien por dark-mode.css (bg-white / bg-gray-100); aquí solo lo propio. */
+#formSaleTabs label,
+#formHeaderSale label { display: none; }
+#formSaleTabs > div,
+#formHeaderSale > div { margin-top: 0 !important; }
+#formHeaderSale { gap: 8px; }
+#btnSaleTabAdd,
+#btnTurnSale,
+#btnDaySale { white-space: nowrap; }
+
+#saleTabList .sale-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgb(var(--gray-200, 231 229 228));
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+}
+
+#saleTabList .sale-tab-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    border-radius: 4px;
+    color: rgb(var(--gray-400, 168 162 158));
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+}
+#saleTabList .sale-tab-x:hover { background: #FEF2F2; color: #DC2626; }
+
+button.pos-tkt-btn.sale-tk-icon { flex: 0 0 44px; width: 44px; padding: 0; gap: 0; }
+button.pos-tkt-btn.sale-tk-icon span:empty { display: none; }
+
+body.dark-mode #saleTabList .sale-tab-count { background: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode #saleTabList .sale-tab-x:hover { background: rgba(220, 38, 38, 0.15); color: #F87171; }

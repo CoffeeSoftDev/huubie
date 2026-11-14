@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turno de caja · Propuesta C2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/general.css">
+<link rel="stylesheet" href="../../../assets/css/colors.css">
+<!-- El CSS del rail viene de sidebar.js; data-rail="static" deja en paz los botones de la plantilla. -->
+<script src="../../../auth/src/js/sidebar.js"></script>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="../../../assets/js/tailwind-theme.js"></script>
+<link rel="stylesheet" href="../../../assets/css/compact.css">
+<link rel="stylesheet" href="../../../assets/css/themes.css">
+<link rel="stylesheet" href="../../../assets/css/soft.css">
+<link rel="stylesheet" href="../../../assets/css/dark-mode.css">
+<link rel="stylesheet" href="../src/css/order.css">
+<link rel="stylesheet" href="css/turno-propuesta.css">
+</head>
+<body data-variant="c" data-buttons="2">
+
+<!-- Rail lateral (sidebar de pro), sin cambios -->
+<div id="menu-sidebar" data-rail="static">
+    <button type="button" class="menu-rail-item" data-act="view" data-view="vender" title="Vender"><i data-lucide="shopping-cart"></i><span class="menu-rail-label">Vender</span></button>
+    <button type="button" class="menu-rail-item" data-act="view" data-view="pedidos" title="Pedidos"><i data-lucide="cake"></i><span class="menu-rail-label">Pedidos</span></button>
+    <button type="button" class="menu-rail-item" data-act="view" data-view="calendario" title="Calendario"><i data-lucide="calendar-days"></i><span class="menu-rail-label">Calendario</span></button>
+    <button type="button" class="menu-rail-item" data-act="view" data-view="clientes" title="Clientes"><i data-lucide="users"></i><span class="menu-rail-label">Clientes</span></button>
+    <button type="button" class="menu-rail-item" data-act="view" data-view="cortes" title="Cortes"><i data-lucide="receipt-text"></i><span class="menu-rail-label">Cortes</span></button>
+</div>
+
+<main>
+    <!-- Barra superior: la de pro (navbar.js), sin cambios -->
+    <div id="menu-navbar">
+        <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+            <div class="nav-left flex items-center gap-3">
+                <a class="nav-brand-logo" href="#" title="Ir al inicio" aria-label="Ir al inicio">
+                    <img class="nav-logo nav-logo-light" src="../../../assets/img/huubie_light.png" alt="Huubie">
+                    <img class="nav-logo nav-logo-dark" src="../../../assets/img/huubie.svg" alt="Huubie">
+                </a>
+                <div class="nav-brand-text"><span class="nav-company">Reginas</span></div>
+            </div>
+
+            <div class="nav-right flex items-center gap-2">
+                <div class="nav-branch relative">
+                    <button type="button" class="branch-pill flex items-center gap-2.5" disabled>
+                        <span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span>
+                        <span class="branch-pill-text flex flex-col items-start leading-tight">
+                            <span class="branch-pill-label">Sucursal</span>
+                            <span class="branch-pill-name">Matriz</span>
+                        </span>
+                    </button>
+                </div>
+
+                <button type="button" class="nav-theme-toggle" title="Tema"><i data-lucide="palette" class="w-[18px] h-[18px]"></i></button>
+                <button type="button" class="nav-theme-toggle" title="Notificaciones"><i data-lucide="bell" class="w-[18px] h-[18px]"></i></button>
+
+                <button type="button" class="nav-user-pill flex items-center gap-2.5">
+                    <span id="navAvatar" class="nav-avatar"><i data-lucide="user"></i></span>
+                    <span class="hidden lg:flex flex-col items-start leading-tight">
+                        <span id="navUser" class="nav-user-name"></span>
+                        <span id="navRol" class="nav-user-rol"></span>
+                    </span>
+                    <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <!-- La franja de C. Lo único que cambia en C2 son sus botones (stripButtons, data-buttons="2"). -->
+    <div id="cajaStrip" class="caja-strip is-none"></div>
+
+    <div id="main__content" class="cp-pagina-pro">
+        <div id="root"></div>
+    </div>
+</main>
+
+<!-- Aviso (423) y modal de apertura -->
+<div id="tpOverlay" class="tp-overlay" hidden></div>
+<div id="tpToast" class="tp-toast" role="status" hidden></div>
+
+<!-- Nota de la propuesta -->
+<aside id="tpNote" class="tp-note">
+    <div class="tp-note-head"><b>Propuesta de mejora</b><button type="button" data-act="note" aria-label="Ocultar nota"><i data-lucide="x"></i></button></div>
+    <dl>
+        <dt>Qué cambia</dt>
+        <dd>Solo los botones de la franja. Queda uno: la acción que toca según el estado. El resto va en la flecha de al lado.</dd>
+        <dt>Por qué</dt>
+        <dd>Un botón, una decisión: no hay que leer cuál de los tres toca. El color y el texto cambian con el estado.</dd>
+        <dt>Qué se ve distinto</dt>
+        <dd>Sin turno: «Abrir turno» verde. Abierto: «Turno y corte»; en la flecha, Cierre del día y Cortes. De otro día o día pendiente: el cierre en ámbar. Día cerrado: «Ver cierre del día» azul.</dd>
+        <dt>Se queda igual</dt>
+        <dd>La franja, sus textos y el aviso cuando alguien captura sin turno.</dd>
+        <dt>Por decidir</dt>
+        <dd>Con el turno abierto, «Cierre del día» queda a dos clics. ¿Está bien, si se usa una vez al día?</dd>
+    </dl>
+</aside>
+
+<!-- Tira de la maqueta: cambia el estado para ver cada caso -->
+<div class="tp-demo">
+    <div class="tp-demo-tag"><span>Maqueta</span><b>Propuesta C2 · Acción + menú</b></div>
+    <div class="tp-demo-group">
+        <span>Turno</span>
+        <div class="tp-demo-seg">
+            <button type="button" data-act="state" data-value="none">Sin turno</button>
+            <button type="button" data-act="state" data-value="open">Abierto</button>
+            <button type="button" data-act="state" data-value="old">De otro día</button>
+            <button type="button" data-act="state" data-value="pending">Falta cierre</button>
+            <button type="button" data-act="state" data-value="closed">Día cerrado</button>
+        </div>
+    </div>
+    <div class="tp-demo-group">
+        <span>Quién</span>
+        <div class="tp-demo-seg">
+            <button type="button" data-act="role" data-value="cajera">Cajera</button>
+            <button type="button" data-act="role" data-value="consulta">Consulta</button>
+        </div>
+    </div>
+    <div class="tp-demo-right">
+        <button type="button" class="tp-demo-link" data-act="dark"><i data-lucide="moon"></i>Modo oscuro</button>
+        <button type="button" class="tp-demo-link" data-act="note"><i data-lucide="sticky-note"></i>Nota</button>
+        <div class="tp-demo-seg"><a href="turno-caja-propuesta-a.html">A</a><a href="turno-franja-propuesta-c.html">C</a><a href="turno-franja-propuesta-c1.html">C1</a><a class="is-active" href="turno-franja-propuesta-c2.html">C2</a><a href="turno-franja-propuesta-c3.html">C3</a><a href="turno-franja-propuesta-c4.html">C4</a><a href="turno-rail-propuesta-d.html">D</a></div>
+    </div>
+</div>
+
+<script src="../../../assets/plugins/lucide/lucide.min.js"></script>
+<script src="js/turno-propuesta.js"></script>
+</body>
+</html>

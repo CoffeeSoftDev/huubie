@@ -52,6 +52,7 @@ class ctrl extends core {
             return [
                 'status' => 200,
                 'branch' => $this->scope()['branch'],
+                'user'   => isset($_SESSION['user']) ? trim((string) $_SESSION['user']) : '',
                 'today'  => date('Y-m-d'),
                 'turn'   => $turn ? $this->turnView($turn) : null,
                 'detail' => $turn && $this->post('detail') === '1' ? $this->cutDetail([(int) $turn['id']]) : null,

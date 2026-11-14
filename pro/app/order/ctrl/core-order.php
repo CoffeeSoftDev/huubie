@@ -264,6 +264,7 @@ class core extends mdl {
         $balance = round((float) $o['total'] - (float) $o['paid'], 2);
 
         if ($status === self::CANCELLED) return 'Un pedido cancelado no se cobra.';
+        if ($status === self::QUOTE && (float) $o['total'] <= 0 && (float) $o['paid'] <= 0) return 'El pedido no tiene productos ni importe. Edítalo para agregarlos antes de cobrar.';
         if ($balance <= 0) return 'El pedido no tiene saldo pendiente.';
         if (!in_array($status, [self::QUOTE, self::PENDING, self::PAID], true)) return 'Este pedido no se puede cobrar en su estado actual.';
 

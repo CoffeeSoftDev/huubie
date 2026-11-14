@@ -55,6 +55,7 @@ class Discounts extends Templates {
     }
 
     ls() {
+
         this.createTable({
             parent: 'containerDiscounts',
             idFilterBar: 'filterBarDiscounts',

@@ -12,8 +12,12 @@
                                   ella. Uno sin pagina todavia sale apagado
                                   ("Próximamente"); con la empresa sin pago al
                                   corriente, todos salen con candado.
-      Dentro de un MODULO         sus secciones, las que el rol deja ver:
-                                  primero las sueltas, despues los submodulos.
+      Dentro de un MODULO         sus secciones, las que el rol deja ver, cada
+                                  una con su boton: primero las sueltas, despues
+                                  las de cada submodulo, con una linea entre
+                                  grupos. El servidor ya no manda submodulos
+                                  agrupados; el flotante queda para el dia que
+                                  vuelva a hacerlo.
 
     Arriba siempre va Inicio y al pie las salidas fijas (extras): Mi perfil y,
     para root, Developer y Empresas.
@@ -284,8 +288,11 @@
 
         var enInicio = marca === 'inicio' || (!marca && !activa && tree.mode === 'home' && coincide('app/home') >= 0);
 
-        var items = tree.items.map(function (s) {
-            return itemHTML(s, !!s.route && s.route === activa);
+        // Una linea donde cambia el grupo (el submodulo de la seccion).
+        var items = tree.items.map(function (s, i) {
+            var corte = i > 0 && s.group !== undefined && s.group !== tree.items[i - 1].group;
+
+            return (corte ? '<span class="menu-rail-sep"></span>' : '') + itemHTML(s, !!s.route && s.route === activa);
         }).join('');
 
         var subs = tree.submodules.map(function (sm) {

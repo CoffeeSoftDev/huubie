@@ -200,6 +200,7 @@ async function saveFrom(modalId, request) {
 // Si tampoco carga, queda el cuadro vacío (el mismo que pinta ctrl-productos sin foto).
 const CATALOGO_FILES_REMOTE = 'https://huubie.com.mx';
 
+// data-icon: el ícono del cuadro vacío (pastel en productos, regalo en paquetes).
 function productPhotoError(img) {
     if (!img.dataset.fileFallback) {
         img.dataset.fileFallback = '1';
@@ -207,7 +208,7 @@ function productPhotoError(img) {
         return;
     }
 
-    $(img).replaceWith('<div class="cp-foto cp-foto-vacia"><i class="icon-birthday"></i></div>');
+    $(img).replaceWith(`<div class="cp-foto cp-foto-vacia"><i class="${esc(img.dataset.icon || 'icon-birthday')}"></i></div>`);
 }
 
 // La ruta guardada (pro_files/...) relativa a la raíz del sitio, como la pinta ctrl-productos.
@@ -247,6 +248,81 @@ function compressPhoto(file, max = 800) {
         };
         img.src = url;
     });
+}
+
+// -- Campo de foto (Productos y Paquetes) --
+// Se achica en el navegador (compressPhoto) y viaja como dataURL en image_b64;
+// image_remove = 1 la quita. Sin tocarla, los dos van vacíos y la foto se queda.
+
+// Va en un bloque 'html' de csModal con id 'photoField'. El label lleva las clases de los de csModal.
+function photoFieldHtml() {
+    return `
+        <label class="block text-xs font-semibold text-gray-500 mb-1.5">Foto</label>
+        <div class="cp-foto-campo">
+            <div class="cp-foto-thumb"></div>
+            <div class="cp-foto-botones">
+                <button type="button" class="cp-foto-subir"><i data-lucide="upload" class="w-4 h-4"></i><span>Subir foto</span></button>
+                <button type="button" class="cp-foto-quitar hidden">Quitar</button>
+            </div>
+            <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden">
+        </div>
+    `;
+}
+
+// Liga el #photoField del modal. Devuelve lo que viaja al guardar; se actualiza solo.
+// icon: el del cuadro vacío, el mismo que pinta la tabla.
+function mountPhoto(modalId, image = '', icon = 'icon-birthday') {
+    const field = $(`#${modalId} #photoField`);
+    const file  = field.find('input[type=file]');
+    const photo = { image_b64: '', image_remove: 0 };
+
+    const paint = (src) => {
+        field.find('.cp-foto-thumb').html(src
+            ? `<img src="${esc(src)}" alt="Foto" class="cp-foto" data-icon="${esc(icon)}" onerror="productPhotoError(this)">`
+            : `<div class="cp-foto cp-foto-vacia"><i class="${esc(icon)}"></i></div>`);
+
+        field.find('.cp-foto-subir span').text(src ? 'Cambiar foto' : 'Subir foto');
+        field.find('.cp-foto-quitar').toggleClass('hidden', !src);
+    };
+
+    field.on('click', '.cp-foto-subir', () => file.trigger('click'));
+
+    field.on('click', '.cp-foto-quitar', () => {
+        Object.assign(photo, { image_b64: '', image_remove: 1 });
+        paint('');
+    });
+
+    file.on('change', async () => {
+        const picked = file[0].files[0];
+
+        file.val('');
+
+        if (!picked) return;
+
+        const dataUrl = await compressPhoto(picked);
+
+        if (!dataUrl) return warnBox('No se pudo leer la foto. Usa una imagen JPG, PNG o WEBP.');
+
+        Object.assign(photo, { image_b64: dataUrl, image_remove: 0 });
+        paint(dataUrl);
+    });
+
+    paint(productPhotoUrl(image));
+
+    return photo;
+}
+
+// Foto a la izquierda y los campos `ids` a la derecha, en el lugar del primero.
+// csModal los pinta uno tras otro; al guardar se leen por #id, así que moverlos no los pierde.
+function photoBeside(modalId, ids) {
+    const modal  = $(`#${modalId}`);
+    const fields = ids.map((id) => modal.find(`#${id}`).closest('.flex-wrap > div')[0]);
+    const row    = $('<div class="w-full cp-ident"></div>').insertBefore(fields[0]);
+
+    row.append(
+        $('<div class="cp-ident-foto"></div>').append(modal.find('#photoField')),
+        $('<div class="cp-ident-campos flex flex-wrap"></div>').append(fields)
+    );
 }
 
 function catalogoPlantilla() {

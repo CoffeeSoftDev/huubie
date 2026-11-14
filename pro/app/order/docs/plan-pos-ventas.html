@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan por fases · Ventas en Huubie PRO</title>
+<style>
+/* @piel plantilla-plano */
+:root{
+  color-scheme: light dark;
+  --bp-ground:    light-dark(#F1F3F6, #0C1116);
+  --bp-surface:   light-dark(#FFFFFF, #141B21);
+  --bp-surface-2: light-dark(#F5F7F9, #1B242B);
+  --bp-line:      light-dark(#DDE3E8, #2A353D);
+  --bp-line-soft: light-dark(#E9EDF1, #212A31);
+  --bp-ink:       light-dark(#0F1A21, #E4EAEE);
+  --bp-ink-soft:  light-dark(#4A5A64, #A8B7C0);
+  --bp-ink-dim:   light-dark(#6E7F8A, #7E8F99);
+  --bp-ac:        light-dark(#0B6E77, #4FB8C2);
+  --bp-ac-soft:   light-dark(#E0EFF0, #12343A);
+  --bp-read:      light-dark(#1D4ED8, #93C5FD);
+  --bp-write:     light-dark(#A15C08, #FCD34D);
+  --bp-danger:    light-dark(#B3261E, #FCA5A5);
+  --bp-ui:   "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{
+  background:var(--bp-ground); color:var(--bp-ink);
+  font-family:var(--bp-ui); font-size:15px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{ max-width:1000px; margin:0 auto; padding:0 22px 80px }
+
+/* — Cajetín — */
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:26px;
+  display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,44px);
+  line-height:1.08; letter-spacing:-.015em; text-wrap:balance; max-width:20ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55;
+  color:var(--bp-ink-soft); max-width:62ch; text-wrap:pretty }
+.meta{ display:flex; flex-wrap:wrap; gap:6px 26px; font-family:var(--bp-mono);
+  font-size:11.5px; color:var(--bp-ink-dim) }
+.meta b{ color:var(--bp-ink-soft); font-weight:600 }
+
+/* — Cifras — */
+.tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px;
+  margin-bottom:44px }
+.tile{ border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface);
+  padding:14px 16px }
+.tile b{ display:block; font-family:var(--bp-serif); font-size:26px; line-height:1;
+  color:var(--bp-ink); font-variant-numeric:tabular-nums }
+.tile small{ display:block; margin-top:5px; font-size:11.5px; color:var(--bp-ink-dim) }
+
+/* — Secciones — */
+section{ display:flex; flex-direction:column; gap:16px; margin-bottom:56px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:25px; line-height:1.2;
+  letter-spacing:-.01em; text-wrap:balance; display:flex; align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em;
+  color:var(--bp-ac); flex:none; transform:translateY(-2px) }
+h3{ font-size:14.5px; font-weight:650; margin-top:6px }
+.intro{ color:var(--bp-ink-soft); max-width:68ch; text-wrap:pretty }
+.foot{ font-size:12.5px; color:var(--bp-ink-dim) }
+code,.mono{ font-family:var(--bp-mono); font-size:.875em }
+code{ background:var(--bp-surface-2); border:1px solid var(--bp-line-soft);
+  border-radius:4px; padding:.08em .34em }
+figcaption{ font-size:13px; color:var(--bp-ink-dim); line-height:1.55;
+  border-top:1px solid var(--bp-line-soft); padding-top:11px; text-wrap:pretty }
+figcaption b{ color:var(--bp-ink-soft) }
+
+/* — Tablas: nunca se desplazan salvo dentro de su contenedor — */
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px;
+  background:var(--bp-surface) }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px }
+th,td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft);
+  vertical-align:top }
+thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--bp-ink-dim); font-weight:500;
+  background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line); white-space:nowrap }
+tbody tr:last-child td{ border-bottom:0 }
+.chip{ display:inline-block; font-family:var(--bp-mono); font-size:9.5px;
+  letter-spacing:.05em; text-transform:uppercase; padding:2px 7px; border-radius:99px;
+  border:1px solid currentColor; margin-right:5px }
+.chip.read{ color:var(--bp-read) } .chip.write{ color:var(--bp-write) }
+.chip.danger{ color:var(--bp-danger) }
+
+/* — Vocabulario y notas — */
+.voc{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px }
+.voc > div{ border:1px solid var(--bp-line); border-radius:10px; padding:13px 15px;
+  background:var(--bp-surface) }
+dt{ font-weight:650; font-size:13.5px; margin-bottom:4px }
+dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
+.note{ border-left:2px solid var(--bp-write); background:var(--bp-surface);
+  border-radius:0 8px 8px 0; padding:14px 18px; display:flex; flex-direction:column;
+  gap:9px; font-size:13.5px; color:var(--bp-ink-soft) }
+.check{ padding-left:20px; display:flex; flex-direction:column; gap:6px;
+  color:var(--bp-ink-soft); font-size:13.5px }
+
+/* — Pie — */
+.src-files{ border-top:1px solid var(--bp-line); padding-top:18px; display:flex;
+  flex-wrap:wrap; gap:8px 14px; align-items:baseline; font-size:11.5px;
+  color:var(--bp-ink-dim) }
+.src-files b{ font-family:var(--bp-ui); font-size:12px; color:var(--bp-ink-soft);
+  width:100%; margin-bottom:2px }
+
+/* — La interfaz: el marco solo encuadra; los colores los declara él con los --ui-* — */
+.shot{ margin:0; display:flex; flex-direction:column; gap:9px; min-width:0 }
+.shot-frame{ border:1px solid var(--bp-line); border-radius:12px; overflow:hidden; display:flex;
+  background:var(--ui-bg); color:var(--ui-tx); font:13px/1.45 var(--ui-font,var(--bp-ui)) }
+.shot-frame *{ box-sizing:border-box }
+.shot figcaption{ font:10.5px var(--bp-mono); color:var(--bp-ink-dim); border-top:0; padding-top:0 }
+.shot figcaption code{ color:var(--bp-ink-soft) }
+.sf{ flex:1; min-width:0; display:grid; gap:14px; padding:18px; align-content:start }
+.sf-head{ display:flex; align-items:center; gap:12px; min-width:0 }
+.sf-head h4{ margin:0; font-size:16px; font-weight:650; letter-spacing:-.01em }
+.sf-head small{ display:block; font-size:12px; color:var(--ui-mut) }
+.sf-tile{ flex:none; width:36px; height:36px; border-radius:10px; display:grid; place-items:center;
+  background:var(--ui-ac-tint); color:var(--ui-ac) }
+.sf-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:8px }
+.sf-bar .push{ margin-left:auto }
+.sf-in,.sf-btn{ display:inline-flex; align-items:center; gap:8px; height:36px; padding:0 12px; min-width:0;
+  border:1px solid var(--ui-line); border-radius:8px; background:var(--ui-card); color:var(--ui-tx);
+  font-size:12.5px; white-space:nowrap }
+.sf-in{ min-width:150px }
+.sf-in small,.sf-in em{ font-size:12.5px; font-style:normal; color:var(--ui-mut) }
+.sf-in > .ic:last-child{ margin-left:auto; color:var(--ui-mut) }
+.sf-btn{ font-weight:600 }
+.sf-btn.pri{ background:var(--ui-ac); border-color:var(--ui-ac); color:var(--ui-on-ac) }
+.sf-cards{ display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:12px }
+.sf-card{ display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:2px 12px;
+  padding:14px 16px; border:1px solid var(--ui-line); border-radius:12px; background:var(--ui-card) }
+.sf-card > b,.sf-card > small{ grid-column:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.sf-card b{ font-size:22px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums }
+.sf-card small{ font-size:12px; color:var(--ui-mut) }
+.sf-table{ border:1px solid var(--ui-line); border-radius:12px; background:var(--ui-card); overflow:hidden }
+.sf-tr{ display:grid; grid-template-columns:var(--tpl,repeat(var(--cols,4),minmax(0,1fr))); gap:12px;
+  align-items:center; padding:10px 16px; border-top:1px solid var(--ui-line) }
+.sf-tr:first-child{ border-top:0 }
+.sf-tr.th{ padding:9px 16px; background:var(--ui-bg); font-size:11px; font-weight:600;
+  letter-spacing:.05em; text-transform:uppercase; color:var(--ui-mut) }
+.sf-tr > *{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.sf-who{ display:flex; align-items:center; gap:10px }
+.sf-who small{ display:block; font-size:11.5px; color:var(--ui-mut); overflow:hidden; text-overflow:ellipsis }
+.sf-pill{ display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:99px;
+  font-size:11.5px; font-weight:600; white-space:nowrap; --c:var(--ui-mut); color:var(--c);
+  background:color-mix(in srgb,var(--c) 12%,transparent) }
+.sf-pill::before{ content:""; width:6px; height:6px; border-radius:50%; background:currentColor }
+.sf-pill.ok{ --c:var(--ui-ok,#15803D) } .sf-pill.warn{ --c:var(--ui-warn,#B45309) }
+.sf-pill.er{ --c:var(--ui-er,#B91C1C) } .sf-pill.ac{ --c:var(--ui-ac) }
+.sf-modal{ display:grid; overflow:hidden; border:1px solid var(--ui-line); border-radius:14px;
+  background:var(--ui-card); box-shadow:0 12px 32px rgba(15,23,42,.12) }
+.sf-mh{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--ui-line);
+  font-size:14.5px; font-weight:650 }
+.sf-mh > .ic:last-child{ margin-left:auto; color:var(--ui-mut) }
+.sf-mb{ display:grid; gap:12px; padding:16px 18px }
+.sf-mf{ display:flex; justify-content:flex-end; gap:8px; padding:12px 18px;
+  border-top:1px solid var(--ui-line); background:var(--ui-bg) }
+.sf-fields{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px }
+.sf-fields{ align-items:start }
+.sf-fields label{ display:grid; gap:5px; min-width:0; font-size:12px; font-weight:600; align-content:start }
+.sf-fields label > span{ display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; overflow:hidden;
+  white-space:nowrap; border:1px solid var(--ui-line); border-radius:8px; font-size:13px; font-weight:400 }
+@media (max-width:640px){
+  .wrap{ padding:0 14px 60px }
+  .sf-cards{ grid-auto-flow:row }
+  .sf-fields{ grid-template-columns:1fr }
+}
+.sf .mut{color:var(--ui-mut)}
+.sf-acts{margin-left:auto;display:flex;gap:8px}
+.sf-card .sf-tile{grid-row:1 / 3;grid-column:2}
+.sf-in.grow{flex:1}
+.sf-btn.ghost{background:none;border-color:transparent;color:var(--ui-mut);padding:0 8px}
+.sf-btn.sm{height:30px;padding:0 10px;font-size:12px}
+.sf-tr.sel{background:var(--ui-ac-tint)}
+.sf-tr.off{color:var(--ui-mut)}
+.sf-fields em{font-style:normal;color:var(--ui-mut)}
+.sf-fields .full{grid-column:1 / -1}
+.sf-tabs{display:flex;gap:2px;border-bottom:1px solid var(--ui-line);overflow:hidden}
+.sf-tabs>span{display:inline-flex;align-items:center;gap:6px;padding:9px 12px;margin-bottom:-1px;
+  border-bottom:2px solid transparent;color:var(--ui-mut);white-space:nowrap}
+.sf-tabs>.sel{color:var(--ui-ac);border-color:var(--ui-ac);font-weight:600}
+.sf-split{display:grid;grid-template-columns:var(--split,270px minmax(0,1fr));gap:14px;align-items:start}
+.sf-panel{display:grid;gap:12px;align-content:start;min-width:0;padding:14px;
+  border:1px solid var(--ui-line);border-radius:12px;background:var(--ui-card)}
+.sf-label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ui-mut)}
+.sf-av{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+  font-size:11px;font-weight:700;background:var(--ui-ac-tint);color:var(--ui-ac)}
+.sf-list{display:grid;gap:8px;align-content:start}
+.sf-item{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 12px;
+  border:1px solid var(--ui-line);border-radius:10px;background:var(--ui-card)}
+.sf-item small{display:block;font-size:11.5px;color:var(--ui-mut)}
+.sf-item .push{margin-left:auto}
+.sf-item.sel{border-color:var(--ui-ac);background:var(--ui-ac-tint);box-shadow:inset 3px 0 0 var(--ui-ac)}
+.sf-item.off{opacity:.55}
+.sf-empty{display:grid;justify-items:center;gap:6px;padding:26px 18px;text-align:center;
+  border:1px dashed var(--ui-line);border-radius:12px;color:var(--ui-mut);font-size:12.5px}
+.sf-empty b{color:var(--ui-tx);font-size:13.5px}
+.sf-alert{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-radius:10px;
+  font-size:12.5px;--c:var(--ui-warn,#B45309);color:var(--c);
+  border:1px solid color-mix(in srgb,var(--c) 30%,transparent);background:color-mix(in srgb,var(--c) 8%,transparent)}
+.sf-alert.er{--c:var(--ui-er,#B91C1C)}
+.sf-alert b{display:block;color:var(--ui-tx)}
+.sf .sf-o{display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;
+  margin:0 6px 0 0;padding:0;border:0;border-radius:50%;background:var(--ui-ac);color:var(--ui-on-ac);
+  font-size:10px;font-weight:700;line-height:1;vertical-align:-3px}
+.sf-note{display:block;margin-top:6px;font-size:11.5px;line-height:1.45;color:var(--ui-mut)}
+@media (max-width:720px){ .sf-split{grid-template-columns:1fr} }
+
+/* — Íconos: máscara con el trazo de Lucide, toman el color del texto — */
+.ic{ --i:linear-gradient(transparent,transparent); display:inline-block; flex:none; width:16px; height:16px;
+  background:currentColor; -webkit-mask:var(--i) center / contain no-repeat; mask:var(--i) center / contain no-repeat }
+.sf-tile .ic{ width:18px; height:18px }
+.i-plus{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M12 5v14'/></svg>")}
+.i-x{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 6 6 18M6 6l12 12'/></svg>")}
+.i-chevron-down{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>")}
+.i-search{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>")}
+.i-ellipsis{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='1'/><circle cx='19' cy='12' r='1'/><circle cx='5' cy='12' r='1'/></svg>")}
+.i-pencil{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z'/><path d='m15 5 4 4'/></svg>")}
+.i-calendar{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2v4M16 2v4'/><rect width='18' height='18' x='3' y='4' rx='2'/><path d='M3 10h18'/></svg>")}
+.i-menu{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h16M4 6h16M4 18h16'/></svg>")}
+.i-printer{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2'/><path d='M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6'/><rect x='6' y='14' width='12' height='8' rx='1'/></svg>")}
+.i-banknote{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='20' height='12' x='2' y='6' rx='2'/><circle cx='12' cy='12' r='2'/><path d='M6 12h.01M18 12h.01'/></svg>")}
+.i-truck{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2'/><path d='M15 18H9'/><path d='M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14'/><circle cx='17' cy='18' r='2'/><circle cx='7' cy='18' r='2'/></svg>")}
+.i-package{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z'/><path d='M12 22V12M3.3 7l7.703 4.734a2 2 0 0 0 1.994 0L20.7 7M7.5 4.27l9 5.15'/></svg>")}
+.i-check{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>")}
+.i-house{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8'/><path d='M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/></svg>")}
+.i-clipboard-list{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='8' height='4' x='8' y='2' rx='1' ry='1'/><path d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/><path d='M12 11h4M12 16h4M8 11h.01M8 16h.01'/></svg>")}
+.i-book-open{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 7v14'/><path d='M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z'/></svg>")}
+.i-bell{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10.268 21a2 2 0 0 0 3.464 0'/><path d='M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326'/></svg>")}
+.i-cake{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8'/><path d='M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1'/><path d='M2 21h20'/><path d='M7 8v3M12 8v3M17 8v3M7 4h.01M12 4h.01M17 4h.01'/></svg>")}
+.i-image{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='18' height='18' x='3' y='3' rx='2' ry='2'/><circle cx='9' cy='9' r='2'/><path d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/></svg>")}
+
+/* @piel revision */
+:root{ color-scheme: light !important }
+.sf .sf-o.rv,.sf .sf-o.fx{width:auto;min-width:22px;padding:0 6px;border-radius:9px}
+.sf .sf-o.rv{background:var(--bp-write);color:var(--bp-surface)}
+.rv-trips{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.rv-trip{border:1px solid var(--bp-line);border-radius:10px;background:var(--bp-surface);
+  padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.rv-trip header{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rv-trip b{font-family:var(--bp-ui);font-size:14.5px;line-height:1.35}
+.rv-trip p{margin:0;color:var(--bp-ink-soft);font-size:13.5px}
+.rv-notes{display:grid;gap:12px;margin-top:14px}
+.rv-h{border-left:3px solid var(--bp-line);padding:2px 0 2px 12px}
+.rv-h header{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rv-h header b{font-family:var(--bp-ui);font-size:14px}
+.rv-h p{margin:4px 0 0;color:var(--bp-ink-soft);font-size:13.5px;max-width:96ch}
+.wrap{max-width:none;padding-inline:clamp(16px,3vw,40px)}
+.sf.sf-full{padding:0;gap:0}
+.sf-box{flex:1;display:flex;flex-wrap:wrap;min-width:0;background:var(--ui-card);overflow:hidden}
+.sf-col{flex:1 1 560px;min-width:0;display:flex;flex-direction:column}
+.sf-band{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;
+  border-bottom:1px solid var(--ui-line);background:var(--ui-card)}
+.sf-band > *{flex:1;min-width:0}
+.sf-band.alt{background:var(--ui-bg)}
+.sf-band.grow{flex:1;flex-direction:column;flex-wrap:nowrap;align-items:stretch;border-bottom:0}
+.sf-band > .sf-tabs{border-bottom:0}
+.sf-band .sf-cards{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.sf-band .sf-card small,.sf-band .sf-tr > *{white-space:normal;line-height:1.25}
+.sf-side{flex:1 0 clamp(280px,30%,var(--side,340px));max-width:var(--side,340px);display:flex;
+  flex-direction:column;border-left:1px solid var(--ui-line);background:var(--ui-card)}
+.sf-side > .sf-empty{flex:1;align-content:center;border:0;border-radius:0}
+.sf-veil{flex:1;display:grid;place-items:center;padding:32px 16px;
+  background:color-mix(in srgb,var(--ui-tx) 40%,var(--ui-bg))}
+@media (max-width:720px){ .sf-box{flex-direction:column}
+  .sf-side{width:auto;max-width:none;border-left:0;border-top:1px solid var(--ui-line)} }
+.rv-code{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:20px;
+  padding:0 7px;border-radius:999px;background:var(--bp-write);color:var(--bp-surface);
+  font:700 10.5px var(--bp-mono)}
+.rv-p{font:600 10.5px var(--bp-mono);text-transform:uppercase;letter-spacing:.06em;
+  padding:1px 7px;border-radius:4px;border:1px solid currentColor}
+.rv-p.alta{color:var(--bp-danger)} .rv-p.media{color:var(--bp-write)}
+.rv-p.baja{color:var(--bp-ink-dim)} .rv-p.preg{color:var(--bp-ac)}
+
+/* @piel ventas · estados de la plantilla, tabla de dos columnas e íconos extra */
+.chip.off{ color:var(--bp-ink-dim) } .chip.ask{ color:var(--bp-ac) }
+.kv td:first-child{ width:190px; font-weight:650; color:var(--bp-ink) }
+.num-r{ text-align:right; font-variant-numeric:tabular-nums }
+.i-shopping-cart{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='8' cy='21' r='1'/><circle cx='19' cy='21' r='1'/><path d='M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12'/></svg>")}
+.i-users{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'/></svg>")}
+.i-percent{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M19 5 5 19'/><circle cx='6.5' cy='6.5' r='2.5'/><circle cx='17.5' cy='17.5' r='2.5'/></svg>")}
+.i-sticky-note{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z'/><path d='M15 3v4a2 2 0 0 0 2 2h4'/></svg>")}
+.i-pause{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='14' y='4' width='4' height='16' rx='1'/><rect x='6' y='4' width='4' height='16' rx='1'/></svg>")}
+.i-trash{--i:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2'/></svg>")}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- Cajetín -->
+  <header class="head">
+    <p class="eyebrow">Huubie PRO · Ventas · Plan por fases</p>
+    <h1>Vender en mostrador, <em>por fases</em></h1>
+    <p class="lede">
+      Plan para llevar a PRO la venta de mostrador que dibuja la plantilla del punto de venta.
+      Separa lo que ya existe gracias a Pedidos, lo que ya no se usará y lo que falta. Lo que falta
+      se comparó con los dos puntos de venta de erp-pro (Pulpos y CoffeePOS) y quedó en nueve fases,
+      sin tocar la estructura de la base (decisión 6).
+    </p>
+    <div class="meta">
+      <span><b>Fecha</b> 13/11/2026</span>
+      <span><b>Referencia</b> pro/app/order/templates/pos-order.html</span>
+      <span><b>Comparado con</b> erp-pro/pro/app/pulpos · erp-pro/pro/app/pos</span>
+      <span><b>Destino</b> pro/app/order · base fayxzvov_pos</span>
+      <span><b>Estado</b> sin empezar; nada construido ni subido</span>
+    </div>
+  </header>
+
+  <div class="tiles">
+    <div class="tile"><b>51</b><small>apartados en la plantilla: 7 vistas, 10 botones, 10 piezas del ticket, 7 del cobro y 17 ventanas</small></div>
+    <div class="tile"><b>20</b><small>ya existen en PRO gracias a Pedidos</small></div>
+    <div class="tile"><b>19</b><small>faltan; 7 no se usarán</small></div>
+    <div class="tile"><b>0</b><small>ventas de mostrador en la base local: las 1,536 ventas son pedidos</small></div>
+    <div class="tile"><b>9</b><small>fases, de V0 a V8</small></div>
+    <div class="tile"><b>13</b><small>decisiones abiertas, cada una con propuesta</small></div>
+  </div>
+
+  <!-- 01 · La plantilla -->
+  <section>
+    <h2><span class="num">01</span> La plantilla, apartado por apartado</h2>
+    <p class="intro">Cada apartado de <code>pos-order.html</code> con su estado en PRO. «Ya existe» quiere decir que Pedidos ya lo construyó y Ventas lo reutiliza; no que la pantalla Vender ya exista.</p>
+    <p class="foot"><span class="chip read">Ya existe</span> se reutiliza · <span class="chip write">Falta</span> se construye en la fase indicada · <span class="chip off">No se usa</span> se descarta · <span class="chip danger">Bloqueado</span> necesita cambiar la base (decisión 6) · <span class="chip ask">Decidir</span> depende de una decisión abierta</p>
+
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Estado</th><th class="num-r">Vistas</th><th class="num-r">Barra</th><th class="num-r">Ticket</th><th class="num-r">Cobro</th><th class="num-r">Ventanas</th><th class="num-r">Total</th></tr></thead>
+        <tbody>
+          <tr><td><span class="chip read">Ya existe</span></td><td class="num-r">4</td><td class="num-r">3</td><td class="num-r">2</td><td class="num-r">4</td><td class="num-r">7</td><td class="num-r"><b>20</b></td></tr>
+          <tr><td><span class="chip write">Falta</span></td><td class="num-r">2</td><td class="num-r">4</td><td class="num-r">6</td><td class="num-r">2</td><td class="num-r">5</td><td class="num-r"><b>19</b></td></tr>
+          <tr><td><span class="chip off">No se usa</span></td><td class="num-r">1</td><td class="num-r">1</td><td class="num-r">1</td><td class="num-r">1</td><td class="num-r">3</td><td class="num-r"><b>7</b></td></tr>
+          <tr><td><span class="chip danger">Bloqueado</span></td><td class="num-r">0</td><td class="num-r">1</td><td class="num-r">0</td><td class="num-r">0</td><td class="num-r">2</td><td class="num-r"><b>3</b></td></tr>
+          <tr><td><span class="chip ask">Decidir</span></td><td class="num-r">0</td><td class="num-r">1</td><td class="num-r">1</td><td class="num-r">0</td><td class="num-r">0</td><td class="num-r"><b>2</b></td></tr>
+          <tr><td><b>Total</b></td><td class="num-r">7</td><td class="num-r">10</td><td class="num-r">10</td><td class="num-r">7</td><td class="num-r">17</td><td class="num-r"><b>51</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Vistas del menú lateral · 7</h3>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Vista</th><th>En la plantilla</th><th>Estado</th><th>En PRO</th></tr></thead>
+        <tbody>
+          <tr><td>Inicio</td><td>Saludo y cifras del día: vendido, pedidos por entregar y atrasados, por cobrar, cotizaciones</td><td><span class="chip off">No se usa</span></td><td>PRO ya tiene su Home. Las cifras del día pasan al Dashboard en V6 (propuesta)</td></tr>
+          <tr><td>Vender</td><td>Catálogo, ticket y cobro</td><td><span class="chip write">Falta</span></td><td>V1 · sección <code>pos-ventas</code> «Ventas» (id 12), hoy sin página</td></tr>
+          <tr><td>Pedidos</td><td>Tablero de pedidos por estado</td><td><span class="chip read">Ya existe</span></td><td><code>pedidos.php</code>, como tabla. El tablero queda al final (decisión G)</td></tr>
+          <tr><td>Ventas</td><td>«Historial de tickets, pedidos y cotizaciones»</td><td><span class="chip write">Falta</span></td><td>V2 · sección <code>pos-historial</code> «Historial» (id 13), hoy sin página</td></tr>
+          <tr><td>Caja</td><td>Abrir turno, retiro, depósito, corte X, cerrar turno y cierre del día</td><td><span class="chip read">Ya existe</span></td><td>Turno, cortes y cierre del día (Etapa 5, <code>cortes.php</code>). Retiro y depósito: bloqueados</td></tr>
+          <tr><td>Clientes</td><td>Directorio, crédito y tarjeta</td><td><span class="chip read">Ya existe</span></td><td><code>clientes.php</code>. El crédito llega en V3 y la tarjeta en V4</td></tr>
+          <tr><td>Reportes</td><td>Monitor de ventas por turno, hoy, semana o mes</td><td><span class="chip read">Ya existe</span></td><td>Dashboard y Cortes, hoy solo de pedidos. Los de mostrador en V6</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Barra de la pantalla Vender · 10</h3>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Botón</th><th>En la plantilla</th><th>Estado</th><th>En PRO</th></tr></thead>
+        <tbody>
+          <tr><td>Descuento F9</td><td>Descuento a toda la venta, con motivo</td><td><span class="chip read">Ya existe</span></td><td>La ventana y la regla del cobro de Pedidos (<code>ctrl-cobro.php</code>); V1 la conecta</td></tr>
+          <tr><td>Manual</td><td>Línea libre con precio a mano</td><td><span class="chip read">Ya existe</span></td><td>La línea libre del ticket de Pedidos</td></tr>
+          <tr><td>Cliente F8</td><td>Elegir o dar de alta un cliente</td><td><span class="chip read">Ya existe</span></td><td>El mismo buscador de Pedidos. Sin cliente, la venta es de «Público en general»</td></tr>
+          <tr><td>Vendedor</td><td>Quién vendió</td><td><span class="chip danger">Bloqueado</span></td><td><code>sale</code> no tiene columna de vendedor</td></tr>
+          <tr><td>Nota</td><td>Nota de la venta</td><td><span class="chip write">Falta</span></td><td>V1 · <code>sale.note</code></td></tr>
+          <tr><td>Precios F6</td><td>Lista de precio, existencia y código</td><td><span class="chip off">No se usa</span></td><td>El buscador del catálogo ya busca por nombre, SKU y código de barras</td></tr>
+          <tr><td>En espera</td><td>Aparta el ticket y abre otro</td><td><span class="chip write">Falta</span></td><td>V1 · pestañas guardadas en el navegador (A8)</td></tr>
+          <tr><td>Abrir cajón</td><td>Hoy solo muestra un aviso</td><td><span class="chip ask">Decidir</span></td><td>Depende de si hay impresora con cajón (A7)</td></tr>
+          <tr><td>Pre-cuenta</td><td>Imprime «PRE-CUENTA · NO ES COMPROBANTE»</td><td><span class="chip write">Falta</span></td><td>V1 · solo imprime, no guarda</td></tr>
+          <tr><td>Vaciar</td><td>Borra el ticket abierto</td><td><span class="chip write">Falta</span></td><td>V1</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>El ticket · 10</h3>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Pieza</th><th>Estado</th><th>En PRO</th></tr></thead>
+        <tbody>
+          <tr><td>Líneas (cantidad, precio, quitar)</td><td><span class="chip read">Ya existe</span></td><td>Componente <code>posTicket</code></td></tr>
+          <tr><td>Subtotal, descuento y total</td><td><span class="chip read">Ya existe</span></td><td>Componente <code>posTicket</code></td></tr>
+          <tr><td>Pestañas de tickets</td><td><span class="chip write">Falta</span></td><td>V1, junto con «En espera»</td></tr>
+          <tr><td>Interruptor Venta / Pedido</td><td><span class="chip off">No se usa</span></td><td>Cada uno tiene su pantalla</td></tr>
+          <tr><td>«Atiende»</td><td><span class="chip write">Falta</span></td><td>V1 · quien inició sesión; se guarda en <code>sale.user_id</code></td></tr>
+          <tr><td>«IVA incluido»</td><td><span class="chip write">Falta</span></td><td>V1 · se calcula al mostrar; no se guarda (decisión 6)</td></tr>
+          <tr><td>«Tarjeta» (descuento de lealtad)</td><td><span class="chip write">Falta</span></td><td>V4</td></tr>
+          <tr><td>Pagado y Saldo</td><td><span class="chip write">Falta</span></td><td>Solo cuando queda saldo a crédito: V3</td></tr>
+          <tr><td>Cobrar F2</td><td><span class="chip write">Falta</span></td><td>V1</td></tr>
+          <tr><td>Cotizar</td><td><span class="chip ask">Decidir</span></td><td>¿Cotizaciones en mostrador? (A5)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>La ventana de cobro · 7</h3>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Pieza</th><th>Estado</th><th>En PRO</th></tr></thead>
+        <tbody>
+          <tr><td>Billetes rápidos</td><td><span class="chip read">Ya existe</span></td><td>Cobro de Pedidos</td></tr>
+          <tr><td>Varias formas de pago</td><td><span class="chip read">Ya existe</span></td><td>Cobro de Pedidos (<code>payment</code>)</td></tr>
+          <tr><td>Cambio</td><td><span class="chip read">Ya existe</span></td><td><code>payment.tendered_amount</code> y <code>change_amount</code></td></tr>
+          <tr><td>Propina</td><td><span class="chip read">Ya existe</span></td><td><code>sale.tip_amount</code>; el corte ya la reparte entre los pagos. Propina por forma de pago: bloqueada</td></tr>
+          <tr><td>«¿Cuánto cobra hoy?»</td><td><span class="chip off">No se usa</span></td><td>Es el anticipo de un pedido; en mostrador se cobra todo</td></tr>
+          <tr><td>Resto a crédito</td><td><span class="chip write">Falta</span></td><td>V3</td></tr>
+          <tr><td>Pagar con puntos</td><td><span class="chip write">Falta</span></td><td>V4</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Las ventanas · 17</h3>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Ventana</th><th>Estado</th><th>En PRO</th></tr></thead>
+        <tbody>
+          <tr><td>Manual</td><td><span class="chip read">Ya existe</span></td><td>Línea libre</td></tr>
+          <tr><td>Cliente</td><td><span class="chip read">Ya existe</span></td><td>Alta rápida de Pedidos</td></tr>
+          <tr><td>Descuento</td><td><span class="chip read">Ya existe</span></td><td>Cobro de Pedidos, con <code>discount_reason</code></td></tr>
+          <tr><td>Imprimir</td><td><span class="chip read">Ya existe</span></td><td>Ticket de Pedidos</td></tr>
+          <tr><td>Abrir turno</td><td><span class="chip read">Ya existe</span></td><td>Etapa 3</td></tr>
+          <tr><td>Corte</td><td><span class="chip read">Ya existe</span></td><td>Etapa 5</td></tr>
+          <tr><td>Cierre del día</td><td><span class="chip read">Ya existe</span></td><td>Etapa 5</td></tr>
+          <tr><td>Nota</td><td><span class="chip write">Falta</span></td><td>V1</td></tr>
+          <tr><td>Línea (cantidad y descuento por renglón)</td><td><span class="chip write">Falta</span></td><td>V1 · las columnas <code>detail_sale.discount_*</code> ya existen</td></tr>
+          <tr><td>Cobro</td><td><span class="chip write">Falta</span></td><td>El de Pedidos solo acepta pedidos (tipo 1); V1 necesita el suyo</td></tr>
+          <tr><td>Cancelar</td><td><span class="chip write">Falta</span></td><td>Pedidos lo tiene; para mostrador, V2</td></tr>
+          <tr><td>Abono</td><td><span class="chip write">Falta</span></td><td>V3</td></tr>
+          <tr><td>Precios</td><td><span class="chip off">No se usa</span></td><td>Lo cubre el buscador</td></tr>
+          <tr><td>PIN de autorización</td><td><span class="chip off">No se usa</span></td><td>Contraseña + permiso del rol, como «Entregar»</td></tr>
+          <tr><td>Personalizado (pastel)</td><td><span class="chip off">No se usa</span></td><td>Es de Pedidos (supuesto)</td></tr>
+          <tr><td>Vendedor</td><td><span class="chip danger">Bloqueado</span></td><td>Sin columna de vendedor</td></tr>
+          <tr><td>Movimiento de caja</td><td><span class="chip danger">Bloqueado</span></td><td>Sin tabla de movimientos de efectivo</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 02 · Pulpos y CoffeePOS -->
+  <section>
+    <h2><span class="num">02</span> Lo que traen Pulpos y CoffeePOS</h2>
+    <p class="intro">Se leyeron los controladores de los dos puntos de venta de erp-pro. La tabla junta lo que hacen, lo que PRO ya tiene y si cabe en las tablas que hoy tiene <code>fayxzvov_pos</code>.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Capacidad</th><th>Pulpos</th><th>CoffeePOS</th><th>PRO hoy</th><th>¿Cabe sin tocar la base?</th><th>Fase</th></tr></thead>
+        <tbody>
+          <tr><td>Cobrar una venta de mostrador</td><td><code>payVenta</code></td><td><code>saveVenta</code>, <code>payVenta</code></td><td>No: el cobro solo acepta pedidos</td><td>Sí: <code>sale</code>, <code>detail_sale</code>, <code>payment</code></td><td>V1</td></tr>
+          <tr><td>Tickets en espera</td><td>—</td><td><code>holdVenta</code>, <code>recoverVenta</code>, <code>lsEspera</code></td><td>No</td><td>Sí, en el navegador</td><td>V1</td></tr>
+          <tr><td>Descuento por venta y por renglón</td><td><code>descuentoRenglon</code></td><td><code>cambioDescuento</code></td><td>Por venta, en Pedidos</td><td>Sí: <code>discount_*</code> en las dos tablas</td><td>V1</td></tr>
+          <tr><td>Modificadores en la venta</td><td>—</td><td><code>modificadoresDe</code>, <code>revisarModificadores</code>, con precio del servidor</td><td>Solo en el pastel personalizado: Pedidos crea un producto propio (<code>is_custom</code>) y le cuelga sus modificadores en <code>product_modifier</code></td><td>Como texto en el renglón. Copiar lo del pastel crearía un producto por cada renglón vendido</td><td>V1</td></tr>
+          <tr><td>Turno y corte</td><td><code>getCaja</code>, <code>finishCorte</code>, <code>getCorte</code></td><td><code>openTurno</code>, <code>closeTurno</code>, <code>corte</code></td><td>Sí (Etapa 5)</td><td>—</td><td>Ya existe</td></tr>
+          <tr><td>Historial y reimpresión</td><td><code>lsVentas</code>, <code>getVenta</code></td><td><code>lsCuentas</code>, <code>getCuenta</code>, <code>ticket</code></td><td>Solo pedidos</td><td>Sí</td><td>V2</td></tr>
+          <tr><td>Cancelar una venta</td><td><code>cancelVenta</code>, <code>refundVenta</code></td><td><code>cancelVenta</code></td><td>Solo pedidos</td><td>Sí: <code>cancel_reason</code>, <code>cancelled_at</code>, <code>cancel_user_id</code></td><td>V2</td></tr>
+          <tr><td>Quitar un pago</td><td><code>deletePago</code></td><td>—</td><td>Sí, en pedidos: borrado lógico con motivo</td><td>Sí</td><td>V2</td></tr>
+          <tr><td>Cambiar el cliente de una venta</td><td><code>setClienteVenta</code></td><td><code>setCliente</code></td><td>Solo al editar un pedido (<code>editOrder</code>)</td><td>Sí</td><td>V2</td></tr>
+          <tr><td>Crédito y cuentas por cobrar</td><td><code>payDeuda</code>, <code>sinCredito</code></td><td><code>lsCxc</code>, <code>addCxc</code>, <code>cancelCxc</code></td><td>No</td><td>Sí: <code>receivable</code>, <code>credit_enabled</code>, <code>credit_limit</code></td><td>V3</td></tr>
+          <tr><td>Tarjeta de lealtad y puntos</td><td>—</td><td><code>setTarjeta</code>, <code>saveTipoTarjeta</code>, <code>saveTarjeta</code>, <code>ajusteTarjeta</code></td><td>No</td><td>En parte: <code>card</code> y <code>card_type</code>; la tarjeta no guarda saldo de puntos</td><td>V4</td></tr>
+          <tr><td>Monedero (saldo a favor)</td><td><code>moverMonedero</code>, <code>adjustMonedero</code></td><td>—</td><td><code>customer.wallet</code> (decisión D)</td><td>El saldo sí; su historial no</td><td>V4</td></tr>
+          <tr><td>Formas de pago configurables</td><td>—</td><td><code>lsFormasCfg</code>, <code>saveFormaPago</code>, <code>saveOrdenFormas</code></td><td>No</td><td>Sí: <code>sort</code>, <code>is_visible</code>, <code>commission</code>, <code>earns_points</code></td><td>V5</td></tr>
+          <tr><td>Reportes de venta</td><td><code>getReporte</code></td><td>22 reportes: productos, propinas, descuentos, cancelaciones, por hora…</td><td>Dashboard y Cortes, de pedidos</td><td>Casi todos</td><td>V6</td></tr>
+          <tr><td>Ticket por enlace y WhatsApp</td><td><code>portalDelTicket</code>, <code>pulWhatsAppTienda</code></td><td>—</td><td>No</td><td>Sí, con un enlace firmado</td><td>V7</td></tr>
+          <tr><td>Tienda en línea</td><td><code>ctrl-canales</code>, <code>ctrl-publico</code></td><td>—</td><td>No</td><td>En parte: tipo 4 y <code>product.in_catalog</code></td><td>V8</td></tr>
+          <tr><td>Cotizaciones</td><td><code>ctrl-cotizaciones</code></td><td>—</td><td>Estado «Cotización» en Pedidos</td><td>Sí</td><td>A5</td></tr>
+          <tr><td>Abrir el cajón</td><td>—</td><td><code>openCajon</code></td><td>No</td><td>No toca la base</td><td>A7</td></tr>
+          <tr><td>Entradas y salidas de efectivo</td><td><code>addMovimiento</code>, <code>removeMovimiento</code></td><td><code>addCaja</code>, <code>cancelCaja</code></td><td>No</td><td>No</td><td>Bloqueado</td></tr>
+          <tr><td>Vendedor</td><td><code>listVendedores</code>; la venta guarda <code>seller_id</code></td><td>—</td><td>No</td><td>No</td><td>Bloqueado</td></tr>
+          <tr><td>Promociones</td><td><code>ctrl-promociones</code>, <code>mejorPromo</code></td><td>—</td><td>No</td><td>No</td><td>Bloqueado</td></tr>
+          <tr><td>Listas de precios</td><td>Preferencias › listas</td><td>—</td><td>No</td><td>No</td><td>Bloqueado</td></tr>
+          <tr><td>Series de folio</td><td>—</td><td><code>lsSeries</code>, <code>saveSerie</code>, <code>useSerie</code></td><td>No</td><td>No</td><td>Bloqueado</td></tr>
+          <tr><td>Existencias al vender</td><td><code>moverStock</code>, <code>kardex</code>, lotes, kits</td><td><code>bajaCantidades</code></td><td>No</td><td>—</td><td>Fuera</td></tr>
+          <tr><td>Mesas y comandas</td><td>—</td><td><code>ctrl-servicio</code>, <code>ctrl-comandero</code>, <code>ctrl-produccion</code></td><td>No</td><td>—</td><td>Fuera</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">Los nombres en código son funciones o controladores de cada punto de venta. Se leyeron; no se probaron en ejecución.</p>
+  </section>
+
+  <!-- 03 · La pantalla Vender -->
+  <section>
+    <h2><span class="num">03</span> La pantalla Vender</h2>
+    <p class="intro">La plantilla junta pedido y venta en una sola pantalla. En PRO, Pedidos ya tiene la suya; Ventas se queda solo con la venta de mostrador y reutiliza los componentes del catálogo y del ticket.</p>
+
+    <div class="note">
+      <b style="color:var(--bp-ink)">Propuesta de mejora</b>
+      <ol class="check">
+        <li><b>Vender tiene su propia pantalla.</b> Sin el interruptor Venta / Pedido: un pedido se captura en Pedidos.</li>
+        <li><b>El buscador sustituye a «Precios F6».</b> Busca por nombre, SKU y código de barras; el precio se ve en la tarjeta.</li>
+        <li><b>Sin cliente es «Público en general».</b> La venta se guarda con <code>customer_id</code> vacío; F8 elige o da de alta un cliente.</li>
+        <li><b>Los tickets en espera son pestañas.</b> Se apartan con un clic y sobreviven a recargar la página.</li>
+        <li><b>Descuento con motivo y tope.</b> Arriba del tope de <code>discount_reason</code> pide la contraseña de quien autoriza, no un PIN.</li>
+        <li><b>Cobrar en un paso.</b> Varias formas de pago, cambio y propina. Sin turno abierto no se cobra (decisión E).</li>
+        <li><b>El turno siempre a la vista.</b> El mismo aviso y el mismo botón «Turno y cierre» que Pedidos.</li>
+      </ol>
+    </div>
+
+    <h3>Así quedaría con la propuesta</h3>
+    <figure class="shot">
+<div class="shot-frame" style="--ui-bg:#F8FAFC; --ui-card:#FFFFFF; --ui-line:#E2E8F0; --ui-tx:#1F2937; --ui-mut:#64748B; --ui-ac:#C05A40; --ui-ac-tint:#F7E9E4; --ui-on-ac:#FFFFFF; --ui-ok:#15803D; --ui-warn:#B45309; --ui-er:#B91C1C; overflow-x:auto"><div class="sf sf-full" style="min-width:1250px"><div class="sf-box" style="flex-direction:row">
+<div class="sf-band" style="flex:1 1 100%"><div class="sf-bar"><span class="sf-tile" style="width:32px;height:32px;font-weight:700">H</span><i class="ic i-menu" style="color:var(--ui-mut)"></i><span class="sf-in" style="min-width:210px"><b style="font-weight:600">Reginas Guadalupe</b><i class="ic i-chevron-down"></i></span><span class="push" style="display:flex;align-items:center;gap:14px;color:var(--ui-mut)"><i class="ic i-bell"></i><span class="sf-who" style="padding-left:12px;border-left:1px solid var(--ui-line);color:var(--ui-tx);font-size:12px"><span class="sf-av">CR</span><span><b>Carla Ríos</b><small>Cajera</small></span></span></span></div></div>
+<div class="sf-side" style="flex:0 0 76px;max-width:76px;border-left:0;border-top:0;border-right:1px solid var(--ui-line);padding:10px 6px;gap:4px;font-size:10.5px;color:var(--ui-mut)">
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px"><i class="ic i-house" style="width:18px;height:18px"></i>Inicio</span>
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px;background:var(--ui-ac-tint);color:var(--ui-ac);font-weight:600"><i class="ic i-shopping-cart" style="width:18px;height:18px"></i>Ventas</span>
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px"><i class="ic i-clipboard-list" style="width:18px;height:18px"></i>Pedidos</span>
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px"><i class="ic i-calendar" style="width:18px;height:18px"></i>Calendario</span>
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px"><i class="ic i-book-open" style="width:18px;height:18px"></i>Catálogo</span>
+<span style="display:grid;justify-items:center;gap:4px;padding:9px 2px;border-radius:10px"><i class="ic i-users" style="width:18px;height:18px"></i>Clientes</span>
+</div>
+<div class="sf-col" style="background:var(--ui-bg)">
+<div class="sf-band alt" style="border-bottom:0;align-items:flex-end;padding-top:18px">
+<div><div style="display:flex;gap:8px;font-size:12px"><span style="text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:#94A3B8">Huubie</span><span style="color:#CBD5E1">/</span><b style="color:var(--ui-ac)">Ventas</b></div><div style="font-size:22px;font-weight:700;letter-spacing:-.01em;line-height:1.3"><span class="sf-o">1</span>Ventas</div><div class="mut" style="font-size:12.5px">Reginas · Reginas Guadalupe</div></div>
+<div class="sf-bar" style="flex:none"><span class="sf-o">7</span><span class="sf-pill ok">Turno abierto desde las 9:02 AM</span><span class="sf-btn"><i class="ic i-banknote"></i>Turno y cierre</span></div>
+</div>
+<div class="sf-band alt" style="border-bottom:0"><div class="sf-bar"><span class="sf-in grow"><span class="sf-o">2</span><i class="ic i-search" style="color:var(--ui-mut)"></i><em>Buscar producto, SKU o código de barras</em><small style="margin-left:auto;border:1px solid var(--ui-line);border-radius:5px;padding:0 6px;font-size:11px">Ctrl K</small></span></div></div>
+<div class="sf-band alt" style="border-bottom:0;padding-top:0"><div class="sf-tabs"><span class="sel">Todos</span><span>Pan dulce</span><span>Pasteles</span><span>Postres</span><span>Galletas</span><span>Bebidas</span></div></div>
+<div class="sf-band alt grow">
+<div class="sf-cards">
+<div class="sf-card" style="grid-template-columns:minmax(0,1fr);gap:4px;padding:10px"><span style="height:58px;border-radius:8px;background:#F3E8E2;display:grid;place-items:center;color:var(--ui-ac)"><i class="ic i-image"></i></span><b style="font-size:13px;font-weight:600;letter-spacing:0;margin-top:4px">Concha de vainilla</b><small>$18.00</small></div>
+<div class="sf-card" style="grid-template-columns:minmax(0,1fr);gap:4px;padding:10px"><span style="height:58px;border-radius:8px;background:#F6EFD9;display:grid;place-items:center;color:#A16207"><i class="ic i-image"></i></span><b style="font-size:13px;font-weight:600;letter-spacing:0;margin-top:4px">Cuernito</b><small>$20.00</small></div>
+<div class="sf-card" style="grid-template-columns:minmax(0,1fr);gap:4px;padding:10px"><span style="height:58px;border-radius:8px;background:#E8EEF6;display:grid;place-items:center;color:#2A55A3"><i class="ic i-image"></i></span><b style="font-size:13px;font-weight:600;letter-spacing:0;margin-top:4px">Rebanada tres leches</b><small>$65.00</small></div>
+<div class="sf-card" style="grid-template-columns:minmax(0,1fr);gap:4px;padding:10px"><span style="height:58px;border-radius:8px;background:#EAF1E6;display:grid;place-items:center;color:#15803D"><i class="ic i-image"></i></span><b style="font-size:13px;font-weight:600;letter-spacing:0;margin-top:4px">Pay de queso (rebanada)</b><small>$60.00</small></div>
+<div class="sf-card" style="grid-template-columns:minmax(0,1fr);gap:4px;padding:10px"><span style="height:58px;border-radius:8px;background:#F6EFD9;display:grid;place-items:center;color:#A16207"><i class="ic i-image"></i></span><b style="font-size:13px;font-weight:600;letter-spacing:0;margin-top:4px">Galleta de avena</b><small>$22.00</small></div>
+<div class="sf-card" style="grid-template-columns:minmax(0,1fr);gap:4px;padding:10px"><span style="height:58px;border-radius:8px;background:#F3E8E2;display:grid;place-items:center;color:var(--ui-ac)"><i class="ic i-image"></i></span><b style="font-size:13px;font-weight:600;letter-spacing:0;margin-top:4px">Brownie</b><small>$38.00</small></div>
+<div class="sf-card" style="grid-template-columns:minmax(0,1fr);gap:4px;padding:10px"><span style="height:58px;border-radius:8px;background:#E8EEF6;display:grid;place-items:center;color:#2A55A3"><i class="ic i-image"></i></span><b style="font-size:13px;font-weight:600;letter-spacing:0;margin-top:4px">Café americano</b><small>$35.00</small></div>
+<div class="sf-card" style="grid-template-columns:minmax(0,1fr);gap:4px;padding:10px"><span style="height:58px;border-radius:8px;background:#EAF1E6;display:grid;place-items:center;color:#15803D"><i class="ic i-image"></i></span><b style="font-size:13px;font-weight:600;letter-spacing:0;margin-top:4px">Chocolate caliente</b><small>$45.00</small></div>
+</div>
+</div>
+</div>
+<div class="sf-side" style="--side:360px">
+<div class="sf-band" style="flex:none;padding:0 12px"><div class="sf-tabs"><span class="sel"><span class="sf-o">4</span>Venta 1</span><span>Venta 2 · en espera</span><span><i class="ic i-plus"></i></span></div></div>
+<div class="sf-band" style="flex:none"><div class="sf-bar"><span class="sf-who"><span class="sf-av">PG</span><span><b><span class="sf-o">3</span>Público en general</b><small>Cliente · F8</small></span></span><span class="push mut" style="font-size:12px">Atiende: Carla Ríos</span></div></div>
+<div class="sf-band grow" style="padding:0;gap:0;font-variant-numeric:tabular-nums">
+<div class="sf-tr" style="--tpl:30px minmax(0,1fr) 70px"><b>2×</b><span><b style="font-weight:600">Concha de vainilla</b><small class="mut" style="display:block;font-size:11.5px">$18.00 c/u</small></span><span style="text-align:right">$36.00</span></div>
+<div class="sf-tr" style="--tpl:30px minmax(0,1fr) 70px"><b>1×</b><span><b style="font-weight:600">Café americano</b><small class="mut" style="display:block;font-size:11.5px">Leche deslactosada</small></span><span style="text-align:right">$35.00</span></div>
+<div class="sf-tr" style="--tpl:30px minmax(0,1fr) 70px"><b>1×</b><span><b style="font-weight:600">Pay de queso (rebanada)</b><small class="mut" style="display:block;font-size:11.5px">$60.00 c/u</small></span><span style="text-align:right">$60.00</span></div>
+</div>
+<div class="sf-band" style="flex:none;flex-direction:column;align-items:stretch;gap:6px;border-top:1px solid var(--ui-line);font-variant-numeric:tabular-nums">
+<div style="display:flex"><span class="mut">Subtotal</span><span style="margin-left:auto">$131.00</span></div>
+<div style="display:flex"><span class="mut">Descuento · Frecuente 10 %</span><span style="margin-left:auto;color:var(--ui-er)">−$13.10</span></div>
+<div style="display:flex"><span class="mut">IVA incluido</span><span class="mut" style="margin-left:auto">$16.26</span></div>
+<div style="display:flex;font-size:18px;font-weight:700"><span>Total</span><span style="margin-left:auto">$117.90</span></div>
+</div>
+<div class="sf-band" style="flex:none"><div class="sf-bar" style="gap:6px"><span class="sf-btn sm"><span class="sf-o">5</span><i class="ic i-percent"></i>Descuento F9</span><span class="sf-btn sm"><i class="ic i-sticky-note"></i>Nota</span><span class="sf-btn sm"><i class="ic i-printer"></i>Pre-cuenta</span><span class="sf-btn sm"><i class="ic i-pause"></i>En espera</span><span class="sf-btn sm ghost"><i class="ic i-trash"></i>Vaciar</span></div></div>
+<div class="sf-band" style="flex:none;border-bottom:0"><span class="sf-btn pri" style="height:46px;justify-content:center;font-size:15px"><span class="sf-o" style="background:var(--ui-on-ac);color:var(--ui-ac)">6</span>Cobrar $117.90 · F2</span></div>
+</div>
+</div></div></div>
+<figcaption>Propuesta · Ventas en PRO, tema Claro, con el mismo marco que Pedidos (barra, menú lateral, migas y título) · catálogo de <code>posCatalog</code> a la izquierda y ticket de <code>posTicket</code> a la derecha · datos inventados · los números en círculo son los siete puntos de la propuesta · «Leche deslactosada» es un modificador guardado como texto</figcaption>
+    </figure>
+
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Tema</th><th>En la plantilla</th><th>En PRO</th></tr></thead>
+        <tbody>
+          <tr><td>Pedido o venta</td><td>Un interruptor en el ticket</td><td>Dos pantallas: Pedidos y Ventas</td></tr>
+          <tr><td>Consultar precios</td><td>Ventana «Precios» (F6) con precio, existencia y código</td><td>El buscador del catálogo. La existencia no se muestra: el inventario vive en inventory/</td></tr>
+          <tr><td>Autorizar</td><td>Ventana de PIN</td><td>Contraseña + permiso del rol, como «Entregar»</td></tr>
+          <tr><td>Vendedor</td><td>Ventana para elegirlo</td><td>No se guarda (decisión 6)</td></tr>
+          <tr><td>Abrir cajón</td><td>Botón que solo muestra un aviso</td><td>Fuera hasta saber si hay cajón (A7)</td></tr>
+          <tr><td>Venta sin cliente</td><td>—</td><td>«Público en general»: <code>customer_id</code> vacío</td></tr>
+          <tr><td>Tickets en espera</td><td>Pestañas</td><td>Pestañas que sobreviven a recargar la página (A8)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 04 · El plan en una vista -->
+  <section>
+    <h2><span class="num">04</span> El plan en una vista</h2>
+    <p class="intro">Cada fase termina en algo que se puede abrir y probar. Primero vender y corregir lo vendido; después crédito, lealtad y reportes; al final lo que sale de la tienda.</p>
+    <p><span class="chip read">V0 · Menú</span> → <span class="chip write">V1 · Vender</span> → <span class="chip write">V2 · Historial</span> → <span class="chip write">V3 · Crédito</span> → <span class="chip write">V4 · Lealtad</span> · <span class="chip read">V5 · Configurar cobro</span> → <span class="chip read">V6 · Reportes</span> → <span class="chip off">V7 · WhatsApp</span> → <span class="chip off">V8 · Tienda</span></p>
+    <div class="rv-trips">
+      <article class="rv-trip">
+        <header><span class="rv-code">V0</span><span class="rv-p alta">Primero</span></header>
+        <b>Menú y permisos</b>
+        <p>«Ventas» e «Historial» aparecen en el menú. Los permisos ya existen en la base local; falta decidir si la Cajera ve Historial.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">V1</span><span class="rv-p alta">Primero</span></header>
+        <b>Vender</b>
+        <p>Catálogo, ticket y cobro en un paso. Público en general, tickets en espera, descuento con motivo, nota, propina y pre-cuenta.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">V2</span><span class="rv-p media">Después</span></header>
+        <b>Historial</b>
+        <p>Lista de ventas de mostrador, detalle, reimprimir, cancelar con motivo, quitar pagos y cambiar el cliente.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">V3</span><span class="rv-p media">Después</span></header>
+        <b>Crédito</b>
+        <p>«Resto a crédito» para los clientes que la dueña autoriza, y abonos que entran al corte.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">V4</span><span class="rv-p baja">Más adelante</span></header>
+        <b>Lealtad y monedero</b>
+        <p>Tarjetas con descuento y puntos; pagar con el saldo a favor del cliente.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">V5</span><span class="rv-p baja">En paralelo</span></header>
+        <b>Configurar el cobro</b>
+        <p>Orden, visibilidad y comisión de las formas de pago; topes de los motivos de descuento.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">V6</span><span class="rv-p baja">Más adelante</span></header>
+        <b>Reportes de mostrador</b>
+        <p>Productos, propinas, descuentos, cancelaciones y ventas por hora, sin tablas nuevas.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">V7</span><span class="rv-p baja">Al final</span></header>
+        <b>Ticket por enlace y WhatsApp</b>
+        <p>El cliente recibe su ticket por un enlace que abre sin iniciar sesión.</p>
+      </article>
+      <article class="rv-trip">
+        <header><span class="rv-code">V8</span><span class="rv-p preg">Plan aparte</span></header>
+        <b>Tienda en línea</b>
+        <p>Catálogo público y ventas de tipo E-commerce.</p>
+      </article>
+    </div>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Fase</th><th>Al terminar se puede</th><th>Guarda en la base</th><th>Tamaño</th><th>Depende de</th></tr></thead>
+        <tbody>
+          <tr><td>V0 · Menú y permisos</td><td>Entrar a Ventas e Historial desde el menú</td><td>Solo las rutas del menú</td><td>Chica</td><td>—</td></tr>
+          <tr><td>V1 · Vender</td><td>Cobrar una venta de mostrador</td><td>Venta, líneas y pagos</td><td>Grande</td><td>V0 · A1, A6, A8</td></tr>
+          <tr><td>V2 · Historial</td><td>Reimprimir, cancelar y quitar pagos</td><td>Cancelación, pagos quitados, bitácora</td><td>Mediana</td><td>V1 · A3, A9</td></tr>
+          <tr><td>V3 · Crédito</td><td>Vender a cuenta y recibir abonos</td><td>Cuentas por cobrar</td><td>Mediana</td><td>V1 · A4</td></tr>
+          <tr><td>V4 · Lealtad y monedero</td><td>Descuento por tarjeta, puntos y pagar con saldo</td><td>Tarjetas, saldo del cliente, una forma de pago nueva</td><td>Mediana</td><td>V1 · V5 · A10</td></tr>
+          <tr><td>V5 · Configurar el cobro</td><td>Ordenar y apagar formas de pago; ajustar motivos</td><td>Formas de pago y motivos de descuento</td><td>Chica</td><td>—</td></tr>
+          <tr><td>V6 · Reportes de mostrador</td><td>Ver qué se vende en mostrador</td><td>Nada</td><td>Mediana</td><td>V1 (V3 y V4 para sus reportes)</td></tr>
+          <tr><td>V7 · Ticket por enlace y WhatsApp</td><td>Mandar el ticket al cliente</td><td>Nada, si el enlace va firmado</td><td>Mediana</td><td>V2 · proveedor de WhatsApp</td></tr>
+          <tr><td>V8 · Tienda en línea</td><td>Recibir pedidos desde una página pública</td><td>Ventas de tipo 4</td><td>Grande</td><td>V1 · A12</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">«Tamaño» es una estimación mía para comparar fases entre sí; no es un plazo. En la línea de arriba, ámbar son las fases que guardan dinero; azul, menú, configuración y lectura; gris, lo que va al final.</p>
+  </section>
+
+  <!-- 05 · Fase por fase -->
+  <section>
+    <h2><span class="num">05</span> Fase por fase</h2>
+
+    <h3>V0 · Menú y permisos</h3>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Objetivo</td><td>Que «Ventas» e «Historial» aparezcan en el menú de PRO y abran su página.</td></tr>
+          <tr><td>Entrega</td><td>Dos páginas con el marco de PRO: <code>app/order/ventas.php</code> y <code>app/order/historial.php</code>. Dos migraciones con su rollback, iguales a <code>2026-11-13_ruta-pos-clientes.sql</code>: ponen la ruta a <code>pos-ventas</code> y a <code>pos-historial</code>.</td></tr>
+          <tr><td>Guarda en la base</td><td>Solo <code>fayxzvov_app.sections.route</code>, dos filas.</td></tr>
+          <tr><td>Permisos que ya existen</td><td>Ventas: Dueño, Supervisor y Cajera de Reginas; Dueño del sistema; Cajera de CoffeeSoft. Cancelar: solo Dueño y Supervisor. Historial: Dueño, Supervisor y Dueño del sistema, solo ver e imprimir. Producción no ve ninguna (consulta a <code>fayxzvov_app.permissions</code>, base local, 13/11/2026).</td></tr>
+          <tr><td>Falta</td><td>Decidir si la Cajera ve Historial (A9).</td></tr>
+          <tr><td>Límite por la decisión 6</td><td>Ninguno: son datos del menú.</td></tr>
+          <tr><td>Terminado cuando</td><td>La Cajera de Reginas entra a Ventas desde el menú y Producción no la ve.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>V1 · Vender</h3>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Objetivo</td><td>Cobrar una venta de mostrador en un solo paso, sin pasar por Pedidos.</td></tr>
+          <tr><td>Entrega</td><td><code>ventas.php</code> con <code>src/js/ventas.js</code> (catálogo y ticket). <code>ctrl-ventas.php</code> y <code>mdl-ventas.php</code>, con una acción que crea la venta, sus líneas y sus pagos en una sola transacción.</td></tr>
+          <tr><td>Guarda en la base</td><td><code>sale</code>: tipo 3 (A1), estado 3 Pagado, <code>turn_id</code>, <code>user_id</code>, <code>customer_id</code> vacío si es público en general, <code>note</code>, <code>tip_amount</code>, <code>discount_*</code>. <code>detail_sale</code> con su descuento por renglón. <code>payment</code> con <code>tendered_amount</code> y <code>change_amount</code>.</td></tr>
+          <tr><td>Reglas</td><td>Exige turno abierto (decisión E). Precios y descuentos los recalcula el servidor. Candado contra doble clic, como el de Pedidos. Descuento con motivo y tope de <code>discount_reason</code>; arriba del tope, contraseña + permiso. Folio igual al número de venta, mostrado como «V» + folio (A6).</td></tr>
+          <tr><td>En el navegador</td><td>Pestañas de tickets en espera, por usuario y sucursal (A8). Teclas F2 Cobrar, F8 Cliente y F9 Descuento; Ctrl K ya existe. Pre-cuenta imprime sin guardar. Vaciar.</td></tr>
+          <tr><td>Reutiliza</td><td><code>posCatalog</code> (busca por nombre, SKU y código), <code>posTicket</code>, las reglas de descuento y la ventana de cobro de <code>ctrl-cobro.php</code>, el aviso de turno y el ticket impreso de Pedidos.</td></tr>
+          <tr><td>Límite por la decisión 6</td><td>Los modificadores viajan como texto en <code>detail_sale.details</code> (supuesto). No se copia lo del pastel personalizado (un producto propio con <code>product_modifier</code>): crearía un producto por renglón. Sin vendedor. El IVA se calcula al mostrar y no se guarda.</td></tr>
+          <tr><td>Terminado cuando</td><td>Una venta cobrada sale en el corte del turno como venta, no como pedido, y no aparece en Pedidos, en el calendario ni en el Dashboard de Pedidos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>V2 · Historial</h3>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Objetivo</td><td>Encontrar una venta de mostrador, reimprimirla y corregirla.</td></tr>
+          <tr><td>Entrega</td><td><code>historial.php</code>: lista por fecha, turno y forma de pago; detalle; reimprimir; cancelar con motivo; quitar un pago; cambiar el cliente. Solo ventas de mostrador: los pedidos ya tienen su lista (propuesta).</td></tr>
+          <tr><td>Guarda en la base</td><td><code>sale.cancel_reason</code>, <code>cancelled_at</code>, <code>cancel_user_id</code> y estado 4 Cancelado. <code>payment.active</code>, <code>deleted_at</code>, <code>deleted_user_id</code>. <code>sale.customer_id</code>. Bitácora en <code>history_log</code>.</td></tr>
+          <tr><td>Reutiliza</td><td>El borrado lógico de pagos de <code>ctrl-cobro.php</code>, que ya pide motivo. <code>history_log</code>, que ya usa Pedidos. El permiso <code>cancel</code> de <code>pos-ventas</code>.</td></tr>
+          <tr><td>Límite por la decisión 6</td><td>Ninguno conocido.</td></tr>
+          <tr><td>Depende de</td><td>V1 · A3 (qué pasa con el dinero al cancelar) · A9.</td></tr>
+          <tr><td>Terminado cuando</td><td>Cancelar una venta del turno abierto la saca del corte de ese turno.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>V3 · Crédito</h3>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Objetivo</td><td>Vender a cuenta a los clientes que la dueña autoriza. Pedidos no lo usa.</td></tr>
+          <tr><td>Entrega</td><td>En el cobro, «Resto a crédito» si el cliente tiene crédito y no rebasa su límite. Ventana de abono. Saldo y movimientos en el detalle del cliente.</td></tr>
+          <tr><td>Guarda en la base</td><td><code>receivable</code>: un cargo al vender y un abono al pagar (<code>kind</code>, <code>amount</code>, <code>customer_id</code>, <code>sale_id</code>, <code>turn_id</code>, <code>payment_method_id</code>). <code>customer.credit_enabled</code> y <code>credit_limit</code>. La venta queda en 2 Pendiente mientras deba (propuesta).</td></tr>
+          <tr><td>Falta</td><td>Que el corte sume los abonos: hoy ningún controlador de <code>pro/app/order/ctrl</code> lee <code>receivable</code>. Fijar los valores de <code>kind</code>.</td></tr>
+          <tr><td>Reutiliza</td><td><code>clientes.php</code> y su historial.</td></tr>
+          <tr><td>Límite por la decisión 6</td><td>Ninguno conocido.</td></tr>
+          <tr><td>Depende de</td><td>V1 · A4.</td></tr>
+          <tr><td>Terminado cuando</td><td>Un abono en efectivo entra al corte del turno en que se cobró y el saldo del cliente baja.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>V4 · Lealtad y monedero</h3>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Objetivo</td><td>Tarjetas con descuento y puntos; pagar con el saldo a favor.</td></tr>
+          <tr><td>Entrega</td><td>Página Puntos (sección <code>pos-puntos</code>, id 8): tipos de tarjeta y tarjetas. En Vender: leer la tarjeta, aplicar su descuento y sumar puntos. Forma de pago «Monedero».</td></tr>
+          <tr><td>Guarda en la base</td><td><code>card_type</code> (<code>discount_percent</code>, <code>points_percent</code>), <code>card</code> (<code>number</code>, <code>holder</code>, <code>customer_id</code>), <code>sale.card_id</code>, <code>customer.wallet</code>. Una fila nueva en <code>payment_method</code>: es un dato, no estructura.</td></tr>
+          <tr><td>Reutiliza</td><td>El saldo a favor donde la decisión D deja los anticipos de pedidos cancelados.</td></tr>
+          <tr><td>Límite por la decisión 6</td><td><code>card</code> no guarda saldo de puntos: se abonan como dinero al monedero (A10, supuesto). El monedero no tiene historial de movimientos.</td></tr>
+          <tr><td>Depende de</td><td>V1 · V5 · A10.</td></tr>
+          <tr><td>Terminado cuando</td><td>Una venta con tarjeta aplica el descuento de su tipo y el saldo del cliente sube por sus puntos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>V5 · Configurar el cobro</h3>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Objetivo</td><td>Que la dueña ordene y apague formas de pago y ajuste los motivos de descuento.</td></tr>
+          <tr><td>Entrega</td><td>Dos pestañas nuevas en Catálogo, que ya administra las tablas de <code>fayxzvov_pos</code> (propuesta): Formas de pago y Motivos de descuento.</td></tr>
+          <tr><td>Guarda en la base</td><td><code>payment_method</code> (<code>sort</code>, <code>is_visible</code>, <code>commission</code>, <code>earns_points</code>). <code>discount_reason</code> (tope y si pide autorización).</td></tr>
+          <tr><td>Límite por la decisión 6</td><td>Ninguno.</td></tr>
+          <tr><td>Depende de</td><td>Nada; puede ir en paralelo.</td></tr>
+          <tr><td>Terminado cuando</td><td>Apagar «Transferencia» la quita del cobro de Ventas y del de Pedidos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>V6 · Reportes de mostrador</h3>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Objetivo</td><td>Ver qué se vende en mostrador sin agregar nada a la base.</td></tr>
+          <tr><td>Entrega</td><td>Productos, categorías, propinas, descuentos por venta y por producto, cancelaciones, ventas por día, por hora y por forma de pago, clientes y acumulado. Las cifras del día que traía «Inicio». Crédito, tarjetas y puntos cuando existan V3 y V4.</td></tr>
+          <tr><td>Guarda en la base</td><td>Nada: solo lee.</td></tr>
+          <tr><td>Reutiliza</td><td><code>dashboard.php</code> y <code>cortes.php</code>. Los 22 reportes de CoffeePOS como lista de referencia.</td></tr>
+          <tr><td>Límite por la decisión 6</td><td>Sin retiros de caja y sin ventas por vendedor.</td></tr>
+          <tr><td>Terminado cuando</td><td>El reporte del día cuadra con el corte de sus turnos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>V7 · Ticket por enlace y WhatsApp</h3>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Objetivo</td><td>Mandar el ticket al cliente.</td></tr>
+          <tr><td>Entrega</td><td>Página de la sección <code>pos-whatsapp</code> (id 6) y un enlace público del ticket, como <code>portalDelTicket</code> de Pulpos.</td></tr>
+          <tr><td>Guarda en la base</td><td>Nada nuevo si el enlace se firma con el número de venta (propuesta).</td></tr>
+          <tr><td>Límite por la decisión 6</td><td>Sin bitácora de mensajes enviados.</td></tr>
+          <tr><td>Depende de</td><td>V2 · elegir proveedor de WhatsApp.</td></tr>
+          <tr><td>Terminado cuando</td><td>El cliente abre su ticket desde el enlace sin iniciar sesión.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>V8 · Tienda en línea</h3>
+    <div class="tscroll">
+      <table class="kv">
+        <tbody>
+          <tr><td>Objetivo</td><td>Que el cliente arme su pedido desde una página pública.</td></tr>
+          <tr><td>Entrega</td><td>Página de la sección <code>pos-ecommerce</code> (id 7): catálogo público con <code>product.in_catalog</code>; la venta entra como tipo 4 E-commerce.</td></tr>
+          <tr><td>Referencia</td><td>Pulpos: <code>ctrl-canales</code> y <code>ctrl-publico</code> (tienda, catálogo, pedido y comprobante).</td></tr>
+          <tr><td>Límite por la decisión 6</td><td>La configuración de la tienda (horario, envío, enlace) no tiene tabla.</td></tr>
+          <tr><td>Propuesta</td><td>Plan aparte (A12).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 06 · Lo que queda fuera -->
+  <section>
+    <h2><span class="num">06</span> Lo que queda fuera</h2>
+    <h3>Bloqueado por la decisión 6</h3>
+    <p class="intro">Lo traen Pulpos o CoffeePOS, pero necesita una tabla o una columna que <code>fayxzvov_pos</code> no tiene.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Qué</th><th>Lo trae</th><th>Qué faltaría en la base</th></tr></thead>
+        <tbody>
+          <tr><td>Retiros y depósitos de efectivo, y su reporte</td><td>Pulpos <code>addMovimiento</code> · CoffeePOS <code>addCaja</code>, reporte de retiros</td><td>Una tabla de movimientos. <code>daily_closure</code> solo guarda los totales <code>cash_in</code> y <code>cash_out</code></td></tr>
+          <tr><td>Vendedor por venta</td><td>Pulpos: la venta guarda <code>seller_id</code></td><td>Una columna de vendedor en <code>sale</code></td></tr>
+          <tr><td>Promociones</td><td>Pulpos <code>ctrl-promociones</code></td><td>Tablas de promoción y sus productos</td></tr>
+          <tr><td>Listas de precios</td><td>Pulpos, preferencias</td><td>Tabla de listas y precio por lista</td></tr>
+          <tr><td>Historial del monedero</td><td>Pulpos <code>moverMonedero</code>, <code>lsMonedero</code></td><td>Tabla de movimientos del monedero</td></tr>
+          <tr><td>Modificadores por renglón</td><td>CoffeePOS <code>revisarModificadores</code></td><td>Una tabla que ligue <code>detail_sale</code> con <code>modifier</code>; mientras, van como texto. El pastel personalizado lo resuelve con un producto propio; en mostrador sería un producto por renglón</td></tr>
+          <tr><td>IVA guardado por venta</td><td>—</td><td>Columna de impuesto en <code>sale</code>; hoy solo existe <code>daily_closure.tax</code>, en el cierre</td></tr>
+          <tr><td>Propina por forma de pago</td><td>—</td><td>Columna de propina en <code>payment</code></td></tr>
+          <tr><td>Series de folio</td><td>CoffeePOS <code>lsSeries</code>, <code>useSerie</code></td><td>Tabla de series</td></tr>
+          <tr><td>Configuración de la tienda en línea</td><td>Pulpos, preferencias y canales</td><td>Tabla de configuración</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Fuera de alcance</h3>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Qué</th><th>Por qué</th></tr></thead>
+        <tbody>
+          <tr><td>Existencias al vender, kardex, lotes y kits</td><td>El inventario vive en inventory/, en otra base. En la base local solo 1 producto es inventariable.</td></tr>
+          <tr><td>Compras, proveedores, traspasos y fabricación</td><td>También son de inventory/.</td></tr>
+          <tr><td>Mesas, comandas, meseros, monitor y áreas de impresión</td><td>Son de restaurante (CoffeePOS). Reginas vende en mostrador (supuesto; A11).</td></tr>
+          <tr><td>Suscripción y multiempresa</td><td>PRO ya las tiene fuera del punto de venta.</td></tr>
+          <tr><td>Entregar una venta</td><td>En mostrador se entrega al cobrar (supuesto).</td></tr>
+          <tr><td>Editar una venta cobrada</td><td>Se cancela y se cobra de nuevo (supuesto).</td></tr>
+          <tr><td>Perfiles y bitácora propios del POS</td><td>PRO ya usa roles, permisos por sección y <code>history_log</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 07 · Decisiones abiertas -->
+  <section>
+    <h2><span class="num">07</span> Decisiones abiertas</h2>
+    <p class="intro">Trece preguntas, cada una con lo que propongo. «A» es de abierta; no se cruzan con las decisiones del plan de Pedidos.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>#</th><th>Pregunta</th><th>Propuesta</th><th>Si se decide otra cosa</th></tr></thead>
+        <tbody>
+          <tr><td>A1</td><td>¿Qué tipo lleva una venta de mostrador: 3 «POS» o 2 «Mostrador»?</td><td><span class="chip ask">Propuesta</span> 3 «POS» para todo lo que salga de Ventas; el 2 queda sin uso.</td><td>Da igual para el corte: cuenta como venta todo lo que no es tipo 1.</td></tr>
+          <tr><td>A2</td><td>¿Un ticket de Ventas se puede pasar a pedido?</td><td><span class="chip ask">Propuesta</span> No en V1: si es pedido, se captura en Pedidos.</td><td>Hace falta una acción que cambie el tipo a 1 y pida fecha de entrega.</td></tr>
+          <tr><td>A3</td><td>Al cancelar una venta ya cobrada, ¿qué pasa con el dinero?</td><td><span class="chip ask">Propuesta</span> Con el turno abierto, se quitan sus pagos (borrado lógico, como en Pedidos) y se devuelve el efectivo. Con el turno cerrado, saldo a favor si hay cliente; si no, no se cancela.</td><td>Un pago negativo: no verifiqué cómo lo trata el corte.</td></tr>
+          <tr><td>A4</td><td>Crédito: ¿por cliente o un interruptor general?</td><td><span class="chip ask">Propuesta</span> Por cliente: <code>credit_enabled</code> y <code>credit_limit</code> ya existen.</td><td>Un interruptor general necesita una tabla de configuración (decisión 6).</td></tr>
+          <tr><td>A5</td><td>¿Cotizaciones en mostrador?</td><td><span class="chip ask">Propuesta</span> No: se quedan en Pedidos, que ya tiene el estado Cotización.</td><td>Pulpos las maneja en un módulo aparte.</td></tr>
+          <tr><td>A6</td><td>¿Cómo se ve el folio?</td><td><span class="chip ask">Propuesta</span> «V» + número de venta, como «P» en Pedidos. No será consecutivo: comparte números con Pedidos (P1583, V1584, P1585).</td><td>Un consecutivo por tipo necesita series de folio (decisión 6).</td></tr>
+          <tr><td>A7</td><td>¿Hay impresora con cajón?</td><td><span class="chip ask">Propuesta</span> Quitar «Abrir cajón» hasta saberlo.</td><td>Si hay, se abre solo al cobrar en efectivo.</td></tr>
+          <tr><td>A8</td><td>Tickets en espera: ¿en el navegador o en el servidor?</td><td><span class="chip ask">Propuesta</span> En el navegador, por usuario y sucursal.</td><td>En el servidor: un estado nuevo «En espera» en <code>sale_status</code> (dato, no estructura); otra caja podría recuperarlo.</td></tr>
+          <tr><td>A9</td><td>¿La Cajera ve Historial?</td><td><span class="chip ask">Propuesta</span> Sí: ver e imprimir sus ventas del turno, sin cancelar.</td><td>Hoy solo lo ven Dueño y Supervisor.</td></tr>
+          <tr><td>A10</td><td>¿Dónde viven los puntos de la tarjeta?</td><td><span class="chip ask">Propuesta</span> Como dinero en el monedero (<code>customer.wallet</code>).</td><td>Guardarlos aparte necesita una columna o una tabla (decisión 6).</td></tr>
+          <tr><td>A11</td><td>¿Mesas fuera del plan?</td><td><span class="chip ask">Propuesta</span> Sí.</td><td>CoffeePOS las trae completas (<code>ctrl-servicio</code>); sería un plan aparte.</td></tr>
+          <tr><td>A12</td><td>¿La tienda en línea entra en este plan?</td><td><span class="chip ask">Propuesta</span> No: plan aparte. V8 queda como referencia.</td><td>—</td></tr>
+          <tr><td>A13</td><td>Si se abre la decisión 6, ¿qué va primero?</td><td><span class="chip ask">Propuesta</span> Retiros y depósitos de efectivo, porque la cajera los usa a diario. Después, vendedor y modificadores.</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 08 · Qué está comprobado -->
+  <section>
+    <h2><span class="num">08</span> Qué está comprobado</h2>
+    <dl class="voc">
+      <div>
+        <dt>Comprobado (código y base local, 13/11/2026)</dt>
+        <dd>Pedidos solo lee ventas de tipo 1 (lista, calendario, detalle, candado, Dashboard y Clientes): una venta de mostrador no se cuela. El cobro de Pedidos lee y bloquea con <code>qGetOrder</code> y <code>qLockOrder</code>, que piden tipo 1. Quitar un pago ya es borrado lógico con motivo (<code>ctrl-cobro.php</code>). Editar un pedido permite cambiar el cliente aunque tenga pagos (<code>editOrder</code>). El pastel personalizado crea un producto propio (<code>is_custom</code>) con sus modificadores en <code>product_modifier</code> (<code>createLine</code>). Pulpos guarda el vendedor en la venta (<code>seller_id</code>); CoffeePOS cobra modificadores con precio del servidor (<code>revisarModificadores</code>). <code>posCatalog</code> busca por nombre, SKU y código de barras. <code>sale.customer_id</code>, <code>turn_id</code>, <code>card_id</code> y <code>folio</code> aceptan vacío; <code>sale.user_id</code> guarda quién atendió. Ningún controlador de <code>pro/app/order/ctrl</code> lee <code>receivable</code>. Los permisos de V0 salen de <code>fayxzvov_app.permissions</code>. Conteos de la base local: 1,536 ventas, todas tipo Pedido; 188 productos con <code>sell_pos</code>; 0 con código de barras; 0 tarjetas, 0 cuentas por cobrar y 0 clientes con crédito o saldo a favor.</dd>
+      </div>
+      <div>
+        <dt>Supuesto (no lo verifiqué)</dt>
+        <dd>La diferencia de negocio entre el tipo 2 y el 3. Si hay impresora con cajón. Que Reginas no usa mesas. Que «Inicio» y la ventana «Personalizado» no hacen falta en mostrador. Que los puntos pueden vivir como dinero en el monedero. Que los modificadores caben como texto en <code>detail_sale.details</code>. Nada de esto se revisó en producción.</dd>
+      </div>
+      <div>
+        <dt>Sin construir</dt>
+        <dd>Todo el plan. Las secciones Ventas, Historial, Puntos, Ecommerce y WhatsApp siguen sin página ni ruta.</dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="src-files">
+    <b>Fuentes</b>
+    <span>pro/app/order/templates/pos-order.html</span>
+    <span>pro/app/order/templates/js/pos-order-*.js</span>
+    <span>pro/assets/components/pos-catalog.js · pos-ticket.js</span>
+    <span>pro/app/order/ctrl/ctrl-cobro.php · ctrl-pedidos.php · core-order.php</span>
+    <span>pro/migrations/2026-11-13_ruta-pos-clientes.sql</span>
+    <span>erp-pro/pro/app/pulpos/ctrl/</span>
+    <span>erp-pro/pro/app/pos/ctrl/</span>
+    <span>Base local fayxzvov_pos y fayxzvov_app (consultas del 13/11/2026)</span>
+  </div>
+
+</div>
+</body>
+</html>

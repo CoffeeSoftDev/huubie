@@ -419,9 +419,12 @@ class mdl extends CRUD {
                 IFNULL(pmt.name, '')  AS method,
                 IFNULL(pmt.code, '')  AS method_code,
                 IFNULL(pmt.is_cash, 0) AS is_cash,
+                IFNULL(t.status, '')   AS turn_status,
+                IFNULL(t.folio, '')    AS turn_folio,
                 CONCAT_WS(' ', u.name, u.last_name) AS received_by
             FROM {$this->pos}payment p
             LEFT JOIN {$this->pos}payment_method pmt ON pmt.id = p.payment_method_id
+            LEFT JOIN {$this->pos}turn t             ON t.id = p.turn_id
             LEFT JOIN {$this->bd}users u             ON u.id = p.user_id
             WHERE p.sale_id = ?
                 AND IFNULL(p.active, 1) = 1

@@ -145,8 +145,13 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-pencil', 'text' => 'Editar', 'onclick' => "orderForm.edit({$id})"];
         }
 
-        if (in_array('create', $actions, true) && $this->payBlock($o) === '') {
+        // Con saldo se cobra; sin saldo, los pagos ya hechos se consultan en la misma ventana.
+        $canPay = in_array('create', $actions, true) && $this->payBlock($o) === '';
+
+        if ($canPay) {
             $menu[] = ['icon' => 'icon-money', 'text' => 'Cobrar', 'onclick' => "orderPay.open({$id})"];
+        } elseif (abs((float) $o['paid']) >= 0.005) {
+            $menu[] = ['icon' => 'icon-money', 'text' => 'Pagos', 'onclick' => "orderPay.open({$id}, false, { tab: 'history' })"];
         }
 
         // Entregar; con saldo, cobrar primero y entregar al terminar (decision 5).
@@ -174,9 +179,9 @@ class ctrl extends core {
             'Folio'            => $this->cellFolio($id, $o['folio'], $inTurn, $cancelled),
             'Creación'         => '<span class="text-gray-600">' . shortDate($o['created_at']) . '</span>',
             'Cliente'          => $this->cellCustomer($o['customer'], $o['phone'], $custom),
-            'Total'            => $this->cellTotal($o['total'], $o['subtotal'], $o['discount_amount']),
-            'Abono'            => $this->cellPaid($o['paid']),
-            'Saldo'            => $this->cellBalance((float) $o['total'] - (float) $o['paid']),
+            'Total'            => $this->cellTotal($id, $o['total'], $o['subtotal'], $o['discount_amount']),
+            'Abono'            => $this->cellPaid($id, $o['paid']),
+            'Saldo'            => $this->cellBalance($id, (float) $o['total'] - (float) $o['paid'], $canPay),
             'Fecha de entrega' => $this->cellDeliveryDate($o['delivery_date']),
             'Hora'             => '<span class="text-gray-600 whitespace-nowrap">' . hour12($o['delivery_time']) . '</span>',
             'Estado'           => $this->statusPill($statusId, $o['status']),
@@ -216,35 +221,43 @@ class ctrl extends core {
         return '<span class="text-gray-400">-</span>';
     }
 
+    // Importe que abre la ventana de pagos. Con 'history' abre directo en el historial.
+    private function moneyBtn($id, $html, $label, $tab = '') {
+        $open = $tab === 'history' ? "orderPay.open({$id}, false, { tab: 'history' })" : "orderPay.open({$id})";
+
+        return '<button type="button" class="ord-money" onclick="' . $open . '" title="' . h($label) . '">' . $html . '</button>';
+    }
+
     // Con descuento: el neto en verde y el bruto tachado debajo.
-    private function cellTotal($total, $subtotal, $discount) {
+    private function cellTotal($id, $total, $subtotal, $discount) {
         if (abs((float) $total) < 0.005) return $this->cellZero();
 
-        if ((float) $discount > 0) {
-            return '<div class="font-bold text-emerald-700 whitespace-nowrap">' . money($total) . '</div>'
-                 . '<div class="text-[11px] text-gray-400 line-through whitespace-nowrap">' . money($subtotal) . '</div>';
-        }
+        $html = (float) $discount > 0
+            ? '<span class="font-bold text-emerald-700 whitespace-nowrap">' . money($total) . '</span>'
+              . '<span class="text-[11px] text-gray-400 line-through whitespace-nowrap">' . money($subtotal) . '</span>'
+            : '<span class="font-semibold text-gray-800 whitespace-nowrap">' . money($total) . '</span>';
 
-        return '<span class="font-semibold text-gray-800 whitespace-nowrap">' . money($total) . '</span>';
+        return $this->moneyBtn($id, $html, 'Pagos del pedido');
     }
 
-    private function cellPaid($paid) {
+    private function cellPaid($id, $paid) {
         if (abs((float) $paid) < 0.005) return $this->cellZero();
 
-        return '<span class="text-emerald-700 whitespace-nowrap">' . money($paid) . '</span>';
+        return $this->moneyBtn($id, '<span class="text-emerald-700 whitespace-nowrap">' . money($paid) . '</span>', 'Ver pagos', 'history');
     }
 
-    // Negativo = pago de mas: se muestra como saldo a favor del cliente.
-    private function cellBalance($balance) {
+    // Negativo = pago de mas: saldo a favor. Con saldo cobrable lleva «Cobrar» debajo.
+    private function cellBalance($id, $balance, $canPay) {
         $balance = round($balance, 2);
 
         if ($balance > 0) {
-            return '<span class="font-bold text-red-600 whitespace-nowrap">' . money($balance) . '</span>';
+            $pay = $canPay ? '<span class="ord-row-pay"><i data-lucide="banknote" class="w-3 h-3"></i>Cobrar</span>' : '';
+
+            return $this->moneyBtn($id, '<span class="font-bold text-red-600 whitespace-nowrap">' . money($balance) . '</span>' . $pay, $canPay ? 'Cobrar' : 'Pagos del pedido');
         }
 
         if ($balance < 0) {
-            return '<span class="font-semibold text-sky-700 whitespace-nowrap">' . money(abs($balance)) . '</span>'
-                 . '<div class="ord-sub">a favor</div>';
+            return $this->moneyBtn($id, '<span class="font-semibold text-sky-700 whitespace-nowrap">' . money(abs($balance)) . '</span><span class="ord-sub">a favor</span>', 'Ver pagos', 'history');
         }
 
         return $this->cellZero();

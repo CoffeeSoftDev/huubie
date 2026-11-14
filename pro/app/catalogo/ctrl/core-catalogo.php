@@ -277,15 +277,130 @@ class core extends mdl {
         return $this->duplicated($dup, $what);
     }
 
+    // -- Foto (productos y paquetes) --
+    /*  Viaja como dataURL en el campo de texto image_b64 (ya achicada en el
+        navegador); image_remove = 1 la quita. Si no se toca, los dos llegan vacíos
+        y la foto se queda. Se guarda junto a las de Pedidos, relativa a la raíz del
+        sitio como las de alpha: la tabla la pinta con «/» delante.
+        $folder: la carpeta de la pestaña ('productos' o 'paquetes'). */
+
+    const PHOTO_MAX = 5242880;
+
+    // ['b64' => dataURL o '', 'remove' => bool], o la respuesta de error.
+    protected function photoInput() {
+        $b64 = isset($_POST['image_b64']) ? (string) $_POST['image_b64'] : '';
+
+        if ($b64 !== '' && !$this->decodePhoto($b64)) {
+            return $this->fail(400, 'La foto debe ser una imagen JPG, PNG o WEBP de hasta 5 MB.');
+        }
+
+        return ['b64' => $b64, 'remove' => $this->flag('image_remove') === 1];
+    }
+
+    // La extensión sale de lo que trae el archivo por dentro, no de lo que dice el dataURL.
+    protected function decodePhoto($b64) {
+        if (!preg_match('#^data:image/[a-z0-9.+-]+;base64,#i', $b64)) return null;
+
+        $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
+
+        if ($data === false || strlen($data) > self::PHOTO_MAX) return null;
+
+        $info = @getimagesizefromstring($data);
+        $ext  = $info ? ([IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'][$info[2]] ?? null) : null;
+
+        return $ext ? ['ext' => $ext, 'data' => $data] : null;
+    }
+
+    // Foto nueva: su ruta. Quitar: null. Sin cambios: la que ya tenía.
+    protected function nextPhoto($id, $photo, $currentPath, $folder = 'productos') {
+        if ($photo['b64'] !== '') return $this->writePhoto($id, $photo['b64'], $folder);
+        if ($photo['remove'])     return null;
+
+        return $currentPath;
+    }
+
+    // El nombre cambia en cada foto para que el navegador no siga mostrando la anterior.
+    protected function writePhoto($id, $b64, $folder = 'productos') {
+        $image  = $this->decodePhoto($b64);
+        $folder = 'pro_files/' . $this->companyId() . '/' . $this->branchId() . '/catalogo/' . $folder . '/';
+        $disk   = $this->diskPath($folder);
+
+        if (!$image) throw new RuntimeException('writePhoto: foto inválida');
+
+        if (!is_dir($disk) && !@mkdir($disk, 0775, true) && !is_dir($disk)) {
+            throw new RuntimeException('writePhoto: no se pudo crear ' . $disk);
+        }
+
+        $name = (int) $id . '_' . bin2hex(random_bytes(6)) . '.' . $image['ext'];
+
+        if (@file_put_contents($disk . $name, $image['data']) === false) {
+            throw new RuntimeException('writePhoto: no se pudo escribir ' . $disk . $name);
+        }
+
+        return $folder . $name;
+    }
+
+    /*  Borra del disco la foto que dejó de usar. Solo las de pro: las de alpha no
+        se tocan. Y solo si ningún otro producto la usa: la copia de «Hacer propio»
+        comparte la de la Matriz. */
+    protected function dropPhoto($path, $id) {
+        $path = trim((string) $path);
+
+        if (strpos($path, 'pro_files/') !== 0 || strpos($path, '..') !== false) return;
+        if ($this->qCountProductsWithImage($path, $id) > 0) return;
+
+        $file = $this->diskPath($path);
+
+        if (is_file($file)) @unlink($file);
+    }
+
+    protected function diskPath($relative) {
+        $root = isset($_SERVER['DOCUMENT_ROOT']) ? str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']) : '';
+
+        return rtrim($root, '/') . '/' . $relative;
+    }
+
+    /*  Sin foto: el cuadro vacío con $icon (pastel en productos, regalo en
+        paquetes). Las rutas son 'alpha_files/<empresa>/...' con espacios y
+        acentos: cada tramo va codificado. Si la copia local no la tiene,
+        productPhotoError() (catalogo.js) la busca en producción y, si tampoco
+        está, deja el mismo cuadro vacío. */
+    protected function productPhoto($path, $icon = 'icon-birthday') {
+        $path  = trim((string) $path);
+        $empty = '<div class="cp-foto cp-foto-vacia"><i class="' . h($icon) . '"></i></div>';
+
+        if ($path === '') return $empty;
+
+        $src = preg_match('#^https?://#i', $path)
+            ? $path
+            : '/' . implode('/', array_map('rawurlencode', explode('/', ltrim($path, '/'))));
+
+        return '<img src="' . h($src) . '" alt="" loading="lazy" class="cp-foto" data-icon="' . h($icon) . '" onerror="productPhotoError(this)">';
+    }
+
     // -- Acciones de la fila --
 
-    protected function actionBtnClass($variant, $last = false) {
-        $base = 'inline-flex items-center px-2 py-1 text-sm rounded-md border transition ';
-        $tone = $variant === 'danger'
-              ? 'border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600'
-              : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900';
+    /*  Botón cuadrado de costsys (.cp-btn-icon en catalogo.css).
+        $variant: '' normal, 'warn' Desactivar, 'ok' Activar, 'text' con texto. */
+    protected function actionBtnClass($variant = '') {
+        return 'cp-btn-icon' . ($variant !== '' ? ' cp-btn-icon--' . $variant : '');
+    }
 
-        return $base . $tone . ($last ? '' : ' me-1');
+    /*  Ícono Lucide ya dibujado en SVG. Con <i data-lucide> las filas de la
+        página 2 en adelante salían vacías: lucide.createIcons() corre cuando
+        DataTables ya sacó esas filas del documento. */
+    protected function lucideSvg($name) {
+        $paths = [
+            'pencil'       => '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+            'toggle-right' => '<rect width="20" height="12" x="2" y="6" rx="6" ry="6"/><circle cx="16" cy="12" r="2"/>',
+            'toggle-left'  => '<rect width="20" height="12" x="2" y="6" rx="6" ry="6"/><circle cx="8" cy="12" r="2"/>',
+            'lock'         => '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+            'copy'         => '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+            'undo-2'       => '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>'
+        ];
+
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+             . ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $paths[$name] . '</svg>';
     }
 
     /*  Boton de la columna 'a': $jsObj es la global de la pestaña ('categories').
@@ -293,8 +408,8 @@ class core extends mdl {
     protected function rowActions($jsObj, $id, $active, $locked = false) {
         if ($locked) {
             return [[
-                'class'      => $this->actionBtnClass('neutral', true),
-                'html'       => '<i class="icon-lock"></i>',
+                'class'      => $this->actionBtnClass(),
+                'html'       => $this->lucideSvg('lock'),
                 'aria-label' => 'Plantilla de Huubie: solo lectura',
                 'onclick'    => 'catalogoPlantilla()'
             ]];
@@ -304,14 +419,14 @@ class core extends mdl {
 
         return [
             [
-                'class'      => $this->actionBtnClass('neutral'),
-                'html'       => '<i class="icon-pencil"></i>',
+                'class'      => $this->actionBtnClass(),
+                'html'       => $this->lucideSvg('pencil'),
                 'aria-label' => 'Editar',
                 'onclick'    => "{$jsObj}.edit({$id})"
             ],
             [
-                'class'      => $this->actionBtnClass($isActive ? 'danger' : 'neutral', true),
-                'html'       => '<i class="' . ($isActive ? 'icon-toggle-on' : 'icon-toggle-off') . '"></i>',
+                'class'      => $this->actionBtnClass($isActive ? 'warn' : 'ok'),
+                'html'       => $this->lucideSvg($isActive ? 'toggle-right' : 'toggle-left'),
                 'aria-label' => $isActive ? 'Desactivar' : 'Activar',
                 'onclick'    => "{$jsObj}.status({$id}, " . ($isActive ? 0 : 1) . ')'
             ]

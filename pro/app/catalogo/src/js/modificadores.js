@@ -29,12 +29,19 @@ class Modifiers extends Templates {
         modifierGroups.loadList();
     }
 
+    // La explicación vive tras el ícono de info: sale al pasar el mouse o al tocarlo.
     layout() {
         $('#container-modifiers').html(`
-            <p class="cp-mod-ayuda">
-                <b>Grupo</b>: lo que se pregunta al armar el pedido (Forma, Relleno, Decoraciones…).
-                <b>Opciones</b>: lo que el cliente elige dentro del grupo (Redonda, Chocolate, Flores…).
-            </p>
+            <div class="cp-mod-info">
+                <button type="button" class="cp-info-btn" aria-describedby="modInfoPop">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    <span>¿Qué es un grupo de modificadores?</span>
+                </button>
+                <div id="modInfoPop" class="cp-info-pop" role="tooltip">
+                    <p><b>Grupo</b>: lo que se pregunta al armar el pedido. Ej.: Forma, Relleno, Decoraciones.</p>
+                    <p><b>Opciones</b>: lo que el cliente elige dentro del grupo. Ej.: Redonda, Chocolate, Flores.</p>
+                </div>
+            </div>
             <div class="cp-mod">
                 <aside class="cp-mod-grupos">
                     <div id="filterBarModifierGroups"></div>
@@ -110,6 +117,7 @@ class Modifiers extends Templates {
 
     ls() {
         if (!this.group) return;
+
 
         this.createTable({
             parent: 'containerModifiers',

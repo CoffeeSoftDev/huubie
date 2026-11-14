@@ -33,6 +33,8 @@
     <!-- Componentes compartidos: cuelgan de Templates. Van antes del modulo.
          posCatalog y posTicket/Lines/Totals aprobados el 13/11/2026. -->
     <script src="<?= $asset('assets/components/cs-modal.js') ?>"></script>
+    <!-- Modal compacto de alpha (Abrir turno igual al de alpha/pedidos). -->
+    <script src="<?= $asset('assets/components/coffee-modal-form.js') ?>"></script>
     <script src="<?= $asset('assets/components/pos-catalog.js') ?>"></script>
     <script src="<?= $asset('assets/components/pos-ticket.js') ?>"></script>
 
@@ -45,7 +47,7 @@
         return is_file($file) ? 'src/js/' . $name . '.js?v=' . filemtime($file) : '';
     };
 
-    $files = $script !== '' ? ['pedido-detalle', 'pedido-captura', 'pedido-turno', 'pedido-cobro', 'pedido-cierre', $script] : [];
+    $files = $script !== '' ? ['pedido-detalle', 'components/pos-cake', 'pedido-captura','pedido-turno', 'pedido-cobro', 'pedido-cierre', $script] : [];
 
     foreach ($files as $name):
         $src = $local($name);
