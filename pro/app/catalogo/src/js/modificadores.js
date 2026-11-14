@@ -128,6 +128,8 @@ class Modifiers extends Templates {
             attr: {
                 id: 'tbModifiers',
                 theme: 'light',
+                f_size: 12,
+                design: 'flowbite',
                 striped: true,
                 right: [2],
                 center: [3]

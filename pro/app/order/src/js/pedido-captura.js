@@ -678,10 +678,10 @@ class OrderForm extends Templates {
 
         this.subModal({
             id:         'modalOrderCake',
-            title:      line ? 'Editar pastel personalizado' : 'Pastel personalizado',
-            subtitle:   'Arma el pastel paso a paso; el precio sugerido se calcula solo',
+            title:      line ? 'Editar pastel' : '¡Arma tu pastel!',
+            subtitle:   'Personaliza cada detalle; el precio sugerido se calcula solo',
             lucideIcon: 'cake-slice',
-            width:      'max-w-6xl',
+            width:      'max-w-4xl',
             saveText:   line ? 'Guardar' : 'Agregar',
             body:       '<div id="ocWizard"></div>',
             onSave:     (values, close) => this.saveCake(close)

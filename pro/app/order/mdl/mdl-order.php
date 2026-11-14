@@ -122,14 +122,21 @@ class mdl extends CRUD {
 
     // El turno abierto de la sucursal (el mas reciente si hubiera dos).
     // Sin opened_at cuenta la fecha en que se creo el registro.
+    // opening_cash y opened_by los pinta la franja de caja.
     public function qOpenTurn($branchId) {
         return $this->qRow("
-            SELECT id, folio, IFNULL(opened_at, created_at) AS opened_at
-            FROM {$this->pos}turn
-            WHERE branch_id = ?
-                AND status = 'open'
-                AND IFNULL(active, 1) = 1
-            ORDER BY id DESC
+            SELECT
+                t.id,
+                t.folio,
+                IFNULL(t.opened_at, t.created_at)     AS opened_at,
+                IFNULL(t.opening_cash, 0)             AS opening_cash,
+                CONCAT_WS(' ', uo.name, uo.last_name) AS opened_by
+            FROM {$this->pos}turn t
+            LEFT JOIN {$this->bd}users uo ON uo.id = t.user_id
+            WHERE t.branch_id = ?
+                AND t.status = 'open'
+                AND IFNULL(t.active, 1) = 1
+            ORDER BY t.id DESC
             LIMIT 1
         ", [$branchId]);
     }

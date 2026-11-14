@@ -177,13 +177,13 @@ class ctrl extends core {
         return [
             'id'               => $id,
             'Folio'            => $this->cellFolio($id, $o['folio'], $inTurn, $cancelled),
-            'Creación'         => '<span class="text-gray-600">' . shortDate($o['created_at']) . '</span>',
+            'Creación'         => '<span class="text-gray-600"' . $this->sortKey($o['created_at']) . '>' . shortDate($o['created_at']) . '</span>',
             'Cliente'          => $this->cellCustomer($o['customer'], $o['phone'], $custom),
             'Total'            => $this->cellTotal($id, $o['total'], $o['subtotal'], $o['discount_amount']),
             'Abono'            => $this->cellPaid($id, $o['paid']),
             'Saldo'            => $this->cellBalance($id, (float) $o['total'] - (float) $o['paid'], $canPay),
-            'Fecha de entrega' => $this->cellDeliveryDate($o['delivery_date']),
-            'Hora'             => '<span class="text-gray-600 whitespace-nowrap">' . hour12($o['delivery_time']) . '</span>',
+            'Fecha de entrega' => $this->cellDeliveryDate($o['delivery_date'], $o['delivery_time']),
+            'Hora'             => '<span class="text-gray-600 whitespace-nowrap"' . $this->sortKey($o['delivery_time']) . '>' . hour12($o['delivery_time']) . '</span>',
             'Estado'           => $this->statusPill($statusId, $o['status']),
             'Entregado'        => $this->cellDelivered($statusId, (int) $o['delivery_status']),
             'Entrega'          => $this->cellMethod((int) $o['delivery_method']),
@@ -193,12 +193,19 @@ class ctrl extends core {
 
     // -- Celdas --
 
-    private function cellFolio($id, $folio, $inTurn, $cancelled) {
-        $dot  = $inTurn ? '<span class="ord-dot" aria-label="Del turno abierto"></span>' : '';
-        $mark = $cancelled ? ' data-cancelled="1"' : '';
+    // Valor con el que DataTables ordena la columna en lugar del texto ("28/oct/2026", "$1,425.00").
+    // pedidos.js (lsOrders) lo sube al <td> como data-order.
+    private function sortKey($value) {
+        return ' data-order="' . h($value) . '"';
+    }
 
-        return '<button type="button" class="ord-folio" onclick="orderDetail.show(' . (int) $id . ')"' . $mark . '>'
-             .   $dot . 'P' . h($folio !== null && $folio !== '' ? $folio : $id)
+    private function cellFolio($id, $folio, $inTurn, $cancelled) {
+        $dot    = $inTurn ? '<span class="ord-dot" aria-label="Del turno abierto"></span>' : '';
+        $mark   = $cancelled ? ' data-cancelled="1"' : '';
+        $number = $folio !== null && $folio !== '' ? $folio : $id;
+
+        return '<button type="button" class="ord-folio" onclick="orderDetail.show(' . (int) $id . ')"' . $mark . $this->sortKey((int) $number) . '>'
+             .   $dot . 'P' . h($number)
              . '</button>';
     }
 
@@ -218,14 +225,14 @@ class ctrl extends core {
 
     // Monto en cero: un guion en lugar de $0.00.
     private function cellZero() {
-        return '<span class="text-gray-400">-</span>';
+        return '<span class="text-gray-400"' . $this->sortKey(0) . '>-</span>';
     }
 
     // Importe que abre la ventana de pagos. Con 'history' abre directo en el historial.
-    private function moneyBtn($id, $html, $label, $tab = '') {
+    private function moneyBtn($id, $amount, $html, $label, $tab = '') {
         $open = $tab === 'history' ? "orderPay.open({$id}, false, { tab: 'history' })" : "orderPay.open({$id})";
 
-        return '<button type="button" class="ord-money" onclick="' . $open . '" title="' . h($label) . '">' . $html . '</button>';
+        return '<button type="button" class="ord-money" onclick="' . $open . '" title="' . h($label) . '"' . $this->sortKey(round((float) $amount, 2)) . '>' . $html . '</button>';
     }
 
     // Con descuento: el neto en verde y el bruto tachado debajo.
@@ -237,13 +244,13 @@ class ctrl extends core {
               . '<span class="text-[11px] text-gray-400 line-through whitespace-nowrap">' . money($subtotal) . '</span>'
             : '<span class="font-semibold text-gray-800 whitespace-nowrap">' . money($total) . '</span>';
 
-        return $this->moneyBtn($id, $html, 'Pagos del pedido');
+        return $this->moneyBtn($id, $total, $html, 'Pagos del pedido');
     }
 
     private function cellPaid($id, $paid) {
         if (abs((float) $paid) < 0.005) return $this->cellZero();
 
-        return $this->moneyBtn($id, '<span class="text-emerald-700 whitespace-nowrap">' . money($paid) . '</span>', 'Ver pagos', 'history');
+        return $this->moneyBtn($id, $paid, '<span class="text-emerald-700 whitespace-nowrap">' . money($paid) . '</span>', 'Ver pagos', 'history');
     }
 
     // Negativo = pago de mas: saldo a favor. Con saldo cobrable lleva «Cobrar» debajo.
@@ -253,23 +260,25 @@ class ctrl extends core {
         if ($balance > 0) {
             $pay = $canPay ? '<span class="ord-row-pay"><i data-lucide="banknote" class="w-3 h-3"></i>Cobrar</span>' : '';
 
-            return $this->moneyBtn($id, '<span class="font-bold text-red-600 whitespace-nowrap">' . money($balance) . '</span>' . $pay, $canPay ? 'Cobrar' : 'Pagos del pedido');
+            return $this->moneyBtn($id, $balance, '<span class="font-bold text-red-600 whitespace-nowrap">' . money($balance) . '</span>' . $pay, $canPay ? 'Cobrar' : 'Pagos del pedido');
         }
 
+        // A favor ordena como negativo: queda debajo de los saldos en cero.
         if ($balance < 0) {
-            return $this->moneyBtn($id, '<span class="font-semibold text-sky-700 whitespace-nowrap">' . money(abs($balance)) . '</span><span class="ord-sub">a favor</span>', 'Ver pagos', 'history');
+            return $this->moneyBtn($id, $balance, '<span class="font-semibold text-sky-700 whitespace-nowrap">' . money(abs($balance)) . '</span><span class="ord-sub">a favor</span>', 'Ver pagos', 'history');
         }
 
         return $this->cellZero();
     }
 
     // Formato de alpha (shortDate): "Hoy" ya sale en la fecha; "Mañana" en ambar debajo.
-    private function cellDeliveryDate($date) {
-        if (!$date) return '<span class="text-gray-400">Sin fecha</span>';
+    // Ordena por fecha y hora de entrega; sin fecha queda al principio.
+    private function cellDeliveryDate($date, $time) {
+        if (!$date) return '<span class="text-gray-400"' . $this->sortKey('') . '>Sin fecha</span>';
 
         $tomorrow = date('Y-m-d', strtotime($date)) === date('Y-m-d', strtotime('+1 day'));
 
-        return '<span class="text-gray-800 whitespace-nowrap">' . shortDate($date) . '</span>'
+        return '<span class="text-gray-800 whitespace-nowrap"' . $this->sortKey(date('Y-m-d', strtotime($date)) . ' ' . $time) . '>' . shortDate($date) . '</span>'
              . ($tomorrow ? '<div class="text-[11px] font-semibold text-amber-600">Mañana</div>' : '');
     }
 

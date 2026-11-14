@@ -165,36 +165,58 @@ button.ord-money:hover .ord-row-pay { background: rgb(var(--brand-600, 192 90 64
 
 /* "Mostrar N registros" y el buscador en una sola fila, uno junto al otro.
    El buscador vive fuera de #tableOrders (se reescribe en cada busqueda) y
-   lsOrders mueve aqui el selector de DataTables. En celular se apilan. */
-#searchOrders {
+   lsOrders mueve aqui el selector de DataTables. En celular se apilan.
+   Pegados a la tabla como DataTables: 4px + los 6px de table.dataTable = 10px. */
+#searchOrders,
+#searchSaleHistory {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px 16px;
-    min-height: 42px;
-    margin-bottom: 10px;
+    margin-bottom: 4px;
 }
 
-#searchOrders .ord-dt-length:empty {
+#searchOrders .ord-dt-length:empty,
+#searchSaleHistory .ord-dt-length:empty {
     display: none;
 }
 
-#searchOrders .ord-dt-length .dataTables_length label {
+#searchOrders .ord-dt-length .dataTables_length label,
+#searchSaleHistory .ord-dt-length .dataTables_length label {
     margin: 0;
 }
 
-#searchOrders .ord-dt-search {
-    width: min(320px, 100%);
+/* El buscador (38px) es más alto que el selector: centrado, el selector quedaba
+   flotando lejos de la tabla. Con flex-end los dos se apoyan en la base y solo
+   queda el margin-top de 6px de table.dataTable. */
+#searchOrders {
+    align-items: flex-end;
+    margin-bottom: 0;
 }
 
+/* margin-left:auto lo manda al extremo derecho; "Mostrar N registros" queda a la izquierda. */
+#searchOrders .ord-dt-search {
+    width: min(320px, 100%);
+    margin-left: auto;
+}
+
+/* El .mt-1 de Bootstrap lleva !important: sin este, el buscador baja 4px. */
 #fbSearchOrders > div {
-    margin-top: 0;
+    margin-top: 0 !important;
 }
 
 @media (max-width: 767.98px) {
     #searchOrders .ord-dt-search {
         width: 100%;
     }
+}
+
+/* Flechas de orden: compact.css deja el encabezado en 0.5rem con !important
+   y las flechas (a 10px del borde) se encimaban en el titulo. */
+#tbOrders thead th.sorting,
+#tbOrders thead th.sorting_asc,
+#tbOrders thead th.sorting_desc {
+    padding-right: 22px !important;
 }
 
 /* Pie de DataTables: el texto y la paginacion en la misma linea. */
@@ -799,6 +821,28 @@ button.ord-pay-go:hover { background: rgb(var(--brand-700, 168 74 51)); }
 #modalOrderPay:not(.is-history) .op-pane-history,
 #modalOrderPay.is-history .cs-modal-save { display: none !important; }
 
+/* -- Pastel personalizado: alto fijo -- */
+#modalOrderCake .cs-modal-panel {
+    display: flex;
+    flex-direction: column;
+    height: min(860px, calc(100vh - 4rem));
+    height: min(860px, calc(100dvh - 4rem));
+}
+
+#modalOrderCake .cs-modal-head,
+#modalOrderCake .cs-modal-foot { flex-shrink: 0; }
+#modalOrderCake .cs-modal-foot { margin-top: 0; }
+#modalOrderCake .cs-modal-body { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-y: auto; }
+#modalOrderCake #ocWizard      { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+
+@media (max-width: 767px) {
+    #modalOrderCake #ocWizard { flex: none; }
+}
+
+@media (max-width: 639px) {
+    #modalOrderCake .cs-modal-panel { height: calc(100vh - 2rem); height: calc(100dvh - 2rem); }
+}
+
 /* -- Turno y cobro oscuros -- */
 body.dark-mode .ord-turn-chip.is-open { color: #6EE7B7; background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); }
 body.dark-mode .ord-turn-chip.is-old  { color: #FCD34D; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
@@ -1149,7 +1193,8 @@ body.dark-mode .cs-modal-save kbd.ord-key { border-color: rgb(255 255 255 / .35)
 /* -- Entregar y elaborar (encabezado de Información en el detalle) -- */
 button.ord-deliver,
 button.ord-produce,
-button.ord-undeliver {
+button.ord-undeliver,
+button.ord-sale-cancel {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1171,6 +1216,56 @@ button.ord-produce.is-on:hover { background: rgb(var(--gray-100, 245 245 244)); 
 /* Deshacer entrega: secundario, para que no compita con Entregar. */
 button.ord-undeliver { border: 1px solid rgb(var(--gray-300, 214 211 209)); background: #FFFFFF; color: rgb(var(--gray-600, 87 83 78)); }
 button.ord-undeliver:hover { background: rgb(var(--gray-100, 245 245 244)); }
+
+/* Cancelar venta (Historial, V2): el mismo molde, en rojo. */
+button.ord-sale-cancel { border: 1px solid #FECACA; background: #FEF2F2; color: #B91C1C; }
+button.ord-sale-cancel:hover { background: #FEE2E2; }
+body.dark-mode button.ord-sale-cancel { border-color: #7F1D1D; background: rgb(127 29 29 / .25); color: #FCA5A5; }
+
+/* -- Historial de ventas (V2): totales sobre la tabla y aviso de la Cajera -- */
+.his-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.his-summary:empty { display: none; }
+
+.his-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    background: rgb(var(--gray-50, 250 250 249));
+    color: rgb(var(--gray-500, 120 113 108));
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.his-chip b { color: rgb(var(--gray-800, 41 37 36)); font-weight: 700; }
+.his-chip.is-cancel { border-color: #FECACA; background: #FEF2F2; color: #B91C1C; }
+.his-chip.is-cancel b { color: #B91C1C; }
+
+.his-own {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    background: rgb(var(--gray-50, 250 250 249));
+    color: rgb(var(--gray-600, 87 83 78));
+    font-size: 13px;
+}
+
+body.dark-mode .his-chip,
+body.dark-mode .his-own { border-color: var(--dk-line, #374151); background: var(--dk-row, #283341); color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .his-chip b { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .his-chip.is-cancel { border-color: #7F1D1D; background: rgb(127 29 29 / .25); color: #FCA5A5; }
+body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
 
 /* -- Calendario (Etapa 4) -- */
 /*  FullCalendar lee estas variables: asi toma el tema sin pisar sus reglas. */
@@ -2059,3 +2154,109 @@ button.pos-tkt-btn.sale-tk-icon span:empty { display: none; }
 
 body.dark-mode #saleTabList .sale-tab-count { background: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
 body.dark-mode #saleTabList .sale-tab-x:hover { background: rgba(220, 38, 38, 0.15); color: #F87171; }
+
+/* -- Crédito y monedero (V3 de Ventas) --
+   «Resto a crédito» del cobro de Vender: mismo cuerpo que los chips de método.
+   Va con button.X por el preflight de Tailwind, como los demás. */
+button.ord-credit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid rgb(var(--gray-300, 214 211 209));
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: rgb(var(--gray-700, 68 64 60));
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+button.ord-credit:hover { border-color: rgb(var(--brand-600, 192 90 64)); color: rgb(var(--brand-700, 168 74 51)); }
+
+button.ord-credit.is-active {
+    border-color: rgb(var(--brand-600, 192 90 64));
+    background: rgb(var(--brand-600, 192 90 64) / .08);
+    color: rgb(var(--brand-700, 168 74 51));
+    font-weight: 600;
+}
+
+body.dark-mode button.ord-credit { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode button.ord-credit.is-active { background: rgb(var(--brand-600, 192 90 64) / .18); border-color: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+/* Clientes › historial: la cuenta de crédito y el monedero, arriba de los pedidos. */
+.cus-credit {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border-radius: 10px;
+}
+
+.cus-credit-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; }
+.cus-credit-title { margin: 0; font-size: 13px !important; font-weight: 700; color: rgb(var(--gray-800, 41 37 36)); }
+
+button.cus-pay {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 8px;
+    background: rgb(var(--brand-600, 192 90 64));
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+button.cus-pay:hover { background: rgb(var(--brand-700, 168 74 51)); }
+button.cus-pay:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 2px; }
+
+/* Ámbar = lo debe pero está dentro de lo acordado (el rojo queda para «por cobrar»). */
+.cus-tile.is-credit .cus-tile-value { color: #B45309; }
+.cus-tile.is-wallet .cus-tile-value { color: #047857; }
+.cus-tile.is-off .cus-tile-value { color: rgb(var(--gray-400, 168 162 158)); font-weight: 600; }
+
+.cus-moves {
+    display: flex;
+    flex-direction: column;
+    max-height: 156px;
+    overflow-y: auto;
+    border-top: 1px solid rgb(var(--gray-100, 245 245 244));
+}
+
+.cus-move {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 2px;
+    border-bottom: 1px solid rgb(var(--gray-100, 245 245 244));
+}
+.cus-move:last-child { border-bottom: 0; }
+
+.cus-move-main { display: flex; flex-direction: column; min-width: 0; }
+.cus-move-label { font-size: 13px !important; font-weight: 600; color: rgb(var(--gray-800, 41 37 36)); }
+.cus-move-sub { font-size: 12px !important; color: rgb(var(--gray-500, 120 113 108)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cus-move-amount { font-size: 13.5px !important; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cus-move.is-cargo .cus-move-amount { color: #B45309; }
+.cus-move.is-abono .cus-move-amount { color: #047857; }
+
+body.dark-mode .cus-credit,
+body.dark-mode .cus-moves,
+body.dark-mode .cus-move { border-color: var(--dk-line, #374151); }
+
+body.dark-mode .cus-credit-title,
+body.dark-mode .cus-move-label { color: var(--dk-text, #F3F4F6); }
+
+body.dark-mode .cus-move-sub,
+body.dark-mode .cus-tile.is-off .cus-tile-value { color: var(--dk-muted, #9CA3AF); }
+
+body.dark-mode .cus-tile.is-credit .cus-tile-value,
+body.dark-mode .cus-move.is-cargo .cus-move-amount { color: #FCD34D; }
+
+body.dark-mode .cus-tile.is-wallet .cus-tile-value,
+body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }

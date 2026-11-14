@@ -3,12 +3,22 @@ require_once __DIR__ . '/../../../core/security/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-order.php';
+require_once __DIR__ . '/../mdl/mdl-credito.php';
 
-/*  Ventas › vender en mostrador (V1 del plan de Ventas).
+/*  Ventas › vender en mostrador (V1 del plan de Ventas; credito y monedero de V3).
 
     Reglas que no se ven en el codigo de un vistazo:
       - Una venta nace pagada: sale_type_id 3 (POS) y sale_status_id 3 (Pagado).
         Venta, renglones y pagos se guardan en UNA transaccion; no pasa por Pedidos.
+      - Credito: si el cobro no cubre lo que se debe y llega credit = 1, el resto
+        se carga a la cuenta del cliente (receivable 'cargo') y la venta nace en
+        2 Pendiente; se paga despues con abonos. Exige un cliente con credito
+        autorizado y limite suficiente.
+      - Monedero: se paga con el metodo de code PUNTOS, que esta oculto, y baja
+        customer.wallet. Exige un cliente con saldo suficiente.
+      - Credito y monedero se revisan DENTRO de la transaccion, con el cliente
+        bloqueado: asi dos cajas no gastan el mismo saldo. Orden de bloqueos:
+        turno y luego cliente.
       - Exige el turno de HOY abierto: la venta y sus pagos entran a ese turno.
       - El precio del catalogo sale de la base; lo que mande el navegador no cuenta.
         La linea libre trae su propio nombre y precio.
@@ -24,6 +34,8 @@ require_once __DIR__ . '/core-order.php';
       - Se valida todo ANTES de la primera escritura: transaction() solo deshace
         si algo lanza una excepcion. */
 class ctrl extends core {
+
+    use CreditLedger;
 
     const SALES        = 'pos-ventas';
     const SALE_TYPE    = 3;
@@ -64,10 +76,30 @@ class ctrl extends core {
             $customers  = [];
             $products   = [];
             $categories = [];
+            $accounts   = [];
+
+            foreach ($this->qCreditCustomers($this->branchId()) as $a) {
+                $accounts[(int) $a['id']] = $this->creditBrief($a, $a['debt']);
+            }
 
             foreach ($this->qCustomerOptions($this->branchId(), 0) as $c) {
-                $customers[] = ['id' => (int) $c['id'], 'valor' => $this->customerLabel($c['name'], $c['phone'])];
+                $id      = (int) $c['id'];
+                $account = isset($accounts[$id]) ? $accounts[$id] : null;
+
+                $customers[] = [
+                    'id'     => $id,
+                    'valor'  => $this->customerLabel($c['name'], $c['phone']),
+                    'wallet' => $account ? $account['wallet'] : 0,
+                    'credit' => $account ? $account['available'] : 0
+                ];
             }
+
+            // El monedero va aparte de los metodos: la pantalla lo ofrece solo si el cliente tiene saldo.
+            $purse   = $this->qWalletMethod($this->companyId());
+            $methods = array_values(array_filter(
+                $this->qPaymentMethods($this->companyId()),
+                fn ($m) => !$this->isWalletCode($m['code'])
+            ));
 
             foreach ($this->qCatalogProducts($this->companyId(), $this->branchId(), $this->mainBranchId()) as $p) {
                 $category = $p['category'] !== '' ? $p['category'] : 'Sin categoría';
@@ -102,7 +134,8 @@ class ctrl extends core {
                 'products'      => $products,
                 'categories'    => $categories,
                 'groups'        => [],
-                'methods'       => $this->qPaymentMethods($this->companyId()),
+                'methods'       => $methods,
+                'wallet_method' => $purse ? ['id' => (int) $purse['id'], 'name' => $purse['name'], 'code' => $purse['code'], 'is_cash' => 0] : null,
                 'reasons'       => $this->qDiscountReasons($this->companyId()),
                 'can_authorize' => $this->needSales('cancel') === null,
                 'turn'          => $this->turnBrief(),
@@ -134,6 +167,7 @@ class ctrl extends core {
                     return $this->ok("Ese teléfono ya es de {$label}. Se eligió ese cliente.", [
                         'existing' => true,
                         'customer' => ['id' => (int) $found['id'], 'valor' => $this->customerLabel($found['name'], $found['phone'])]
+                            + $this->accountOf((int) $found['id'])
                     ]);
                 }
 
@@ -148,7 +182,7 @@ class ctrl extends core {
 
                 return $this->ok('Cliente agregado.', [
                     'existing' => false,
-                    'customer' => ['id' => $id, 'valor' => $this->customerLabel($name, $phone)]
+                    'customer' => ['id' => $id, 'valor' => $this->customerLabel($name, $phone), 'wallet' => 0, 'credit' => 0]
                 ]);
             });
         }, 'No se pudo guardar el cliente.');
@@ -198,17 +232,27 @@ class ctrl extends core {
 
             $paid   = 0;
             $change = 0;
+            $wallet = 0;
 
             foreach ($rows as $row) {
                 $paid   += $row['amount'];
                 $change += $row['change'];
+
+                if ($row['wallet']) $wallet += $row['amount'];
             }
 
-            $paid = round($paid, 2);
+            $paid   = round($paid, 2);
+            $wallet = round($wallet, 2);
+            $credit = $paid + 0.005 < $due ? round($due - $paid, 2) : 0.0;
 
-            if ($paid + 0.005 < $due) return $this->fail(422, 'Faltan ' . money($due - $paid) . ' por cobrar.');
+            if ($credit > 0 && $this->post('credit') !== '1') return $this->fail(422, 'Faltan ' . money($credit) . ' por cobrar.');
+            if ($credit > 0 && !$in['customer_id'])           return $this->fail(422, 'Elige un cliente para vender a crédito.');
+            if ($wallet > 0 && !$in['customer_id'])           return $this->fail(422, 'Elige un cliente para pagar con su monedero.');
 
-            $sale = ['in' => $in, 'lines' => $lines, 'subtotal' => $subtotal, 'total' => $total, 'due' => $due, 'applied' => $applied, 'rows' => $rows];
+            $sale = [
+                'in' => $in, 'lines' => $lines, 'subtotal' => $subtotal, 'total' => $total, 'due' => $due,
+                'applied' => $applied, 'rows' => $rows, 'credit' => $credit, 'wallet' => $wallet
+            ];
 
             return $this->transaction(function () use ($sale, $change) {
                 $turn = $this->qLockOpenTurn($this->branchId());
@@ -217,13 +261,26 @@ class ctrl extends core {
                     return ['status' => 423, 'title' => 'Sin turno abierto', 'message' => 'El turno se cerró mientras cobrabas. Abre uno nuevo e intenta otra vez.'];
                 }
 
-                $id = $this->saveSale($sale, (int) $turn['id']);
+                $usesAccount = $sale['credit'] > 0 || $sale['wallet'] > 0;
 
-                return $this->ok("Venta V{$id} cobrada.", [
-                    'id'     => $id,
-                    'folio'  => (string) $id,
-                    'change' => round($change, 2),
-                    'ticket' => $this->ticketData($id, $sale)
+                // Todavia no se escribio nada: un rechazo aqui no deja la venta a medias.
+                if ($usesAccount) {
+                    $fail = $this->accountCheck($this->qCreditCustomer($sale['in']['customer_id'], true), $sale);
+                    if ($fail) return $fail;
+                }
+
+                $id      = $this->saveSale($sale, (int) $turn['id']);
+                $message = $sale['credit'] > 0
+                    ? "Venta V{$id} registrada: " . money($sale['credit']) . ' a crédito.'
+                    : "Venta V{$id} cobrada.";
+
+                return $this->ok($message, [
+                    'id'       => $id,
+                    'folio'    => (string) $id,
+                    'change'   => round($change, 2),
+                    'credit'   => $sale['credit'],
+                    'customer' => $usesAccount ? ['id' => $sale['in']['customer_id']] + $this->accountOf($sale['in']['customer_id']) : null,
+                    'ticket'   => $this->ticketData($id, $sale)
                 ]);
             });
         }, 'No se pudo registrar la venta.');
@@ -238,6 +295,7 @@ class ctrl extends core {
     private function saveSale(array $sale, $turnId) {
         $in      = $sale['in'];
         $applied = $sale['applied'];
+        $credit  = $sale['credit'];
         $userId  = $this->userId() ?: null;
 
         $this->must($this->qCreateOrder([
@@ -247,7 +305,7 @@ class ctrl extends core {
                 'tip_amount', 'total', 'active'
             ],
             'data' => [
-                $this->branchId(), $in['customer_id'], $userId, $turnId, self::SALE_TYPE, self::PAID, 0, 1,
+                $this->branchId(), $in['customer_id'], $userId, $turnId, self::SALE_TYPE, $credit > 0 ? self::PENDING : self::PAID, 0, 1,
                 $in['note'], $sale['subtotal'],
                 $applied ? $applied['amount'] : 0,
                 $applied ? $applied['percent'] : 0,
@@ -273,12 +331,22 @@ class ctrl extends core {
 
         $this->savePayments($id, $turnId, $sale['rows']);
 
-        $tip = $in['tip'] > 0 ? ' + propina ' . money($in['tip']) : '';
+        if ($sale['wallet'] > 0) $this->moveWallet($in['customer_id'], -$sale['wallet'], 'addSale wallet');
+        if ($credit > 0)         $this->saveCreditCharge($id, $in['customer_id'], $turnId, $credit);
 
-        $this->log($id, 'event', 'Venta cobrada', 'Venta de mostrador — total ' . money($sale['total']) . $tip . ', ' . $this->productsText(count($sale['lines'])) . '.');
+        $tip   = $in['tip'] > 0 ? ' + propina ' . money($in['tip']) : '';
+        $title = $credit > 0 ? 'Venta a crédito' : 'Venta cobrada';
+
+        $this->log($id, 'event', $title, 'Venta de mostrador — total ' . money($sale['total']) . $tip . ', ' . $this->productsText(count($sale['lines'])) . '.');
 
         if ($applied) $this->log($id, 'discount', 'Descuento', $applied['text'] . ' Total: ' . money($sale['total']) . '.');
         if ($sale['rows']) $this->log($id, 'payment', 'Venta', $this->paymentsText($sale['rows']));
+
+        if ($credit > 0) {
+            $name = $in['customer'] !== '' ? $in['customer'] : 'el cliente';
+
+            $this->log($id, 'payment', 'A crédito', money($credit) . " a la cuenta de {$name}.");
+        }
 
         return $id;
     }
@@ -323,7 +391,8 @@ class ctrl extends core {
             'discount' => $applied ? ['amount' => $applied['amount'], 'reason' => $applied['reason']] : null,
             'tip'      => $sale['in']['tip'],
             'total'    => $sale['total'],
-            'charged'  => $sale['due'],
+            'charged'  => round($sale['due'] - $sale['credit'], 2),
+            'credit'   => $sale['credit'],
             'payments' => array_map(fn ($r) => [
                 'method'   => $r['method'],
                 'cash'     => $r['cash'],
@@ -524,6 +593,11 @@ class ctrl extends core {
             $methods[(int) $method['id']] = $method;
         }
 
+        // El monedero esta oculto: qPaymentMethods no lo trae.
+        $purse = $this->qWalletMethod($this->companyId());
+
+        if ($purse) $methods[(int) $purse['id']] = $purse;
+
         $rows = [];
         $sum  = 0;
 
@@ -544,6 +618,7 @@ class ctrl extends core {
                 'method_id' => $payment['method_id'],
                 'method'    => $method['name'],
                 'cash'      => $cash,
+                'wallet'    => $this->isWalletCode($method['code']),
                 'amount'    => $payment['amount'],
                 'tendered'  => $tendered,
                 'change'    => round($tendered - $payment['amount'], 2)
@@ -555,6 +630,41 @@ class ctrl extends core {
         }
 
         return $rows;
+    }
+
+    // -- Credito y monedero --
+
+    /*  El monedero y el credito del cliente contra lo que pide la venta.
+        $account llega bloqueado (qCreditCustomer con $lock). null = alcanza. */
+    private function accountCheck($account, array $sale) {
+        $isLocal = $account && (int) $account['branch_id'] === $this->branchId() && (int) $account['active'] === 1;
+
+        if (!$isLocal) return $this->fail(422, 'Ese cliente no está disponible en esta sucursal.');
+
+        $name  = trim($account['name']) !== '' ? trim($account['name']) : 'el cliente';
+        $debt  = $sale['credit'] > 0 ? $this->qCreditDebt((int) $account['id']) : 0;
+        $brief = $this->creditBrief($account, $debt);
+
+        if ($sale['wallet'] > $brief['wallet'] + 0.005) {
+            return $this->fail(422, "El monedero de {$name} solo tiene " . money($brief['wallet']) . '.');
+        }
+
+        if ($sale['credit'] <= 0) return null;
+
+        if (!$brief['enabled']) return $this->fail(422, "{$name} no tiene crédito autorizado.");
+
+        if ($sale['credit'] > $brief['available'] + 0.005) {
+            return $this->fail(422, "El crédito disponible de {$name} es " . money($brief['available']) . ' y faltan ' . money($sale['credit']) . '.');
+        }
+
+        return null;
+    }
+
+    // Monedero y credito disponible de un cliente, como los espera la pantalla.
+    private function accountOf($customerId) {
+        $brief = $this->creditBrief($this->qCreditCustomer($customerId), $this->qCreditDebt($customerId));
+
+        return ['wallet' => $brief['wallet'], 'credit' => $brief['available']];
     }
 
     // -- Complements --

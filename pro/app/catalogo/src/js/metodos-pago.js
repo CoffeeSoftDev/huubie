@@ -65,6 +65,8 @@ class PaymentMethods extends Templates {
             attr: {
                 id: 'tbPaymentMethods',
                 theme: 'light',
+                f_size: 12,
+                design: 'flowbite',
                 striped: true,
                 center: [3, 4, 5, 6, 7, 8, 9]
             },

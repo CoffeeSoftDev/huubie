@@ -5,6 +5,11 @@
     «Historial» lista sus pedidos; los de esta sucursal abren el mismo detalle
     que Pedidos (orderDetail), servido por ctrl-pedidos.
 
+    Crédito y monedero (V3 de Ventas): la lista suma las columnas «Crédito» y
+    «Monedero»; el historial muestra la cuenta del cliente y el botón «Abonar».
+    Dar crédito y fijar el límite solo le sale a quien puede activar o
+    desactivar clientes (hoy el Dueño).
+
     El detalle, el turno y el cobro llaman a orders.lsOrders(), orders.can() y
     orders.paintTurn(): aquí `orders` es la misma instancia que `customers`. */
 
@@ -40,6 +45,8 @@ class Customers extends Templates {
         this.term         = '';
         this.termDigits   = '';
         this.historyId    = 0;
+        this.historyData  = null;
+        this.payToken     = '';
 
         // Filtro propio de DataTables: solo actúa sobre la tabla de clientes.
         $.fn.dataTable.ext.search.push((settings, row) => settings.nTable.id !== `tb${this.PROJECT_NAME}` || this.matches(row[0]));
@@ -266,8 +273,8 @@ class Customers extends Templates {
             striped: true,
             hover:   true,
             f_size:  13,
-            right:   [4, 5, 6],
-            center:  [2, 3, 7],
+            right:   [4, 5, 6, 7, 8],
+            center:  [2, 3, 9],
             ...this.emptyState(loaded)
         });
 
@@ -312,6 +319,20 @@ class Customers extends Templates {
 
         const scope = dataInit.scope || {};
 
+        const json = [
+            { id: 'cf_name', lbl: 'Nombre', required: true, maxlength: 120, value: customer ? customer.name : '', class: 'w-full' },
+            { id: 'cf_phone', lbl: 'Teléfono', required: true, maxlength: 16, ph: '10 dígitos', value: customer ? customer.phone : '', help: 'Un teléfono no se repite entre los clientes activos de la sucursal.', class: 'w-full' },
+            { id: 'cf_email', lbl: 'Correo', maxlength: 120, ph: 'Opcional', value: customer ? customer.email : '', class: 'w-full' }
+        ];
+
+        // Crédito: solo quien puede activar o desactivar clientes. El ctrl ignora estos campos a los demás.
+        if (this.allow('delete')) {
+            json.push(
+                { id: 'cf_credit', lbl: 'Puede comprar a crédito', tipo: 'switch', value: customer ? Number(customer.credit_enabled) : 0, help: 'En «Vender» se podrá dejar el resto a su cuenta.', class: 'w-full' },
+                { id: 'cf_limit', lbl: 'Límite de crédito ($)', tipo: 'number', min: 0, step: '0.01', ph: '0.00', value: customer && Number(customer.credit_limit) > 0 ? customer.credit_limit : '', help: 'Lo más que puede deber a la vez.', class: 'w-full' }
+            );
+        }
+
         this.csModal({
             id:         'modalCustomer',
             title:      customer ? 'Editar cliente' : 'Nuevo cliente',
@@ -320,11 +341,7 @@ class Customers extends Templates {
             width:      'max-w-md',
             saveText:   customer ? 'Guardar cambios' : 'Agregar cliente',
             cancelText: 'Cancelar',
-            json: [
-                { id: 'cf_name', lbl: 'Nombre', required: true, maxlength: 120, value: customer ? customer.name : '', class: 'w-full' },
-                { id: 'cf_phone', lbl: 'Teléfono', required: true, maxlength: 16, ph: '10 dígitos', value: customer ? customer.phone : '', help: 'Un teléfono no se repite entre los clientes activos de la sucursal.', class: 'w-full' },
-                { id: 'cf_email', lbl: 'Correo', maxlength: 120, ph: 'Opcional', value: customer ? customer.email : '', class: 'w-full' }
-            ],
+            json:       json,
             onSave: (values, close) => this.save(customer, values, close)
         });
 
@@ -346,13 +363,23 @@ class Customers extends Templates {
         if (phone.length !== 10) return this.warn('El teléfono debe tener 10 dígitos.');
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return this.warn('El correo no tiene un formato válido.');
 
+        const payload = { opc: customer ? 'editCustomer' : 'addCustomer', id: customer ? customer.id : 0, name: name, phone: phone, email: email };
+
+        if (this.allow('delete')) {
+            const credit = Number(values.cf_credit) === 1;
+            const limit  = String(values.cf_limit || '').trim() === '' ? 0 : ordAmount(values.cf_limit);
+
+            if (limit === null)       return this.warn('El límite de crédito no es un monto válido (hasta $999,999, con 2 decimales).');
+            if (credit && limit <= 0) return this.warn('Para dar crédito escribe un límite mayor a $0.');
+
+            payload.credit_enabled = credit ? 1 : 0;
+            payload.credit_limit   = limit;
+        }
+
         this.saving = true;
 
         const button = $('#modalCustomer .cs-modal-save').prop('disabled', true);
-        const data   = await useFetch({
-            url:  this._link,
-            data: { opc: customer ? 'editCustomer' : 'addCustomer', id: customer ? customer.id : 0, name: name, phone: phone, email: email }
-        });
+        const data   = await useFetch({ url: this._link, data: payload });
 
         this.saving = false;
         button.prop('disabled', false);
@@ -416,7 +443,8 @@ class Customers extends Templates {
 
         const c = data.customer;
 
-        this.historyId = id;
+        this.historyId   = id;
+        this.historyData = data;
 
         this.csModal({
             id:         'modalCustomerHistory',
@@ -429,7 +457,9 @@ class Customers extends Templates {
             body:       `<div id="customerHistory" class="cus-history">${this.historyBody(data)}</div>`
         });
 
-        $('#modalCustomerHistory').on('click', 'button.cus-order', (e) => orderDetail.show(Number(e.currentTarget.dataset.id)));
+        $('#modalCustomerHistory')
+            .on('click', 'button.cus-order', (e) => orderDetail.show(Number(e.currentTarget.dataset.id)))
+            .on('click', 'button.cus-pay', () => this.pay());
     }
 
     async getHistory(id) {
@@ -449,6 +479,8 @@ class Customers extends Templates {
         const data = await this.getHistory(this.historyId);
 
         if (!data || !$('#customerHistory').length) return;
+
+        this.historyData = data;
 
         $('#customerHistory').html(this.historyBody(data));
 
@@ -472,6 +504,7 @@ class Customers extends Templates {
         ];
 
         const summary = `
+            ${this.creditBlock(data)}
             <div class="cus-tiles">
                 ${tiles.map((t) => `<div class="cus-tile ${t.tone}"><span class="cus-tile-label">${esc(t.label)}</span><span class="cus-tile-value">${esc(t.value)}</span></div>`).join('')}
             </div>
@@ -501,6 +534,154 @@ class Customers extends Templates {
         return o.can_open
              ? `<button type="button" class="cus-order" data-id="${Number(o.id)}" aria-label="Ver pedido ${esc(o.folio)}">${inner}</button>`
              : `<div class="cus-order is-static">${inner}</div>`;
+    }
+
+    // -- Crédito --
+
+    /*  La cuenta del cliente: lo que debe de ventas a crédito, su límite, lo que
+        le queda y su monedero. No sale si el cliente no tiene nada de eso. */
+    creditBlock(data) {
+        const c     = data.credit || {};
+        const moves = c.moves || [];
+
+        if (!c.enabled && !c.has_debt && !c.has_wallet && !moves.length) return '';
+
+        const tiles = [
+            { label: 'Debe a crédito', value: c.debt, tone: c.has_debt ? 'is-credit' : '' },
+            { label: 'Límite', value: c.enabled ? c.limit : 'Sin crédito', tone: c.enabled ? '' : 'is-off' },
+            { label: 'Disponible', value: c.enabled ? c.available : '-', tone: c.enabled ? '' : 'is-off' },
+            { label: 'Monedero', value: c.wallet, tone: c.has_wallet ? 'is-wallet' : '' }
+        ];
+
+        const pay = c.can_pay
+            ? '<button type="button" class="cus-pay"><i data-lucide="hand-coins" class="w-4 h-4"></i><span>Abonar</span></button>'
+            : '';
+
+        const list = moves.length
+            ? `<div class="cus-moves">${moves.map((m) => this.moveRow(m)).join('')}</div>`
+            : '';
+
+        return `
+            <section class="cus-credit" aria-label="Crédito y monedero">
+                <div class="cus-credit-head">
+                    <p class="cus-credit-title">Crédito y monedero</p>
+                    ${pay}
+                </div>
+                <div class="cus-tiles">
+                    ${tiles.map((t) => `<div class="cus-tile ${t.tone}"><span class="cus-tile-label">${esc(t.label)}</span><span class="cus-tile-value">${esc(t.value)}</span></div>`).join('')}
+                </div>
+                ${list}
+            </section>`;
+    }
+
+    // Un cargo (venta a crédito) o un abono de la cuenta.
+    moveRow(m) {
+        const sub = [m.folio, m.date, m.method].filter(Boolean);
+
+        return `
+            <div class="cus-move is-${m.kind === 'cargo' ? 'cargo' : 'abono'}">
+                <span class="cus-move-main">
+                    <span class="cus-move-label">${esc(m.label)}</span>
+                    <span class="cus-move-sub">${esc(sub.join(' · '))}</span>
+                </span>
+                <span class="cus-move-amount">${m.kind === 'cargo' ? '+' : '−'} ${esc(m.amount)}</span>
+            </div>`;
+    }
+
+    // Ventana «Abonar»: el dinero entra al turno abierto y baja la cuenta del cliente.
+    pay() {
+        const data = this.historyData;
+        const c    = data && data.credit;
+
+        if (!c || !c.can_pay || this.saving) return;
+
+        const methods = data.methods || [];
+
+        if (!methods.length) return this.warn('No hay métodos de pago activos para recibir el abono.');
+
+        // Un token por ventana: si la red reintenta el envío, el abono no se guarda dos veces.
+        this.payToken = ordToken();
+
+        this.csModal({
+            id:         'modalCreditPay',
+            title:      'Abonar a crédito',
+            subtitle:   `${data.customer.name || 'Sin nombre'} · debe ${c.debt}`,
+            lucideIcon: 'hand-coins',
+            width:      'max-w-md',
+            saveText:   'Registrar abono',
+            cancelText: 'Cancelar',
+            info:       'Entra al corte del turno abierto.',
+            json: [
+                { id: 'cp_amount', lbl: 'Monto del abono', tipo: 'number', min: 0, step: '0.01', required: true, value: Number(c.debt_value).toFixed(2), help: 'Se aplica primero a la venta más antigua.', class: 'w-full' },
+                { id: 'cp_method', lbl: 'Método de pago', tipo: 'select', empty: false, required: true, data: methods.map((m) => ({ id: m.id, valor: m.name })), value: methods[0].id, class: 'w-full' },
+                { id: 'cp_tendered', lbl: 'Recibe en efectivo', tipo: 'number', min: 0, step: '0.01', ph: 'Igual al abono', help: 'Vacío = paga exacto, sin cambio.', class: 'w-full cp-cash' }
+            ],
+            onSave: (values, close) => this.savePay(values, close)
+        });
+
+        // «Recibe en efectivo» solo aplica al efectivo.
+        const paint = () => {
+            const method = methods.find((m) => Number(m.id) === Number($('#cp_method').val()));
+
+            $('#modalCreditPay .cp-cash').toggleClass('hidden', !(method && Number(method.is_cash) === 1));
+        };
+
+        $('#cp_method').on('change', paint);
+        paint();
+    }
+
+    async savePay(values, close) {
+        const data = this.historyData;
+        const c    = data && data.credit;
+
+        if (!c || this.saving) return;
+
+        const amount = ordAmount(values.cp_amount);
+        const method = (data.methods || []).find((m) => Number(m.id) === Number(values.cp_method));
+
+        if (amount === null || amount <= 0)               return this.warn('Escribe cuánto abona el cliente.');
+        if (amount > Number(c.debt_value) + 0.005)        return this.warn(`El abono (${money(amount)}) pasa de lo que debe (${c.debt}).`);
+        if (!method)                                      return this.warn('Elige el método de pago.');
+
+        const cash   = Number(method.is_cash) === 1;
+        let tendered = amount;
+
+        if (cash && String(values.cp_tendered || '').trim() !== '') {
+            tendered = ordAmount(values.cp_tendered);
+
+            if (tendered === null)         return this.warn('Lo recibido no es un monto válido.');
+            if (tendered + 0.005 < amount) return this.warn(`Lo recibido (${money(tendered)}) no alcanza para ${money(amount)}.`);
+        }
+
+        this.saving = true;
+
+        const button = $('#modalCreditPay .cs-modal-save').prop('disabled', true);
+        const res    = await useFetch({
+            url:  this._link,
+            data: { opc: 'addCreditPayment', id: this.historyId, amount: amount, method_id: method.id, tendered: tendered, token: this.payToken }
+        });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (res && Number(res.status) === 423) {
+            return alert({ icon: 'warning', title: res.title || 'Sin turno abierto', text: res.message || 'Abre un turno para recibir el abono.', btn1: true, btn1Text: 'Entendido' });
+        }
+
+        if (!res || res.status != 200) return this.fail(res, 'No se registró el abono');
+
+        close();
+
+        // Con cambio el aviso se queda hasta que lo cierren: la cajera tiene que verlo.
+        const change = Number(res.change) > 0.005;
+        const text   = [res.detail || '', change ? `Cambio: ${money(res.change)}.` : ''].filter(Boolean).join(' ');
+
+        alert(change
+            ? { icon: 'success', title: res.message, text: text, btn1: true, btn1Text: 'Listo' }
+            : { icon: 'success', title: res.message, text: text, timer: 1800 });
+
+        this.lsCustomers();
+        this.refreshHistory();
     }
 
     // -- Complements --

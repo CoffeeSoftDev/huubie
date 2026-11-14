@@ -272,10 +272,10 @@ class ctrl extends core {
         ]), 'saveRecipe: costo del paquete');
     }
 
-    // Foto + nombre + categoría, como la celda de Productos; sin foto, el regalo.
+    // Foto + nombre + categoría, como la celda de Productos; sin foto, la caja.
     private function bundleCell($item) {
         return '<div class="flex items-center gap-3">'
-            . $this->productPhoto($item['image'], 'icon-gift')
+            . $this->productPhoto($item['image'], 'icon-box-3')
             . '<div class="min-w-0">' . cellTitle($item['name'], $item['category']) . '</div>'
             . '</div>';
     }

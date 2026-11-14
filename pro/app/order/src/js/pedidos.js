@@ -181,7 +181,7 @@ class Orders extends Templates {
         });
     }
 
-    // Sobre la tabla, pegado a la derecha de "Mostrar N registros".
+    // Sobre la tabla, en el extremo derecho; "Mostrar N registros" queda a la izquierda.
     searchBar() {
         this.createfilterBar({
             parent:     `searchBox${this.PROJECT_NAME}`,
@@ -382,11 +382,17 @@ class Orders extends Templates {
 
         $(`#tb${this.PROJECT_NAME} [data-cancelled]`).closest('tr').addClass('ord-row-cancel');
 
+        // Fechas, horas, folio y montos ordenan por el valor del ctrl, no por el texto ("28/oct/2026").
+        $(`#tb${this.PROJECT_NAME} tbody [data-order]`).each((i, el) => $(el).closest('td').attr('data-order', el.dataset.order));
+
+        // Orden por columna como simple_data_table_filter. order: [] respeta el orden del ctrl al cargar.
+        // La búsqueda sigue en el servidor (#ord_q): encuentra pedidos fuera del periodo.
         const table = $(`#tb${this.PROJECT_NAME}`).DataTable({
             dom:          'l<"ord-dt-scroll"t><"ord-dt-foot"ip>',
             pageLength:   this.pageLength,
             lengthMenu:   [10, 15, 25, 50],
-            ordering:     false,
+            order:        [],
+            columnDefs:   [{ targets: -1, orderable: false }],
             searching:    false,
             lengthChange: true,
             destroy:      true,
@@ -398,7 +404,9 @@ class Orders extends Templates {
                 emptyTable: 'Sin pedidos',
                 paginate:   { first: 'Primera', last: 'Última', next: '›', previous: '‹' }
             },
-            drawCallback: () => {
+            drawCallback: (settings) => {
+                // createCoffeeTable3 raya por posición: al ordenar se repinta en el orden visible.
+                $(settings.nTBody).children('tr').each((i, tr) => $(tr).children('td').toggleClass('bg-gray-100', i % 2 === 0));
                 $('ul.ct3-dropdown-menu').addClass('hidden');
                 if (window.lucide) lucide.createIcons();
             }

@@ -8,7 +8,8 @@
    existe, sin tocar el framework:
 
      tarjetas     redondas (--radius-card), borde casi invisible y sombra difusa
-     tablas       se quedan con el diseño del framework (13/11/2026)
+     tablas       el diseño del framework (13/11/2026); el de Flowbite, solo
+                  para la tabla que lo pide con design: 'flowbite' (14/11/2026)
      controles    inputs, selects y botones con --radius-ctl y foco del acento
 
    Los tokens (--line, --ink, --tint, --shadow-card...) son los de themes.css.
@@ -75,6 +76,32 @@ body:not(.dark-mode) .cs-tab-count { background: rgb(var(--gray-100, 243 244 246
    tabla (overflow-x:auto) sobraban 10px y salía una barra de scroll de más. */
 .dataTables_wrapper > .row { margin-left: 0; margin-right: 0; }
 .dataTables_wrapper > .row > [class*="col-"] { padding-left: 0; padding-right: 0; }
+
+/* -- Diseño 'flowbite' (createCoffeeTable3 con design: 'flowbite') --
+   14/11/2026: la tabla de Flowbite, solo para la tabla que la pide (hoy, las
+   del Catálogo). Los colores van por clase desde coffeeSoft.js; aquí queda lo
+   que una clase no alcanza.
+
+   Espaciado: compact.css lo fija con !important en toda celda. Flowbite usa
+   24px a los lados y 16px arriba y abajo, pensado para letra de 14px; con la
+   de 12px y tablas de 9 columnas eso no cabe en una laptop, así que va en
+   16px / 12px. Para el original: `12px 24px` en th y `16px 24px` en td. */
+table.ct3-flowbite > thead > tr > th { padding: 12px 16px !important; }
+table.ct3-flowbite > tbody > tr > td { padding: 12px 16px !important; }
+
+/* Línea bajo el encabezado, solo en claro: su gris es tan tenue que sin ella
+   no se ve dónde termina. Mismo color que la línea entre filas (gray-200). */
+body:not(.dark-mode) table.ct3-flowbite > thead > tr > th { border-bottom: 1px solid rgb(var(--gray-200, 229 231 235)); }
+
+/* Primera columna: es el nombre del renglón, va más oscura y con más peso. */
+table.ct3-flowbite > tbody > tr > td[data-col="1"] { font-weight: 500; }
+body:not(.dark-mode) table.ct3-flowbite > tbody > tr > td[data-col="1"] { color: rgb(var(--gray-900, 17 24 39)); }
+body.dark-mode table.ct3-flowbite > tbody > tr > td[data-col="1"] { color: var(--dk-text, #F3F4F6); }
+
+/* Fila bajo el cursor. Va en gray-200 para que se note también sobre la fila
+   gris de la cebra (#F9FAFB). En oscuro ya la pinta dark-mode.css (--dk-row-hover). */
+body:not(.dark-mode) table.ct3-flowbite > tbody > tr > td { transition: background-color .15s ease; }
+body:not(.dark-mode) table.ct3-flowbite > tbody > tr:hover > td { background-color: rgb(var(--gray-200, 229 231 235)); }
 
 
 /* -- Controles: inputs, selects, textareas --

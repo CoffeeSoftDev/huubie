@@ -65,6 +65,8 @@ class Discounts extends Templates {
             attr: {
                 id: 'tbDiscounts',
                 theme: 'light',
+                f_size: 12,
+                design: 'flowbite',
                 striped: true,
                 center: [2, 3, 4, 5]
             },

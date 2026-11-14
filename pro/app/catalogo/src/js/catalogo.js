@@ -33,7 +33,7 @@ class App extends Templates {
         this.opened = {};
     }
 
-    // Todo el catalogo depende de la sucursal: al cambiarla se vuelve a pintar completo.
+// -- Todo el catalogo depende de la sucursal: al cambiarla se vuelve a pintar completo.
     onBranchChange() {
         location.reload();
     }
@@ -200,7 +200,7 @@ async function saveFrom(modalId, request) {
 // Si tampoco carga, queda el cuadro vacío (el mismo que pinta ctrl-productos sin foto).
 const CATALOGO_FILES_REMOTE = 'https://huubie.com.mx';
 
-// data-icon: el ícono del cuadro vacío (pastel en productos, regalo en paquetes).
+// data-icon: el ícono del cuadro vacío (pastel en productos, caja en paquetes).
 function productPhotoError(img) {
     if (!img.dataset.fileFallback) {
         img.dataset.fileFallback = '1';
@@ -255,15 +255,16 @@ function compressPhoto(file, max = 800) {
 // image_remove = 1 la quita. Sin tocarla, los dos van vacíos y la foto se queda.
 
 // Va en un bloque 'html' de csModal con id 'photoField'. El label lleva las clases de los de csModal.
+// La foto es el botón: un clic sobre ella abre el selector de archivos. La cámara de la esquina lo avisa.
 function photoFieldHtml() {
     return `
         <label class="block text-xs font-semibold text-gray-500 mb-1.5">Foto</label>
         <div class="cp-foto-campo">
-            <div class="cp-foto-thumb"></div>
-            <div class="cp-foto-botones">
-                <button type="button" class="cp-foto-subir"><i data-lucide="upload" class="w-4 h-4"></i><span>Subir foto</span></button>
-                <button type="button" class="cp-foto-quitar hidden">Quitar</button>
+            <div class="cp-foto-thumb" role="button" tabindex="0">
+                <span class="cp-foto-slot"></span>
+                <span class="cp-foto-camara"><i data-lucide="camera" class="w-4 h-4"></i></span>
             </div>
+            <button type="button" class="cp-foto-quitar hidden">Quitar</button>
             <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden">
         </div>
     `;
@@ -277,15 +278,25 @@ function mountPhoto(modalId, image = '', icon = 'icon-birthday') {
     const photo = { image_b64: '', image_remove: 0 };
 
     const paint = (src) => {
-        field.find('.cp-foto-thumb').html(src
+        const hint = src ? 'Cambiar foto' : 'Subir foto';
+
+        field.find('.cp-foto-slot').html(src
             ? `<img src="${esc(src)}" alt="Foto" class="cp-foto" data-icon="${esc(icon)}" onerror="productPhotoError(this)">`
             : `<div class="cp-foto cp-foto-vacia"><i class="${esc(icon)}"></i></div>`);
 
-        field.find('.cp-foto-subir span').text(src ? 'Cambiar foto' : 'Subir foto');
+        field.find('.cp-foto-thumb').attr('title', hint).attr('aria-label', hint);
         field.find('.cp-foto-quitar').toggleClass('hidden', !src);
     };
 
-    field.on('click', '.cp-foto-subir', () => file.trigger('click'));
+    field.on('click', '.cp-foto-thumb', () => file.trigger('click'));
+
+    // Con teclado: Enter o espacio sobre la foto hacen lo mismo que el clic.
+    field.on('keydown', '.cp-foto-thumb', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+
+        e.preventDefault();
+        file.trigger('click');
+    });
 
     field.on('click', '.cp-foto-quitar', () => {
         Object.assign(photo, { image_b64: '', image_remove: 1 });

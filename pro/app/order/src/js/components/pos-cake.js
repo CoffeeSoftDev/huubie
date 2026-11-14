@@ -6,143 +6,163 @@ function posCakeCSS() {
     const css = ''
         + '.pos-ck{--po-surface:#FFF;--po-sunken:#F9FAFB;--po-line:#E5E7EB;--po-line-hi:#D1D5DB;--po-ink:#111827;--po-ink-2:#374151;--po-muted:#6B7280;--po-hover:#F3F4F6;'
         + '--po-brand:rgb(var(--brand-600,192 90 64));--po-brand-ink:rgb(var(--brand-700,160 72 51));--po-brand-soft:rgb(var(--brand-50,253 243 240));--po-brand-line:rgb(var(--brand-200,243 199 186));'
-        + '--po-ring:rgb(var(--brand-600,192 90 64) / .18);--po-ok:#047857;--po-ok-fill:#059669;--po-ok-soft:#ECFDF5;--po-ok-line:#A7F3D0;--po-warn:#92400E;--po-warn-soft:#FFFBEB;--po-warn-line:#FDE68A;'
-        + 'display:grid;grid-template-columns:minmax(0,1fr) 320px;grid-template-areas:"prog prog" "stage side" "more side";grid-template-rows:auto auto 1fr;align-items:start;gap:14px;padding:18px 1.5rem 10px;color:var(--po-ink);font-size:13px;line-height:1.4;text-align:left}'
+        + '--po-ring:rgb(var(--brand-600,192 90 64) / .18);--po-grad:linear-gradient(90deg,rgb(var(--brand-600,192 90 64)),#EC4899);'
+        + '--po-ok:#047857;--po-ok-fill:#059669;--po-ok-soft:#ECFDF5;--po-ok-line:#A7F3D0;--po-warn:#92400E;--po-warn-soft:#FFFBEB;--po-warn-line:#FDE68A;'
+        + 'display:grid;grid-template-columns:minmax(0,1fr) 290px;grid-template-areas:"prog prog" "main side";grid-template-rows:auto minmax(0,1fr);flex:1 1 auto;min-height:0;gap:12px;padding:16px 1.25rem 12px;color:var(--po-ink);font-size:13px;line-height:1.4;text-align:left}'
         + 'body.dark-mode .pos-ck{--po-surface:var(--dk-card,#1F2A37);--po-sunken:var(--dk-sunken,#1a2332);--po-line:var(--dk-line,#374151);--po-line-hi:var(--dk-line-hi,#4B5563);--po-ink:var(--dk-text,#f5f5f5);--po-ink-2:#D1D5DB;'
         + '--po-muted:var(--dk-muted,#9CA3AF);--po-hover:var(--dk-row-hover,#334155);--po-brand-ink:rgb(var(--brand-200,243 199 186));--po-brand-soft:rgb(var(--brand-600,192 90 64) / .16);--po-brand-line:rgb(var(--brand-600,192 90 64) / .45);'
         + '--po-ok:#6EE7B7;--po-ok-soft:rgb(16 185 129 / .14);--po-ok-line:rgb(16 185 129 / .4);--po-warn:#FCD34D;--po-warn-soft:rgb(245 158 11 / .12);--po-warn-line:rgb(245 158 11 / .35);color-scheme:dark}'
-        + '.pos-ck.is-blank{grid-template-areas:"stage side" "more side";grid-template-rows:auto 1fr}'
+        + '.pos-ck.is-blank{grid-template-areas:"main side";grid-template-rows:minmax(0,1fr)}'
         + '.pos-ck input[type=number]{-moz-appearance:textfield;appearance:textfield}'
         + '.pos-ck input[type=number]::-webkit-inner-spin-button,.pos-ck input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}'
         + '.pos-ck svg{width:16px;height:16px;flex-shrink:0}'
         + '.pos-ck-card{min-width:0;border:1px solid var(--po-line);border-radius:14px;background:var(--po-surface)}'
         + '.pos-ck-card-title{font-size:14px;font-weight:700;line-height:1.3;color:var(--po-ink)}'
 
-        + '.pos-ck-prog{grid-area:prog;padding:14px 16px 12px;background:var(--po-sunken)}'
-        + '.pos-ck-prog-head{display:flex;align-items:center;justify-content:space-between;gap:12px}'
-        + '.pos-ck-prog-text{display:block;font-size:12.5px;color:var(--po-muted)}'
+        + '.pos-ck-prog{grid-area:prog;display:flex;flex-direction:column;gap:9px;padding:12px 14px 10px;background:var(--po-sunken)}'
+        + '.pos-ck-prog-head{display:flex;align-items:center;gap:10px}'
+        + '.pos-ck-prog-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;border-radius:999px;background:var(--po-brand-soft);color:var(--po-brand)}'
+        + '.pos-ck-prog-icon svg{width:18px;height:18px}'
+        + '.pos-ck-prog-main{display:flex;flex-direction:column;flex:1 1 0%;min-width:0}'
+        + '.pos-ck-prog-title{font-size:14px;font-weight:700;line-height:1.3;color:var(--po-brand-ink)}'
+        + '.pos-ck-prog-text{font-size:12px;color:var(--po-muted)}'
         + '.pos-ck-badge{display:inline-flex;align-items:center;gap:5px;height:26px;flex-shrink:0;padding:0 10px;border:1px solid var(--po-brand-line);border-radius:999px;background:var(--po-brand-soft);color:var(--po-brand-ink);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}'
         + '.pos-ck-badge svg{display:none;width:13px;height:13px}'
         + '.pos-ck-prog.is-done .pos-ck-badge{border-color:var(--po-ok-line);background:var(--po-ok-soft);color:var(--po-ok)}'
         + '.pos-ck-prog.is-done .pos-ck-badge svg{display:block}'
-        + '.pos-ck-bar{height:6px;margin-top:10px;border-radius:999px;background:var(--po-line);overflow:hidden}'
-        + '.pos-ck-bar > span{display:block;width:0;height:100%;border-radius:999px;background:var(--po-brand);transition:width .25s ease,background-color .2s}'
+        + '.pos-ck-bar{height:8px;border-radius:999px;background:var(--po-line);overflow:hidden}'
+        + '.pos-ck-bar > span{display:block;width:0;height:100%;border-radius:999px;background:var(--po-brand);transition:width .4s ease,background-color .2s}'
         + '.pos-ck-prog.is-done .pos-ck-bar > span{background:var(--po-ok-fill)}'
-        + '.pos-ck-chips{position:relative;display:flex;gap:6px;margin:9px -3px -3px;padding:3px;overflow-x:auto;scrollbar-width:none}'
-        + '.pos-ck-chips::-webkit-scrollbar{display:none}'
-        + 'button.pos-ck-chip{display:inline-flex;align-items:center;gap:8px;height:36px;flex-shrink:0;margin:0;padding:0 13px 0 7px;border:1px solid var(--po-line);border-radius:999px;background:var(--po-surface);color:var(--po-ink-2);font-size:12.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}'
-        + 'button.pos-ck-chip:hover{border-color:var(--po-line-hi);background:var(--po-hover)}'
-        + 'button.pos-ck-chip:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}'
-        + '.pos-ck-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;border-radius:999px;background:var(--po-hover);color:var(--po-muted);font-size:11px;font-variant-numeric:tabular-nums;transition:background-color .15s,color .15s}'
+        + '.pos-ck-steps{display:flex;gap:4px;margin:0 -2px -2px;padding:2px;overflow-x:auto;scrollbar-width:none}'
+        + '.pos-ck-steps::-webkit-scrollbar{display:none}'
+        + 'button.pos-ck-step{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex:1 0 72px;min-width:72px;margin:0;padding:6px 6px 5px;border:0;border-radius:10px;background:transparent;color:var(--po-muted);font-size:11.5px;font-weight:600;line-height:1.2;cursor:pointer;transition:background-color .15s,color .15s}'
+        + 'button.pos-ck-step:hover{background:var(--po-hover);color:var(--po-brand-ink)}'
+        + 'button.pos-ck-step:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}'
+        + '.pos-ck-step-name{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+        + '.pos-ck-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;border-radius:999px;background:var(--po-line);color:var(--po-ink-2);font-size:11px;font-variant-numeric:tabular-nums;transition:background-color .15s,color .15s}'
         + '.pos-ck-num b{font-weight:700}'
         + '.pos-ck-num svg{display:none;width:13px;height:13px;stroke-width:3}'
-        + 'button.pos-ck-chip:hover .pos-ck-num{background:var(--po-line)}'
-        + 'button.pos-ck-chip.is-done .pos-ck-num{background:var(--po-ok-fill);color:#fff}'
-        + 'button.pos-ck-chip.is-done .pos-ck-num b{display:none}'
-        + 'button.pos-ck-chip.is-done .pos-ck-num svg{display:block}'
-        + 'button.pos-ck-chip.is-on{border-color:var(--po-brand);background:var(--po-brand-soft);color:var(--po-brand-ink)}'
-        + 'button.pos-ck-chip.is-on .pos-ck-num{background:var(--po-brand);color:#fff}'
+        + 'button.pos-ck-step.is-done{color:var(--po-ok)}'
+        + 'button.pos-ck-step.is-done .pos-ck-num{background:var(--po-ok-fill);color:#fff}'
+        + 'button.pos-ck-step.is-done .pos-ck-num b{display:none}'
+        + 'button.pos-ck-step.is-done .pos-ck-num svg{display:block}'
+        + 'button.pos-ck-step.is-on{background:var(--po-brand-soft);color:var(--po-brand-ink)}'
+        + 'button.pos-ck-step.is-on .pos-ck-num{background:var(--po-brand);color:#fff}'
 
-        + '.pos-ck-stage{grid-area:stage;display:flex;flex-direction:column;gap:12px;padding:16px}'
-        + '.pos-ck-stage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}'
-        + '.pos-ck-stage-text{display:flex;flex-direction:column;gap:1px;min-width:0}'
-        + '.pos-ck-eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--po-brand-ink)}'
-        + '.pos-ck-title{font-size:17px;font-weight:700;line-height:1.25;color:var(--po-ink);overflow-wrap:anywhere}'
-        + '.pos-ck-hint{font-size:12.5px;color:var(--po-muted)}'
+        + '.pos-ck-main{grid-area:main;display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow-y:auto;scrollbar-width:thin}'
+        + '.pos-ck-stage{grid-area:stage;display:flex;flex-direction:column;flex:1 1 auto;min-height:200px;gap:10px;padding:14px}'
+        + '.pos-ck-stage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}'
+        + '.pos-ck-stage-text{display:flex;align-items:flex-start;gap:9px;min-width:0}'
+        + '.pos-ck-stage-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;border-radius:9px;background:var(--po-grad);color:#fff}'
+        + '.pos-ck-stage-icon svg{width:16px;height:16px}'
+        + '.pos-ck-stage-main{display:flex;flex-direction:column;gap:1px;min-width:0}'
+        + '.pos-ck-title{font-size:16px;font-weight:700;line-height:1.3;color:var(--po-brand-ink);overflow-wrap:anywhere}'
+        + '.pos-ck-hint{font-size:12px;color:var(--po-muted)}'
         + '.pos-ck-nav{display:flex;gap:6px;flex-shrink:0}'
-        + 'button.pos-ck-navbtn{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:36px;margin:0;padding:0 12px;border:1px solid var(--po-line-hi);border-radius:10px;background:var(--po-surface);color:var(--po-ink-2);font-size:12.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s,opacity .15s}'
+        + 'button.pos-ck-navbtn{display:inline-flex;align-items:center;justify-content:center;gap:3px;height:32px;margin:0;padding:0 13px;border:1px solid var(--po-line-hi);border-radius:999px;background:var(--po-surface);color:var(--po-ink-2);font-size:12.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s,opacity .15s}'
         + 'button.pos-ck-navbtn.is-prev{padding-left:8px}'
-        + 'button.pos-ck-navbtn.is-next{padding-right:8px;border-color:var(--po-brand-line);background:var(--po-brand-soft);color:var(--po-brand-ink)}'
-        + 'button.pos-ck-navbtn:hover{border-color:var(--po-brand);color:var(--po-brand-ink)}'
+        + 'button.pos-ck-navbtn.is-next{padding-right:8px;border-color:var(--po-brand);color:var(--po-brand-ink)}'
+        + 'button.pos-ck-navbtn:hover{border-color:var(--po-brand);background:var(--po-brand-soft);color:var(--po-brand-ink)}'
         + 'button.pos-ck-navbtn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}'
         + 'button.pos-ck-navbtn:disabled{border-color:var(--po-line);background:var(--po-surface);color:var(--po-muted);opacity:.55;cursor:default}'
         + 'button.pos-ck-navbtn svg{width:15px;height:15px}'
 
         + 'input.pos-ck-in,textarea.pos-ck-in{display:block;width:100%;margin:0;border:1px solid var(--po-line-hi);border-radius:10px;background:var(--po-surface);color:var(--po-ink);font-size:13.5px !important;line-height:1.35;outline:none;box-shadow:none;transition:border-color .15s,box-shadow .15s}'
-        + 'input.pos-ck-in{height:40px !important;padding:0 12px}'
-        + 'textarea.pos-ck-in{min-height:70px;padding:9px 12px;resize:vertical}'
+        + 'input.pos-ck-in{height:38px !important;padding:0 12px}'
+        + 'textarea.pos-ck-in{min-height:64px;padding:8px 12px;resize:vertical}'
         + 'input.pos-ck-in::placeholder,textarea.pos-ck-in::placeholder{color:var(--po-muted);opacity:1}'
         + 'input.pos-ck-in:focus,textarea.pos-ck-in:focus{border-color:var(--po-brand);box-shadow:0 0 0 3px var(--po-ring)}'
         + '.pos-ck-field{display:flex;flex-direction:column;min-width:0}'
-        + '.pos-ck label.pos-ck-lbl{display:block;margin:0 0 5px !important;font-size:12px !important;font-weight:600;line-height:1.3;color:var(--po-ink-2)}'
-        + '.pos-ck-help{display:block;margin-top:4px;font-size:11.5px;line-height:1.3;color:var(--po-muted)}'
+        + '.pos-ck label.pos-ck-lbl{display:block;margin:0 0 4px !important;font-size:12px !important;font-weight:600;line-height:1.3;color:var(--po-ink-2)}'
+        + '.pos-ck-help{display:block;margin-top:3px;font-size:11.5px;line-height:1.3;color:var(--po-muted)}'
         + '.pos-ck-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}'
         + '.pos-ck-search{position:relative}'
         + '.pos-ck-search.is-off{display:none}'
         + '.pos-ck-search > svg{position:absolute;left:12px;top:50%;width:15px;height:15px;margin-top:-7.5px;color:var(--po-muted);pointer-events:none}'
         + '.pos-ck-search input.pos-ck-in{padding-left:36px}'
 
-        + '.pos-ck-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));grid-auto-rows:min-content;align-content:start;gap:8px;height:296px;margin:-3px;padding:3px;overflow-y:auto;scrollbar-width:thin}'
-        + 'button.pos-ck-opt,div.pos-ck-opt{display:flex;align-items:center;gap:10px;width:100%;min-width:0;min-height:58px;margin:0;padding:8px 12px;border:1px solid var(--po-line);border-radius:12px;background:var(--po-surface);color:var(--po-ink);font-size:13px;line-height:1.3;text-align:left;transition:background-color .15s,border-color .15s,box-shadow .15s}'
+        + '.pos-ck-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));grid-auto-rows:min-content;align-content:start;flex:1 1 0%;gap:8px;min-height:96px;margin:-4px;padding:4px;overflow-y:auto;scrollbar-width:thin}'
+        + 'button.pos-ck-opt,div.pos-ck-opt{display:flex;align-items:center;gap:8px;width:100%;min-width:0;min-height:44px;margin:0;padding:6px 8px 6px 12px;border:1px solid var(--po-line);border-radius:10px;background:var(--po-surface);color:var(--po-ink);font-size:13px;line-height:1.3;text-align:left;transition:background-color .15s,border-color .15s,box-shadow .15s,transform .15s}'
         + 'button.pos-ck-opt{cursor:pointer}'
         + 'button.pos-ck-opt:hover{border-color:var(--po-line-hi);background:var(--po-hover)}'
         + 'button.pos-ck-opt:focus-visible{outline:none;border-color:var(--po-brand);box-shadow:0 0 0 3px var(--po-ring)}'
-        + 'button.pos-ck-opt.is-on,div.pos-ck-opt.is-on{border-color:var(--po-brand);background:var(--po-brand-soft)}'
+        + 'button.pos-ck-opt.is-on{border-color:transparent;background:var(--po-grad);color:#fff;box-shadow:0 8px 18px -10px rgb(var(--brand-600,192 90 64) / .7);transform:scale(1.02)}'
+        + 'button.pos-ck-opt.is-on:focus-visible{box-shadow:0 0 0 3px var(--po-ring)}'
+        + 'div.pos-ck-opt.is-on{border-color:var(--po-brand);background:var(--po-brand-soft)}'
         + 'button.pos-ck-opt.is-off,div.pos-ck-opt.is-off{display:none}'
-        + '.pos-ck-dot{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex-shrink:0;border:1.5px solid var(--po-line-hi);border-radius:999px;background:var(--po-surface);color:#fff;transition:background-color .15s,border-color .15s}'
-        + '.pos-ck-dot svg{width:12px;height:12px;stroke-width:3;opacity:0}'
-        + 'button.pos-ck-opt.is-on .pos-ck-dot{border-color:var(--po-brand);background:var(--po-brand)}'
-        + 'button.pos-ck-opt.is-on .pos-ck-dot svg{opacity:1}'
         + '.pos-ck-opt-main{display:flex;flex-direction:column;flex:1 1 0%;gap:1px;min-width:0}'
-        + '.pos-ck-opt-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;color:var(--po-ink);overflow-wrap:anywhere}'
+        + '.pos-ck-opt-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:500;overflow-wrap:anywhere}'
         + '.pos-ck-opt-sub{font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--po-muted)}'
-        + '.pos-ck-opt-price{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;line-height:1.2}'
-        + '.pos-ck-opt-price b{font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--po-ink)}'
-        + '.pos-ck-opt-price small{font-size:10.5px;font-weight:500;color:var(--po-muted)}'
-        + 'button.pos-ck-add{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:34px;flex-shrink:0;margin:0;padding:0 12px 0 9px;border:1px solid var(--po-line-hi);border-radius:9px;background:var(--po-surface);color:var(--po-ink-2);font-size:12.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}'
-        + 'button.pos-ck-add:hover{border-color:var(--po-brand-line);background:var(--po-brand-soft);color:var(--po-brand-ink)}'
+        + '.pos-ck-pill{display:inline-flex;align-items:center;flex-shrink:0;height:22px;padding:0 9px;border-radius:999px;background:var(--po-hover);color:var(--po-ink-2);font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;transition:background-color .15s,color .15s}'
+        + 'button.pos-ck-opt.is-on .pos-ck-pill{background:rgb(255 255 255 / .22);color:#fff}'
+        + 'button.pos-ck-add{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:30px;flex-shrink:0;margin:0;padding:0 11px 0 8px;border:1px solid var(--po-brand-line);border-radius:999px;background:var(--po-surface);color:var(--po-brand-ink);font-size:12px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}'
+        + 'button.pos-ck-add:hover{border-color:var(--po-brand);background:var(--po-brand-soft)}'
         + 'button.pos-ck-add:focus-visible{outline:none;border-color:var(--po-brand);box-shadow:0 0 0 3px var(--po-ring)}'
         + 'button.pos-ck-add svg{width:14px;height:14px}'
-        + '.pos-ck-qty{display:none;align-items:stretch;height:34px;flex-shrink:0;border:1px solid var(--po-brand-line);border-radius:9px;background:var(--po-surface);overflow:hidden;transition:border-color .15s,box-shadow .15s}'
+        + '.pos-ck-qty{display:none;align-items:stretch;height:30px;flex-shrink:0;border:1px solid var(--po-brand-line);border-radius:999px;background:var(--po-surface);overflow:hidden;transition:border-color .15s,box-shadow .15s}'
         + '.pos-ck-qty:focus-within{border-color:var(--po-brand);box-shadow:0 0 0 3px var(--po-ring)}'
         + 'div.pos-ck-opt.is-on button.pos-ck-add{display:none}'
         + 'div.pos-ck-opt.is-on .pos-ck-qty{display:inline-flex}'
-        + 'button.pos-ck-qtybtn{display:inline-flex;align-items:center;justify-content:center;width:32px;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:var(--po-brand-ink);cursor:pointer;transition:background-color .15s}'
+        + 'button.pos-ck-qtybtn{display:inline-flex;align-items:center;justify-content:center;width:30px;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:var(--po-brand-ink);cursor:pointer;transition:background-color .15s}'
         + 'button.pos-ck-qtybtn:hover,button.pos-ck-qtybtn:focus-visible{outline:none;background:var(--po-brand-soft)}'
         + 'button.pos-ck-qtybtn svg{width:14px;height:14px}'
-        + '.pos-ck .pos-ck-qty input.pos-ck-qtyin{width:40px;height:auto !important;margin:0;padding:0;border:0 !important;border-radius:0 !important;background:transparent !important;color:var(--po-ink) !important;font-size:13.5px !important;font-weight:700;line-height:1;text-align:center;font-variant-numeric:tabular-nums;outline:none;box-shadow:none !important}'
+        + '.pos-ck .pos-ck-qty input.pos-ck-qtyin{width:34px;height:auto !important;margin:0;padding:0;border:0 !important;border-radius:0 !important;background:transparent !important;color:var(--po-ink) !important;font-size:13px !important;font-weight:700;line-height:1;text-align:center;font-variant-numeric:tabular-nums;outline:none;box-shadow:none !important}'
 
-        + '.pos-ck-none{display:none;grid-column:1 / -1;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:36px 16px;text-align:center;color:var(--po-muted);font-size:12.5px}'
+        + '.pos-ck-none{display:none;grid-column:1 / -1;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:30px 16px;text-align:center;color:var(--po-muted);font-size:12.5px}'
         + '.pos-ck-none.is-on{display:flex}'
         + '.pos-ck-none svg{width:26px;height:26px;margin-bottom:5px;opacity:.7}'
         + '.pos-ck-none b{font-size:13.5px;font-weight:600;color:var(--po-ink-2)}'
 
-        + '.pos-ck-side{grid-area:side;position:sticky;top:12px;display:flex;flex-direction:column;gap:12px;padding:16px}'
-        + '.pos-ck-side-head{display:flex;align-items:center;gap:8px}'
-        + '.pos-ck-side-head svg{width:17px;height:17px;color:var(--po-brand)}'
-        + '.pos-ck-sum{display:flex;flex-direction:column;border:1px solid var(--po-line);border-radius:12px;overflow:hidden}'
-        + 'button.pos-ck-sumrow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;width:100%;margin:0;padding:8px 11px;border:0;border-top:1px solid var(--po-line);border-radius:0;background:var(--po-surface);color:var(--po-ink);font-size:12.5px;line-height:1.35;text-align:left;cursor:pointer;transition:background-color .15s}'
-        + 'button.pos-ck-sumrow:first-child{border-top:0}'
+        + '.pos-ck-side{grid-area:side;display:flex;flex-direction:column;gap:10px;min-height:0;padding:14px;overflow-y:auto;scrollbar-width:thin}'
+        + '.pos-ck-side > *{flex-shrink:0}'
+        + '.pos-ck-side-head{display:flex;align-items:center;gap:10px;padding-bottom:2px}'
+        + '.pos-ck-cake{display:inline-block;flex-shrink:0;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif;font-size:32px;line-height:1;animation:pos-ck-bounce 1s infinite}'
+        + '.pos-ck-side-main{display:flex;flex-direction:column;gap:1px;min-width:0}'
+        + '.pos-ck-side-title{font-size:14.5px;font-weight:700;line-height:1.25;color:var(--po-brand-ink)}'
+        + '.pos-ck-side-sub{font-size:11.5px;line-height:1.3;color:var(--po-muted)}'
+        + '.pos-ck-sum{display:flex;flex-direction:column}'
+        + 'button.pos-ck-sumrow{display:grid;grid-template-columns:78px minmax(0,1fr);align-items:baseline;gap:8px;width:100%;margin:0;padding:6px 6px 6px 8px;border:0;border-top:1px solid var(--po-line);border-radius:0;background:transparent;color:var(--po-ink);font-size:12.5px;line-height:1.35;text-align:left;cursor:pointer;transition:background-color .15s,box-shadow .15s}'
         + 'button.pos-ck-sumrow:hover{background:var(--po-hover)}'
-        + 'button.pos-ck-sumrow.is-on{box-shadow:inset 3px 0 0 var(--po-brand)}'
+        + 'button.pos-ck-sumrow.is-on{box-shadow:inset 2px 0 0 var(--po-brand)}'
         + 'button.pos-ck-sumrow:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--po-brand)}'
-        + '.pos-ck-sum-main{display:flex;flex-direction:column;flex:1 1 0%;gap:1px;min-width:0}'
-        + '.pos-ck-sum-group{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--po-muted)}'
-        + '.pos-ck-sum-value{font-weight:600;color:var(--po-ink);overflow-wrap:anywhere}'
-        + '.pos-ck-sum-value.is-none{font-weight:500;color:var(--po-muted)}'
-        + '.pos-ck-sum-note{font-size:11px;font-variant-numeric:tabular-nums;color:var(--po-muted)}'
-        + '.pos-ck-sum-amount{flex-shrink:0;padding-top:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--po-ink);white-space:nowrap}'
-        + '.pos-ck-warn{display:none;align-items:flex-start;gap:7px;padding:8px 10px;border:1px solid var(--po-warn-line);border-radius:10px;background:var(--po-warn-soft);color:var(--po-warn);font-size:12px;font-weight:500;line-height:1.35}'
+        + '.pos-ck-sum-group{font-weight:600;color:var(--po-brand-ink);overflow-wrap:anywhere}'
+        + '.pos-ck-sum-body{display:flex;flex-direction:column;gap:2px;min-width:0}'
+        + '.pos-ck-sum-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px}'
+        + '.pos-ck-sum-value{min-width:0;color:var(--po-ink);overflow-wrap:anywhere}'
+        + 'button.pos-ck-sumrow.is-off{display:none}'
+        + '.pos-ck-sum-empty{display:block;padding:10px 8px;border-top:1px solid var(--po-line);font-size:12px;color:var(--po-muted)}'
+        + '.pos-ck-sum-empty.is-off{display:none}'
+        + '.pos-ck-sum-value b{margin-right:3px;font-weight:700;color:var(--po-brand-ink)}'
+        + '.pos-ck-sum-amount{flex-shrink:0;font-weight:700;font-variant-numeric:tabular-nums;color:var(--po-brand-ink);white-space:nowrap}'
+        + '.pos-ck-warn{display:none;align-items:flex-start;gap:7px;padding:7px 10px;border:1px solid var(--po-warn-line);border-radius:10px;background:var(--po-warn-soft);color:var(--po-warn);font-size:12px;font-weight:500;line-height:1.35}'
         + '.pos-ck-warn.is-on{display:flex}'
         + '.pos-ck-warn svg{width:14px;height:14px;margin-top:1px}'
-        + '.pos-ck-tot{display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px dashed var(--po-line-hi)}'
-        + '.pos-ck-tot-line{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--po-muted)}'
-        + '.pos-ck-tot-line b{font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--po-ink)}'
+        + '.pos-ck-tot{position:sticky;bottom:-14px;z-index:1;display:flex;flex-direction:column;gap:6px;margin:auto -14px -14px;padding:10px 14px 14px;border-top:1px solid var(--po-brand-line);background:var(--po-surface)}'
+        + '.pos-ck-tot-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;color:var(--po-muted)}'
+        + '.pos-ck-tot-line.is-off{display:none}'
+        + '.pos-ck-tot-line b{font-weight:600;font-variant-numeric:tabular-nums;color:var(--po-ink-2);white-space:nowrap}'
+        + '.pos-ck-tot-line.is-main{align-items:center;font-size:13.5px;font-weight:700;color:var(--po-brand-ink)}'
+        + '.pos-ck-tot-line.is-main > span{display:inline-flex;align-items:center;gap:5px}'
+        + '.pos-ck-tot-line.is-main svg{width:15px;height:15px;color:var(--po-brand)}'
+        + '.pos-ck-tot-line.is-main b{font-size:15px;font-weight:800;color:var(--po-brand-ink)}'
+        + '.pos-ck-real{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px}'
+        + '.pos-ck .pos-ck-real label.pos-ck-lbl{display:flex;flex-direction:column;margin:0 !important;font-size:12.5px !important}'
+        + '.pos-ck-real label small{font-size:11px;font-weight:500;color:var(--po-muted)}'
         + '.pos-ck-money{position:relative}'
-        + '.pos-ck-money > span{position:absolute;left:12px;top:0;display:flex;align-items:center;height:40px;font-size:13.5px;font-weight:600;color:var(--po-muted);pointer-events:none}'
+        + '.pos-ck-money > span{position:absolute;left:12px;top:0;display:flex;align-items:center;height:38px;font-size:13.5px;font-weight:600;color:var(--po-muted);pointer-events:none}'
         + '.pos-ck-money input.pos-ck-in{padding-left:26px}'
-        + '.pos-ck-total{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--po-sunken)}'
+        + '.pos-ck-total{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 12px;border-radius:12px;background:var(--po-sunken)}'
         + '.pos-ck-total-text{display:flex;flex-direction:column;font-size:12.5px;font-weight:600;line-height:1.3;color:var(--po-ink-2)}'
         + '.pos-ck-total-text small{font-size:11px;font-weight:500;color:var(--po-muted)}'
-        + '.pos-ck-total > b{font-size:20px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--po-ink)}'
+        + '.pos-ck-total > b{font-size:18px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--po-ink)}'
 
-        + '.pos-ck-more{grid-area:more;display:flex;flex-direction:column;gap:12px;padding:16px}'
-        + '.pos-ck-more-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}'
-        + '.pos-ck-more-col{display:flex;flex-direction:column;gap:10px;min-width:0}'
-        + '.pos-ck-shots-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:5px}'
+        + '.pos-ck-more{grid-area:more;display:flex;flex-direction:column;flex-shrink:0;gap:10px;padding:14px}'
+        + '.pos-ck-more-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 14px}'
+        + '.pos-ck-photos{display:flex;flex-direction:column;min-width:0}'
+        + '.pos-ck-shots-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px}'
         + '.pos-ck-shots-title{font-size:12px;font-weight:600;line-height:1.3;color:var(--po-ink-2)}'
         + '.pos-ck-count{font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--po-muted)}'
-        + '.pos-ck-shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px}'
+        + '.pos-ck-shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}'
         + '.pos-ck-shot{position:relative;aspect-ratio:1 / 1;border:1px solid var(--po-line);border-radius:10px;background:var(--po-sunken);overflow:hidden}'
         + 'button.pos-ck-shot-view{display:flex;align-items:center;justify-content:center;width:100%;height:100%;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:var(--po-muted);cursor:zoom-in}'
         + 'button.pos-ck-shot-view:disabled{cursor:default}'
@@ -158,35 +178,40 @@ function posCakeCSS() {
         + '.pos-ck label.pos-ck-drop:focus-within{border-color:var(--po-brand);box-shadow:0 0 0 3px var(--po-ring)}'
         + '.pos-ck label.pos-ck-drop.is-off{display:none}'
         + '.pos-ck label.pos-ck-drop.is-busy{pointer-events:none;opacity:.75}'
-        + '.pos-ck-shots.is-empty label.pos-ck-drop{grid-column:1 / -1;flex-direction:row;gap:8px;aspect-ratio:auto;min-height:72px;padding:12px;font-size:12px !important}'
-        + '.pos-ck-drop-icon,.pos-ck-drop-spin{display:inline-flex}'
-        + '.pos-ck-drop-icon svg,.pos-ck-drop-spin svg{width:20px;height:20px}'
-        + '.pos-ck-drop-spin{display:none;animation:pos-ck-spin .8s linear infinite}'
+        + '.pos-ck-shots.is-empty label.pos-ck-drop{grid-column:1 / -1;flex-direction:row;gap:10px;aspect-ratio:auto;min-height:64px;padding:10px 12px;font-size:12px !important}'
+        + '.pos-ck-drop-icon,.pos-ck-drop-spin{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;border-radius:999px;background:var(--po-brand);color:#fff}'
+        + '.pos-ck-drop-icon svg,.pos-ck-drop-spin svg{width:15px;height:15px}'
+        + '.pos-ck-drop-spin{display:none}'
+        + '.pos-ck-drop-spin svg{animation:pos-ck-spin .8s linear infinite}'
         + 'label.pos-ck-drop.is-busy .pos-ck-drop-icon{display:none}'
         + 'label.pos-ck-drop.is-busy .pos-ck-drop-spin{display:inline-flex}'
         + '.pos-ck label.pos-ck-drop input{position:absolute;left:0;top:0;width:1px;height:1px !important;padding:0;border:0;opacity:0;pointer-events:none}'
         + '@keyframes pos-ck-spin{to{transform:rotate(360deg)}}'
+        + '@keyframes pos-ck-bounce{0%,100%{transform:translateY(-18%);animation-timing-function:cubic-bezier(.8,0,1,1)}50%{transform:none;animation-timing-function:cubic-bezier(0,0,.2,1)}}'
+        + '@media (prefers-reduced-motion:reduce){.pos-ck-cake{animation:none}}'
 
         + '.pos-ck-zoom{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(17,24,39,.88);cursor:zoom-out;outline:none}'
         + '.pos-ck-zoom img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5)}'
         + '.pos-ck-zoom-x{position:absolute;top:16px;right:16px;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff}'
         + '.pos-ck-zoom-x svg{width:18px;height:18px}'
 
-        + '@media (max-width:1023px){'
-        + '.pos-ck{grid-template-columns:minmax(0,1fr);grid-template-areas:"prog" "stage" "side" "more";grid-template-rows:none}'
-        + '.pos-ck.is-blank{grid-template-areas:"stage" "side" "more";grid-template-rows:none}'
-        + '.pos-ck-side{position:static}'
-        + '.pos-ck-list{height:auto;max-height:340px}'
-        + '}'
         + '@media (max-width:767px){'
+        + '.pos-ck{flex:none;grid-template-columns:minmax(0,1fr);grid-template-areas:"prog" "stage" "side" "more";grid-template-rows:none}'
+        + '.pos-ck.is-blank{grid-template-areas:"stage" "side" "more";grid-template-rows:none}'
+        + '.pos-ck-main{display:contents}'
+        + '.pos-ck-stage{min-height:0}'
+        + '.pos-ck-list{flex:none;max-height:248px}'
+        + '.pos-ck-side{overflow:visible}'
+        + '.pos-ck-tot{position:static;margin:0;padding:8px 0 0;background:none}'
         + '.pos-ck-more-grid{grid-template-columns:minmax(0,1fr)}'
         + '}'
         + '@media (max-width:639px){'
-        + '.pos-ck{gap:12px;padding:14px 16px 8px}'
-        + '.pos-ck-prog,.pos-ck-stage,.pos-ck-side,.pos-ck-more{padding:14px}'
+        + '.pos-ck{gap:10px;padding:12px 14px 6px}'
+        + '.pos-ck-prog,.pos-ck-stage,.pos-ck-side,.pos-ck-more{padding:12px}'
         + '.pos-ck-stage-head{flex-direction:column;align-items:stretch}'
         + '.pos-ck-nav button.pos-ck-navbtn{flex:1 1 0%}'
-        + '.pos-ck-list{grid-template-columns:minmax(0,1fr)}'
+        + 'button.pos-ck-step{flex-basis:58px;min-width:58px;padding:6px 3px 5px;font-size:11px}'
+        + '.pos-ck-list{grid-template-columns:minmax(0,1fr);max-height:320px}'
         + '}';
 
     const style = document.createElement('style');
@@ -265,10 +290,10 @@ Templates.prototype.posCake = function (options) {
     const badge     = $('<span>', { class: 'pos-ck-badge' });
     const badgeText = $('<span>');
     const fill      = $('<span>');
-    const chips     = $('<div>', { class: 'pos-ck-chips' });
+    const steps     = $('<div>', { class: 'pos-ck-steps' });
 
+    const main    = $('<div>', { class: 'pos-ck-main' });
     const stage   = $('<div>', { class: 'pos-ck-card pos-ck-stage' });
-    const eyebrow = $('<span>', { class: 'pos-ck-eyebrow' });
     const heading = $('<span>', { class: 'pos-ck-title' });
     const hint    = $('<span>', { class: 'pos-ck-hint' });
     const prev    = $('<button>', { type: 'button', class: 'pos-ck-navbtn is-prev' }).append(icon('chevron-left'), $('<span>', { text: 'Anterior' }));
@@ -279,20 +304,26 @@ Templates.prototype.posCake = function (options) {
     const none    = $('<div>', { class: 'pos-ck-none' }).append(icon('search'), $('<b>', { text: 'Sin coincidencias' }), $('<span>', { text: 'Prueba con otra palabra.' }));
 
     const side       = $('<div>', { class: 'pos-ck-card pos-ck-side' });
-    const inName     = $('<input>', { id: `${opts.id}Name`, class: 'pos-ck-in', type: 'text', maxlength: 150, autocomplete: 'off' }).val(value.name);
     const inPortions = $('<input>', { id: `${opts.id}Portions`, class: 'pos-ck-in', type: 'number', inputmode: 'numeric', min: 1, max: 999, step: 1, placeholder: 'Ej. 20' }).val(value.portions);
     const inQuantity = $('<input>', { id: `${opts.id}Quantity`, class: 'pos-ck-in', type: 'number', inputmode: 'numeric', min: 1, max: 9999, step: 1 }).val(value.quantity);
     const inPrice    = $('<input>', { id: `${opts.id}Price`, class: 'pos-ck-in', type: 'number', inputmode: 'decimal', min: 0, step: '0.01' }).val(value.price);
     const sum        = $('<div>', { class: 'pos-ck-sum' });
+    const sumEmpty   = $('<span>', { class: 'pos-ck-sum-empty', text: 'Lo que elijas aparecerá aquí.' });
     const warn       = $('<div>', { class: 'pos-ck-warn', role: 'status' }).append(icon('triangle-alert'), $('<span>', { text: 'Escribe las porciones para calcular el precio.' }));
+    const baseLine   = $('<div>', { class: 'pos-ck-tot-line' });
+    const baseLabel  = $('<span>');
+    const baseValue  = $('<b>');
+    const extraLine  = $('<div>', { class: 'pos-ck-tot-line' });
+    const extraValue = $('<b>');
     const suggested  = $('<b>');
     const total      = $('<b>');
     const totalNote  = $('<small>');
 
     const more         = $('<div>', { class: 'pos-ck-card pos-ck-more' });
+    const inName       = $('<input>', { id: `${opts.id}Name`, class: 'pos-ck-in', type: 'text', maxlength: 150, autocomplete: 'off', placeholder: 'Ej. Pastel de cumpleaños para Ana' }).val(value.name);
     const inDedication = $('<input>', { id: `${opts.id}Dedication`, class: 'pos-ck-in', type: 'text', maxlength: 255, autocomplete: 'off', placeholder: 'Ej. Feliz cumpleaños, Ana' }).val(value.dedication);
-    const inDetails    = $('<textarea>', { id: `${opts.id}Details`, class: 'pos-ck-in', rows: 3, maxlength: 255, placeholder: 'Colores, forma, alergias…' }).val(value.details);
-    const photos       = $('<div>', { class: 'pos-ck-more-col' });
+    const inDetails    = $('<textarea>', { id: `${opts.id}Details`, class: 'pos-ck-in', rows: 2, maxlength: 255, placeholder: 'Colores, forma, alergias…' }).val(value.details);
+    const photos       = $('<div>', { class: 'pos-ck-photos' });
     const shots        = $('<div>', { id: `${opts.id}Shots`, class: 'pos-ck-shots' });
     const counter      = $('<span>', { class: 'pos-ck-count' });
     const file         = $('<input>', { id: `${opts.id}File`, type: 'file', accept: 'image/*', multiple: true });
@@ -334,9 +365,8 @@ Templates.prototype.posCake = function (options) {
         const el = $('<button>', { type: 'button', class: 'pos-ck-opt', 'aria-pressed': 'false' });
 
         el.append(
-            $('<span>', { class: 'pos-ck-dot' }).append(icon('check')),
             $('<span>', { class: 'pos-ck-opt-main' }).append($('<span>', { class: 'pos-ck-opt-name', text: o.name })),
-            $('<span>', { class: 'pos-ck-opt-price' }).append($('<b>', { text: cash(o.price) }), $('<small>', { text: 'por porción' }))
+            $('<span>', { class: 'pos-ck-pill', text: cash(o.price) })
         );
 
         el.on('click', () => {
@@ -428,87 +458,96 @@ Templates.prototype.posCake = function (options) {
         };
     };
 
-    const chipEls = groups.map((g, i) => {
-        const el = $('<button>', { type: 'button', class: 'pos-ck-chip' });
+    const stepEls = groups.map((g, i) => {
+        const el = $('<button>', { type: 'button', class: 'pos-ck-step', title: g.name });
 
-        el.append($('<span>', { class: 'pos-ck-num' }).append($('<b>', { text: String(i + 1) }), icon('check')), $('<span>', { text: g.name }));
+        el.append(
+            $('<span>', { class: 'pos-ck-num' }).append($('<b>', { text: String(i + 1) }), icon('check')),
+            $('<span>', { class: 'pos-ck-step-name', text: g.name })
+        );
+
         el.on('click', () => go(i));
 
-        chips.append(el);
+        steps.append(el);
 
         return el;
     });
 
     const sumEls = groups.map((g, i) => {
-        const el     = $('<button>', { type: 'button', class: 'pos-ck-sumrow' });
-        const main   = $('<span>', { class: 'pos-ck-sum-main' });
-        const amount = $('<span>', { class: 'pos-ck-sum-amount' });
+        const el   = $('<button>', { type: 'button', class: 'pos-ck-sumrow' });
+        const body = $('<span>', { class: 'pos-ck-sum-body' });
 
-        el.append(main, amount);
+        el.append($('<span>', { class: 'pos-ck-sum-group', text: `${g.name}:` }), body);
         el.on('click', () => go(i, true));
 
         sum.append(el);
 
-        return { el: el, main: main, amount: amount };
+        return { el: el, body: body };
     });
+
+    sum.append(sumEmpty);
 
     const sync = () => {
         const portions = whole(inPortions.val(), 999);
         const quantity = whole(inQuantity.val(), 9999);
         const done     = groups.filter((g) => picked(g).length).length;
         const ready    = groups.length > 0 && done === groups.length;
-        let price      = 0;
-        let pending    = false;
+        let base       = 0;
+        let extras     = 0;
+        let perPortion = false;
 
         groups.forEach((g, i) => {
             const chosen = picked(g);
             const row    = sumEls[i];
-            let amount   = 0;
 
-            row.main.empty().append($('<span>', { class: 'pos-ck-sum-group', text: g.name }));
-
-            if (!chosen.length) row.main.append($('<span>', { class: 'pos-ck-sum-value is-none', text: 'Sin elegir' }));
+            row.body.empty();
+            row.el.toggleClass('is-off', !chosen.length);
 
             chosen.forEach((o) => {
-                const units = g.multiple ? state.picks[o.id] : portions;
-                let note    = `${cash(o.price)} c/u`;
+                const units = g.multiple ? state.picks[o.id] : 1;
+                const label = $('<span>', { class: 'pos-ck-sum-value' });
 
-                if (!g.multiple) note = portions ? `${cash(o.price)} × ${portions} ${portions === 1 ? 'porción' : 'porciones'}` : `${cash(o.price)} por porción`;
+                if (g.multiple) {
+                    extras += o.price * units;
+                    label.append($('<b>', { text: `x${units}` }), document.createTextNode(o.name));
+                } else {
+                    base += o.price;
+                    perPortion = true;
+                    label.text(o.name);
+                }
 
-                if (!g.multiple && !portions) pending = true;
-
-                amount += o.price * units;
-
-                row.main.append(
-                    $('<span>', { class: 'pos-ck-sum-value', text: g.multiple ? `${units} × ${o.name}` : o.name }),
-                    $('<span>', { class: 'pos-ck-sum-note', text: note })
-                );
+                row.body.append($('<span>', { class: 'pos-ck-sum-line' }).append(
+                    label,
+                    $('<span>', { class: 'pos-ck-sum-amount', text: cash(o.price * units) })
+                ));
             });
 
-            row.amount.text(!chosen.length ? '' : (g.multiple || portions ? cash(amount) : '—'));
             row.el.toggleClass('is-on', i === state.step);
 
-            chipEls[i].toggleClass('is-done', chosen.length > 0).toggleClass('is-on', i === state.step);
+            stepEls[i].toggleClass('is-done', chosen.length > 0).toggleClass('is-on', i === state.step);
 
-            if (i === state.step) chipEls[i].attr('aria-current', 'step');
-            else chipEls[i].removeAttr('aria-current');
-
-            price += amount;
+            if (i === state.step) stepEls[i].attr('aria-current', 'step');
+            else stepEls[i].removeAttr('aria-current');
         });
 
-        price = Math.round(price * 100) / 100;
+        const price = Math.round((base * portions + extras) * 100) / 100;
+        const raw   = typed(inPrice);
+        const unit  = raw === '' ? price : (/^\d+(\.\d{1,2})?$/.test(raw) && Number(raw) <= 999999 ? Number(raw) : 0);
 
-        const raw  = typed(inPrice);
-        const unit = raw === '' ? price : (/^\d+(\.\d{1,2})?$/.test(raw) && Number(raw) <= 999999 ? Number(raw) : 0);
-
+        sumEmpty.toggleClass('is-off', done > 0);
         prog.toggleClass('is-done', ready);
-        progText.text(ready ? 'Tu pastel está listo' : `${done} de ${groups.length} ${groups.length === 1 ? 'paso completado' : 'pasos completados'}`);
+        progText.text(ready ? '¡Tu pastel está listo!' : `${done} de ${groups.length} ${groups.length === 1 ? 'paso completado' : 'pasos completados'}`);
         badgeText.text(`${done} / ${groups.length}`);
         fill.css('width', `${groups.length ? (done / groups.length) * 100 : 0}%`);
 
         rows.forEach((row) => row.sync());
 
-        warn.toggleClass('is-on', pending);
+        warn.toggleClass('is-on', perPortion && !portions);
+        baseLine.toggleClass('is-off', !perPortion);
+        baseLabel.text(portions ? `Por porción ${cash(base)} × ${portions}` : `Por porción ${cash(base)}`);
+        baseValue.text(portions ? cash(base * portions) : '—');
+        extraLine.toggleClass('is-off', extras <= 0);
+        extraValue.text(cash(extras));
         suggested.text(cash(price));
         inPrice.attr('placeholder', price.toFixed(2));
         total.text(cash(unit * quantity));
@@ -517,7 +556,7 @@ Templates.prototype.posCake = function (options) {
 
     const renderStep = () => {
         const g    = groups[state.step];
-        const chip = chipEls[state.step][0];
+        const step = stepEls[state.step][0];
 
         rows = g.options.map((o) => (g.multiple ? multi(o) : single(g, o)));
 
@@ -525,9 +564,8 @@ Templates.prototype.posCake = function (options) {
         rows.forEach((row) => list.append(row.el));
         list.append(none);
 
-        eyebrow.text(`Paso ${state.step + 1} de ${groups.length}`);
-        heading.text(g.name);
-        hint.text(g.multiple ? 'Agrega las que lleve. Se cobran por pieza.' : 'Elige una opción. Se cobra por porción.');
+        heading.text(`Paso ${state.step + 1}: ${g.name}`);
+        hint.text(g.multiple ? 'Agrega las que lleve; se cobran por pieza.' : 'Elige una opción; se cobra por porción.');
         query.val('');
         search.toggleClass('is-off', g.options.length <= 8);
         prev.prop('disabled', state.step === 0);
@@ -538,7 +576,7 @@ Templates.prototype.posCake = function (options) {
         paint();
 
         list.scrollTop(0);
-        chips.scrollLeft(chip.offsetLeft - (chips[0].clientWidth - chip.offsetWidth) / 2);
+        steps.scrollLeft(step.offsetLeft - (steps[0].clientWidth - step.offsetWidth) / 2);
     };
 
     const go = (i, reveal) => {
@@ -645,11 +683,12 @@ Templates.prototype.posCake = function (options) {
 
     prog.append(
         $('<div>', { class: 'pos-ck-prog-head' }).append(
-            $('<div>').append($('<span>', { class: 'pos-ck-card-title', text: 'Progreso del pastel' }), progText),
+            $('<span>', { class: 'pos-ck-prog-icon' }).append(icon('chef-hat')),
+            $('<div>', { class: 'pos-ck-prog-main' }).append($('<span>', { class: 'pos-ck-prog-title', text: 'Progreso de tu pastel' }), progText),
             badge.append(icon('check'), badgeText)
         ),
         $('<div>', { class: 'pos-ck-bar' }).append(fill),
-        chips
+        steps
     );
 
     search.append(icon('search'), query);
@@ -657,7 +696,10 @@ Templates.prototype.posCake = function (options) {
     if (groups.length) {
         stage.append(
             $('<div>', { class: 'pos-ck-stage-head' }).append(
-                $('<div>', { class: 'pos-ck-stage-text' }).append(eyebrow, heading, hint),
+                $('<div>', { class: 'pos-ck-stage-text' }).append(
+                    $('<span>', { class: 'pos-ck-stage-icon' }).append(icon('layers')),
+                    $('<div>', { class: 'pos-ck-stage-main' }).append(heading, hint)
+                ),
                 $('<div>', { class: 'pos-ck-nav' }).append(prev, next)
             ),
             search,
@@ -672,16 +714,29 @@ Templates.prototype.posCake = function (options) {
     }
 
     side.append(
-        $('<div>', { class: 'pos-ck-side-head' }).append(icon('cake'), $('<span>', { class: 'pos-ck-card-title', text: 'Vista previa' })),
-        field('Nombre del pastel', inName),
+        $('<div>', { class: 'pos-ck-side-head' }).append(
+            $('<span>', { class: 'pos-ck-cake', 'aria-hidden': 'true', text: '🎂' }),
+            $('<div>', { class: 'pos-ck-side-main' }).append(
+                $('<span>', { class: 'pos-ck-side-title', text: 'Vista previa de tu pastel' }),
+                $('<span>', { class: 'pos-ck-side-sub', text: 'El precio sugerido se basa en las porciones.' })
+            )
+        ),
         $('<div>', { class: 'pos-ck-pair' }).append(field('Porciones', inPortions), field('Pasteles', inQuantity))
     );
 
     if (groups.length) side.append(sum, warn);
 
+    baseLine.append(baseLabel, baseValue);
+    extraLine.append($('<span>', { text: 'Extras' }), extraValue);
+
     side.append($('<div>', { class: 'pos-ck-tot' }).append(
-        $('<div>', { class: 'pos-ck-tot-line' }).append($('<span>', { text: 'Precio sugerido' }), suggested),
-        field('Precio por pastel', inPrice, 'Vacío = se usa el sugerido.'),
+        baseLine,
+        extraLine,
+        $('<div>', { class: 'pos-ck-tot-line is-main' }).append($('<span>').append($('<span>', { text: 'Precio sugerido' }), icon('sparkles')), suggested),
+        $('<div>', { class: 'pos-ck-real' }).append(
+            $('<label>', { class: 'pos-ck-lbl', for: inPrice.attr('id') }).append($('<span>', { text: 'Precio real' }), $('<small>', { text: 'Vacío = sugerido' })),
+            inPrice
+        ),
         $('<div>', { class: 'pos-ck-total' }).append(
             $('<span>', { class: 'pos-ck-total-text' }).append($('<span>', { text: 'Importe' }), totalNote),
             total
@@ -691,7 +746,7 @@ Templates.prototype.posCake = function (options) {
     inPrice.wrap($('<div>', { class: 'pos-ck-money' })).before($('<span>', { text: '$' }));
 
     drop.append(
-        $('<span>', { class: 'pos-ck-drop-icon' }).append(icon('image-plus')),
+        $('<span>', { class: 'pos-ck-drop-icon' }).append(icon('upload')),
         $('<span>', { class: 'pos-ck-drop-spin' }).append(icon('loader-circle')),
         dropText,
         file
@@ -707,7 +762,9 @@ Templates.prototype.posCake = function (options) {
     more.append(
         $('<span>', { class: 'pos-ck-card-title', text: 'Detalles del pastel' }),
         $('<div>', { class: 'pos-ck-more-grid' }).append(
-            $('<div>', { class: 'pos-ck-more-col' }).append(field('Dedicatoria', inDedication), field('Indicaciones', inDetails)),
+            field('Nombre del pastel', inName),
+            field('Dedicatoria', inDedication),
+            field('Observaciones', inDetails),
             photos
         )
     );
@@ -715,7 +772,8 @@ Templates.prototype.posCake = function (options) {
     if (groups.length) root.append(prog);
     else root.addClass('is-blank');
 
-    root.append(stage, side, more);
+    main.append(stage, more);
+    root.append(main, side);
 
     $(`#${opts.parent}`).html(root);
 
