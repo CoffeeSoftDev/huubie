@@ -69,6 +69,8 @@ class Bundles extends Templates {
             attr: {
                 id: 'tbBundles',
                 theme: 'light',
+                f_size: 12,
+                design: 'flowbite',
                 striped: true,
                 right: [3, 4],
                 center: [5]
@@ -93,20 +95,35 @@ class Bundles extends Templates {
         return { categories: response.categories || [], components: response.components || [] };
     }
 
+    // Mismas secciones que el producto (productos.js), más «Contenido» con la rejilla.
     jsonForm(categories, row = {}) {
-        const data = { name: '', category_id: '', price: '', description: '', sell_pos: 1, in_catalog: 0, ...row };
+        const data  = { name: '', category_id: '', price: '', description: '', sell_pos: 1, in_catalog: 0, ...row };
+        const third = 'w-full sm:w-1/3';
 
-        // photoField se acomoda a la izquierda de nombre, categoría y precio (photoBeside).
+        // photoField se acomoda a la izquierda de nombre y categoría (photoBeside).
         return [
+            this.formSection('secBundleIdentity', 'Identificación'),
             { id: 'name', lbl: 'Nombre', tipo: 'text', icon: 'package', required: true, maxlength: 255, class: 'w-full', value: data.name },
-            { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', class: 'w-full sm:w-1/2', data: categories, value: data.category_id },
-            { id: 'price', lbl: 'Precio del paquete', tipo: 'number', icon: 'dollar-sign', required: true, min: 0, step: '0.01', ph: '0.00', class: 'w-full sm:w-1/2', value: data.price },
+            { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', class: 'w-full', data: categories, value: data.category_id },
             { id: 'photoField', tipo: 'html', class: 'w-full', html: photoFieldHtml() },
-            { id: 'bundleEditor', tipo: 'html', class: 'w-full', html: this.editorHtml() },
             { id: 'description', lbl: 'Descripción', tipo: 'textarea', rows: 2, maxlength: 1000, class: 'w-full', value: data.description },
-            { id: 'sell_pos', lbl: 'Se vende en el POS', tipo: 'switch', value: data.sell_pos },
-            { id: 'in_catalog', lbl: 'Sale en el catálogo en línea', tipo: 'switch', value: data.in_catalog }
+
+            this.formSection('secBundlePrice', 'Precio'),
+            { id: 'price', lbl: 'Precio del paquete', tipo: 'number', icon: 'dollar-sign', required: true, min: 0, step: '0.01', ph: '0.00', class: third, value: data.price },
+
+            this.formSection('secBundleContent', 'Contenido'),
+            { id: 'bundleEditor', tipo: 'html', class: 'w-full', html: this.editorHtml() },
+
+            // cp-switch: tarjetas del mismo alto, como en el producto.
+            this.formSection('secBundleChannels', 'Dónde se vende'),
+            { id: 'sell_pos', lbl: 'Se vende en el POS', tipo: 'switch', class: `${third} cp-switch`, value: data.sell_pos },
+            { id: 'in_catalog', lbl: 'Sale en el catálogo en línea', tipo: 'switch', class: `${third} cp-switch`, value: data.in_catalog }
         ];
+    }
+
+    // Título de sección: un bloque 'html' de csModal, no viaja en los values.
+    formSection(id, text) {
+        return { id, tipo: 'html', class: 'w-full cp-seccion', html: `<p>${esc(text)}</p>` };
     }
 
     // -- Contenido: rejilla al estilo del POS de Soft --
@@ -128,7 +145,7 @@ class Bundles extends Templates {
 
         return `
             <label for="bundlePick" class="block text-xs font-semibold text-gray-500 mb-1.5">
-                Contenido del paquete <span class="text-red-500">*</span>
+                Productos que lleva <span class="text-red-500">*</span>
             </label>
             <div class="cp-rej">
                 <table>
@@ -352,14 +369,14 @@ class Bundles extends Templates {
             id: 'modalBundle',
             title: 'Nuevo paquete',
             subtitle: 'Varios productos que se venden juntos a un solo precio',
-            lucideIcon: 'gift',
+            lucideIcon: 'package',
             width: 'max-w-3xl',
             json: this.jsonForm(options.categories),
             onSave: (values, close) => this.save('addBundle', values, close)
         });
 
-        photoBeside('modalBundle', ['name', 'category_id', 'price']);
-        this.photo = mountPhoto('modalBundle', '', 'icon-gift');
+        photoBeside('modalBundle', ['name', 'category_id']);
+        this.photo = mountPhoto('modalBundle', '', 'icon-box-3');
         this.bindEditor();
     }
 
@@ -387,14 +404,14 @@ class Bundles extends Templates {
             id: 'modalBundle',
             title: 'Editar paquete',
             subtitle: 'Cambia lo que lleva, su precio o dónde se vende',
-            lucideIcon: 'gift',
+            lucideIcon: 'package',
             width: 'max-w-3xl',
             json: this.jsonForm(options.categories, response.data),
             onSave: (values, close) => this.save('editBundle', { ...values, id }, close)
         });
 
-        photoBeside('modalBundle', ['name', 'category_id', 'price']);
-        this.photo = mountPhoto('modalBundle', response.data.image, 'icon-gift');
+        photoBeside('modalBundle', ['name', 'category_id']);
+        this.photo = mountPhoto('modalBundle', response.data.image, 'icon-box-3');
         this.bindEditor();
     }
 

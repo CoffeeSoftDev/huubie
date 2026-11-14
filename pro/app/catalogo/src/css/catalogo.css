@@ -63,14 +63,6 @@ body.dark-mode #main__content.cp-pagina-pro > div {
     }
 }
 
-/* -- Espacio entre filas --
-   compact.css aprieta toda celda a `.4rem .5rem !important` (5.6px arriba y
-   abajo). Costsys no carga compact.css y sus celdas quedan en 8px: el #id
-   le gana a la regla de compact.css. */
-#tabbarCatalogo table tbody td {
-    padding: 8px !important;
-}
-
 /* -- Botones de la fila --
    Los de costsys (.cp-btn-icon de costsys.css): cuadro de 30px con borde.
    Al pasar el mouse toman el color de la marca; Desactivar en ámbar y
@@ -190,8 +182,8 @@ a.cp-btn-icon--text {
 }
 
 /* -- Un solo tamaño de letra --
-   Todo el texto del catálogo va a 1rem (14px), el mismo de las celdas de la
-   tabla (f_size 14). compact.css achica con !important `.text-sm` (.8rem),
+   Todo el texto del catálogo va a 1rem (14px), menos las tablas, que van a
+   12px (bloque «Tablas a 12px»). compact.css achica con !important `.text-sm` (.8rem),
    `.text-xs` (.7rem), los label (.875rem), los .btn (.85rem) y los controles
    de DataTables (.75rem); cs-tabs.js trae la pestaña en 13.5px, su contador
    en 11px y el subtítulo en 13px. Este archivo solo carga en el catálogo:
@@ -223,18 +215,39 @@ a.cp-btn-icon--text {
     font-size: 1rem;
 }
 
+/* -- Tablas a 12px --
+   Encabezados y celdas los fija el JS (`f_size: 12` en el attr de cada
+   createTable). Eso no alcanza a la celda de botones (no lleva f_size) ni a
+   lo que trae su propio 1rem dentro de la celda: el subtexto, los chips, la
+   pastilla Activo/Inactivo (text-sm) y «Hacer propio». La tabla baja a 12px
+   y esas piezas heredan. El buscador y el paginador siguen en 1rem. */
+#tabbarCatalogo .cs-tabs-panels table {
+    font-size: 12px !important;
+}
+
+#tabbarCatalogo .cs-tabs-panels table .text-xs,
+#tabbarCatalogo .cs-tabs-panels table .text-sm,
+#tabbarCatalogo .cs-tabs-panels table .cp-celda-sub,
+#tabbarCatalogo .cs-tabs-panels table .cp-chip,
+#tabbarCatalogo .cs-tabs-panels table a.cp-btn-icon--text {
+    font-size: inherit !important;
+}
+
 /* Títulos de sección, como el producto de inventory. */
 #modalProduct .cp-seccion,
+#modalBundle .cp-seccion,
 #modalPaymentMethod .cp-seccion {
     margin-top: 20px;
 }
 
 #modalProduct .cp-seccion:first-child,
+#modalBundle .cp-seccion:first-child,
 #modalPaymentMethod .cp-seccion:first-child {
     margin-top: 4px;
 }
 
 #modalProduct .cp-seccion p,
+#modalBundle .cp-seccion p,
 #modalPaymentMethod .cp-seccion p {
     margin: 0;
     padding-bottom: 6px;
@@ -249,11 +262,13 @@ a.cp-btn-icon--text {
 /* Apagadores en tarjetas del mismo alto: la fila del flex-wrap estira el
    contenedor y la tarjeta (el label) lo llena. */
 #modalProduct .cp-switch,
+#modalBundle .cp-switch,
 #modalPaymentMethod .cp-switch {
     display: flex;
 }
 
 #modalProduct .cp-switch > label,
+#modalBundle .cp-switch > label,
 #modalPaymentMethod .cp-switch > label {
     flex: 1 1 auto;
     padding: 10px 12px;
@@ -396,8 +411,9 @@ button.cp-pm-color.is-active {
     }
 }
 
-/* Campo de foto: miniatura de 120px pegada a la izquierda, los botones
-   debajo, uno sobre otro para caber en la columna. */
+/* Campo de foto: miniatura de 120px pegada a la izquierda y «Quitar» debajo.
+   La miniatura es el botón (un clic abre el selector de archivos); la cámara
+   de la esquina avisa que se puede cambiar. */
 .cp-foto-campo {
     display: flex;
     flex-direction: column;
@@ -412,30 +428,58 @@ button.cp-pm-color.is-active {
     font-size: 40px;
 }
 
-.cp-foto-botones {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-}
-
-.cp-foto-subir {
+.cp-foto-thumb {
+    position: relative;
     display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 34px;
-    padding: 0 12px;
-    border: 1px solid #D1D5DB;
-    border-radius: 8px;
-    background: #fff;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #374151;
+    border-radius: 12px;
+    cursor: pointer;
 }
 
-.cp-foto-subir:hover {
+.cp-foto-slot {
+    display: flex;
+}
+
+.cp-foto-thumb .cp-foto {
+    transition: filter .15s;
+}
+
+.cp-foto-thumb:hover .cp-foto {
+    filter: brightness(.92);
+}
+
+.cp-foto-thumb:focus-visible {
+    outline: 2px solid rgb(var(--brand-600, 192 90 64));
+    outline-offset: 2px;
+}
+
+/* No recibe el clic: lo recibe la miniatura completa. */
+.cp-foto-camara {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid #D1D5DB;
+    border-radius: 999px;
+    background: #fff;
+    color: #374151;
+    pointer-events: none;
+    transition: border-color .15s, color .15s;
+}
+
+.cp-foto-thumb:hover .cp-foto-camara {
     border-color: rgb(var(--brand-600, 192 90 64));
     color: rgb(var(--brand-600, 192 90 64));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cp-foto-thumb .cp-foto,
+    .cp-foto-camara {
+        transition: none;
+    }
 }
 
 .cp-foto-quitar {
@@ -874,14 +918,15 @@ body.dark-mode .cp-foto-vacia {
 }
 
 body.dark-mode #modalProduct .cp-seccion p,
+body.dark-mode #modalBundle .cp-seccion p,
 body.dark-mode #modalPaymentMethod .cp-seccion p {
     border-color: var(--dk-line, #374151);
     color: var(--dk-muted, #9CA3AF);
 }
 
 body.dark-mode #modalProduct .cp-switch > label,
-body.dark-mode #modalPaymentMethod .cp-switch > label,
-body.dark-mode .cp-foto-subir {
+body.dark-mode #modalBundle .cp-switch > label,
+body.dark-mode #modalPaymentMethod .cp-switch > label {
     background: transparent;
     border-color: var(--dk-line-hi, #4B5563);
 }
@@ -917,7 +962,9 @@ body.dark-mode button.cp-pm-color.is-active {
     box-shadow: 0 0 0 2px var(--pm-color, #64748B);
 }
 
-body.dark-mode .cp-foto-subir {
+body.dark-mode .cp-foto-camara {
+    background: var(--dk-card, #1F2A37);
+    border-color: var(--dk-line-hi, #4B5563);
     color: var(--dk-text, #F3F4F6);
 }
 

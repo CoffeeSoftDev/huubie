@@ -5,6 +5,11 @@
     La propina va aparte del total. Hasta 5 tickets en espera viven en este
     navegador, por usuario y sucursal; al cobrar, el ticket queda vacio.
 
+    Credito y monedero (V3) salen del cliente elegido: opts.customers trae su
+    saldo de monedero (wallet) y su credito disponible (credit). El monedero es
+    un metodo de pago mas, solo si hay saldo; «Resto a crédito» manda lo que
+    falte a la cuenta del cliente y la venta queda pendiente.
+
     Manda el ctrl (ctrl-ventas.php): aqui solo se arma la venta y se avisa
     antes de mandar. `orders` apunta a esta pantalla porque el turno y el
     cierre llaman orders.can(), orders.paintTurn() y orders.lsOrders(). */
@@ -253,10 +258,15 @@ class Sale extends OrderForm {
     }
 
     refreshSummary() {
-        const name = this.customerName();
-        const note = String($('#of_note').val() || '').trim();
+        const note    = String($('#of_note').val() || '').trim();
+        const account = this.customerAccount();
+        const parts   = [this.customerName()];
 
-        $('#posOrderTkSummary').text(note ? `${name} · Con nota` : name);
+        if (account && account.wallet > 0.005) parts.push(`Monedero ${money(account.wallet)}`);
+        if (account && account.credit > 0.005) parts.push(`Crédito ${money(account.credit)}`);
+        if (note) parts.push('Con nota');
+
+        $('#posOrderTkSummary').text(parts.join(' · '));
     }
 
     onEscape(e) {
@@ -557,8 +567,9 @@ class Sale extends OrderForm {
             return row(esc(p.method), money(p.amount)) + change;
         }).join('');
 
-        const tip  = Number(t.tip) > 0;
-        const body = `
+        const tip    = Number(t.tip) > 0;
+        const credit = Number(t.credit) > 0.005;
+        const body   = `
             <h1>Venta V${esc(t.folio)}</h1>
             <div class="c">${esc(t.branch)}</div>
             <div class="c s">${ordDate(t.date, true)}</div>
@@ -577,6 +588,7 @@ class Sale extends OrderForm {
                 ${tip ? row('Propina', money(t.tip)) : ''}
                 ${tip ? row('Cobrado', money(t.charged), true) : ''}
                 ${payments}
+                ${credit ? row('A crédito', money(t.credit), true) : ''}
             </table>
             <hr>
             <div class="c s">IVA incluido · Impreso ${ordNow()}</div>`;
@@ -618,16 +630,21 @@ class Sale extends OrderForm {
     async afterSale(data) {
         const t = data.ticket || {};
 
+        this.syncAccount(data.customer);
         this.resetTicket();
 
         const change = Number(data.change) > 0.005
             ? `<p class="text-[12px] font-semibold uppercase tracking-wide mb-0">Cambio</p><p class="text-[32px] font-bold text-emerald-600 leading-tight mb-2">${money(data.change)}</p>`
             : '';
 
+        const credit = Number(data.credit) > 0.005
+            ? `<p class="text-[14px] text-amber-700 mb-0">A crédito <b>${money(data.credit)}</b></p>`
+            : '';
+
         const answer = await alert({
             icon:     'success',
             title:    data.message,
-            html:     `${change}<p class="text-[14px] mb-0">Cobrado <b>${money(t.charged)}</b></p>`,
+            html:     `${change}<p class="text-[14px] mb-0">Cobrado <b>${money(t.charged)}</b></p>${credit}`,
             btn1:     this.canSell('print'),
             btn1Text: 'Imprimir ticket',
             btn2:     true,
@@ -760,6 +777,24 @@ class Sale extends OrderForm {
         if (customer === '' || customer === '0') return 'Público en general';
 
         return $('#of_customer_id option:selected').text().split(' · ')[0].trim();
+    }
+
+    // Monedero y crédito disponible del cliente elegido. null = Público en general.
+    customerAccount() {
+        const id = String($('#of_customer_id').val() || '');
+        const c  = id === '' || id === '0' ? null : (this.opts.customers || []).find((x) => String(x.id) === id);
+
+        return c ? { id: Number(c.id), wallet: Number(c.wallet) || 0, credit: Number(c.credit) || 0 } : null;
+    }
+
+    // Tras cobrar con monedero o a crédito, el saldo en pantalla es el que quedó guardado.
+    syncAccount(account) {
+        const c = account ? (this.opts.customers || []).find((x) => Number(x.id) === Number(account.id)) : null;
+
+        if (!c) return;
+
+        c.wallet = Number(account.wallet) || 0;
+        c.credit = Number(account.credit) || 0;
     }
 
     saleTotal() {
@@ -950,6 +985,7 @@ class SalePay extends OrderPay {
 
         const subtotal = sale.saleTotal();
         const name     = sale.customerName();
+        const purse    = sale.opts.wallet_method;
 
         this.o = {
             id:              0,
@@ -962,9 +998,20 @@ class SalePay extends OrderPay {
             paid:            0
         };
 
+        // Lo que OrderPay espera de un pedido: aquí siempre se cobra y no hay pagos previos.
+        this.canPay       = true;
+        this.payments     = [];
         this.thenDeliver  = false;
         this.fromDetail   = false;
         this.methods      = (sale.opts.methods || []).map((m) => ({ id: Number(m.id), name: m.name, code: m.code, cash: Number(m.is_cash) === 1 }));
+        this.account      = sale.customerAccount();
+        this.onCredit     = false;
+
+        // El monedero se ofrece solo si el cliente trae saldo.
+        if (purse && this.account && this.account.wallet > 0.005) {
+            this.methods.push({ id: Number(purse.id), name: purse.name, code: purse.code, cash: false, wallet: true });
+        }
+
         this.reasons      = sale.opts.reasons || [];
         this.canAuthorize = !!sale.opts.can_authorize;
         this.discBlock    = '';
@@ -1007,7 +1054,7 @@ class SalePay extends OrderPay {
             ...this.discountFields(),
             { id: 'op_tip', tipo: 'html', class: 'w-full sm:w-1/2', html: label('Propina') + `<div id="op_tip_chips" class="flex flex-wrap gap-[8px]">${tips}</div>` },
             { id: 'op_tip_amount', lbl: 'Propina ($)', tipo: 'number', min: 0, step: '0.01', ph: '0.00', class: 'w-full sm:w-1/2 op-tip-other hidden' },
-            { id: 'op_methods', tipo: 'html', class: 'w-full', html: label('Método de pago') + '<div id="op_method_chips" class="flex flex-wrap gap-[8px]"></div>' },
+            { id: 'op_methods', tipo: 'html', class: 'w-full', html: label('Método de pago') + '<div id="op_method_chips" class="ord-method-grid"></div>' },
             { id: 'op_received', lbl: 'Recibe en efectivo', tipo: 'number', min: 0, step: '0.01', class: 'w-full sm:w-1/2' },
             { id: 'op_bills', tipo: 'html', class: 'w-full sm:w-1/2', html: label('Billetes') + '<div id="op_bill_chips" class="flex flex-wrap gap-[8px]"></div>' },
             {
@@ -1015,6 +1062,16 @@ class SalePay extends OrderPay {
                 tipo:  'html',
                 class: 'w-full',
                 html:  '<div id="op_lines"></div><button type="button" class="ord-split"><i data-lucide="plus" class="w-4 h-4"></i>Agregar otro método</button>'
+            },
+            {
+                id:    'op_credit_box',
+                tipo:  'html',
+                class: 'w-full op-credit hidden',
+                html:  `
+                    <div class="flex flex-wrap items-center gap-[8px]">
+                        <button type="button" class="ord-credit" aria-pressed="false"><i data-lucide="calendar-clock" class="w-4 h-4"></i><span>Resto a crédito</span></button>
+                        <span id="op_credit_hint" class="text-[12px] text-gray-500"></span>
+                    </div>`
             },
             { id: 'op_totals', tipo: 'html', class: 'w-full', html: '<div id="op_sum"></div>' }
         ];
@@ -1051,25 +1108,63 @@ class SalePay extends OrderPay {
         });
 
         modal.on('input', '#op_tip_amount', () => this.paint());
+
+        modal.on('click', 'button.ord-credit', () => {
+            this.onCredit = !this.onCredit;
+            this.paint();
+            $('#op_received').trigger('focus');
+        });
     }
 
     paint() {
         super.paint();
 
-        const c = this.calc();
+        const c    = this.calc();
+        const free = this.account ? this.account.credit : 0;
 
+        $('#op_balance').text(money(c.balance));
         $('#op_tip_value').text(money(c.tip));
         $('#modalOrderPay .op-tip-other').toggleClass('hidden', this.tipMode !== 'other');
 
         $('#modalOrderPay button.ord-tip').each((i, el) => {
             $(el).toggleClass('is-active', String($(el).data('tip')) === this.tipMode);
         });
+
+        // «Resto a crédito» sale solo si el cliente tiene crédito disponible.
+        $('#modalOrderPay .op-credit').toggleClass('hidden', free <= 0.005);
+        $('#modalOrderPay button.ord-credit').toggleClass('is-active', this.onCredit).attr('aria-pressed', String(this.onCredit));
+        $('#op_credit_hint').text(`Disponible ${money(free)}`);
+
+        if (c.method && c.method.wallet) {
+            $('#op_received').attr('placeholder', c.cap > 0 ? `Hasta ${money(Math.min(c.cap, c.remaining))}` : 'Sin saldo');
+        } else if (this.onCredit && c.remaining > 0) {
+            $('#op_received').attr('placeholder', 'Lo que paga hoy');
+        }
+    }
+
+    // OrderPay llena aquí sus mosaicos de Total, Pagado y Restante: los de la venta son otros.
+    paintHead(total) {
+        $('#op_total').text(money(total));
+    }
+
+    saveLabel(c) {
+        if (c.credit > 0.005) {
+            return c.applied > 0 ? `Cobrar ${money(c.applied)} · resto a crédito` : `Vender a crédito · ${money(c.credit)}`;
+        }
+
+        return c.applied > 0 ? `Cobrar · ${money(c.applied)}` : 'Cobrar';
+    }
+
+    methodHint(m) {
+        return m && m.wallet ? `Saldo ${money(this.account.wallet)}` : super.methodHint(m);
     }
 
     summary(c) {
-        const row  = (label, value) => `<div class="flex items-center justify-between text-[13px] text-gray-600"><span>${label}</span><span class="font-semibold text-gray-800">${value}</span></div>`;
-        const name = c.method ? c.method.name : '';
-        const over = c.applied > c.target + 0.005;
+        const row   = (label, value) => `<div class="flex items-center justify-between text-[13px] text-gray-600"><span>${label}</span><span class="font-semibold text-gray-800">${value}</span></div>`;
+        const name  = c.method ? c.method.name : '';
+        const over  = c.applied > c.target + 0.005;
+        const free  = this.account ? this.account.credit : 0;
+        const lacks = c.credit > 0.005 ? 0 : c.missing;
 
         let state = '';
 
@@ -1079,27 +1174,48 @@ class SalePay extends OrderPay {
             state = '<p class="ord-sum-big text-rose-600">Monto recibido no válido</p>';
         } else if (over) {
             state = `<p class="ord-sum-big text-rose-600">Sobran ${money(c.applied - c.target)}</p><p class="text-[12px] text-rose-600 mb-0">Con ${esc(name)} no se cobra de más: baja el monto.</p>`;
-        } else if (c.missing > 0.005) {
-            state = `<p class="ord-sum-big text-rose-600">Faltan ${money(c.missing)}</p><p class="text-[12px] text-gray-500 mb-0">Agrega otro método de pago.</p>`;
+        } else if (c.walletOver) {
+            state = `<p class="ord-sum-big text-rose-600">Monedero insuficiente</p><p class="text-[12px] text-rose-600 mb-0">El monedero tiene ${money(this.account.wallet)}.</p>`;
+        } else if (c.creditOver) {
+            state = `<p class="ord-sum-big text-rose-600">Crédito insuficiente</p><p class="text-[12px] text-rose-600 mb-0">Disponible ${money(free)}: cobra hoy al menos ${money(c.credit - free)}.</p>`;
+        } else if (c.credit > 0.005) {
+            state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-amber-700 mb-0">A crédito</p><p class="ord-sum-big text-amber-600">${money(c.credit)}</p>`;
+        } else if (lacks > 0.005) {
+            state = `<p class="ord-sum-big text-rose-600">Faltan ${money(lacks)}</p><p class="text-[12px] text-gray-500 mb-0">${free > 0.005 ? 'Agrega otro método o usa «Resto a crédito».' : 'Agrega otro método de pago.'}</p>`;
         } else if (c.change > 0.005) {
             state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-emerald-700 mb-0">Cambio</p><p class="ord-sum-big text-emerald-600">${money(c.change)}</p>`;
         } else if (c.applied > 0) {
             state = '<p class="ord-sum-big text-emerald-600">Exacto, sin cambio</p>';
         }
 
-        const end = c.missing <= 0.005 && !c.badTyped && !c.tipError && !over
-            ? '<div class="text-[12.5px] text-emerald-700 font-semibold mt-1">Queda pagada</div>'
-            : '';
+        const clean = !c.badTyped && !c.tipError && !over && !c.walletOver && !c.creditOver;
+
+        let end = '';
+
+        if (clean && c.credit > 0.005) end = '<div class="text-[12.5px] text-amber-700 font-semibold mt-1">Queda pendiente: se paga con abonos</div>';
+        else if (clean && lacks <= 0.005) end = '<div class="text-[12.5px] text-emerald-700 font-semibold mt-1">Queda pagada</div>';
 
         return `
             <div class="ord-sum rounded-xl border-[1px] border-gray-200 bg-gray-50 px-[14px] py-[12px] flex flex-col sm:flex-row gap-[12px] sm:items-center">
                 <div class="flex-1 flex flex-col gap-[4px]">
                     ${row('A cobrar', money(c.target))}
                     ${row('Recibido', money(c.tendered))}
+                    ${c.credit > 0.005 ? row('A crédito', money(c.credit)) : ''}
                     ${end}
                 </div>
                 <div class="sm:text-right sm:min-w-[200px]">${state}</div>
             </div>`;
+    }
+
+    // El monedero no da más de lo que tiene: se revisa antes de sumarlo como pago.
+    split() {
+        const c = this.calc();
+
+        if (c.method && c.method.wallet && c.typed !== null && c.typed > c.cap + 0.005) {
+            return this.warn(`El monedero solo tiene ${money(c.cap)} disponibles.`);
+        }
+
+        super.split();
     }
 
     // -- CRUD --
@@ -1113,8 +1229,16 @@ class SalePay extends OrderPay {
         if (c.d.error) return this.warn(c.d.error);
         if (c.badTyped) return this.warn('El monto recibido no es válido.');
         if (c.payments.length > 6) return this.warn('Un cobro admite hasta 6 métodos de pago.');
-        if (c.missing > 0.005) return this.warn(`Faltan ${money(c.missing)} por recibir. Agrega otro método de pago.`);
         if (c.applied > c.target + 0.005) return this.warn(`Los pagos suman ${money(c.applied)} y la venta es de ${money(c.target)}. Baja el monto con tarjeta o transferencia.`);
+        if (c.walletOver) return this.warn(`El monedero de ${this.o.customer} solo tiene ${money(this.account.wallet)}.`);
+
+        const free = this.account ? this.account.credit : 0;
+
+        if (c.creditOver) return this.warn(`El crédito disponible de ${this.o.customer} es ${money(free)} y faltan ${money(c.credit)}. Cobra hoy la diferencia.`);
+
+        if (c.credit <= 0.005 && c.missing > 0.005) {
+            return this.warn(`Faltan ${money(c.missing)} por recibir. ${free > 0.005 ? 'Agrega otro método de pago o usa «Resto a crédito».' : 'Agrega otro método de pago.'}`);
+        }
 
         const customer = String($('#of_customer_id').val() || '');
 
@@ -1135,7 +1259,8 @@ class SalePay extends OrderPay {
             tip:         c.tip > 0 ? c.tip.toFixed(2) : '',
             lines:       JSON.stringify(sale.payload()),
             payments:    c.payments.length ? JSON.stringify(c.payments) : '',
-            discount:    discount
+            discount:    discount,
+            credit:      c.credit > 0.005 ? '1' : ''
         };
 
         this.saving = true;
@@ -1183,12 +1308,21 @@ class SalePay extends OrderPay {
         const raw       = String($('#op_received').val() || '').trim();
         const typed     = raw === '' ? null : ordAmount(raw);
         const badTyped  = raw !== '' && typed === null;
+        const account   = this.account;
+        const isWallet  = (id) => !!(this.methodOf(id) || {}).wallet;
+        const walletSum = (list) => ordRound(list.filter((l) => isWallet(l.method_id)).reduce((s, l) => s + l.amount, 0));
+
+        // Lo que le queda al monedero después de los pagos ya agregados. null = el método no es el monedero.
+        const cap = method && method.wallet ? Math.max(0, ordRound(account.wallet - walletSum(this.lines))) : null;
 
         let current = null;
 
         if (!badTyped && method) {
             if (typed === null) {
-                if (remaining > 0) current = { method_id: method.id, amount: remaining, tendered: remaining };
+                // Sin escribir nada se cobra lo que falta. Con «Resto a crédito» no: lo que falte va a la cuenta.
+                const amount = cap === null ? remaining : Math.min(remaining, cap);
+
+                if (amount > 0 && !this.onCredit) current = { method_id: method.id, amount: amount, tendered: amount };
             } else if (method.cash) {
                 const amount = Math.min(typed, remaining);
 
@@ -1208,28 +1342,34 @@ class SalePay extends OrderPay {
                 : { method_id: l.method_id, amount: l.amount, tendered: l.tendered });
         });
 
-        const payments = Array.from(merged.values()).filter((l) => l.amount > 0);
-        const applied  = ordRound(payments.reduce((s, l) => s + l.amount, 0));
-        const tendered = ordRound(payments.reduce((s, l) => s + l.tendered, 0));
-        const change   = ordRound(tendered - applied);
-        const missing  = Math.max(0, ordRound(target - applied));
+        const payments   = Array.from(merged.values()).filter((l) => l.amount > 0);
+        const applied    = ordRound(payments.reduce((s, l) => s + l.amount, 0));
+        const tendered   = ordRound(payments.reduce((s, l) => s + l.tendered, 0));
+        const change     = ordRound(tendered - applied);
+        const missing    = Math.max(0, ordRound(target - applied));
+        const walletPaid = walletSum(payments);
+        const credit     = this.onCredit ? missing : 0;
 
         return {
-            d:         d,
-            total:     total,
-            tip:       tip.amount,
-            tipError:  tip.error,
-            balance:   balance,
-            target:    target,
-            remaining: remaining,
-            method:    method,
-            typed:     typed,
-            badTyped:  badTyped,
-            payments:  payments,
-            applied:   applied,
-            tendered:  tendered,
-            change:    change,
-            missing:   missing
+            d:          d,
+            total:      total,
+            tip:        tip.amount,
+            tipError:   tip.error,
+            balance:    balance,
+            target:     target,
+            remaining:  remaining,
+            method:     method,
+            typed:      typed,
+            badTyped:   badTyped,
+            payments:   payments,
+            applied:    applied,
+            tendered:   tendered,
+            change:     change,
+            missing:    missing,
+            cap:        cap,
+            walletOver: !!account && walletPaid > account.wallet + 0.005,
+            credit:     credit,
+            creditOver: credit > 0.005 && (!account || credit > account.credit + 0.005)
         };
     }
 

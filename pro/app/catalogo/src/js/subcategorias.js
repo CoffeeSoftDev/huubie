@@ -107,6 +107,8 @@ class Subcategories extends Templates {
             attr: {
                 id: 'tbSubcategories',
                 theme: 'light',
+                f_size: 12,
+                design: 'flowbite',
                 striped: true,
                 center: [4, 5]
             },

@@ -133,8 +133,11 @@
                 60px y bajo la navbar. Los !important son por si una pagina le
                 deja clases de utilidad (.py-4, .gap-2, .bg-white de Bootstrap
                 van con !important): el rail mide lo mismo en todas. La fuente
-                va fija y no heredada: cada pagina trae la suya en el <body>. */
-            + '#menu-sidebar { display:flex; flex-direction:column; align-items:center; gap:4px !important; padding:10px 6px 10px !important; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF) !important; border-right-color:var(--line, #E5E7EB); font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif; }'
+                va fija y no heredada: cada pagina trae la suya en el <body>.
+                El borde derecho es la MISMA linea que la navbar lleva abajo
+                (--nav-accent-line): con --line el rail blanco no se distinguia
+                del fondo de la pagina, que es casi blanco. */
+            + '#menu-sidebar { display:flex; flex-direction:column; align-items:center; gap:4px !important; padding:10px 6px 10px !important; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF) !important; border-right-color:var(--nav-accent-line, rgb(var(--accent-2-600, 192 90 64) / .28)); font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif; }'
             + '#menu-sidebar::-webkit-scrollbar { display:none; }'
             + 'body.dark-mode #menu-sidebar { background-color:var(--dk-chrome, #141d2b) !important; border-right:1px solid var(--dk-line, #374151); }'
 

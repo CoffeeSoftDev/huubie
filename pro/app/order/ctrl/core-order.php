@@ -126,18 +126,32 @@ class core extends mdl {
         return null;
     }
 
-    // El turno abierto para la cabecera. old = abierto en otro dia.
+    // El turno abierto para la franja de caja. old = abierto en otro dia.
+    // Las cifras (fondo, vendido, conteos) solo van con el turno de hoy: el viejo solo pide cerrarse.
     protected function turnBrief() {
         $turn = $this->branchId() > 0 ? $this->qOpenTurn($this->branchId()) : null;
 
         if (!$turn) return null;
 
-        return [
-            'id'        => (int) $turn['id'],
-            'folio'     => (string) $turn['folio'],
-            'opened_at' => (string) $turn['opened_at'],
-            'old'       => substr((string) $turn['opened_at'], 0, 10) !== date('Y-m-d')
+        $old   = substr((string) $turn['opened_at'], 0, 10) !== date('Y-m-d');
+        $brief = [
+            'id'           => (int) $turn['id'],
+            'folio'        => (string) $turn['folio'],
+            'opened_at'    => (string) $turn['opened_at'],
+            'opened_by'    => trim((string) $turn['opened_by']),
+            'opening_cash' => round((float) $turn['opening_cash'], 2),
+            'old'          => $old
         ];
+
+        if (!$old) {
+            $totals = $this->qTurnTotals((int) $turn['id']) ?: [];
+
+            $brief['total_sales']  = round((float) ($totals['total_sales'] ?? 0), 2);
+            $brief['orders_count'] = (int) ($totals['orders_count'] ?? 0);
+            $brief['sales_count']  = (int) ($totals['sales_count'] ?? 0);
+        }
+
+        return $brief;
     }
 
     // -- Día de caja --

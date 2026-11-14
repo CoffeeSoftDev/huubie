@@ -157,6 +157,8 @@ class Products extends Templates {
             attr: {
                 id: 'tbProducts',
                 theme: 'light',
+                f_size: 12,
+                design: 'flowbite',
                 striped: true,
                 right: [5, 6],
                 center: [4, 7, 8]
@@ -228,9 +230,9 @@ class Products extends Templates {
 
             // cp-switch: tarjetas del mismo alto aunque el texto de una ocupe dos renglones.
             this.formSection('secChannels', 'Dónde se vende'),
-            { id: 'sell_pos', lbl: 'Se vende en el POS', tipo: 'switch', class: `${third} cp-switch`, value: data.sell_pos },
-            { id: 'in_catalog', lbl: 'Sale en el catálogo en línea', tipo: 'switch', class: `${third} cp-switch`, value: data.in_catalog },
-            { id: 'is_inventoriable', lbl: 'Lleva inventario', tipo: 'switch', class: `${third} cp-switch`, value: data.is_inventoriable }
+            { id: 'sell_pos', lbl: 'POS', tipo: 'switch', class: `${third} cp-switch`, value: data.sell_pos },
+            { id: 'in_catalog', lbl: 'Catálogo', tipo: 'switch', class: `${third} cp-switch`, value: data.in_catalog },
+            { id: 'is_inventoriable', lbl: 'Inventario', tipo: 'switch', class: `${third} cp-switch`, value: data.is_inventoriable }
         ];
     }
 

@@ -3921,6 +3921,9 @@ class Components extends Complements {
             bordered: false,
             border_color: "",
             border_group: "border-gray-300",
+            design: null,
+            th_case: "capitalize",
+            th_align: "center",
         };
 
         if (options.theme === 'light') {
@@ -3985,6 +3988,31 @@ class Components extends Complements {
             defaults.color_row_alt = "bg-blue-50";
         }
 
+        // Diseño 'flowbite' (la tabla de Flowbite): encabezado gris en mayúsculas
+        // y alineado como su columna, filas blancas separadas por una línea (con
+        // `striped: true`, una sí y una no en gris) y texto gris. El encabezado y
+        // la cebra van en #F9FAFB, el gray-50 de Flowbite escrito tal cual: el
+        // gray-50 de pro es otro tono (themes.css). Como comparten gris, la cebra
+        // empieza en la segunda fila (igual que Flowbite) para que la primera no
+        // se pegue al encabezado. Va aparte de `theme` porque la página oscura cambia
+        // el tema a 'dark' (cfPageTheme) y el diseño tiene que seguir: en oscuro
+        // conserva los colores de 'dark' y solo cambia la forma. El espaciado, el
+        // hover y la primera columna van en soft.css (table.ct3-flowbite).
+        if (options.design === 'flowbite') {
+            defaults.th_case = "uppercase";
+            defaults.th_align = "column";
+
+            if (options.theme !== 'dark') {
+                defaults.color_th = "bg-[#F9FAFB] text-gray-700";
+                defaults.color_row = "bg-white";
+                defaults.color_row_alt = "bg-[#F9FAFB]";
+                defaults.class = "w-full text-sm text-gray-500";
+                defaults.border_table = "border border-gray-200 rounded-lg";
+                defaults.border_row = "border-b border-gray-200";
+                defaults.border_color = "border-gray-200";
+            }
+        }
+
         const opts = Object.assign({}, defaults, options);
 
         if (!('scrollable' in options)) {
@@ -3994,6 +4022,12 @@ class Components extends Complements {
         const getFixedWidth = (col) => {
             if (typeof opts.fixedWidth === 'object') return opts.fixedWidth[col] || 200;
             return opts.fixedWidth;
+        };
+
+        // Encabezado: centrado de siempre, o alineado como su columna (th_align: 'column').
+        const thAlign = (col) => {
+            if (opts.th_align !== 'column') return 'text-center';
+            return opts.center.includes(col) ? 'text-center' : opts.right.includes(col) ? 'text-right' : 'text-left';
         };
 
         const container = $("<div>", { class: "rounded-lg h-full" });
@@ -4026,7 +4060,7 @@ class Components extends Complements {
 
         const table = $("<table>", {
             id: opts.id,
-            class: `border-separate border-spacing-0 ${opts.border_table} ${opts.class}`
+            class: `border-separate border-spacing-0 ${opts.border_table} ${opts.class}${opts.design === 'flowbite' ? ' ct3-flowbite' : ''}`
         });
 
         const thead = $("<thead>");
@@ -4050,7 +4084,7 @@ class Components extends Complements {
                         const isFixed = opts.fixed.includes(colIdx);
 
                         if (typeof column === 'string') {
-                            let thClass = `text-center px-3 py-2 ${opts.color_th} capitalize font-semibold ${borderedClass}`;
+                            let thClass = `${thAlign(colIdx)} px-3 py-2 ${opts.color_th} ${opts.th_case} font-semibold ${borderedClass}`;
                             let thStyle = `font-size:${opts.f_size}px;`;
                             if (isFixed) {
                                 const fw = getFixedWidth(colIdx);
@@ -4082,7 +4116,7 @@ class Components extends Complements {
                 opts.data.thead.forEach((header, idx) => {
                     colIdx = idx + 1;
                     const isFixed = opts.fixed.includes(colIdx);
-                    let thClass = `text-center px-3 py-2 capitalize ${opts.color_th} font-semibold ${borderedClass}`;
+                    let thClass = `${thAlign(colIdx)} px-3 py-2 ${opts.th_case} ${opts.color_th} font-semibold ${borderedClass}`;
                     let thStyle = `font-size:${opts.f_size}px;`;
                     if (isFixed) {
                         const fw = getFixedWidth(colIdx);
@@ -4111,7 +4145,9 @@ class Components extends Complements {
 
                     const isFixed = opts.fixed.includes(colIdx);
                     let displayClave = (clave == 'btn' || clave == 'a' || clave == 'dropdown') ? '<i class="icon-gear"> </i>' : clave;
-                    let thClass = `px-2 py-2 ${opts.color_th} capitalize text-center font-semibold ${borderedClass}`;
+                    // La columna de botones no está en center/right: su encabezado va centrado.
+                    const isActionsCol = ['btn', 'a', 'dropdown'].includes(clave);
+                    let thClass = `px-2 py-2 ${opts.color_th} ${opts.th_case} ${isActionsCol ? 'text-center' : thAlign(colIdx)} font-semibold ${borderedClass}`;
                     let thStyle = `font-size:${opts.f_size}px;`;
 
                     if (isFixed) {
@@ -4189,7 +4225,9 @@ class Components extends Complements {
                 }
             }
 
-            let colorBg = bg_grupo || (opts.striped && i % 2 === 0 ? opts.color_row_alt : opts.color_row);
+            // Cebra: de siempre, gris la primera fila; en 'flowbite', la segunda.
+            const stripeOn = opts.design === 'flowbite' ? 1 : 0;
+            let colorBg = bg_grupo || (opts.striped && i % 2 === stripeOn ? opts.color_row_alt : opts.color_row);
 
             const originalOpc = data.opc;
             delete data.opc;
