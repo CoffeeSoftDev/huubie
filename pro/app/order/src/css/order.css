@@ -273,6 +273,10 @@ body.dark-mode .ord-aviso { background: var(--dk-card, #1F2A37); border-color: v
 :root[data-scheme="huubie"] body.dark-mode .ord-aviso { border-color: transparent; }
 body.dark-mode button.ord-folio { color: var(--dk-text, #F3F4F6); }
 body.dark-mode .ord-aviso-titulo { color: var(--dk-text, #F3F4F6); }
+/* Fila bajo el cursor: createCoffeeTable3 inyecta el gris claro con el #id de la
+   tabla y le gana a dark-mode.css; aqui se repite el #id para volver al tono oscuro. */
+body.dark-mode #tbOrders tbody tr.ct3-hoverable:hover td,
+body.dark-mode #tbCustomers tbody tr.ct3-hoverable:hover td { background-color: var(--dk-row-hover, #334155) !important; }
 
 /* -- Detalle oscuro --
    Escala del showOrder de alpha: modal #1F2A37 y dentro tarjetas #29374A sin
@@ -1611,7 +1615,8 @@ body.dark-mode .ord-chart-table tfoot td { border-color: var(--dk-line, #374151)
 #btnNewCustomer { white-space: nowrap; }
 
 /* Historial del cliente: resumen arriba y sus pedidos en lista. */
-.cus-history { display: flex; flex-direction: column; gap: 12px; }
+/* csModal pinta `body` sin margen: se alinea con el encabezado (px-6). */
+.cus-history { display: flex; flex-direction: column; gap: 12px; padding: 16px 1.5rem 6px; }
 
 .cus-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 
@@ -1693,6 +1698,8 @@ button.cus-order:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 
 @media (max-width: 639px) {
     .cus-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .cus-order { grid-template-columns: minmax(0, 1fr) auto 16px; row-gap: 4px; }
+    /* En celular la fecha de entrega no cabe en un renglon: baja en vez de cortarse. */
+    .cus-order-sub { white-space: normal; }
     .cus-order-state { grid-column: 1; grid-row: 2; }
     .cus-order-money { grid-column: 2; grid-row: 1 / span 2; }
     .cus-order-go { grid-column: 3; grid-row: 1 / span 2; }
