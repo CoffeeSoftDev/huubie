@@ -74,41 +74,6 @@ class mdl extends CRUD {
         return empty($sql) ? null : $sql[0];
     }
 
-    // [company_id]. Los primeros del equipo, por antigüedad; el total sale aparte.
-    function listTeamByCompany($array) {
-        $query = "
-            SELECT
-                " . self::EMPLOYEE_NAME . " AS name,
-                e.job_title,
-                u.photo,
-                u.color,
-                b.name AS branch
-            FROM {$this->bd}employees e
-            LEFT JOIN {$this->bd}users u    ON u.id = e.user_id
-            LEFT JOIN {$this->bd}branches b ON b.id = e.branch_id
-            WHERE e.company_id = ?
-              AND (u.id IS NULL OR u.status = 'active')
-            ORDER BY e.hire_date IS NULL, e.hire_date ASC, e.id ASC
-            LIMIT 8
-        ";
-
-        $sql = $this->_Read($query, $array);
-        return is_array($sql) ? $sql : [];
-    }
-
-    function getTeamCount($array) {
-        $query = "
-            SELECT COUNT(*) AS total
-            FROM {$this->bd}employees e
-            LEFT JOIN {$this->bd}users u ON u.id = e.user_id
-            WHERE e.company_id = ?
-              AND (u.id IS NULL OR u.status = 'active')
-        ";
-
-        $sql = $this->_Read($query, $array);
-        return empty($sql) ? 0 : (int) $sql[0]['total'];
-    }
-
     // Cumpleaños del mes en curso, por dia. El mes lo pone MySQL con su reloj.
     function listBirthdaysByCompany($array) {
         $query = "
@@ -160,6 +125,148 @@ class mdl extends CRUD {
 
         $sql = $this->_Read($query, $array);
         return empty($sql) || $sql[0]['total'] === null ? null : (float) $sql[0]['total'];
+    }
+
+    /*  EL NEGOCIO DE HOY (inicio del dueño). Sale de fayxzvov_pos, la base de
+        Punto de venta (app/order/mdl/mdl-order.php), con sus mismas reglas:
+        vendido = ventas y pedidos pendientes o pagados (2 y 3), en el dia en
+        que se capturaron; cobrado = pagos vivos que entraron ese dia; un NULL
+        en active cuenta como activo. Todo va por sucursal ACTIVA de la
+        empresa: el dueño ve todas, no solo la de su sesion. */
+    const POS = 'fayxzvov_pos.';
+
+    const IN_COMPANY = "INNER JOIN branches b ON b.company_id = ? AND b.is_active = 1 AND b.id = ";
+
+    function listBranchesByCompany($array) {
+        $sql = $this->_Read("SELECT id, name FROM {$this->bd}branches WHERE company_id = ? AND is_active = 1 ORDER BY id", $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    // [company_id, desde, hasta). Tickets y lo vendido, por sucursal.
+    function listSalesByBranch($array) {
+        $query = "
+            SELECT s.branch_id, COUNT(*) AS tickets, IFNULL(SUM(s.total), 0) AS sold
+            FROM " . self::POS . "sale s
+            " . self::IN_COMPANY . "s.branch_id
+            WHERE s.sale_status_id IN (2, 3)
+              AND IFNULL(s.active, 1) = 1
+              AND s.created_at >= ? AND s.created_at < ?
+            GROUP BY s.branch_id
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    // [company_id, desde, hasta). Lo que entro a caja, por sucursal. Un pago
+    // sin sucursal cuenta en la de su pedido.
+    function listPaidByBranch($array) {
+        $query = "
+            SELECT b.id AS branch_id, IFNULL(SUM(p.amount), 0) AS paid
+            FROM " . self::POS . "payment p
+            LEFT JOIN " . self::POS . "sale s ON s.id = p.sale_id
+            " . self::IN_COMPANY . "IFNULL(p.branch_id, s.branch_id)
+            WHERE IFNULL(p.active, 1) = 1
+              AND p.deleted_at IS NULL
+              AND IFNULL(p.paid_at, p.created_at) >= ? AND IFNULL(p.paid_at, p.created_at) < ?
+            GROUP BY b.id
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    /*  [company_id, desde, hasta] por fecha de ENTREGA. Pedidos del rango, los
+        que faltan por entregar (todo lo que no esta entregado: sin entregar o
+        en produccion) y, de esos, cuantos traen saldo y cuanto suman. */
+    function listDeliveriesByBranch($array) {
+        $query = "
+            SELECT
+                x.branch_id,
+                COUNT(*)                                                  AS total,
+                IFNULL(SUM(x.pending), 0)                                 AS pending,
+                IFNULL(SUM(IF(x.pending = 1 AND x.total - x.paid > 0.004, 1, 0)), 0) AS due_orders,
+                IFNULL(SUM(IF(x.pending = 1, GREATEST(x.total - x.paid, 0), 0)), 0)  AS due
+            FROM (
+                SELECT
+                    s.branch_id,
+                    s.total,
+                    IF(IFNULL(s.delivery_status, 0) <> 1, 1, 0) AS pending,
+                    (SELECT IFNULL(SUM(p.amount), 0)
+                       FROM " . self::POS . "payment p
+                      WHERE p.sale_id = s.id AND IFNULL(p.active, 1) = 1 AND p.deleted_at IS NULL) AS paid
+                FROM " . self::POS . "sale s
+                " . self::IN_COMPANY . "s.branch_id
+                WHERE s.sale_type_id = 1
+                  AND s.sale_status_id IN (2, 3)
+                  AND IFNULL(s.active, 1) = 1
+                  AND s.delivery_date BETWEEN ? AND ?
+            ) x
+            GROUP BY x.branch_id
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    // [company_id]. Desde que dia tiene turno abierto cada sucursal.
+    function listOpenTurnsByBranch($array) {
+        $query = "
+            SELECT t.branch_id, MIN(DATE(IFNULL(t.opened_at, t.created_at))) AS since
+            FROM " . self::POS . "turn t
+            " . self::IN_COMPANY . "t.branch_id
+            WHERE t.status = 'open' AND IFNULL(t.active, 1) = 1
+            GROUP BY t.branch_id
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    // [company_id, desde, hasta). Dias con turnos y sin cierre del dia vigente.
+    function listUnclosedDaysByBranch($array) {
+        $query = "
+            SELECT t.branch_id, COUNT(DISTINCT DATE(IFNULL(t.opened_at, t.created_at))) AS days
+            FROM " . self::POS . "turn t
+            " . self::IN_COMPANY . "t.branch_id
+            WHERE IFNULL(t.active, 1) = 1
+              AND IFNULL(t.opened_at, t.created_at) >= ? AND IFNULL(t.opened_at, t.created_at) < ?
+              AND NOT EXISTS (
+                    SELECT 1
+                    FROM " . self::POS . "daily_closure d
+                    WHERE d.branch_id = t.branch_id
+                      AND DATE(d.closure_date) = DATE(IFNULL(t.opened_at, t.created_at))
+                      AND d.reopened_at IS NULL
+                      AND IFNULL(d.active, 1) = 1
+              )
+            GROUP BY t.branch_id
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    // [company_id]. Lo ultimo que paso con los pedidos y ventas de la empresa.
+    function listActivityByCompany($array) {
+        $query = "
+            SELECT
+                h.type,
+                IFNULL(h.action, '') AS action,
+                h.created_at,
+                s.folio,
+                b.name AS branch,
+                TRIM(CONCAT_WS(' ', u.name, u.last_name)) AS user
+            FROM " . self::POS . "history_log h
+            INNER JOIN " . self::POS . "sale s ON s.id = h.sale_id
+            " . self::IN_COMPANY . "s.branch_id
+            LEFT JOIN {$this->bd}users u ON u.id = h.user_id
+            WHERE IFNULL(h.active, 1) = 1
+            ORDER BY h.id DESC
+            LIMIT 6
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
     }
 }
 ?>

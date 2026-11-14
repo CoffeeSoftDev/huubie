@@ -17,7 +17,10 @@
                                   las de cada submodulo, con una linea entre
                                   grupos. El servidor ya no manda submodulos
                                   agrupados; el flotante queda para el dia que
-                                  vuelva a hacerlo.
+                                  vuelva a hacerlo. Si el modulo solo tiene
+                                  submodulos (se entra por sus tarjetas en el
+                                  inicio), llegan solo las secciones del
+                                  submodulo de la pagina abierta.
 
     Arriba siempre va Inicio y al pie las salidas fijas (extras): Mi perfil y,
     para root, Developer y Empresas.
@@ -492,7 +495,14 @@
     function guardado() {
         try {
             var tree = JSON.parse(sessionStorage.getItem(clave()) || 'null');
-            return tree && Array.isArray(tree.items) && Array.isArray(tree.submodules) ? tree : null;
+            if (!tree || !Array.isArray(tree.items) || !Array.isArray(tree.submodules)) return null;
+
+            /* Menu de UN submodulo (tree.scoped): la carpeta la comparten las
+               paginas de sus hermanos, y adelantarles este seria pintar el
+               menu equivocado. Solo vale si la pagina abierta esta en el. */
+            if (tree.scoped && !tree.items.some(function (s) { return coincide(s.route) >= 0; })) return null;
+
+            return tree;
         } catch (e) {
             return null;
         }

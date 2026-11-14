@@ -21,7 +21,13 @@ require_once __DIR__ . '/_Session.php';
 require_once __DIR__ . '/_Plan.php';
 
 class Permission extends CRUD {
+    // Las tarjetas de submodulos de un modulo viven en el inicio (app/home/src/js/home.js).
+    const HUB = 'app/home/?module=';
+
     private static $db = null;
+
+    // Por peticion: submodules() se pregunta dos veces por modulo (tarjetas y entrada).
+    private static $submodules = [];
 
     private static function db() {
         if (self::$db === null) self::$db = new self;
@@ -119,6 +125,75 @@ class Permission extends CRUD {
         return array_values(array_filter($modules, function ($module) use ($withSections, $granted) {
             return !in_array($module['id'], $withSections) || in_array($module['id'], $granted);
         }));
+    }
+
+    /*  UN MODULO QUE SOLO TIENE SUBMODULOS se abre como tarjetas, igual que
+        los modulos en el inicio: una por submodulo, y cada una lleva a la
+        primera seccion con pagina de ese submodulo (o a submodules.route si
+        la tiene). Ya dentro, el rail enseña solo las secciones de ese
+        submodulo (ctrl-nav :: railModule).
+
+        Devuelve esas tarjetas, en su orden, contando solo lo que quien
+        pregunta puede ver. [] cuando el modulo no es de esos: tiene alguna
+        seccion suelta, o no se le ve ninguna. */
+    static function submodules($moduleId) {
+        $moduleId = (int) $moduleId;
+        if ($moduleId === 0) return [];
+
+        if (isset(self::$submodules[$moduleId])) return self::$submodules[$moduleId];
+
+        $bySub = [];
+
+        foreach (self::sections($moduleId) as $section) {
+            if ($section['submodule_id'] === null) return self::$submodules[$moduleId] = [];
+
+            $bySub[(int) $section['submodule_id']][] = $section;
+        }
+
+        if (!$bySub) return self::$submodules[$moduleId] = [];
+
+        $rows = self::db()->_Read("
+            SELECT id, name, icon, description, route
+            FROM submodules
+            WHERE module_id = ? AND is_active = 1
+            ORDER BY orden IS NULL, orden, id
+        ", [$moduleId]);
+
+        $cards = [];
+
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            if (empty($bySub[(int) $row['id']])) continue;
+
+            $route = trim((string) $row['route']);
+
+            foreach ($bySub[(int) $row['id']] as $section) {
+                if ($route !== '') break;
+                $route = trim((string) $section['route']);
+            }
+
+            $cards[] = [
+                'id'    => (int) $row['id'],
+                'name'  => $row['name'],
+                'icon'  => $row['icon'] ?: 'layout-grid',
+                'text'  => $row['description'] ?: '',
+                'route' => $route,
+            ];
+        }
+
+        return self::$submodules[$moduleId] = $cards;
+    }
+
+    /*  A donde manda la tarjeta (o el boton del rail) de un modulo, relativo
+        a pro/. Con varios submodulos, a sus tarjetas en el inicio; con uno
+        solo no hay nada que elegir y entra directo a el; sin submodulos, a
+        modules.route. '' = todavia no tiene pagina. */
+    static function entry($module) {
+        $cards = self::submodules($module['id']);
+
+        if (count($cards) > 1) return self::HUB . rawurlencode((string) $module['code']);
+        if (count($cards) === 1 && $cards[0]['route'] !== '') return $cards[0]['route'];
+
+        return trim((string) $module['route']);
     }
 
     // Para las paginas: sin sesion al login; sin acceso, a su inicio.

@@ -524,7 +524,7 @@ class Navbar {
             .nav-logo-dark { display:none; }
             .navbar-main.nav-dark .nav-logo-light { display:none; }
             .navbar-main.nav-dark .nav-logo-dark { display:block; }
-            .nav-company { padding-left:12px; border-left:1px solid #E8E3F0; font-size:13px; font-weight:600; color:#16151C; line-height:22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
+            .nav-company { padding-left:12px; border-left:1px solid #E8E3F0; font-size:13px; font-weight:600; color:#6D6977; line-height:22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
             .nav-company:empty { display:none; }
 
             /* root dentro de una empresa: que no se le olvide que no es la suya. */

@@ -19,6 +19,13 @@ require_once __DIR__ . '/../../../core/billing/_Billing.php';
 class ctrl extends mdl {
     const OPS = ['init', 'checkout'];
 
+    // El modulo de donde salen las cifras del dia (modules.code).
+    const POS_MODULE = 'pedidos';
+
+    // Dias hacia atras en que se buscan entregas atrasadas y dias sin cierre.
+    const LATE_DAYS = 7;
+    const CUT_DAYS  = 15;
+
     function init() {
         $companyId = Plan::companyId();
 
@@ -56,7 +63,7 @@ class ctrl extends mdl {
         ];
 
         // Quien no es dueño solo ve sus modulos: no se le manda el resto del
-        // tablero (precios, equipo, cumpleaños). Del plan, si sus modulos
+        // tablero (precios, cumpleaños). Del plan, si sus modulos
         // abren; del dueño, a quien avisarle si no.
         if ($data['view'] === 'modules') {
             $owner = $this->getOwnerByCompany([$companyId]);
@@ -79,10 +86,8 @@ class ctrl extends mdl {
         $data['paid']          = $paid ? 1 : 0;
         $data['plan']          = $this->plan($state);
         $data['owner']         = $this->owner($companyId);
-        $data['team']          = [
-            'total'  => $this->getTeamCount([$companyId]),
-            'people' => $this->people($this->listTeamByCompany([$companyId])),
-        ];
+        $data['business']      = $this->business($companyId);
+        $data['attention']     = $this->attention($data['business'], $company);
         $data['birthdays']     = $this->people($this->listBirthdaysByCompany([$companyId]));
         $data['anniversaries'] = $this->people($this->listAnniversariesByCompany([$companyId]));
 
@@ -161,16 +166,196 @@ class ctrl extends mdl {
         $modules = [];
 
         foreach (Permission::modules() as $module) {
+            $cards = Permission::submodules($module['id']);
+
             $modules[] = [
+                'code'   => (string) $module['code'],
                 'name'   => $module['name'],
                 'icon'   => $module['icon'] ?: 'layout-grid',
                 'text'   => $module['description'] ?: '',
-                'route'  => trim((string) $module['route']),
+                // Con varios submodulos la tarjeta abre las de ellos (?module=code).
+                'route'  => Permission::entry($module),
                 'locked' => $state['ok'] ? 0 : 1,
+                // Solo cuando hay de donde elegir: con uno, route ya entra a el.
+                'submodules' => count($cards) > 1 ? $cards : [],
             ];
         }
 
         return $modules;
+    }
+
+    /*  EL NEGOCIO DE HOY, de toda la empresa y por sucursal. null si la
+        empresa no tiene Punto de venta o no esta al corriente: no hay cifras
+        que enseñar.
+
+        Hoy se compara contra el mismo dia de la semana pasada y HASTA ESTA
+        HORA (un sabado a mediodia contra el sabado pasado a mediodia): contra
+        ayer, o contra el dia completo, la comparacion no dice nada. */
+    private function business($companyId) {
+        $moduleId = Permission::moduleId(self::POS_MODULE);
+
+        if ($moduleId === 0 || !Plan::allows($moduleId, self::POS_MODULE)) return null;
+
+        $today     = date('Y-m-d');
+        $tomorrow  = date('Y-m-d', strtotime('+1 day'));
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+        $weekAgo   = date('Y-m-d', strtotime('-7 days'));
+        $weekNow   = date('Y-m-d H:i:s', strtotime('-7 days'));
+        $lateFrom  = date('Y-m-d', strtotime('-' . self::LATE_DAYS . ' days'));
+        $cutFrom   = date('Y-m-d', strtotime('-' . self::CUT_DAYS . ' days'));
+
+        $sales    = $this->byBranch($this->listSalesByBranch([$companyId, $today, $tomorrow]));
+        $paid     = $this->byBranch($this->listPaidByBranch([$companyId, $today, $tomorrow]));
+        $deliver  = $this->byBranch($this->listDeliveriesByBranch([$companyId, $today, $today]));
+        $late     = $this->byBranch($this->listDeliveriesByBranch([$companyId, $lateFrom, $yesterday]));
+        $turns    = $this->byBranch($this->listOpenTurnsByBranch([$companyId]));
+        $unclosed = $this->byBranch($this->listUnclosedDaysByBranch([$companyId, $cutFrom, $today]));
+
+        $branches = [];
+        $sum      = ['sold' => 0.0, 'paid' => 0.0, 'tickets' => 0, 'to_deliver' => 0, 'deliveries' => 0, 'due' => 0.0, 'due_orders' => 0, 'late' => 0];
+
+        foreach ($this->listBranchesByCompany([$companyId]) as $branch) {
+            $id    = (int) $branch['id'];
+            $since = $turns[$id]['since'] ?? null;
+
+            $row = [
+                'name'       => $branch['name'],
+                'sold'       => round((float) ($sales[$id]['sold'] ?? 0), 2),
+                'paid'       => round((float) ($paid[$id]['paid'] ?? 0), 2),
+                'tickets'    => (int) ($sales[$id]['tickets'] ?? 0),
+                'to_deliver' => (int) ($deliver[$id]['pending'] ?? 0),
+                'deliveries' => (int) ($deliver[$id]['total'] ?? 0),
+                'due'        => round((float) ($deliver[$id]['due'] ?? 0), 2),
+                'due_orders' => (int) ($deliver[$id]['due_orders'] ?? 0),
+                'late'       => (int) ($late[$id]['pending'] ?? 0),
+                // Caja: open (turno de hoy), old (sigue abierto el de otro dia) o none.
+                'turn'       => $since === null ? 'none' : ($since === $today ? 'open' : 'old'),
+                'turn_since' => $since,
+                'unclosed'   => (int) ($unclosed[$id]['days'] ?? 0),
+            ];
+
+            foreach ($sum as $key => $value) $sum[$key] = $value + $row[$key];
+
+            $branches[] = $row;
+        }
+
+        $before = ['sold' => 0.0, 'paid' => 0.0, 'tickets' => 0];
+
+        foreach ($this->listSalesByBranch([$companyId, $weekAgo, $weekNow]) as $row) {
+            $before['sold']    += (float) $row['sold'];
+            $before['tickets'] += (int) $row['tickets'];
+        }
+
+        foreach ($this->listPaidByBranch([$companyId, $weekAgo, $weekNow]) as $row) $before['paid'] += (float) $row['paid'];
+
+        return [
+            'today'    => array_map(function ($value) { return is_float($value) ? round($value, 2) : $value; }, $sum),
+            'before'   => ['sold' => round($before['sold'], 2), 'paid' => round($before['paid'], 2), 'tickets' => $before['tickets']],
+            'branches' => $branches,
+            'activity' => array_map(function ($row) {
+                return [
+                    'type'   => (string) $row['type'],
+                    'text'   => (string) $row['action'],
+                    'folio'  => (string) $row['folio'],
+                    'branch' => $row['branch'],
+                    'user'   => (string) $row['user'],
+                    'at'     => (string) $row['created_at'],
+                ];
+            }, $this->listActivityByCompany([$companyId])),
+        ];
+    }
+
+    private function byBranch($rows) {
+        $map = [];
+
+        foreach ($rows as $row) $map[(int) $row['branch_id']] = $row;
+
+        return $map;
+    }
+
+    /*  REQUIERE TU ATENCION: lo que el dueño tiene que saber o mandar hacer
+        hoy, cada cosa con a donde ir (rutas relativas a pro/). Vacio = todo en
+        orden. Las pantallas de Punto de venta trabajan sobre la sucursal
+        activa, por eso cada aviso nombra a las suyas. */
+    private function attention($business, $company) {
+        $items = [];
+
+        if ($business) {
+            $sum = $business['today'];
+
+            if ($sum['to_deliver'] > 0) {
+                $items[] = [
+                    'icon'  => 'package',
+                    'title' => $this->count($sum['to_deliver'], 'pedido por entregar hoy', 'pedidos por entregar hoy'),
+                    'text'  => $this->perBranch($business['branches'], 'to_deliver') ?: 'Revisa a qué hora sale cada uno.',
+                    'route' => 'app/order/calendario.php',
+                    'go'    => 'Ver calendario',
+                ];
+            }
+
+            if ($sum['due'] > 0) {
+                $items[] = [
+                    'icon'  => 'hand-coins',
+                    'title' => '$' . number_format($sum['due'], 2) . ' por cobrar en las entregas de hoy',
+                    'text'  => $this->count($sum['due_orders'], 'pedido se entrega', 'pedidos se entregan') . ' con saldo pendiente.',
+                    'route' => 'app/order/pedidos.php',
+                    'go'    => 'Ver pedidos',
+                ];
+            }
+
+            if ($sum['late'] > 0) {
+                $items[] = [
+                    'icon'  => 'alarm-clock',
+                    'title' => $this->count($sum['late'], 'pedido atrasado', 'pedidos atrasados') . ' o sin marcar como entregado',
+                    'text'  => trim('Su entrega era en los últimos ' . self::LATE_DAYS . ' días. ' . $this->perBranch($business['branches'], 'late')),
+                    'route' => 'app/order/pedidos.php',
+                    'go'    => 'Ver pedidos',
+                ];
+            }
+
+            foreach ($business['branches'] as $branch) {
+                if ($branch['unclosed'] === 0) continue;
+
+                $items[] = [
+                    'icon'  => 'calendar-x',
+                    'title' => $branch['name'] . ': ' . $this->count($branch['unclosed'], 'día sin cierre', 'días sin cierre'),
+                    'text'  => $branch['turn'] === 'old'
+                        ? 'Su turno sigue abierto desde otro día: hay que cerrarlo para poder vender.'
+                        : 'Hubo turnos y no se hizo el cierre del día.',
+                    'route' => 'app/order/cortes.php',
+                    'go'    => 'Ver cortes',
+                ];
+            }
+        }
+
+        if (trim((string) $company['rfc']) === '') {
+            $items[] = [
+                'icon'  => 'file-warning',
+                'title' => 'Falta el RFC de tu empresa',
+                'text'  => 'Complétalo para poder emitir tus facturas.',
+                'route' => 'app/configuracion/',
+                'go'    => 'Configurar',
+            ];
+        }
+
+        return $items;
+    }
+
+    private function count($n, $one, $many) {
+        return $n . ' ' . ($n === 1 ? $one : $many);
+    }
+
+    // "Guadalupe 3 · Kafeto 1". '' con una sola sucursal: el total ya lo dice.
+    private function perBranch($branches, $key) {
+        if (count($branches) < 2) return '';
+
+        $parts = [];
+
+        foreach ($branches as $branch) {
+            if ($branch[$key] > 0) $parts[] = $branch['name'] . ' ' . $branch[$key];
+        }
+
+        return implode(' · ', $parts);
     }
 
     private function owner($companyId) {
