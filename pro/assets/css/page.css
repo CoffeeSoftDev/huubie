@@ -455,9 +455,6 @@ body.dark-mode .pg .pg-input, body.dark-mode .pg-modal .pg-input { background-co
 .pg-logo-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .pg-logo-actions:empty { display: none; }
 .pg-logo-actions label.pg-btn { margin: 0; }
-/* El logo de la empresa donde antes iban sus iniciales (inicio). */
-.pg-avatar.is-logo { border-radius: 16px; background: #FFFFFF; border: 1px solid var(--line); }
-.pg-avatar.is-logo img { object-fit: contain; }
 
 /* -- Accesos de un usuario: una fila por sucursal -- */
 .pg-access { gap: 8px; }
@@ -586,3 +583,59 @@ body.dark-mode .pg-plan.is-on { background: rgb(255 255 255 / .03); }
 .pg-plan-total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
 .pg-plan-total:empty { display: none; }
 .pg-plan-total .pg-strong { font-size: 18px; }
+
+/* ============================================================
+   EL TABLERO DEL DUEÑO (app/home, vista owner)
+   ============================================================
+   Cifras del día arriba; debajo, lo principal a la izquierda y lo que casi
+   no cambia (plan, festejos) en una columna angosta a la derecha. */
+
+.pg-hello { display: flex; align-items: center; gap: 14px; min-width: 0; }
+
+/* La rejilla de siempre, con la columna fija del otro lado. Dentro del
+   min-width para no ganarle a la regla que la apila en pantallas chicas. */
+@media (min-width: 1024px) {
+    .pg-grid.is-side-right { grid-template-columns: minmax(0, 1fr) 320px; }
+}
+
+/* -- Cifras -- */
+.pg-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.pg-kpi {
+    display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 18px 20px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius-card, 20px); box-shadow: var(--shadow-card, none);
+}
+.pg-kpi-label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-dim); }
+.pg-kpi-label svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--icon-box-fg, rgb(var(--brand-600, 192 90 64))); }
+.pg-kpi-value { font-size: 27px; font-weight: 700; line-height: 1.15; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pg-kpi-note { font-size: 12px; color: var(--ink-dim); }
+.pg-delta { font-weight: 700; white-space: nowrap; }
+.pg-delta.is-up   { color: var(--ok-soft-fg, #16A34A); }
+.pg-delta.is-down { color: #B91C1C; }
+body.dark-mode .pg-delta.is-down { color: #FCA5A5; }
+
+@media (max-width: 1023px) {
+    .pg-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}
+@media (max-width: 640px) {
+    .pg-kpi { padding: 14px; }
+    .pg-kpi-value { font-size: 21px; }
+}
+
+/* -- Pendientes -- */
+.pg-ico.is-warn { background: #FFF4D6; color: #A16207; }
+.pg-ico.is-ok   { background: var(--ok-soft-bg, #DCFCE7); color: var(--ok-soft-fg, #16A34A); }
+body.dark-mode .pg-ico.is-warn { background: rgb(245 158 11 / .16); color: #FCD34D; }
+
+.pg-todo .pg-row-text { display: flex; flex-direction: column; }
+.pg-todo:hover .pg-link { gap: 7px; }
+.pg-todo:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 4px; border-radius: 8px; }
+@media (max-width: 640px) {
+    .pg-todo .pg-link span { display: none; }
+}
+
+/* -- Módulos que todavía no tienen página -- */
+.pg-soon { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+
+.pg-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pg-nowrap { white-space: nowrap; }

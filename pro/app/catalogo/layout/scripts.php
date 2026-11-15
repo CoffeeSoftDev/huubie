@@ -13,8 +13,8 @@
     <script src="<?= $asset('assets/js/plugins.js') ?>"></script>
     <script src="<?= $asset('assets/js/complementos.js') ?>"></script>
 
-    <!-- Barra copiada de inventory. Rail: el de pro (ctrl-nav :: rail), el mismo de Pedidos. -->
-    <script src="<?= $asset('app/catalogo/src/js/navbar.js') ?>"></script>
+    <!-- Barra y rail: los de pro, los mismos de todas las paginas. Cada uno trae su propio CSS. -->
+    <script src="<?= $asset('auth/src/js/navbar.js') ?>"></script>
     <script src="<?= $asset('auth/src/js/sidebar.js') ?>"></script>
 
     <!-- Pestañas y modal de CostSys: cuelgan sus metodos de Templates. Van antes del modulo. -->

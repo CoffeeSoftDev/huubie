@@ -159,7 +159,10 @@ class ctrl extends mdl {
     /*  Dentro de un modulo el rail no agrupa: cada seccion es su propio boton.
         Primero las sueltas y despues las de cada submodulo, en su orden. El
         submodulo solo sobrevive como `group`: el rail pinta una linea donde
-        cambia de grupo. */
+        cambia de grupo.
+
+        La excepcion es el modulo que solo tiene submodulos: ahi el rail es
+        el de un submodulo a la vez (ver abajo). */
     private function railModule($module) {
         $loose  = [];
         $bySub  = [];
@@ -177,9 +180,33 @@ class ctrl extends mdl {
             else $bySub[(int) $section['submodule_id']][] = $item;
         }
 
+        $subs = $bySub ? $this->listSubmodulesByModule([$module['id']]) : [];
+
+        /*  Modulo que solo tiene submodulos (se entra por sus tarjetas en el
+            inicio, Permission::submodules): el rail es el del submodulo de la
+            pagina abierta, y nada mas. scoped le avisa al rail que este menu
+            no sirve para las paginas de los otros submodulos. */
+        $current = (int) ($module['submodule_id'] ?? 0);
+
+        if (!$loose && isset($bySub[$current])) {
+            $title = $module['name'];
+
+            foreach ($subs as $sub) {
+                if ((int) $sub['id'] === $current) $title = $sub['name'];
+            }
+
+            return [
+                'mode'       => 'module',
+                'title'      => $title,
+                'items'      => $bySub[$current],
+                'submodules' => [],
+                'scoped'     => 1,
+            ];
+        }
+
         $items = $loose;
 
-        foreach ($bySub ? $this->listSubmodulesByModule([$module['id']]) : [] as $sub) {
+        foreach ($subs as $sub) {
             foreach ($bySub[(int) $sub['id']] ?? [] as $item) $items[] = $item;
         }
 
@@ -200,7 +227,8 @@ class ctrl extends mdl {
                 'id'     => (int) $module['id'],
                 'name'   => $module['name'],
                 'icon'   => $module['icon'] ?: 'layout-grid',
-                'route'  => trim((string) $module['route']),
+                // Con varios submodulos, a sus tarjetas en el inicio.
+                'route'  => Permission::entry($module),
                 // Empresa sin pago al corriente: el modulo se ve y no abre.
                 'locked' => $state['ok'] ? 0 : 1,
             ];

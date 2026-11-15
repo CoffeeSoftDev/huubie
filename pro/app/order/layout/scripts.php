@@ -25,9 +25,8 @@
     <script src="<?= $asset('assets/js/plugins.js') ?>"></script>
     <script src="<?= $asset('assets/js/complementos.js') ?>"></script>
 
-    <!-- Barra: la de Catalogo tal cual (es generica). Rail: el de pro, que pinta
-         los submodulos (TPV, Reportes) y las secciones sin pagina como "Próximamente". -->
-    <script src="<?= $asset('app/catalogo/src/js/navbar.js') ?>"></script>
+    <!-- Barra y rail: los de pro, los mismos de todas las paginas. Cada uno trae su propio CSS. -->
+    <script src="<?= $asset('auth/src/js/navbar.js') ?>"></script>
     <script src="<?= $asset('auth/src/js/sidebar.js') ?>"></script>
 
     <!-- Componentes compartidos: cuelgan de Templates. Van antes del modulo.

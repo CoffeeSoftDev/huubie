@@ -44,10 +44,12 @@ class mdl extends CRUD {
 
     /*  El modulo de la seccion cuya ruta es la pagina. Gana sobre modules.route:
         una seccion puede vivir en otra carpeta que su modulo (catalogo esta en
-        app/catalogo y es del modulo Pedidos, igual que cortes). [path] -> fila o null. */
+        app/catalogo y es del modulo Pedidos, igual que cortes). Trae tambien el
+        submodulo de esa seccion: el rail enseña solo las de el.
+        [path] -> fila o null. */
     function getModuleBySectionRoute($array) {
         $query = "
-            SELECT m.id, m.name, m.code, m.icon, m.route
+            SELECT m.id, m.name, m.code, m.icon, m.route, s.submodule_id
             FROM {$this->bd}sections s
             INNER JOIN {$this->bd}modules m ON m.id = s.module_id AND m.is_active = 1
             WHERE s.is_active = 1
