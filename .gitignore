@@ -40,6 +40,10 @@ pro/sessions/sess_*
 pro/**/*.log
 # Fotos de usuarios e imagenes de temas que se suben desde Developer.
 pro/uploads/
+# Comprobantes de pago que suben los clientes desde el portal: datos de clientes.
+# La carpeta viaja por su .htaccess, que la cierra a la web.
+pro/storage/receipts/*
+!pro/storage/receipts/.htaccess
 
 # ImageLab: credenciales, imagenes generadas y base de trabajos. Todo runtime.
 imagelab/.env
