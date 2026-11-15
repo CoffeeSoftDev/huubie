@@ -116,11 +116,42 @@ class OrderTurn extends Templates {
 
         if (day !== undefined) dataInit.day = day || null;
 
+        this.paintStrip();
+
         if (!orders) return;
 
         orders.paintTurn();
 
         if (reload) orders.lsOrders();
+    }
+
+    // -- Franja de caja --
+
+    // La pantalla la enciende una vez (paintStrip(true)) cuando ya sabe que puede verla.
+    // Después sync() la repinta sola con cada cambio del turno.
+    paintStrip(enable) {
+        if (enable) this.stripOn = true;
+
+        if (!this.stripOn) return;
+
+        if (!this.strip) this.strip = new CajaStrip(this._link, 'root');
+
+        this.strip.paint();
+    }
+
+    // Tras guardar un pedido, venta o cobro: pide solo el turno y el día para que
+    // «Vendido» y los conteos de la franja no se queden viejos. Varios guardados
+    // seguidos hacen una sola consulta.
+    touch() {
+        if (!this.stripOn) return;
+
+        clearTimeout(this.touchTimer);
+
+        this.touchTimer = setTimeout(async () => {
+            const data = await useFetch({ url: this._link, data: { opc: 'getBrief' } });
+
+            if (data && data.status == 200) this.sync(data.brief, false, data.day);
+        }, 400);
     }
 
     // -- Abrir --

@@ -223,33 +223,17 @@ class SaleHistory extends Templates {
         if (dataInit.status != 200 || !this.canHistory('show')) return;
 
         this.paintTurn();
+
+        orderTurn.paintStrip(true);
     }
 
-    // Chip del turno o del día y sus botones. orderTurn.sync() lo repinta.
+    // «Cierre del día» del encabezado. El turno lo muestra la franja de caja (caja-strip.js).
+    // orderTurn.sync() lo repinta: el botón abre el día pendiente si lo hay.
     paintTurn() {
         if (!$(`#headerActions${this.PROJECT_NAME}`).length) return;
 
-        const turn    = dataInit.turn;
         const day     = dataInit.day || {};
         const pending = day.pending && day.pending.length ? day.pending[0] : '';
-        const create  = this.can('create');
-
-        let tone = 'is-none';
-        let text = 'Sin turno abierto';
-
-        if (turn && turn.old) {
-            tone = 'is-old';
-            text = `Turno ${turn.folio} de otro día`;
-        } else if (turn) {
-            tone = 'is-open';
-            text = `Turno ${turn.folio} · desde ${ordHour(String(turn.opened_at).slice(11, 16))}`;
-        } else if (day.closed) {
-            tone = 'is-closed';
-            text = 'Día cerrado';
-        } else if (pending) {
-            tone = 'is-old';
-            text = `Falta cerrar el ${ordDate(pending).slice(0, 5)}`;
-        }
 
         this.createLayout({
             parent: `headerActions${this.PROJECT_NAME}`,
@@ -258,13 +242,10 @@ class SaleHistory extends Templates {
                 id:    `headerActionsBody${this.PROJECT_NAME}`,
                 class: 'flex items-center gap-[12px] flex-wrap justify-end',
                 container: [
-                    { type: 'span', id: `turnChip${this.PROJECT_NAME}`, class: `ord-turn-chip ${tone}`, html: `<span class="ord-turn-dot"></span>${esc(text)}` },
                     { type: 'div', id: `headerButtons${this.PROJECT_NAME}`, class: 'flex' }
                 ]
             }
         });
-
-        const opens = !turn && create && !day.closed && !pending;
 
         this.coffeeForm({
             parent:       `headerButtons${this.PROJECT_NAME}`,
@@ -272,15 +253,6 @@ class SaleHistory extends Templates {
             class:        'flex gap-[8px]',
             showRequired: false,
             json: [
-                {
-                    opc:       'button',
-                    id:        'btnTurnHistory',
-                    class:     'col-auto',
-                    text:      opens ? 'Abrir turno' : 'Turno y corte',
-                    icon:      opens ? 'icon-lock-open' : 'icon-clock',
-                    color_btn: 'secondary',
-                    onClick:   () => orderTurn.open()
-                },
                 {
                     opc:       'button',
                     id:        'btnDayHistory',
@@ -595,6 +567,13 @@ class SaleDetail extends OrderDetail {
         const can = data.can || {};
         const out = [];
 
+        // V7: el enlace solo llega con el permiso de imprimir (ctrl saleBundle).
+        if (data.share && data.share.link) {
+            out.push(`<button type="button" class="ord-undeliver" onclick="orderDetail.shareTicket()">
+                          <i data-lucide="message-circle" class="w-4 h-4"></i>Enviar ticket
+                      </button>`);
+        }
+
         if (can.customer) {
             out.push(`<button type="button" class="ord-undeliver" onclick="orderDetail.changeCustomer(${id})">
                           <i data-lucide="user-pen" class="w-4 h-4"></i>Cambiar cliente
@@ -608,6 +587,16 @@ class SaleDetail extends OrderDetail {
         }
 
         return out.length ? `<div class="flex flex-wrap gap-[6px]">${out.join('')}</div>` : '';
+    }
+
+    // -- Enviar ticket (V7) --
+
+    shareTicket() {
+        const data = this.last;
+
+        if (!data) return;
+
+        this.ticketShare(data.share, data.ticket || {});
     }
 
     cancelBox(o) {
@@ -707,10 +696,12 @@ class SaleDetail extends OrderDetail {
         const t   = data.ticket || {};
         const row = (a, b, strong) => `<tr${strong ? ' class="b"' : ''}><td>${a}</td><td class="r">${b}</td></tr>`;
 
+        // l.amount ya llega neto del descuento de la partida.
         const lines = (t.lines || []).map((l) => {
-            const extra = l.details ? `<div class="s">Obs.: ${esc(l.details)}</div>` : '';
+            const note = l.details ? `<div class="s">Obs.: ${esc(l.details)}</div>` : '';
+            const cut  = Number(l.discount) > 0 ? `<div class="s">Desc. −${money(l.discount)}</div>` : '';
 
-            return `<tr><td>${Number(l.quantity)} × ${esc(l.name)}${extra}</td><td class="r">${money(l.amount)}</td></tr>`;
+            return `<tr><td>${Number(l.quantity)} × ${esc(l.name)}${note}${cut}</td><td class="r">${money(l.amount)}</td></tr>`;
         }).join('');
 
         const payments = (t.payments || []).map((p) => {
@@ -723,6 +714,8 @@ class SaleDetail extends OrderDetail {
 
         const tip       = Number(t.tip) > 0;
         const credit    = Number(t.credit) > 0.005;
+        const points    = Number(t.points) > 0.005;
+        const card      = t.card ? `${esc(t.card.type)} · ${esc(t.card.number)}` : '';
         const cancelled = t.cancelled
             ? `<hr><div class="c b">CANCELADA</div>${t.cancel_reason ? `<div class="c s">${esc(t.cancel_reason)}</div>` : ''}`
             : '';
@@ -735,6 +728,7 @@ class SaleDetail extends OrderDetail {
             <table>
                 ${row('Atiende', esc(t.user))}
                 ${row('Cliente', esc(t.customer))}
+                ${card ? row('Tarjeta', card) : ''}
             </table>
             <hr>
             <table>${lines || '<tr><td>Sin productos</td></tr>'}</table>
@@ -747,6 +741,7 @@ class SaleDetail extends OrderDetail {
                 ${tip ? row('Cobrado', money(t.charged), true) : ''}
                 ${payments}
                 ${credit ? row('A crédito', money(t.credit), true) : ''}
+                ${points ? row('Puntos al monedero', money(t.points)) : ''}
             </table>
             ${cancelled}
             <hr>
@@ -870,6 +865,7 @@ class SaleDetail extends OrderDetail {
         orderPay.closeQuiet('modalSaleCancel', close);
 
         orders.lsOrders();
+        orderTurn.touch();
 
         back();
 

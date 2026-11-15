@@ -509,7 +509,7 @@ class Navbar {
 
             /* Sin general.css (Empresas) el anfitrion no trae alto ni capa. */
             #menu-navbar { flex:none; z-index:50; }
-            .navbar-main { position:relative; height:64px; min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px; background:#FFFFFF; border-bottom:1px solid #E8E3F0; font-family:'Inter',system-ui,sans-serif; transition:background .2s ease; }
+            .navbar-main { position:relative; height:64px; min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px; background:#FFFFFF; border-bottom:1px solid var(--chrome-line, #D5D9E0); box-shadow:var(--chrome-shadow, 0 1px 2px rgb(16 24 40 / .04)); font-family:'Inter',system-ui,sans-serif; transition:background .2s ease; }
             .navbar-main button { font-family:inherit; }
             .navbar-main [hidden] { display:none !important; }
             .navbar-main p { margin:0; }

@@ -125,6 +125,7 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
 
 /* @piel caja · estados de la plantilla y tabla de dos columnas */
 .chip.off{ color:var(--bp-ink-dim) } .chip.ask{ color:var(--bp-ac) }
+.chip.done{ color:var(--bp-read) }
 .kv td:first-child{ width:190px; font-weight:650; color:var(--bp-ink) }
 </style>
 </head>
@@ -139,24 +140,24 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
     <p class="lede">
       Plan para llevar a PRO la propuesta C: una franja fija debajo de la barra superior que dice
       cómo está la caja y ofrece la acción que toca. Sustituye el chip y los botones de turno que hoy
-      cada pantalla pinta por su cuenta. La franja solo maneja el turno: «Cierre del día» se queda en Cortes.
-      Su botón se elige entre C3 y C4 (decisión D1).
+      cada pantalla pinta por su cuenta. La franja solo maneja el turno: «Cierre del día» se queda en Pedidos, Ventas y Cortes.
+      Su botón es C3, de contorno (decisión D1).
     </p>
     <div class="meta">
       <span><b>Fecha</b> 14/11/2026</span>
       <span><b>Maquetas</b> pro/app/order/templates/turno-franja-propuesta-c3.html · -c4</span>
       <span><b>Destino</b> pro/app/order · base fayxzvov_pos</span>
-      <span><b>Estado</b> sin empezar; nada construido ni subido</span>
+      <span><b>Estado</b> F0 a F4 hechas en local el 14/11/2026; falta probar (F5); nada subido</span>
     </div>
   </header>
 
   <div class="tiles">
     <div class="tile"><b>5</b><small>estados de caja: sin turno, abierto, de otro día, falta cierre y día cerrado</small></div>
-    <div class="tile"><b>4</b><small>copias de <code>paintTurn()</code> con chip y botones de turno: Pedidos, Ventas, Calendario y Cortes</small></div>
-    <div class="tile"><b>5</b><small>pantallas con turno que ganan la franja (Clientes incluida)</small></div>
+    <div class="tile"><b>5</b><small>copias de <code>paintTurn()</code> con chip y botones de turno: Pedidos, Ventas, Historial, Calendario y Cortes</small></div>
+    <div class="tile"><b>6</b><small>pantallas con turno que ganan la franja (Clientes incluida)</small></div>
     <div class="tile"><b>0</b><small>migraciones: las cifras salen de columnas que ya existen</small></div>
     <div class="tile"><b>7</b><small>fases, de F0 a F6</small></div>
-    <div class="tile"><b>10</b><small>decisiones abiertas, cada una con propuesta</small></div>
+    <div class="tile"><b>10</b><small>decisiones cerradas el 14/11/2026</small></div>
   </div>
 
   <!-- 01 · Qué se construye -->
@@ -169,9 +170,9 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
           <tr><td>Dónde</td><td>Entre <code>#menu-navbar</code> y <code>#main__content</code>, en <code>layout/head.php</code>. Ocupa todo el ancho y no se desplaza con la página.</td></tr>
           <tr><td>Qué dice</td><td>Ícono de caja, el estado con su punto de color («Turno 12 abierto»), una frase de qué significa y, con el turno abierto, las cifras: Fondo, Vendido y cuántos pedidos y ventas lleva.</td></tr>
           <tr><td>Qué ofrece</td><td>Una sola acción de turno según el estado (sección 03): abrir, ver o cerrar. Se presenta como C3 o C4 (sección 02).</td></tr>
-          <tr><td>Qué no lleva</td><td>«Cierre del día» ni un acceso a Cortes. El cierre ya vive en Cortes (<code>btnDayCuts</code>), y Cortes ya está en el menú lateral.</td></tr>
+          <tr><td>Qué no lleva</td><td>«Cierre del día». El cierre se queda en los encabezados de Pedidos (<code>btnDayOrders</code>), Ventas (<code>btnDaySale</code>) y Cortes (<code>btnDayCuts</code>). Solo con un día pendiente la franja ofrece «Ir a Cortes» (D10).</td></tr>
           <tr><td>Qué no cambia</td><td>El aviso cuando el ctrl contesta 423 (<code>orderTurn.locked</code>), los modales de «Turno y corte» y «Cierre del día», y los permisos: abrir y cerrar siguen pidiendo <code>create</code>.</td></tr>
-          <tr><td>Qué se quita</td><td>El chip de turno y los botones «Turno actual», «Turno y corte» y «Cierre del día» de Pedidos, Ventas y Calendario. «Cierre del día» se queda solo en Cortes (D9). Las acciones propias de la pantalla (Nuevo pedido) se quedan.</td></tr>
+          <tr><td>Qué se quita</td><td>El chip de turno y los botones de turno («Turno actual», «Turno y corte») de Pedidos, Ventas, Historial, Calendario y Cortes. «Cierre del día» no se toca (D9). Las acciones propias de la pantalla (Nuevo pedido) se quedan.</td></tr>
         </tbody>
       </table>
     </div>
@@ -179,8 +180,8 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
 
   <!-- 02 · Los botones -->
   <section>
-    <h2><span class="num">02</span> El botón: C3 o C4</h2>
-    <p class="intro">La franja es la misma en las dos y lleva una sola acción. C1 (grupo) y C2 (acción + menú) se descartaron el 14/11/2026. Propongo C3.</p>
+    <h2><span class="num">02</span> El botón: C3</h2>
+    <p class="intro">La franja es la misma en las dos y lleva una sola acción. C1 (grupo) y C2 (acción + menú) se descartaron el 14/11/2026. Se aprobó C3 el mismo día; C4 queda como referencia.</p>
     <div class="tscroll">
       <table>
         <thead><tr><th>Punto</th><th>C3 · Botón de contorno</th><th>C4 · La franja se toca</th></tr></thead>
@@ -220,32 +221,32 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
     <p class="intro">Siete fases cortas. Cada una se prueba en local antes de pasar a la siguiente.</p>
     <div class="rv-trips">
       <article class="rv-trip">
-        <header><span class="rv-code">F0</span><span class="rv-p preg">Decidir</span></header>
+        <header><span class="rv-code">F0</span><span class="rv-p baja">Hecha</span></header>
         <b>Elegir botones y cerrar decisiones</b>
-        <p>C3 o C4, y las decisiones D2 a D10 de la sección 07.</p>
+        <p>C3, con cifras, «Cierre del día» se queda en Pedidos y Ventas, «Ir a Cortes». 14/11/2026.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">F1</span><span class="rv-p alta">Primero</span></header>
+        <header><span class="rv-code">F1</span><span class="rv-p baja">Hecha</span></header>
         <b>Datos de la franja</b>
-        <p><code>turnBrief()</code> suma fondo, quién abrió y lo vendido. Solo lectura.</p>
+        <p><code>turnBrief()</code> suma fondo, quién abrió y lo vendido. Solo lectura. En local el 14/11/2026.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">F2</span><span class="rv-p alta">Primero</span></header>
+        <header><span class="rv-code">F2</span><span class="rv-p baja">Hecha</span></header>
         <b>Componente <code>CajaStrip</code></b>
-        <p>Un archivo que pinta los cinco estados con una sola acción de turno.</p>
+        <p>Un archivo que pinta los cinco estados con una sola acción de turno. En local el 14/11/2026.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">F3</span><span class="rv-p media">Después</span></header>
+        <header><span class="rv-code">F3</span><span class="rv-p baja">Hecha</span></header>
         <b>Montaje en el esqueleto</b>
-        <p>El hueco en <code>head.php</code> y el script en <code>scripts.php</code>.</p>
+        <p>El hueco en <code>head.php</code> y el script en <code>scripts.php</code>. En local el 14/11/2026.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">F4</span><span class="rv-p media">Después</span></header>
+        <header><span class="rv-code">F4</span><span class="rv-p baja">Hecha</span></header>
         <b>Conectar y limpiar</b>
-        <p><code>sync()</code> repinta la franja; se quitan chips y botones de turno, y «Cierre del día» queda solo en Cortes.</p>
+        <p><code>sync()</code> repinta la franja; <code>touch()</code> la refresca tras cada guardado; se quitan chips y botones de turno. «Cierre del día» no se toca. En local el 14/11/2026.</p>
       </article>
       <article class="rv-trip">
-        <header><span class="rv-code">F5</span><span class="rv-p baja">Al final</span></header>
+        <header><span class="rv-code">F5</span><span class="rv-p alta">Sigue</span></header>
         <b>Pruebas en local</b>
         <p>5 estados × 2 roles, celular y oscuro, en Kafeto con el usuario 23.</p>
       </article>
@@ -280,8 +281,8 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
           </tr>
           <tr>
             <td>F4</td>
-            <td><code>cajaStrip = new CajaStrip(...)</code> donde hoy se crea <code>orderTurn</code> (5 archivos). <code>OrderTurn.sync()</code> llama <code>cajaStrip.paint()</code>. Cada <code>paintTurn()</code> se queda solo con las acciones de su pantalla (sección 05).</td>
-            <td><code>pedido-turno.js</code> · <code>pedidos.js</code> · <code>ventas.js</code> · <code>calendario.js</code> · <code>cortes.js</code> · <code>clientes.js</code></td>
+            <td><code>OrderTurn</code> crea la franja: cada pantalla la enciende con <code>orderTurn.paintStrip(true)</code> donde ya sabía que podía ver el turno, y <code>sync()</code> la repinta. <code>orderTurn.touch()</code> pide <code>getBrief</code> (nuevo en <code>ctrl-turno.php</code>: solo turno y día) tras guardar un pedido, cancelarlo, cobrar, borrar un pago, entregar, vender o cancelar una venta; varios guardados seguidos hacen una sola consulta. Cada <code>paintTurn()</code> se queda solo con las acciones de su pantalla (sección 05).</td>
+            <td><code>pedido-turno.js</code> · <code>ctrl-turno.php</code> · <code>pedidos.js</code> · <code>ventas.js</code> · <code>historial.js</code> · <code>calendario.js</code> · <code>cortes.js</code> · <code>clientes.js</code> · <code>pedido-captura.js</code> · <code>pedido-cobro.js</code> · <code>pedido-detalle.js</code></td>
             <td>Abrir, cerrar, cobrar y cerrar el día repintan la franja sin recargar.</td>
           </tr>
           <tr>
@@ -308,15 +309,16 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
       <table>
         <thead><tr><th>Pantalla</th><th>Hoy</th><th>Se quita</th><th>Se queda</th></tr></thead>
         <tbody>
-          <tr><td>Pedidos</td><td><code>pedidos.js:250-321</code></td><td>Chip, <code>btnTurnOrders</code>, <code>btnDayOrders</code> («Cierre del día»)</td><td><code>btnNewOrder</code></td></tr>
-          <tr><td>Ventas</td><td><code>ventas.js:349-427</code></td><td>Chip, <code>btnTurnSale</code>, <code>btnDaySale</code> («Cierre del día»)</td><td>La ayuda de teclas (F2 Cobrar · F8 Cliente · F9 Descuento)</td></tr>
-          <tr><td>Calendario</td><td><code>calendario.js:185</code></td><td>Chip y <code>btnTurnCalendar</code></td><td>Lo demás del encabezado</td></tr>
-          <tr><td>Cortes</td><td><code>cortes.js:211</code></td><td>Chip y <code>btnTurnCuts</code> («Turno actual»)</td><td><code>btnDayCuts</code> («Cierre del día», <code>cortes.js:255</code>): es su único lugar. Filtros y tabla.</td></tr>
+          <tr><td>Pedidos</td><td><code>pedidos.js:250-321</code></td><td>Chip y <code>btnTurnOrders</code></td><td><code>btnNewOrder</code> y <code>btnDayOrders</code> («Cierre del día», D9)</td></tr>
+          <tr><td>Ventas</td><td><code>ventas.js:349-427</code></td><td>Chip y <code>btnTurnSale</code></td><td><code>btnDaySale</code> («Cierre del día», D9) y la ayuda de teclas (F2 Cobrar · F8 Cliente · F9 Descuento)</td></tr>
+          <tr><td>Historial</td><td><code>historial.js:229</code></td><td>Chip y <code>btnTurnHistory</code></td><td><code>btnDayHistory</code> («Cierre del día»)</td></tr>
+          <tr><td>Calendario</td><td><code>calendario.js:185</code></td><td>Chip y <code>btnTurnCalendar</code></td><td>Nada: era lo único del encabezado; <code>paintTurn()</code> queda vacío</td></tr>
+          <tr><td>Cortes</td><td><code>cortes.js:211</code></td><td>Chip y <code>btnTurnCuts</code> («Turno actual»)</td><td><code>btnDayCuts</code> («Cierre del día», <code>cortes.js:255</code>), filtros y tabla.</td></tr>
           <tr><td>Clientes</td><td><code>clientes.js:550</code> (vacío)</td><td>Nada</td><td>Gana la franja</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="foot">Calendario lo revisé solo por encima: confirmar en F4 qué otros botones viven junto al chip.</p>
+    <p class="foot">Confirmado en F4: en Calendario el chip y «Turno actual» eran todo el encabezado de acciones.</p>
   </section>
 
   <!-- 06 · Riesgos -->
@@ -338,22 +340,22 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
 
   <!-- 07 · Decisiones abiertas -->
   <section>
-    <h2><span class="num">07</span> Decisiones abiertas</h2>
-    <p class="intro">Diez preguntas, cada una con lo que propongo. Ya decidido: «Cierre del día» no va en la franja.</p>
+    <h2><span class="num">07</span> Decisiones</h2>
+    <p class="intro">Cerradas el 14/11/2026. D1, D2, D8, D9 y D10 las respondió el usuario; D3 a D7 quedan con la propuesta. «Cierre del día» nunca va en la franja.</p>
     <div class="tscroll">
       <table>
-        <thead><tr><th>#</th><th>Pregunta</th><th>Propuesta</th><th>Si se decide otra cosa</th></tr></thead>
+        <thead><tr><th>#</th><th>Pregunta</th><th>Decisión</th><th>Si se decide otra cosa</th></tr></thead>
         <tbody>
-          <tr><td>D1</td><td>¿Botón C3 o C4?</td><td><span class="chip ask">Propuesta</span> C3: botón de contorno de <code>coffeeForm</code>; no compite con «Nuevo pedido».</td><td>C4 pide la franja con clic y CSS propio; a cambio queda más limpia y en celular ocupa un renglón.</td></tr>
-          <tr><td>D2</td><td>¿La franja muestra cifras?</td><td><span class="chip ask">Propuesta</span> Sí: Fondo, Vendido y «Pedidos · Ventas». «Movs.» de la maqueta no existe como dato; se cambia por esos dos conteos.</td><td>Sin cifras, F1 desaparece y la franja solo dice el estado.</td></tr>
+          <tr><td>D1</td><td>¿Botón C3 o C4?</td><td><span class="chip done">Decidido</span> C3: botón de contorno de <code>coffeeForm</code>; no compite con «Nuevo pedido».</td><td>C4 pide la franja con clic y CSS propio; a cambio queda más limpia y en celular ocupa un renglón.</td></tr>
+          <tr><td>D2</td><td>¿La franja muestra cifras?</td><td><span class="chip done">Decidido</span> Sí: Fondo, Vendido y «Pedidos · Ventas». «Movs.» de la maqueta no existe como dato; se cambia por esos dos conteos.</td><td>Sin cifras, F1 desaparece y la franja solo dice el estado.</td></tr>
           <tr><td>D3</td><td>¿Consulta ve la franja?</td><td><span class="chip ask">Propuesta</span> Sí, sin Abrir ni Cerrar.</td><td>Se oculta cuando no hay <code>create</code>.</td></tr>
           <tr><td>D4</td><td>¿Inicio y Dashboard la muestran?</td><td><span class="chip ask">Propuesta</span> No en esta etapa: no cargan el turno.</td><td>Hay que mandar <code>turn</code> y <code>day</code> en sus <code>init</code> y cargar <code>pedido-turno</code>.</td></tr>
           <tr><td>D5</td><td>¿Un permiso propio de caja (<code>pos-caja</code>)?</td><td><span class="chip ask">Propuesta</span> No: se queda <code>create</code> de cada sección, como hoy.</td><td>Migración de permisos y revisar los checks del ctrl de turno.</td></tr>
           <tr><td>D6</td><td>¿Fondo propuesto al abrir el turno?</td><td><span class="chip ask">Propuesta</span> Fuera de este plan.</td><td>Necesita dónde guardarlo (Configuración); sería estructura nueva.</td></tr>
           <tr><td>D7</td><td>¿Celular en dos renglones?</td><td><span class="chip ask">Propuesta</span> Sí cuando no cabe: estado arriba, acción abajo; sin frase ni cifras.</td><td>Un solo renglón obliga a quitar el texto de la acción.</td></tr>
-          <tr><td>D8</td><td>¿Se borran las maquetas B, C1 y C2?</td><td><span class="chip ask">Propuesta</span> Sí, ya se descartaron.</td><td>Se quedan como referencia en <code>templates/</code>.</td></tr>
-          <tr><td>D9</td><td>¿«Cierre del día» sale también de Pedidos y Ventas?</td><td><span class="chip ask">Propuesta</span> Sí: queda solo en Cortes (<code>btnDayCuts</code>), que ya existe.</td><td>Se quedan <code>btnDayOrders</code> y <code>btnDaySale</code> en sus encabezados.</td></tr>
-          <tr><td>D10</td><td>Con un día pendiente, ¿la franja lleva a Cortes?</td><td><span class="chip ask">Propuesta</span> Sí, «Ir a Cortes». El día no se cierra desde la franja.</td><td>Solo avisa; el aviso 423 al capturar sigue abriendo el cierre, como hoy.</td></tr>
+          <tr><td>D8</td><td>¿Se borran las maquetas B, C1 y C2?</td><td><span class="chip done">Decidido</span> No por ahora: se quedan como referencia en <code>templates/</code>.</td><td>Se borran cuando el usuario lo pida.</td></tr>
+          <tr><td>D9</td><td>¿«Cierre del día» sale también de Pedidos y Ventas?</td><td><span class="chip done">Decidido</span> No: se quedan <code>btnDayOrders</code> y <code>btnDaySale</code> en sus encabezados, además de <code>btnDayCuts</code>.</td><td>Quedaría solo en Cortes.</td></tr>
+          <tr><td>D10</td><td>Con un día pendiente, ¿la franja lleva a Cortes?</td><td><span class="chip done">Decidido</span> Sí, «Ir a Cortes». El día no se cierra desde la franja.</td><td>Solo avisa; el aviso 423 al capturar sigue abriendo el cierre, como hoy.</td></tr>
         </tbody>
       </table>
     </div>
@@ -365,7 +367,7 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
     <dl class="voc">
       <div>
         <dt>Comprobado (código y maquetas, 14/11/2026)</dt>
-        <dd><code>turnBrief()</code> devuelve solo <code>id</code>, <code>folio</code>, <code>opened_at</code> y <code>old</code> (<code>core-order.php:130-141</code>). <code>dayBrief()</code> devuelve <code>closed</code> y <code>pending</code> (<code>core-order.php:201-208</code>). Los <code>init</code> de Pedidos, Ventas, Calendario, Clientes y el ctrl de turno mandan los dos. <code>OrderTurn.sync()</code> llama <code>orders.paintTurn()</code> (<code>pedido-turno.js:114-124</code>). <code>turn.opening_cash</code> ya se lee en <code>mdl-order.php</code> y <code>qTurnTotals</code> existe (<code>mdl-order.php:843</code>). <code>head.php</code> no tiene hueco para la franja. «Cierre del día» ya existe en Cortes (<code>btnDayCuts</code>, <code>cortes.js:255</code>). Las maquetas C3 y C4 se probaron en el navegador: 5 estados × 2 roles, claro y oscuro, el clic y el Enter de la franja en C4, el paso a Cortes con un día pendiente, y 390 px sin desplazamiento horizontal.</dd>
+        <dd>F1: <code>turnBrief()</code> (<code>core-order.php:131</code>) suma <code>opened_by</code> y <code>opening_cash</code>, y con el turno de hoy <code>total_sales</code>, <code>orders_count</code> y <code>sales_count</code>. <code>qOpenTurn</code> (<code>mdl-order.php:126</code>) une <code>users</code> por <code>t.user_id</code>. <code>php -l</code> limpio en los dos; la consulta corrió en la BD local (turno 990: fondo $100, «Coffee Revisor»). <code>dayBrief()</code> devuelve <code>closed</code> y <code>pending</code> (<code>core-order.php:215</code>). Los <code>init</code> de Pedidos, Ventas, Calendario, Clientes y el ctrl de turno mandan los dos. <code>OrderTurn.sync()</code> llama <code>orders.paintTurn()</code> (<code>pedido-turno.js:114-124</code>). <code>turn.opening_cash</code> ya se lee en <code>mdl-order.php</code> y <code>qTurnTotals</code> existe (<code>mdl-order.php:843</code>). <code>head.php</code> no tiene hueco para la franja. «Cierre del día» ya existe en Cortes (<code>btnDayCuts</code>, <code>cortes.js:255</code>). Las maquetas C3 y C4 se probaron en el navegador: 5 estados × 2 roles, claro y oscuro, el clic y el Enter de la franja en C4, el paso a Cortes con un día pendiente, y 390 px sin desplazamiento horizontal.</dd>
       </div>
       <div>
         <dt>Supuesto (no lo verifiqué)</dt>

@@ -154,7 +154,12 @@ class Customers extends Templates {
             }
         });
 
-        if (dataInit.status != 200 || !this.allow('create')) return;
+        if (dataInit.status != 200) return;
+
+        // Desde aquí se cobra un pedido o se abona crédito: la franja dice si hay turno.
+        orderTurn.paintStrip(true);
+
+        if (!this.allow('create')) return;
 
         this.coffeeForm({
             parent:       `headerActions${this.PROJECT_NAME}`,

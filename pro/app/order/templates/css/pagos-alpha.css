@@ -1,0 +1,375 @@
+/*  Maqueta: Gestión de pagos · horizontal (templates/pagos-alpha-propuesta.html).
+    Las piezas de alpha (filas chicas, un solo botón) en una ventana horizontal
+    de 720 px: a la izquierda de dónde es el pedido y quién cobra; a la derecha
+    las formas de pago como Soft, todas en una tabla con su importe. El acento
+    es el morado de Huubie: no hay ámbar. En el celular vuelve a una columna.
+    El armazón (barra copiada, tira de la maqueta, nota, aviso y la tabla de
+    atrás) sale de css/turno-propuesta.css.
+    Los botones con fondo van como button.X: el preflight de Tailwind CDN pinta
+    [type=button] transparente. Alto y letra de input/select llevan !important
+    por compact.css. */
+
+/* -- Tokens -- */
+:root {
+    --pa-surface:  #FFFFFF;
+    --pa-sunken:   #F6F7F9;
+    --pa-line:     #E5E7EB;
+    --pa-line-hi:  #D5D9E0;
+    --pa-ink:      #1F2433;
+    --pa-ink-2:    #475063;
+    --pa-muted:    #6B7280;
+
+    --pa-brand:      rgb(var(--brand-600, 80 48 165));
+    --pa-brand-700:  rgb(var(--brand-700, 64 38 132));
+    --pa-brand-ink:  rgb(var(--brand-600, 80 48 165));
+    --pa-brand-soft: rgb(var(--brand-600, 80 48 165) / .10);
+    /* Cobro cruzado, descuento y candado: el morado en lugar del ámbar. */
+    --pa-brand-bg:   rgb(var(--brand-600, 80 48 165) / .06);
+    --pa-brand-line: rgb(var(--brand-600, 80 48 165) / .35);
+
+    /* Los tres recuadros de alpha: azul, verde y rojo. */
+    --pa-blue:      #1D4ED8;
+    --pa-blue-bg:   rgb(37 99 235 / .07);
+    --pa-ok:        #047857;
+    --pa-ok-bg:     rgb(16 185 129 / .09);
+    --pa-ok-line:   rgb(16 185 129 / .32);
+    --pa-bad:       #B91C1C;
+    --pa-bad-bg:    rgb(220 38 38 / .07);
+    --pa-bad-line:  rgb(220 38 38 / .28);
+    --pa-info:      #2A55A3;
+}
+
+body.dark-mode {
+    --pa-surface:  var(--dk-card, #1F2A37);
+    --pa-sunken:   var(--dk-sunken, #1A2332);
+    --pa-line:     var(--dk-line, #374151);
+    --pa-line-hi:  var(--dk-line-hi, #4B5563);
+    --pa-ink:      var(--dk-text, #F5F5F5);
+    --pa-ink-2:    #D1D5DB;
+    --pa-muted:    var(--dk-muted, #9CA3AF);
+
+    --pa-brand-ink:  rgb(var(--brand-300, 147 197 253));
+    --pa-brand-soft: rgb(var(--brand-600, 28 100 242) / .18);
+    --pa-brand-bg:   rgb(var(--brand-600, 80 48 165) / .16);
+    --pa-brand-line: rgb(var(--brand-600, 80 48 165) / .60);
+
+    --pa-blue:      #93C5FD;
+    --pa-blue-bg:   rgb(59 130 246 / .12);
+    --pa-ok:        #6EE7B7;
+    --pa-ok-bg:     rgb(16 185 129 / .12);
+    --pa-ok-line:   rgb(16 185 129 / .38);
+    --pa-bad:       #FCA5A5;
+    --pa-bad-bg:    rgb(239 68 68 / .12);
+    --pa-bad-line:  rgb(239 68 68 / .38);
+    --pa-info:      #93B4E8;
+}
+
+/* -- Barra: la línea y la sombra del marco de hoy (themes.css) -- */
+.navbar-main { border-bottom: 1px solid var(--chrome-line, #D5D9E0); box-shadow: var(--chrome-shadow, 0 1px 2px rgb(16 24 40 / .04)); }
+
+/* -- Página de atrás -- */
+.pa-page-head { margin-bottom: 16px; }
+.pa-page-head h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--pa-ink); }
+.pa-page-head p { margin: 2px 0 0; font-size: 13px; color: var(--pa-muted); }
+button.pa-row-pay { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--pa-line-hi); border-radius: 8px; background: var(--pa-surface); color: var(--pa-brand-ink); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+button.pa-row-pay svg { width: 15px; height: 15px; }
+button.pa-row-pay:hover { border-color: transparent; background: var(--pa-brand); color: #FFFFFF; }
+
+/* -- Ventana -- */
+/* --pa-demo: alto de la tira de la maqueta (lo mide el JS); en el módulo real no existe. */
+.pa-overlay { position: fixed; inset: 0; z-index: 980; display: flex; align-items: center; justify-content: center; padding: 16px 16px calc(var(--pa-demo, 52px) + 12px); background: rgb(15 23 42 / .45); }
+.pa-overlay[hidden] { display: none; }
+
+/* Horizontal: el mismo ancho para cobrar y para el historial (no brinca al cambiar de pestaña). */
+.pa-win { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 720px; max-height: 100%; border-radius: 14px; background: var(--pa-surface); color: var(--pa-ink); font-size: 13px; box-shadow: 0 24px 48px -12px rgb(15 23 42 / .4); overflow: hidden; }
+
+.pa-head { padding: 12px 16px 0; }
+.pa-head-top { display: flex; align-items: flex-start; gap: 10px; }
+.pa-head-ico { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; background: var(--pa-brand); color: #FFFFFF; }
+.pa-head-ico svg { width: 17px; height: 17px; }
+.pa-head-text { flex: 1; min-width: 0; }
+.pa-head-text h2 { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.25; color: var(--pa-ink); }
+.pa-head-text p { margin: 1px 0 0; overflow: hidden; color: var(--pa-muted); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.pa-head-text p b { color: var(--pa-brand-ink); font-weight: 600; }
+/* Subtítulo con íconos, como alpha: folio, cliente y entrega. El cliente es lo que se recorta. */
+.pa-head-text p.pa-head-meta { display: flex; align-items: center; gap: 10px; }
+.pa-head-meta > span { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; }
+.pa-head-meta > span.is-client { flex-shrink: 1; min-width: 0; }
+.pa-head-meta em { overflow: hidden; font-style: normal; white-space: nowrap; text-overflow: ellipsis; }
+.pa-head-meta svg { width: 12px; height: 12px; flex-shrink: 0; opacity: .8; }
+
+button.pa-x { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; margin: -2px -4px 0 0; border-radius: 8px; background: transparent; color: var(--pa-muted); cursor: pointer; }
+button.pa-x:hover { background: var(--pa-sunken); color: var(--pa-ink); }
+button.pa-x svg { width: 18px; height: 18px; }
+
+.pa-tabs { display: flex; gap: 2px; margin-top: 10px; padding: 3px; border: 1px solid var(--pa-line); border-radius: 10px; background: var(--pa-sunken); }
+button.pa-tab { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 6px; height: 28px; border-radius: 7px; background: transparent; color: var(--pa-muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+button.pa-tab svg { width: 14px; height: 14px; }
+button.pa-tab:hover { color: var(--pa-ink); }
+button.pa-tab.is-active { background: var(--pa-surface); color: var(--pa-ink); box-shadow: 0 1px 2px rgb(16 24 40 / .08), 0 0 0 1px var(--pa-line); }
+.pa-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--pa-line); color: var(--pa-ink-2); font-size: 10.5px; font-weight: 700; }
+
+.pa-body { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; padding: 10px 16px 12px; overflow-y: auto; }
+.pa-form { display: flex; flex-direction: column; gap: 10px; }
+
+/* Rótulo de cada bloque, como los lbl del formulario de alpha. Va en <div>:
+   compact.css le pone tamaño y margen con !important a todo <label>. */
+.pa-field { display: flex; flex-direction: column; min-width: 0; }
+.pa-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; color: var(--pa-muted); font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.pa-label > span { flex-shrink: 0; }
+.pa-label small { overflow: hidden; font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; white-space: nowrap; text-overflow: ellipsis; }
+
+/* -- Resumen (alpha): Total, Pagado, Por cobrar -- */
+.pa-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.pa-stat { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 7px 8px; border-radius: 10px; text-align: center; }
+.pa-stat > span { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 10.5px; font-weight: 600; opacity: .85; }
+.pa-stat > span svg { width: 12px; height: 12px; }
+.pa-stat > b { display: block; margin-top: 1px; overflow: hidden; font-size: 15px; font-weight: 700; line-height: 1.3; white-space: nowrap; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.pa-stat > small { display: block; overflow: hidden; color: var(--pa-muted); font-size: 10.5px; line-height: 1.3; white-space: nowrap; text-overflow: ellipsis; }
+.pa-stat > small:empty { display: none; }
+.pa-stat > small s { opacity: .8; }
+.pa-stat.is-total { background: var(--pa-blue-bg); color: var(--pa-blue); }
+.pa-stat.is-paid { background: var(--pa-ok-bg); color: var(--pa-ok); }
+.pa-stat.is-due { background: var(--pa-bad-bg); color: var(--pa-bad); }
+.pa-stat.is-due.is-done { background: var(--pa-ok-bg); color: var(--pa-ok); }
+
+/* -- Sucursales (alpha): dónde se levantó y quién cobra -- */
+.pa-branch { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 8px; border: 1px solid var(--pa-line-hi); border-radius: 9px; background: var(--pa-surface); }
+.pa-branch-ico { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px; background: var(--pa-sunken); color: var(--pa-muted); }
+.pa-branch-ico svg { width: 14px; height: 14px; }
+.pa-branch-text { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.25; }
+.pa-branch-text b { overflow: hidden; color: var(--pa-ink); font-size: 13px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.pa-branch-text small { display: flex; align-items: center; gap: 4px; overflow: hidden; color: var(--pa-muted); font-size: 10.5px; white-space: nowrap; text-overflow: ellipsis; }
+.pa-branch-chev { display: flex; color: var(--pa-muted); }
+.pa-branch-chev svg { width: 14px; height: 14px; }
+
+.pa-branch.is-cobro .pa-branch-ico { color: var(--pa-brand-ink); }
+.pa-branch.is-cobro:hover { border-color: var(--pa-muted); }
+.pa-branch.is-cross { border-color: var(--pa-brand-line); background: var(--pa-brand-bg); }
+.pa-branch.is-cross .pa-branch-ico { background: var(--pa-brand); color: #FFFFFF; }
+.pa-branch.is-off { opacity: .6; }
+
+/* El select va encima de la tarjeta, invisible: se ve la tarjeta y se abre la lista nativa. */
+.pa-branch select { position: absolute; inset: 0; width: 100% !important; height: 100% !important; margin: 0; opacity: 0; cursor: pointer; }
+.pa-branch select:disabled { cursor: not-allowed; }
+.pa-branch:focus-within { border-color: var(--pa-brand); box-shadow: 0 0 0 3px var(--pa-brand-soft); }
+
+/* Punto del turno: verde abierto; rojo si no se puede cobrar (turno viejo o sin turno). */
+.pa-dot { display: inline-block; width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: currentColor; }
+.pa-turn-open { color: var(--pa-ok); }
+.pa-turn-old { color: var(--pa-bad); }
+.pa-turn-none { color: var(--pa-bad); }
+
+/* Sin turno: el aviso de alpha (#cobroShiftAlert) bajo la tarjeta, en morado (sin ámbar). */
+.pa-alert { display: flex; gap: 8px; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--pa-brand-line); border-radius: 9px; background: var(--pa-brand-bg); color: var(--pa-brand-ink); }
+.pa-alert > svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+.pa-alert-text { min-width: 0; }
+.pa-alert-text b { display: block; font-size: 12px; line-height: 1.3; }
+.pa-alert-text p { margin: 2px 0 0; color: var(--pa-ink-2); font-size: 11.5px; line-height: 1.4; }
+.pa-alert-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+button.pa-alert-go { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border: 1px solid var(--pa-line-hi); border-radius: 7px; background: var(--pa-surface); color: var(--pa-ink); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+button.pa-alert-go svg { width: 13px; height: 13px; }
+button.pa-alert-go:hover { border-color: var(--pa-muted); }
+
+/* -- Dos columnas: de dónde es y quién cobra | las formas de pago -- */
+.pa-cols { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 14px; align-items: start; }
+.pa-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.pa-col-info .pa-disc { grid-template-columns: minmax(0, 1fr); }
+
+/* El fieldset apaga sus campos de un jalón; sin su borde ni su relleno de navegador. */
+fieldset.pa-set, fieldset.pa-col { min-width: 0; margin: 0; padding: 0; border: 0; }
+fieldset.pa-set { display: flex; flex-direction: column; gap: 8px; }
+/* Pagado o sin turno: la forma se ve, apagada, como en alpha. */
+fieldset.is-locked { opacity: .5; }
+fieldset.is-locked button { cursor: not-allowed; }
+
+/* -- Formas de pago (como Soft): todas en una tabla, cada una con su importe -- */
+.pa-rows { display: flex; flex-direction: column; border: 1px solid var(--pa-line-hi); border-radius: 10px; overflow: hidden; }
+/* «Importe» queda sobre el borde derecho de los montos. */
+.pa-grid-head { display: flex; justify-content: space-between; gap: 8px; padding: 6px 15px 6px 10px; border-bottom: 1px solid var(--pa-line); background: var(--pa-sunken); color: var(--pa-muted); font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.pa-grid-head > span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pa-row { position: relative; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 3px 6px 3px 10px; background: var(--pa-surface); }
+.pa-row + .pa-row { border-top: 1px solid var(--pa-line); }
+.pa-row.is-active::before { content: ''; position: absolute; top: 6px; bottom: 6px; left: 0; width: 3px; border-radius: 0 3px 3px 0; background: var(--m, var(--pa-brand)); }
+
+button.pa-row-name { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; padding: 0; background: transparent; color: var(--pa-ink); text-align: left; cursor: pointer; }
+.pa-row-ico { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; flex-shrink: 0; border-radius: 7px; background: var(--m, var(--pa-muted)); color: #FFFFFF; }
+.pa-row-ico svg { width: 13px; height: 13px; }
+.pa-row-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.pa-row-text b { overflow: hidden; font-size: 13px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.pa-row-text small { overflow: hidden; color: var(--pa-muted); font-size: 10.5px; white-space: nowrap; text-overflow: ellipsis; }
+
+.pa-amt { position: relative; width: 132px; flex-shrink: 0; }
+.pa-amt > span { position: absolute; top: 50%; left: 9px; transform: translateY(-50%); color: var(--pa-muted); font-size: 13px; pointer-events: none; }
+.pa-amt input { width: 100%; height: 32px !important; padding: 0 9px 0 20px !important; border: 1px solid var(--pa-line-hi); border-radius: 8px; background: var(--pa-surface); color: var(--pa-ink); font-size: 14px !important; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.pa-amt input::placeholder { color: var(--pa-muted); font-weight: 500; opacity: .7; }
+.pa-amt input:focus { outline: none; border-color: var(--pa-brand); box-shadow: 0 0 0 3px var(--pa-brand-soft); }
+.pa-row.is-auto .pa-amt input { background: var(--pa-sunken); }
+.pa-amt.is-bad input { border-color: var(--pa-bad); box-shadow: 0 0 0 3px var(--pa-bad-bg); }
+
+/* «Recibe» cierra la tabla, después de todas las formas; su texto se alinea con los nombres. */
+.pa-row.is-recv { padding-left: 42px; background: var(--pa-sunken); }
+.pa-row.is-recv[hidden] { display: none; }
+.pa-recv-label { flex: 1; min-width: 0; overflow: hidden; color: var(--pa-ink-2); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Teclado: solo en pantalla táctil. */
+.pa-pad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+button.pa-key { display: flex; align-items: center; justify-content: center; gap: 4px; height: 38px; border: 1px solid var(--pa-line-hi); border-radius: 8px; background: var(--pa-surface); color: var(--pa-ink); font-size: 16px; font-weight: 600; cursor: pointer; user-select: none; }
+button.pa-key:hover { background: var(--pa-sunken); }
+button.pa-key:active { background: var(--pa-line); }
+button.pa-key svg { width: 17px; height: 17px; }
+button.pa-key.is-fn { color: var(--pa-muted); }
+button.pa-key.is-clear { color: var(--pa-bad); font-size: 14px; }
+button.pa-key.is-next { grid-row: span 2; height: auto; flex-direction: column; border-color: transparent; background: var(--pa-ink); color: var(--pa-surface); font-size: 11px; }
+button.pa-key.is-next:hover { opacity: .9; }
+
+/* -- Campos -- */
+/* .pa-win delante: compact.css usa input[type="text"] con !important y pesa más que una sola clase. */
+.pa-win .pa-input { width: 100%; height: 32px !important; padding: 0 10px !important; border: 1px solid var(--pa-line-hi); border-radius: 8px; background: var(--pa-surface); color: var(--pa-ink); font-size: 13px !important; }
+.pa-input::placeholder { color: var(--pa-muted); opacity: .8; }
+.pa-input:focus { outline: none; border-color: var(--pa-brand); box-shadow: 0 0 0 3px var(--pa-brand-soft); }
+/* Observación y motivo: textarea chico como en alpha (pesa más que .pa-win .pa-input). */
+.pa-win textarea.pa-textarea { display: block; height: 50px !important; padding: 6px 10px !important; line-height: 1.4; resize: none; }
+.pa-win .pa-input.is-bad { border-color: var(--pa-bad); box-shadow: 0 0 0 3px var(--pa-bad-bg); }
+
+/* Descuento: botón a lo ancho de la columna, debajo de la observación. */
+button.pa-extra-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--pa-line-hi); border-radius: 8px; background: var(--pa-surface); color: var(--pa-ink-2); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+button.pa-extra-btn svg { width: 14px; height: 14px; }
+button.pa-extra-btn:hover { border-color: var(--pa-muted); }
+button.pa-extra-btn.is-on { border-color: var(--pa-brand-line); background: var(--pa-brand-bg); color: var(--pa-brand-ink); }
+
+.pa-hint { margin: 0; color: var(--pa-muted); font-size: 11.5px; line-height: 1.4; }
+
+/* -- Descuento -- */
+.pa-disc { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 6px; padding: 10px; border: 1px dashed var(--pa-brand-line); border-radius: 10px; }
+.pa-disc[hidden] { display: none; }
+.pa-disc-value { display: flex; gap: 4px; }
+.pa-disc-value .pa-input { min-width: 0; text-align: right; }
+.pa-disc-value.is-active .pa-input { border-color: var(--pa-brand); }
+.pa-seg { display: flex; flex-shrink: 0; padding: 2px; border: 1px solid var(--pa-line-hi); border-radius: 8px; background: var(--pa-sunken); }
+button.pa-seg-btn { width: 24px; border-radius: 6px; background: transparent; color: var(--pa-muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+button.pa-seg-btn.is-active { background: var(--pa-surface); color: var(--pa-ink); box-shadow: 0 0 0 1px var(--pa-line); }
+.pa-disc-msg { grid-column: 1 / -1; margin: 0; color: var(--pa-muted); font-size: 11.5px; line-height: 1.4; }
+.pa-disc-msg.is-bad { color: var(--pa-bad); }
+.pa-disc-msg.is-ok { color: var(--pa-ok); }
+
+/* -- Pie: el resultado a la izquierda y un solo botón a la derecha -- */
+.pa-foot { display: flex; align-items: center; gap: 12px; padding: 10px 16px 12px; border-top: 1px solid var(--pa-line); }
+.pa-res { display: flex; flex: 1; align-items: baseline; gap: 6px; min-width: 0; color: var(--pa-muted); font-size: 12px; }
+.pa-res > span { flex-shrink: 0; font-weight: 600; }
+.pa-res > b { flex-shrink: 0; color: var(--pa-ink); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pa-res > small { overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.pa-res.is-ok > span, .pa-res.is-ok > b { color: var(--pa-ok); }
+.pa-res.is-bad > span, .pa-res.is-bad > b { color: var(--pa-bad); }
+.pa-res.is-info > span, .pa-res.is-info > b { color: var(--pa-info); }
+
+button.pa-save { display: flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 8px; min-width: 260px; height: 40px; padding: 0 18px; border-radius: 10px; background: var(--pa-brand); color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer; }
+button.pa-save:hover { background: var(--pa-brand-700); }
+button.pa-save svg { width: 17px; height: 17px; }
+.pa-save-ico { display: flex; }
+/* Apagado se sigue pudiendo pulsar: el aviso dice qué falta. */
+button.pa-save.is-off { opacity: .5; }
+button.pa-save:disabled { opacity: .5; cursor: wait; }
+/* Pedido pagado: el botón solo lleva al historial. */
+button.pa-save.is-quiet { min-width: 0; border: 1px solid var(--pa-line-hi); background: var(--pa-surface); color: var(--pa-ink); font-size: 13px; }
+button.pa-save.is-quiet:hover { background: var(--pa-sunken); }
+
+/* -- Confirmación (alpha): encima de la ventana -- */
+.pa-confirm { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgb(15 23 42 / .42); }
+.pa-confirm-card { width: 100%; max-width: 340px; padding: 16px; border-radius: 12px; background: var(--pa-surface); box-shadow: 0 20px 40px -12px rgb(15 23 42 / .45); }
+.pa-confirm-head { text-align: center; }
+.pa-confirm-head .pa-head-ico { margin: 0 auto 8px; }
+.pa-confirm-head h3 { margin: 0; color: var(--pa-ink); font-size: 15px; font-weight: 700; }
+.pa-confirm-head p { margin: 1px 0 0; color: var(--pa-muted); font-size: 12px; }
+.pa-confirm-rows { margin: 12px 0 0; }
+.pa-confirm-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 13px; }
+.pa-confirm-rows dt { color: var(--pa-muted); }
+.pa-confirm-rows dd { margin: 0; color: var(--pa-ink); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.pa-confirm-rows dd.is-brand { color: var(--pa-brand-ink); }
+.pa-confirm-rows > div.is-big dd { font-size: 16px; font-weight: 700; }
+.pa-confirm-warn { display: flex; gap: 6px; margin: 10px 0 0; padding: 8px 10px; border: 1px solid var(--pa-brand-line); border-radius: 8px; background: var(--pa-brand-bg); color: var(--pa-brand-ink); font-size: 12px; line-height: 1.45; }
+.pa-confirm-warn svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+.pa-confirm-foot { display: flex; gap: 8px; margin-top: 14px; }
+button.pa-btn { display: flex; flex: 1; align-items: center; justify-content: center; height: 36px; border: 1px solid var(--pa-line-hi); border-radius: 9px; background: var(--pa-surface); color: var(--pa-ink); font-size: 13px; font-weight: 600; cursor: pointer; }
+button.pa-btn:hover { background: var(--pa-sunken); }
+button.pa-btn.is-primary { border-color: transparent; background: var(--pa-brand); color: #FFFFFF; }
+button.pa-btn.is-primary:hover { background: var(--pa-brand-700); }
+button.pa-btn:disabled { opacity: .6; cursor: wait; }
+
+/* Quitar un pago: el motivo, como askDeleteReason de alpha; rojo solo en el botón y el ícono. */
+.pa-head-ico.is-bad { background: var(--pa-bad-bg); color: var(--pa-bad); }
+.pa-confirm-head p b { color: var(--pa-ink); }
+.pa-del-field { margin-top: 12px; }
+.pa-del-msg { margin: 4px 0 0; color: var(--pa-bad); font-size: 11.5px; }
+.pa-del-msg[hidden] { display: none; }
+button.pa-btn.is-danger { border-color: transparent; background: #DC2626; color: #FFFFFF; }
+button.pa-btn.is-danger:hover { background: #B91C1C; }
+
+/* -- Historial -- */
+.pa-hist-wrap { border: 1px solid var(--pa-line-hi); border-radius: 10px; overflow-x: auto; }
+.pa-hist { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+/* compact.css fija el relleno de toda celda con !important. */
+.pa-hist th { padding: 7px 8px !important; border-bottom: 1px solid var(--pa-line); background: var(--pa-sunken); color: var(--pa-muted); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-align: left; text-transform: uppercase; white-space: nowrap; }
+.pa-hist td { padding: 7px 8px !important; border-bottom: 1px solid var(--pa-line); color: var(--pa-ink); vertical-align: middle; }
+.pa-hist td small { display: block; color: var(--pa-muted); font-size: 10.5px; white-space: nowrap; }
+.pa-hist .r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pa-hist .c { width: 40px; text-align: center; }
+.pa-hist tbody tr.is-new td { background: var(--pa-ok-bg); }
+.pa-hist tbody tr:last-child td { border-bottom: 0; }
+/* Observación (como la columna de alpha): una línea; completa en title. */
+.pa-hist td.pa-hist-note { max-width: 130px; overflow: hidden; color: var(--pa-ink-2); white-space: nowrap; text-overflow: ellipsis; }
+
+/* Sin pagos: el aviso vacío de alpha. */
+.pa-empty { display: flex; flex-direction: column; align-items: center; padding: 26px 16px; border: 1px solid var(--pa-line-hi); border-radius: 10px; background: var(--pa-sunken); text-align: center; }
+.pa-empty-ico { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-bottom: 10px; border-radius: 12px; background: var(--pa-line); color: var(--pa-muted); }
+.pa-empty-ico svg { width: 22px; height: 22px; }
+.pa-empty b { color: var(--pa-ink); font-size: 13.5px; }
+.pa-empty p { margin: 2px 0 0; color: var(--pa-muted); font-size: 12px; }
+
+.pa-hist-method { display: flex; align-items: center; gap: 7px; }
+.pa-hist-method .pa-row-ico { width: 22px; height: 22px; border-radius: 6px; }
+.pa-hist-method .pa-row-ico svg { width: 12px; height: 12px; }
+.pa-hist-method b { font-weight: 600; }
+.pa-hist-branch { display: flex; align-items: center; gap: 5px; }
+
+.pa-chip { display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 6px; border: 1px solid var(--pa-brand-line); border-radius: 999px; background: var(--pa-brand-bg); color: var(--pa-brand-ink); font-size: 10px; font-weight: 700; white-space: nowrap; }
+.pa-chip svg { width: 11px; height: 11px; }
+.pa-new { color: var(--pa-ok); font-weight: 700; }
+
+button.pa-del { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--pa-muted); cursor: pointer; }
+button.pa-del:hover { border-color: var(--pa-bad-line); background: var(--pa-bad-bg); color: var(--pa-bad); }
+button.pa-del svg { width: 15px; height: 15px; }
+.pa-lock { display: inline-flex; color: var(--pa-muted); opacity: .7; }
+.pa-lock svg { width: 14px; height: 14px; }
+
+/* -- Aviso: el ícono del aviso de advertencia en morado claro (el fondo del aviso es oscuro) -- */
+.tp-toast.is-warn svg { color: #C4B5FD; }
+
+/* -- Tableta angosta y celular: una sola columna, como alpha -- */
+@media (max-width: 760px) {
+    .pa-win { max-width: 480px; }
+    .pa-cols { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    /* Orden de alpha: sucursales (y su aviso), formas de pago, observación. */
+    .pa-col-info { display: contents; }
+    .pa-col-info > fieldset.pa-set { order: 1; }
+    .pa-foot { flex-direction: column; align-items: stretch; gap: 6px; }
+    button.pa-save { min-width: 0; width: 100%; }
+}
+
+@media (max-width: 520px) {
+    .pa-overlay { padding: 8px 8px calc(var(--pa-demo, 52px) + 8px); }
+    .pa-head { padding: 12px 12px 0; }
+    .pa-body { padding: 10px 12px 12px; }
+    .pa-foot { padding: 8px 12px 12px; }
+
+    .pa-stat > b { font-size: 14px; }
+    .pa-amt { width: 118px; }
+    .pa-row-text small { display: none; }
+
+    .pa-hist th, .pa-hist td { padding: 6px 5px !important; }
+    .pa-hist .c { width: 32px; }
+    .pa-hist td small { white-space: normal; }
+    .pa-chip { width: 18px; padding: 0; justify-content: center; }
+    .pa-chip > span { display: none; }
+    .pa-hist .pa-hide-sm { display: none; }
+}

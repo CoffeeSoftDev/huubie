@@ -13,10 +13,13 @@ require_once __DIR__ . '/../../../core/helpers/_Utileria.php';
       product (y paquetes)       por empresa y sucursal. is_custom = 1 es el
                                  pastel de un pedido: aqui no sale.
       modifier_group,
-      payment_method,
       discount_reason            por empresa. company_id NULL = plantilla de
                                  Huubie: la ven todas y nadie la edita.
       modifier                   cuelga de su grupo y hereda su alcance.
+      payment_method             por sucursal (branch_id): cada una da de alta
+                                 los suyos, Monedero incluido. company_id NULL
+                                 = metodo del sistema (hoy ninguno): lo verian
+                                 todas y nadie lo editaria.
 
     "Activo" se lee con IFNULL(active, 1): un NULL cuenta como activo.
     Los nombres se comparan con TRIM(name) = ?: la collation
@@ -815,63 +818,63 @@ class mdl extends CRUD {
         return $this->qUpdateIn('modifier', $array);
     }
 
-    // -- Metodos de pago (por empresa; NULL = plantilla) --
+    // -- Metodos de pago (por sucursal; company_id NULL = del sistema) --
 
-    public function qListPaymentMethods($companyId, $active) {
+    public function qListPaymentMethods($branchId, $active) {
         return $this->qRows("
             SELECT
                 id, name, code, kind, icon, color, commission, sort,
-                is_cash, is_visible, earns_points, company_id,
+                is_cash, is_visible, earns_points, company_id, branch_id,
                 IFNULL(active, 1) AS active
             FROM {$this->pos}payment_method
-            WHERE (company_id = ? OR company_id IS NULL)
+            WHERE (branch_id = ? OR company_id IS NULL)
                 AND IFNULL(active, 1) = ?
             ORDER BY sort, name
-        ", [$companyId, $active]);
+        ", [$branchId, $active]);
     }
 
-    public function qGetPaymentMethod($id, $companyId) {
+    public function qGetPaymentMethod($id, $branchId) {
         return $this->qRow("
             SELECT
                 id, name, code, kind, icon, color, commission, sort,
-                is_cash, is_visible, earns_points, company_id,
+                is_cash, is_visible, earns_points, company_id, branch_id,
                 IFNULL(active, 1) AS active
             FROM {$this->pos}payment_method
             WHERE id = ?
-                AND (company_id = ? OR company_id IS NULL)
+                AND (branch_id = ? OR company_id IS NULL)
             LIMIT 1
-        ", [$id, $companyId]);
+        ", [$id, $branchId]);
     }
 
-    public function qFindPaymentMethodByName($companyId, $name, $exceptId = 0) {
+    public function qFindPaymentMethodByName($branchId, $name, $exceptId = 0) {
         return $this->qRow("
             SELECT id, company_id, IFNULL(active, 1) AS active
             FROM {$this->pos}payment_method
-            WHERE (company_id = ? OR company_id IS NULL)
+            WHERE (branch_id = ? OR company_id IS NULL)
                 AND TRIM(name) = ?
                 AND id <> ?
             LIMIT 1
-        ", [$companyId, $name, $exceptId]);
+        ", [$branchId, $name, $exceptId]);
     }
 
-    public function qFindPaymentMethodByCode($companyId, $code, $exceptId = 0) {
+    public function qFindPaymentMethodByCode($branchId, $code, $exceptId = 0) {
         return $this->qRow("
             SELECT id, name, company_id, IFNULL(active, 1) AS active
             FROM {$this->pos}payment_method
-            WHERE (company_id = ? OR company_id IS NULL)
+            WHERE (branch_id = ? OR company_id IS NULL)
                 AND TRIM(code) = ?
                 AND id <> ?
             LIMIT 1
-        ", [$companyId, $code, $exceptId]);
+        ", [$branchId, $code, $exceptId]);
     }
 
-    public function qCountPaymentMethods($companyId) {
+    public function qCountPaymentMethods($branchId) {
         return $this->qCount("
             SELECT COUNT(*)
             FROM {$this->pos}payment_method
-            WHERE (company_id = ? OR company_id IS NULL)
+            WHERE (branch_id = ? OR company_id IS NULL)
                 AND IFNULL(active, 1) = 1
-        ", [$companyId]);
+        ", [$branchId]);
     }
 
     public function qCreatePaymentMethod($array) {

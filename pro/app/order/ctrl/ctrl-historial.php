@@ -4,6 +4,8 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-order.php';
 require_once __DIR__ . '/../mdl/mdl-credito.php';
+require_once __DIR__ . '/../mdl/mdl-lealtad.php';
+require_once __DIR__ . '/../mdl/mdl-ticket.php';
 
 /*  Ventas › Historial (V2 del plan de Ventas).
 
@@ -27,11 +29,17 @@ require_once __DIR__ . '/../mdl/mdl-credito.php';
           cambiarle el cliente     -> 409: el adeudo es de quien la compro.
       - Monedero (V3): aqui no se cobra con monedero, solo en «Vender». Al quitar
         o cancelar un pago hecho con monedero, el dinero regresa al monedero.
+      - Tarjeta de lealtad (V4): si la venta abono puntos (kind 'puntos' en
+        receivable), cancelarla los anula y los quita del monedero sin dejarlo
+        negativo. Esa venta no cambia de cliente. Quitar un pago NO recalcula
+        los puntos: se quedan como se dieron al vender.
       - Se valida todo ANTES de la primera escritura: transaction() solo deshace
         si algo lanza una excepcion. */
 class ctrl extends core {
 
     use CreditLedger;
+    use LoyaltyCards;
+    use TicketLink;
 
     const SALES        = 'pos-ventas';
     const HISTORY      = 'pos-historial';
@@ -58,7 +66,7 @@ class ctrl extends core {
         }
 
         // El monedero no se cobra aqui, pero si se puede filtrar por el.
-        $purse = $this->qWalletMethod($scope['company_id']);
+        $purse = $this->qWalletMethod($this->branchId());
 
         if ($purse) $methods[] = ['id' => (int) $purse['id'], 'valor' => $purse['name']];
 
@@ -268,8 +276,9 @@ class ctrl extends core {
         $owes     = $due - round((float) $sale['paid'], 2) > 0.005;
         $charge   = $alive ? $this->qSaleCharge($id) : null;
         $credit   = $charge ? max(round($due - (float) $sale['paid'], 2), 0) : 0;
-        // El adeudo y el monedero son de quien compro: esa venta ya no cambia de cliente.
-        $tied     = $charge || $this->paidWithWallet($payments);
+        $points   = $alive ? $this->qSalePoints($id) : null;
+        // El adeudo, el monedero y los puntos son de quien compro: esa venta ya no cambia de cliente.
+        $tied     = $charge || $points || $this->paidWithWallet($payments);
 
         foreach ($lines as &$line) {
             $line['images']    = [];
@@ -282,6 +291,8 @@ class ctrl extends core {
         $sale['on_credit']  = $charge ? 1 : 0;
         $sale['credit']     = $credit;
 
+        $actions = Permission::actions(self::HISTORY);
+
         return [
             'status'   => 200,
             'branch'   => $this->scope()['branch'],
@@ -289,7 +300,7 @@ class ctrl extends core {
             'lines'    => $lines,
             'payments' => $payments,
             'history'  => $this->qHistory($id),
-            'actions'  => Permission::actions(self::HISTORY),
+            'actions'  => $actions,
             'can'      => [
                 'pay'            => $alive && $owes && Permission::can(self::SALES, 'create'),
                 'pay_reason'     => '',
@@ -306,15 +317,21 @@ class ctrl extends core {
                 'undeliver'      => false
             ],
             'limited'  => false,
-            'ticket'   => $this->ticketOf($sale, $lines, $payments, $credit)
+            'ticket'   => $this->ticketOf($sale, $lines, $payments, $credit, $points ? (float) $points['amount'] : 0),
+            // V7: el enlace al ticket va con el mismo permiso que imprimirlo.
+            'share'    => in_array('print', (array) $actions, true) ? $this->ticketShare($id, $sale['phone']) : null
         ];
     }
 
-    // La forma de ticketData de ctrl-ventas, con lo guardado. $credit = lo que sigue a credito.
-    private function ticketOf($s, array $lines, array $payments, $credit = 0) {
+    // La forma de ticketData de ctrl-ventas, con lo guardado. $credit = lo que sigue a credito; $points = abonado al monedero.
+    private function ticketOf($s, array $lines, array $payments, $credit = 0, $points = 0) {
         $tip      = round((float) $s['tip_amount'], 2);
         $total    = round((float) $s['total'], 2);
         $discount = round((float) $s['discount_amount'], 2);
+        $cardType = (string) ($s['card_type'] ?? '');
+        $cardNum  = (string) ($s['card_number'] ?? '');
+        // El descuento de una tarjeta no tiene motivo: se nombra por su tipo, como al vender.
+        $reason   = (string) $s['discount_reason'] !== '' ? $s['discount_reason'] : ($cardType !== '' ? 'Tarjeta ' . $cardType : '');
 
         return [
             'folio'         => (string) ($s['folio'] ?: $s['id']),
@@ -322,15 +339,19 @@ class ctrl extends core {
             'date'          => $s['created_at'],
             'user'          => trim((string) $s['created_by']),
             'customer'      => trim((string) $s['customer']) !== '' ? $s['customer'] : 'Público en general',
+            'card'          => $cardNum !== '' ? ['type' => $cardType, 'number' => $cardNum] : null,
+            'points'        => round((float) $points, 2),
             'lines'         => array_map(fn ($l) => [
                 'name'     => $l['name'] !== '' && $l['name'] !== null ? $l['name'] : $l['product_name'],
                 'quantity' => (float) $l['quantity'],
                 'price'    => round((float) $l['price'], 2),
                 'details'  => (string) $l['details'],
-                'amount'   => round((float) $l['price'] * (float) $l['quantity'], 2)
+                // Neto: el descuento del renglon (Ventas) ya va restado.
+                'discount' => round((float) $l['discount_amount'], 2),
+                'amount'   => round((float) $l['price'] * (float) $l['quantity'] - (float) $l['discount_amount'], 2)
             ], $lines),
             'subtotal'      => round((float) $s['subtotal'], 2),
-            'discount'      => $discount > 0 ? ['amount' => $discount, 'reason' => $s['discount_reason']] : null,
+            'discount'      => $discount > 0 ? ['amount' => $discount, 'reason' => $reason] : null,
             'tip'           => $tip,
             'total'         => $total,
             'charged'       => round($total + $tip - $credit, 2),
@@ -394,7 +415,10 @@ class ctrl extends core {
                 'reasons'       => [],
                 'can_authorize' => false,
                 'disc_block'    => '',
-                'turn'          => $this->turnBrief()
+                'turn'          => $this->turnBrief(),
+                // Una sola sucursal: la ventana la muestra, pero aquí no se cobra en otra.
+                'branch_id'     => $this->branchId(),
+                'branch_name'   => $this->scope()['branch']
             ];
         }, 'No se pudieron abrir los pagos.');
     }
@@ -684,6 +708,19 @@ class ctrl extends core {
                     return $this->fail(409, 'La venta tiene ' . money($closed) . ' cobrados en un turno que ya cerró y es de Público en general: ese dinero no tiene a dónde ir. Asígnale un cliente para dejarlo como saldo a favor.');
                 }
 
+                /*  Puntos de la tarjeta (V4): se quitan del monedero sin dejarlo negativo.
+                    Si el monedero es del mismo cliente, cuenta lo que esta cancelacion le
+                    regresa (monedero del turno abierto y saldo a favor de turnos cerrados). */
+                $points   = $this->qSalePoints($id);
+                $pointsTo = $points ? (int) $points['customer_id'] : 0;
+                $holder   = $pointsTo > 0 ? $this->qCreditCustomer($pointsTo, true) : null;
+                $clawed   = 0;
+
+                if ($holder) {
+                    $room   = (float) $holder['wallet'] + ($pointsTo === $customerId ? $purse + $closed : 0);
+                    $clawed = round(min((float) $points['amount'], max($room, 0)), 2);
+                }
+
                 foreach ($openIds as $paymentId) {
                     $this->must($this->qUpdatePayment([
                         'values' => ['active', 'deleted_at = NOW()', 'deleted_user_id', 'updated_at = NOW()'],
@@ -698,6 +735,7 @@ class ctrl extends core {
                     'data'   => [self::CANCELLED, $reason, $this->userId() ?: null, $id]
                 ]), 'cancelSale');
 
+                if ($points) $this->voidPoints((int) $points['id'], 'cancelSale points');
                 if ($charge) $this->voidSaleLedger($id, 'cancelSale ledger');
 
                 $cutNote = $this->cutNote($sale);
@@ -707,6 +745,15 @@ class ctrl extends core {
                 if ($open > 0.005)  $notes[] = 'Se devuelven ' . money($open) . ' del turno abierto: salen del corte.';
                 if ($purse > 0.005) $notes[] = money($purse) . ' regresan al monedero de ' . $name . '.';
                 if ($debt > 0.005)  $notes[] = 'Se anula el adeudo a crédito de ' . money($debt) . '.';
+
+                if ($points) {
+                    $earned = round((float) $points['amount'], 2);
+                    $owner  = $holder ? (trim((string) $holder['name']) ?: 'el cliente') : 'el cliente';
+
+                    if ($clawed >= $earned - 0.005) $notes[] = 'Se quitan ' . money($earned) . ' de puntos del monedero de ' . $owner . '.';
+                    elseif ($clawed > 0.005)        $notes[] = 'De los ' . money($earned) . ' en puntos solo se quitan ' . money($clawed) . ': el monedero de ' . $owner . ' ya no tenía más.';
+                    else                            $notes[] = 'Los ' . money($earned) . ' en puntos no se quitan: el monedero de ' . $owner . ' ya estaba en cero.';
+                }
 
                 $returned = implode(' ', $notes);
 
@@ -726,7 +773,9 @@ class ctrl extends core {
                     $message .= ' ' . $wallet;
                 }
 
-                return $this->ok($message, ['id' => $id, 'returned' => $open, 'wallet' => round($closed + $purse, 2), 'credit' => $debt]);
+                if ($clawed > 0.005) $this->moveWallet($pointsTo, -$clawed, 'cancelSale points');
+
+                return $this->ok($message, ['id' => $id, 'returned' => $open, 'wallet' => round($closed + $purse, 2), 'credit' => $debt, 'points' => $clawed]);
             });
         }, 'No se pudo cancelar la venta.');
     }
@@ -766,9 +815,9 @@ class ctrl extends core {
 
         if ($customerId !== null) {
             $customer = $this->qGetCustomer($customerId);
-            $isLocal  = $customer && (int) $customer['branch_id'] === $this->branchId() && (int) $customer['active'] === 1;
+            $isLocal  = $customer && (int) $customer['company_id'] === $this->companyId() && (int) $customer['active'] === 1;
 
-            if (!$isLocal) return $this->fail(422, 'Ese cliente no está disponible en esta sucursal.');
+            if (!$isLocal) return $this->fail(422, 'Ese cliente no está disponible en esta empresa.');
         }
 
         return $this->attempt(function () use ($id, $customerId, $customer) {
@@ -791,6 +840,10 @@ class ctrl extends core {
 
                 if ($this->paidWithWallet($this->qPayments($id))) {
                     return $this->fail(409, "La venta V{$id} se pagó con el monedero de su cliente y no cambia de cliente. Si está mal, cancélala y véndela de nuevo.");
+                }
+
+                if ($this->qSalePoints($id)) {
+                    return $this->fail(409, "La venta V{$id} abonó puntos de tarjeta al monedero de su cliente y no cambia de cliente. Si está mal, cancélala y véndela de nuevo.");
                 }
 
                 $this->must($this->qUpdateOrder([
@@ -885,7 +938,7 @@ class ctrl extends core {
     // Los metodos con los que se cobra aqui: los visibles, sin el monedero (solo se usa al vender).
     private function saleMethods() {
         return array_values(array_filter(
-            $this->qPaymentMethods($this->companyId()),
+            $this->qPaymentMethods($this->branchId()),
             fn ($m) => !$this->isWalletCode($m['code'])
         ));
     }
@@ -939,7 +992,7 @@ class ctrl extends core {
             $methods[(int) $method['id']] = $method;
         }
 
-        $purse   = $this->qWalletMethod($this->companyId());
+        $purse   = $this->qWalletMethod($this->branchId());
         $purseId = $purse ? (int) $purse['id'] : 0;
 
         $rows = [];
@@ -1039,6 +1092,9 @@ class ctrl extends core {
                 IFNULL(c.phone, '')  AS phone,
                 IFNULL(c.email, '')  AS email,
                 IFNULL(dr.name, '')  AS discount_reason,
+                s.card_id,
+                IFNULL(cd.number, '') AS card_number,
+                IFNULL(ct.name, '')   AS card_type,
                 CONCAT_WS(' ', uc.name, uc.last_name) AS created_by,
                 CONCAT_WS(' ', ux.name, ux.last_name) AS cancelled_by,
                 {$this->qPaidSql('s')} AS paid
@@ -1046,6 +1102,8 @@ class ctrl extends core {
             LEFT JOIN {$this->pos}sale_status st     ON st.id = s.sale_status_id
             LEFT JOIN {$this->pos}customer c         ON c.id  = s.customer_id
             LEFT JOIN {$this->pos}discount_reason dr ON dr.id = s.discount_reason_id
+            LEFT JOIN {$this->pos}card cd            ON cd.id = s.card_id
+            LEFT JOIN {$this->pos}card_type ct       ON ct.id = cd.card_type_id
             LEFT JOIN {$this->bd}users uc            ON uc.id = s.user_id
             LEFT JOIN {$this->bd}users ux            ON ux.id = s.cancel_user_id
             WHERE s.id = ?

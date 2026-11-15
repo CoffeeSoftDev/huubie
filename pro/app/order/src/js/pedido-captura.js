@@ -491,7 +491,7 @@ class OrderForm extends Templates {
 
         if (!product) return;
 
-        const index = this.lines.findIndex((line) => line.type === 'product' && !line.id && Number(line.product_id) === Number(product.id) && !line.details && !line.dedication);
+        const index = this.lines.findIndex((line) => line.type === 'product' && !line.id && Number(line.product_id) === Number(product.id) && !line.details && !line.dedication && !line.discount);
 
         if (index >= 0) return this.setQuantity(index, this.lines[index].quantity + 1);
 
@@ -870,6 +870,7 @@ class OrderForm extends Templates {
         this.close();
 
         orders.lsOrders();
+        orderTurn.touch();
 
         if (pay && data.id) {
             await alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 900 });
@@ -1056,6 +1057,7 @@ class OrderForm extends Templates {
         alert({ icon: 'success', title: data.message, timer: 1600 });
 
         orders.lsOrders();
+        orderTurn.touch();
     }
 
     // -- Complements --

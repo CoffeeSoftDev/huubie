@@ -87,17 +87,20 @@ class core extends mdl {
     /*  Crear exige el turno de HOY abierto, como alpha: sin turno el pedido no
         tiene a que corte sumar, y uno de otro dia se cierra antes de seguir.
         Sin turno, si el dia ya se cerro o falta cerrar uno anterior, lo dice
-        con day = true para que la pantalla ofrezca el cierre. Editar no lo exige. */
-    protected function needTurn() {
-        $turn = $this->qOpenTurn($this->branchId());
+        con day = true para que la pantalla ofrezca el cierre. Editar no lo exige.
+        $branchId / $name: otra sucursal (cobro cruzado); por defecto la de la sesión. */
+    protected function needTurn($branchId = null, $name = '') {
+        $branchId = $branchId === null ? $this->branchId() : (int) $branchId;
+        $where    = $name !== '' ? $name : 'esta sucursal';
+        $turn     = $this->qOpenTurn($branchId);
 
         if (!$turn) {
-            $block = $this->dayBlock();
+            $block = $this->dayBlock($branchId, $where);
 
             if ($block !== '') {
                 return [
                     'status'  => 423,
-                    'title'   => $this->dayClosedToday() ? 'Día cerrado' : 'Día pendiente de cierre',
+                    'title'   => $this->dayClosedToday($branchId) ? 'Día cerrado' : 'Día pendiente de cierre',
                     'message' => $block,
                     'day'     => true,
                     'row'     => []
@@ -107,7 +110,7 @@ class core extends mdl {
             return [
                 'status'  => 423,
                 'title'   => 'Sin turno abierto',
-                'message' => 'Abre un turno de caja en esta sucursal antes de crear o cobrar pedidos.',
+                'message' => "Abre un turno de caja en {$where} antes de crear o cobrar pedidos.",
                 'row'     => []
             ];
         }
@@ -171,20 +174,22 @@ class core extends mdl {
         return [$fi . ' 00:00:00', $this->dayRange($ff)[1]];
     }
 
-    protected function dayClosedToday() {
-        return $this->dayClosedOn(date('Y-m-d'));
+    // $branchId null = la sucursal de la sesión (igual en los tres de abajo).
+    protected function dayClosedToday($branchId = null) {
+        return $this->dayClosedOn(date('Y-m-d'), $branchId);
     }
 
     // $day = 'AAAA-MM-DD'. true si la sucursal tiene un cierre vigente ese día.
-    protected function dayClosedOn($day) {
+    protected function dayClosedOn($day, $branchId = null) {
         [$from, $to] = $this->dayRange($day);
 
-        return (bool) $this->qDayClosure($this->branchId(), $from, $to);
+        return (bool) $this->qDayClosure($branchId === null ? $this->branchId() : (int) $branchId, $from, $to);
     }
 
     // Días anteriores a hoy con turnos y sin cierre, dentro de la ventana de alpha.
-    protected function pendingDays() {
-        $today = date('Y-m-d');
+    protected function pendingDays($branchId = null) {
+        $branchId = $branchId === null ? $this->branchId() : (int) $branchId;
+        $today    = date('Y-m-d');
         $from  = date('Y-m-d', strtotime($today . ' -' . self::PENDING_WINDOW . ' days')) . ' 00:00:00';
 
         return array_map(function ($row) {
@@ -193,16 +198,16 @@ class core extends mdl {
                 'turns'      => (int) $row['turns'],
                 'open_turns' => (int) $row['open_turns']
             ];
-        }, $this->qPendingDays($this->branchId(), $from, $today . ' 00:00:00'));
+        }, $this->qPendingDays($branchId, $from, $today . ' 00:00:00'));
     }
 
     // '' = hoy se puede abrir turno. Si no, la frase que lo impide.
-    protected function dayBlock() {
-        if ($this->dayClosedToday()) {
-            return 'El día de hoy ya se cerró en esta sucursal. Reábrelo desde «Cierre del día» para volver a operar.';
+    protected function dayBlock($branchId = null, $where = 'esta sucursal') {
+        if ($this->dayClosedToday($branchId)) {
+            return "El día de hoy ya se cerró en {$where}. Reábrelo desde «Cierre del día» para volver a operar.";
         }
 
-        $pending = $this->pendingDays();
+        $pending = $this->pendingDays($branchId);
 
         if ($pending) {
             return 'Falta cerrar el día ' . dmy($pending[0]['date']) . '. Ciérralo desde «Cierre del día» antes de abrir el turno de hoy.';
@@ -422,8 +427,9 @@ class core extends mdl {
         (como alpha). null = correcta. Las respuestas llevan key = true para que
         la pantalla deje la ventana abierta y marque el campo.
         KEY_TRIES fallos seguidos hacen esperar KEY_WAIT segundos: sin ese freno
-        la contraseña se podría adivinar probando desde una caja abierta. */
-    protected function needKey() {
+        la contraseña se podría adivinar probando desde una caja abierta.
+        $what completa los avisos: «para entregar», «para quitar un pago». */
+    protected function needKey($what = 'entregar') {
         $guard = isset($_SESSION['order_key']) && is_array($_SESSION['order_key']) ? $_SESSION['order_key'] : [];
         $fails = isset($guard['fails']) ? (int) $guard['fails'] : 0;
         $until = isset($guard['until']) ? (int) $guard['until'] : 0;
@@ -439,10 +445,10 @@ class core extends mdl {
         $hash = $this->qUserPassword($this->userId());
 
         if ($hash === '') {
-            return ['status' => 409, 'message' => 'Tu usuario no tiene contraseña. Pide al Dueño que te asigne una para poder entregar.', 'key' => true];
+            return ['status' => 409, 'message' => "Tu usuario no tiene contraseña. Pide al Dueño que te asigne una para poder {$what}.", 'key' => true];
         }
 
-        if ($key === '') return ['status' => 401, 'message' => 'Escribe tu contraseña para entregar.', 'key' => true];
+        if ($key === '') return ['status' => 401, 'message' => "Escribe tu contraseña para {$what}.", 'key' => true];
 
         if (!password_verify($key, $hash)) {
             $fails++;

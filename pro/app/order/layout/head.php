@@ -61,6 +61,10 @@ $asset = function ($file) {
     <main>
         <div id="menu-navbar"></div>
 
+        <!-- Franja de caja (components/caja-strip.js): fija, fuera del área que hace scroll.
+             Vacía no ocupa lugar; Inicio y Dashboard no la pintan. -->
+        <div id="cajaStrip"></div>
+
         <div id="main__content" class="cp-pagina-pro">
             <div id="root"><?= $rootHtml ?? '' ?></div>
         </div>

@@ -13,15 +13,16 @@ require_once __DIR__ . '/../../core/helpers/_CoffeeSoft.php';
                      fijas: Mi perfil y, para el dueño, Configuración)
       theme          guarda el modo elegido
       switchBranch   cambia la sucursal activa
+      lsAvisos       los avisos de la campana: en pro todavia no hay, va vacio
 
     Todas las rutas que salen de aqui son relativas a pro/: este ctrl lo llaman
     paginas a profundidades distintas y no sabe a cual esta la que pregunta. */
 class ctrl extends mdl {
-    const OPS = ['session', 'rail', 'theme', 'switchBranch'];
+    const OPS = ['session', 'rail', 'theme', 'switchBranch', 'lsAvisos'];
 
     // Las que solo leen la sesion: se suelta antes de atenderlas para no formar
     // en fila las demas peticiones que la pagina lanza al mismo tiempo.
-    const READ_ONLY = ['session', 'rail', 'theme'];
+    const READ_ONLY = ['session', 'rail', 'theme', 'lsAvisos'];
 
     // La aplicacion solo tiene dos modos. Sus colores estan en
     // assets/js/tailwind-theme.js (MODES); aqui solo se guarda cual eligio cada quien.
@@ -113,6 +114,12 @@ class ctrl extends mdl {
         }
 
         return ['status' => 403, 'message' => 'No tienes acceso a esa sucursal.'];
+    }
+
+    // La campana de app/catalogo/src/js/navbar.js pregunta cada minuto. Sin
+    // avisos todavia: lista vacia (antes no existia y la consola marcaba error).
+    function lsAvisos() {
+        return ['status' => 200, 'items' => []];
     }
 
     /*  LA CAMPANA. Pendientes de la empresa, que solo le tocan a su dueño:

@@ -13,8 +13,9 @@
       - El abono copia venta, metodo, monto y paid_at de su pago: con eso se
         emparejan al quitar el pago.
       - Por venta: cargo - abonos = lo que se debe - lo pagado.
-      - El monedero es customer.wallet. Se paga con el metodo de code PUNTOS,
-        que esta oculto (is_visible 0): qPaymentMethods no lo lista.
+      - El monedero es customer.wallet. Se paga con el metodo de code PUNTOS
+        de la sucursal (cada una tiene el suyo). qPaymentMethods nunca lo
+        lista: va aparte, con qWalletMethod.
       - Todo es protected: Permission::dispatch ejecuta cualquier metodo publico
         del ctrl que llegue en `opc`, y los de un trait cuentan como suyos. */
 trait CreditLedger {
@@ -30,6 +31,7 @@ trait CreditLedger {
                 id,
                 IFNULL(name, '')           AS name,
                 branch_id,
+                (SELECT b.company_id FROM {$this->bd}branches b WHERE b.id = customer.branch_id) AS company_id,
                 IFNULL(active, 1)          AS active,
                 IFNULL(wallet, 0)          AS wallet,
                 IFNULL(credit_enabled, 0)  AS credit_enabled,
@@ -55,7 +57,7 @@ trait CreditLedger {
         return $row ? round((float) $row['debt'], 2) : 0.0;
     }
 
-    // Monedero, credito y adeudo de cada cliente de la sucursal.
+    // Monedero, credito y adeudo de cada cliente de la empresa de la sucursal.
     protected function qCreditCustomers($branchId) {
         return $this->qRows("
             SELECT
@@ -73,7 +75,7 @@ trait CreditLedger {
                     AND r.deleted_at IS NULL
                 GROUP BY r.customer_id
             ) x ON x.customer_id = c.id
-            WHERE c.branch_id = ?
+            WHERE {$this->qSameCompany('c.branch_id')}
         ", [$branchId]);
     }
 
@@ -94,17 +96,17 @@ trait CreditLedger {
 
     // -- Monedero --
 
-    // El metodo «Monedero». Null = falta la migracion 2026-11-14_metodo-monedero.sql.
-    protected function qWalletMethod($companyId) {
+    // El metodo «Monedero» de la sucursal. Null = la sucursal no tiene un metodo activo con la clave PUNTOS.
+    protected function qWalletMethod($branchId) {
         return $this->qRow("
             SELECT id, name, IFNULL(code, '') AS code, 0 AS is_cash
             FROM {$this->pos}payment_method
             WHERE code = 'PUNTOS'
-                AND (company_id = ? OR company_id IS NULL)
+                AND (branch_id = ? OR company_id IS NULL)
                 AND IFNULL(active, 1) = 1
             ORDER BY company_id IS NULL, id
             LIMIT 1
-        ", [$companyId]);
+        ", [$branchId]);
     }
 
     protected function isWalletCode($code) {

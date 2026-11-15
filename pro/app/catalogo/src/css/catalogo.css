@@ -215,6 +215,44 @@ a.cp-btn-icon--text {
     font-size: 1rem;
 }
 
+/* -- Pestaña seleccionada: entera, sin esquinas ni aro --
+   soft.css le redondea las esquinas de arriba y le pone un fondo al pasar el
+   cursor, y cs-tabs.js un aro al enfocarla: la pestaña quedaba como una
+   pastilla suelta. Aquí va cuadrada, sin fondo al pasar y sin aro; la
+   seleccionada se rellena de arriba a abajo y conserva su línea. */
+#tabbarCatalogo button.cs-tab {
+    border-radius: 0;
+}
+
+#tabbarCatalogo button.cs-tab:hover {
+    background: none;
+}
+
+#tabbarCatalogo button.cs-tab:focus,
+#tabbarCatalogo button.cs-tab:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+
+#tabbarCatalogo button.cs-tab.is-active,
+#tabbarCatalogo button.cs-tab.is-active:hover {
+    background: rgb(var(--brand-600, 192 90 64) / .08);
+}
+
+/* Con teclado se sigue viendo dónde está el foco: el mismo relleno, más tenue. */
+#tabbarCatalogo button.cs-tab:focus-visible:not(.is-active) {
+    background: rgb(var(--brand-600, 192 90 64) / .05);
+}
+
+body.dark-mode #tabbarCatalogo button.cs-tab.is-active,
+body.dark-mode #tabbarCatalogo button.cs-tab.is-active:hover {
+    background: rgb(var(--brand-600, 192 90 64) / .20);
+}
+
+body.dark-mode #tabbarCatalogo button.cs-tab:focus-visible:not(.is-active) {
+    background: rgb(255 255 255 / .05);
+}
+
 /* -- Tablas a 12px --
    Encabezados y celdas los fija el JS (`f_size: 12` en el attr de cada
    createTable). Eso no alcanza a la celda de botones (no lleva f_size) ni a

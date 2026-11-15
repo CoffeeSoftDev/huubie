@@ -205,32 +205,17 @@ class Cuts extends Templates {
         if (dataInit.status != 200 || !this.can('show')) return;
 
         this.paintTurn();
+
+        orderTurn.paintStrip(true);
     }
 
-    // Chip del turno o del día y accesos rápidos. orderTurn.sync() lo repinta.
+    // «Cierre del día» del encabezado. El turno lo muestra la franja de caja (caja-strip.js).
+    // orderTurn.sync() lo repinta: el botón abre el día pendiente si lo hay.
     paintTurn() {
         if (!$(`#headerActions${this.PROJECT_NAME}`).length) return;
 
-        const turn    = dataInit.turn;
         const day     = dataInit.day || {};
         const pending = day.pending && day.pending.length ? day.pending[0] : '';
-
-        let tone = 'is-none';
-        let text = 'Sin turno abierto';
-
-        if (turn && turn.old) {
-            tone = 'is-old';
-            text = `Turno ${turn.folio} de otro día`;
-        } else if (turn) {
-            tone = 'is-open';
-            text = `Turno ${turn.folio} · desde ${ordHour(String(turn.opened_at).slice(11, 16))}`;
-        } else if (day.closed) {
-            tone = 'is-closed';
-            text = 'Día cerrado';
-        } else if (pending) {
-            tone = 'is-old';
-            text = `Falta cerrar el ${ordDate(pending).slice(0, 5)}`;
-        }
 
         this.createLayout({
             parent: `headerActions${this.PROJECT_NAME}`,
@@ -239,7 +224,6 @@ class Cuts extends Templates {
                 id:    `headerActionsBody${this.PROJECT_NAME}`,
                 class: 'flex items-center gap-[12px] flex-wrap justify-end',
                 container: [
-                    { type: 'span', id: `turnChip${this.PROJECT_NAME}`, class: `ord-turn-chip ${tone}`, html: `<span class="ord-turn-dot"></span>${esc(text)}` },
                     { type: 'div', id: `headerButtons${this.PROJECT_NAME}`, class: 'flex' }
                 ]
             }
@@ -251,7 +235,6 @@ class Cuts extends Templates {
             class:        'flex flex-wrap gap-[8px]',
             showRequired: false,
             json: [
-                { opc: 'button', id: 'btnTurnCuts', class: 'col-auto', text: 'Turno actual', icon: 'icon-clock', color_btn: 'outline', onClick: () => orderTurn.open() },
                 { opc: 'button', id: 'btnDayCuts', class: 'col-auto', text: 'Cierre del día', icon: 'icon-calendar-check-o', color_btn: 'outline', onClick: () => orderClosure.open(pending) }
             ]
         });

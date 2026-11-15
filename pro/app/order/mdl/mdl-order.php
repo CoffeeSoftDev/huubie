@@ -52,6 +52,17 @@ class mdl extends CRUD {
         return implode(',', array_fill(0, count($ids), '?'));
     }
 
+    /*  Clientes, tarjetas y tipos de tarjeta son de toda la empresa: su branch_id
+        solo dice en que sucursal se dieron de alta. Filtra $column (con su alias)
+        a las sucursales de la empresa de la sucursal que llega en el UNICO ?. */
+    protected function qSameCompany($column) {
+        return "{$column} IN (
+                    SELECT sc.id
+                    FROM {$this->bd}branches sc
+                    WHERE sc.company_id = (SELECT sb.company_id FROM {$this->bd}branches sb WHERE sb.id = ?)
+                )";
+    }
+
     // Lo pagado de un pedido. Se repite en lista y detalle: que no discrepen.
     protected function qPaidSql($alias) {
         return "(SELECT IFNULL(SUM(p.amount), 0)
@@ -105,6 +116,17 @@ class mdl extends CRUD {
                 AND IFNULL(is_active, 1) = 1
             LIMIT 1
         ", [$id]);
+    }
+
+    // Sucursales activas de la empresa: entre ellas se elige la que cobra un pedido.
+    public function qCompanyBranches($companyId) {
+        return $this->qRows("
+            SELECT id, name
+            FROM {$this->bd}branches
+            WHERE company_id = ?
+                AND IFNULL(is_active, 1) = 1
+            ORDER BY name, id
+        ", [$companyId]);
     }
 
     // -- Catalogos del filtro --
@@ -428,11 +450,14 @@ class mdl extends CRUD {
                 IFNULL(pmt.is_cash, 0) AS is_cash,
                 IFNULL(t.status, '')   AS turn_status,
                 IFNULL(t.folio, '')    AS turn_folio,
-                CONCAT_WS(' ', u.name, u.last_name) AS received_by
+                CONCAT_WS(' ', u.name, u.last_name) AS received_by,
+                IFNULL(p.branch_id, 0) AS branch_id,
+                IFNULL(b.name, '')     AS branch
             FROM {$this->pos}payment p
             LEFT JOIN {$this->pos}payment_method pmt ON pmt.id = p.payment_method_id
             LEFT JOIN {$this->pos}turn t             ON t.id = p.turn_id
             LEFT JOIN {$this->bd}users u             ON u.id = p.user_id
+            LEFT JOIN {$this->bd}branches b          ON b.id = p.branch_id
             WHERE p.sale_id = ?
                 AND IFNULL(p.active, 1) = 1
                 AND p.deleted_at IS NULL
@@ -461,13 +486,13 @@ class mdl extends CRUD {
 
     // -- Captura: opciones del formulario --
 
-    /*  Clientes vivos de la sucursal. $keepId deja en la lista al cliente que ya
-        tenia el pedido aunque sea de otra sucursal o este dado de baja. */
+    /*  Clientes vivos de la empresa de la sucursal. $keepId deja en la lista al
+        cliente que ya tenia el pedido aunque sea de otra empresa o este dado de baja. */
     public function qCustomerOptions($branchId, $keepId = 0) {
         return $this->qRows("
             SELECT id, IFNULL(name, '') AS name, IFNULL(phone, '') AS phone
             FROM {$this->pos}customer
-            WHERE (branch_id = ? AND IFNULL(active, 1) = 1)
+            WHERE ({$this->qSameCompany('branch_id')} AND IFNULL(active, 1) = 1)
                 OR id = ?
             ORDER BY name, id
         ", [$branchId, $keepId]);
@@ -480,6 +505,7 @@ class mdl extends CRUD {
                 IFNULL(name, '')   AS name,
                 IFNULL(phone, '')  AS phone,
                 branch_id,
+                (SELECT b.company_id FROM {$this->bd}branches b WHERE b.id = customer.branch_id) AS company_id,
                 IFNULL(active, 1)  AS active
             FROM {$this->pos}customer
             WHERE id = ?
@@ -487,12 +513,12 @@ class mdl extends CRUD {
         ", [$id]);
     }
 
-    // El telefono se compara sin espacios ni guiones.
+    // En toda la empresa. El telefono se compara sin espacios ni guiones.
     public function qFindCustomerByPhone($branchId, $phone) {
         return $this->qRow("
             SELECT id, IFNULL(name, '') AS name, IFNULL(phone, '') AS phone
             FROM {$this->pos}customer
-            WHERE branch_id = ?
+            WHERE {$this->qSameCompany('branch_id')}
                 AND IFNULL(active, 1) = 1
                 AND REPLACE(REPLACE(IFNULL(phone, ''), ' ', ''), '-', '') = ?
             ORDER BY id
@@ -978,15 +1004,18 @@ class mdl extends CRUD {
 
     // -- Cobro: lectura --
 
-    public function qPaymentMethods($companyId) {
+    // Los de la sucursal: cada una da de alta los suyos. company_id NULL = del sistema (hoy ninguno).
+    // Monedero (PUNTOS) nunca sale aqui aunque lo pongan visible: cobrarlo como metodo normal no baja el saldo.
+    public function qPaymentMethods($branchId) {
         return $this->qRows("
             SELECT id, name, IFNULL(code, '') AS code, IFNULL(is_cash, 0) AS is_cash
             FROM {$this->pos}payment_method
-            WHERE (company_id = ? OR company_id IS NULL)
+            WHERE (branch_id = ? OR company_id IS NULL)
                 AND IFNULL(active, 1) = 1
                 AND IFNULL(is_visible, 1) = 1
+                AND IFNULL(code, '') <> 'PUNTOS'
             ORDER BY IFNULL(sort, 99), id
-        ", [$companyId]);
+        ", [$branchId]);
     }
 
     public function qDiscountReasons($companyId) {
@@ -1476,8 +1505,11 @@ class mdl extends CRUD {
     // -- Clientes (Etapa 6) --
     // Pedidos vivos = pendientes y pagados. La cotizacion y el cancelado no suman.
 
-    /*  Clientes de la sucursal con sus totales. Los pedidos cuentan en cualquier
-        sucursal: el cliente es de una, pero pudo pedir en otra.
+    /*  Clientes de la empresa con sus totales. Los pedidos cuentan en cualquier
+        sucursal: el cliente se dio de alta en una, pero pudo pedir en otra.
+        «Vendido» suma pedidos y ventas de mostrador (sale_type 3). Pedidos, último
+        pedido, por cobrar y a favor son solo de pedidos: lo que debe una venta ya
+        sale en la columna Crédito y se contaría dos veces.
         $active: 1, 0 o null (todos). $sort: una llave de $orders; otra = nombre. */
     public function qCustomerList($branchId, $active, $sort = 'name') {
         $data  = [$branchId, $branchId];
@@ -1514,11 +1546,11 @@ class mdl extends CRUD {
             LEFT JOIN (
                 SELECT
                     s.customer_id,
-                    SUM(IF(s.sale_status_id IN (2, 3), 1, 0))                                       AS orders,
-                    MAX(IF(s.sale_status_id IN (2, 3), s.created_at, NULL))                         AS last_order,
-                    SUM(IF(s.sale_status_id IN (2, 3), s.total, 0))                                 AS sold,
-                    SUM(IF(s.sale_status_id = 2, GREATEST(s.total - IFNULL(pp.paid, 0), 0), 0))     AS due,
-                    SUM(IF(s.sale_status_id IN (2, 3), GREATEST(IFNULL(pp.paid, 0) - s.total, 0), 0)) AS credit
+                    SUM(IF(s.sale_type_id = 1 AND s.sale_status_id IN (2, 3), 1, 0))                                       AS orders,
+                    MAX(IF(s.sale_type_id = 1 AND s.sale_status_id IN (2, 3), s.created_at, NULL))                         AS last_order,
+                    SUM(IF(s.sale_status_id IN (2, 3), s.total, 0))                                                        AS sold,
+                    SUM(IF(s.sale_type_id = 1 AND s.sale_status_id = 2, GREATEST(s.total - IFNULL(pp.paid, 0), 0), 0))     AS due,
+                    SUM(IF(s.sale_type_id = 1 AND s.sale_status_id IN (2, 3), GREATEST(IFNULL(pp.paid, 0) - s.total, 0), 0)) AS credit
                 FROM {$this->pos}sale s
                 LEFT JOIN (
                     SELECT p.sale_id, SUM(p.amount) AS paid
@@ -1527,18 +1559,18 @@ class mdl extends CRUD {
                         AND p.deleted_at IS NULL
                     GROUP BY p.sale_id
                 ) pp ON pp.sale_id = s.id
-                WHERE s.sale_type_id = 1
+                WHERE s.sale_type_id IN (1, 3)
                     AND IFNULL(s.active, 1) = 1
-                    AND s.customer_id IN (SELECT id FROM {$this->pos}customer WHERE branch_id = ?)
+                    AND s.customer_id IN (SELECT id FROM {$this->pos}customer WHERE {$this->qSameCompany('branch_id')})
                 GROUP BY s.customer_id
             ) x ON x.customer_id = c.id
-            WHERE c.branch_id = ?
+            WHERE {$this->qSameCompany('c.branch_id')}
                 {$state}
             ORDER BY {$order}
         ", $data);
     }
 
-    // Un cliente de la sucursal, con correo. Null si es de otra.
+    // Un cliente de la empresa de la sucursal, con correo. Null si es de otra empresa.
     public function qBranchCustomer($id, $branchId) {
         return $this->qRow("
             SELECT
@@ -1550,17 +1582,17 @@ class mdl extends CRUD {
                 created_at
             FROM {$this->pos}customer
             WHERE id = ?
-                AND branch_id = ?
+                AND {$this->qSameCompany('branch_id')}
             LIMIT 1
         ", [$id, $branchId]);
     }
 
-    // Otro cliente activo de la sucursal con ese telefono (sin espacios ni guiones).
+    // Otro cliente activo de la empresa con ese telefono (sin espacios ni guiones).
     public function qCustomerPhoneTaken($branchId, $phone, $exceptId) {
         return $this->qRow("
             SELECT id, name
             FROM {$this->pos}customer
-            WHERE branch_id = ?
+            WHERE {$this->qSameCompany('branch_id')}
                 AND IFNULL(active, 1) = 1
                 AND id <> ?
                 AND REPLACE(REPLACE(IFNULL(phone, ''), ' ', ''), '-', '') = ?

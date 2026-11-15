@@ -970,6 +970,7 @@ class OrderDetail extends Templates {
         }
 
         orders.lsOrders();
+        orderTurn.touch();
         alert({ icon: 'success', title: data.message });
 
         back();

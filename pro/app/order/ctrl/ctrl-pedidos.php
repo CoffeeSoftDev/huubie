@@ -775,9 +775,9 @@ class ctrl extends core {
 
         $customer = $this->qGetCustomer($customerId);
         $isSame   = $current !== null && (int) $current['customer_id'] === $customerId;
-        $isLocal  = $customer && (int) $customer['branch_id'] === $this->branchId() && (int) $customer['active'] === 1;
+        $isLocal  = $customer && (int) $customer['company_id'] === $this->companyId() && (int) $customer['active'] === 1;
 
-        if (!$customer || (!$isLocal && !$isSame)) return $this->fail(422, 'Ese cliente no está disponible en esta sucursal.');
+        if (!$customer || (!$isLocal && !$isSame)) return $this->fail(422, 'Ese cliente no está disponible en esta empresa.');
 
         if ($date === null) return $this->fail(422, 'Elige la fecha de entrega.');
         if ($time === null) return $this->fail(422, 'Elige la hora de entrega.');

@@ -4,7 +4,7 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-catalogo.php';
 
-// Pestaña Métodos de pago: cada método es de una empresa; company_id NULL es plantilla de Huubie.
+// Pestaña Métodos de pago: cada sucursal da de alta los suyos, Monedero incluido; company_id NULL es del sistema (hoy ninguno).
 class ctrl extends core {
 
     public function formOptions() {
@@ -27,13 +27,13 @@ class ctrl extends core {
     }
 
     public function lsPaymentMethods() {
-        $fail = $this->needCompany();
+        $fail = $this->needBranch();
         if ($fail) return $fail;
 
-        $company = $this->companyId();
-        $row     = [];
+        $branch = $this->branchId();
+        $row    = [];
 
-        foreach ($this->qListPaymentMethods($company, $this->activeFilter()) as $item) {
+        foreach ($this->qListPaymentMethods($branch, $this->activeFilter()) as $item) {
             $id = (int) $item['id'];
 
             $row[] = [
@@ -51,17 +51,17 @@ class ctrl extends core {
             ];
         }
 
-        return ['status' => 200, 'row' => $row, 'count' => $this->qCountPaymentMethods($company)];
+        return ['status' => 200, 'row' => $row, 'count' => $this->qCountPaymentMethods($branch)];
     }
 
     public function getPaymentMethod() {
-        $data = $this->qGetPaymentMethod($this->postId(), $this->companyId());
+        $data = $this->qGetPaymentMethod($this->postId(), $this->branchId());
 
         return $data ? ['status' => 200, 'data' => $data] : $this->fail(404, 'El método de pago no existe.');
     }
 
     public function addPaymentMethod() {
-        $fail = $this->needCompany();
+        $fail = $this->needBranch();
         if ($fail) return $fail;
 
         $in = $this->paymentMethodInput();
@@ -72,10 +72,10 @@ class ctrl extends core {
 
         return $this->attempt(function () use ($in) {
             $this->must($this->qCreatePaymentMethod([
-                'values' => ['name', 'code', 'kind', 'icon', 'color', 'commission', 'sort', 'is_cash', 'is_visible', 'earns_points', 'company_id', 'active'],
+                'values' => ['name', 'code', 'kind', 'icon', 'color', 'commission', 'sort', 'is_cash', 'is_visible', 'earns_points', 'company_id', 'branch_id', 'active'],
                 'data'   => [
                     $in['name'], $in['code'], $in['kind'], $in['icon'], $in['color'], $in['commission'], $in['sort'],
-                    $in['is_cash'], $in['is_visible'], $in['earns_points'], $this->companyId(), 1
+                    $in['is_cash'], $in['is_visible'], $in['earns_points'], $this->companyId(), $this->branchId(), 1
                 ]
             ]), 'addPaymentMethod');
 
@@ -84,7 +84,7 @@ class ctrl extends core {
     }
 
     public function editPaymentMethod() {
-        $fail = $this->needCompany();
+        $fail = $this->needBranch();
         if ($fail) return $fail;
 
         $id   = $this->postId();
@@ -112,7 +112,7 @@ class ctrl extends core {
     }
 
     public function statusPaymentMethod() {
-        $fail = $this->needCompany();
+        $fail = $this->needBranch();
         if ($fail) return $fail;
 
         $id   = $this->postId();
@@ -175,30 +175,30 @@ class ctrl extends core {
 
     // Respuesta 409 si el nombre o la clave ya están ocupados; null si están libres.
     private function duplicateError($in, $exceptId = 0) {
-        $company = $this->companyId();
+        $branch = $this->branchId();
 
-        $dup = $this->qFindPaymentMethodByName($company, $in['name'], $exceptId);
+        $dup = $this->qFindPaymentMethodByName($branch, $in['name'], $exceptId);
 
         if ($dup) {
             return $this->isTemplate($dup)
-                ? $this->fail(409, 'Ya existe una plantilla de Huubie con ese nombre.')
+                ? $this->fail(409, 'Ya existe un método del sistema con ese nombre.')
                 : $this->duplicated($dup, 'un método de pago con ese nombre');
         }
 
         if ($in['code'] === null) return null;
 
-        $dup = $this->qFindPaymentMethodByCode($company, $in['code'], $exceptId);
+        $dup = $this->qFindPaymentMethodByCode($branch, $in['code'], $exceptId);
 
         if (!$dup) return null;
 
         return $this->isTemplate($dup)
-            ? $this->fail(409, 'Ya existe una plantilla de Huubie con esa clave.')
+            ? $this->fail(409, 'Ya existe un método del sistema con esa clave.')
             : $this->duplicated($dup, 'un método de pago con esa clave');
     }
 
-    // Respuesta de error si el método no existe en la empresa o es plantilla; null si se puede cambiar.
+    // Respuesta de error si el método no existe en la sucursal o es del sistema; null si se puede cambiar.
     private function changeBlocked($id) {
-        $item = $this->qGetPaymentMethod($id, $this->companyId());
+        $item = $this->qGetPaymentMethod($id, $this->branchId());
 
         if (!$item) return $this->fail(404, 'El método de pago no existe.');
 

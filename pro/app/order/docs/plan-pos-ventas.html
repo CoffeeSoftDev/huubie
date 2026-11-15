@@ -750,10 +750,11 @@ dd{ font-size:13px; color:var(--bp-ink-soft); line-height:1.55 }
       <table class="kv">
         <tbody>
           <tr><td>Objetivo</td><td>Mandar el ticket al cliente.</td></tr>
-          <tr><td>Entrega</td><td>Página de la sección <code>pos-whatsapp</code> (id 6) y un enlace público del ticket, como <code>portalDelTicket</code> de Pulpos.</td></tr>
-          <tr><td>Guarda en la base</td><td>Nada nuevo si el enlace se firma con el número de venta (propuesta).</td></tr>
+          <tr><td>Entrega</td><td>Un enlace público del ticket, como <code>portalDelTicket</code> de Pulpos: <code>ticket.php?v=&lt;venta&gt;&amp;k=&lt;firma&gt;</code>. Botón «Enviar por WhatsApp» al cobrar y «Enviar ticket» en el detalle del Historial (15/11/2026, en local).</td></tr>
+          <tr><td>Guarda en la base</td><td>Nada: el enlace se firma con el número de venta.</td></tr>
           <tr><td>Límite por la decisión 6</td><td>Sin bitácora de mensajes enviados.</td></tr>
-          <tr><td>Depende de</td><td>V2 · elegir proveedor de WhatsApp.</td></tr>
+          <tr><td>Sin proveedor</td><td>Se abre <code>wa.me</code> con el mensaje listo y la cajera lo manda desde su WhatsApp. La página de la sección <code>pos-whatsapp</code> (id 6) queda fuera hasta elegir proveedor.</td></tr>
+          <tr><td>Depende de</td><td>V2.</td></tr>
           <tr><td>Terminado cuando</td><td>El cliente abre su ticket desde el enlace sin iniciar sesión.</td></tr>
         </tbody>
       </table>

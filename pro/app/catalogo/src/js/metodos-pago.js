@@ -231,7 +231,7 @@ class PaymentMethods extends Templates {
         this.csModal({
             id: 'modalPaymentMethod',
             title: 'Nuevo método de pago',
-            subtitle: 'Forma de cobro para todas las sucursales de la empresa',
+            subtitle: 'Forma de cobro de esta sucursal',
             lucideIcon: 'credit-card',
             json: this.jsonForm({}, options),
             onSave: (values, close) => this.save('addPaymentMethod', values, close)

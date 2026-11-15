@@ -10,8 +10,11 @@
     pago» e «Historial de pagos».
 
     Lo que manda es el ctrl: aquí solo se arma el cobro y se avisa antes de
-    mandar. Un cobro admite varios métodos; en efectivo se anota lo recibido
-    para calcular el cambio. El descuento es uno por pedido y va con motivo. */
+    mandar. Un cobro admite varios métodos: hay una fila por forma de pago y
+    en cada una se escribe cuánto se paga con ella. Una de las filas «cubre
+    lo que falta»: se ajusta sola con lo que se escribe en las demás (100 en
+    MercadoPago, lo demás en efectivo). En efectivo se anota lo recibido para
+    calcular el cambio. El descuento es uno por pedido y va con motivo. */
 
 // -- Cobro --
 
@@ -90,8 +93,6 @@ class OrderPay extends Templates {
         this.discBlock    = data.disc_block || '';
         this.fromDetail   = fromDetail;
         this.token        = ordToken();
-        this.mode         = 'all';
-        this.lines        = [];
         this.discOpen     = false;
         this.discMode     = 'percent';
 
@@ -100,7 +101,11 @@ class OrderPay extends Templates {
             this.payBlock = { kind: 'methods', title: 'Sin métodos de pago', message: 'La empresa no tiene métodos de pago activos.', day: false };
         }
 
-        this.method = this.methods.length ? (this.methods.find((m) => m.cash) || this.methods[0]).id : 0;
+        /*  cash = el método en efectivo: lleva lo recibido y el cambio.
+            auto = la fila que cubre lo que falta del saldo. Arranca en efectivo
+            (o en el primer método) con todo el saldo; se apaga al escribir en ella. */
+        this.cash = this.methods.find((m) => m.cash) || null;
+        this.auto = this.methods.length ? (this.cash || this.methods[0]).id : 0;
 
         // Sin pestaña pedida: cobrar si se puede o si falta el turno; si no, los pagos que ya hay.
         const kind = this.payBlock ? this.payBlock.kind : '';
@@ -121,9 +126,12 @@ class OrderPay extends Templates {
             onSave:     (values, close) => this.save(close)
         });
 
+        if (this.canPay) this.dress();
+
+        // Primero pintar y luego la pestaña: el foco cae en el monto ya escrito y lo deja seleccionado.
         this.bind();
-        this.setTab(this.tab);
         this.paint();
+        this.setTab(this.tab);
         this.onDismiss('modalOrderPay', () => this.back());
     }
 
@@ -134,7 +142,9 @@ class OrderPay extends Templates {
     // -- Campos --
 
     fields() {
-        const label   = (text) => `<p class="block text-xs font-semibold text-gray-500 mb-1.5">${text}</p>`;
+        // Un <label> con la misma clase que csModal: compact.css le da el mismo
+        // tamaño y margen que a «Recibe en efectivo», y los billetes quedan a la par del input.
+        const label   = (text) => `<label class="block text-xs font-semibold text-gray-500 mb-1.5">${text}</label>`;
         const pane    = (list) => list.map((f) => Object.assign({}, f, { class: `${f.class || 'w-full sm:w-1/2'} op-pane-pay` }));
         const history = { id: 'op_history', tipo: 'html', class: 'w-full op-pane-history', html: this.historyHtml() };
         const top     = [
@@ -147,23 +157,76 @@ class OrderPay extends Templates {
         }
 
         const form = pane([
-            { id: 'op_methods', tipo: 'html', class: 'w-full', html: label('Método de pago') + '<div id="op_method_chips" class="ord-method-grid"></div>' },
-            { id: 'op_target', lbl: 'Monto que abona', tipo: 'number', min: 0, step: '0.01', ph: '0.00', class: 'w-full sm:w-1/2' },
-            { id: 'op_goal', tipo: 'html', class: 'w-full sm:w-1/2', html: label('Atajos') + '<div id="op_goal_chips" class="flex flex-wrap gap-[8px]"></div>' },
-            { id: 'op_received', lbl: 'Recibe en efectivo', tipo: 'number', min: 0, step: '0.01', class: 'w-full sm:w-1/2' },
-            { id: 'op_bills', tipo: 'html', class: 'w-full sm:w-1/2', html: label('Billetes') + '<div id="op_bill_chips" class="flex flex-wrap gap-[8px]"></div>' },
-            {
-                id:    'op_lines_box',
-                tipo:  'html',
-                class: 'w-full',
-                html:  '<div id="op_lines"></div><button type="button" class="ord-split"><i data-lucide="plus" class="w-4 h-4"></i>Agregar otro método</button>'
-            },
+            { id: 'op_methods', tipo: 'html', class: 'w-full', html: this.methodsHead() },
+            ...this.methodFields(label),
             { id: 'op_note', lbl: 'Observación (opcional)', tipo: 'text', maxlength: 200, ph: 'Ej. Referencia de la transferencia', class: 'w-full' },
             ...this.discountFields(),
             { id: 'op_totals', tipo: 'html', class: 'w-full', html: '<div id="op_sum"></div>' }
         ]);
 
         return top.concat(form, [history]);
+    }
+
+    // -- Formas de pago --
+
+    methodsHead() {
+        const text = this.methods.length > 1
+            ? 'Escribe cuánto paga con cada una. Toca el nombre de una forma para cobrar con ella lo que falta.'
+            : 'Escribe cuánto paga.';
+
+        return `
+            <div class="ord-pay-forms">
+                <p class="ord-pay-forms-title">Formas de pago</p>
+                <p class="ord-pay-forms-text">${text}</p>
+            </div>`;
+    }
+
+    /*  Una fila por forma de pago: un campo number de csModal con el nombre
+        del método de etiqueta. order.css lo acomoda como fila (nombre a la
+        izquierda, monto a la derecha). Debajo de la de efectivo va lo que
+        entrega el cliente, para el cambio. */
+    methodFields(label) {
+        const list = [];
+
+        this.methods.forEach((m) => {
+            list.push({ id: `op_amt_${m.id}`, lbl: m.name, tipo: 'number', min: 0, step: '0.01', ph: '0.00', icon: 'dollar-sign', help: this.methodHint(m), class: 'w-full op-row' });
+
+            if (!this.cash || m.id !== this.cash.id) return;
+
+            list.push({ id: 'op_received', lbl: 'Recibe en efectivo', tipo: 'number', min: 0, step: '0.01', class: 'w-full sm:w-2/5 op-cash' });
+            list.push({ id: 'op_bills', tipo: 'html', class: 'w-full sm:w-3/5 op-cash', html: label('Billetes') + '<div id="op_bill_chips" class="flex flex-wrap gap-[8px]"></div>' });
+        });
+
+        return list;
+    }
+
+    // Viste cada fila ya pintada: el ícono del método delante del nombre. El campo sigue siendo el de csModal.
+    dress() {
+        this.methods.forEach((m) => {
+            const row = $(`#op_amt_${m.id}`).closest('.op-row');
+
+            row.attr('data-id', m.id).prepend(`<span class="ord-method-ico"><i data-lucide="${this.methodIcon(m)}" class="w-5 h-5"></i></span>`);
+            row.children('label').attr('title', `Cobrar lo que falta con ${m.name}`);
+        });
+    }
+
+    // El método que se toca cubre lo que falta; el que lo cubría se vacía.
+    takeRest(id) {
+        if (this.auto && this.auto !== id) $(`#op_amt_${this.auto}`).val('');
+
+        this.auto = id;
+        this.paint();
+        this.focusRow(id);
+    }
+
+    // Foco en el monto de una fila, con lo escrito seleccionado: teclear lo reemplaza.
+    focusRow(id) {
+        const input = document.getElementById(`op_amt_${id}`);
+
+        if (!input) return;
+
+        input.focus();
+        input.select();
     }
 
     // Tres mosaicos (Total, Pagado, Restante) y la barra de avance. Los llena paintHead.
@@ -244,7 +307,7 @@ class OrderPay extends Templates {
             $(el).toggleClass('is-active', on).attr('aria-selected', on ? 'true' : 'false');
         });
 
-        if (this.tab === 'pay' && this.canPay) $('#op_received').trigger('focus');
+        if (this.tab === 'pay' && this.canPay) this.focusRow(this.auto || this.methods[0].id);
     }
 
     // -- Sin cobro: por qué --
@@ -436,34 +499,23 @@ class OrderPay extends Templates {
 
         modal.on('click', 'button.ord-pay-go', () => this.blockView().go === 'Editar pedido' ? this.goEdit() : this.goTurn());
 
-        modal.on('click', 'button.ord-goal', (e) => {
-            this.mode = String($(e.currentTarget).data('mode'));
+        // Escribir en la fila que cubría lo que falta la deja con lo escrito.
+        modal.on('input', '.op-row input', (e) => {
+            if (Number($(e.currentTarget).closest('.op-row').data('id')) === this.auto) this.auto = 0;
+
             this.paint();
         });
 
-        modal.on('input', '#op_target', () => {
-            this.mode = 'custom';
-            this.paint();
-        });
-
-        modal.on('click', 'button.ord-method', (e) => {
-            this.method = Number($(e.currentTarget).data('id'));
-            $('#op_received').val('');
-            this.paint();
-            $('#op_received').trigger('focus');
+        // Tocar el nombre o el ícono: esa forma de pago cubre lo que falta.
+        modal.on('click', '.op-row > label, .op-row > .ord-method-ico', (e) => {
+            e.preventDefault();
+            this.takeRest(Number($(e.currentTarget).closest('.op-row').data('id')));
         });
 
         modal.on('input', '#op_received', () => this.paint());
 
         modal.on('click', 'button.ord-bill', (e) => {
             $('#op_received').val(Number($(e.currentTarget).data('amount')).toFixed(2));
-            this.paint();
-        });
-
-        modal.on('click', 'button.ord-split', () => this.split());
-
-        modal.on('click', 'button.ord-line-del', (e) => {
-            this.lines.splice(Number($(e.currentTarget).data('index')), 1);
             this.paint();
         });
 
@@ -500,49 +552,55 @@ class OrderPay extends Templates {
         const total   = ordRound(o.total - d.amount);
         const balance = Math.max(0, ordRound(total - o.paid));
 
-        let target = balance;
+        // Lo escrito en cada fila. La que cubre lo que falta no se lee: toma lo que dejan las demás.
+        let bad = null;
 
-        if (this.mode === 'half')   target = Math.min(balance, ordRound(total / 2));
-        if (this.mode === 'custom') target = ordAmount($('#op_target').val()) || 0;
+        const rows = this.methods.map((m) => {
+            if (m.id === this.auto) return { m: m, amount: 0 };
 
-        const committed = ordRound(this.lines.reduce((s, l) => s + l.amount, 0));
-        const remaining = Math.max(0, ordRound(target - committed));
-        const method    = this.methodOf(this.method);
-        const raw       = String($('#op_received').val() || '').trim();
-        const typed     = raw === '' ? null : ordAmount(raw);
-        const badTyped  = raw !== '' && typed === null;
+            const raw   = String($(`#op_amt_${m.id}`).val() || '').trim();
+            const value = raw === '' ? 0 : ordAmount(raw);
 
-        let current = null;
+            if (value === null && !bad) bad = m;
 
-        if (!badTyped && method) {
-            if (typed === null) {
-                if (remaining > 0) current = { method_id: method.id, amount: remaining, tendered: remaining };
-            } else if (method.cash) {
-                const amount = Math.min(typed, remaining);
-
-                if (amount > 0) current = { method_id: method.id, amount: ordRound(amount), tendered: typed };
-            } else if (typed > 0) {
-                current = { method_id: method.id, amount: typed, tendered: typed };
-            }
-        }
-
-        const merged = new Map();
-
-        this.lines.concat(current ? [current] : []).forEach((l) => {
-            const prev = merged.get(l.method_id);
-
-            merged.set(l.method_id, prev
-                ? { method_id: l.method_id, amount: ordRound(prev.amount + l.amount), tendered: ordRound(prev.tendered + l.tendered) }
-                : { method_id: l.method_id, amount: l.amount, tendered: l.tendered });
+            return { m: m, amount: value || 0 };
         });
 
-        const payments = Array.from(merged.values()).filter((l) => l.amount > 0);
-        const applied  = ordRound(payments.reduce((s, l) => s + l.amount, 0));
-        const tendered = ordRound(payments.reduce((s, l) => s + l.tendered, 0));
-        const change   = ordRound(tendered - applied);
-        const missing  = Math.max(0, ordRound(target - applied));
+        const fixed = ordRound(rows.reduce((s, r) => s + r.amount, 0));
+        const auto  = rows.find((r) => r.m.id === this.auto);
 
-        return { d, total, balance, target, remaining, method, typed, badTyped, payments, applied, tendered, change, missing };
+        if (auto) auto.amount = Math.max(0, ordRound(balance - fixed));
+
+        /*  Efectivo: lo escrito en su fila es «hasta cuánto». Se aplica lo que
+            cabe en el saldo después de los demás métodos y lo que sobra es
+            cambio. «Recibe en efectivo», si se llena, es el billete entregado. */
+        const cashRow   = this.cash ? rows.find((r) => r.m.id === this.cash.id) : null;
+        const cashTyped = cashRow ? cashRow.amount : 0;
+        const others    = ordRound(rows.reduce((s, r) => s + (r === cashRow ? 0 : r.amount), 0));
+        const room      = Math.max(0, ordRound(balance - others));
+        const cashPaid  = ordRound(Math.min(cashTyped, room));
+        const rawRec    = String($('#op_received').val() || '').trim();
+        const rec       = rawRec === '' || cashPaid <= 0 ? null : ordAmount(rawRec);
+        const badRec    = rawRec !== '' && cashPaid > 0 && rec === null;
+        const cashGiven = rec === null ? cashTyped : rec;
+
+        const payments = [];
+
+        rows.forEach((r) => {
+            const amount = r === cashRow ? cashPaid : r.amount;
+
+            if (amount <= 0) return;
+
+            payments.push({ method_id: r.m.id, amount: amount, tendered: r === cashRow ? cashGiven : amount });
+        });
+
+        // Solo lo que no es efectivo puede sobrar; el efectivo que ya no cabe también sobra.
+        const over    = ordRound(Math.max(0, others - balance) + (cashTyped > 0 && cashPaid <= 0 ? cashTyped : 0));
+        const applied = ordRound(payments.reduce((s, p) => s + p.amount, 0));
+        const missing = cashPaid > 0 ? Math.max(0, ordRound(cashPaid - cashGiven)) : 0;
+        const change  = cashPaid > 0 ? Math.max(0, ordRound(cashGiven - cashPaid)) : 0;
+
+        return { d, total, balance, rows, bad, badRec, cashTyped, cashPaid, cashGiven, payments, applied, over, missing, change };
     }
 
     discountCalc() {
@@ -595,23 +653,16 @@ class OrderPay extends Templates {
         }
 
         const c = this.calc();
-        const m = c.method;
-
-        if (this.mode !== 'custom') $('#op_target').val(c.target > 0 ? c.target.toFixed(2) : '');
 
         this.paintHead(c.total);
+        this.paintRows(c);
 
-        $('#op_goal_chips').html(this.goals(c));
-        $('#op_method_chips').html(this.methodChips());
+        // Lo recibido y los billetes acompañan a la fila de efectivo solo cuando lleva monto.
+        if (c.cashPaid <= 0 && $('#op_received').val() !== '') $('#op_received').val('');
 
-        $('label[for="op_received"]').text(m && m.cash ? 'Recibe en efectivo' : `Monto con ${m ? m.name : ''}`);
-        $('#op_received').attr('placeholder', c.remaining > 0 ? `Exacto: ${money(c.remaining)}` : '0.00');
-
-        $('#op_bills').toggleClass('hidden', !(m && m.cash) || c.remaining <= 0);
-        $('#op_bill_chips').html(this.bills(c.remaining));
-
-        $('#op_lines').html(this.linesHtml());
-        $('#modalOrderPay button.ord-split').toggleClass('hidden', this.methods.length < 2 || this.lines.length >= 5);
+        $('#modalOrderPay .op-cash').toggleClass('hidden', c.cashPaid <= 0);
+        $('#op_received').attr('placeholder', c.cashPaid > 0 ? `Exacto: ${money(c.cashPaid)}` : '0.00');
+        $('#op_bill_chips').html(this.bills(c.cashPaid));
 
         $('#op_sum').html(this.summary(c));
 
@@ -622,33 +673,39 @@ class OrderPay extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
+    /*  Las filas no se vuelven a pintar (se perdería el foco al teclear): solo
+        se les cambia la marca, la pista y, a la que cubre lo que falta, el monto.
+        is-on = lleva monto; is-auto = cubre lo que falta. */
+    paintRows(c) {
+        c.rows.forEach((r) => {
+            const input = $(`#op_amt_${r.m.id}`);
+            const row   = input.closest('.op-row');
+            const auto  = r.m.id === this.auto;
+
+            if (auto) input.val(r.amount > 0 ? r.amount.toFixed(2) : '');
+
+            row.toggleClass('is-on', r.amount > 0).toggleClass('is-auto', auto);
+            row.children('p').text(this.rowHint(r, c));
+        });
+    }
+
+    rowHint(r, c) {
+        if (this.cash && r.m.id === this.cash.id && c.cashPaid > 0 && c.cashTyped > c.cashPaid + 0.005) {
+            return `Se aplican ${money(c.cashPaid)}; lo demás es cambio`;
+        }
+
+        if (r.m.id === this.auto) return 'Cubre lo que falta del saldo';
+
+        return this.methodHint(r.m);
+    }
+
     // El botón dice lo que va a pasar: el monto, solo el descuento o cobrar y entregar.
     saveLabel(c) {
-        if (c.target <= 0 && c.d.amount > 0)                     return 'Aplicar descuento';
-        if (this.thenDeliver && c.target + 0.005 >= c.balance)   return 'Cobrar y entregar';
+        if (c.bad || c.over > 0.005)                                              return 'Registrar pago';
+        if (c.applied <= 0 && c.d.amount > 0)                                     return 'Aplicar descuento';
+        if (this.thenDeliver && c.applied > 0 && c.applied + 0.005 >= c.balance)  return 'Cobrar y entregar';
 
         return c.applied > 0 ? `Registrar pago · ${money(c.applied)}` : 'Registrar pago';
-    }
-
-    goals(c) {
-        const chip = (mode, text, amount) => `<button type="button" class="ord-goal${this.mode === mode ? ' is-active' : ''}" data-mode="${mode}">${text} <b>${money(amount)}</b></button>`;
-        const list = [chip('all', 'Liquidar saldo', c.balance)];
-
-        if (this.o.paid <= 0 && c.balance > 0) list.push(chip('half', 'Anticipo 50 %', Math.min(c.balance, ordRound(c.total / 2))));
-
-        return list.join('');
-    }
-
-    // Tarjetas de método: ícono, nombre y una pista. La palomita marca los que ya van en el cobro.
-    methodChips() {
-        const used = this.lines.map((l) => l.method_id);
-
-        return this.methods.map((m) => `
-            <button type="button" class="ord-method is-card${m.id === this.method ? ' is-active' : ''}" data-id="${m.id}" aria-pressed="${m.id === this.method}">
-                <span class="ord-method-ico"><i data-lucide="${this.methodIcon(m)}" class="w-5 h-5"></i></span>
-                <span class="min-w-0"><span class="ord-method-name">${esc(m.name)}</span><span class="ord-method-hint">${this.methodHint(m)}</span></span>
-                ${used.includes(m.id) ? '<i data-lucide="check" class="w-4 h-4 ord-method-check"></i>' : ''}
-            </button>`).join('');
     }
 
     methodIcon(m) {
@@ -687,63 +744,50 @@ class OrderPay extends Templates {
              + list.map((v) => `<button type="button" class="ord-bill" data-amount="${v}">$${v.toLocaleString('es-MX')}</button>`).join('');
     }
 
-    linesHtml() {
-        if (!this.lines.length) return '';
-
-        const rows = this.lines.map((l, i) => {
-            const m     = this.methodOf(l.method_id);
-            const extra = m && m.cash && l.tendered > l.amount ? ` · recibe ${money(l.tendered)}` : '';
-
-            return `
-                <div class="ord-line flex items-center justify-between gap-[8px] rounded-lg border-[1px] border-gray-200 px-[12px] py-[8px] text-[13px]">
-                    <span class="flex items-center gap-[8px] min-w-0">
-                        <i data-lucide="${this.methodIcon(m)}" class="w-4 h-4 text-gray-400 shrink-0"></i>
-                        <span class="truncate">${esc(m ? m.name : '')}${extra}</span>
-                    </span>
-                    <span class="flex items-center gap-[8px] shrink-0">
-                        <b>${money(l.amount)}</b>
-                        <button type="button" class="ord-line-del" data-index="${i}" aria-label="Quitar este pago"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </span>
-                </div>`;
-        }).join('');
-
-        return `<p class="block text-xs font-semibold text-gray-500 mb-1.5">Pagos agregados</p><div class="flex flex-col gap-[6px] mb-[8px]">${rows}</div>`;
-    }
-
+    // A la izquierda el desglose (cada método si son varios, lo que abona y lo recibido); a la derecha el aviso.
     summary(c) {
         const row   = (label, value) => `<div class="flex items-center justify-between text-[13px] text-gray-600"><span>${label}</span><span class="font-semibold text-gray-800">${value}</span></div>`;
         const after = Math.max(0, ordRound(c.balance - c.applied));
-        const name  = c.method ? c.method.name : '';
-        const used  = c.payments.map((p) => this.methodOf(p.method_id)).filter(Boolean);
-        const cash  = used.some((m) => m.cash);
+        const used  = c.payments.map((p) => ({ m: this.methodOf(p.method_id), amount: p.amount })).filter((u) => u.m);
+        const names = esc(used.map((u) => u.m.name).join(' + '));
+        const cash  = c.cashPaid > 0;
 
         let state = '';
 
-        if (c.badTyped) {
+        if (c.bad) {
+            state = `<p class="ord-sum-big text-rose-600">Monto no válido</p><p class="text-[12px] text-rose-600 mb-0">Revisa lo escrito en ${esc(c.bad.name)}.</p>`;
+        } else if (c.badRec) {
             state = '<p class="ord-sum-big text-rose-600">Monto recibido no válido</p>';
-        } else if (c.applied > c.target + 0.005) {
-            state = `<p class="ord-sum-big text-rose-600">Sobran ${money(c.applied - c.target)}</p><p class="text-[12px] text-rose-600 mb-0">Con ${esc(name)} no se cobra de más: baja el monto.</p>`;
-        } else if (c.target <= 0 && c.d.amount > 0) {
+        } else if (c.over > 0.005) {
+            state = `<p class="ord-sum-big text-rose-600">Sobran ${money(c.over)}</p><p class="text-[12px] text-rose-600 mb-0">No se cobra de más: baja algún monto.</p>`;
+        } else if (c.applied <= 0 && c.d.amount > 0) {
             state = `<p class="ord-sum-big text-blue-700">Solo descuento</p><p class="text-[12px] text-gray-500 mb-0">El total queda en ${money(c.total)}.</p>`;
+        } else if (c.applied <= 0) {
+            state = '<p class="text-[12.5px] text-gray-500 mb-0">Escribe cuánto paga el cliente.</p>';
         } else if (c.missing > 0.005) {
-            state = `<p class="ord-sum-big text-rose-600">Faltan ${money(c.missing)}</p><p class="text-[12px] text-gray-500 mb-0">Agrega otro método o baja el monto que abona.</p>`;
+            state = `<p class="ord-sum-big text-rose-600">Faltan ${money(c.missing)}</p><p class="text-[12px] text-gray-500 mb-0">El efectivo recibido no alcanza.</p>`;
         } else if (c.change > 0.005) {
             state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-emerald-700 mb-0">Cambio</p><p class="ord-sum-big text-emerald-600">${money(c.change)}</p>`;
-        } else if (c.applied > 0 && cash) {
+        } else if (used.length === 1 && cash) {
             state = '<p class="ord-sum-big text-emerald-600">Exacto, sin cambio</p>';
-        } else if (c.applied > 0) {
-            state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-emerald-700 mb-0">Cobra con ${esc(used.map((m) => m.name).join(' + '))}</p><p class="ord-sum-big text-emerald-600">${money(c.applied)}</p>`;
+        } else {
+            state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-emerald-700 mb-0">Cobra con ${names}</p><p class="ord-sum-big text-emerald-600">${money(c.applied)}</p>`;
         }
 
-        const end = after <= 0.005 && (c.applied > 0 || c.d.amount > 0)
-            ? '<span class="text-emerald-700 font-semibold">Queda pagado</span>'
-            : `Saldo después: <b>${money(after)}</b>`;
+        // Con algo por corregir no se promete «Queda pagado»: se deja el saldo de hoy.
+        const stuck = c.bad || c.badRec || c.over > 0.005 || c.missing > 0.005;
+
+        let end = `Saldo después: <b>${money(after)}</b>`;
+
+        if (stuck)                                                  end = `Saldo: <b>${money(c.balance)}</b>`;
+        else if (after <= 0.005 && (c.applied > 0 || c.d.amount > 0)) end = '<span class="text-emerald-700 font-semibold">Queda pagado</span>';
 
         return `
             <div class="ord-sum rounded-xl border-[1px] border-gray-200 bg-gray-50 px-[14px] py-[12px] flex flex-col sm:flex-row gap-[12px] sm:items-center">
                 <div class="flex-1 flex flex-col gap-[4px]">
-                    ${row('Abona', money(c.target))}
-                    ${cash ? row('Recibido', money(c.tendered)) : ''}
+                    ${used.length > 1 ? used.map((u) => row(esc(u.m.name), money(u.amount))).join('') : ''}
+                    ${row('Abona', money(c.applied))}
+                    ${cash ? row('Efectivo recibido', money(c.cashGiven)) : ''}
                     <div class="text-[12.5px] text-gray-500 mt-1">${end}</div>
                 </div>
                 <div class="sm:text-right sm:min-w-[200px]">${state}</div>
@@ -769,53 +813,20 @@ class OrderPay extends Templates {
         $('#op_disc_msg').html(msg);
     }
 
-    // -- Varios metodos --
-
-    split() {
-        const c = this.calc();
-        const m = c.method;
-
-        if (c.badTyped)        return this.warn('El monto recibido no es válido.');
-        if (c.typed === null)  return this.warn(`Escribe cuánto se paga con ${m.name} antes de agregar otro método.`);
-        if (c.remaining <= 0)  return this.warn('Lo que abona ya está cubierto.');
-        if (!m.cash && c.typed > c.remaining + 0.005) return this.warn(`Con ${m.name} solo faltan ${money(c.remaining)}: no se cobra de más.`);
-
-        const amount = ordRound(m.cash ? Math.min(c.typed, c.remaining) : c.typed);
-        const prev   = this.lines.find((l) => l.method_id === m.id);
-
-        if (prev) {
-            prev.amount   = ordRound(prev.amount + amount);
-            prev.tendered = ordRound(prev.tendered + (m.cash ? c.typed : amount));
-        } else {
-            this.lines.push({ method_id: m.id, amount: amount, tendered: m.cash ? c.typed : amount });
-        }
-
-        const used = this.lines.map((l) => l.method_id);
-        const next = this.methods.find((x) => !used.includes(x.id));
-
-        if (next) this.method = next.id;
-
-        $('#op_received').val('');
-        this.paint();
-        $('#op_received').trigger('focus');
-    }
-
     // -- Guardar --
 
     async save(close) {
         if (this.saving) return;
 
-        const c         = this.calc();
-        const rawTarget = String($('#op_target').val() || '').trim();
+        const c = this.calc();
 
         if (c.d.error) return this.warn(c.d.error);
-        if (c.badTyped) return this.warn('El monto recibido no es válido.');
-        if (this.mode === 'custom' && rawTarget !== '' && ordAmount(rawTarget) === null) return this.warn('El monto que abona no es válido.');
-        if (c.target > c.balance + 0.005) return this.warn(`El saldo es ${money(c.balance)}: no se cobra de más.`);
-        if (c.target <= 0 && !c.d.amount) return this.warn('Escribe cuánto abona el cliente.');
+        if (c.bad) return this.warn(`El monto de ${c.bad.name} no es válido.`);
+        if (c.badRec) return this.warn('El monto recibido en efectivo no es válido.');
+        if (c.over > 0.005) return this.warn(`Los pagos pasan del saldo por ${money(c.over)}. El saldo es ${money(c.balance)}: no se cobra de más.`);
+        if (c.applied <= 0 && !c.d.amount) return this.warn('Escribe cuánto paga el cliente.');
         if (c.payments.length > 6) return this.warn('Un cobro admite hasta 6 métodos de pago.');
-        if (c.missing > 0.005) return this.warn(`Faltan ${money(c.missing)} por recibir. Agrega otro método o baja el monto que abona.`);
-        if (c.applied > c.target + 0.005) return this.warn(`Los pagos suman ${money(c.applied)} y abona ${money(c.target)}. Baja el monto con tarjeta o transferencia.`);
+        if (c.missing > 0.005) return this.warn(`Faltan ${money(c.missing)} por recibir en efectivo.`);
 
         const discount = c.d.amount > 0
             ? JSON.stringify({
@@ -866,6 +877,7 @@ class OrderPay extends Templates {
         this.closeQuiet('modalOrderPay', close);
 
         orders.lsOrders();
+        orderTurn.touch();
 
         const print  = orders.can('print');
         const change = Number(data.change) > 0.005
@@ -965,6 +977,7 @@ class OrderPay extends Templates {
         this.closeQuiet('modalOrderPayDelete', close);
 
         orders.lsOrders();
+        orderTurn.touch();
 
         (back || (() => orderDetail.show(orderId)))();
 

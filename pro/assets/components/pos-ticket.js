@@ -82,6 +82,12 @@ function posTicketCSS() {
         + 'button.pos-tkl-step.is-del:hover,button.pos-tkl-act.is-del:hover{background:#FEF2F2;color:#DC2626}'
         + 'body.dark-mode button.pos-tkl-step.is-del:hover,body.dark-mode button.pos-tkl-act.is-del:hover{background:rgba(248,113,113,.16);color:#fca5a5}'
         + 'button.pos-tkl-ico:focus-visible,button.pos-tkl-name:focus-visible,button.pos-tkl-step:focus-visible,button.pos-tkl-act:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}'
+        + 'button.pos-tkl-act.is-on{background:#FEF3C7;color:#B45309}'
+        + 'body.dark-mode button.pos-tkl-act.is-on{background:rgba(251,191,36,.16);color:#fbbf24}'
+        + '.pos-tkl-sub.is-discount{font-weight:600;color:#B45309}'
+        + 'body.dark-mode .pos-tkl-sub.is-discount{color:#fbbf24}'
+        + 'input.pos-tkl-num{width:34px;height:22px !important;padding:0 !important;border:0;border-radius:6px;background:transparent;color:var(--po-ink);font-size:13px !important;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;box-shadow:none}'
+        + 'input.pos-tkl-num:focus{outline:none;background:var(--po-hover);box-shadow:0 0 0 2px var(--po-ring)}'
 
         + '.pos-tkt{display:flex;flex-direction:column;gap:8px;padding:12px 14px 14px}'
         + '.pos-tkt-rows{display:flex;flex-direction:column;gap:3px}'
@@ -240,9 +246,11 @@ Templates.prototype.posTicketLines = function (options) {
         json:     [],
         max:      9999,
         empty:    { title: 'Pedido vacío', text: 'Toca un producto o búscalo con Ctrl K.' },
+        typing:   false,
         onUpdate: () => { },
         onEdit:   () => { },
-        onDelete: () => { }
+        onDelete: () => { },
+        onDiscount: null
     };
 
     const opts = Object.assign({}, defaults, options);
@@ -250,6 +258,45 @@ Templates.prototype.posTicketLines = function (options) {
     let fresh  = null;
 
     posTicketCSS();
+
+    // Cantidad que se puede escribir (typing): Enter o salir del campo la aplica;
+    // un número fuera de 1..max regresa al que tenía.
+    const typed = (index, quantity) => {
+        const input = $('<input>', {
+            type: 'text', class: 'pos-tkl-num', inputmode: 'numeric', maxlength: String(opts.max).length,
+            value: String(quantity), 'aria-label': 'Cantidad'
+        });
+        let done = false;
+
+        const commit = () => {
+            if (done) return;
+
+            const raw = String(input.val()).trim();
+            const n   = Number(raw);
+
+            if (!/^\d+$/.test(raw) || n < 1 || n > opts.max) {
+                input.val(String(quantity));
+                return;
+            }
+
+            if (n === quantity) return;
+
+            done = true;
+            opts.onUpdate(index, n);
+        };
+
+        input.on('focus', () => input.select());
+        input.on('change', commit);
+
+        input.on('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+
+            e.preventDefault();
+            commit();
+        });
+
+        return input;
+    };
 
     const row = (line, index) => {
         const quantity = Number(line.quantity) || 1;
@@ -303,7 +350,16 @@ Templates.prototype.posTicketLines = function (options) {
             opts.onUpdate(index, quantity - 1);
         });
 
-        qty.append(less, $('<b>', { text: String(quantity) }), more);
+        qty.append(less, opts.typing ? typed(index, quantity) : $('<b>', { text: String(quantity) }), more);
+
+        // Opcional: botón de descuento por partida (resaltado si la partida ya lo tiene).
+        if (opts.onDiscount) {
+            const off = $('<button>', { type: 'button', class: `pos-tkl-act${line.discounted ? ' is-on' : ''}`, 'aria-label': 'Descuento' }).append(posTicketIcon('percent'));
+
+            off.on('click', () => opts.onDiscount(index));
+            acts.append(off);
+        }
+
         acts.append(edit, remove);
         top.append(label, $('<b>', { class: 'pos-tkl-amount', text: line.amount }));
         bottom.append(qty, $('<span>', { class: 'pos-tkl-unit', text: line.unit || '' }), acts);

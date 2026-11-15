@@ -396,9 +396,10 @@ body.dark-mode #modalOrderDetails .ord-well {
 #posOrderHost.is-saving #posOrderBody { pointer-events: none; opacity: 0.6; }
 
 /* -- Turno en el encabezado --
-   Chip con el turno abierto y el boton «Turno y corte» junto a «Nuevo pedido». */
+   «Cierre del día» junto a «Nuevo pedido». El turno pasó a la franja de caja (abajo).
+   .ord-turn-chip ya no lo pinta ninguna pantalla: lo usan las maquetas de templates/
+   para el «antes». .ord-turn-dot sí sigue: es el punto del título de la franja. */
 #formHeaderOrders { gap: 8px; }
-#btnTurnOrders,
 #btnDayOrders { white-space: nowrap; }
 
 .ord-turn-chip {
@@ -419,6 +420,113 @@ body.dark-mode #modalOrderDetails .ord-well {
 .ord-turn-chip.is-old  { color: #B45309; background: #FFFBEB; border-color: #FDE68A; }
 .ord-turn-chip.is-none { color: rgb(var(--gray-600, 87 83 78)); background: rgb(var(--gray-100, 245 245 244)); border-color: rgb(var(--gray-200, 231 229 228)); }
 .ord-turn-chip.is-closed { color: #2A55A3; background: #EAF0FA; border-color: #C7D6F0; }
+
+/* -- Franja de caja --
+   Fila fija bajo la barra de arriba, antes del área que hace scroll (caja-strip.js).
+   Toma el tono del estado; sin turno va en blanco para que resalte el botón.
+   Guarda 49 px de alto aunque no haya botón: al cambiar de estado no brinca. */
+#cajaStrip { flex-shrink: 0; }
+#cajaStrip:empty { display: none; }
+
+.caja-strip {
+    position: relative;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    min-height: 49px;
+    padding: 7px 24px;
+    background: var(--caja-bg);
+    border-bottom: 1px solid var(--caja-line);
+    color: var(--caja-ink);
+}
+
+.caja-strip.is-none   { --caja-ink: #57534E; --caja-bg: #FFFFFF; --caja-line: #E7E5E4; --caja-ring: rgba(87, 83, 78, .12); }
+.caja-strip.is-open   { --caja-ink: #047857; --caja-bg: #ECFDF5; --caja-line: #A7F3D0; --caja-ring: rgba(16, 185, 129, .16); }
+.caja-strip.is-old    { --caja-ink: #B45309; --caja-bg: #FFFBEB; --caja-line: #FDE68A; --caja-ring: rgba(245, 158, 11, .18); }
+.caja-strip.is-closed { --caja-ink: #2A55A3; --caja-bg: #EAF0FA; --caja-line: #C7D6F0; --caja-ring: rgba(42, 85, 163, .14); }
+
+body.dark-mode .caja-strip.is-none   { --caja-ink: #D6D3D1; --caja-bg: #141D2B; --caja-line: rgba(255, 255, 255, .18); --caja-ring: rgba(255, 255, 255, .12); }
+body.dark-mode .caja-strip.is-open   { --caja-ink: #6EE7B7; --caja-bg: rgba(16, 185, 129, .12); --caja-line: rgba(16, 185, 129, .35); --caja-ring: rgba(16, 185, 129, .18); }
+body.dark-mode .caja-strip.is-old    { --caja-ink: #FCD34D; --caja-bg: rgba(245, 158, 11, .12); --caja-line: rgba(245, 158, 11, .35); --caja-ring: rgba(245, 158, 11, .18); }
+body.dark-mode .caja-strip.is-closed { --caja-ink: #93B4E8; --caja-bg: rgba(42, 85, 163, .18); --caja-line: rgba(42, 85, 163, .45); --caja-ring: rgba(42, 85, 163, .22); }
+
+.caja-strip-main { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-width: 0; }
+.caja-strip-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--caja-ring);
+    font-size: 15px;
+}
+.caja-strip-icon i::before { margin: 0; }
+.caja-strip-title { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.caja-strip-text { font-size: 12.5px; color: var(--ink-dim, #57534E); }
+body.dark-mode .caja-strip-text { color: var(--dk-muted, #9CA3AF); }
+
+.caja-strip-stats {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-left: 16px;
+    border-left: 1px solid var(--caja-line);
+    font-size: 12px;
+    color: var(--ink-dim, #57534E);
+    white-space: nowrap;
+}
+.caja-strip-stats b { margin-left: 5px; font-size: 13px; font-weight: 700; color: var(--ink, #1C1917); }
+body.dark-mode .caja-strip-stats { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .caja-strip-stats b { color: var(--dk-text, #F5F5F5); }
+
+.caja-strip-actions { display: flex; gap: 8px; margin-left: auto; }
+
+/* coffeeForm pone un <label>&nbsp;</label> y margen arriba a cada botón: aquí sobran. */
+#formCajaStrip label { display: none; }
+#formCajaStrip > div { margin-top: 0 !important; padding: 0; }
+
+/* Botón de contorno, como los de Soft Restaurant: borde de 1 px y letra del color
+   de la acción; al pasar encima, un tinte. Lleva !important porque soft.css y
+   dark-mode.css pisan el radio, el color y el borde del btnOutline de coffeeForm. */
+#cajaStrip button.caja-out {
+    --out: #047857;
+    --out-tint: rgba(4, 120, 87, .08);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    width: auto;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--out) !important;
+    border-radius: 6px !important;
+    background-color: transparent !important;
+    color: var(--out) !important;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: none;
+    transition: background-color .15s ease, box-shadow .15s ease;
+}
+#cajaStrip button.caja-out.is-warn { --out: #B45309; --out-tint: rgba(180, 83, 9, .08); }
+body.dark-mode #cajaStrip button.caja-out { --out: #6EE7B7; --out-tint: rgba(110, 231, 183, .10); }
+body.dark-mode #cajaStrip button.caja-out.is-warn { --out: #FCD34D; --out-tint: rgba(252, 211, 77, .10); }
+#cajaStrip button.caja-out:hover { background-color: var(--out-tint) !important; }
+#cajaStrip button.caja-out:active { box-shadow: inset 0 0 0 999px var(--out-tint); }
+#cajaStrip button.caja-out:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--out-tint), 0 0 0 1px var(--out); }
+#cajaStrip button.caja-out i::before { margin: 0; }
+
+/* Teléfono: queda el título y el botón; el texto y las cifras se ven en «Turno y corte». */
+@media (max-width: 640px) {
+    .caja-strip { gap: 10px; padding: 7px 16px; }
+    .caja-strip-text,
+    .caja-strip-stats { display: none; }
+}
 
 /* -- Pie de los modales --
    El texto informativo cede ancho; los botones nunca parten su texto en dos renglones. */
@@ -695,6 +803,80 @@ button.ord-method.is-active .ord-method-ico { background: rgb(var(--brand-600, 1
 .ord-method-hint { display: block; font-size: 11.5px; font-weight: 400; line-height: 1.25; color: rgb(var(--gray-500, 120 113 108)); }
 button.ord-method.is-card .ord-method-check { flex-shrink: 0; margin-left: auto; }
 
+/* -- Formas de pago: una fila por método --
+   Cada fila es un campo number de csModal (.op-row): aquí solo se acomoda.
+   A la izquierda el ícono, el nombre y la pista; a la derecha el monto.
+   is-on = la fila lleva monto; is-auto = cubre lo que falta del saldo.
+   Los !important son contra Bootstrap (.px-2) y compact.css (label). */
+.ord-pay-forms { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+.ord-pay-forms-title { margin: 0; font-size: 13.5px; font-weight: 700; color: rgb(var(--gray-800, 41 37 36)); }
+.ord-pay-forms-text  { margin: 0; font-size: 12px; line-height: 1.35; color: rgb(var(--gray-500, 120 113 108)); }
+
+#modalOrderPay .op-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 172px;
+    grid-template-areas: "ico name amt" "ico hint amt";
+    align-items: center;
+    column-gap: 12px;
+    width: calc(100% - 1rem);
+    margin: 8px .5rem 0;
+    padding: 10px 12px !important;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border-radius: 12px;
+    background: #FFFFFF;
+    transition: border-color .15s ease, background-color .15s ease;
+}
+
+#modalOrderPay .op-row > .ord-method-ico { grid-area: ico; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+
+#modalOrderPay .op-row > label {
+    grid-area: name;
+    align-self: end;
+    margin: 0 !important;
+    overflow: hidden;
+    color: rgb(var(--gray-800, 41 37 36));
+    font-size: 13.5px !important;
+    font-weight: 600;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+#modalOrderPay .op-row > p { grid-area: hint; align-self: start; margin: 1px 0 0; font-size: 11.5px; line-height: 1.3; color: rgb(var(--gray-500, 120 113 108)); }
+#modalOrderPay .op-row > .relative { grid-area: amt; }
+
+#modalOrderPay .op-row input { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; -moz-appearance: textfield; appearance: textfield; }
+#modalOrderPay .op-row input::-webkit-outer-spin-button,
+#modalOrderPay .op-row input::-webkit-inner-spin-button { margin: 0; -webkit-appearance: none; }
+
+#modalOrderPay .op-row:hover { border-color: rgb(var(--gray-300, 214 211 209)); }
+
+#modalOrderPay .op-row.is-on { border-color: rgb(var(--brand-600, 192 90 64) / .55); background: rgb(var(--brand-600, 192 90 64) / .05); }
+#modalOrderPay .op-row.is-on > .ord-method-ico { background: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+#modalOrderPay .op-row.is-auto > label::after {
+    content: 'Resto';
+    margin-left: 8px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgb(var(--brand-600, 192 90 64) / .12);
+    color: rgb(var(--brand-700, 168 74 51));
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    vertical-align: 1px;
+}
+
+/* En teléfono la etiqueta «Resto» no cabe junto al nombre: la marca pasa a la pista, en el color del acento. */
+@media (max-width: 480px) {
+    #modalOrderPay .op-row { grid-template-columns: auto minmax(0, 1fr) 118px; column-gap: 8px; }
+    #modalOrderPay .op-row.is-auto > label::after { display: none; }
+    #modalOrderPay .op-row.is-auto > p { color: rgb(var(--brand-700, 168 74 51)); font-weight: 600; }
+    body.dark-mode #modalOrderPay .op-row.is-auto > p { color: rgb(var(--brand-300, 232 166 143)); }
+}
+
 .ord-pay-state {
     display: flex;
     gap: 12px;
@@ -922,6 +1104,15 @@ body.dark-mode .ord-pay-row-ico,
 body.dark-mode .ord-method-ico { color: var(--dk-text-soft, #D1D5DB); }
 body.dark-mode .ord-pay-state.is-ok .ord-pay-state-ico { color: #6EE7B7; }
 body.dark-mode button.ord-method.is-active .ord-method-ico { background: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+body.dark-mode .ord-pay-forms-title { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-pay-forms-text,
+body.dark-mode #modalOrderPay .op-row > p { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode #modalOrderPay .op-row { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
+body.dark-mode #modalOrderPay .op-row > label { color: var(--dk-text, #F3F4F6); }
+body.dark-mode #modalOrderPay .op-row.is-on { background: rgb(var(--brand-600, 192 90 64) / .16); border-color: rgb(var(--brand-600, 192 90 64) / .75); }
+body.dark-mode #modalOrderPay .op-row.is-on > .ord-method-ico { background: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+body.dark-mode #modalOrderPay .op-row.is-auto > label::after { background: rgb(var(--brand-600, 192 90 64) / .30); color: #FFFFFF; }
 
 body.dark-mode .ord-pay-bar { background: var(--dk-line, #374151); }
 
@@ -2107,18 +2298,14 @@ body.dark-mode .cus-tile.is-due .cus-tile-value,
 body.dark-mode .cus-order-due.is-due { color: #F87171; }
 
 /* -- Ventas (mostrador) --
-   Pestañas de tickets en espera (tabLayout), «+ Ticket», turno del encabezado
-   y los dos botones de solo ícono del pie del ticket. Los chips de propina
-   (ord-tip) comparten estilo con ord-goal, arriba. En oscuro las pestañas ya
-   se ven bien por dark-mode.css (bg-white / bg-gray-100); aquí solo lo propio. */
-#formSaleTabs label,
-#formHeaderSale label { display: none; }
-#formSaleTabs > div,
-#formHeaderSale > div { margin-top: 0 !important; }
-#formHeaderSale { gap: 8px; }
-#btnSaleTabAdd,
-#btnTurnSale,
-#btnDaySale { white-space: nowrap; }
+   Pestañas de tickets en espera (tabLayout) y «+ Ticket», arriba del panel de
+   la venta; y los dos botones de solo ícono del pie del ticket. Los chips de
+   propina (ord-tip) comparten estilo con ord-goal, arriba. En oscuro las
+   pestañas ya se ven bien por dark-mode.css (bg-white / bg-gray-100); aquí
+   solo lo propio. */
+#formSaleTabs label { display: none; }
+#formSaleTabs > div { margin-top: 0 !important; }
+#btnSaleTabAdd { white-space: nowrap; }
 
 #saleTabList .sale-tab-count {
     display: inline-flex;
@@ -2154,6 +2341,115 @@ button.pos-tkt-btn.sale-tk-icon span:empty { display: none; }
 
 body.dark-mode #saleTabList .sale-tab-count { background: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
 body.dark-mode #saleTabList .sale-tab-x:hover { background: rgba(220, 38, 38, 0.15); color: #F87171; }
+
+/* Catálogo de Ventas (sale-cat): nombre en una línea con «…» y categorías en
+   una sola fila con scroll en x. La card conserva el alto del componente
+   (~154 px): lo que ahorra el nombre se lo lleva la foto (72 → 84 px), con
+   margen y esquinas redondeadas. Va con doble clase porque pos-catalog.js
+   inyecta su <style> al final del <head> y ganaría el empate. */
+.sale-cat .pos-cat-top { height: 84px; margin: 6px 6px 0; border-radius: 9px; overflow: hidden; }
+.sale-cat .pos-cat-body { gap: 4px; padding: 8px 10px 9px; }
+
+.sale-cat .pos-cat-name {
+    display: block;
+    min-height: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.sale-cat .pos-cat-chips {
+    flex-wrap: nowrap;
+    max-height: none;
+    padding-bottom: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--po-line-hi) transparent;
+}
+
+/* -- Ventas · barra de tickets --
+   Carril gris de 34 px con la pestaña activa en blanco, y «+ Ticket» del mismo
+   alto con filo de marca para que se lea como acción y no como otra pestaña.
+   tabLayout trae px-4 / py-2 / bg-white de Bootstrap con !important: se pisan
+   con #id + !important. A 320 px caben dos tickets sin scroll. */
+#saleTabsHost #saleTabList {
+    vertical-align: top;
+    align-items: center;
+    gap: 2px !important;
+    padding: 3px !important;
+    border-radius: 10px;
+    background: rgb(var(--gray-100, 245 244 250)) !important;
+    box-shadow: inset 0 0 0 1px rgb(var(--gray-200, 236 234 244));
+}
+
+#saleTabsHost #saleTabList > button {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 6px 0 12px !important;
+    border-radius: 7px !important;
+    color: rgb(var(--gray-500, 117 114 138)) !important;
+}
+
+#saleTabsHost #saleTabList > button[data-state="active"] {
+    background: var(--surface, #FFFFFF) !important;
+    color: rgb(var(--gray-900, 29 27 49)) !important;
+    box-shadow: 0 1px 2px rgb(29 27 49 / .08), 0 0 0 1px rgb(var(--gray-200, 236 234 244));
+}
+
+#saleTabsHost #saleTabList > button[data-state="inactive"]:hover { background: rgb(var(--gray-200, 236 234 244)) !important; }
+#saleTabsHost #saleTabList .sale-tab-count { font-variant-numeric: tabular-nums; }
+#saleTabsHost #saleTabList > button[data-state="active"] .sale-tab-count { background: rgb(var(--brand-600, 192 90 64) / .1); color: rgb(var(--brand-600, 192 90 64)); }
+
+#saleTabsHost button#btnSaleTabAdd {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    padding: 0 12px !important;
+    border-color: rgb(var(--brand-600, 192 90 64) / .3) !important;
+    border-radius: 10px !important;
+    background: var(--surface, #FFFFFF) !important;
+    color: rgb(var(--brand-600, 192 90 64)) !important;
+}
+
+#saleTabsHost button#btnSaleTabAdd:hover { border-color: rgb(var(--brand-600, 192 90 64) / .6) !important; background: rgb(var(--brand-600, 192 90 64) / .06) !important; }
+
+body.dark-mode #saleTabsHost #saleTabList { background: var(--dk-sunken, #1a2332) !important; box-shadow: inset 0 0 0 1px var(--dk-line, #374151); }
+body.dark-mode #saleTabsHost #saleTabList > button { color: var(--dk-muted, #9CA3AF) !important; }
+body.dark-mode #saleTabsHost #saleTabList > button[data-state="active"] { background: var(--dk-card, #1F2A37) !important; color: var(--dk-text, #f5f5f5) !important; box-shadow: 0 0 0 1px var(--dk-line, #374151); }
+body.dark-mode #saleTabsHost #saleTabList > button[data-state="inactive"]:hover { background: rgb(255 255 255 / .05) !important; }
+body.dark-mode #saleTabsHost #saleTabList > button[data-state="active"] .sale-tab-count { background: rgb(var(--brand-600, 192 90 64) / .22); color: rgb(var(--brand-200, 243 199 186)); }
+body.dark-mode #saleTabsHost button#btnSaleTabAdd { border-color: rgb(var(--brand-600, 192 90 64) / .45) !important; background: transparent !important; color: rgb(var(--brand-400, 217 130 106)) !important; }
+body.dark-mode #saleTabsHost button#btnSaleTabAdd:hover { background: rgb(var(--brand-600, 192 90 64) / .16) !important; }
+
+/* -- Ventas · partidas --
+   Mismo tamaño que el componente (la simple mide 73.5 px o menos). Borde más
+   suave y cantidad en píldora sin borde con el número en negro. La fila de abajo se aprieta sin media query
+   para que «× $420.00» quepa con el panel de 320 px. */
+.pos-tkl.sale-lines .pos-tkl-item { gap: 8px; border-color: color-mix(in srgb, var(--po-line) 65%, transparent); }
+.pos-tkl.sale-lines button.pos-tkl-ico { border-radius: 10px; background: color-mix(in srgb, var(--tone, #9CA3AF) 9%, var(--po-surface)); }
+body.dark-mode .pos-tkl.sale-lines button.pos-tkl-ico { background: color-mix(in srgb, var(--tone, #9CA3AF) 14%, var(--po-surface)); }
+.pos-tkl.sale-lines .pos-tkl-bottom { gap: 6px; }
+
+.pos-tkl.sale-lines .pos-tkl-qty {
+    --po-hover: var(--po-surface);
+    gap: 0;
+    padding: 3px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--po-ink) 5%, var(--po-surface));
+    transition: background-color .15s, box-shadow .15s;
+}
+
+.pos-tkl.sale-lines .pos-tkl-qty:has(input:focus) { background: var(--po-surface); box-shadow: 0 0 0 3px var(--po-ring); }
+.pos-tkl.sale-lines button.pos-tkl-step { border-radius: 999px; }
+.pos-tkl.sale-lines input.pos-tkl-num { width: 28px; }
+.pos-tkl.sale-lines input.pos-tkl-num:focus { background: transparent; box-shadow: none; }
+body.dark-mode .pos-tkl.sale-lines input.pos-tkl-num,
+body.dark-mode .pos-tkl.sale-lines input.pos-tkl-num:focus { background-color: transparent !important; box-shadow: none !important; }
+.pos-tkl.sale-lines .pos-tkl-acts { gap: 0; }
 
 /* -- Crédito y monedero (V3 de Ventas) --
    «Resto a crédito» del cobro de Vender: mismo cuerpo que los chips de método.
@@ -2260,3 +2556,483 @@ body.dark-mode .cus-move.is-cargo .cus-move-amount { color: #FCD34D; }
 
 body.dark-mode .cus-tile.is-wallet .cus-tile-value,
 body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
+
+/* -- Lealtad (V4): página Puntos, tarjeta en Vender y en su cobro -- */
+#tbLoyCards thead th,
+#tbLoyTypes thead th {
+    text-transform: none;
+    white-space: nowrap;
+}
+
+#tbLoyCards td,
+#tbLoyTypes td { vertical-align: middle; }
+
+#containerLoyalty .ord-dt-top {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    margin-bottom: 10px;
+}
+
+#containerLoyalty .ord-dt-scroll { overflow-x: auto; }
+
+#containerLoyalty .ord-dt-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#containerLoyalty .dataTables_paginate .pagination { margin: 0; }
+
+#containerLoyalty .dataTables_info {
+    font-size: 12.5px;
+    color: rgb(var(--gray-500, 120 113 108));
+    padding-top: 12px !important;
+}
+
+#containerLoyalty .dataTables_paginate { padding-top: 8px; }
+
+#formHeaderLoyalty label { display: none; }
+#formHeaderLoyalty > div { margin-top: 0 !important; }
+
+#btnNewCard,
+#btnNewCardType { white-space: nowrap; }
+
+.loy-number {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-weight: 600;
+    letter-spacing: .02em;
+}
+
+.loy-note {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: rgb(var(--gray-500, 120 113 108));
+}
+
+/*  Alta de tarjeta y de tipo: el dibujo a la izquierda y los campos a la derecha.
+    El dibujo sale del flujo para no tocar el flex-wrap de csModal: así los campos
+    de medio ancho siguen en pareja. El id sube la especificidad sobre px-[16px]. */
+.loy-preview { width: 100%; }
+
+@media (min-width: 640px) {
+    #modalLoyCard .loy-split,
+    #modalLoyType .loy-split {
+        position: relative;
+        min-height: 270px;
+        padding-left: 316px;
+    }
+
+    .loy-split > .loy-preview {
+        position: absolute;
+        top: 0;
+        left: 16px;
+        width: 300px;
+    }
+}
+
+@media (max-width: 639px) {
+    .loy-split > .loy-preview {
+        max-width: 340px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
+/*  El plástico, de un solo color: el de su tipo (--loy-color, lo pone paintFace en
+    puntos.js; sin tipo, el celeste claro). data-ink lo elige puntos.js por luminancia:
+    «dark» = letra oscura teñida del mismo color; «light» = letra blanca.
+    El beneficio (data-benefit) cambia la forma, no el color:
+    descuento = cupón (una muesca a media altura en cada lado) con marca de agua %;
+    puntos = moneda (la estrella dentro de un aro).
+    Movimiento: entra subiendo y enfocándose; al cambiar de color se funde
+    (@property deja animar --loy-color). Todo se apaga con «reducir movimiento». */
+@property --loy-color {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #BAE6FD;
+}
+
+.loy-card {
+    --loy-color: #BAE6FD;
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    aspect-ratio: 1.586;
+    padding: 14px 16px;
+    overflow: hidden;
+    border-radius: 16px;
+    background-color: var(--loy-color);
+    color: #FFFFFF;
+    text-shadow: 0 1px 1px rgb(0 0 0 / .22);
+    animation: loy-card-in .7s .05s cubic-bezier(.2, .8, .2, 1) backwards;
+}
+
+/* La transición del color se prende después del primer pintado (is-painted, en paintFace): al abrir no se funde. */
+.loy-card.is-painted { transition: --loy-color .6s ease; }
+
+/* Letra oscura teñida del mismo color, para los colores claros. */
+.loy-card[data-ink="dark"] {
+    color: #0C4A6E;
+    color: color-mix(in srgb, var(--loy-color) 22%, #0F172A);
+    text-shadow: none;
+}
+
+/*  Cupón: una muesca de 9px a media altura en cada lado, como un boleto.
+    Cada mitad de la máscara lleva su agujero; juntas cubren toda la tarjeta. */
+.loy-card[data-benefit="discount"],
+.loy-card[data-benefit="both"] {
+    -webkit-mask:
+        radial-gradient(circle 9px at 0 50%, rgb(0 0 0 / 0) 98%, #000) left / 51% 100% no-repeat,
+        radial-gradient(circle 9px at 100% 50%, rgb(0 0 0 / 0) 98%, #000) right / 51% 100% no-repeat;
+    mask:
+        radial-gradient(circle 9px at 0 50%, rgb(0 0 0 / 0) 98%, #000) left / 51% 100% no-repeat,
+        radial-gradient(circle 9px at 100% 50%, rgb(0 0 0 / 0) 98%, #000) right / 51% 100% no-repeat;
+}
+
+/* Marca de agua del beneficio: % si da descuento, estrella si da puntos. Del color de la letra. */
+.loy-card-mark {
+    position: absolute;
+    top: 50%;
+    right: -18px;
+    z-index: -1;
+    width: 140px;
+    height: 140px;
+    margin-top: -56px;
+    opacity: .16;
+    transform: rotate(-12deg);
+    pointer-events: none;
+}
+
+/* Moneda: la estrella dentro de un aro. */
+.loy-card[data-benefit="points"] .loy-card-mark {
+    padding: 24px;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 7px currentColor;
+}
+
+.loy-card-mark svg {
+    display: none;
+    width: 100%;
+    height: 100%;
+    stroke-width: 1.4;
+}
+
+.loy-card[data-benefit="discount"] .loy-card-mark .is-discount,
+.loy-card[data-benefit="both"] .loy-card-mark .is-discount,
+.loy-card[data-benefit="points"] .loy-card-mark .is-points { display: block; }
+
+.loy-card-mark.is-in { animation: loy-mark-in .55s cubic-bezier(.2, .8, .2, 1); }
+
+@keyframes loy-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(.96);
+        filter: blur(6px);
+    }
+}
+
+@keyframes loy-mark-in {
+    from { opacity: 0; transform: rotate(-50deg) scale(.6); }
+}
+
+@keyframes loy-pop {
+    45% { transform: scale(1.12); }
+}
+
+.loy-card-top,
+.loy-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.loy-card-top    { align-items: flex-start; }
+.loy-card-bottom { align-items: flex-end; }
+
+.loy-card-type {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.loy-card-brand {
+    flex-shrink: 0;
+    max-width: 45%;
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    line-height: 1.8;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: .85;
+}
+
+.loy-card-number {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.loy-card-number.is-long {
+    font-size: 13px;
+    letter-spacing: .03em;
+}
+
+.loy-card-owner { min-width: 0; }
+
+.loy-card-label {
+    display: block;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    opacity: .8;
+}
+
+.loy-card-holder {
+    display: block;
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.loy-card-perks {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+/* El sello del beneficio: solo un filo del color de la letra; salta cuando cambia el porcentaje (is-pop). */
+.loy-card-perks.is-pop { animation: loy-pop .4s cubic-bezier(.3, 1.6, .5, 1); }
+
+.loy-card-perk {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 56px;
+    padding: 4px 8px;
+    border-radius: 9px;
+    box-shadow: inset 0 0 0 1.5px currentColor;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    line-height: 1.25;
+    text-transform: uppercase;
+}
+
+.loy-card-perk b {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0;
+    white-space: nowrap;
+}
+
+.loy-card .is-empty { opacity: .55; }
+
+@media (prefers-reduced-motion: reduce) {
+    .loy-card,
+    .loy-card.is-painted {
+        transition: none;
+        animation: none;
+    }
+
+    .loy-card-mark.is-in,
+    .loy-card-perks.is-pop { animation: none; }
+}
+
+/*  Colores rápidos del tipo (copia de .cp-pm-colores de catalogo.css, que esta
+    página no carga). button.X: el preflight de Tailwind CDN pisa los fondos de [type=button]. */
+.loy-colores {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+}
+
+button.loy-color {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 2px solid #FFFFFF;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px #E5E7EB;
+    transition: box-shadow .15s;
+}
+
+button.loy-color:hover { box-shadow: 0 0 0 2px #CBD5E1; }
+button.loy-color.is-active { box-shadow: 0 0 0 2px #334155; }
+
+/*  «Otro color»: abre el selector del navegador. El punto es un arcoíris; con un
+    color que no está en los rápidos, el punto toma ese color (--loy-pick, de paintType). */
+button.loy-color-other {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px 0 4px;
+    border: 1px solid #E5E7EB;
+    border-radius: 999px;
+    background: #FFFFFF;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+button.loy-color-other:hover { border-color: #CBD5E1; }
+
+button.loy-color-other.is-active {
+    border-color: #334155;
+    box-shadow: 0 0 0 1px #334155;
+}
+
+.loy-color-other-dot {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: conic-gradient(#EF4444, #F59E0B, #EAB308, #22C55E, #06B6D4, #3B82F6, #8B5CF6, #EC4899, #EF4444);
+}
+
+button.loy-color-other.is-active .loy-color-other-dot {
+    background: var(--loy-pick);
+    box-shadow: 0 0 0 1px rgb(0 0 0 / .12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button.loy-color,
+    button.loy-color-other { transition: none; }
+}
+
+/* Aviso del tipo de antes con los dos beneficios. */
+.loy-legacy {
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid #FCD34D;
+    border-radius: 10px;
+    background: #FFFBEB;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: #92400E;
+}
+
+/* En las listas: el nombre del tipo con la muestra de su color. */
+.loy-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.loy-dot {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / .12);
+}
+
+.loy-card-caption {
+    margin: 10px 2px 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: rgb(var(--gray-500, 120 113 108));
+}
+
+/* Debajo del lector de Vender: qué hace la tarjeta leída. */
+#of_card_hint {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
+/* Franja de la tarjeta dentro del cobro (ocupa el lugar del descuento manual). */
+.sale-card-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 9px 12px;
+    border: 1px solid rgb(var(--brand-600, 192 90 64) / .25);
+    border-radius: 10px;
+    background: rgb(var(--brand-600, 192 90 64) / .06);
+    font-size: 13px;
+    line-height: 1.45;
+    color: rgb(var(--gray-800, 41 37 36));
+}
+
+.sale-card-note > i,
+.sale-card-note > svg {
+    flex: none;
+    margin-top: 2px;
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
+body.dark-mode #tbLoyCards tbody tr.ct3-hoverable:hover td,
+body.dark-mode #tbLoyTypes tbody tr.ct3-hoverable:hover td { background-color: var(--dk-row-hover, #334155) !important; }
+
+body.dark-mode #containerLoyalty .dataTables_info,
+body.dark-mode .loy-note,
+body.dark-mode .loy-card-caption { color: var(--dk-muted, #9CA3AF); }
+
+body.dark-mode button.loy-color {
+    border-color: var(--dk-card, #1F2A37);
+    box-shadow: 0 0 0 1px var(--dk-line-hi, #4B5563);
+}
+
+body.dark-mode button.loy-color:hover { box-shadow: 0 0 0 2px #64748B; }
+body.dark-mode button.loy-color.is-active { box-shadow: 0 0 0 2px #E5E7EB; }
+
+body.dark-mode button.loy-color-other {
+    border-color: var(--dk-line-hi, #4B5563);
+    background: var(--dk-card, #1F2A37);
+    color: var(--dk-text, #F3F4F6);
+}
+
+body.dark-mode button.loy-color-other:hover { border-color: #64748B; }
+
+body.dark-mode button.loy-color-other.is-active {
+    border-color: #E5E7EB;
+    box-shadow: 0 0 0 1px #E5E7EB;
+}
+
+body.dark-mode .loy-legacy {
+    border-color: rgb(245 158 11 / .45);
+    background: rgb(245 158 11 / .12);
+    color: #FCD34D;
+}
+
+body.dark-mode .loy-dot { box-shadow: 0 0 0 1px rgb(255 255 255 / .18); }
+
+body.dark-mode #of_card_hint { color: #F0A58F; }
+
+body.dark-mode .sale-card-note {
+    border-color: rgb(var(--brand-600, 192 90 64) / .45);
+    background: rgb(var(--brand-600, 192 90 64) / .12);
+    color: var(--dk-text, #F3F4F6);
+}
+
+body.dark-mode .sale-card-note > i,
+body.dark-mode .sale-card-note > svg { color: #F0A58F; }

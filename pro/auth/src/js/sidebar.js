@@ -131,10 +131,10 @@
                 deja clases de utilidad (.py-4, .gap-2, .bg-white de Bootstrap
                 van con !important): el rail mide lo mismo en todas. La fuente
                 va fija y no heredada: cada pagina trae la suya en el <body>.
-                El borde derecho es la MISMA linea que la navbar lleva abajo
-                (--nav-accent-line): con --line el rail blanco no se distinguia
-                del fondo de la pagina, que es casi blanco. */
-            + '#menu-sidebar { display:flex; flex-direction:column; align-items:center; gap:4px !important; padding:10px 6px 10px !important; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF) !important; border-right-color:var(--nav-accent-line, rgb(var(--accent-2-600, 192 90 64) / .28)); font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif; }'
+                El borde derecho es --chrome-line (themes.css): la MISMA linea
+                que la navbar lleva abajo, gris neutro en claro y --dk-line en
+                oscuro, para que rail y barra se lean como una sola escuadra. */
+            + '#menu-sidebar { display:flex; flex-direction:column; align-items:center; gap:4px !important; padding:10px 6px 10px !important; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF) !important; border-right-color:var(--chrome-line, #D5D9E0); font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif; }'
             + '#menu-sidebar::-webkit-scrollbar { display:none; }'
             + 'body.dark-mode #menu-sidebar { background-color:var(--dk-chrome, #141d2b) !important; border-right:1px solid var(--dk-line, #374151); }'
 
@@ -160,6 +160,10 @@
                 para ganarle a las reglas de body.dark-mode de arriba. */
             + 'html[data-sidebar] body #menu-sidebar { background-color:var(--sidebar-bg) !important; }'
             + 'html[data-sidebar="dark"] body #menu-sidebar { border-right-color:rgb(0 0 0 / .10); }'
+            /*  Rail oscuro sobre PAGINA oscura (el modo Oscuro: rail #0F172A,
+                pagina #111928): el filo negro de arriba no se ve y el rail se
+                perdia. Aqui lleva la linea gris del marco, la de la navbar. */
+            + 'html[data-sidebar="dark"] body.dark-mode #menu-sidebar { border-right-color:var(--chrome-line, #374151); }'
             + 'html[data-sidebar="dark"] body .menu-rail-item { color:rgb(255 255 255 / .68); }'
             + 'html[data-sidebar="dark"] body .menu-rail-item:hover { color:#FFFFFF; background:rgb(255 255 255 / .08); border-color:rgb(255 255 255 / .10); }'
             + 'html[data-sidebar="dark"] body .menu-rail-item.is-active { color:#FFFFFF; background:rgb(255 255 255 / .16); border-color:rgb(255 255 255 / .20); }'

@@ -5,15 +5,18 @@ if (empty($_POST['opc'])) exit(0);
 require_once __DIR__ . '/core-order.php';
 require_once __DIR__ . '/../mdl/mdl-credito.php';
 
-/*  Pedidos › Clientes (Etapa 6a): el directorio de clientes de la sucursal.
+/*  Pedidos › Clientes (Etapa 6a): el directorio de clientes de la empresa.
 
     Reglas que no se ven en el codigo de un vistazo:
       - La seccion es pos-clientes. Ver, agregar y editar: Dueño, Cajera y
         Supervisor. Activar o desactivar pide 'delete' (hoy solo Dueño).
       - No se borra: se desactiva. Un cliente inactivo deja de salir en la
         captura; sus pedidos siguen igual.
+      - El cliente es de toda la empresa: se ve en todas sus sucursales.
+        branch_id solo dice en cual se dio de alta.
       - El telefono es la llave practica: 10 digitos y unico entre los activos
-        de la sucursal.
+        de la empresa. Hay repetidos de cuando era por sucursal: al editar solo
+        se revisa si el telefono cambia (no se fusionan clientes).
       - Pedidos, vendido y por cobrar cuentan pedidos de cualquier sucursal;
         desde el historial solo se abre el detalle de los de esta.
       - La BD no tiene bitacora de clientes: una edicion no deja rastro.
@@ -72,7 +75,7 @@ class ctrl extends core {
             $rows     = [];
             $accounts = [];
 
-            // qCustomerList solo cuenta pedidos: el credito y el monedero se leen aparte.
+            // qCustomerList suma pedidos y ventas en «Vendido»; el credito y el monedero se leen aparte.
             foreach ($this->qCreditCustomers($this->branchId()) as $account) {
                 $accounts[(int) $account['id']] = $account;
             }
@@ -121,7 +124,7 @@ class ctrl extends core {
         return $this->attempt(function () {
             $customer = $this->qBranchCustomer($this->postId(), $this->branchId());
 
-            if (!$customer) return $this->fail(404, 'Ese cliente no es de esta sucursal o ya no existe.');
+            if (!$customer) return $this->fail(404, 'Ese cliente no es de esta empresa o ya no existe.');
 
             return ['status' => 200, 'row' => $this->customerBrief($customer)];
         }, 'No se pudo abrir el cliente.');
@@ -177,10 +180,13 @@ class ctrl extends core {
             return $this->transaction(function () use ($id, $name, $phone, $email, $credit) {
                 $customer = $this->qBranchCustomer($id, $this->branchId());
 
-                if (!$customer) return $this->fail(404, 'Ese cliente no es de esta sucursal o ya no existe.');
+                if (!$customer) return $this->fail(404, 'Ese cliente no es de esta empresa o ya no existe.');
 
                 // Un inactivo puede repetir telefono: el choque se revisa al reactivarlo.
-                if ((int) $customer['active'] === 1) {
+                // Si no cambia, tampoco: hay repetidos de cuando el cliente era por sucursal.
+                $samePhone = preg_replace('/\D/', '', $customer['phone']) === $phone;
+
+                if ((int) $customer['active'] === 1 && !$samePhone) {
                     $taken = $this->qCustomerPhoneTaken($this->branchId(), $phone, $id);
 
                     if ($taken) return $this->fail(409, $this->takenText($taken));
@@ -216,7 +222,7 @@ class ctrl extends core {
             return $this->transaction(function () use ($id, $active) {
                 $customer = $this->qBranchCustomer($id, $this->branchId());
 
-                if (!$customer) return $this->fail(404, 'Ese cliente no es de esta sucursal o ya no existe.');
+                if (!$customer) return $this->fail(404, 'Ese cliente no es de esta empresa o ya no existe.');
 
                 if ((int) $customer['active'] === $active) {
                     return $this->ok($active === 1 ? 'El cliente ya estaba activo.' : 'El cliente ya estaba inactivo.', ['id' => $id]);
@@ -250,7 +256,7 @@ class ctrl extends core {
             $branchId = $this->branchId();
             $customer = $this->qBranchCustomer($this->postId(), $branchId);
 
-            if (!$customer) return $this->fail(404, 'Ese cliente no es de esta sucursal o ya no existe.');
+            if (!$customer) return $this->fail(404, 'Ese cliente no es de esta empresa o ya no existe.');
 
             $canOpen = Permission::can(self::SECTION, 'show');
             $orders  = [];
@@ -378,7 +384,7 @@ class ctrl extends core {
             $tendered = $cash ? $tendered : $amount;
             $customer = $this->qBranchCustomer($id, $this->branchId());
 
-            if (!$customer) return $this->fail(404, 'Ese cliente no es de esta sucursal o ya no existe.');
+            if (!$customer) return $this->fail(404, 'Ese cliente no es de esta empresa o ya no existe.');
 
             $name = trim((string) $customer['name']) !== '' ? trim($customer['name']) : 'El cliente';
             $ids  = array_map(fn ($sale) => (int) $sale['id'], $this->qCreditSales($id));
@@ -562,7 +568,7 @@ class ctrl extends core {
     private function payMethods() {
         $methods = [];
 
-        foreach ($this->qPaymentMethods($this->companyId()) as $method) {
+        foreach ($this->qPaymentMethods($this->branchId()) as $method) {
             if ($this->isWalletCode($method['code'])) continue;
 
             $methods[] = ['id' => (int) $method['id'], 'name' => (string) $method['name'], 'is_cash' => (int) $method['is_cash']];
@@ -679,6 +685,16 @@ class ctrl extends core {
             'aria-label' => 'Historial de pedidos',
             'onclick'    => "customers.history({$id})"
         ]];
+
+        // Portal del cliente (ctrl-comprobantes): un inactivo no tiene enlace.
+        if ($active) {
+            $buttons[] = [
+                'variant'    => 'neutral',
+                'html'       => '<i data-lucide="link" class="w-4 h-4"></i>',
+                'aria-label' => 'Enlace del cliente',
+                'onclick'    => "receipts.portal({$id})"
+            ];
+        }
 
         if (in_array('update', $actions, true)) {
             $buttons[] = [

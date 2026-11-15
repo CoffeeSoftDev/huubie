@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de pagos · horizontal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/general.css">
+<link rel="stylesheet" href="../../../assets/css/colors.css">
+<!-- El CSS del rail viene de sidebar.js; data-rail="static" deja en paz los botones de la plantilla. -->
+<script src="../../../auth/src/js/sidebar.js"></script>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="../../../assets/js/tailwind-theme.js"></script>
+<link rel="stylesheet" href="../../../assets/css/compact.css">
+<link rel="stylesheet" href="../../../assets/css/themes.css">
+<link rel="stylesheet" href="../../../assets/css/soft.css">
+<link rel="stylesheet" href="../../../assets/css/dark-mode.css">
+<link rel="stylesheet" href="../src/css/order.css">
+<link rel="stylesheet" href="css/turno-propuesta.css">
+<link rel="stylesheet" href="css/pagos-alpha.css">
+</head>
+<body>
+
+<!-- Rail lateral (sidebar de pro), sin cambios -->
+<div id="menu-sidebar" data-rail="static">
+    <button type="button" class="menu-rail-item" title="Vender"><i data-lucide="shopping-cart"></i><span class="menu-rail-label">Vender</span></button>
+    <button type="button" class="menu-rail-item is-active" aria-current="page" title="Pedidos"><i data-lucide="cake"></i><span class="menu-rail-label">Pedidos</span></button>
+    <button type="button" class="menu-rail-item" title="Calendario"><i data-lucide="calendar-days"></i><span class="menu-rail-label">Calendario</span></button>
+    <button type="button" class="menu-rail-item" title="Clientes"><i data-lucide="users"></i><span class="menu-rail-label">Clientes</span></button>
+    <button type="button" class="menu-rail-item" title="Cortes"><i data-lucide="receipt-text"></i><span class="menu-rail-label">Cortes</span></button>
+</div>
+
+<main>
+    <!-- Barra superior: la de pro (navbar.js), sin cambios -->
+    <div id="menu-navbar">
+        <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+            <div class="nav-left flex items-center gap-3">
+                <a class="nav-brand-logo" href="#" title="Ir al inicio" aria-label="Ir al inicio">
+                    <img class="nav-logo nav-logo-light" src="../../../assets/img/huubie_light.png" alt="Huubie">
+                    <img class="nav-logo nav-logo-dark" src="../../../assets/img/huubie.svg" alt="Huubie">
+                </a>
+                <div class="nav-brand-text"><span class="nav-company">Reginas</span></div>
+            </div>
+
+            <div class="nav-right flex items-center gap-2">
+                <div class="nav-branch relative">
+                    <button type="button" class="branch-pill flex items-center gap-2.5" disabled>
+                        <span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span>
+                        <span class="branch-pill-text flex flex-col items-start leading-tight">
+                            <span class="branch-pill-label">Sucursal</span>
+                            <span class="branch-pill-name">Kafeto</span>
+                        </span>
+                    </button>
+                </div>
+
+                <button type="button" class="nav-theme-toggle" title="Tema"><i data-lucide="palette" class="w-[18px] h-[18px]"></i></button>
+                <button type="button" class="nav-theme-toggle" title="Notificaciones"><i data-lucide="bell" class="w-[18px] h-[18px]"></i></button>
+
+                <button type="button" class="nav-user-pill flex items-center gap-2.5">
+                    <span class="nav-avatar" style="background:#5030A5"><i data-lucide="user"></i></span>
+                    <span class="hidden lg:flex flex-col items-start leading-tight">
+                        <span class="nav-user-name">Andrea M.</span>
+                        <span class="nav-user-rol">Cajera</span>
+                    </span>
+                    <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <div id="main__content" class="cp-pagina-pro">
+        <div id="root"></div>
+    </div>
+</main>
+
+<!-- La ventana de cobro (la pinta js/pagos-alpha.js) -->
+<div id="paOverlay" class="pa-overlay" hidden></div>
+<div id="tpToast" class="tp-toast" role="status" hidden></div>
+
+<!-- Nota de la propuesta -->
+<aside id="tpNote" class="tp-note" hidden>
+    <div class="tp-note-head"><b>Propuesta de mejora</b><button type="button" data-act="note" aria-label="Ocultar nota"><i data-lucide="x"></i></button></div>
+    <dl>
+        <dt>Qué cambia</dt>
+        <dd>La ventana es horizontal (720 px) con las piezas chicas de alpha. Arriba, a lo ancho, Total / Pagado / Restante; Restante baja mientras escribes, como en alpha. A la izquierda, cada bloque con su rótulo: Origen del pedido, Sucursal que cobrará, Observación y el descuento. A la derecha, las formas de pago como Soft: todas en una tabla, en orden, cada una con su importe y «Recibe en efectivo» al final; en táctil, el teclado debajo. Sin montos sugeridos de billetes. Abajo el resultado y un solo botón que dice cuánto y en qué: «Registrar $300.00 en Efectivo».</dd>
+        <dt>Por qué</dt>
+        <dd>Vertical quedaba alta y con teclado no cabía sin scroll. La mezcla de 1,040 px era demasiado grande; 720 px cabe en una laptop. En la tabla se ven todas las formas sin tener que elegirlas antes.</dd>
+        <dt>Qué se ve distinto</dt>
+        <dd>El acento es el morado de Huubie, sin ámbar. Si cobras en otra sucursal, su tarjeta se pone morada y dice «Cobro en otra sucursal · Turno 7». Sin turno o ya pagado, la forma se queda a la vista, apagada, como en alpha; el aviso sale bajo la sucursal que cobra, con Abrir turno, Ir a Cortes o Cobrar en Kafeto. Efectivo cubre lo que falta; tocar el nombre de otra forma hace que esa lo cubra; escribir montos en varias divide el cobro. Al cambiar la sucursal que cobra cambia la tabla: Guadalupe y Cuarta traen Mercado Pago; Kafeto no. El historial suma la columna Observación y, sin pagos, el aviso vacío de alpha. En el celular vuelve a una columna, en el orden de alpha: sucursales, formas de pago y observación.</dd>
+        <dt>Se queda igual</dt>
+        <dd>Las reglas de hoy: Efectivo cubre lo que falta, hasta 6 formas en un cobro, «Recibe» calcula el cambio, descuento con motivo, quitar un pago solo con el turno abierto y escribiendo el motivo, Enter cobra. Como en alpha, con el pedido liquidado quitar un pago pide además tu contraseña y el pedido regresa a pendiente. El teclado sale solo en pantalla táctil.</dd>
+        <dt>Falta en el sistema</dt>
+        <dd>Hoy pro cobra solo en la sucursal de la sesión: payOptions() y payOrder() usan branchId(). Para cobrar en otra, payOrder() tendría que recibir la sucursal que cobra, buscar su turno abierto y validar sus formas de pago. deletePayment() tendría que pedir la contraseña cuando el pedido está liquidado.</dd>
+        <dt>Decidido (como alpha)</dt>
+        <dd>Todos pueden cambiar la sucursal que cobra. La confirmación «¿Registrar pago?» sale siempre; en cobro cruzado suma el aviso. Un pago cobrado en otra sucursal se quita igual que cualquier otro: turno abierto de esa sucursal, motivo y, si el pedido está liquidado, contraseña.</dd>
+    </dl>
+</aside>
+
+<!-- Tira de la maqueta: cambia el caso para ver cada estado -->
+<div class="tp-demo">
+    <div class="tp-demo-tag"><span>Maqueta</span><b>Gestión de pagos · horizontal</b></div>
+    <div class="tp-demo-group">
+        <span>Caso</span>
+        <div class="tp-demo-seg">
+            <button type="button" data-act="case" data-value="first">Primer pago</button>
+            <button type="button" data-act="case" data-value="abono">Abono</button>
+            <button type="button" data-act="case" data-value="paid">Pagado</button>
+            <button type="button" data-act="case" data-value="noturn">Sin turno</button>
+        </div>
+    </div>
+    <div class="tp-demo-group">
+        <span>Pedido de</span>
+        <div class="tp-demo-seg">
+            <button type="button" data-act="origin" data-value="2">Guadalupe</button>
+            <button type="button" data-act="origin" data-value="3">Kafeto</button>
+        </div>
+    </div>
+    <div class="tp-demo-group">
+        <span>Pantalla</span>
+        <div class="tp-demo-seg">
+            <button type="button" data-act="screen" data-value="touch">Táctil</button>
+            <button type="button" data-act="screen" data-value="mouse">Mouse</button>
+        </div>
+    </div>
+    <div class="tp-demo-right">
+        <button type="button" class="tp-demo-link" data-act="dark"><i data-lucide="moon"></i>Modo oscuro</button>
+        <button type="button" class="tp-demo-link" data-act="note"><i data-lucide="sticky-note"></i>Nota</button>
+    </div>
+</div>
+
+<script src="../../../assets/plugins/lucide/lucide.min.js"></script>
+<script src="js/pagos-alpha.js"></script>
+</body>
+</html>

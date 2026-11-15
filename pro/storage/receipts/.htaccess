@@ -1,0 +1,9 @@
+# Comprobantes que suben los clientes desde el portal (app/order/portal.php).
+# Nunca se sirven por web: salen solo por app/order/ctrl/comprobante.php, con
+# sesion y permiso de ver Clientes.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Deny from all
+</IfModule>

@@ -63,6 +63,17 @@ class ctrl extends core {
         }, 'No se pudo leer el turno.');
     }
 
+    // Solo el turno abierto y el día: la franja de caja lo pide tras cada guardado
+    // para que «Vendido» y los conteos no se queden viejos. Sin el corte completo.
+    public function getBrief() {
+        $fail = $this->need('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            return ['status' => 200, 'brief' => $this->turnBrief(), 'day' => $this->dayBrief()];
+        }, 'No se pudo leer el turno.');
+    }
+
     // -- Lista de turnos (visor de Cortes) --
 
     public function lsTurns() {

@@ -1,0 +1,381 @@
+/*  Pedidos › Gestión de pagos (src/js/pedido-cobro.js).
+    Sale de la maqueta aprobada el 15/11/2026 (templates/css/pagos-alpha.css):
+    las piezas chicas de alpha en una ventana horizontal de 720 px; a la
+    izquierda de dónde es el pedido y quién cobra, a la derecha las formas de
+    pago como Soft. Acento morado de Huubie (--brand-600): no hay ámbar.
+    Todo va bajo #modalOrderPay: soft.css pinta .cs-modal-panel con !important
+    y aquí la ventana trae su propio marco (.pa-win), así que el panel de
+    csModal queda transparente y sin cabeza ni pie.
+    Los botones con fondo van como button.X: el preflight de Tailwind CDN pinta
+    [type=button] transparente. Alto y letra de input/select llevan !important
+    por compact.css. */
+
+/* -- Tokens -- */
+#modalOrderPay {
+    --pa-surface:  #FFFFFF;
+    --pa-sunken:   #F6F7F9;
+    --pa-line:     #E5E7EB;
+    --pa-line-hi:  #D5D9E0;
+    --pa-ink:      #1F2433;
+    --pa-ink-2:    #475063;
+    --pa-muted:    #6B7280;
+
+    --pa-brand:      rgb(var(--brand-600, 80 48 165));
+    --pa-brand-700:  rgb(var(--brand-700, 64 38 132));
+    --pa-brand-ink:  rgb(var(--brand-600, 80 48 165));
+    --pa-brand-soft: rgb(var(--brand-600, 80 48 165) / .10);
+    /* Cobro cruzado, descuento y candado: el morado en lugar del ámbar. */
+    --pa-brand-bg:   rgb(var(--brand-600, 80 48 165) / .06);
+    --pa-brand-line: rgb(var(--brand-600, 80 48 165) / .35);
+
+    /* Los tres recuadros de alpha: azul, verde y rojo. */
+    --pa-blue:      #1D4ED8;
+    --pa-blue-bg:   rgb(37 99 235 / .07);
+    --pa-ok:        #047857;
+    --pa-ok-bg:     rgb(16 185 129 / .09);
+    --pa-ok-line:   rgb(16 185 129 / .32);
+    --pa-bad:       #B91C1C;
+    --pa-bad-bg:    rgb(220 38 38 / .07);
+    --pa-bad-line:  rgb(220 38 38 / .28);
+    --pa-info:      #2A55A3;
+}
+
+body.dark-mode #modalOrderPay {
+    --pa-surface:  var(--dk-card, #1F2A37);
+    --pa-sunken:   var(--dk-sunken, #1A2332);
+    --pa-line:     var(--dk-line, #374151);
+    --pa-line-hi:  var(--dk-line-hi, #4B5563);
+    --pa-ink:      var(--dk-text, #F5F5F5);
+    --pa-ink-2:    #D1D5DB;
+    --pa-muted:    var(--dk-muted, #9CA3AF);
+
+    --pa-brand-ink:  rgb(var(--brand-300, 147 197 253));
+    --pa-brand-soft: rgb(var(--brand-600, 28 100 242) / .18);
+    --pa-brand-bg:   rgb(var(--brand-600, 80 48 165) / .16);
+    --pa-brand-line: rgb(var(--brand-600, 80 48 165) / .60);
+
+    --pa-blue:      #93C5FD;
+    --pa-blue-bg:   rgb(59 130 246 / .12);
+    --pa-ok:        #6EE7B7;
+    --pa-ok-bg:     rgb(16 185 129 / .12);
+    --pa-ok-line:   rgb(16 185 129 / .38);
+    --pa-bad:       #FCA5A5;
+    --pa-bad-bg:    rgb(239 68 68 / .12);
+    --pa-bad-line:  rgb(239 68 68 / .38);
+    --pa-info:      #93B4E8;
+}
+
+/* -- El panel de csModal: solo sostiene la ventana -- */
+#modalOrderPay .cs-modal-head,
+#modalOrderPay .cs-modal-foot { display: none; }
+#modalOrderPay .cs-modal-body { padding: 0; }
+#modalOrderPay .cs-modal-panel { max-width: 720px; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+/* Mientras se registra o se quita un pago, el fondo no cierra la ventana. */
+#modalOrderPay.is-busy .cs-modal-bg { pointer-events: none; }
+
+/* -- Ventana -- */
+/* Horizontal: el mismo ancho para cobrar y para el historial (no brinca al cambiar de pestaña). */
+#modalOrderPay .pa-win { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 720px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); border-radius: 14px; background: var(--pa-surface); color: var(--pa-ink); font-size: 13px; box-shadow: 0 24px 48px -12px rgb(15 23 42 / .4); overflow: hidden; }
+
+@media (min-width: 640px) {
+    #modalOrderPay .pa-win { max-height: calc(100vh - 64px); }
+}
+
+#modalOrderPay .pa-head { padding: 12px 16px 0; }
+#modalOrderPay .pa-head-top { display: flex; align-items: flex-start; gap: 10px; }
+#modalOrderPay .pa-head-ico { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; background: var(--pa-brand); color: #FFFFFF; }
+#modalOrderPay .pa-head-ico svg { width: 17px; height: 17px; }
+#modalOrderPay .pa-head-text { flex: 1; min-width: 0; }
+#modalOrderPay .pa-head-text h2 { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.25; color: var(--pa-ink); }
+#modalOrderPay .pa-head-text p { margin: 1px 0 0; overflow: hidden; color: var(--pa-muted); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+#modalOrderPay .pa-head-text p b { color: var(--pa-brand-ink); font-weight: 600; }
+/* Subtítulo con íconos, como alpha: folio, cliente y entrega. El cliente es lo que se recorta. */
+#modalOrderPay .pa-head-text p.pa-head-meta { display: flex; align-items: center; gap: 10px; }
+#modalOrderPay .pa-head-meta > span { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; }
+#modalOrderPay .pa-head-meta > span.is-client { flex-shrink: 1; min-width: 0; }
+#modalOrderPay .pa-head-meta em { overflow: hidden; font-style: normal; white-space: nowrap; text-overflow: ellipsis; }
+#modalOrderPay .pa-head-meta svg { width: 12px; height: 12px; flex-shrink: 0; opacity: .8; }
+
+#modalOrderPay button.pa-x { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; margin: -2px -4px 0 0; border-radius: 8px; background: transparent; color: var(--pa-muted); cursor: pointer; }
+#modalOrderPay button.pa-x:hover { background: var(--pa-sunken); color: var(--pa-ink); }
+#modalOrderPay button.pa-x svg { width: 18px; height: 18px; }
+#modalOrderPay button.pa-x:disabled { opacity: .4; cursor: wait; }
+
+#modalOrderPay .pa-tabs { display: flex; gap: 2px; margin-top: 10px; padding: 3px; border: 1px solid var(--pa-line); border-radius: 10px; background: var(--pa-sunken); }
+#modalOrderPay button.pa-tab { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 6px; height: 28px; border-radius: 7px; background: transparent; color: var(--pa-muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+#modalOrderPay button.pa-tab svg { width: 14px; height: 14px; }
+#modalOrderPay button.pa-tab:hover { color: var(--pa-ink); }
+#modalOrderPay button.pa-tab.is-active { background: var(--pa-surface); color: var(--pa-ink); box-shadow: 0 1px 2px rgb(16 24 40 / .08), 0 0 0 1px var(--pa-line); }
+#modalOrderPay .pa-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--pa-line); color: var(--pa-ink-2); font-size: 10.5px; font-weight: 700; }
+
+#modalOrderPay .pa-body { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; padding: 10px 16px 12px; overflow-y: auto; }
+#modalOrderPay .pa-form { display: flex; flex-direction: column; gap: 10px; }
+
+/* Rótulo de cada bloque, como los lbl del formulario de alpha. Va en <div>:
+   compact.css le pone tamaño y margen con !important a todo <label>. */
+#modalOrderPay .pa-field { display: flex; flex-direction: column; min-width: 0; }
+#modalOrderPay .pa-field[hidden] { display: none; }
+#modalOrderPay .pa-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; color: var(--pa-muted); font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+#modalOrderPay .pa-label > span { flex-shrink: 0; }
+#modalOrderPay .pa-label small { overflow: hidden; font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; white-space: nowrap; text-overflow: ellipsis; }
+
+/* -- Resumen (alpha): Total, Pagado, Restante -- */
+#modalOrderPay .pa-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+#modalOrderPay .pa-stat { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 7px 8px; border-radius: 10px; text-align: center; }
+#modalOrderPay .pa-stat > span { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 10.5px; font-weight: 600; opacity: .85; }
+#modalOrderPay .pa-stat > span svg { width: 12px; height: 12px; }
+#modalOrderPay .pa-stat > b { display: block; margin-top: 1px; overflow: hidden; font-size: 15px; font-weight: 700; line-height: 1.3; white-space: nowrap; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+#modalOrderPay .pa-stat > small { display: block; overflow: hidden; color: var(--pa-muted); font-size: 10.5px; line-height: 1.3; white-space: nowrap; text-overflow: ellipsis; }
+#modalOrderPay .pa-stat > small:empty { display: none; }
+#modalOrderPay .pa-stat > small s { opacity: .8; }
+#modalOrderPay .pa-stat.is-total { background: var(--pa-blue-bg); color: var(--pa-blue); }
+#modalOrderPay .pa-stat.is-paid { background: var(--pa-ok-bg); color: var(--pa-ok); }
+#modalOrderPay .pa-stat.is-due { background: var(--pa-bad-bg); color: var(--pa-bad); }
+#modalOrderPay .pa-stat.is-due.is-done { background: var(--pa-ok-bg); color: var(--pa-ok); }
+/* Pedido cancelado: no se cobra, el recuadro va en gris. */
+#modalOrderPay .pa-stat.is-due.is-muted { background: var(--pa-sunken); color: var(--pa-muted); }
+
+/* -- Sucursales (alpha): dónde se levantó y quién cobra -- */
+#modalOrderPay .pa-branch { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 8px; border: 1px solid var(--pa-line-hi); border-radius: 9px; background: var(--pa-surface); }
+#modalOrderPay .pa-branch-ico { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px; background: var(--pa-sunken); color: var(--pa-muted); }
+#modalOrderPay .pa-branch-ico svg { width: 14px; height: 14px; }
+#modalOrderPay .pa-branch-text { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.25; }
+#modalOrderPay .pa-branch-text b { overflow: hidden; color: var(--pa-ink); font-size: 13px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+#modalOrderPay .pa-branch-text small { display: flex; align-items: center; gap: 4px; overflow: hidden; color: var(--pa-muted); font-size: 10.5px; white-space: nowrap; text-overflow: ellipsis; }
+#modalOrderPay .pa-branch-chev { display: flex; color: var(--pa-muted); }
+#modalOrderPay .pa-branch-chev svg { width: 14px; height: 14px; }
+
+#modalOrderPay .pa-branch.is-cobro .pa-branch-ico { color: var(--pa-brand-ink); }
+#modalOrderPay .pa-branch.is-cobro:hover { border-color: var(--pa-muted); }
+#modalOrderPay .pa-branch.is-cross { border-color: var(--pa-brand-line); background: var(--pa-brand-bg); }
+#modalOrderPay .pa-branch.is-cross .pa-branch-ico { background: var(--pa-brand); color: #FFFFFF; }
+#modalOrderPay .pa-branch.is-off { opacity: .6; }
+
+/* El select va encima de la tarjeta, invisible: se ve la tarjeta y se abre la lista nativa. */
+#modalOrderPay .pa-branch select { position: absolute; inset: 0; width: 100% !important; height: 100% !important; margin: 0; opacity: 0; cursor: pointer; }
+#modalOrderPay .pa-branch select:disabled { cursor: default; }
+#modalOrderPay .pa-branch:focus-within { border-color: var(--pa-brand); box-shadow: 0 0 0 3px var(--pa-brand-soft); }
+
+/* Punto del turno: verde abierto; rojo si no se puede cobrar (turno viejo o sin turno). */
+#modalOrderPay .pa-dot { display: inline-block; width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: currentColor; }
+#modalOrderPay .pa-turn-open { color: var(--pa-ok); }
+#modalOrderPay .pa-turn-old { color: var(--pa-bad); }
+#modalOrderPay .pa-turn-none { color: var(--pa-bad); }
+
+/* Sin turno o sin cobro: el aviso de alpha (#cobroShiftAlert) bajo la tarjeta, en morado (sin ámbar). */
+#modalOrderPay .pa-alert { display: flex; gap: 8px; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--pa-brand-line); border-radius: 9px; background: var(--pa-brand-bg); color: var(--pa-brand-ink); }
+#modalOrderPay .pa-alert > svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+#modalOrderPay .pa-alert-text { min-width: 0; }
+#modalOrderPay .pa-alert-text b { display: block; font-size: 12px; line-height: 1.3; }
+#modalOrderPay .pa-alert-text p { margin: 2px 0 0; color: var(--pa-ink-2); font-size: 11.5px; line-height: 1.4; }
+#modalOrderPay .pa-alert-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+#modalOrderPay button.pa-alert-go { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border: 1px solid var(--pa-line-hi); border-radius: 7px; background: var(--pa-surface); color: var(--pa-ink); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+#modalOrderPay button.pa-alert-go svg { width: 13px; height: 13px; }
+#modalOrderPay button.pa-alert-go:hover { border-color: var(--pa-muted); }
+
+/* Una línea de aviso dentro de la forma: el descuento que ya tiene o por qué no se da. */
+#modalOrderPay .pa-note-line { display: flex; gap: 6px; margin: 0; padding: 8px 10px; border: 1px solid var(--pa-brand-line); border-radius: 8px; background: var(--pa-brand-bg); color: var(--pa-brand-ink); font-size: 12px; line-height: 1.4; }
+#modalOrderPay .pa-note-line svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+
+/* -- Dos columnas: de dónde es y quién cobra | las formas de pago -- */
+#modalOrderPay .pa-cols { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 14px; align-items: start; }
+#modalOrderPay .pa-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+#modalOrderPay .pa-col-info .pa-disc { grid-template-columns: minmax(0, 1fr); }
+
+/* El fieldset apaga sus campos de un jalón; sin su borde ni su relleno de navegador. */
+#modalOrderPay fieldset.pa-set,
+#modalOrderPay fieldset.pa-col { min-width: 0; margin: 0; padding: 0; border: 0; }
+#modalOrderPay fieldset.pa-set { display: flex; flex-direction: column; gap: 8px; }
+/* Pagado o sin turno: la forma se ve, apagada, como en alpha. */
+#modalOrderPay fieldset.is-locked { opacity: .5; }
+#modalOrderPay fieldset.is-locked button { cursor: not-allowed; }
+
+/* -- Formas de pago (como Soft): todas en una tabla, cada una con su importe -- */
+#modalOrderPay .pa-rows { display: flex; flex-direction: column; border: 1px solid var(--pa-line-hi); border-radius: 10px; overflow: hidden; }
+/* «Importe» queda sobre el borde derecho de los montos. */
+#modalOrderPay .pa-grid-head { display: flex; justify-content: space-between; gap: 8px; padding: 6px 15px 6px 10px; border-bottom: 1px solid var(--pa-line); background: var(--pa-sunken); color: var(--pa-muted); font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+#modalOrderPay .pa-grid-head > span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#modalOrderPay .pa-row { position: relative; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 3px 6px 3px 10px; background: var(--pa-surface); }
+#modalOrderPay .pa-row + .pa-row { border-top: 1px solid var(--pa-line); }
+#modalOrderPay .pa-row.is-active::before { content: ''; position: absolute; top: 6px; bottom: 6px; left: 0; width: 3px; border-radius: 0 3px 3px 0; background: var(--m, var(--pa-brand)); }
+
+#modalOrderPay button.pa-row-name { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; padding: 0; background: transparent; color: var(--pa-ink); text-align: left; cursor: pointer; }
+#modalOrderPay .pa-row-ico { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; flex-shrink: 0; border-radius: 7px; background: var(--m, var(--pa-muted)); color: #FFFFFF; }
+#modalOrderPay .pa-row-ico svg { width: 13px; height: 13px; }
+#modalOrderPay .pa-row-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+#modalOrderPay .pa-row-text b { overflow: hidden; font-size: 13px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+#modalOrderPay .pa-row-text small { overflow: hidden; color: var(--pa-muted); font-size: 10.5px; white-space: nowrap; text-overflow: ellipsis; }
+
+#modalOrderPay .pa-amt { position: relative; width: 132px; flex-shrink: 0; }
+#modalOrderPay .pa-amt > span { position: absolute; top: 50%; left: 9px; transform: translateY(-50%); color: var(--pa-muted); font-size: 13px; pointer-events: none; }
+#modalOrderPay .pa-amt input { width: 100%; height: 32px !important; padding: 0 9px 0 20px !important; border: 1px solid var(--pa-line-hi); border-radius: 8px !important; background: var(--pa-surface); color: var(--pa-ink); font-size: 14px !important; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+#modalOrderPay .pa-amt input::placeholder { color: var(--pa-muted); font-weight: 500; opacity: .7; }
+#modalOrderPay .pa-amt input:focus { outline: none; border-color: var(--pa-brand); box-shadow: 0 0 0 3px var(--pa-brand-soft); }
+#modalOrderPay .pa-row.is-auto .pa-amt input { background: var(--pa-sunken); }
+#modalOrderPay .pa-amt.is-bad input { border-color: var(--pa-bad); box-shadow: 0 0 0 3px var(--pa-bad-bg); }
+
+/* «Recibe» cierra la tabla, después de todas las formas; su texto se alinea con los nombres. */
+#modalOrderPay .pa-row.is-recv { padding-left: 42px; background: var(--pa-sunken); }
+#modalOrderPay .pa-row.is-recv[hidden] { display: none; }
+#modalOrderPay .pa-recv-label { flex: 1; min-width: 0; overflow: hidden; color: var(--pa-ink-2); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Teclado: solo en pantalla táctil. */
+#modalOrderPay .pa-pad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+#modalOrderPay button.pa-key { display: flex; align-items: center; justify-content: center; gap: 4px; height: 38px; border: 1px solid var(--pa-line-hi); border-radius: 8px; background: var(--pa-surface); color: var(--pa-ink); font-size: 16px; font-weight: 600; cursor: pointer; user-select: none; }
+#modalOrderPay button.pa-key:hover { background: var(--pa-sunken); }
+#modalOrderPay button.pa-key:active { background: var(--pa-line); }
+#modalOrderPay button.pa-key svg { width: 17px; height: 17px; }
+#modalOrderPay button.pa-key.is-fn { color: var(--pa-muted); }
+#modalOrderPay button.pa-key.is-clear { color: var(--pa-bad); font-size: 14px; }
+#modalOrderPay button.pa-key.is-next { grid-row: span 2; height: auto; flex-direction: column; border-color: transparent; background: var(--pa-ink); color: var(--pa-surface); font-size: 11px; }
+#modalOrderPay button.pa-key.is-next:hover { opacity: .9; }
+
+/* -- Campos -- */
+/* compact.css usa input[type="text"] con !important; soft.css redondea a 12 px con !important. */
+#modalOrderPay .pa-win .pa-input { width: 100%; height: 32px !important; padding: 0 10px !important; border: 1px solid var(--pa-line-hi); border-radius: 8px !important; background: var(--pa-surface); color: var(--pa-ink); font-size: 13px !important; }
+#modalOrderPay .pa-input::placeholder { color: var(--pa-muted); opacity: .8; }
+#modalOrderPay .pa-input:focus { outline: none; border-color: var(--pa-brand); box-shadow: 0 0 0 3px var(--pa-brand-soft); }
+/* Observación y motivo: textarea chico como en alpha (pesa más que .pa-win .pa-input). */
+#modalOrderPay .pa-win textarea.pa-textarea { display: block; height: 50px !important; padding: 6px 10px !important; line-height: 1.4; resize: none; }
+#modalOrderPay .pa-win .pa-input.is-bad { border-color: var(--pa-bad); box-shadow: 0 0 0 3px var(--pa-bad-bg); }
+
+/* Descuento: botón a lo ancho de la columna, debajo de la observación. */
+#modalOrderPay button.pa-extra-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--pa-line-hi); border-radius: 8px; background: var(--pa-surface); color: var(--pa-ink-2); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+#modalOrderPay button.pa-extra-btn svg { width: 14px; height: 14px; }
+#modalOrderPay button.pa-extra-btn:hover { border-color: var(--pa-muted); }
+#modalOrderPay button.pa-extra-btn.is-on { border-color: var(--pa-brand-line); background: var(--pa-brand-bg); color: var(--pa-brand-ink); }
+
+#modalOrderPay .pa-hint { margin: 0; color: var(--pa-muted); font-size: 11.5px; line-height: 1.4; }
+
+/* -- Descuento -- */
+#modalOrderPay .pa-disc { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 6px; padding: 10px; border: 1px dashed var(--pa-brand-line); border-radius: 10px; }
+#modalOrderPay .pa-disc[hidden] { display: none; }
+#modalOrderPay .pa-disc-value { display: flex; gap: 4px; }
+#modalOrderPay .pa-disc-value .pa-input { min-width: 0; text-align: right; }
+#modalOrderPay .pa-disc-value.is-active .pa-input { border-color: var(--pa-brand); }
+#modalOrderPay .pa-seg { display: flex; flex-shrink: 0; padding: 2px; border: 1px solid var(--pa-line-hi); border-radius: 8px; background: var(--pa-sunken); }
+#modalOrderPay button.pa-seg-btn { width: 24px; border-radius: 6px; background: transparent; color: var(--pa-muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+#modalOrderPay button.pa-seg-btn.is-active { background: var(--pa-surface); color: var(--pa-ink); box-shadow: 0 0 0 1px var(--pa-line); }
+#modalOrderPay .pa-disc-msg { grid-column: 1 / -1; margin: 0; color: var(--pa-muted); font-size: 11.5px; line-height: 1.4; }
+#modalOrderPay .pa-disc-msg.is-bad { color: var(--pa-bad); }
+#modalOrderPay .pa-disc-msg.is-ok { color: var(--pa-ok); }
+
+/* -- Pie: el resultado a la izquierda y un solo botón a la derecha -- */
+#modalOrderPay .pa-foot { display: flex; align-items: center; gap: 12px; padding: 10px 16px 12px; border-top: 1px solid var(--pa-line); }
+#modalOrderPay .pa-res { display: flex; flex: 1; align-items: baseline; gap: 6px; min-width: 0; color: var(--pa-muted); font-size: 12px; }
+#modalOrderPay .pa-res > span { flex-shrink: 0; font-weight: 600; }
+#modalOrderPay .pa-res > b { flex-shrink: 0; color: var(--pa-ink); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#modalOrderPay .pa-res > small { overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+#modalOrderPay .pa-res.is-ok > span,
+#modalOrderPay .pa-res.is-ok > b { color: var(--pa-ok); }
+#modalOrderPay .pa-res.is-bad > span,
+#modalOrderPay .pa-res.is-bad > b { color: var(--pa-bad); }
+#modalOrderPay .pa-res.is-info > span,
+#modalOrderPay .pa-res.is-info > b { color: var(--pa-info); }
+
+#modalOrderPay button.pa-save { display: flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 8px; min-width: 260px; height: 40px; padding: 0 18px; border-radius: 10px; background: var(--pa-brand); color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer; }
+#modalOrderPay button.pa-save:hover { background: var(--pa-brand-700); }
+#modalOrderPay button.pa-save svg { width: 17px; height: 17px; }
+#modalOrderPay .pa-save-ico { display: flex; }
+/* Apagado se sigue pudiendo pulsar: el aviso dice qué falta. */
+#modalOrderPay button.pa-save.is-off { opacity: .5; }
+#modalOrderPay button.pa-save:disabled { opacity: .5; cursor: wait; }
+/* Pedido pagado: el botón solo lleva al historial. */
+#modalOrderPay button.pa-save.is-quiet { min-width: 0; border: 1px solid var(--pa-line-hi); background: var(--pa-surface); color: var(--pa-ink); font-size: 13px; }
+#modalOrderPay button.pa-save.is-quiet:hover { background: var(--pa-sunken); }
+
+/* -- Confirmación (alpha): encima de la ventana -- */
+#modalOrderPay .pa-confirm { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgb(15 23 42 / .42); }
+#modalOrderPay .pa-confirm-card { width: 100%; max-width: 340px; max-height: 100%; padding: 16px; overflow-y: auto; border-radius: 12px; background: var(--pa-surface); box-shadow: 0 20px 40px -12px rgb(15 23 42 / .45); }
+#modalOrderPay .pa-confirm-head { text-align: center; }
+#modalOrderPay .pa-confirm-head .pa-head-ico { margin: 0 auto 8px; }
+#modalOrderPay .pa-confirm-head h3 { margin: 0; color: var(--pa-ink); font-size: 15px; font-weight: 700; }
+#modalOrderPay .pa-confirm-head p { margin: 1px 0 0; color: var(--pa-muted); font-size: 12px; }
+#modalOrderPay .pa-confirm-rows { margin: 12px 0 0; }
+#modalOrderPay .pa-confirm-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 13px; }
+#modalOrderPay .pa-confirm-rows dt { color: var(--pa-muted); font-weight: 400; }
+#modalOrderPay .pa-confirm-rows dd { margin: 0; color: var(--pa-ink); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+#modalOrderPay .pa-confirm-rows dd.is-brand { color: var(--pa-brand-ink); }
+#modalOrderPay .pa-confirm-rows > div.is-big dd { font-size: 16px; font-weight: 700; }
+#modalOrderPay .pa-confirm-warn { display: flex; gap: 6px; margin: 10px 0 0; padding: 8px 10px; border: 1px solid var(--pa-brand-line); border-radius: 8px; background: var(--pa-brand-bg); color: var(--pa-brand-ink); font-size: 12px; line-height: 1.45; }
+#modalOrderPay .pa-confirm-warn svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+#modalOrderPay .pa-confirm-foot { display: flex; gap: 8px; margin-top: 14px; }
+#modalOrderPay button.pa-btn { display: flex; flex: 1; align-items: center; justify-content: center; height: 36px; border: 1px solid var(--pa-line-hi); border-radius: 9px; background: var(--pa-surface); color: var(--pa-ink); font-size: 13px; font-weight: 600; cursor: pointer; }
+#modalOrderPay button.pa-btn:hover { background: var(--pa-sunken); }
+#modalOrderPay button.pa-btn.is-primary { border-color: transparent; background: var(--pa-brand); color: #FFFFFF; }
+#modalOrderPay button.pa-btn.is-primary:hover { background: var(--pa-brand-700); }
+#modalOrderPay button.pa-btn:disabled { opacity: .6; cursor: wait; }
+
+/* Quitar un pago: el motivo, como askDeleteReason de alpha; rojo solo en el botón y el ícono. */
+#modalOrderPay .pa-head-ico.is-bad { background: var(--pa-bad-bg); color: var(--pa-bad); }
+#modalOrderPay .pa-confirm-head p b { color: var(--pa-ink); }
+#modalOrderPay .pa-del-field { margin-top: 12px; }
+#modalOrderPay .pa-del-msg { margin: 4px 0 0; color: var(--pa-bad); font-size: 11.5px; }
+#modalOrderPay .pa-del-msg[hidden] { display: none; }
+#modalOrderPay button.pa-btn.is-danger { border-color: transparent; background: #DC2626; color: #FFFFFF; }
+#modalOrderPay button.pa-btn.is-danger:hover { background: #B91C1C; }
+
+/* -- Historial -- */
+#modalOrderPay .pa-hist-wrap { border: 1px solid var(--pa-line-hi); border-radius: 10px; overflow-x: auto; }
+#modalOrderPay .pa-hist { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+/* compact.css fija el relleno de toda celda con !important. */
+#modalOrderPay .pa-hist th { padding: 7px 8px !important; border-bottom: 1px solid var(--pa-line); background: var(--pa-sunken); color: var(--pa-muted); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-align: left; text-transform: uppercase; white-space: nowrap; }
+#modalOrderPay .pa-hist td { padding: 7px 8px !important; border-bottom: 1px solid var(--pa-line); color: var(--pa-ink); vertical-align: middle; }
+#modalOrderPay .pa-hist td small { display: block; color: var(--pa-muted); font-size: 10.5px; white-space: nowrap; }
+#modalOrderPay .pa-hist .r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#modalOrderPay .pa-hist .c { width: 40px; text-align: center; }
+#modalOrderPay .pa-hist tbody tr:last-child td { border-bottom: 0; }
+/* Observación (como la columna de alpha): una línea; completa en title. */
+#modalOrderPay .pa-hist td.pa-hist-note { max-width: 130px; overflow: hidden; color: var(--pa-ink-2); white-space: nowrap; text-overflow: ellipsis; }
+
+/* Sin pagos: el aviso vacío de alpha. */
+#modalOrderPay .pa-empty { display: flex; flex-direction: column; align-items: center; padding: 26px 16px; border: 1px solid var(--pa-line-hi); border-radius: 10px; background: var(--pa-sunken); text-align: center; }
+#modalOrderPay .pa-empty-ico { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-bottom: 10px; border-radius: 12px; background: var(--pa-line); color: var(--pa-muted); }
+#modalOrderPay .pa-empty-ico svg { width: 22px; height: 22px; }
+#modalOrderPay .pa-empty b { color: var(--pa-ink); font-size: 13.5px; }
+#modalOrderPay .pa-empty p { margin: 2px 0 0; color: var(--pa-muted); font-size: 12px; }
+
+#modalOrderPay .pa-hist-method { display: flex; align-items: center; gap: 7px; }
+#modalOrderPay .pa-hist-method .pa-row-ico { width: 22px; height: 22px; border-radius: 6px; }
+#modalOrderPay .pa-hist-method .pa-row-ico svg { width: 12px; height: 12px; }
+#modalOrderPay .pa-hist-method b { font-weight: 600; }
+#modalOrderPay .pa-hist-branch { display: flex; align-items: center; gap: 5px; }
+
+#modalOrderPay .pa-chip { display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 6px; border: 1px solid var(--pa-brand-line); border-radius: 999px; background: var(--pa-brand-bg); color: var(--pa-brand-ink); font-size: 10px; font-weight: 700; white-space: nowrap; }
+#modalOrderPay .pa-chip svg { width: 11px; height: 11px; }
+
+#modalOrderPay button.pa-del { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--pa-muted); cursor: pointer; }
+#modalOrderPay button.pa-del:hover { border-color: var(--pa-bad-line); background: var(--pa-bad-bg); color: var(--pa-bad); }
+#modalOrderPay button.pa-del svg { width: 15px; height: 15px; }
+#modalOrderPay .pa-lock { display: inline-flex; color: var(--pa-muted); opacity: .7; }
+#modalOrderPay .pa-lock svg { width: 14px; height: 14px; }
+
+/* -- Tableta angosta y celular: una sola columna, como alpha -- */
+@media (max-width: 760px) {
+    #modalOrderPay .cs-modal-panel,
+    #modalOrderPay .pa-win { max-width: 480px; }
+    #modalOrderPay .pa-cols { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    /* Orden de alpha: sucursales (y su aviso), formas de pago, observación. */
+    #modalOrderPay .pa-col-info { display: contents; }
+    #modalOrderPay .pa-col-info > fieldset.pa-set { order: 1; }
+    #modalOrderPay .pa-foot { flex-direction: column; align-items: stretch; gap: 6px; }
+    #modalOrderPay button.pa-save { min-width: 0; width: 100%; }
+}
+
+@media (max-width: 520px) {
+    #modalOrderPay .pa-head { padding: 12px 12px 0; }
+    #modalOrderPay .pa-body { padding: 10px 12px 12px; }
+    #modalOrderPay .pa-foot { padding: 8px 12px 12px; }
+
+    #modalOrderPay .pa-stat > b { font-size: 14px; }
+    #modalOrderPay .pa-amt { width: 118px; }
+    #modalOrderPay .pa-row-text small { display: none; }
+
+    #modalOrderPay .pa-hist th,
+    #modalOrderPay .pa-hist td { padding: 6px 5px !important; }
+    #modalOrderPay .pa-hist .c { width: 32px; }
+    #modalOrderPay .pa-hist td small { white-space: normal; }
+    #modalOrderPay .pa-chip { width: 18px; padding: 0; justify-content: center; }
+    #modalOrderPay .pa-chip > span { display: none; }
+    #modalOrderPay .pa-hist .pa-hide-sm { display: none; }
+}

@@ -71,20 +71,71 @@ class ctrl extends core {
                     'discount_reason' => $order['discount_reason'],
                     'total'           => $total,
                     'paid'            => $paid,
-                    'balance'         => round($total - $paid, 2)
+                    'balance'         => round($total - $paid, 2),
+                    'delivery_date'   => (string) $order['delivery_date']
                 ],
                 'payments'      => $this->qPayments($id),
                 'can_pay'       => $stop === null,
                 'pay_block'     => $stop,
                 // La misma regla que el detalle (orderCan): entregado o cancelado no suelta pagos.
                 'can_delete'    => $alive && !$given && $this->need('delete') === null,
-                'methods'       => $this->qPaymentMethods($this->companyId()),
+                'methods'       => $this->qPaymentMethods($this->branchId()),
                 'reasons'       => $this->qDiscountReasons($this->companyId()),
                 'can_authorize' => $this->need('cancel') === null,
                 'disc_block'    => $this->moneyBlock($order),
-                'turn'          => $this->turnBrief()
+                'turn'          => $this->turnBrief(),
+                'branch_id'     => $this->branchId(),
+                'branches'      => $this->payBranches()
             ];
         }, 'No se pudieron abrir los pagos.');
+    }
+
+    /*  Sucursales donde se puede cobrar el pedido (como alpha): cada una con su
+        turno, lo que le impide cobrar (block) y sus formas de pago. Así la
+        ventana cambia de sucursal sin volver a preguntar. */
+    private function payBranches() {
+        $session = $this->branchId();
+        $list    = [];
+
+        foreach ($this->qCompanyBranches($this->companyId()) as $branch) {
+            $id   = (int) $branch['id'];
+            $turn = $this->qOpenTurn($id);
+            $stop = $this->needTurn($id, $branch['name']);
+
+            $list[] = [
+                'id'      => $id,
+                'name'    => $branch['name'],
+                'session' => $id === $session,
+                'turn'    => $turn ? [
+                    'id'        => (int) $turn['id'],
+                    'folio'     => (string) $turn['folio'],
+                    'opened_at' => (string) $turn['opened_at'],
+                    'opened_by' => trim((string) $turn['opened_by']),
+                    'old'       => substr((string) $turn['opened_at'], 0, 10) !== date('Y-m-d')
+                ] : null,
+                'block'   => $stop ? ['title' => $stop['title'], 'message' => $stop['message'], 'day' => !empty($stop['day'])] : null,
+                'methods' => $this->qPaymentMethods($id)
+            ];
+        }
+
+        return $list;
+    }
+
+    // La sucursal que cobra: la que eligió la pantalla si es de la empresa y está activa.
+    private function payBranch() {
+        $id = $this->intOf($this->post('pay_branch'));
+
+        if ($id === null || $id <= 0 || $id === $this->branchId()) {
+            return ['id' => $this->branchId(), 'name' => $this->scope()['branch'], 'cross' => false];
+        }
+
+        $branch = $this->qBranch($id);
+
+        if (!$branch || (int) $branch['company_id'] !== $this->companyId()) {
+            return $this->fail(422, 'La sucursal que cobra ya no está disponible.');
+        }
+
+        return ['id' => $id, 'name' => $branch['name'], 'cross' => true];
     }
 
     // null = se puede cobrar. Si no, quien lo impide: el rol, el pedido o el turno.
@@ -134,11 +185,14 @@ class ctrl extends core {
 
         if (empty($payments) && $discount === null) return $this->fail(422, 'Escribe cuánto paga el cliente.');
 
-        $closed = $this->needTurn();
+        $branch = $this->payBranch();
+        if (isset($branch['status'])) return $branch;
+
+        $closed = $this->needTurn($branch['id'], $branch['cross'] ? $branch['name'] : '');
         if ($closed) return $closed;
 
-        $answer = $this->attempt(function () use ($id, $payments, $discount, $note) {
-            return $this->transaction(function () use ($id, $payments, $discount, $note) {
+        $answer = $this->attempt(function () use ($id, $payments, $discount, $note, $branch) {
+            return $this->transaction(function () use ($id, $payments, $discount, $note, $branch) {
                 $order = $this->qLockOrder($id, $this->branchId());
 
                 if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
@@ -149,10 +203,12 @@ class ctrl extends core {
                 $money = $discount !== null ? $this->moneyBlock($order) : '';
                 if ($money !== '') return $this->fail(409, $money);
 
-                $turn = $this->qLockOpenTurn($this->branchId());
+                $turn = $this->qLockOpenTurn($branch['id']);
 
                 if (!$turn) {
-                    return ['status' => 423, 'title' => 'Sin turno abierto', 'message' => 'El turno se cerró mientras cobrabas. Abre uno nuevo e intenta otra vez.'];
+                    return ['status' => 423, 'title' => 'Sin turno abierto', 'message' => $branch['cross']
+                        ? 'El turno de ' . $branch['name'] . ' se cerró mientras cobrabas. Elige otra sucursal o pide que abran uno.'
+                        : 'El turno se cerró mientras cobrabas. Abre uno nuevo e intenta otra vez.'];
                 }
 
                 $paidBefore = round((float) $order['paid'], 2);
@@ -167,7 +223,7 @@ class ctrl extends core {
                 }
 
                 $balance = round($total - $paidBefore, 2);
-                $rows    = $this->paymentRows($payments, $balance);
+                $rows    = $this->paymentRows($payments, $balance, $branch['id']);
                 if (isset($rows['status'])) return $rows;
 
                 $paidNow = 0;
@@ -203,7 +259,7 @@ class ctrl extends core {
 
                     foreach ($rows as $row) {
                         $data[] = [
-                            $id, $this->branchId(), $this->userId() ?: null, (int) $turn['id'], $row['method_id'],
+                            $id, $branch['id'], $this->userId() ?: null, (int) $turn['id'], $row['method_id'],
                             $row['amount'], $row['tendered'], $row['change'], $concept, $now, 1
                         ];
                     }
@@ -214,8 +270,9 @@ class ctrl extends core {
                     ]), 'payOrder payment');
 
                     $remark = $note !== '' ? ' Observación: ' . $note . (preg_match('/[.!?]$/u', $note) ? '' : '.') : '';
+                    $where  = $branch['cross'] ? ' Cobrado en ' . $branch['name'] . ', turno ' . $turn['folio'] . '.' : '';
 
-                    $this->log($id, 'payment', $description, $this->paymentsText($rows) . ' ' . $this->leftText($left) . $remark);
+                    $this->log($id, 'payment', $description, $this->paymentsText($rows) . ' ' . $this->leftText($left) . $where . $remark);
                 }
 
                 if ($status !== (int) $order['sale_status_id']) {
@@ -226,7 +283,9 @@ class ctrl extends core {
                     ]), 'payOrder status');
                 }
 
-                $message = $rows ? 'Cobro de ' . money($paidNow) . " registrado en P{$id}." : "Descuento aplicado en P{$id}.";
+                $message = $rows
+                    ? 'Cobro de ' . money($paidNow) . " registrado en P{$id}" . ($branch['cross'] ? ' (caja de ' . $branch['name'] . ').' : '.')
+                    : "Descuento aplicado en P{$id}.";
 
                 return $this->ok($message, [
                     'id'      => $id,
@@ -352,12 +411,13 @@ class ctrl extends core {
     }
 
     // Pagos contra los metodos de la base y el saldo. Devuelve los renglones o la respuesta de error.
-    private function paymentRows(array $payments, $balance) {
+    // $branchId = la sucursal que cobra: sus formas de pago son las que valen.
+    private function paymentRows(array $payments, $balance, $branchId) {
         if (!$payments) return [];
 
         $methods = [];
 
-        foreach ($this->qPaymentMethods($this->companyId()) as $method) {
+        foreach ($this->qPaymentMethods($branchId) as $method) {
             $methods[(int) $method['id']] = $method;
         }
 
@@ -450,6 +510,14 @@ class ctrl extends core {
                     return $this->fail(409, 'Ese pago es del turno ' . $payment['turn_folio'] . ', que ya cerró. Reábrelo para quitarlo.');
                 }
 
+                // Como alpha: con el pedido liquidado, quitar un pago pide además la contraseña.
+                $settled = round((float) $order['total'] - (float) $order['paid'], 2) <= 0.005;
+
+                if ($settled) {
+                    $key = $this->needKey('quitar un pago');
+                    if ($key) return $key;
+                }
+
                 $this->must($this->qUpdatePayment([
                     'values' => ['active', 'deleted_at = NOW()', 'deleted_user_id', 'updated_at = NOW()'],
                     'where'  => ['id'],
@@ -469,7 +537,9 @@ class ctrl extends core {
                     ]), 'deletePayment status');
                 }
 
-                $this->log($id, 'deletion', 'Pago quitado', $payment['method'] . ' ' . money($payment['amount']) . ' · Motivo: ' . $reason . '. ' . $this->leftText($left));
+                $reopen = $settled && $left > 0.005 ? ' El pedido regresa a pendiente.' : '';
+
+                $this->log($id, 'deletion', 'Pago quitado', $payment['method'] . ' ' . money($payment['amount']) . ' · Motivo: ' . $reason . '. ' . $this->leftText($left) . $reopen . ($settled ? ' Autorizado con contraseña.' : ''));
 
                 return $this->ok('Pago quitado. ' . $this->leftText($left), ['id' => $id, 'balance' => $left, 'sale_status' => $status]);
             });

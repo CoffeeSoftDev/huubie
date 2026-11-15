@@ -4,8 +4,11 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-order.php';
 require_once __DIR__ . '/../mdl/mdl-credito.php';
+require_once __DIR__ . '/../mdl/mdl-lealtad.php';
+require_once __DIR__ . '/../mdl/mdl-ticket.php';
 
-/*  Ventas › vender en mostrador (V1 del plan de Ventas; credito y monedero de V3).
+/*  Ventas › vender en mostrador (V1 del plan de Ventas; credito y monedero de V3;
+    tarjeta de lealtad y puntos de V4).
 
     Reglas que no se ven en el codigo de un vistazo:
       - Una venta nace pagada: sale_type_id 3 (POS) y sale_status_id 3 (Pagado).
@@ -30,12 +33,28 @@ require_once __DIR__ . '/../mdl/mdl-credito.php';
       - Descuento: uno por venta, con motivo y tope (max_percent sobre el subtotal).
         Un motivo con requires_authorization lo aplica solo quien puede cancelar en
         pos-ventas (Dueño o Supervisor).
+      - Descuento por producto: cada renglon puede traer el suyo, con las mismas
+        reglas pero sobre su importe (precio × cantidad). Se guarda en detail_sale
+        (discount_amount, discount_percent, discount_reason_id). El subtotal de la
+        venta ya va neto: el descuento de la venta y el de la tarjeta se calculan
+        despues, sobre ese subtotal.
+      - Tarjeta de lealtad: llega card_id y se valida aqui (activa, con su tipo
+        activo, de la sucursal). Si tiene dueño, la venta es de ese cliente.
+        Si su tipo trae descuento, ESE es el descuento de la venta: motivo NULL y
+        discount_note «Tarjeta <tipo> · <numero>». No se junta con otro descuento.
+      - Puntos: el % del tipo sobre lo pagado con metodos que dan puntos
+        (earns_points), sin propina, sin monedero y sin lo que queda a credito.
+        Son dinero: suben el monedero del cliente de la venta y dejan una fila
+        receivable 'puntos' para poder quitarlos si la venta se cancela.
+        Sin cliente no hay puntos.
       - Sin cliente = Público en general (customer_id NULL).
       - Se valida todo ANTES de la primera escritura: transaction() solo deshace
         si algo lanza una excepcion. */
 class ctrl extends core {
 
     use CreditLedger;
+    use LoyaltyCards;
+    use TicketLink;
 
     const SALES        = 'pos-ventas';
     const SALE_TYPE    = 3;
@@ -43,6 +62,7 @@ class ctrl extends core {
     const MAX_PAYMENTS = 6;
     const MAX_AMOUNT   = 1000000;
     const MAX_TIP      = 999999;
+    const MAX_CARD     = 40;
 
     // -- Arranque --
 
@@ -95,9 +115,9 @@ class ctrl extends core {
             }
 
             // El monedero va aparte de los metodos: la pantalla lo ofrece solo si el cliente tiene saldo.
-            $purse   = $this->qWalletMethod($this->companyId());
+            $purse   = $this->qWalletMethod($this->branchId());
             $methods = array_values(array_filter(
-                $this->qPaymentMethods($this->companyId()),
+                $this->qPaymentMethods($this->branchId()),
                 fn ($m) => !$this->isWalletCode($m['code'])
             ));
 
@@ -188,6 +208,38 @@ class ctrl extends core {
         }, 'No se pudo guardar el cliente.');
     }
 
+    // -- Tarjeta de lealtad --
+
+    // Lee una tarjeta por su numero: lo que descuenta, los puntos que da y su dueño.
+    public function getCard() {
+        $fail = $this->needSales('create') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $number = strtoupper((string) preg_replace('/\s+/u', '', $this->post('number')));
+
+        if ($number === '') return $this->fail(422, 'Escribe o lee el número de la tarjeta.');
+
+        if (!preg_match('/^[A-Z0-9-]{3,' . self::MAX_CARD . '}$/', $number)) {
+            return $this->fail(422, 'Ese número de tarjeta no es válido: lleva letras, números o guiones.');
+        }
+
+        return $this->attempt(function () use ($number) {
+            $card = $this->qCardByNumber($this->branchId(), $number);
+
+            if (!$card) return $this->fail(404, "No hay una tarjeta activa con el número {$number} en esta empresa.");
+
+            $brief = $this->cardBrief($card);
+            $owner = null;
+
+            if ($brief['customer_id']) {
+                $owner = ['id' => $brief['customer_id'], 'valor' => $this->customerLabel($card['customer'], $card['customer_phone'])]
+                    + $this->accountOf($brief['customer_id']);
+            }
+
+            return ['status' => 200, 'card' => $brief, 'customer' => $owner];
+        }, 'No se pudo leer la tarjeta.');
+    }
+
     // -- Cobrar la venta --
 
     public function addSale() {
@@ -205,6 +257,9 @@ class ctrl extends core {
             $in = $this->saleInput();
             if (isset($in['status'])) return $in;
 
+            $card = $this->cardInput($in);
+            if (isset($card['status'])) return $card;
+
             $lines = $this->resolveLines($in['lines']);
             if (isset($lines['status'])) return $lines;
 
@@ -215,11 +270,22 @@ class ctrl extends core {
             $discount = $this->discountInput();
             if (isset($discount['status'])) return $discount;
 
+            $cardOff = $card ? $this->cardDiscount($subtotal, $card) : null;
+
+            if ($cardOff && $discount !== null) {
+                return $this->fail(422, 'La tarjeta ya trae su descuento. Quita el otro descuento o quita la tarjeta.');
+            }
+
             if ($discount !== null) {
                 $applied = $this->discountCheck($subtotal, $discount);
                 if (isset($applied['status'])) return $applied;
 
                 $total = $applied['total'];
+            }
+
+            if ($cardOff) {
+                $applied = $cardOff;
+                $total   = $cardOff['total'];
             }
 
             $due = round($total + $in['tip'], 2);
@@ -249,9 +315,18 @@ class ctrl extends core {
             if ($credit > 0 && !$in['customer_id'])           return $this->fail(422, 'Elige un cliente para vender a crédito.');
             if ($wallet > 0 && !$in['customer_id'])           return $this->fail(422, 'Elige un cliente para pagar con su monedero.');
 
+            // Puntos: solo con cliente, y solo sobre lo pagado con metodos que dan puntos (el monedero nunca da).
+            $points = 0.0;
+
+            if ($card && $in['customer_id'] && (float) $card['points_percent'] > 0) {
+                $earning = array_values(array_filter($rows, fn ($row) => !$row['wallet']));
+                $points  = $this->pointsOf($earning, $total, $card['points_percent'], $this->qEarningMethodIds($this->branchId()));
+            }
+
             $sale = [
                 'in' => $in, 'lines' => $lines, 'subtotal' => $subtotal, 'total' => $total, 'due' => $due,
-                'applied' => $applied, 'rows' => $rows, 'credit' => $credit, 'wallet' => $wallet
+                'applied' => $applied, 'rows' => $rows, 'credit' => $credit, 'wallet' => $wallet,
+                'card' => $card, 'points' => $points
             ];
 
             return $this->transaction(function () use ($sale, $change) {
@@ -262,11 +337,15 @@ class ctrl extends core {
                 }
 
                 $usesAccount = $sale['credit'] > 0 || $sale['wallet'] > 0;
+                $earns       = $sale['points'] > 0;
 
                 // Todavia no se escribio nada: un rechazo aqui no deja la venta a medias.
                 if ($usesAccount) {
                     $fail = $this->accountCheck($this->qCreditCustomer($sale['in']['customer_id'], true), $sale);
                     if ($fail) return $fail;
+                } elseif ($earns) {
+                    // Mismo orden de bloqueos que el credito: turno y luego cliente.
+                    $this->qCreditCustomer($sale['in']['customer_id'], true);
                 }
 
                 $id      = $this->saveSale($sale, (int) $turn['id']);
@@ -279,8 +358,11 @@ class ctrl extends core {
                     'folio'    => (string) $id,
                     'change'   => round($change, 2),
                     'credit'   => $sale['credit'],
-                    'customer' => $usesAccount ? ['id' => $sale['in']['customer_id']] + $this->accountOf($sale['in']['customer_id']) : null,
-                    'ticket'   => $this->ticketData($id, $sale)
+                    'points'   => $sale['points'],
+                    'customer' => $usesAccount || $earns ? ['id' => $sale['in']['customer_id']] + $this->accountOf($sale['in']['customer_id']) : null,
+                    'ticket'   => $this->ticketData($id, $sale),
+                    // V7: el enlace al ticket va con el mismo permiso que imprimirlo.
+                    'share'    => Permission::can(self::SALES, 'print') ? $this->ticketShare($id, $sale['in']['phone']) : null
                 ]);
             });
         }, 'No se pudo registrar la venta.');
@@ -302,7 +384,7 @@ class ctrl extends core {
             'values' => [
                 'branch_id', 'customer_id', 'user_id', 'turn_id', 'sale_type_id', 'sale_status_id', 'delivery_method', 'delivery_status',
                 'note', 'subtotal', 'discount_amount', 'discount_percent', 'discount_reason_id', 'discount_note', 'discount_user_id',
-                'tip_amount', 'total', 'active'
+                'tip_amount', 'total', 'card_id', 'active'
             ],
             'data' => [
                 $this->branchId(), $in['customer_id'], $userId, $turnId, self::SALE_TYPE, $credit > 0 ? self::PENDING : self::PAID, 0, 1,
@@ -312,7 +394,9 @@ class ctrl extends core {
                 $applied ? $applied['reason_id'] : null,
                 $applied ? $applied['note'] : null,
                 $applied ? $userId : null,
-                $in['tip'], $sale['total'], 1
+                $in['tip'], $sale['total'],
+                $sale['card'] ? (int) $sale['card']['id'] : null,
+                1
             ]
         ]), 'addSale');
 
@@ -322,11 +406,23 @@ class ctrl extends core {
 
         $this->must($this->qUpdateOrder(['values' => ['folio'], 'where' => ['id'], 'data' => [(string) $id, $id]]), 'addSale folio');
 
+        $cuts = [];
+
         foreach ($sale['lines'] as $line) {
+            $off = $line['discount'];
+
             $this->must($this->qCreateLine([
-                'values' => ['sale_id', 'product_id', 'name', 'price', 'quantity', 'details', 'active'],
-                'data'   => [$id, $line['product_id'], $line['name'], $line['price'], $line['quantity'], $line['details'], 1]
+                'values' => ['sale_id', 'product_id', 'name', 'price', 'quantity', 'details', 'discount_amount', 'discount_percent', 'discount_reason_id', 'active'],
+                'data'   => [
+                    $id, $line['product_id'], $line['name'], $line['price'], $line['quantity'], $line['details'],
+                    $off ? $off['amount'] : 0,
+                    $off ? $off['percent'] : 0,
+                    $off ? $off['reason_id'] : null,
+                    1
+                ]
             ]), 'addSale line');
+
+            if ($off) $cuts[] = $line['name'] . ' −' . money($off['amount']) . ' (' . $off['percent'] . ' %) · Motivo: ' . $off['reason'];
         }
 
         $this->savePayments($id, $turnId, $sale['rows']);
@@ -334,11 +430,18 @@ class ctrl extends core {
         if ($sale['wallet'] > 0) $this->moveWallet($in['customer_id'], -$sale['wallet'], 'addSale wallet');
         if ($credit > 0)         $this->saveCreditCharge($id, $in['customer_id'], $turnId, $credit);
 
+        // Los puntos son dinero: suben el monedero y dejan su fila para poder quitarlos al cancelar.
+        if ($sale['points'] > 0) {
+            $this->savePoints($id, $in['customer_id'], $turnId, $sale['points'], "Puntos de la venta V{$id}");
+            $this->moveWallet($in['customer_id'], $sale['points'], 'addSale points');
+        }
+
         $tip   = $in['tip'] > 0 ? ' + propina ' . money($in['tip']) : '';
         $title = $credit > 0 ? 'Venta a crédito' : 'Venta cobrada';
 
         $this->log($id, 'event', $title, 'Venta de mostrador — total ' . money($sale['total']) . $tip . ', ' . $this->productsText(count($sale['lines'])) . '.');
 
+        if ($cuts)    $this->log($id, 'discount', 'Descuento por producto', implode('; ', $cuts) . '.');
         if ($applied) $this->log($id, 'discount', 'Descuento', $applied['text'] . ' Total: ' . money($sale['total']) . '.');
         if ($sale['rows']) $this->log($id, 'payment', 'Venta', $this->paymentsText($sale['rows']));
 
@@ -347,6 +450,8 @@ class ctrl extends core {
 
             $this->log($id, 'payment', 'A crédito', money($credit) . " a la cuenta de {$name}.");
         }
+
+        if ($sale['card']) $this->log($id, 'event', 'Tarjeta', $this->cardText($sale));
 
         return $id;
     }
@@ -373,19 +478,25 @@ class ctrl extends core {
     // Lo que el navegador imprime como ticket, con lo que quedo guardado.
     private function ticketData($id, array $sale) {
         $applied = $sale['applied'];
+        $card    = $sale['card'];
 
         return [
+            'card'     => $card ? ['type' => (string) $card['type'], 'number' => (string) $card['number']] : null,
+            'points'   => $sale['points'],
             'folio'    => (string) $id,
             'branch'   => $this->scope()['branch'],
             'date'     => date('Y-m-d H:i:s'),
             'user'     => $this->userName(),
             'customer' => $sale['in']['customer'] !== '' ? $sale['in']['customer'] : 'Público en general',
+            // amount ya va neto del descuento del renglon.
             'lines'    => array_map(fn ($l) => [
                 'name'     => $l['name'],
                 'quantity' => $l['quantity'],
                 'price'    => $l['price'],
                 'details'  => (string) $l['details'],
-                'amount'   => round($l['price'] * $l['quantity'], 2)
+                'discount' => $l['discount'] ? $l['discount']['amount'] : 0,
+                'reason'   => $l['discount'] ? $l['discount']['reason'] : '',
+                'amount'   => round($l['price'] * $l['quantity'] - ($l['discount'] ? $l['discount']['amount'] : 0), 2)
             ], $sale['lines']),
             'subtotal' => $sale['subtotal'],
             'discount' => $applied ? ['amount' => $applied['amount'], 'reason' => $applied['reason']] : null,
@@ -411,10 +522,11 @@ class ctrl extends core {
         $customer   = null;
 
         if ($customerId > 0) {
+            // El cliente es de toda la empresa: vale el de cualquiera de sus sucursales.
             $customer = $this->qGetCustomer($customerId);
-            $isLocal  = $customer && (int) $customer['branch_id'] === $this->branchId() && (int) $customer['active'] === 1;
+            $isLocal  = $customer && (int) $customer['company_id'] === $this->companyId() && (int) $customer['active'] === 1;
 
-            if (!$isLocal) return $this->fail(422, 'Ese cliente no está disponible en esta sucursal.');
+            if (!$isLocal) return $this->fail(422, 'Ese cliente no está disponible en esta empresa.');
         }
 
         $note = $this->textOrNull('note');
@@ -431,15 +543,18 @@ class ctrl extends core {
         return [
             'customer_id' => $customer ? (int) $customer['id'] : null,
             'customer'    => $customer ? trim((string) $customer['name']) : '',
+            'phone'       => $customer ? (string) $customer['phone'] : '',
             'note'        => $note,
             'tip'         => $tip,
             'lines'       => array_values($lines)
         ];
     }
 
-    // Renglones con nombre y precio de la base (catalogo) o los suyos (linea libre).
+    // Renglones con nombre y precio de la base (catalogo) o los suyos (linea libre),
+    // cada uno con su descuento ya validado (o null).
     private function resolveLines(array $raw) {
-        $lines = [];
+        $lines   = [];
+        $reasons = null;
 
         foreach ($raw as $n => $item) {
             $pos = 'Producto ' . ($n + 1);
@@ -460,28 +575,83 @@ class ctrl extends core {
 
                 if (!$product) return $this->fail(422, "{$pos}: ese producto ya no está en el catálogo.");
 
-                $lines[] = [
+                $line = [
                     'product_id' => (int) $product['id'],
                     'name'       => $product['name'],
                     'price'      => round((float) $product['price'], 2),
                     'quantity'   => $quantity,
                     'details'    => $details
                 ];
+            } else {
+                $name  = $this->cleanText(isset($item['name']) ? $item['name'] : '');
+                $price = $this->amountOf(isset($item['price']) ? $item['price'] : '', null);
 
-                continue;
+                if ($name === null)                     return $this->fail(422, "{$pos}: escribe el nombre.");
+                if ($this->tooLong($name, 150))         return $this->fail(422, "{$pos}: el nombre admite hasta 150 caracteres.");
+                if ($price === null || $price > 999999) return $this->fail(422, "{$pos}: escribe un precio válido.");
+
+                $line = ['product_id' => null, 'name' => $name, 'price' => $price, 'quantity' => $quantity, 'details' => $details];
             }
 
-            $name  = $this->cleanText(isset($item['name']) ? $item['name'] : '');
-            $price = $this->amountOf(isset($item['price']) ? $item['price'] : '', null);
+            $line['discount'] = null;
 
-            if ($name === null)                     return $this->fail(422, "{$pos}: escribe el nombre.");
-            if ($this->tooLong($name, 150))         return $this->fail(422, "{$pos}: el nombre admite hasta 150 caracteres.");
-            if ($price === null || $price > 999999) return $this->fail(422, "{$pos}: escribe un precio válido.");
+            if (isset($item['discount']) && $item['discount'] !== '' && $item['discount'] !== null) {
+                if ($reasons === null) $reasons = $this->qDiscountReasons($this->companyId());
 
-            $lines[] = ['product_id' => null, 'name' => $name, 'price' => $price, 'quantity' => $quantity, 'details' => $details];
+                $gross    = round($line['price'] * $line['quantity'], 2);
+                $discount = $this->lineDiscount($item['discount'], $gross, $pos, $reasons);
+
+                if (isset($discount['status'])) return $discount;
+
+                $line['discount'] = $discount;
+            }
+
+            $lines[] = $line;
         }
 
         return $lines;
+    }
+
+    // Descuento de un renglon: {reason_id, reason, amount, percent} o la respuesta de error.
+    // El monto se recalcula aqui; del navegador solo cuentan motivo, modo y valor.
+    private function lineDiscount($raw, $gross, $pos, array $reasons) {
+        if (!is_array($raw)) return $this->fail(422, "{$pos}: el descuento llegó mal. Recarga la página e intenta de nuevo.");
+
+        $reasonId = isset($raw['reason_id']) ? $this->intOf($raw['reason_id']) : null;
+        $mode     = isset($raw['mode']) ? (string) $raw['mode'] : '';
+        $value    = isset($raw['value']) ? $this->amountOf($raw['value'], null) : null;
+        $reason   = null;
+
+        if ($reasonId === null || $reasonId <= 0)            return $this->fail(422, "{$pos}: elige el motivo del descuento.");
+        if (!in_array($mode, ['percent', 'amount'], true))   return $this->fail(422, "{$pos}: el descuento va en % o en pesos.");
+        if ($value === null || $value <= 0)                  return $this->fail(422, "{$pos}: el descuento tiene que ser mayor a 0.");
+        if ($mode === 'percent' && $value > 100)             return $this->fail(422, "{$pos}: el descuento no puede pasar de 100 %.");
+
+        foreach ($reasons as $row) {
+            if ((int) $row['id'] === $reasonId) $reason = $row;
+        }
+
+        if (!$reason) return $this->fail(422, "{$pos}: ese motivo de descuento ya no existe.");
+
+        if ((int) $reason['requires_authorization'] === 1 && $this->needSales('cancel') !== null) {
+            return $this->fail(403, "{$pos}: el motivo «{$reason['name']}» lo autoriza un Dueño o Supervisor.");
+        }
+
+        $amount = $mode === 'percent' ? round($gross * $value / 100, 2) : $value;
+        $cap    = round($gross * (float) $reason['max_percent'] / 100, 2);
+
+        if ($amount <= 0)          return $this->fail(422, "{$pos}: el descuento tiene que ser mayor a \$0.");
+        if ($amount > $cap + 0.005) {
+            return $this->fail(422, "{$pos}: el motivo «{$reason['name']}» permite hasta " . (float) $reason['max_percent'] . ' % (' . money($cap) . ').');
+        }
+        if ($amount > $gross + 0.005) return $this->fail(422, "{$pos}: el descuento no puede ser mayor que el importe.");
+
+        return [
+            'reason_id' => (int) $reason['id'],
+            'reason'    => $reason['name'],
+            'amount'    => $amount,
+            'percent'   => $gross > 0 ? round($amount / $gross * 100, 2) : 0
+        ];
     }
 
     // [{method_id, amount, tendered}] limpio, o la respuesta 422. Sin pagos = [].
@@ -583,18 +753,74 @@ class ctrl extends core {
         ];
     }
 
+    // null = venta sin tarjeta. Si no: la tarjeta (activa, con tipo activo, de la empresa) o la respuesta de error.
+    private function cardInput(array $in) {
+        $cardId = $this->postId('card_id');
+
+        if ($cardId <= 0) return null;
+
+        $card = $this->qSaleCard($cardId, $this->branchId());
+
+        if (!$card) return $this->fail(422, 'Esa tarjeta ya no está activa en esta empresa. Quítala del ticket o lee otra.');
+
+        $owner = $card['owner_id'] !== null ? (int) $card['owner_id'] : 0;
+
+        // Los puntos van al cliente de la venta: con dueño, la venta tiene que ser suya.
+        if ($owner > 0 && $owner !== (int) $in['customer_id']) {
+            $name = trim((string) $card['customer']) !== '' ? trim((string) $card['customer']) : 'su dueño';
+
+            return $this->fail(422, "La tarjeta {$card['number']} es de {$name}. Elige a ese cliente o quita la tarjeta.");
+        }
+
+        return $card;
+    }
+
+    // El descuento que trae el tipo de la tarjeta, con la forma de discountCheck. null = no descuenta.
+    private function cardDiscount($subtotal, array $card) {
+        $amount = round($subtotal * (float) $card['discount_percent'] / 100, 2);
+
+        if ($amount <= 0) return null;
+
+        $percent = $subtotal > 0 ? round($amount / $subtotal * 100, 2) : 0;
+        $label   = 'Tarjeta ' . $card['type'];
+        $note    = $label . ' · ' . $card['number'];
+
+        return [
+            'reason_id' => null,
+            'reason'    => $label,
+            'amount'    => $amount,
+            'percent'   => $percent,
+            'note'      => $note,
+            'total'     => round($subtotal - $amount, 2),
+            'text'      => 'Descuento de ' . money($amount) . ' (' . $percent . ' %) · ' . $note . '.'
+        ];
+    }
+
+    // Lo que hizo la tarjeta en la venta, para la bitacora.
+    private function cardText(array $sale) {
+        $card = $sale['card'];
+        $text = 'Tarjeta ' . $card['type'] . ' · ' . $card['number'] . '.';
+
+        if ($sale['points'] > 0) {
+            $name  = $sale['in']['customer'] !== '' ? $sale['in']['customer'] : 'el cliente';
+            $text .= ' Abonó ' . money($sale['points']) . " en puntos al monedero de {$name}.";
+        }
+
+        return $text;
+    }
+
     // Pagos contra los metodos de la base y lo que se cobra. Devuelve los renglones o la respuesta de error.
     private function paymentRows(array $payments, $due) {
         if (!$payments) return [];
 
         $methods = [];
 
-        foreach ($this->qPaymentMethods($this->companyId()) as $method) {
+        foreach ($this->qPaymentMethods($this->branchId()) as $method) {
             $methods[(int) $method['id']] = $method;
         }
 
-        // El monedero esta oculto: qPaymentMethods no lo trae.
-        $purse = $this->qWalletMethod($this->companyId());
+        // El monedero va aparte: qPaymentMethods no lo trae.
+        $purse = $this->qWalletMethod($this->branchId());
 
         if ($purse) $methods[(int) $purse['id']] = $purse;
 
@@ -637,9 +863,9 @@ class ctrl extends core {
     /*  El monedero y el credito del cliente contra lo que pide la venta.
         $account llega bloqueado (qCreditCustomer con $lock). null = alcanza. */
     private function accountCheck($account, array $sale) {
-        $isLocal = $account && (int) $account['branch_id'] === $this->branchId() && (int) $account['active'] === 1;
+        $isLocal = $account && (int) $account['company_id'] === $this->companyId() && (int) $account['active'] === 1;
 
-        if (!$isLocal) return $this->fail(422, 'Ese cliente no está disponible en esta sucursal.');
+        if (!$isLocal) return $this->fail(422, 'Ese cliente no está disponible en esta empresa.');
 
         $name  = trim($account['name']) !== '' ? trim($account['name']) : 'el cliente';
         $debt  = $sale['credit'] > 0 ? $this->qCreditDebt((int) $account['id']) : 0;
@@ -704,8 +930,9 @@ class ctrl extends core {
     private function linesTotal(array $lines) {
         $total = 0;
 
+        // Neto: el descuento de cada renglon ya va restado.
         foreach ($lines as $line) {
-            $total += $line['price'] * $line['quantity'];
+            $total += $line['price'] * $line['quantity'] - ($line['discount'] ? $line['discount']['amount'] : 0);
         }
 
         return round($total, 2);

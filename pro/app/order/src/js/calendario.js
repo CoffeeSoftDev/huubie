@@ -178,57 +178,12 @@ class OrderCalendar extends Templates {
 
         if (dataInit.status != 200 || !this.can('show')) return;
 
-        this.paintTurn();
+        // Cobrar al entregar pide turno abierto: la franja de caja lo muestra arriba.
+        orderTurn.paintStrip(true);
     }
 
-    // Chip del turno: cobrar al entregar pide turno abierto. orderTurn.sync() lo repinta.
-    paintTurn() {
-        if (!$(`#headerActions${this.PROJECT_NAME}`).length || !this.can('show')) return;
-
-        const turn    = dataInit.turn;
-        const day     = dataInit.day || {};
-        const pending = day.pending && day.pending.length ? day.pending[0] : '';
-
-        let tone = 'is-none';
-        let text = 'Sin turno abierto';
-
-        if (turn && turn.old) {
-            tone = 'is-old';
-            text = `Turno ${turn.folio} de otro día`;
-        } else if (turn) {
-            tone = 'is-open';
-            text = `Turno ${turn.folio} · desde ${ordHour(String(turn.opened_at).slice(11, 16))}`;
-        } else if (day.closed) {
-            tone = 'is-closed';
-            text = 'Día cerrado';
-        } else if (pending) {
-            tone = 'is-old';
-            text = `Falta cerrar el ${ordDate(pending).slice(0, 5)}`;
-        }
-
-        this.createLayout({
-            parent: `headerActions${this.PROJECT_NAME}`,
-            design: false,
-            data: {
-                id:    `headerActionsBody${this.PROJECT_NAME}`,
-                class: 'flex items-center gap-[12px] flex-wrap justify-end',
-                container: [
-                    { type: 'span', id: `turnChip${this.PROJECT_NAME}`, class: `ord-turn-chip ${tone}`, html: `<span class="ord-turn-dot"></span>${esc(text)}` },
-                    { type: 'div', id: `headerButtons${this.PROJECT_NAME}`, class: 'flex' }
-                ]
-            }
-        });
-
-        this.coffeeForm({
-            parent:       `headerButtons${this.PROJECT_NAME}`,
-            id:           'formHeaderCalendar',
-            class:        'flex gap-[8px]',
-            showRequired: false,
-            json: [
-                { opc: 'button', id: 'btnTurnCalendar', class: 'col-auto', text: 'Turno actual', icon: 'icon-clock', color_btn: 'outline', onClick: () => orderTurn.open() }
-            ]
-        });
-    }
+    // El turno vive en la franja de caja (caja-strip.js). orderTurn.sync() la llama igual.
+    paintTurn() {}
 
     blocked(message) {
         this.createLayout({

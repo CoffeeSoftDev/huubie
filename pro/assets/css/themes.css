@@ -42,6 +42,14 @@
     --shadow-card:   0 1px 2px rgb(29 27 49 / .04), 0 10px 28px -14px rgb(var(--brand-600, 80 48 165) / .16);
     --shadow-hover:  0 2px 4px rgb(29 27 49 / .04), 0 18px 36px -14px rgb(var(--brand-600, 80 48 165) / .30);
 
+    /* El marco de la aplicación: la línea de abajo de la navbar y la derecha
+       del rail son LA MISMA, para que las dos piezas se lean como una sola
+       escuadra. Gris neutro y no del acento; --line (#ECEAF4) no alcanza a
+       verse sobre el blanco de las dos. La sombra despega la navbar del
+       contenido que pasa por debajo. */
+    --chrome-line:   #D5D9E0;
+    --chrome-shadow: 0 1px 2px rgb(16 24 40 / .04), 0 6px 14px -8px rgb(16 24 40 / .10);
+
     /* Card de módulo (ModuleCard): borde, caja del ícono y badge verde. */
     --raised-line:   var(--line);
     --icon-box-bg:   var(--accent-soft-bg);
@@ -164,6 +172,11 @@ body.dark-mode {
     /* En oscuro el relieve lo dan las superficies, no la sombra. */
     --shadow-card:    none;
     --shadow-hover:   0 14px 32px -14px rgb(0 0 0 / .55);
+
+    /* El marco (navbar + rail) en oscuro: la línea gris de siempre. Sin ella
+       el rail (#0F172A) se pierde contra la página (#111928). */
+    --chrome-line:    var(--dk-line);
+    --chrome-shadow:  0 2px 8px rgb(0 0 0 / .30);
 
     /* Card de módulo como la de alpha/: sin borde, caja del ícono sólida
        (#233876 en Huubie) con el ícono claro, y el badge en velo verde en

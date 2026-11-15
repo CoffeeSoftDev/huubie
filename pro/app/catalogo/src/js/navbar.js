@@ -317,8 +317,10 @@ class Navbar {
 
             /* ── Navbar estilo Visor ──
                El fondo real lo pone applyTheme() en línea; este blanco es el
-               del instante antes de aplicarlo. */
-            .navbar-main { background:#FFFFFF; border-bottom:1px solid var(--nav-accent-line) !important; transition:background .2s ease; }
+               del instante antes de aplicarlo. La línea de abajo y la sombra son
+               las del marco (--chrome-*, themes.css): la misma línea gris que el
+               rail lleva a la derecha, no la del acento. */
+            .navbar-main { background:#FFFFFF; border-bottom:1px solid var(--chrome-line, #D5D9E0) !important; box-shadow:var(--chrome-shadow, 0 1px 2px rgb(16 24 40 / .04)); transition:background .2s ease; }
 
             .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
             /* El logo lleva al inicio (los módulos). Uno por modo, igual que en la
@@ -1359,12 +1361,20 @@ $(async () => {
     // data-branches="off": una pantalla sin sucursal elegida, donde la píldora no aplica.
     const withBranches = $("#menu-navbar").data("branches") !== "off";
 
-    const branchInfo = withBranches ? await useFetch({ url: ctrlUrl, data: { opc: 'branches' } }) : null;
+    // Las sucursales ya vienen en la sesión: ctrl-nav no tiene opc 'branches'
+    // (pedirla devolvía vacío y la píldora quedaba deshabilitada).
+    const initials = (name) => {
+        const parts = String(name || '').trim().split(/\s+/);
+        return ((parts[0] ? parts[0][0] : '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+    };
 
-    const branches = branchInfo?.branches || [];
-    const company  = branchInfo?.company  || data.company || '';
+    const branches = withBranches
+        ? (data.branches || []).map((b) => ({ ...b, initials: initials(b.name) }))
+        : [];
+    const company  = data.company || '';
+    const selected = branches.find((b) => b.selected);
     const current  = withBranches
-        ? (branchInfo?.current || { id: data.branch_id || 0, name: data.branch || '' })
+        ? (selected ? { id: selected.id, name: selected.name } : { id: 0, name: data.branch || '' })
         : { id: 0, name: '' };
 
     const navbar = new Navbar();
