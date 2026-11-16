@@ -1049,12 +1049,13 @@ button.ord-pay-go:hover { background: rgb(var(--brand-700, 168 74 51)); }
 #modalOrderPay:not(.is-history) .op-pane-history,
 #modalOrderPay.is-history .cs-modal-save { display: none !important; }
 
-/* -- Pastel personalizado: alto fijo -- */
+/* -- Pastel personalizado: alto fijo --
+   Ancho max-w-6xl (pedido-captura.js › cakeForm): las opciones caben en tres columnas. */
 #modalOrderCake .cs-modal-panel {
     display: flex;
     flex-direction: column;
-    height: min(860px, calc(100vh - 4rem));
-    height: min(860px, calc(100dvh - 4rem));
+    height: min(940px, calc(100vh - 4rem));
+    height: min(940px, calc(100dvh - 4rem));
 }
 
 #modalOrderCake .cs-modal-head,

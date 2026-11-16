@@ -97,6 +97,11 @@ class mdl extends CRUD {
         return $this->qRow("SELECT id, name FROM {$this->bd}companies WHERE id = ? LIMIT 1", [$id]);
     }
 
+    // Solo el logo (para el ticket impreso): scope() no lo necesita y no se toca.
+    public function qCompanyLogo($id) {
+        return $this->qRow("SELECT IFNULL(logo, '') AS logo FROM {$this->bd}companies WHERE id = ? LIMIT 1", [$id]);
+    }
+
     public function qFirstBranch($companyId) {
         return $this->qRow("
             SELECT id, name, company_id

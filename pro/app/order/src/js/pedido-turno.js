@@ -30,19 +30,17 @@ class OrderTurn extends Templates {
     // -- Entrada --
 
     // opts.afterOpen: lo que sigue cuando el turno queda abierto (p. ej. volver al cobro).
-    // opts.partial: «Corte caja X» de la franja; enseña el corte sin cerrar ni abrir turno.
     async open(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
         this.afterOpen = (opts && opts.afterOpen) || null;
 
-        const partial = !!(opts && opts.partial);
-        const data    = await this.fetchTurn(id);
+        const data = await this.fetchTurn(id);
         if (!data) return;
 
-        if (!id && !data.brief && !partial && data.can.open) return this.openForm(data);
+        if (!id && !data.brief && data.can.open) return this.openForm(data);
 
-        if (!id && !data.brief && !partial && data.can.open_reason) {
+        if (!id && !data.brief && data.can.open_reason) {
             return this.locked({ title: dataInit.day && dataInit.day.closed ? 'Día cerrado' : 'Día pendiente de cierre', message: data.can.open_reason, day: true }, this.afterOpen);
         }
 
@@ -51,7 +49,7 @@ class OrderTurn extends Templates {
             return;
         }
 
-        this.cut(data, partial);
+        this.cut(data);
     }
 
     // 423 del ctrl. Con day = true el bloqueo es el día (cerrado o pendiente), no el turno.
@@ -177,8 +175,9 @@ class OrderTurn extends Templates {
             footerNote:  last
                 ? `Último: turno ${esc(last.folio)}, cerrado ${esc(ordDate(last.closed_at, true))} · <button type="button" class="ord-last-cut underline underline-offset-2">Ver corte</button>`
                 : '',
+            // La sucursal va en negritas: es lo que se revisa antes de abrir (display pinta el HTML tal cual).
             json: [
-                { opc: 'display', id: 'sucursal',    lbl: 'Sucursal',              icon: icon('house'), value: esc(branch) },
+                { opc: 'display', id: 'sucursal',    lbl: 'Sucursal',              icon: icon('house'), value: `<strong class="font-bold">${esc(branch)}</strong>` },
                 { opc: 'display', id: 'responsable', lbl: 'Responsable',           icon: icon('user'),  value: esc(data.user || 'Sin asignar') },
                 { opc: 'money',   id: 'openingAmount', lbl: 'Fondo inicial de caja (opcional)', placeholder: '0.00', min: 0, step: 0.01, autofocus: true }
             ],
@@ -235,10 +234,9 @@ class OrderTurn extends Templates {
 
     // -- Corte --
 
-    // partial: Corte X pedido desde la franja; el turno abierto se ve sin cerrarlo.
-    cut(data, partial = false) {
+    cut(data) {
         const t        = data.turn;
-        const closing  = !t.closed && data.can.close && !partial;
+        const closing  = !t.closed && data.can.close;
         const reopen   = t.closed && data.can.reopen;
         const canPrint = orders.can('print');
 

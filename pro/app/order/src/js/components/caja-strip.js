@@ -14,8 +14,10 @@
     Con el día pendiente se suma «Ir a Cortes»: ahí se cierra el día.
     En Ventas se suma «Cierre del día»: se enciende cuando hoy ya se abrió más
     de un turno. En las demás pantallas se queda en su encabezado.
+    También en Ventas, al final, va «Ir a Pedidos»: cambia a pedidos.php.
+    Lo ve quien ve esa sección, tenga o no create.
 
-    Quien no tiene create (Consulta) no ve botones: nunca Abrir, Cerrar ni «Ir a Cortes». */
+    Quien no tiene create (Consulta) no ve Abrir, Cerrar, «Cierre del día» ni «Ir a Cortes». */
 
 // -- Franja de caja --
 
@@ -173,6 +175,12 @@ class CajaStrip extends Templates {
             list.push({ id: 'btnCajaCuts', icon: 'file-text', text: 'Ir a Cortes', kind: 'is-cuts', on: true, onClick: () => { location.href = 'cortes.php'; } });
         }
 
+        // Ventas › cambiar a Pedidos sin pasar por el menú. No depende de create ni del turno.
+        // is-nav no tiene color propio en order.css: el ícono sale gris.
+        if (this.onSale() && this.seesOrders()) {
+            list.push({ id: 'btnCajaOrders', icon: 'clipboard-list', text: 'Ir a Pedidos', kind: 'is-nav', on: true, onClick: () => { location.href = 'pedidos.php'; } });
+        }
+
         this.coffeeForm({
             parent:       'cajaStripActions',
             id:           'formCajaStrip',
@@ -232,6 +240,12 @@ class CajaStrip extends Templates {
     // Ventas no tiene «Cierre del día» en el encabezado: va en la franja.
     onSale() {
         return typeof Sale !== 'undefined' && orders instanceof Sale;
+    }
+
+    // Ve Pedidos quien tiene al menos una acción en esa sección: la regla del menú.
+    // En Ventas dataInit.actions son las de pos-pedidos (ctrl-ventas.php › init).
+    seesOrders() {
+        return ((dataInit && dataInit.actions) || []).length > 0;
     }
 
     // La captura de Pedidos está abierta (Ventas usa el mismo #posOrderHost, pero no vuelve a ningún lado).

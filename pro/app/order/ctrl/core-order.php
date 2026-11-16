@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../../core/security/_Session.php';
 require_once __DIR__ . '/../../../core/security/_Permission.php';
+require_once __DIR__ . '/../../../core/helpers/_CoffeeSoft.php';
 require_once __DIR__ . '/../mdl/mdl-order.php';
 
 /*  Base de los ctrl de Pedidos (la forma de Catalogo).
@@ -83,6 +84,14 @@ class core extends mdl {
         $main = $this->qFirstBranch($this->companyId());
 
         return $main ? (int) $main['id'] : $this->branchId();
+    }
+
+    // URL del logo de la empresa para el ticket impreso ('' si no ha subido uno).
+    // 4 = los dirname() de app/order/ctrl/ a pro/ (companyLogoUrl, _CoffeeSoft.php).
+    protected function companyLogo() {
+        $row = $this->qCompanyLogo($this->companyId());
+
+        return $row ? companyLogoUrl($row['logo'], 4) : '';
     }
 
     /*  Crear exige el turno de HOY abierto, como alpha: sin turno el pedido no

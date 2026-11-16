@@ -91,16 +91,15 @@ class Sale extends OrderForm {
 
     // -- Interface --
 
-    // Las pestañas viven en el panel de la venta: Ventas no usa el encabezado.
     // sale-pos: colores del tema oscuro como la captura de alpha, solo aquí (order.css).
     layout() {
         super.layout();
 
         $('#posOrderHost').addClass('sale-pos');
-        $('#posOrderHead').removeClass('flex').addClass('hidden');
     }
 
     // Ventas no tiene «Volver a pedidos»: aquí solo se pinta la franja de caja.
+    // El cambio a Pedidos va en la franja: «Ir a Pedidos» (components/caja-strip.js).
     backButton() {
         orderTurn.paintStrip(true);
     }
@@ -530,98 +529,43 @@ class Sale extends OrderForm {
             .catch(() => this.warn('El navegador no permitió la pantalla completa.'));
     }
 
+    // La pre-cuenta sale con el formato del ticket (el de alpha), marcada «PRE-CUENTA».
+    // Arma lo mismo que manda el ctrl al cobrar, con lo que hay en pantalla.
     previewSale() {
         if (!this.lines.length) return this.warn('Agrega al menos un producto.');
 
-        const user     = dataInit.user || {};
         const card     = this.currentTicket().card;
         const subtotal = this.saleTotal();
         const off      = card ? this.cardOff(subtotal, card) : 0;
-        const total    = this.round2(subtotal - off);
-        const row      = (a, b, strong) => `<tr${strong ? ' class="b"' : ''}><td>${a}</td><td class="r">${b}</td></tr>`;
 
         const lines = this.lines.map((line) => {
-            const off   = this.lineOff(line);
-            const note  = line.details ? `<div class="s">Obs.: ${esc(line.details)}</div>` : '';
-            const cut   = off > 0 ? `<div class="s">Desc. −${money(off)} · ${esc(line.discount.reason)}</div>` : '';
-            const total = this.round2(this.unitPrice(line) * line.quantity - off);
+            const cut = this.lineOff(line);
 
-            return `<tr><td>${line.quantity} × ${esc(line.name)}${note}${cut}</td><td class="r">${money(total)}</td></tr>`;
-        }).join('');
+            return {
+                name:     line.name,
+                quantity: line.quantity,
+                details:  line.details,
+                discount: cut,
+                reason:   cut > 0 ? line.discount.reason : '',
+                amount:   this.round2(this.unitPrice(line) * line.quantity - cut)
+            };
+        });
 
-        const body = `
-            <h1>Pre-cuenta</h1>
-            <div class="c">${esc(this.opts.branch)}</div>
-            <div class="c s">Ticket ${this.active} · ${ordNow()}</div>
-            <hr>
-            <table>
-                ${row('Atiende', esc(user.name || ''))}
-                ${row('Cliente', esc(this.customerName()))}
-                ${card ? row('Tarjeta', esc(`${card.type} · ${card.number}`)) : ''}
-            </table>
-            <hr>
-            <table>${lines}</table>
-            <hr>
-            <table>
-                ${off > 0 ? row('Subtotal', money(subtotal)) : ''}
-                ${off > 0 ? row(`Descuento · Tarjeta ${esc(card.type)}`, '−' + money(off)) : ''}
-                ${row('Total', money(total), true)}
-            </table>
-            <hr>
-            <div class="c"><b>PRE-CUENTA · NO ES COMPROBANTE</b></div>`;
-
-        ordPrint('Pre-cuenta', body);
+        ordPrintTicket({
+            branch:   this.opts.branch,
+            user:     (dataInit.user || {}).name || '',
+            customer: this.customerName(),
+            card:     card || null,
+            lines:    lines,
+            subtotal: subtotal,
+            discount: off > 0 ? { amount: off, reason: `Tarjeta ${card.type}` } : null,
+            total:    this.round2(subtotal - off)
+        }, { draft: this.active });
     }
 
+    // El formato es el del ticket de alpha: ordPrintTicket (pedido-detalle.js).
     printSale(t) {
-        const row = (a, b, strong) => `<tr${strong ? ' class="b"' : ''}><td>${a}</td><td class="r">${b}</td></tr>`;
-
-        // l.amount ya llega neto del descuento de la partida.
-        const lines = (t.lines || []).map((l) => {
-            const note = l.details ? `<div class="s">Obs.: ${esc(l.details)}</div>` : '';
-            const cut  = Number(l.discount) > 0 ? `<div class="s">Desc. −${money(l.discount)}${l.reason ? ' · ' + esc(l.reason) : ''}</div>` : '';
-
-            return `<tr><td>${Number(l.quantity)} × ${esc(l.name)}${note}${cut}</td><td class="r">${money(l.amount)}</td></tr>`;
-        }).join('');
-
-        const payments = (t.payments || []).map((p) => {
-            const change = p.cash && Number(p.change) > 0
-                ? `<tr><td colspan="2" class="s">Recibió ${money(p.tendered)} · cambio ${money(p.change)}</td></tr>`
-                : '';
-
-            return row(esc(p.method), money(p.amount)) + change;
-        }).join('');
-
-        const tip    = Number(t.tip) > 0;
-        const credit = Number(t.credit) > 0.005;
-        const points = Number(t.points) > 0.005;
-        const body   = `
-            <h1>Venta V${esc(t.folio)}</h1>
-            <div class="c">${esc(t.branch)}</div>
-            <div class="c s">${ordDate(t.date, true)}</div>
-            <hr>
-            <table>
-                ${row('Atiende', esc(t.user))}
-                ${row('Cliente', esc(t.customer))}
-                ${t.card ? row('Tarjeta', esc(`${t.card.type} · ${t.card.number}`)) : ''}
-            </table>
-            <hr>
-            <table>${lines}</table>
-            <hr>
-            <table>
-                ${t.discount ? row('Subtotal', money(t.subtotal)) : ''}
-                ${t.discount ? row(`Descuento${t.discount.reason ? ' · ' + esc(t.discount.reason) : ''}`, '−' + money(t.discount.amount)) : ''}
-                ${row('Total', money(t.total), true)}
-                ${tip ? row('Propina', money(t.tip)) : ''}
-                ${tip ? row('Cobrado', money(t.charged), true) : ''}
-                ${payments}
-                ${credit ? row('A crédito', money(t.credit), true) : ''}
-                ${points ? row('Puntos al monedero', money(t.points)) : ''}
-            </table>
-            <hr>
-            <div class="c s">Impreso ${ordNow()}</div>`;
-
-        ordPrint(`Venta V${t.folio}`, body);
+        ordPrintTicket(t);
     }
 
     // -- CRUD --

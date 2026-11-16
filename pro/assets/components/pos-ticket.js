@@ -69,6 +69,9 @@ function posTicketCSS() {
         + '.pos-tkl-sub.is-mods,.pos-tkl-sub.is-dedication,.pos-tkl-sub.is-note{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;width:100%;overflow:hidden;overflow-wrap:anywhere}'
         + '.pos-tkl-sub.is-mods{color:var(--po-ink-2)}'
         + '.pos-tkl-sub.is-dedication{font-style:italic;color:var(--po-ink-2)}'
+        + 'button.pos-tkl-sub.is-link{margin:0;padding:0;border:0;border-radius:4px;background:transparent;color:var(--po-brand-ink);font-weight:600;cursor:pointer}'
+        + 'button.pos-tkl-sub.is-link:hover{text-decoration:underline}'
+        + 'button.pos-tkl-sub.is-link:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}'
         + '.pos-tkl-bottom{display:flex;align-items:center;gap:8px;margin-top:2px}'
         + '.pos-tkl-qty{display:inline-flex;align-items:center;gap:2px;height:28px;flex-shrink:0;padding:2px;border:1px solid var(--po-line-hi);border-radius:8px;background:var(--po-surface)}'
         + '.pos-tkl-qty b{min-width:24px;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;color:var(--po-ink)}'
@@ -348,9 +351,12 @@ Templates.prototype.posTicketLines = function (options) {
 
         if (line.chip) subs.append($('<span>', { class: `pos-tkl-chip t-${line.chip.tone || 'gray'}`, text: line.chip.text }));
 
+        // Con onClick el detalle se vuelve botón (ej. «3 fotos» abre el visor).
         (line.sub || []).forEach((sub) => {
-            const part = $('<span>', { class: `pos-tkl-sub${sub.tone ? ` is-${sub.tone}` : ''}` });
+            const tag  = sub.onClick ? '<button>' : '<span>';
+            const part = $(tag, { class: `pos-tkl-sub${sub.tone ? ` is-${sub.tone}` : ''}${sub.onClick ? ' is-link' : ''}` });
 
+            if (sub.onClick) part.attr('type', 'button').on('click', sub.onClick);
             if (sub.icon) part.append(posTicketIcon(sub.icon), ' ');
 
             part.append($('<span>', { text: sub.text }));

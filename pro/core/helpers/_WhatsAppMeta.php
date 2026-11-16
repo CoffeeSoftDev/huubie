@@ -1,16 +1,23 @@
 <?php
-/*  WHATSAPP DE META (Cloud API) para el agente: lo que llega al webhook.
+/*  WHATSAPP DE META (Cloud API) para el agente: lo que llega al webhook y lo
+    que se le contesta al cliente.
 
-    Solo entiende a Meta: no toca la base ni manda nada. Lo usa
-    app/order/ctrl/ctrl-whatsapp-webhook.php. El envio por Meta llega en F2.
+    Solo entiende a Meta: no toca la base. Lo usan
+    app/order/ctrl/ctrl-whatsapp-webhook.php y la bandeja (ctrl-whatsapp.php).
 
-        WHATSAPP_META_APP_SECRET    el secreto de la app de Meta (Configuracion de
-                                    la app > Basica). Con el, Meta firma cada aviso.
-        WHATSAPP_META_VERIFY_TOKEN  la palabra que se escribe igual en el panel de
-                                    Meta al registrar el webhook.
+        WHATSAPP_META_APP_SECRET     el secreto de la app de Meta (Configuracion de
+                                     la app > Basica). Con el, Meta firma cada aviso.
+        WHATSAPP_META_VERIFY_TOKEN   la palabra que se escribe igual en el panel de
+                                     Meta al registrar el webhook.
+        WHATSAPP_META_TOKEN          el token de acceso para ENVIAR (usuario del
+                                     sistema de la cuenta de Meta). Sin el, todo
+                                     envio es simulado: no sale a la red y queda
+                                     con status 'simulated'.
+        WHATSAPP_META_GRAPH_VERSION  opcional; la version de la Graph API (v23.0).
 
-    Los dos viven en pro/core/config/.env y nunca salen en el log ni en una
-    respuesta. Sin secreto, signed() rechaza todo; sin token, challenge() tambien.
+    Viven en pro/core/config/.env y nunca salen en el log ni en una respuesta.
+    Sin secreto, signed() rechaza todo; sin token de verificacion, challenge()
+    tambien.
 
     Los avisos al duenio (Green API / UltraMsg) siguen en _WhatsApp.php, sin
     cambios: este archivo es solo del agente. */
@@ -20,20 +27,29 @@ class WhatsAppMeta {
     const MAX_NAME = 120;       // caracteres del nombre del perfil (wa_chat.name)
     const MAX_RAW  = 65000;     // bytes de raw (columna TEXT); mas grande = no se guarda
     const MEDIA    = ['image', 'audio', 'video', 'document', 'sticker'];
+    const STATUSES = ['sent', 'delivered', 'read', 'failed'];
+    const GRAPH    = 'v23.0';
 
     private $secret;
     private $verifyToken;
+    private $token;
+    private $graph = self::GRAPH;
 
-    // Sin argumentos lee el .env. Con argumentos (el arnes de pruebas) no lo toca.
-    function __construct($secret = null, $verifyToken = null) {
-        if ($secret === null || $verifyToken === null) {
+    // Sin argumentos lee el .env. Con los tres (el arnes de pruebas) no lo toca.
+    function __construct($secret = null, $verifyToken = null, $token = null) {
+        if ($secret === null || $verifyToken === null || $token === null) {
             $env = $this->env();
             if ($secret === null)      $secret      = $env['WHATSAPP_META_APP_SECRET'] ?? '';
             if ($verifyToken === null) $verifyToken = $env['WHATSAPP_META_VERIFY_TOKEN'] ?? '';
+            if ($token === null)       $token       = $env['WHATSAPP_META_TOKEN'] ?? '';
+
+            $graph = $env['WHATSAPP_META_GRAPH_VERSION'] ?? '';
+            if (preg_match('/^v\d{1,3}\.\d{1,2}$/', $graph)) $this->graph = $graph;
         }
 
         $this->secret      = (string) $secret;
         $this->verifyToken = (string) $verifyToken;
+        $this->token       = preg_match('/^\S+$/', (string) $token) ? (string) $token : '';
     }
 
     // -- .env --
@@ -55,6 +71,24 @@ class WhatsAppMeta {
 
     function hasSecret() {
         return $this->secret !== '';
+    }
+
+    /*  Lo que la pantalla puede saber, sin un solo valor del .env:
+          simulated  sin WHATSAPP_META_TOKEN: nada sale a la red.
+          ready      hay token y el webhook puede recibir (secreto y verificacion).
+          missing    los NOMBRES de las llaves que faltan para recibir. */
+    function status() {
+        $missing = [];
+        if ($this->secret === '')      $missing[] = 'WHATSAPP_META_APP_SECRET';
+        if ($this->verifyToken === '') $missing[] = 'WHATSAPP_META_VERIFY_TOKEN';
+        if ($this->token === '')       $missing[] = 'WHATSAPP_META_TOKEN';
+
+        return [
+            'provider'  => 'meta',
+            'simulated' => $this->token === '',
+            'ready'     => !$missing,
+            'missing'   => $missing,
+        ];
     }
 
     // -- Verificacion del webhook (GET) --
@@ -98,9 +132,77 @@ class WhatsAppMeta {
           sent_at          unix; la hora de Meta, o la de ahora si no vino
           raw              el mensaje en JSON (null si no cabe)
           skip             '' = se guarda; si no, por que se ignora
-        Los "statuses" (entregado, leido) y los demas campos no son mensajes del
-        cliente: no salen aqui. */
+        Los "statuses" (entregado, leido) salen en statuses(). */
     static function incoming(array $payload) {
+        $out = [];
+
+        foreach (self::values($payload) as $value) {
+            $number = self::pick($value, ['metadata', 'phone_number_id']);
+
+            $names = [];
+            foreach (self::items($value, 'contacts') as $contact) {
+                $waId = self::pick($contact, ['wa_id']);
+                if ($waId !== '') $names[$waId] = self::pick($contact, ['profile', 'name']);
+            }
+
+            foreach (self::items($value, 'messages') as $message) {
+                $out[] = self::flat($number, $names, $message);
+            }
+        }
+
+        return $out;
+    }
+
+    /*  Cada cambio de estado de un mensaje que SALIO, ya plano:
+          phone_number_id  el numero de la empresa que lo mando
+          wamid            el provider_id que se guardo al enviarlo
+          status           sent · delivered · read · failed
+          at               unix; la hora de Meta, o la de ahora si no vino
+          error            solo en failed: el codigo y el motivo de Meta (255 max)
+          skip             '' = se aplica; si no, por que se ignora */
+    static function statuses(array $payload) {
+        $out = [];
+
+        foreach (self::values($payload) as $value) {
+            $number = self::pick($value, ['metadata', 'phone_number_id']);
+
+            foreach (self::items($value, 'statuses') as $st) {
+                $wamid  = self::pick($st, ['id']);
+                $status = strtolower(self::pick($st, ['status']));
+                $ts     = self::pick($st, ['timestamp']);
+
+                $skip = '';
+                if (!preg_match('/^\d{1,32}$/', $number))             $skip = 'sin phone_number_id';
+                else if ($wamid === '' || strlen($wamid) > 128)       $skip = 'sin wamid';
+                else if (!in_array($status, self::STATUSES, true))    $skip = 'estado desconocido';
+
+                $error = null;
+                if ($status === 'failed') {
+                    $first = self::items($st, 'errors')[0] ?? [];
+                    $parts = array_filter([
+                        self::pick($first, ['code']),
+                        self::pick($first, ['error_data', 'details']) ?: (self::pick($first, ['message']) ?: self::pick($first, ['title'])),
+                    ], 'strlen');
+
+                    $error = self::cut($parts ? implode(' · ', $parts) : 'Meta no dijo el motivo', 255);
+                }
+
+                $out[] = [
+                    'phone_number_id' => $number,
+                    'wamid'           => $wamid,
+                    'status'          => $status,
+                    'at'              => preg_match('/^\d{1,12}$/', $ts) ? (int) $ts : time(),
+                    'error'           => $error,
+                    'skip'            => $skip,
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    // El "value" de cada cambio del campo messages (ahi vienen mensajes y statuses).
+    private static function values(array $payload) {
         $out = [];
         if (self::pick($payload, ['object']) !== 'whatsapp_business_account') return $out;
 
@@ -108,22 +210,98 @@ class WhatsAppMeta {
             foreach (self::items($entry, 'changes') as $change) {
                 if (self::pick($change, ['field']) !== 'messages') continue;
 
-                $value  = (is_array($change) && isset($change['value']) && is_array($change['value'])) ? $change['value'] : [];
-                $number = self::pick($value, ['metadata', 'phone_number_id']);
-
-                $names = [];
-                foreach (self::items($value, 'contacts') as $contact) {
-                    $waId = self::pick($contact, ['wa_id']);
-                    if ($waId !== '') $names[$waId] = self::pick($contact, ['profile', 'name']);
-                }
-
-                foreach (self::items($value, 'messages') as $message) {
-                    $out[] = self::flat($number, $names, $message);
-                }
+                $out[] = (is_array($change) && isset($change['value']) && is_array($change['value'])) ? $change['value'] : [];
             }
         }
 
         return $out;
+    }
+
+    // -- Envio --
+
+    /*  Un texto al cliente desde el numero de la empresa ($phoneNumberId).
+        Devuelve ok, status (sent|failed|simulated), detail (el error),
+        provider_id (el wamid que da Meta; null si no salio) y to.
+        Sin WHATSAPP_META_TOKEN no sale a la red: 'simulated'. */
+    function send($phoneNumberId, $phone, $text) {
+        $to     = self::metaPhone($phone);
+        $text   = trim((string) $text);
+        $answer = ['ok' => false, 'status' => 'failed', 'detail' => '', 'provider_id' => null, 'to' => $to];
+
+        if ($to === '')   return array_merge($answer, ['detail' => 'El teléfono del cliente no es válido.']);
+        if ($text === '') return array_merge($answer, ['detail' => 'El mensaje está vacío.']);
+        if (mb_strlen($text, 'UTF-8') > self::MAX_TEXT) return array_merge($answer, ['detail' => 'El mensaje pasa de ' . self::MAX_TEXT . ' caracteres.']);
+
+        if ($this->token === '') return self::simulated($to);
+
+        if (!preg_match('/^\d{1,32}$/', (string) $phoneNumberId)) {
+            return array_merge($answer, ['detail' => 'El número de la empresa no tiene phone_number_id.']);
+        }
+
+        $url  = 'https://graph.facebook.com/' . $this->graph . '/' . $phoneNumberId . '/messages';
+        $body = json_encode([
+            'messaging_product' => 'whatsapp',
+            'recipient_type'    => 'individual',
+            'to'                => $to,
+            'type'              => 'text',
+            'text'              => ['preview_url' => false, 'body' => $text],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        try {
+            $res = $this->request($url, $body);
+        } catch (Throwable $e) {
+            self::log('[ ENVIO ] :: ' . $e->getMessage());
+
+            return array_merge($answer, ['detail' => 'No se pudo llamar a Meta.']);
+        }
+
+        $wamid = self::pick($res['body'] ?? null, ['messages', 0, 'id']);
+
+        if ($res['code'] >= 200 && $res['code'] < 300 && $wamid !== '' && strlen($wamid) <= 128) {
+            return array_merge($answer, ['ok' => true, 'status' => 'sent', 'provider_id' => $wamid]);
+        }
+
+        $detail = self::pick($res['body'] ?? null, ['error', 'message']);
+        if ($detail === '') $detail = $res['error'] !== '' ? $res['error'] : 'Meta contestó HTTP ' . $res['code'] . '.';
+
+        self::log('[ ENVIO ] :: HTTP ' . $res['code'] . ' · ' . $detail);
+
+        return array_merge($answer, ['detail' => self::cut($detail, 255)]);
+    }
+
+    // La respuesta de un envio que no sale a la red.
+    static function simulated($to) {
+        return ['ok' => true, 'status' => 'simulated', 'detail' => '', 'provider_id' => null, 'to' => (string) $to];
+    }
+
+    // [code, error, body]. El token va en el encabezado y nunca al log.
+    protected function request($url, $payload) {
+        $curl = curl_init();
+
+        curl_setopt_array($curl, [
+            CURLOPT_URL            => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_HTTPHEADER     => [
+                'Accept: application/json',
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->token,
+            ],
+        ]);
+
+        $raw   = curl_exec($curl);
+        $error = curl_error($curl);
+        $code  = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        return [
+            'code'  => $code,
+            'error' => (string) $error,
+            'body'  => is_string($raw) && $raw !== '' ? json_decode($raw, true) : null,
+        ];
     }
 
     private static function flat($number, array $names, $message) {
@@ -215,6 +393,17 @@ class WhatsAppMeta {
         if (strlen($digits) === 12 && strpos($digits, '52') === 0)  return substr($digits, 2);
 
         return $digits;
+    }
+
+    // Como lo pide Meta para enviar: Mexico = 52 + 10 digitos; de otro pais, sus digitos.
+    static function metaPhone($phone) {
+        $digits = preg_replace('/\D/', '', (string) $phone);
+
+        if (strlen($digits) === 10) return '52' . $digits;
+        if (strlen($digits) === 13 && strpos($digits, '521') === 0) return '52' . substr($digits, 3);
+        if (strlen($digits) >= 8 && strlen($digits) <= 15) return $digits;
+
+        return '';
     }
 
     // -- Ayudantes --

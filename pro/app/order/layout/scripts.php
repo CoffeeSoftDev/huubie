@@ -49,6 +49,9 @@
 
     $files = $script !== '' ? ['pedido-detalle', 'components/pos-cake', 'pedido-captura', 'components/caja-strip', 'pedido-turno', 'pedido-cobro', 'pedido-cierre', 'components/ticket-share', $script] : [];
 
+    // WhatsApp: la bandeja del agente va antes de la pagina, que la instancia.
+    if ($script === 'whatsapp') array_splice($files, -1, 0, ['whatsapp-bandeja']);
+
     foreach ($files as $name):
         $src = $local($name);
         if ($src === '') continue;

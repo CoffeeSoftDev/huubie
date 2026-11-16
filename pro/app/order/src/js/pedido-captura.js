@@ -192,6 +192,8 @@ class OrderForm extends Templates {
         this.ticketBox = null;
     }
 
+    // Sin encabezado, igual que Ventas: catálogo y ticket arrancan arriba y miden lo mismo.
+    // «Volver a pedidos» vive en la franja de caja (backButton).
     layout() {
         this.createLayout({
             parent: 'posOrderHost',
@@ -200,14 +202,6 @@ class OrderForm extends Templates {
                 id:    'posOrder',
                 class: 'flex-1 min-h-0 flex flex-col gap-[12px]',
                 container: [
-                    {
-                        type:  'div',
-                        id:    'posOrderHead',
-                        class: 'shrink-0 flex flex-wrap items-center justify-between gap-[12px]',
-                        children: [
-                            { id: 'posOrderBack', class: 'shrink-0' }
-                        ]
-                    },
                     {
                         type:  'div',
                         id:    'posOrderBody',
@@ -435,7 +429,7 @@ class OrderForm extends Templates {
         if (line.type === 'custom') {
             sub.push({ text: `${line.portions} ${line.portions === 1 ? 'porción' : 'porciones'}` });
 
-            if (line.images.length) sub.push({ text: `${line.images.length} ${line.images.length === 1 ? 'foto' : 'fotos'}`, icon: 'image' });
+            if (line.images.length) sub.push({ text: `${line.images.length} ${line.images.length === 1 ? 'foto' : 'fotos'}`, icon: 'image', onClick: () => this.showPhotos(i) });
 
             if (line.modifiers.length) {
                 sub.push({ tone: 'mods', text: line.modifiers.map((m) => m.multiple && m.quantity > 1 ? `${m.name} ×${m.quantity}` : m.name).join(' · ') });
@@ -696,7 +690,7 @@ class OrderForm extends Templates {
             title:      line ? 'Editar pastel' : '¡Arma tu pastel!',
             subtitle:   'Personaliza cada detalle; el precio sugerido se calcula solo',
             lucideIcon: 'cake-slice',
-            width:      'max-w-4xl',
+            width:      'max-w-6xl',
             saveText:   line ? 'Guardar' : 'Agregar',
             body:       '<div id="ocWizard"></div>',
             onSave:     (values, close) => this.saveCake(close)
@@ -784,6 +778,22 @@ class OrderForm extends Templates {
 
         this.cake.images.splice(index, 1);
         this.cakeBox.images(this.cakeImages());
+    }
+
+    // Clic en «N fotos» de la partida: el mismo visor del detalle del pedido (OrderDetail.preview).
+    showPhotos(index) {
+        const line = this.lines[index];
+
+        if (!line || !line.images || !line.images.length) return;
+
+        const key = `form-${index}`;
+
+        orderDetail.galleries[key] = {
+            images: line.images.map((img) => ({ path: img.path, name: img.original_name || img.name || '' })),
+            index:  0
+        };
+
+        orderDetail.preview(key, 0);
     }
 
     // -- CRUD --

@@ -77,19 +77,28 @@ function ordRound(n) {
 
 // Hoja de ~80 mm en un iframe oculto: no abre ventana ni cambia de pagina.
 function ordPrint(title, body) {
+    const css = `
+        @page { margin: 4mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; width: 300px; margin: 0 auto; }
+        h1 { font-size: 16px; text-align: center; margin: 0 0 2px; }
+        h2 { font-size: 12px; margin: 0 0 4px; text-transform: uppercase; }
+        .c { text-align: center; } .r { text-align: right; white-space: nowrap; vertical-align: top; }
+        .s { font-size: 10.5px; color: #333; } .b td { font-weight: bold; }
+        .d { display: block; } .x td { color: #666; }
+        hr { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
+        table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; }`;
+
+    ordPrintDoc(title, css, body);
+}
+
+/*  Escribe la hoja en el iframe oculto y la manda a imprimir. La usan ordPrint
+    (pedido, cortes y cierre) y ordPrintTicket (venta); cada una trae su CSS.
+    Si la hoja lleva imágenes (el logo del ticket) espera a que carguen, 2 s
+    como mucho: con solo el tiempo fijo el logo podía salir en blanco. */
+function ordPrintDoc(title, css, body) {
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(title)}</title>
-        <style>
-            @page { margin: 4mm; }
-            * { box-sizing: border-box; }
-            body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; width: 300px; margin: 0 auto; }
-            h1 { font-size: 16px; text-align: center; margin: 0 0 2px; }
-            h2 { font-size: 12px; margin: 0 0 4px; text-transform: uppercase; }
-            .c { text-align: center; } .r { text-align: right; white-space: nowrap; vertical-align: top; }
-            .s { font-size: 10.5px; color: #333; } .b td { font-weight: bold; }
-            .d { display: block; } .x td { color: #666; }
-            hr { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
-            table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; }
-        </style></head><body>${body}</body></html>`;
+        <style>${css}</style></head><body>${body}</body></html>`;
 
     $('#ordPrintFrame').remove();
 
@@ -104,10 +113,16 @@ function ordPrint(title, body) {
     doc.write(html);
     doc.close();
 
-    setTimeout(() => {
+    const images = Promise.all(Array.from(doc.images).map((img) => img.decode().catch(() => { })));
+    const limit  = new Promise((resolve) => setTimeout(resolve, 2000));
+
+    Promise.race([images, limit]).then(() => setTimeout(() => {
+        // Otra impresión ya quitó este iframe.
+        if (!frame.contentWindow) return;
+
         frame.contentWindow.focus();
         frame.contentWindow.print();
-    }, 250);
+    }, 250));
 }
 
 // 'DD/MM/AAAA h:mm AM' de ahora.
@@ -116,6 +131,181 @@ function ordNow() {
     const pad = (n) => String(n).padStart(2, '0');
 
     return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${ordHour(pad(now.getHours()) + ':' + pad(now.getMinutes()))}`;
+}
+
+// -- Ticket de venta (formato de alpha) --
+
+/*  El ticket de alpha (ticketPasteleria, alpha/pedidos › pedidos-catalogo.js)
+    para las ventas de mostrador: logo redondo, empresa y sucursal, datos,
+    PRODUCTOS con CANT. / DESCRIPCIÓN / IMPORTE, totales a la derecha y el pie.
+
+    Las medidas son las que alpha imprime de verdad, medidas en su ventana de
+    impresión: carga Tailwind 2 con la letra base en 12px, así que 1rem = 12px
+    (text-xs 9px, text-sm 10.5px, text-base 12px, text-lg 13.5px, text-xl 15px).
+    Aquí van escritas a mano: el iframe no carga nada de fuera.
+
+    Lo único que no se copia es el alto mínimo de 600px: solo gastaba papel. */
+const ORD_TICKET_CSS = `
+    @page { margin: 0; size: auto; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; width: 100%; background: #fff; color: #000; font-family: Consolas, 'Roboto Mono', 'Lucida Console', monospace; font-size: 12px; line-height: 1.5; }
+    h1, p { margin: 0; }
+    hr { height: 0; margin: 0; border: 0; border-top: 1px dashed #e5e7eb; }
+    .tk { width: 100%; padding: 12px; background: #fff; color: #111827; }
+    .tk-head { display: flex; flex-direction: column; align-items: center; margin: 9px 0 12px; }
+    .tk-logo { width: 96px; height: 96px; margin-bottom: 3px; border-radius: 50%; }
+    .tk-logo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .tk-logo span { color: #fff; font-size: 36px; font-weight: 700; }
+    .tk-logo.is-img { overflow: hidden; }
+    .tk-logo.is-none { display: flex; align-items: center; justify-content: center; background: #7c3aed; }
+    .tk-logo.is-img span, .tk-logo.is-none img { display: none; }
+    .tk-company, .tk-branch, .tk-tag, .tk-reason, .tk-stamp, .tk-notes div, .tk-small { font-size: 9px; line-height: 12px; }
+    .tk-company { margin-bottom: 3px; font-weight: 600; text-transform: uppercase; }
+    .tk-branch { text-transform: uppercase; }
+    .tk h1 { font-size: 13.5px; line-height: 21px; font-weight: 700; }
+    .tk-tag { font-weight: 700; color: #dc2626; text-transform: uppercase; }
+    .tk-reason { text-align: center; }
+    .tk-data, .tk-items, .tk-totals { font-size: 10.5px; line-height: 15px; }
+    .tk-data > * + * { margin-top: 6px; }
+    .tk-row { display: flex; justify-content: space-between; gap: 8px; }
+    .tk-row > div:last-child { text-align: right; }
+    .tk-label { font-weight: 600; }
+    .tk-up { text-transform: uppercase; }
+    .tk-stamp { color: #4b5563; }
+    .tk-items { margin-top: 9px; }
+    .tk-items-title { margin-bottom: 6px; text-align: center; font-weight: 700; }
+    .tk-cols { display: flex; justify-content: space-between; }
+    .tk-cols.is-head { padding-bottom: 6px; font-weight: 600; }
+    .tk-c1 { width: 16.666667%; } .tk-c2 { width: 50%; } .tk-c3 { width: 33.333333%; text-align: right; }
+    .tk-line { padding: 3px 0 6px; }
+    .tk-name { font-weight: 700; text-transform: capitalize; }
+    .tk-notes { margin-top: 1.5px; padding-left: 6px; }
+    .tk-notes div { margin-left: 3px; }
+    hr.tk-cut { margin: 6px 0; }
+    .tk-totals { margin-top: 12px; text-align: right; }
+    .tk-totals > * + * { margin-top: 3px; }
+    .tk-base { font-size: 12px; line-height: 18px; }
+    .tk-big { font-size: 15px; line-height: 21px; font-weight: 700; }
+    .tk-bold { font-weight: 700; }
+    .tk-amt { font-weight: 600; }
+    .tk-foot { margin-top: 18px; text-align: center; font-size: 9px; line-height: 12px; font-weight: 700; color: #111827; }
+    .tk-foot > * + * { margin-top: 3px; }
+    .tk-brand { font-size: 10.5px; line-height: 15px; }`;
+
+/*  t = el ticket como lo arma el ctrl (ticketData en ctrl-ventas.php, ticketOf
+    en ctrl-historial.php). La empresa y su logo salen de dataInit.scope.
+    opts.draft   = número del ticket en espera: sale como PRE-CUENTA, sin folio.
+    opts.reprint = true desde el Historial: dice «Reimpreso». */
+function ordPrintTicket(t, opts = {}) {
+    const scope   = (typeof dataInit !== 'undefined' && dataInit && dataInit.scope) || {};
+    const company = scope.company || '';
+    const draft   = opts.draft || 0;
+    const initial = esc(String(company || t.branch || 'H').charAt(0).toUpperCase());
+    const amount  = (text) => `<span class="tk-amt">${text}</span>`;
+
+    // Sin logo, o si la imagen no carga, queda el círculo con la inicial (como alpha).
+    const logo = scope.logo
+        ? `<div class="tk-logo is-img"><img src="${esc(scope.logo)}" alt="Logo" onerror="this.parentNode.className='tk-logo is-none'"><span>${initial}</span></div>`
+        : `<div class="tk-logo is-none"><span>${initial}</span></div>`;
+
+    const tag = draft ? 'PRE-CUENTA' : (t.cancelled ? 'CANCELADA' : '');
+
+    // l.amount ya llega neto del descuento de la partida.
+    const lines = (t.lines || []).map((l) => {
+        const note = l.details ? `<div>Obs.: ${esc(l.details)}</div>` : '';
+        const cut  = Number(l.discount) > 0 ? `<div>Desc. −${money(l.discount)}${l.reason ? ' · ' + esc(l.reason) : ''}</div>` : '';
+
+        return `
+            <div class="tk-line">
+                <div class="tk-cols">
+                    <div class="tk-c1">${Number(l.quantity)}</div>
+                    <div class="tk-c2 tk-name">${esc(l.name)}</div>
+                    <div class="tk-c3">${money(l.amount)}</div>
+                </div>
+                ${note || cut ? `<div class="tk-notes">${note}${cut}</div>` : ''}
+            </div>`;
+    }).join('');
+
+    const payments = (t.payments || []).map((p) => {
+        const change = p.cash && Number(p.change) > 0
+            ? `<div class="tk-small">Recibió ${money(p.tendered)} · cambio ${money(p.change)}</div>`
+            : '';
+
+        return `<div>${esc(p.method)}: ${amount(money(p.amount))}</div>${change}`;
+    }).join('');
+
+    const tip    = Number(t.tip) > 0;
+    const credit = Number(t.credit) > 0.005;
+    const points = Number(t.points) > 0.005;
+    const reason = t.discount && t.discount.reason ? ' · ' + esc(t.discount.reason) : '';
+
+    const body = `
+        <div class="tk">
+            <div class="tk-head">
+                ${logo}
+                ${company ? `<div class="tk-company">${esc(company)}</div>` : ''}
+                ${t.branch ? `<div class="tk-branch">${esc(t.branch)}</div>` : ''}
+                <h1>TICKET DE VENTA</h1>
+                ${tag ? `<div class="tk-tag">${tag}</div>` : ''}
+                ${!draft && t.cancelled && t.cancel_reason ? `<div class="tk-reason">${esc(t.cancel_reason)}</div>` : ''}
+            </div>
+            <div class="tk-data">
+                <div class="tk-row">
+                    <div>
+                        <div class="tk-label">${draft ? 'TICKET:' : 'FOLIO:'}</div>
+                        <div class="tk-up">${draft ? esc(draft) : 'V' + esc(t.folio)}</div>
+                    </div>
+                    <div>
+                        <div class="tk-label">FECHA Y HORA:</div>
+                        <div class="tk-up">${draft ? ordNow() : ordDate(t.date, true)}</div>
+                    </div>
+                </div>
+                <div class="tk-row">
+                    <div>
+                        <div class="tk-label">CLIENTE:</div>
+                        <div class="tk-up">${esc(t.customer)}</div>
+                    </div>
+                    <div>
+                        <div class="tk-label">ATIENDE:</div>
+                        <div class="tk-up">${esc(t.user)}</div>
+                    </div>
+                </div>
+                ${t.card ? `
+                <div>
+                    <div class="tk-label">TARJETA:</div>
+                    <div class="tk-up">${esc(`${t.card.type} · ${t.card.number}`)}</div>
+                </div>` : ''}
+                ${draft ? '' : `<div class="tk-stamp">${opts.reprint ? 'Reimpreso' : 'Impreso'}: ${ordNow()}</div>`}
+                <hr>
+            </div>
+            <div class="tk-items">
+                <div class="tk-items-title">PRODUCTOS</div>
+                <div class="tk-cols is-head">
+                    <div class="tk-c1">CANT.</div>
+                    <div class="tk-c2">DESCRIPCIÓN</div>
+                    <div class="tk-c3">IMPORTE</div>
+                </div>
+                ${lines || '<div class="tk-line">Sin productos</div>'}
+            </div>
+            <hr class="tk-cut">
+            <div class="tk-totals">
+                ${t.discount ? `<div class="tk-base">Subtotal: ${amount(money(t.subtotal))}</div>` : ''}
+                ${t.discount ? `<div>Descuento${reason}: ${amount('−' + money(t.discount.amount))}</div>` : ''}
+                <div class="tk-big">TOTAL: ${money(t.total)}</div>
+                ${tip ? `<div>Propina: ${amount(money(t.tip))}</div>` : ''}
+                ${tip ? `<div class="tk-bold">Cobrado: ${money(t.charged)}</div>` : ''}
+                ${payments}
+                ${credit ? `<div class="tk-bold">A crédito: ${money(t.credit)}</div>` : ''}
+                ${points ? `<div>Puntos al monedero: ${amount(money(t.points))}</div>` : ''}
+            </div>
+            <div class="tk-foot">
+                <p>${draft ? 'PRE-CUENTA · NO ES COMPROBANTE' : 'ESTE NO ES UN COMPROBANTE FISCAL'}</p>
+                <p class="tk-brand">Huubie</p>
+                <p>GRACIAS POR SU PREFERENCIA</p>
+            </div>
+        </div>`;
+
+    ordPrintDoc(draft ? 'Pre-cuenta' : `Venta V${t.folio}`, ORD_TICKET_CSS, body);
 }
 
 // -- Tablas --

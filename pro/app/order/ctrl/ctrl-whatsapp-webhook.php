@@ -1,6 +1,7 @@
 <?php
-/*  F1 · Agente de WhatsApp: la direccion a la que Meta (Cloud API) avisa cada
-    mensaje que le escriben al numero de una empresa.
+/*  Agente de WhatsApp (F1 y F2): la direccion a la que Meta (Cloud API) avisa
+    cada mensaje que le escriben al numero de una empresa y cada cambio de
+    estado (enviado, entregado, leido, fallido) de lo que se le contesto.
 
     En el panel de Meta (WhatsApp > Configuracion > Webhook):
       URL de devolucion de llamada  la de este archivo, con https
@@ -24,8 +25,13 @@
       - Si la base falla se contesta 500 y Meta reintenta el aviso completo (hasta
         7 dias); lo que ya se habia guardado cuenta como repetido.
       - El telefono se guarda en 10 digitos si es de Mexico (Meta manda 521 + 10).
-      - En F1 no se le contesta nada al cliente. Los "statuses" (entregado, leido)
-        llegan en F2, con el envio. */
+      - Un status cambia wa_message.status buscando por provider_id (el wamid que
+        dio Meta al enviar), solo en mensajes que salieron de esa empresa, y solo
+        hacia adelante: un "entregado" que llega despues del "leido" no lo regresa.
+      - Despues de guardar corre lo automatico del agente (WhatsAppAgentFlow): la
+        sucursal que eligio el cliente y el menu de sucursales. Fuera de horario
+        no sale nada. Si eso falla se apunta en el log y Meta recibe 200 igual:
+        el mensaje ya quedo guardado. */
 
 require_once __DIR__ . '/../mdl/mdl-order.php';
 require_once __DIR__ . '/../mdl/mdl-whatsapp-agente.php';
@@ -33,16 +39,33 @@ require_once __DIR__ . '/../../../core/helpers/_WhatsAppMeta.php';
 
 class WhatsAppWebhook extends mdl {
 
-    use WhatsAppInbox;
+    use WhatsAppInbox, WhatsAppAgentFlow;
+
+    // De donde a donde puede avanzar un status de Meta ('sent' ya es el de salida).
+    const STATUS_FROM = [
+        'delivered' => ['sent'],
+        'read'      => ['sent', 'delivered'],
+        'failed'    => ['sent', 'delivered'],
+    ];
 
     private $meta;
+    private $companies = [];   // phone_number_id => company_id (0 = sin alta), por aviso
 
     public function __construct(?WhatsAppMeta $meta = null) {
         parent::__construct();
         $this->meta = $meta ?: new WhatsAppMeta();
     }
 
-    // [codigo HTTP, texto de la respuesta, conteo del POST (new, repeated, ignored)]
+    // El agente envia con el mismo WhatsAppMeta (el arnes le pone uno de prueba).
+    protected function inboxMeta() {
+        return $this->meta;
+    }
+
+    protected function inboxLog($message) {
+        $this->log($message);
+    }
+
+    // [codigo HTTP, texto de la respuesta, conteo del POST (new, repeated, ignored, statuses)]
     public function handle($method, array $query, $raw, $signature) {
         if ($method === 'GET') {
             $challenge = $this->meta->challenge($query);
@@ -85,8 +108,10 @@ class WhatsAppWebhook extends mdl {
     // -- Guardar --
 
     protected function receive(array $payload) {
-        $count     = ['new' => 0, 'repeated' => 0, 'ignored' => 0];
-        $companies = [];   // phone_number_id => company_id (0 = sin alta)
+        $count   = ['new' => 0, 'repeated' => 0, 'ignored' => 0, 'statuses' => 0];
+        $replies = [];   // company_id => [chat_id => el texto mas nuevo del cliente]
+
+        $this->companies = [];
 
         foreach (WhatsAppMeta::incoming($payload) as $msg) {
             if ($msg['skip'] !== '') {
@@ -95,61 +120,79 @@ class WhatsAppWebhook extends mdl {
                 continue;
             }
 
-            $number = $msg['phone_number_id'];
+            $companyId = $this->companyOf($msg['phone_number_id']);
 
-            if (!array_key_exists($number, $companies)) {
-                $agent = $this->qWaAgentByNumber($number);
-                if ($agent === null) throw new RuntimeException('wa_agent: sin respuesta de la base');
-
-                $companies[$number] = (int) $agent['n'] > 0 ? (int) $agent['company_id'] : 0;
-            }
-
-            if ($companies[$number] === 0) {
+            if ($companyId === 0) {
                 $count['ignored']++;
-                $this->log("[ WEBHOOK ] :: el numero {$number} no esta en wa_agent; mensaje {$msg['wamid']} ignorado");
+                $this->log("[ WEBHOOK ] :: el numero {$msg['phone_number_id']} no esta en wa_agent; mensaje {$msg['wamid']} ignorado");
                 continue;
             }
 
-            $companyId = $companies[$number];
-
-            $saved = $this->transaction(function () use ($companyId, $msg) {
-                return $this->saveIncoming($companyId, $msg);
+            $chatId = $this->transaction(function () use ($companyId, $msg) {
+                return $this->inboxSave($companyId, $msg);
             });
 
-            $count[$saved ? 'new' : 'repeated']++;
+            if ($chatId > 0) {
+                $count['new']++;
+                $replies[$companyId][$chatId] = $msg['body'];
+            } else {
+                $count['repeated']++;
+            }
+        }
+
+        foreach (WhatsAppMeta::statuses($payload) as $st) {
+            if ($st['skip'] !== '') {
+                $count['ignored']++;
+                $this->log("[ WEBHOOK ] :: status ignorado ({$st['skip']})");
+                continue;
+            }
+
+            $companyId = $this->companyOf($st['phone_number_id']);
+            $applied   = $companyId > 0 ? $this->applyStatus($companyId, $st) : null;
+
+            if ($applied === null) {
+                $count['ignored']++;
+                $this->log("[ WEBHOOK ] :: status {$st['status']} de {$st['wamid']} sin mensaje que le corresponda");
+            } else if ($applied) {
+                $count['statuses']++;
+            }
+        }
+
+        foreach ($replies as $companyId => $chats) {
+            try {
+                $this->inboxAfter($companyId, $chats);
+            } catch (Throwable $e) {
+                $this->log('[ AGENTE ] :: empresa ' . $companyId . ' :: ' . $e->getMessage());
+            }
         }
 
         return $count;
     }
 
-    // Un mensaje, dentro de transaction(). false = ya estaba (Meta lo repitio).
-    private function saveIncoming($companyId, array $msg) {
-        $now    = date('Y-m-d H:i:s');
-        $sentAt = date('Y-m-d H:i:s', $msg['sent_at']);
+    // true = cambio; false = ya estaba igual o mas adelante; null = no hay mensaje de esa empresa con ese wamid.
+    private function applyStatus($companyId, array $st) {
+        $row = $this->qWaOutByProvider($companyId, $st['wamid']);
+        if ($row === null) return null;
 
-        $chatId = $this->qWaLockChat($companyId, $msg['phone'], $msg['wa_id'], $msg['name'], $now);
-        if ($chatId <= 0) throw new RuntimeException('wa_chat: no se pudo abrir el chat');
+        $from = self::STATUS_FROM[$st['status']] ?? [];
+        if (!in_array($row['status'], $from, true)) return false;
 
-        if ($this->qWaMessageExists($msg['wamid'])) return false;
-
-        $this->must($this->qCreateWaMessage([
-            'values' => ['chat_id', 'direction', 'provider_id', 'type', 'body', 'media_id', 'media_type', 'status', 'sent_at', 'raw', 'created_at'],
-            'data'   => [$chatId, 'in', $msg['wamid'], $msg['type'], $msg['body'], $msg['media_id'], $msg['media_type'], 'received', $sentAt, $msg['raw'], $now],
-        ]), 'wa_message');
-
-        $this->qWaTouchChat($chatId, $sentAt, $now);
+        $this->qWaSetStatus((int) $row['id'], $st['status'], $st['error'], $from);
 
         return true;
     }
 
     // -- Ayudantes --
 
-    private function must($result, $what) {
-        if ($result !== true) {
-            throw new RuntimeException($what . ': ' . (is_string($result) ? $result : 'sin respuesta de la base'));
+    private function companyOf($number) {
+        if (!array_key_exists($number, $this->companies)) {
+            $agent = $this->qWaAgentByNumber($number);
+            if ($agent === null) throw new RuntimeException('wa_agent: sin respuesta de la base');
+
+            $this->companies[$number] = (int) $agent['n'] > 0 ? (int) $agent['company_id'] : 0;
         }
 
-        return true;
+        return $this->companies[$number];
     }
 
     protected function log($message) {

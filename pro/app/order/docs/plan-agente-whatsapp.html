@@ -184,13 +184,13 @@ ul.sources span { color: var(--muted); }
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">Plan · Huubie pro · 15/11/2026 · decisiones de F0 respondidas</div>
+    <div class="eyebrow">Plan · Huubie pro · 15/11/2026 · F1 y F2 hechas en local el 16/11/2026</div>
     <h1>Agente de WhatsApp</h1>
     <p class="lead">Los clientes le escriben al número de la empresa y un agente contesta con los datos del punto de venta: catálogo, precios, estado del pedido y lo que deben. Toma pedidos del catálogo elegido como borrador en Tienda en línea; lo personalizado pasa a una persona. Solo atiende en horario y arranca proponiendo respuestas que una persona aprueba.</p>
     <div class="facts">
-      <div class="fact"><b>52–66 h</b><span>por construir, F1 a F6</span></div>
-      <div class="fact"><b>F0 hecha</b><span>8 decisiones del 15/11/2026</span></div>
-      <div class="fact"><b>Nada construido</b><span>este documento es el plan</span></div>
+      <div class="fact"><b>35–45 h</b><span>por construir, F3 a F6</span></div>
+      <div class="fact"><b>F0, F1 y F2 hechas</b><span>decisiones 15/11 · entrada y bandeja 16/11</span></div>
+      <div class="fact"><b>Solo en local</b><span>producción: migración antes del código</span></div>
     </div>
   </header>
 
@@ -209,7 +209,7 @@ ul.sources span { color: var(--muted); }
       <div class="piece">
         <span class="pill acc">Este plan</span>
         <h3>Agente de WhatsApp</h3>
-        <p>Ahora el que escribe es el cliente y Huubie contesta por el número de la empresa. Reusa lo de los avisos: <code>_WhatsApp.php</code> (gana el proveedor Meta), <code>wa_recipient</code>, <code>wa_log</code> y la página.</p>
+        <p>Ahora el que escribe es el cliente y Huubie contesta por el número de la empresa. Reusa de los avisos <code>wa_recipient</code>, <code>wa_log</code> y la página. Lo de Meta va aparte, en <code>_WhatsAppMeta.php</code>.</p>
         <p>Sigue el patrón del plan de avatars del 14/11/2026: el webhook solo guarda, un proceso por minuto piensa y una bandeja aprueba.</p>
       </div>
     </div>
@@ -268,11 +268,11 @@ ul.sources span { color: var(--muted); }
     <div class="flow-grid">
       <ol class="flow">
         <li><div><b>El cliente escribe al número de la empresa</b><span>El número dice qué empresa atiende. La sucursal la elige el cliente la primera vez y queda guardada en <code>wa_chat</code>. El texto del cliente nunca cambia la empresa.</span></div></li>
-        <li><div><b>Meta avisa al webhook</b><span>Meta Cloud API llama a <code>wa-webhook.php</code> en producción. En local no hay webhook: todo se prueba con el simulador.</span></div></li>
+        <li><div><b>Meta avisa al webhook</b><span>Meta Cloud API llama a <code>app/order/ctrl/ctrl-whatsapp-webhook.php</code> en producción. En local Meta no lo alcanza: se prueba con el arnés y el simulador.</span></div></li>
         <li><div><b>El webhook solo guarda</b><span>Valida la firma de Meta, escribe en <code>wa_message</code>, descarta repetidos por el id del mensaje y responde 200 al instante. No llama al modelo.</span></div></li>
         <li><div><b>Un proceso por minuto toma los pendientes, solo en horario</b><span>Cron. Fuera de horario no corre: los mensajes esperan a la apertura. Junta los últimos 20 mensajes del chat, los datos de la sucursal y las herramientas permitidas.</span></div></li>
         <li><div><b>El agente responde con datos reales</b><span>Solo consulta por herramientas, cada una filtrada por la sucursal del chat y el teléfono. El modelo se elige en F3 midiendo (decisión 4).</span></div></li>
-        <li><div><b>La respuesta sale o espera</b><span>Modo propuesta: va a la bandeja con Enviar, Editar y Descartar. Modo automático: sale por <code>WhatsApp::send()</code> con el proveedor Meta.</span></div></li>
+        <li><div><b>La respuesta sale o espera</b><span>Modo propuesta: va a la bandeja con Enviar, Editar y Descartar. Modo automático: sale por Meta con <code>_WhatsAppMeta.php</code>.</span></div></li>
         <li><div><b>Todo queda registrado</b><span>La conversación en <code>wa_message</code> y cada envío en <code>wa_log</code>, como los avisos.</span></div></li>
       </ol>
       <div class="phone" role="img" aria-label="Conversación de ejemplo entre una clienta y el agente">
@@ -377,30 +377,35 @@ ul.sources span { color: var(--muted); }
         </div>
       </div>
       <div class="phase">
-        <div class="phase-id"><b>F1</b><span>6–8 h</span></div>
+        <div class="phase-id"><b>F1</b><span>Hecha</span></div>
         <div class="phase-body">
-          <h3>Entrada de mensajes</h3>
+          <h3>Entrada de mensajes <span class="pill ok">16/11/2026 · local</span></h3>
           <ul>
-            <li>Migración <code>wa_chat</code>, <code>wa_message</code>, <code>wa_proposal</code>, <code>wa_agent</code>, <code>wa_agent_product</code>, con rollback.</li>
-            <li><code>wa-webhook.php</code> en producción: responde la verificación de Meta (<code>hub.challenge</code>), valida <code>X-Hub-Signature-256</code>, guarda y descarta repetidos.</li>
-            <li>La empresa sale del <code>phone_number_id</code> que Meta manda en cada mensaje, buscado en <code>wa_agent</code>.</li>
+            <li>Migración <code>2026-11-16_whatsapp-agente.sql</code>, con rollback: <code>wa_chat</code>, <code>wa_message</code>, <code>wa_proposal</code>, <code>wa_agent</code>, <code>wa_agent_product</code>.</li>
+            <li><code>app/order/ctrl/ctrl-whatsapp-webhook.php</code>, sin sesión: responde la verificación de Meta (<code>hub.challenge</code>), valida <code>X-Hub-Signature-256</code>, guarda y descarta repetidos por el id del mensaje (wamid).</li>
+            <li>La empresa sale del <code>phone_number_id</code> que Meta manda en cada mensaje, buscado en <code>wa_agent</code>. Un número sin alta se ignora con 200 y queda en <code>whatsapp.log</code>.</li>
+            <li>Lo que solo entiende a Meta (firma, verificación, leer el aviso) vive en <code>core/helpers/_WhatsAppMeta.php</code>. Llaves nuevas en el <code>.env</code>: <code>WHATSAPP_META_APP_SECRET</code> y <code>WHATSAPP_META_VERIFY_TOKEN</code>.</li>
           </ul>
-          <div class="done-when"><b>Listo cuando:</b> un mensaje simulado aparece una sola vez en <code>wa_message</code> aunque llegue dos veces, y uno con firma falsa se rechaza.</div>
+          <div class="done-when"><b>Listo:</b> arnés del 16/11/2026, 57 pruebas en verde contra la base local. El mismo aviso dos veces deja un solo mensaje; la firma falsa da 401, también por Apache.</div>
+          <div class="done-when"><b>Falta en producción, en este orden:</b> migración, código, llaves en el <code>.env</code>, fila de la empresa en <code>wa_agent</code> y al final registrar el webhook en Meta.</div>
         </div>
       </div>
       <div class="phase">
-        <div class="phase-id"><b>F2</b><span>11–13 h</span></div>
+        <div class="phase-id"><b>F2</b><span>Hecha</span></div>
         <div class="phase-body">
-          <h3>Bandeja de conversaciones</h3>
+          <h3>Bandeja de conversaciones <span class="pill ok">16/11/2026 · local</span></h3>
           <ul>
-            <li>Pestaña «Conversaciones» en la página WhatsApp: lista de chats, hilo con burbujas (reusa <code>wspBubble</code>) y respuesta a mano.</li>
-            <li><code>_WhatsApp.php</code> gana el proveedor <code>meta</code>: número como <code>52</code> + 10 dígitos. Los avisos siguen por Green API.</li>
-            <li>Menú fijo de sucursales la primera vez; la elegida queda en <code>wa_chat.branch_id</code>.</li>
-            <li>Pestaña «Agente»: encender y horario por día. Atender la bandeja pide un permiso nuevo sobre <code>pos-whatsapp</code>.</li>
-            <li>Si el último mensaje del cliente tiene más de 24 h, la bandeja no deja escribir libre: Meta solo acepta plantilla.</li>
-            <li>Simulador: escribir como si fueras el cliente, sin Meta.</li>
+            <li>Pestaña «Conversaciones» (<code>src/js/whatsapp-bandeja.js</code>): lista de chats con búsqueda y filtro por sucursal, hilo con burbujas (reusa <code>wspBubble</code>) y respuesta a mano. Se refresca cada 20 s.</li>
+            <li>El envío por Meta va en <code>_WhatsAppMeta.php</code> con el número como <code>52</code> + 10 dígitos. Sin <code>WHATSAPP_META_TOKEN</code> todo queda <code>simulated</code>. <code>_WhatsApp.php</code> no se tocó.</li>
+            <li>El webhook lee los <code>statuses</code> de Meta (enviado, entregado, leído, fallido) y actualiza <code>wa_message.status</code> por <code>provider_id</code>; un estado nunca retrocede.</li>
+            <li>Menú fijo de sucursales al primer mensaje, solo en horario; la elegida (número o nombre) queda en <code>wa_chat.branch_id</code>. Con una sola sucursal activa se asigna sola.</li>
+            <li>Pestaña «Agente»: encender y un tramo por día (cierre 00:00 = medianoche). Atender la bandeja = acción <code>update</code> de <code>pos-whatsapp</code>, dada a los roles que ya tenían <code>create</code>.</li>
+            <li>Si el último mensaje del cliente tiene más de 24 h, no se puede escribir libre; también lo frena el controlador (409).</li>
+            <li>«Simular cliente»: escribe como el cliente, sin Meta; el chat queda marcado «Simulado».</li>
+            <li>Migración <code>2026-11-16_whatsapp-bandeja.sql</code>, con rollback: el permiso <code>update</code> y las columnas <code>wa_chat.menu_at</code> y <code>wa_chat.seen_at</code>.</li>
           </ul>
-          <div class="done-when"><b>Listo cuando:</b> se atiende un chat completo a mano desde Huubie, y un mensaje que llega fuera de horario no recibe nada automático hasta la apertura.</div>
+          <div class="done-when"><b>Listo:</b> 16/11/2026, arnés F2 con 79 pruebas en verde y arnés F1 sin regresiones (58). Recorrido en el navegador: fuera de horario no salió nada; al abrir el agente salió el menú, el cliente eligió sucursal, la respuesta a mano salió simulada y pasadas 24 h se bloqueó. Revisado a 390 px.</div>
+          <div class="done-when"><b>Falta en producción, en este orden:</b> migración de F1 y luego <code>2026-11-16_whatsapp-bandeja.sql</code>, código, llaves en el <code>.env</code> (<code>WHATSAPP_META_APP_SECRET</code>, <code>WHATSAPP_META_VERIFY_TOKEN</code> y al final <code>WHATSAPP_META_TOKEN</code>, que es el que hace salir mensajes reales), fila de la empresa en <code>wa_agent</code> y registrar el webhook en Meta.</div>
         </div>
       </div>
       <div class="phase">
@@ -491,7 +496,8 @@ ul.sources span { color: var(--muted); }
       <li>
         <h3>Proveedor del agente</h3>
         <p class="rec"><b>Decidido:</b> la recomendación. Meta Cloud API para el agente; Green API se queda en los avisos internos.</p>
-        <p><b>Cambia:</b> <code>_WhatsApp.php</code> gana el proveedor <code>meta</code> (F2), con el número como <code>52</code> + 10 dígitos; Green API sigue con <code>521</code>. Fuera de la ventana de 24 h, Meta solo acepta plantilla aprobada (F5).</p>
+        <p><b>Cambia:</b> Meta va en su propio archivo, <code>_WhatsAppMeta.php</code>: en F1 recibe y en F2 envía, con el número como <code>52</code> + 10 dígitos. <code>_WhatsApp.php</code> y Green API siguen con los avisos y el <code>521</code>. Fuera de la ventana de 24 h, Meta solo acepta plantilla aprobada (F5).</p>
+        <p><b>Ajuste del 16/11/2026:</b> antes decía que <code>_WhatsApp.php</code> ganaba el proveedor <code>meta</code>. Se separó para no tocar los avisos, que ya funcionan.</p>
       </li>
       <li>
         <h3>Un número por empresa <span class="pill part">con interpretación mía</span></h3>

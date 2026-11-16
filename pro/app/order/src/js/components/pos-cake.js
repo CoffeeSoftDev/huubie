@@ -50,7 +50,7 @@ function posCakeCSS() {
         + 'button.pos-ck-step.is-on .pos-ck-num{background:var(--po-brand);color:#fff}'
 
         + '.pos-ck-main{grid-area:main;display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow-y:auto;scrollbar-width:thin}'
-        + '.pos-ck-stage{grid-area:stage;display:flex;flex-direction:column;flex:1 1 auto;min-height:200px;gap:10px;padding:14px}'
+        + '.pos-ck-stage{grid-area:stage;display:flex;flex-direction:column;flex:1 1 auto;min-height:260px;gap:10px;padding:14px}'
         + '.pos-ck-stage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}'
         + '.pos-ck-stage-text{display:flex;align-items:flex-start;gap:9px;min-width:0}'
         + '.pos-ck-stage-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;border-radius:9px;background:var(--po-grad);color:#fff}'
@@ -76,6 +76,7 @@ function posCakeCSS() {
         + '.pos-ck label.pos-ck-lbl{display:block;margin:0 0 4px !important;font-size:12px !important;font-weight:600;line-height:1.3;color:var(--po-ink-2)}'
         + '.pos-ck-help{display:block;margin-top:3px;font-size:11.5px;line-height:1.3;color:var(--po-muted)}'
         + '.pos-ck-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}'
+        + '.pos-ck-data{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}'
         + '.pos-ck-search{position:relative}'
         + '.pos-ck-search.is-off{display:none}'
         + '.pos-ck-search > svg{position:absolute;left:12px;top:50%;width:15px;height:15px;margin-top:-7.5px;color:var(--po-muted);pointer-events:none}'
@@ -758,6 +759,8 @@ Templates.prototype.posCake = function (options) {
     shots.append(drop);
 
     // -- Detalles del pastel: dos secciones, Datos y Fotos de referencia --
+    // Nombre y Dedicatoria comparten renglón (pos-ck-data): la tarjeta mide menos
+    // y deja más alto a la lista de opciones de arriba.
 
     const secHead = (name, text, extra) => $('<div>', { class: 'pos-ck-sec-head' }).append(
         $('<span>', { class: 'pos-ck-sec-title' }).append(icon(name), $('<span>', { text: text })),
@@ -770,9 +773,11 @@ Templates.prototype.posCake = function (options) {
         $('<span>', { class: 'pos-ck-card-title', text: 'Detalles del pastel' }),
         $('<div>', { class: 'pos-ck-more-grid' }).append(
             $('<div>', { class: 'pos-ck-sec' }).append(
-                secHead('notebook-pen', 'Datos'),
-                field('Nombre del pastel', inName),
-                field('Dedicatoria', inDedication),
+                secHead('clipboard-list', 'Datos'),
+                $('<div>', { class: 'pos-ck-data' }).append(
+                    field('Nombre del pastel', inName),
+                    field('Dedicatoria', inDedication)
+                ),
                 field('Observaciones', inDetails)
             ),
             photos

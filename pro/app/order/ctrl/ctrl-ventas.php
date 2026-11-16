@@ -74,7 +74,8 @@ class ctrl extends core {
 
         return [
             'status'    => 200,
-            'scope'     => ['company' => $scope['company'], 'branch' => $scope['branch']],
+            // logo: el del ticket impreso (ordPrintTicket, pedido-detalle.js).
+            'scope'     => ['company' => $scope['company'], 'branch' => $scope['branch'], 'logo' => $this->companyLogo()],
             'actions'   => $this->actions(),
             'sales'     => Permission::actions(self::SALES),
             'tickets'   => Permission::actions(self::TICKETS),

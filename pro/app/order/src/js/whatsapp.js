@@ -1,6 +1,10 @@
-/*  Ventas › WhatsApp: los avisos que salen solos por WhatsApp.
+/*  Ventas › WhatsApp: las conversaciones con los clientes y los avisos que
+    salen solos por WhatsApp.
 
-    Cuatro pestañas:
+    Seis pestañas:
+      - «Conversaciones» y «Agente»: la bandeja del agente y su horario. Viven
+        en whatsapp-bandeja.js (wap.inbox); su envío es el de Meta
+        (core/helpers/_WhatsAppMeta.php), no el de los avisos.
       - «Avisos»: pedido nuevo, cierre de turno y cierre del día. Cada uno con
         su texto (editable, con variables) y cómo le llega a WhatsApp.
       - «Destinatarios»: a quién le llegan. Sin sucursal = de todas.
@@ -49,12 +53,24 @@ function wspFormat(text) {
     }).join('<br>');
 }
 
-// La burbuja verde de un mensaje enviado. Sin hora, la de ahora.
-function wspBubble(text, hour) {
-    const time = hour || new Date().toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true });
-    const body = String(text || '').trim() ? wspFormat(text) : '<em class="wsp-bubble-empty">Sin texto: no saldría nada.</em>';
+/*  Una burbuja. Sin hora, la de ahora.
+      dir   'in' = del cliente (blanca, a la izquierda); sin dir u 'out' = la verde.
+      tail  false = sin colita (el segundo mensaje seguido del mismo lado).
+      who   quién la mandó (arriba, en chico); head y meta = HTML ya escapado:
+            head va antes del texto (foto, audio…) y meta junto a la hora (palomitas). */
+function wspMsg(text, hour, opt = {}) {
+    const time  = hour || new Date().toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const empty = opt.dir ? 'Sin texto.' : 'Sin texto: no saldría nada.';
+    const body  = String(text || '').trim() ? wspFormat(text) : (opt.head ? '' : `<em class="wsp-bubble-empty">${empty}</em>`);
+    const cls   = 'wsp-bubble' + (opt.dir === 'in' ? ' is-in' : '') + (opt.tail === false ? ' no-tail' : '');
+    const who   = opt.who ? `<span class="wsp-who">${esc(opt.who)}</span>` : '';
 
-    return `<div class="wsp-chat"><div class="wsp-bubble">${body}<span class="wsp-time">${esc(time)}</span></div></div>`;
+    return `<div class="${cls}">${who}${opt.head || ''}${body}<span class="wsp-time">${esc(time)}${opt.meta || ''}</span></div>`;
+}
+
+// La burbuja verde de un aviso, dentro de su fondo de chat.
+function wspBubble(text, hour) {
+    return `<div class="wsp-chat">${wspMsg(text, hour)}</div>`;
 }
 
 // -- CSS --
@@ -114,6 +130,9 @@ function wspCSS() {
         .wsp-tag.is-accent { border-color: ${aLine}; background: ${aBg}; color: ${aFg}; }
         .wsp-tag.is-warn { border-color: #FECDD3; background: #FFF1F2; color: #BE123C; }
 
+        /* Seis pestañas no caben a 390 px: se desplaza la barra, no la página. */
+        #tabsWsp { max-width: 100%; }
+
         .wsp-chat { padding: 14px; border-radius: 12px; background: #EFEAE2; max-height: 380px; overflow-y: auto; }
         #wnPreview .wsp-chat { max-height: 440px; }
         .wsp-bubble { position: relative; width: fit-content; max-width: 100%; margin-left: auto; padding: 7px 10px 20px; border-radius: 10px 0 10px 10px;
@@ -123,6 +142,18 @@ function wspCSS() {
         .wsp-bubble-empty { color: #667781; }
         .wsp-time { position: absolute; right: 9px; bottom: 4px; font-size: 11px; color: #667781; white-space: nowrap; }
         .wsp-quote { display: inline-block; padding-left: 8px; border-left: 3px solid rgba(17, 27, 33, .25); color: #3B4A54; }
+        .wsp-bubble.is-in { margin-left: 0; margin-right: auto; border-radius: 0 10px 10px 10px; background: #FFFFFF; }
+        .wsp-bubble.is-in::after { right: auto; left: -8px; border-left: 0; border-right: 8px solid #FFFFFF; }
+        .wsp-bubble.no-tail { border-radius: 10px; }
+        .wsp-bubble.no-tail::after { display: none; }
+        .wsp-who { display: block; margin-bottom: 2px; font-size: 12px; font-weight: 600; color: ${aFg}; }
+        .wsp-media { display: flex; align-items: center; gap: 6px; font-size: 13px; font-style: italic; color: #54656F; }
+        .wsp-media svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .wsp-time { display: inline-flex; align-items: center; gap: 3px; }
+        .wsp-tick { display: inline-flex; color: #667781; }
+        .wsp-tick svg { width: 15px; height: 15px; }
+        .wsp-tick.is-read { color: ${brand}; }
+        .wsp-tick.is-failed { color: #E11D48; }
 
         button.wsp-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid ${line}; border-radius: 8px;
             background: #FFFFFF; font-size: 13px; font-weight: 600; color: ${body}; transition: background-color .15s, color .15s, border-color .15s; }
@@ -200,7 +231,13 @@ function wspCSS() {
         body.dark-mode .wsp-chat { background: #0B141A; }
         body.dark-mode .wsp-bubble { background: #005C4B; color: #E9EDEF; }
         body.dark-mode .wsp-bubble::after { border-left-color: #005C4B; }
+        body.dark-mode .wsp-bubble.is-in { background: #202C33; }
+        body.dark-mode .wsp-bubble.is-in::after { border-right-color: #202C33; }
+        body.dark-mode .wsp-who,
+        body.dark-mode .wsp-tick.is-read { color: rgb(var(--brand-300, 196 181 253)); }
         body.dark-mode .wsp-time,
+        body.dark-mode .wsp-tick,
+        body.dark-mode .wsp-media,
         body.dark-mode .wsp-bubble-empty { color: rgba(233, 237, 239, .6); }
         body.dark-mode .wsp-quote { border-color: rgba(233, 237, 239, .35); color: #D1D7DB; }
         body.dark-mode #tbWspRecipients tbody tr.ct3-hoverable:hover td,
@@ -219,7 +256,8 @@ class WhatsAppNotices extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = 'WhatsAppNotices';
-        this.tab          = 'notices';
+        this.tab          = 'chats';
+        this.inbox        = new WhatsAppInbox(link, div_modulo, this);
         this.requests     = { notices: 0, recipients: 0, log: 0, preview: 0 };
         this.pageLength   = { recipients: 15, log: 15 };
         this.terms        = { recipients: '', log: '' };
@@ -262,7 +300,8 @@ class WhatsAppNotices extends Templates {
         this.filterRecipients();
         this.filterLog();
         this.connection();
-        this.loadNotices();
+        this.inbox.init();
+        this.inbox.showChats();
     }
 
     // Los conteos y el historial son de la sucursal: se vuelve a cargar todo.
@@ -381,9 +420,11 @@ class WhatsAppNotices extends Templates {
             theme:  'light',
             type:   'button',
             json: [
-                { id: 'wsNotices', tab: 'Avisos', lucideIcon: 'bell', active: true, onClick: () => this.showTab('notices') },
+                { id: 'wsChats', tab: 'Conversaciones', lucideIcon: 'message-circle', active: true, onClick: () => this.showTab('chats') },
+                { id: 'wsNotices', tab: 'Avisos', lucideIcon: 'bell', onClick: () => this.showTab('notices') },
                 { id: 'wsRecipients', tab: 'Destinatarios', lucideIcon: 'users', onClick: () => this.showTab('recipients') },
                 { id: 'wsLog', tab: 'Historial', lucideIcon: 'history', onClick: () => this.showTab('log') },
+                { id: 'wsAgent', tab: 'Agente', lucideIcon: 'bot', onClick: () => this.showTab('agent') },
                 { id: 'wsConn', tab: 'Conexión', lucideIcon: 'plug', onClick: () => this.showTab('conn') }
             ]
         });
@@ -513,10 +554,12 @@ class WhatsAppNotices extends Templates {
             .on('input', (e) => this.onSearchInput('log', e));
     }
 
-    // tabLayout no corre el onClick de la pestaña activa al crearla: los avisos se piden en render().
+    // tabLayout no corre el onClick de la pestaña activa al crearla: las conversaciones se piden en render().
     showTab(tab) {
         this.tab = tab;
 
+        if (tab === 'chats') return this.inbox.showChats();
+        if (tab === 'agent') return this.inbox.showAgent();
         if (tab === 'notices') return this.loadNotices();
         if (tab === 'recipients') return this.lsRecipients();
         if (tab === 'log') return this.lsLog();

@@ -687,68 +687,14 @@ class SaleDetail extends OrderDetail {
 
     // -- Impresion --
 
-    // El ticket de Ventas (printSale) con lo guardado; si se canceló, lo dice.
+    // El ticket de Ventas (ordPrintTicket, formato de alpha) con lo guardado; si se canceló, lo dice.
     printData(data) {
         if (!(data.actions || []).includes('print')) {
             alert({ icon: 'error', text: 'Tu rol no tiene permiso para imprimir ventas en esta sucursal.', btn1: true });
             return;
         }
 
-        const t   = data.ticket || {};
-        const row = (a, b, strong) => `<tr${strong ? ' class="b"' : ''}><td>${a}</td><td class="r">${b}</td></tr>`;
-
-        // l.amount ya llega neto del descuento de la partida.
-        const lines = (t.lines || []).map((l) => {
-            const note = l.details ? `<div class="s">Obs.: ${esc(l.details)}</div>` : '';
-            const cut  = Number(l.discount) > 0 ? `<div class="s">Desc. −${money(l.discount)}</div>` : '';
-
-            return `<tr><td>${Number(l.quantity)} × ${esc(l.name)}${note}${cut}</td><td class="r">${money(l.amount)}</td></tr>`;
-        }).join('');
-
-        const payments = (t.payments || []).map((p) => {
-            const change = p.cash && Number(p.change) > 0
-                ? `<tr><td colspan="2" class="s">Recibió ${money(p.tendered)} · cambio ${money(p.change)}</td></tr>`
-                : '';
-
-            return row(esc(p.method), money(p.amount)) + change;
-        }).join('');
-
-        const tip       = Number(t.tip) > 0;
-        const credit    = Number(t.credit) > 0.005;
-        const points    = Number(t.points) > 0.005;
-        const card      = t.card ? `${esc(t.card.type)} · ${esc(t.card.number)}` : '';
-        const cancelled = t.cancelled
-            ? `<hr><div class="c b">CANCELADA</div>${t.cancel_reason ? `<div class="c s">${esc(t.cancel_reason)}</div>` : ''}`
-            : '';
-
-        const body = `
-            <h1>Venta V${esc(t.folio)}</h1>
-            <div class="c">${esc(t.branch)}</div>
-            <div class="c s">${ordDate(t.date, true)}</div>
-            <hr>
-            <table>
-                ${row('Atiende', esc(t.user))}
-                ${row('Cliente', esc(t.customer))}
-                ${card ? row('Tarjeta', card) : ''}
-            </table>
-            <hr>
-            <table>${lines || '<tr><td>Sin productos</td></tr>'}</table>
-            <hr>
-            <table>
-                ${t.discount ? row('Subtotal', money(t.subtotal)) : ''}
-                ${t.discount ? row(`Descuento${t.discount.reason ? ' · ' + esc(t.discount.reason) : ''}`, '−' + money(t.discount.amount)) : ''}
-                ${row('Total', money(t.total), true)}
-                ${tip ? row('Propina', money(t.tip)) : ''}
-                ${tip ? row('Cobrado', money(t.charged), true) : ''}
-                ${payments}
-                ${credit ? row('A crédito', money(t.credit), true) : ''}
-                ${points ? row('Puntos al monedero', money(t.points)) : ''}
-            </table>
-            ${cancelled}
-            <hr>
-            <div class="c s">Reimpreso ${ordNow()}</div>`;
-
-        ordPrint(`Venta V${t.folio}`, body);
+        ordPrintTicket(data.ticket || {}, { reprint: true });
     }
 
     // -- Cancelar --

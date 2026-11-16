@@ -4,29 +4,52 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-order.php';
 require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp-agente.php';
+require_once __DIR__ . '/../mdl/mdl-tienda.php';
+require_once __DIR__ . '/../mdl/mdl-portal.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp-ia.php';
+require_once __DIR__ . '/../../../core/helpers/_WhatsAppMeta.php';
+require_once __DIR__ . '/../../../core/helpers/_IaOllama.php';
 
-/*  Ventas › WhatsApp: los avisos que salen solos (pedido nuevo, cierre de turno,
-    cierre del dia), a quien le llegan, el historial y la conexion.
+/*  Ventas › WhatsApp: la bandeja de conversaciones con los clientes (agente,
+    F2), los avisos que salen solos (pedido nuevo, cierre de turno, cierre del
+    dia), a quien le llegan, el historial y la conexion.
 
     Reglas que no se ven en el codigo de un vistazo:
-      - La seccion es pos-whatsapp (show, create). Con show se ve todo; con
-        create se cambian plantillas y destinatarios, se comprueba la conexion
-        y se manda el mensaje de prueba.
-      - Plantillas y destinatarios son de la EMPRESA; un destinatario con
-        sucursal solo recibe los avisos de esa sucursal.
-      - El proveedor y su token viven en pro/core/config/.env: esta pagina solo
-        dice cual esta puesto y que falta, nunca un valor.
-      - Sin proveedor (o «simulado») nada sale a la red: el historial lo marca
-        «Simulado».
+      - La seccion es pos-whatsapp (show, create, update). Con show se ve todo;
+        con create se cambian plantillas, destinatarios y el horario del agente,
+        se comprueba la conexion y se manda el mensaje de prueba; con update se
+        atiende la bandeja (contestar, simular, asignar sucursal).
+      - Plantillas, destinatarios y conversaciones son de la EMPRESA; un
+        destinatario con sucursal solo recibe los avisos de esa sucursal.
+      - Hay dos proveedores: los avisos salen por WhatsApp (_WhatsApp.php) y la
+        bandeja por Meta (_WhatsAppMeta.php). Sus tokens viven en
+        pro/core/config/.env: esta pagina solo dice cual esta puesto y que
+        falta, nunca un valor.
+      - Sin token nada sale a la red: el historial y la bandeja lo marcan
+        «Simulado». El simulador (escribir como cliente) solo existe asi.
+      - Pasadas 24 h desde el ultimo mensaje del cliente, la bandeja no deja
+        mandar texto libre (regla de Meta; las plantillas llegan en F5).
+      - Abrir la bandeja tambien corre lo automatico pendiente del agente (el
+        menu de sucursales), solo si el agente esta en horario.
+      - El agente de clientes (F3) solo PROPONE: la propuesta queda en
+        wa_proposal y sale cuando una persona la manda (tal cual o cambiada).
+        En prod las automaticas las arma cron-whatsapp-agente.php; aqui solo
+        el simulador (agentAuto) y el boton «Proponer» (proposeNow). Llamar
+        al modelo tarda: cada peticion suelta la sesion antes.
+      - Contestar a mano retira la propuesta abierta del chat.
       - La prueba queda en el historial con tipo 'test'. */
 class ctrl extends core {
 
-    use WhatsAppNotices;
+    use WhatsAppNotices, WhatsAppInbox, WhatsAppAgentFlow, OnlineStore, CustomerPortal, WhatsAppAgentAI;
 
     const WA         = 'pos-whatsapp';
     const MAX_BODY   = 2000;
     const MAX_NAME   = 80;
+    const MAX_SEARCH = 60;
     const TYPES      = ['order', 'turn', 'day'];
+    const MEDIA      = ['image' => 'Foto', 'audio' => 'Audio', 'video' => 'Video', 'document' => 'Documento',
+                        'sticker' => 'Sticker', 'location' => 'Ubicación', 'contacts' => 'Contacto', 'reaction' => 'Reacción'];
 
     // -- Arranque --
 
@@ -47,14 +70,446 @@ class ctrl extends core {
         }, $this->companyId() > 0 ? $this->qCompanyBranches($this->companyId()) : []);
 
         return [
-            'status'   => 200,
-            'scope'    => ['company' => $scope['company'], 'branch' => $scope['branch']],
-            'wa'       => Permission::actions(self::WA),
-            'conn'     => (new WhatsApp())->status(),
-            'types'    => $types,
-            'branches' => $branches,
-            'today'    => date('Y-m-d')
+            'status'    => 200,
+            'scope'     => ['company' => $scope['company'], 'branch' => $scope['branch']],
+            'wa'        => Permission::actions(self::WA),
+            'conn'      => (new WhatsApp())->status(),
+            'agentConn' => (new WhatsAppMeta())->status(),
+            'agent'     => $this->agentInfo($this->companyId() > 0 ? $this->qWaAgent($this->companyId()) : null),
+            'replyMax'  => WhatsAppMeta::MAX_TEXT,
+            'types'     => $types,
+            'branches'  => $branches,
+            'today'     => date('Y-m-d')
         ];
+    }
+
+    // -- Bandeja --
+
+    /*  Los chats de la empresa. Antes corre lo automatico pendiente (menu de
+        sucursales), que solo sale con el agente en horario. */
+    public function lsChats() {
+        $fail = $this->needWa('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $search = mb_substr((string) preg_replace('/\s+/u', ' ', $this->post('search')), 0, self::MAX_SEARCH, 'UTF-8');
+        $branch = $this->post('branch');
+        if ($branch !== 'none') $branch = (int) $branch > 0 ? (string) (int) $branch : '';
+
+        $companyId = $this->companyId();
+
+        session_write_close();
+
+        return $this->attempt(function () use ($companyId, $search, $branch) {
+            $swept = 0;
+
+            try {
+                $swept = $this->inboxSweep($companyId);
+            } catch (Throwable $e) {
+                $this->inboxLog('[ AGENTE ] :: barrido de la bandeja :: ' . $e->getMessage());
+            }
+
+            $open = $this->qWaOpenProposalMap($companyId, date('Y-m-d H:i:s', $this->inboxNow() - $this->agentStaleSeconds()));
+            $rows = [];
+
+            foreach ($this->qWaChatList($companyId, $search, $branch) as $c) $rows[] = $this->chatRow($c, $open[(int) $c['id']] ?? '');
+
+            return [
+                'status' => 200,
+                'row'    => $rows,
+                'count'  => count($rows),
+                'swept'  => $swept,
+                'agent'  => $this->agentInfo($this->qWaAgent($companyId))
+            ];
+        }, 'No se pudieron cargar las conversaciones.');
+    }
+
+    // El hilo de un chat. Quien puede atender lo deja como leido.
+    public function getChat() {
+        $fail = $this->needWa('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id = $this->postId();
+
+        return $this->attempt(function () use ($id) {
+            $chat = $id > 0 ? $this->qWaChat($id, $this->companyId()) : null;
+            if (!$chat) return $this->fail(404, 'Esa conversación ya no existe.');
+
+            $messages = [];
+            foreach ($this->qWaThread($id) as $m) $messages[] = $this->messageRow($m);
+
+            if (Permission::can(self::WA, 'update')) {
+                try {
+                    $this->qWaSeen($id, date('Y-m-d H:i:s', $this->inboxNow()));
+                } catch (Throwable $e) {
+                    $this->inboxLog('[ BANDEJA ] :: no se marco como leido el chat ' . $id);
+                }
+            }
+
+            return [
+                'status'   => 200,
+                'chat'     => $this->chatHead($chat),
+                'messages' => $messages,
+                'proposal' => $this->proposalOut($id),
+                'ai'       => (bool) $this->agentModel()
+            ];
+        }, 'No se pudo abrir la conversación.');
+    }
+
+    // Respuesta a mano. Sin token sale como 'simulated'; con la ventana de 24 h cerrada no sale.
+    public function sendReply() {
+        $fail = $this->needWa('update', 'contestar en WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id   = $this->postId();
+        $text = trim(str_replace("\r", '', (string) ($_POST['text'] ?? '')));
+
+        if ($text === '') return $this->fail(422, 'Escribe el mensaje.');
+        if ($this->tooLong($text, WhatsAppMeta::MAX_TEXT)) return $this->fail(422, 'El mensaje admite hasta ' . number_format(WhatsAppMeta::MAX_TEXT) . ' caracteres.');
+
+        $companyId = $this->companyId();
+        $userId    = $this->userId();
+
+        return $this->attempt(function () use ($id, $text, $companyId, $userId) {
+            $chat = $id > 0 ? $this->qWaChat($id, $companyId) : null;
+            if (!$chat) return $this->fail(404, 'Esa conversación ya no existe.');
+
+            if ((int) $chat['opt_out'] === 1) return $this->fail(409, 'Este cliente pidió no recibir mensajes.');
+
+            if (!$this->inboxWindowOpen($chat['last_in_at'])) {
+                return $this->fail(409, 'Pasaron más de 24 h desde el último mensaje del cliente: WhatsApp solo deja mandarle una plantilla aprobada.');
+            }
+
+            $agent = $this->qWaAgent($companyId);
+            $sim   = $this->isSim($chat['wa_id']);
+
+            if (!$agent && !$sim) return $this->fail(409, 'La empresa no tiene número de WhatsApp dado de alta.');
+
+            session_write_close();
+
+            $sent = $this->inboxSend($agent ?: [], $chat, $text, $userId);
+
+            try {
+                $this->qWaSeen($id, date('Y-m-d H:i:s', $this->inboxNow()));
+            } catch (Throwable $e) {
+                $this->inboxLog('[ BANDEJA ] :: no se marco como leido el chat ' . $id);
+            }
+
+            // Ya contesto una persona: la propuesta abierta sobra.
+            try {
+                $this->qWaRetireOpen($id, $userId ?: null, date('Y-m-d H:i:s', $this->inboxNow()));
+            } catch (Throwable $e) {
+                $this->inboxLog('[ BANDEJA ] :: no se retiro la propuesta del chat ' . $id);
+            }
+
+            $messages = [
+                'sent'      => 'Mensaje enviado.',
+                'simulated' => 'Modo simulado: quedó en la conversación y no salió a la red.',
+                'failed'    => 'No salió: ' . ($sent['detail'] !== '' ? $sent['detail'] : 'Meta no lo aceptó.')
+            ];
+
+            return [
+                'status'     => $sent['status'] === 'failed' ? 409 : 200,
+                'message'    => $messages[$sent['status']] ?? $messages['failed'],
+                'sent'       => $sent['status'],
+                'message_id' => (int) $sent['message_id']
+            ];
+        }, 'No se pudo mandar el mensaje.');
+    }
+
+    /*  Escribir como si fuera el cliente, sin Meta. Solo sin WHATSAPP_META_TOKEN.
+        El chat queda con wa_id 'SIM-…': nada de el sale a la red. Corre lo
+        automatico igual que un mensaje real (menu, sucursal elegida, horario). */
+    public function simulate() {
+        $fail = $this->needWa('update', 'usar el simulador') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        if (!(new WhatsAppMeta())->status()['simulated']) {
+            return $this->fail(409, 'El simulador solo funciona mientras no haya token de Meta: con token, prueba desde un teléfono.');
+        }
+
+        $phone = preg_replace('/\D/', '', $this->post('phone'));
+        $name  = trim((string) preg_replace('/\s+/u', ' ', $this->post('name')));
+        $text  = trim(str_replace("\r", '', (string) ($_POST['text'] ?? '')));
+
+        if (!preg_match('/^\d{10}$/', $phone))              return $this->fail(422, 'El teléfono del cliente va a 10 dígitos.');
+        if ($this->tooLong($name, WhatsAppMeta::MAX_NAME))  return $this->fail(422, 'El nombre admite hasta ' . WhatsAppMeta::MAX_NAME . ' caracteres.');
+        if ($text === '')                                   return $this->fail(422, 'Escribe lo que manda el cliente.');
+        if ($this->tooLong($text, WhatsAppMeta::MAX_TEXT))  return $this->fail(422, 'El mensaje admite hasta ' . number_format(WhatsAppMeta::MAX_TEXT) . ' caracteres.');
+
+        $companyId = $this->companyId();
+
+        session_write_close();
+
+        return $this->attempt(function () use ($companyId, $phone, $name, $text) {
+            $existing = $this->qWaChatByPhone($companyId, $phone);
+
+            if ($existing && !$this->isSim($existing['wa_id'])) {
+                return $this->fail(409, 'Ese teléfono ya tiene una conversación real; usa otro para simular.');
+            }
+
+            $msg = [
+                'phone_number_id' => '',
+                'wa_id'           => 'SIM-52' . $phone,
+                'phone'           => $phone,
+                'name'            => $name,
+                'wamid'           => 'sim.' . bin2hex(random_bytes(12)),
+                'type'            => 'text',
+                'body'            => $text,
+                'media_id'        => null,
+                'media_type'      => null,
+                'sent_at'         => $this->inboxNow(),
+                'raw'             => null,
+                'skip'            => ''
+            ];
+
+            $chatId = $this->transaction(function () use ($companyId, $msg) {
+                return $this->inboxSave($companyId, $msg);
+            });
+
+            if ($chatId <= 0) return $this->fail(500, 'No se pudo guardar el mensaje del cliente.');
+
+            $menus = 0;
+
+            try {
+                $menus = $this->inboxAfter($companyId, [$chatId => $text]);
+            } catch (Throwable $e) {
+                $this->inboxLog('[ AGENTE ] :: simulador :: ' . $e->getMessage());
+            }
+
+            $open = $this->inboxIsOpen($this->qWaAgent($companyId));
+
+            $message = 'Mensaje del cliente guardado.';
+            if (!$open)     $message .= ' El agente está fuera de horario: no salió nada automático.';
+            else if ($menus) $message .= ' Salió el menú de sucursales (simulado).';
+
+            return $this->ok($message, ['chat_id' => $chatId, 'open' => $open, 'menus' => $menus]);
+        }, 'No se pudo simular el mensaje.');
+    }
+
+    // '' = sin sucursal. Una persona puede cambiarla siempre (la del menu no la pisa).
+    public function setChatBranch() {
+        $fail = $this->needWa('update', 'asignar la sucursal de una conversación') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id     = $this->postId();
+        $branch = $this->selectOrNull('branch_id');
+
+        if ($branch !== null && !in_array($branch, array_map('intval', array_column($this->qCompanyBranches($this->companyId()), 'id')), true)) {
+            return $this->fail(422, 'Esa sucursal no es de la empresa.');
+        }
+
+        return $this->attempt(function () use ($id, $branch) {
+            if ($id <= 0 || !$this->qWaChat($id, $this->companyId())) return $this->fail(404, 'Esa conversación ya no existe.');
+
+            $this->qWaSetBranch($id, $branch, date('Y-m-d H:i:s'));
+
+            return $this->ok($branch !== null ? 'Sucursal asignada.' : 'La conversación quedó sin sucursal.');
+        }, 'No se pudo asignar la sucursal.');
+    }
+
+    // -- Propuestas del agente --
+
+    /*  La propuesta automatica de un chat, como la arma el cron (horario, tope
+        por hora, lo ya contestado). La pide la pantalla despues del
+        simulador. Que no toque proponer no es error: state lo dice. */
+    public function agentAuto() {
+        $fail = $this->needWa('update', 'usar el agente de WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id        = $this->postId();
+        $companyId = $this->companyId();
+
+        session_write_close();
+
+        return $this->attempt(function () use ($id, $companyId) {
+            if ($id <= 0 || !$this->qWaChat($id, $companyId)) return $this->fail(404, 'Esa conversación ya no existe.');
+
+            $r = $this->agentPropose($companyId, $id, null);
+
+            return [
+                'status'   => 200,
+                'state'    => $r['state'],
+                'reason'   => $r['reason'],
+                'message'  => $r['message'],
+                'proposal' => $this->proposalOut($id)
+            ];
+        }, 'No se pudo armar la propuesta.');
+    }
+
+    // «Proponer»: a mano, sin tope por hora, pero solo con el agente en horario.
+    public function proposeNow() {
+        $fail = $this->needWa('update', 'pedirle propuestas al agente') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id        = $this->postId();
+        $companyId = $this->companyId();
+        $userId    = (int) $this->userId();
+
+        session_write_close();
+
+        return $this->attempt(function () use ($id, $companyId, $userId) {
+            if ($id <= 0 || !$this->qWaChat($id, $companyId)) return $this->fail(404, 'Esa conversación ya no existe.');
+
+            $r = $this->agentPropose($companyId, $id, $userId);
+
+            if (in_array($r['state'], ['skip', 'off'], true) && $r['reason'] !== 'nothing') return $this->fail(409, $r['message']);
+
+            return [
+                'status'   => 200,
+                'state'    => $r['state'],
+                'message'  => $r['message'],
+                'proposal' => $this->proposalOut($id)
+            ];
+        }, 'No se pudo armar la propuesta.');
+    }
+
+    // Para la pantalla mientras el agente arma la propuesta.
+    public function getProposal() {
+        $fail = $this->needWa('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id = $this->postId();
+
+        return $this->attempt(function () use ($id) {
+            if ($id <= 0 || !$this->qWaChat($id, $this->companyId())) return $this->fail(404, 'Esa conversación ya no existe.');
+
+            return ['status' => 200, 'proposal' => $this->proposalOut($id)];
+        }, 'No se pudo leer la propuesta.');
+    }
+
+    /*  Manda la propuesta, tal cual (sent) o cambiada (edited). Se marca antes
+        de mandar, con la fila apartada: dos clics no la mandan dos veces. */
+    public function sendProposal() {
+        $fail = $this->needWa('update', 'contestar en WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id   = $this->postId();
+        $text = trim(str_replace("\r", '', (string) ($_POST['text'] ?? '')));
+
+        if ($text === '') return $this->fail(422, 'La respuesta no puede ir vacía.');
+        if ($this->tooLong($text, WhatsAppMeta::MAX_TEXT)) return $this->fail(422, 'El mensaje admite hasta ' . number_format(WhatsAppMeta::MAX_TEXT) . ' caracteres.');
+
+        $companyId = $this->companyId();
+        $userId    = (int) $this->userId();
+
+        return $this->attempt(function () use ($id, $text, $companyId, $userId) {
+            $now = date('Y-m-d H:i:s', $this->inboxNow());
+
+            $claim = $this->transaction(function () use ($id, $text, $companyId, $userId, $now) {
+                $p = $id > 0 ? $this->qWaLockProposal($id, $companyId) : null;
+
+                if (!$p)                       return $this->fail(404, 'Esa propuesta ya no existe.');
+                if ($p['status'] !== 'pending') return $this->fail(409, 'Esa propuesta ya se mandó o se descartó.');
+
+                $chat = $this->qWaChat((int) $p['chat_id'], $companyId);
+
+                if (!$chat)                                      return $this->fail(404, 'Esa conversación ya no existe.');
+                if ((int) $chat['opt_out'] === 1)                return $this->fail(409, 'Este cliente pidió no recibir mensajes.');
+                if (!$this->inboxWindowOpen($chat['last_in_at'])) return $this->fail(409, 'Pasaron más de 24 h desde el último mensaje del cliente: WhatsApp solo deja mandarle una plantilla aprobada.');
+
+                $agent = $this->qWaAgent($companyId);
+                if (!$agent && !$this->isSim($chat['wa_id'])) return $this->fail(409, 'La empresa no tiene número de WhatsApp dado de alta.');
+
+                $status = $text === trim((string) $p['body']) ? 'sent' : 'edited';
+
+                $this->qWaDecideProposal($id, $status, $text, $userId ?: null, $now);
+
+                return ['status' => 200, 'chat' => $chat, 'agent' => $agent ?: [], 'decided' => $status];
+            });
+
+            if ($claim['status'] !== 200) return $claim;
+
+            session_write_close();
+
+            $chat = $claim['chat'];
+            $sent = $this->inboxSend($claim['agent'], $chat, $text, $userId);
+
+            try {
+                $this->qWaSetProposalMessage($id, (int) $sent['message_id']);
+                $this->qWaSeen((int) $chat['id'], $now);
+            } catch (Throwable $e) {
+                $this->inboxLog('[ BANDEJA ] :: propuesta ' . $id . ' :: ' . $e->getMessage());
+            }
+
+            $messages = [
+                'sent'      => 'Respuesta enviada.',
+                'simulated' => 'Modo simulado: quedó en la conversación y no salió a la red.',
+                'failed'    => 'No salió: ' . ($sent['detail'] !== '' ? $sent['detail'] : 'Meta no lo aceptó.')
+            ];
+
+            return [
+                'status'     => $sent['status'] === 'failed' ? 409 : 200,
+                'message'    => $messages[$sent['status']] ?? $messages['failed'],
+                'sent'       => $sent['status'],
+                'decided'    => $claim['decided'],
+                'message_id' => (int) $sent['message_id']
+            ];
+        }, 'No se pudo mandar la respuesta.');
+    }
+
+    public function discardProposal() {
+        $fail = $this->needWa('update', 'descartar propuestas del agente') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id        = $this->postId();
+        $companyId = $this->companyId();
+        $userId    = (int) $this->userId();
+
+        return $this->attempt(function () use ($id, $companyId, $userId) {
+            return $this->transaction(function () use ($id, $companyId, $userId) {
+                $p = $id > 0 ? $this->qWaLockProposal($id, $companyId) : null;
+
+                if (!$p) return $this->fail(404, 'Esa propuesta ya no existe.');
+                if (!in_array($p['status'], ['pending', 'failed', 'working'], true)) return $this->fail(409, 'Esa propuesta ya se mandó o se descartó.');
+
+                $this->qWaDecideProposal($id, 'discarded', (string) $p['body'], $userId ?: null, date('Y-m-d H:i:s', $this->inboxNow()));
+
+                return $this->ok('Propuesta descartada.');
+            });
+        }, 'No se pudo descartar la propuesta.');
+    }
+
+    // -- Agente --
+
+    public function getAgent() {
+        $fail = $this->needWa('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            return [
+                'status' => 200,
+                'agent'  => $this->agentInfo($this->qWaAgent($this->companyId())),
+                'conn'   => (new WhatsAppMeta())->status()
+            ];
+        }, 'No se pudo cargar el agente.');
+    }
+
+    /*  Encendido y horario por dia. hours = {"0":[["09:00","20:00"]], ...};
+        un dia sin tramos = cerrado. Cierre "00:00" = medianoche ("24:00"). */
+    public function saveAgent() {
+        $fail = $this->needWa('create', 'cambiar el agente de WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $enabled = $this->post('enabled') === '1' ? 1 : 0;
+        $hours   = $this->hoursIn($this->postedJson('hours'));
+
+        if (is_string($hours)) return $this->fail(422, $hours);
+        if ($enabled && !array_filter($hours)) return $this->fail(422, 'Pon horario al menos a un día, o deja el agente apagado.');
+
+        return $this->attempt(function () use ($enabled, $hours) {
+            $agent = $this->qWaAgent($this->companyId());
+            if (!$agent) return $this->fail(404, 'La empresa todavía no tiene número de WhatsApp para el agente. Lo da de alta soporte.');
+
+            $this->must($this->qUpdateIn('wa_agent', [
+                'values' => ['enabled', 'hours', 'updated_at'],
+                'where'  => ['id', 'company_id'],
+                'data'   => [$enabled, json_encode((object) $hours), date('Y-m-d H:i:s'), (int) $agent['id'], $this->companyId()]
+            ]), 'saveAgent');
+
+            return $this->ok($enabled ? 'Agente encendido.' : 'Agente apagado: los mensajes se guardan y nada sale solo.', [
+                'agent' => $this->agentInfo($this->qWaAgent($this->companyId()))
+            ]);
+        }, 'No se pudo guardar el agente.');
     }
 
     // -- Avisos --
@@ -383,7 +838,8 @@ class ctrl extends core {
 
         $what = [
             'show'   => 'ver los avisos de WhatsApp',
-            'create' => 'cambiar los avisos de WhatsApp'
+            'create' => 'cambiar los avisos de WhatsApp',
+            'update' => 'atender las conversaciones de WhatsApp'
         ];
 
         if ($text === null) $text = isset($what[$action]) ? $what[$action] : 'hacer esto';
@@ -441,6 +897,213 @@ class ctrl extends core {
         if (preg_match('/^\d{10}$/', $phone)) return substr($phone, 0, 3) . ' ' . substr($phone, 3, 3) . ' ' . substr($phone, 6);
 
         return $phone;
+    }
+
+    // -- Agente: datos para la pantalla --
+
+    private function isSim($waId) {
+        return strpos((string) $waId, 'SIM-') === 0;
+    }
+
+    // Lo que la pantalla sabe del numero; nunca el phone_number_id.
+    private function agentInfo($agent) {
+        return [
+            'exists'  => (bool) $agent,
+            'enabled' => $agent ? (int) $agent['enabled'] : 0,
+            'phone'   => $agent ? (string) $agent['display_phone'] : '',
+            'open'    => $agent ? $this->inboxIsOpen($agent) : false,
+            'hours'   => $this->hoursOut($agent ? $agent['hours'] : null)
+        ];
+    }
+
+    // Siempre 7 listas de tramos (0 = domingo). Lo que no se entiende = cerrado.
+    private function hoursOut($json) {
+        $hours = json_decode((string) $json, true);
+        $out   = [];
+
+        for ($day = 0; $day < 7; $day++) {
+            $ranges = [];
+            $list   = is_array($hours) && isset($hours[$day]) && is_array($hours[$day]) ? $hours[$day] : [];
+
+            foreach ($list as $range) {
+                if (is_array($range) && count($range) === 2) $ranges[] = array_map('strval', array_values($range));
+            }
+
+            $out[] = $ranges;
+        }
+
+        return $out;
+    }
+
+    // Valida el horario que manda la pantalla. Devuelve las 7 listas o el texto del error.
+    private function hoursIn($hours) {
+        if (!is_array($hours)) return 'El horario no llegó bien; recarga la página.';
+
+        $days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        $hhmm = '/^([01]\d|2[0-3]):[0-5]\d$/';
+        $out  = [];
+
+        for ($day = 0; $day < 7; $day++) {
+            $list = isset($hours[$day]) && is_array($hours[$day]) ? $hours[$day] : [];
+            if (count($list) > 3) return "El {$days[$day]} admite hasta 3 tramos.";
+
+            $ranges = [];
+
+            foreach ($list as $range) {
+                list($from, $to) = is_array($range) && count($range) === 2 ? array_map('strval', array_values($range)) : ['', ''];
+
+                if ($to === '00:00' || $to === '24:00') $to = '24:00';
+
+                if (!preg_match($hhmm, $from) || ($to !== '24:00' && !preg_match($hhmm, $to))) {
+                    return "Revisa las horas del {$days[$day]}.";
+                }
+
+                if ($to <= $from) return "El {$days[$day]} cierra antes de abrir.";
+
+                $ranges[] = [$from, $to];
+            }
+
+            $out[$day] = $ranges;
+        }
+
+        return $out;
+    }
+
+    // -- Bandeja: filas --
+
+    // $proposal = 'pending' | 'working' | '' (para la marca «Propuesta» de la lista).
+    private function chatRow($c, $proposal = '') {
+        return [
+            'proposal'    => (string) $proposal,
+            'id'          => (int) $c['id'],
+            'name'        => $c['name'] !== '' ? (string) $c['name'] : $this->phoneText($c['phone']),
+            'phone'       => $this->phoneText($c['phone']),
+            'branch_id'   => $c['branch_id'] !== null ? (int) $c['branch_id'] : null,
+            'branch'      => $c['branch_id'] !== null ? ($c['branch'] !== '' ? (string) $c['branch'] : 'Sucursal borrada') : '',
+            'unread'      => (int) $c['unread'],
+            'preview'     => $this->preview($c['last_type'], $c['last_body']),
+            'last_dir'    => (string) $c['last_dir'],
+            'last_status' => (string) $c['last_status'],
+            'when'        => $this->whenText($c['last_message_at']),
+            'window'      => $this->inboxWindowOpen($c['last_in_at']),
+            'opt_out'     => (int) $c['opt_out'] === 1,
+            'sim'         => $this->isSim($c['wa_id'])
+        ];
+    }
+
+    /*  La propuesta abierta del chat para la tarjeta de la bandeja, o null.
+        Una 'working' de mas de 3 min sale como fallida. outdated = el cliente
+        escribio despues de que se armo. */
+    private function proposalOut($chatId) {
+        $p = $this->qWaOpenProposal($chatId);
+        if (!$p) return null;
+
+        $status = (string) $p['status'];
+        $error  = (string) $p['error'];
+        $stamp  = strtotime((string) $p['created_at']);
+
+        if ($status === 'working' && $stamp && $stamp < $this->inboxNow() - $this->agentStaleSeconds()) {
+            $status = 'failed';
+            $error  = 'El agente tardó demasiado; vuelve a pedirla.';
+        }
+
+        $labels = [
+            'catalogo_buscar' => 'Catálogo',
+            'negocio_datos'   => 'Datos del negocio',
+            'pedido_estado'   => 'Estado de pedido',
+            'saldo_cliente'   => 'Saldo',
+            'portal_enlace'   => 'Portal'
+        ];
+
+        $tools = [];
+        $used  = json_decode((string) $p['tools_used'], true);
+
+        foreach (is_array($used) ? $used : [] as $t) {
+            if (!is_array($t)) continue;
+
+            $name = (string) ($t['name'] ?? '');
+
+            $tools[] = [
+                'name'    => $name,
+                'label'   => $labels[$name] ?? $name,
+                'args'    => is_array($t['args'] ?? null) ? $t['args'] : [],
+                'ignored' => is_array($t['ignored'] ?? null) ? array_values($t['ignored']) : [],
+                'summary' => (string) ($t['summary'] ?? ''),
+                'data'    => (string) ($t['data'] ?? '')
+            ];
+        }
+
+        $last = $this->qWaLastIn($chatId);
+
+        return [
+            'id'       => (int) $p['id'],
+            'status'   => $status,
+            'body'     => (string) $p['body'],
+            'tools'    => $tools,
+            'model'    => (string) $p['model'],
+            'seconds'  => $p['elapsed_ms'] !== null ? round((int) $p['elapsed_ms'] / 1000, 1) : null,
+            'error'    => $error,
+            'auto'     => $p['requested_by'] === null,
+            'outdated' => $last && (int) $last['id'] > (int) $p['message_id'],
+            'when'     => $stamp ? date('g:i A', $stamp) : ''
+        ];
+    }
+
+    private function chatHead($c) {
+        $closes = $c['last_in_at'] ? strtotime($c['last_in_at']) + 86400 : 0;
+
+        return [
+            'id'        => (int) $c['id'],
+            'name'      => $c['name'] !== '' ? (string) $c['name'] : $this->phoneText($c['phone']),
+            'phone'     => $this->phoneText($c['phone']),
+            'branch_id' => $c['branch_id'] !== null ? (int) $c['branch_id'] : null,
+            'branch'    => $c['branch_id'] !== null ? ($c['branch'] !== '' ? (string) $c['branch'] : 'Sucursal borrada') : '',
+            'opt_out'   => (int) $c['opt_out'] === 1,
+            'sim'       => $this->isSim($c['wa_id']),
+            'window'    => $this->inboxWindowOpen($c['last_in_at']),
+            'closes'    => $closes ? dmy(date('Y-m-d', $closes)) . ' · ' . date('g:i A', $closes) : ''
+        ];
+    }
+
+    private function messageRow($m) {
+        $stamp = strtotime((string) $m['sent_at']);
+        $out   = $m['direction'] === 'out';
+
+        return [
+            'id'     => (int) $m['id'],
+            'dir'    => $out ? 'out' : 'in',
+            'type'   => (string) $m['type'],
+            'label'  => self::MEDIA[$m['type']] ?? '',
+            'body'   => (string) $m['body'],
+            'status' => (string) $m['status'],
+            'error'  => (string) $m['error'],
+            'date'   => $stamp ? date('Y-m-d', $stamp) : '',
+            'hour'   => $stamp ? date('g:i A', $stamp) : '',
+            'user'   => $out ? ($m['user_id'] !== null ? ((string) $m['user'] !== '' ? (string) $m['user'] : 'Usuario') : 'Agente') : ''
+        ];
+    }
+
+    // Una linea para la lista: el texto, o «Foto · pie» si es un archivo.
+    private function preview($type, $body) {
+        $body  = trim((string) preg_replace('/\s+/u', ' ', (string) $body));
+        $label = self::MEDIA[$type] ?? ($type !== '' && $type !== 'text' ? 'Mensaje' : '');
+
+        if ($label !== '') $body = $body !== '' ? $label . ' · ' . $body : $label;
+
+        return mb_strimwidth($body, 0, 90, '…', 'UTF-8');
+    }
+
+    // Hoy = la hora; ayer = «Ayer»; antes = dd/mm/aaaa.
+    private function whenText($datetime) {
+        $stamp = $datetime ? strtotime((string) $datetime) : false;
+        if (!$stamp) return '';
+
+        $day = date('Y-m-d', $stamp);
+
+        if ($day === date('Y-m-d', $this->inboxNow()))                     return date('g:i A', $stamp);
+        if ($day === date('Y-m-d', strtotime('-1 day', $this->inboxNow()))) return 'Ayer';
+
+        return dmy($day);
     }
 
     // -- Celdas --
