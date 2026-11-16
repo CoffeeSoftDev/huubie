@@ -375,6 +375,7 @@ class SaleHistory extends Templates {
             f_size:  13,
             right:   [7, 8],
             center:  [2, 5, 9, 10],
+            ...ORD_TABLE,
             ...this.emptyState(loaded ? data : null)
         });
 
@@ -402,7 +403,7 @@ class SaleHistory extends Templates {
                 paginate:   { first: 'Primera', last: 'Última', next: '›', previous: '‹' }
             },
             drawCallback: (settings) => {
-                $(settings.nTBody).children('tr').each((i, tr) => $(tr).children('td').toggleClass('bg-gray-100', i % 2 === 0));
+                ordStripe(settings.nTBody);
                 $('ul.ct3-dropdown-menu').addClass('hidden');
                 if (window.lucide) lucide.createIcons();
             }
@@ -745,7 +746,7 @@ class SaleDetail extends OrderDetail {
             </table>
             ${cancelled}
             <hr>
-            <div class="c s">IVA incluido · Reimpreso ${ordNow()}</div>`;
+            <div class="c s">Reimpreso ${ordNow()}</div>`;
 
         ordPrint(`Venta V${t.folio}`, body);
     }
@@ -953,29 +954,16 @@ class SaleDetail extends OrderDetail {
 
 // -- SalePayments --
 
-/*  La ventana de pagos de Pedidos con textos de venta. Sin descuento (lo da
-    la pantalla de Ventas al cobrar) y con la propina dentro de lo que se debe:
-    payOptions ya manda total = total + propina. */
+/*  La ventana de pagos de Pedidos (pedido-cobro.js) con textos de venta. Sin
+    descuento (lo da la pantalla de Ventas al cobrar), sin contraseña al quitar
+    un pago y con la propina dentro de lo que se debe: payOptions ya manda
+    total = total + propina. Una sola sucursal: aquí no se cobra en otra. */
 class SalePayments extends OrderPay {
 
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = 'SalePayments';
         this.tip          = 0;
-        this.deleteSub    = '';
-    }
-
-    // Todos los subtítulos de OrderPay dicen «Pedido #P»: aquí son ventas.
-    csModal(options) {
-        const opts = Object.assign({}, options);
-
-        if (opts.id === 'modalOrderPayDelete' && this.deleteSub) {
-            opts.subtitle = this.deleteSub;
-        } else if (typeof opts.subtitle === 'string') {
-            opts.subtitle = opts.subtitle.replace(/Pedido #P/g, 'Venta V').replace('Sin cliente', 'Público en general');
-        }
-
-        return super.csModal(opts);
     }
 
     start(data, fromDetail, opts) {
@@ -984,37 +972,23 @@ class SalePayments extends OrderPay {
         super.start(data, fromDetail, opts);
     }
 
-    // Desde el detalle, OrderPay pone el id en el subtítulo: aquí va el folio y el pago.
-    removePayment(orderId, paymentId, fromPay) {
-        const d = orderDetail.last;
+    // -- Textos --
 
-        this.deleteSub = '';
+    noun()         { return 'Venta'; }
+    theNoun()      { return 'la venta'; }
+    prefix()       { return 'V'; }
+    noClient()     { return 'Público en general'; }
+    paidLabel()    { return 'Venta pagada completamente'; }
+    paidShort()    { return 'Venta pagada.'; }
+    canDiscount()  { return false; }
+    keyOnSettled() { return false; }
+    originLabel()  { return 'Origen de la venta'; }
 
-        if (!(fromPay && this.o) && d && Number(d.order.id) === Number(orderId)) {
-            const p = (d.payments || []).find((x) => Number(x.id) === Number(paymentId));
+    // Bajo el Total: la propina que trae (sola, o después del total tachado).
+    totalExtra(after) {
+        if (this.tip <= 0.005) return '';
 
-            this.deleteSub = `Venta V${d.order.folio || orderId}${p ? ' · ' + p.method + ' ' + money(p.amount) : ''}`;
-        }
-
-        super.removePayment(orderId, paymentId, fromPay);
-
-        this.deleteSub = '';
-    }
-
-    discountFields() {
-        return [];
-    }
-
-    paintHead(total) {
-        super.paintHead(total);
-
-        if ($('#op_t_rest_sub').text() === 'Pedido liquidado') $('#op_t_rest_sub').text('Venta liquidada');
-
-        if (this.tip > 0.005) {
-            const sub = $('#op_t_total_sub');
-
-            sub.html(sub.text() === 'Sin descuento' ? `Incluye propina ${money(this.tip)}` : `${sub.html()} · propina ${money(this.tip)}`);
-        }
+        return after ? ` · propina ${money(this.tip)}` : `Incluye propina ${money(this.tip)}`;
     }
 
     blockView() {

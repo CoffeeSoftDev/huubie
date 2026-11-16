@@ -88,10 +88,10 @@ class ctrl extends core {
 
         return [
             'id'        => $id,
+            'Cliente'   => $this->cellOwner($c),
             'Tarjeta'   => $this->cellCard($c['number'], $c['holder']),
             'Tipo'      => $this->cellType($c['type'], (int) $c['type_active'] === 1, $c['type_color']),
             'Beneficio' => $this->cellBenefit($c),
-            'Cliente'   => $this->cellOwner($c),
             'Ventas'    => $sales > 0 ? '<span class="font-semibold text-gray-800">' . $sales . '</span>' : $this->cellZero(),
             'Estado'    => $this->activePill($active, 'Activa', 'Inactiva'),
             'a'         => $canEdit ? $this->rowActions('Card', $id, $active) : []
@@ -585,16 +585,23 @@ class ctrl extends core {
 
     // El dueño de la tarjeta. Sin dueño, los puntos van a quien compre con ella.
     private function cellOwner($c) {
-        if ($c['customer_id'] === null) return '<span class="text-gray-400">Sin cliente</span>';
+        if ($c['customer_id'] === null) return $this->ownerBox('<span class="text-gray-400">Sin cliente</span>', false);
 
         $name = trim((string) $c['customer']) !== '' ? $c['customer'] : 'Sin nombre';
         $html = '<div class="font-semibold text-gray-800"><span class="ord-cliente">' . h($name) . '</span></div>';
 
-        if ($c['owner_id'] === null) return $html . '<div class="ord-sub text-amber-600">Inactivo o de otra empresa</div>';
+        if ($c['owner_id'] === null) return $this->ownerBox($html . '<div class="ord-sub text-amber-600">Inactivo o de otra empresa</div>', true);
 
         if (trim((string) $c['customer_phone']) !== '') $html .= '<div class="ord-sub">' . h($c['customer_phone']) . '</div>';
 
-        return $html;
+        return $this->ownerBox($html, true);
+    }
+
+    // Círculo con el ícono de usuario a la izquierda del texto; apagado si la tarjeta no tiene cliente.
+    private function ownerBox($html, $filled) {
+        $avatar = '<span class="loy-avatar' . ($filled ? '' : ' is-empty') . '"><i data-lucide="user-round" class="w-4 h-4"></i></span>';
+
+        return '<div class="loy-owner">' . $avatar . '<div class="min-w-0">' . $html . '</div></div>';
     }
 
     private function activePill($active, $on, $off) {

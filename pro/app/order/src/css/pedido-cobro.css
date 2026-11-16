@@ -66,10 +66,10 @@ body.dark-mode #modalOrderPay {
 }
 
 /* -- El panel de csModal: solo sostiene la ventana -- */
-#modalOrderPay .cs-modal-head,
-#modalOrderPay .cs-modal-foot { display: none; }
-#modalOrderPay .cs-modal-body { padding: 0; }
-#modalOrderPay .cs-modal-panel { max-width: 720px; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+#modalOrderPay.pa-modal .cs-modal-head,
+#modalOrderPay.pa-modal .cs-modal-foot { display: none; }
+#modalOrderPay.pa-modal .cs-modal-body { padding: 0; }
+#modalOrderPay.pa-modal .cs-modal-panel { max-width: 720px; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
 /* Mientras se registra o se quita un pago, el fondo no cierra la ventana. */
 #modalOrderPay.is-busy .cs-modal-bg { pointer-events: none; }
 
@@ -352,7 +352,7 @@ body.dark-mode #modalOrderPay {
 
 /* -- Tableta angosta y celular: una sola columna, como alpha -- */
 @media (max-width: 760px) {
-    #modalOrderPay .cs-modal-panel,
+    #modalOrderPay.pa-modal .cs-modal-panel,
     #modalOrderPay .pa-win { max-width: 480px; }
     #modalOrderPay .pa-cols { grid-template-columns: minmax(0, 1fr); gap: 10px; }
     /* Orden de alpha: sucursales (y su aviso), formas de pago, observación. */

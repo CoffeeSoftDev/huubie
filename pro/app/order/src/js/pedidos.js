@@ -59,16 +59,19 @@ class Orders extends Templates {
         this.lsOrders();
     }
 
+    /*  La tarjeta llena el alto del módulo, como Catálogo: flex-1 de #root
+        hasta la tarjeta. Sin min-h-0: con muchos pedidos crece con la tabla y
+        el único scroll sigue siendo el de la página. */
     layout() {
         this.createLayout({
             parent: 'root',
             design: false,
             data: {
                 id:    `page${this.PROJECT_NAME}`,
-                class: 'flex flex-col gap-[16px]',
+                class: 'flex flex-1 flex-col gap-[16px]',
                 container: [
                     { type: 'div', id: `header${this.PROJECT_NAME}`, class: 'w-full' },
-                    { type: 'div', id: `body${this.PROJECT_NAME}`, class: 'w-full' }
+                    { type: 'div', id: `body${this.PROJECT_NAME}`, class: 'w-full flex flex-1 flex-col' }
                 ]
             }
         });
@@ -76,10 +79,10 @@ class Orders extends Templates {
         this.primaryLayout({
             parent: `body${this.PROJECT_NAME}`,
             id:     this.PROJECT_NAME,
-            class:  'ord-card',
+            class:  'ord-card flex flex-1 flex-col',
             card: {
                 name:      `card${this.PROJECT_NAME}`,
-                class:     'flex flex-col',
+                class:     'flex flex-1 flex-col',
                 filterBar: { class: 'w-full mb-[14px]' },
                 container: { class: 'w-full' }
             }
@@ -248,14 +251,10 @@ class Orders extends Templates {
         orderTurn.paintStrip(true);
     }
 
-    // Botones del encabezado. El turno lo muestra la franja de caja (caja-strip.js).
-    // orderTurn.sync() lo repinta: «Cierre del día» abre el día pendiente si lo hay.
+    // Botón del encabezado. El turno lo muestra la franja de caja (caja-strip.js).
+    // orderTurn.sync() lo repinta.
     paintTurn() {
         if (!$(`#headerActions${this.PROJECT_NAME}`).length) return;
-
-        const day     = dataInit.day || {};
-        const pending = day.pending && day.pending.length ? day.pending[0] : '';
-        const create  = this.can('create');
 
         this.createLayout({
             parent: `headerActions${this.PROJECT_NAME}`,
@@ -269,28 +268,16 @@ class Orders extends Templates {
             }
         });
 
-        const json  = [
-            {
-                opc:       'button',
-                id:        'btnDayOrders',
-                class:     'col-auto',
-                text:      'Cierre del día',
-                icon:      'icon-calendar-check-o',
-                color_btn: 'success',
-                onClick:   () => orderClosure.open(pending)
-            }
-        ];
-
-        if (create) {
-            json.push({ opc: 'button', id: 'btnNewOrder', class: 'col-auto', text: 'Nuevo pedido', icon: 'icon-plus', color_btn: 'primary', onClick: () => orderForm.add() });
-        }
+        if (!this.can('create')) return;
 
         this.coffeeForm({
             parent:       `headerButtons${this.PROJECT_NAME}`,
             id:           'formHeaderOrders',
             class:        'flex gap-[8px]',
             showRequired: false,
-            json:         json
+            json: [
+                { opc: 'button', id: 'btnNewOrder', class: 'col-auto', text: 'Nuevo pedido', icon: 'icon-plus', color_btn: 'primary', onClick: () => orderForm.add() }
+            ]
         });
     }
 
@@ -346,6 +333,7 @@ class Orders extends Templates {
             f_size:  13,
             right:   [4, 5, 6],
             center:  [2, 7, 8, 9, 10],
+            ...ORD_TABLE,
             ...this.emptyState(loaded ? data : null)
         });
 
@@ -380,7 +368,7 @@ class Orders extends Templates {
             },
             drawCallback: (settings) => {
                 // createCoffeeTable3 raya por posición: al ordenar se repinta en el orden visible.
-                $(settings.nTBody).children('tr').each((i, tr) => $(tr).children('td').toggleClass('bg-gray-100', i % 2 === 0));
+                ordStripe(settings.nTBody);
                 $('ul.ct3-dropdown-menu').addClass('hidden');
                 if (window.lucide) lucide.createIcons();
             }

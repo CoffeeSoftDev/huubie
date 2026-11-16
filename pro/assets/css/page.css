@@ -368,6 +368,11 @@ body.dark-mode .pg-hub-tag { background: rgb(255 255 255 / .06); }
 body.dark-mode a.pg-hub-card:hover,
 body.dark-mode a.pg-hub-card:focus-visible { background-image: linear-gradient(rgb(255 255 255 / .035), rgb(255 255 255 / .035)); }
 body.dark-mode .pg-hub-card.is-off { background: var(--surface); }
+/* Oscuro: sin borde, ni al pasar. Transparente y no `none`: el 1px se queda y
+   la tarjeta no cambia de tamaño. El foco sigue marcado por su anillo. */
+body.dark-mode .pg-hub-card,
+body.dark-mode a.pg-hub-card:hover,
+body.dark-mode a.pg-hub-card:focus-visible { border-color: transparent; }
 
 /* Teléfono: dos columnas más bajas, sin la flecha. */
 @media (max-width: 640px) {

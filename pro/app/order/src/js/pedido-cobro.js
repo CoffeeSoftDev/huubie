@@ -1,20 +1,26 @@
-/*  Pedidos › gestión de pagos: cobrar, ver los pagos y quitar uno (Etapa 3).
+/*  Pedidos › gestión de pagos: cobrar, ver los pagos y quitar uno.
 
     Entra desde la tabla (los importes Total, Abono y Saldo, y el menú
     «Cobrar» o «Pagos»), desde el detalle, el calendario y Clientes. Si vino
     del detalle, al terminar o al cerrar vuelve a abrirlo.
 
-    La ventana abre siempre. Sin saldo, sin turno o sin permiso queda en
-    consulta: dice por qué y, si se puede resolver (abrir el turno, ver el
-    cierre del día), trae el botón que lo resuelve. Dos pestañas: «Registrar
-    pago» e «Historial de pagos».
+    Ventana horizontal de dos columnas, como la de alpha (maqueta aprobada:
+    templates/pagos-alpha-propuesta.html). A la izquierda, de dónde es el
+    pedido, la sucursal que cobra (se puede elegir otra), la observación y el
+    descuento. A la derecha, las formas de pago de la sucursal que cobra, como
+    en Soft: una fila por forma, cada una con su importe. Una fila «cubre lo
+    que falta» y se ajusta sola con lo que se escribe en las demás. En
+    efectivo se anota lo recibido para el cambio. En pantalla táctil sale el
+    teclado de caja.
 
-    Lo que manda es el ctrl: aquí solo se arma el cobro y se avisa antes de
-    mandar. Un cobro admite varios métodos: hay una fila por forma de pago y
-    en cada una se escribe cuánto se paga con ella. Una de las filas «cubre
-    lo que falta»: se ajusta sola con lo que se escribe en las demás (100 en
-    MercadoPago, lo demás en efectivo). En efectivo se anota lo recibido para
-    calcular el cambio. El descuento es uno por pedido y va con motivo. */
+    Registrar siempre pregunta «¿Registrar pago?»; si cobra otra sucursal,
+    avisa del cobro cruzado. Quitar un pago se hace en la misma ventana y pide
+    el motivo; con el pedido liquidado, también la contraseña. Sin saldo, sin
+    turno o sin formas de pago la forma queda apagada y dice por qué.
+
+    Lo que manda es el ctrl: aquí se arma el cobro y se avisa antes de mandar.
+    SalePayments (historial.js) hereda de aquí; SalePay (ventas.js) también,
+    pero con su propia forma (SalePayBase). */
 
 // -- Cobro --
 
@@ -25,7 +31,12 @@ class OrderPay extends Templates {
         this.PROJECT_NAME = 'OrderPay';
         this.loading      = false;
         this.saving       = false;
+        this.busy         = false;
         this.token        = '';
+        this.touch        = !!(window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches);
+        this.keyHandler   = null;
+        this.isOpen       = false;
+        this.modal        = null;
     }
 
     // -- Entrada --
@@ -68,22 +79,22 @@ class OrderPay extends Templates {
     }
 
     start(data, fromDetail, opts) {
-        const o = data.order;
+        const o = data.order || {};
 
         this.o = {
             id:              Number(o.id),
             folio:           o.folio,
-            customer:        o.customer,
-            subtotal:        Number(o.subtotal),
-            discount_amount: Number(o.discount_amount),
-            discount_reason: o.discount_reason,
-            total:           Number(o.total),
-            paid:            Number(o.paid),
+            customer:        o.customer || '',
+            subtotal:        Number(o.subtotal) || 0,
+            discount_amount: Number(o.discount_amount) || 0,
+            discount_reason: o.discount_reason || '',
+            total:           Number(o.total) || 0,
+            paid:            Number(o.paid) || 0,
             cancelled:       !!o.cancelled,
-            delivered:       !!o.delivered
+            delivered:       !!o.delivered,
+            delivery:        o.delivery_date || ''
         };
 
-        this.methods      = (data.methods || []).map((m) => ({ id: Number(m.id), name: m.name, code: m.code, cash: Number(m.is_cash) === 1 }));
         this.payments     = data.payments || [];
         this.canDelete    = !!data.can_delete;
         this.canPay       = !!data.can_pay;
@@ -93,226 +104,626 @@ class OrderPay extends Templates {
         this.discBlock    = data.disc_block || '';
         this.fromDetail   = fromDetail;
         this.token        = ordToken();
-        this.discOpen     = false;
-        this.discMode     = 'percent';
+        this.branches     = this.readBranches(data);
+        this.mcache       = null;
 
-        if (this.canPay && !this.methods.length) {
-            this.canPay   = false;
-            this.payBlock = { kind: 'methods', title: 'Sin métodos de pago', message: 'La empresa no tiene métodos de pago activos.', day: false };
-        }
+        // origin = la sucursal de la sesión: el pedido es de ella. cobro = la que recibe el dinero.
+        const session = this.branches.find((b) => b.session);
 
-        /*  cash = el método en efectivo: lleva lo recibido y el cambio.
-            auto = la fila que cubre lo que falta del saldo. Arranca en efectivo
-            (o en el primer método) con todo el saldo; se apaga al escribir en ella. */
-        this.cash = this.methods.find((m) => m.cash) || null;
-        this.auto = this.methods.length ? (this.cash || this.methods[0]).id : 0;
+        this.origin = session ? session.id : (Number(data.branch_id) || (this.branches.length ? this.branches[0].id : 0));
+        this.cobro  = this.origin;
 
-        // Sin pestaña pedida: cobrar si se puede o si falta el turno; si no, los pagos que ya hay.
-        const kind = this.payBlock ? this.payBlock.kind : '';
+        // Sin pestaña pedida: cobrar si se puede (o si se resuelve aquí); si no, los pagos que ya hay.
+        const lock = this.lockState();
 
-        this.tab = ['pay', 'history'].includes(opts.tab)
+        this.view = ['pay', 'history'].includes(opts.tab)
             ? opts.tab
-            : (this.canPay || kind === 'turn' || !this.payments.length ? 'pay' : 'history');
+            : (['', 'turn', 'methods'].includes(lock) || !this.payments.length ? 'pay' : 'history');
 
+        this.resetForm();
+
+        // La ventana trae su propio marco (.pa-win): el encabezado y el pie de csModal se esconden.
         this.modal = this.csModal({
             id:         'modalOrderPay',
             title:      'Gestión de pagos',
-            subtitle:   `Pedido #P${this.o.folio} · ${this.o.customer || 'Sin cliente'}`,
-            lucideIcon: 'wallet',
             width:      'max-w-2xl',
-            saveText:   this.canPay ? (this.thenDeliver ? 'Cobrar y entregar' : 'Registrar pago') : false,
-            cancelText: fromDetail ? 'Volver' : 'Cerrar',
-            json:       this.fields(),
-            onSave:     (values, close) => this.save(close)
+            saveText:   false,
+            cancelText: 'Cerrar',
+            body:       '<div class="pa-win" id="paWin" role="dialog" aria-modal="true" aria-labelledby="paTitle"></div>'
         });
 
-        if (this.canPay) this.dress();
+        $('#modalOrderPay').addClass('pa-modal');
 
-        // Primero pintar y luego la pestaña: el foco cae en el monto ya escrito y lo deja seleccionado.
+        this.isOpen = true;
+
         this.bind();
-        this.paint();
-        this.setTab(this.tab);
-        this.onDismiss('modalOrderPay', () => this.back());
+        this.bindKeys();
+        this.render();
+
+        this.onDismiss('modalOrderPay', () => {
+            this.isOpen = false;
+            this.unbindKeys();
+            this.back();
+        });
+    }
+
+    // payOptions de Pedidos trae branches; el de Ventas solo la sucursal de la sesión.
+    readBranches(data) {
+        if (Array.isArray(data.branches) && data.branches.length) {
+            return data.branches.map((b) => ({
+                id:      Number(b.id),
+                name:    b.name || '',
+                session: !!b.session,
+                turn:    b.turn || null,
+                block:   b.block || null,
+                methods: b.methods || []
+            }));
+        }
+
+        const pb = data.pay_block || null;
+        const t  = data.turn || null;
+
+        return [{
+            id:      Number(data.branch_id) || 0,
+            name:    data.branch_name || 'Esta sucursal',
+            session: true,
+            turn:    t ? { folio: t.folio, opened_at: t.opened_at, opened_by: t.opened_by, old: !!t.old } : null,
+            block:   pb && pb.kind === 'turn' ? { title: pb.title, message: pb.message, day: !!pb.day } : null,
+            methods: data.methods || []
+        }];
     }
 
     back() {
         if (this.fromDetail) orderDetail.show(this.o.id);
     }
 
-    // -- Campos --
+    // -- Estado --
 
-    fields() {
-        // Un <label> con la misma clase que csModal: compact.css le da el mismo
-        // tamaño y margen que a «Recibe en efectivo», y los billetes quedan a la par del input.
-        const label   = (text) => `<label class="block text-xs font-semibold text-gray-500 mb-1.5">${text}</label>`;
-        const pane    = (list) => list.map((f) => Object.assign({}, f, { class: `${f.class || 'w-full sm:w-1/2'} op-pane-pay` }));
-        const history = { id: 'op_history', tipo: 'html', class: 'w-full op-pane-history', html: this.historyHtml() };
-        const top     = [
-            { id: 'op_head', tipo: 'html', class: 'w-full', html: this.head() },
-            { id: 'op_tabs', tipo: 'html', class: 'w-full', html: this.tabs() }
-        ];
-
-        if (!this.canPay) {
-            return top.concat([{ id: 'op_block', tipo: 'html', class: 'w-full op-pane-pay', html: this.blockHtml() }, history]);
-        }
-
-        const form = pane([
-            { id: 'op_methods', tipo: 'html', class: 'w-full', html: this.methodsHead() },
-            ...this.methodFields(label),
-            { id: 'op_note', lbl: 'Observación (opcional)', tipo: 'text', maxlength: 200, ph: 'Ej. Referencia de la transferencia', class: 'w-full' },
-            ...this.discountFields(),
-            { id: 'op_totals', tipo: 'html', class: 'w-full', html: '<div id="op_sum"></div>' }
-        ]);
-
-        return top.concat(form, [history]);
+    branchOf(id) {
+        return (this.branches || []).find((b) => b.id === Number(id)) || null;
     }
 
-    // -- Formas de pago --
-
-    methodsHead() {
-        const text = this.methods.length > 1
-            ? 'Escribe cuánto paga con cada una. Toca el nombre de una forma para cobrar con ella lo que falta.'
-            : 'Escribe cuánto paga.';
-
-        return `
-            <div class="ord-pay-forms">
-                <p class="ord-pay-forms-title">Formas de pago</p>
-                <p class="ord-pay-forms-text">${text}</p>
-            </div>`;
+    cobroBranch() {
+        return this.branchOf(this.cobro)
+            || (this.branches && this.branches[0])
+            || { id: this.cobro, name: 'Esta sucursal', session: true, turn: null, block: null, methods: [] };
     }
 
-    /*  Una fila por forma de pago: un campo number de csModal con el nombre
-        del método de etiqueta. order.css lo acomoda como fila (nombre a la
-        izquierda, monto a la derecha). Debajo de la de efectivo va lo que
-        entrega el cliente, para el cambio. */
-    methodFields(label) {
-        const list = [];
+    originBranch() {
+        return this.branchOf(this.origin) || this.cobroBranch();
+    }
 
-        this.methods.forEach((m) => {
-            list.push({ id: `op_amt_${m.id}`, lbl: m.name, tipo: 'number', min: 0, step: '0.01', ph: '0.00', icon: 'dollar-sign', help: this.methodHint(m), class: 'w-full op-row' });
+    sessionBranch() {
+        return (this.branches || []).find((b) => b.session) || this.originBranch();
+    }
 
-            if (!this.cash || m.id !== this.cash.id) return;
+    isCross() {
+        return this.cobro !== this.origin;
+    }
 
-            list.push({ id: 'op_received', lbl: 'Recibe en efectivo', tipo: 'number', min: 0, step: '0.01', class: 'w-full sm:w-2/5 op-cash' });
-            list.push({ id: 'op_bills', tipo: 'html', class: 'w-full sm:w-3/5 op-cash', html: label('Billetes') + '<div id="op_bill_chips" class="flex flex-wrap gap-[8px]"></div>' });
+    // Una sucursal donde sí se puede cobrar: turno sin candado y al menos una forma de pago.
+    usable(b) {
+        return !!b && !b.block && (b.methods || []).length > 0;
+    }
+
+    turnState(b) {
+        if (!b || !b.turn) return 'none';
+
+        return b.turn.old ? 'old' : 'open';
+    }
+
+    // Las formas de pago de la sucursal que cobra (payment_method.branch_id), con ícono y color.
+    payMethods() {
+        const c = this.mcache;
+
+        if (c && c.cobro === this.cobro && c.branches === this.branches) return c.list;
+
+        const list = (this.cobroBranch().methods || []).map((r) => {
+            const m = { id: Number(r.id), name: r.name, code: r.code, cash: Number(r.is_cash) === 1 };
+
+            m.icon  = this.methodIcon(m);
+            m.color = this.methodColor(m.icon);
+            m.hint  = this.methodHint(m);
+
+            return m;
         });
+
+        this.mcache = { cobro: this.cobro, branches: this.branches, list: list };
 
         return list;
     }
 
-    // Viste cada fila ya pintada: el ícono del método delante del nombre. El campo sigue siendo el de csModal.
-    dress() {
-        this.methods.forEach((m) => {
-            const row = $(`#op_amt_${m.id}`).closest('.op-row');
-
-            row.attr('data-id', m.id).prepend(`<span class="ord-method-ico"><i data-lucide="${this.methodIcon(m)}" class="w-5 h-5"></i></span>`);
-            row.children('label').attr('title', `Cobrar lo que falta con ${m.name}`);
-        });
+    cashOf() {
+        return this.payMethods().find((m) => m.cash) || null;
     }
 
-    // El método que se toca cubre lo que falta; el que lo cubría se vacía.
-    takeRest(id) {
-        if (this.auto && this.auto !== id) $(`#op_amt_${this.auto}`).val('');
+    // A donde vuelve el teclado: Efectivo, o la primera forma si la sucursal no tiene.
+    homeId() {
+        const m = this.cashOf() || this.payMethods()[0];
 
-        this.auto = id;
-        this.paint();
-        this.focusRow(id);
+        return m ? String(m.id) : '';
     }
 
-    // Foco en el monto de una fila, con lo escrito seleccionado: teclear lo reemplaza.
-    focusRow(id) {
-        const input = document.getElementById(`op_amt_${id}`);
+    fieldInput(f) {
+        if (f === '' || f === null || f === undefined) return null;
+        if (f === 'received') return document.getElementById('paRecv');
+        if (f === 'disc')     return document.getElementById('paDiscValue');
 
-        if (!input) return;
-
-        input.focus();
-        input.select();
+        return document.getElementById(`paAmt${f}`);
     }
 
-    // Tres mosaicos (Total, Pagado, Restante) y la barra de avance. Los llena paintHead.
-    head() {
-        const tile = (id, tone, label) => `
-            <div id="${id}" class="ord-pay-tile ${tone}">
-                <p class="ord-pay-tile-lbl" id="${id}_lbl">${label}</p>
-                <p class="ord-pay-tile-val" id="${id}_val"></p>
-                <p class="ord-pay-tile-sub" id="${id}_sub"></p>
-            </div>`;
-
-        return `
-            <div class="grid grid-cols-3 gap-[8px]">
-                ${tile('op_t_total', '', 'Total')}
-                ${tile('op_t_paid', 'is-paid', 'Pagado')}
-                ${tile('op_t_rest', 'is-due', 'Restante')}
-            </div>
-            <div class="ord-pay-bar"><span id="op_bar"></span></div>`;
+    isSettled() {
+        return this.o.total > 0 && ordRound(this.o.total - this.o.paid) <= 0.005;
     }
 
-    // total = el del pedido con el descuento que se está capturando.
-    paintHead(total) {
+    /*  Por qué no se cobra: 'block' (cancelado, sin permiso o cotización vacía),
+        'paid', 'turn' (la sucursal que cobra no tiene turno), 'methods' (no tiene
+        formas de pago) o '' (se cobra). El candado del turno es el de la sucursal
+        que cobra: con otra sucursal elegida, el de la sesión no estorba. */
+    lockState() {
+        const o = this.o;
+        const b = this.payBlock;
+
+        if (o.cancelled)                                     return 'block';
+        if (o.total > 0 && o.paid + 0.005 >= o.total)        return 'paid';
+        if ((b && b.kind !== 'turn') || (!this.canPay && !b)) return 'block';
+        if (this.cobroBranch().block)                        return 'turn';
+        if (!this.payMethods().length)                       return 'methods';
+
+        return '';
+    }
+
+    /*  auto = la fila que cubre lo que falta (arranca en Efectivo con todo el saldo).
+        active = donde escribe el teclado: id de la forma, 'received' o 'disc'.
+        fresh = la siguiente tecla reemplaza lo escrito. busy = candado contra el doble cobro. */
+    resetForm() {
+        const home = this.homeId();
+
+        this.auto        = Number(home) || 0;
+        this.active      = home;
+        this.fresh       = true;
+        this.discOpen    = false;
+        this.discMode    = 'percent';
+        this.confirmCalc = null;
+        this.delPay      = null;
+        this.busy        = false;
+    }
+
+    afterChange() {
+        orders.lsOrders();
+        orderTurn.touch();
+    }
+
+    // -- Textos (Ventas los cambia) --
+
+    noun()         { return 'Pedido'; }
+    theNoun()      { return 'el pedido'; }
+    prefix()       { return 'P'; }
+    noClient()     { return 'Sin cliente'; }
+    totalExtra(after) { return ''; }
+    paidLabel()    { return 'Pedido pagado completamente'; }
+    paidShort()    { return 'Pedido pagado.'; }
+    canDiscount()  { return true; }
+    keyOnSettled() { return true; }
+    originLabel()  { return 'Origen del pedido'; }
+
+    // -- Cuentas --
+
+    calc() {
         const o       = this.o;
-        const cut     = ordRound(o.discount_amount + (o.total - total));
-        const gross   = o.discount_amount > 0 ? o.subtotal : o.total;
-        const balance = ordRound(total - o.paid);
-        const n       = this.payments.length;
-        const pct     = total > 0
-            ? (o.paid + 0.005 >= total ? 100 : Math.max(0, Math.floor(o.paid / total * 100)))
-            : (o.paid > 0 ? 100 : 0);
+        const d       = this.discountCalc();
+        const total   = ordRound(o.total - d.amount);
+        const balance = Math.max(0, ordRound(total - o.paid));
 
-        const set = (id, tone, label, value, sub) => {
-            $(`#${id}`).attr('class', `ord-pay-tile ${tone}`.trim());
-            $(`#${id}_lbl`).text(label);
-            $(`#${id}_val`).text(value);
-            $(`#${id}_sub`).html(sub);
+        let bad = null;
+
+        // Como Soft: todas las formas de la sucursal; las que quedan en 0 no se cobran.
+        // La que cubre lo que falta no se lee: toma lo que dejan las demás.
+        const rows = this.payMethods().map((m) => {
+            if (m.id === this.auto) return { m: m, amount: 0 };
+
+            const input = this.fieldInput(m.id);
+            const raw   = String(input ? input.value : '').trim();
+            const value = raw === '' ? 0 : this.num(raw);
+
+            if (value === null && !bad) bad = m;
+
+            return { m: m, amount: value || 0 };
+        });
+
+        const fixed = ordRound(rows.reduce((s, r) => s + r.amount, 0));
+        const auto  = rows.find((r) => r.m.id === this.auto);
+
+        if (auto) auto.amount = Math.max(0, ordRound(balance - fixed));
+
+        /*  Efectivo: lo escrito en su fila es «hasta cuánto». Se aplica lo que
+            cabe en el saldo después de los demás métodos y lo que sobra es
+            cambio. «Recibe en efectivo», si se llena, es el billete entregado. */
+        const cashRow   = rows.find((r) => r.m.cash) || null;
+        const cashTyped = cashRow ? cashRow.amount : 0;
+        const others    = ordRound(rows.reduce((s, r) => s + (r === cashRow ? 0 : r.amount), 0));
+        const room      = Math.max(0, ordRound(balance - others));
+        const cashPaid  = ordRound(Math.min(cashTyped, room));
+        const recvEl    = document.getElementById('paRecv');
+        const rawRec    = String(recvEl ? recvEl.value : '').trim();
+        const rec       = rawRec === '' || cashPaid <= 0 ? null : this.num(rawRec);
+        const badRec    = rawRec !== '' && cashPaid > 0 && rec === null;
+        const cashGiven = rec === null ? cashTyped : rec;
+
+        const payments = [];
+
+        rows.forEach((r) => {
+            const value = r === cashRow ? cashPaid : r.amount;
+
+            if (value <= 0) return;
+
+            payments.push({ method_id: r.m.id, amount: value, tendered: r === cashRow ? cashGiven : value });
+        });
+
+        // Solo lo que no es efectivo puede sobrar; el efectivo que ya no cabe también sobra.
+        const over    = ordRound(Math.max(0, others - balance) + (cashTyped > 0 && cashPaid <= 0 ? cashTyped : 0));
+        const applied = ordRound(payments.reduce((s, p) => s + p.amount, 0));
+        const missing = cashPaid > 0 ? Math.max(0, ordRound(cashPaid - cashGiven)) : 0;
+        const change  = cashPaid > 0 ? Math.max(0, ordRound(cashGiven - cashPaid)) : 0;
+
+        return { d, total, balance, rows, bad, badRec, cashTyped, cashPaid, cashGiven, payments, applied, over, missing, change };
+    }
+
+    discountCalc() {
+        const off = { amount: 0, error: '' };
+
+        if (!this.discOpen) return off;
+
+        const o      = this.o;
+        const raw    = String($('#paDiscValue').val() || '').trim();
+        const reason = this.reasons.find((r) => String(r.id) === String($('#paReason').val()));
+        const value  = this.num(raw);
+        const fail   = (error) => ({ amount: 0, error: error });
+
+        if (raw === '' && !reason) return off;
+        if (!reason)               return fail('Elige el motivo del descuento.');
+        if (raw === '')            return fail('Escribe el descuento.');
+        if (value === null || value <= 0)               return fail('El descuento tiene que ser mayor a 0.');
+        if (this.discMode === 'percent' && value > 100) return fail('El descuento no puede pasar de 100 %.');
+
+        const cut = this.discMode === 'percent' ? ordRound(o.subtotal * value / 100) : value;
+        const max = Number(reason.max_percent);
+        const cap = ordRound(o.subtotal * max / 100);
+
+        if (cut <= 0)                                 return fail('El descuento tiene que ser mayor a $0.');
+        if (cut > cap + 0.005)                        return fail(`«${reason.name}» permite hasta ${max} % (${money(cap)}).`);
+        if (cut > o.total + 0.005)                    return fail('El descuento no puede ser mayor que el total.');
+        if (ordRound(o.total - cut) + 0.005 < o.paid) return fail(`Con ese descuento el total queda debajo de lo ya abonado (${money(o.paid)}).`);
+
+        if (Number(reason.requires_authorization) === 1 && !this.canAuthorize) {
+            return fail(`«${reason.name}» lo autoriza un Dueño o Supervisor.`);
+        }
+
+        return {
+            amount:  cut,
+            error:   '',
+            reason:  reason,
+            value:   value,
+            percent: o.subtotal > 0 ? ordRound(cut / o.subtotal * 100) : 0
+        };
+    }
+
+    // Lo que frena el guardado, en orden. '' = se puede registrar.
+    problem(c) {
+        if (c.d.error)                     return c.d.error;
+        if (c.bad)                         return `El monto de ${c.bad.name} no es válido.`;
+        if (c.badRec)                      return 'El monto recibido en efectivo no es válido.';
+        if (c.over > 0.005)                return `Los pagos pasan del saldo por ${money(c.over)}. El saldo es ${money(c.balance)}: no se cobra de más.`;
+        if (c.applied <= 0 && !c.d.amount) return 'Escribe cuánto paga el cliente.';
+        if (c.payments.length > 6)         return 'Un cobro admite hasta 6 métodos de pago.';
+        if (c.missing > 0.005)             return `Faltan ${money(c.missing)} por recibir en efectivo.`;
+
+        return '';
+    }
+
+    rowHint(r, c) {
+        if (r.m.cash && c.cashPaid > 0 && c.cashTyped > c.cashPaid + 0.005) return `Se aplican ${money(c.cashPaid)}; lo demás es cambio`;
+        if (r.m.id === this.auto) return 'Cubre lo que falta del saldo';
+
+        return r.m.hint;
+    }
+
+    // Como alpha: «Registrar $X en {forma}», con el ícono de la forma. Devuelve [texto, ícono].
+    saveLabel(c) {
+        if (c.bad || c.over > 0.005 || c.applied <= 0) {
+            return c.applied <= 0 && c.d.amount > 0 && !c.bad ? ['Aplicar descuento', 'percent'] : ['Registrar pago', 'check'];
+        }
+
+        if (this.thenDeliver && c.applied + 0.005 >= c.balance) return ['Cobrar y entregar', 'package-check'];
+
+        if (c.payments.length > 1) return [`Registrar ${money(c.applied)} en ${c.payments.length} formas`, 'layers'];
+
+        const m = this.methodOf(c.payments[0].method_id);
+
+        return m ? [`Registrar ${money(c.applied)} en ${m.name}`, m.icon] : [`Registrar ${money(c.applied)}`, 'check'];
+    }
+
+    // -- Piezas de la ventana --
+
+    headHtml() {
+        const o    = this.o;
+        const day  = this.dateOf(o.delivery);
+        const tab  = (view, icon, text, extra = '') => {
+            const on = this.view === view;
+
+            return `<button type="button" class="pa-tab${on ? ' is-active' : ''}" role="tab" aria-selected="${on}" data-act="view" data-value="${view}">${this.ico(icon)}${text}${extra}</button>`;
         };
 
-        set('op_t_total', '', 'Total', money(total), cut > 0.005 ? `<s>${money(gross)}</s> · descuento ${money(cut)}` : 'Sin descuento');
-        set('op_t_paid', o.paid > 0 ? 'is-paid' : 'is-muted', 'Pagado', money(o.paid), n ? `${n} ${n === 1 ? 'pago' : 'pagos'} · ${pct} %` : 'Sin pagos');
-
-        let rest = ['is-due', 'Restante', money(balance), 'Por cobrar'];
-
-        if (o.cancelled)                  rest = ['is-muted', 'Cancelado', '-', 'No se cobra'];
-        else if (Math.abs(total) < 0.005) rest = ['is-muted', 'Restante', '-', 'Sin importe'];
-        else if (balance < -0.005)        rest = ['is-credit', 'A favor', money(Math.abs(balance)), 'Pagó de más'];
-        else if (balance <= 0.005)        rest = ['is-done', 'Restante', money(0), 'Pedido liquidado'];
-
-        set('op_t_rest', ...rest);
-
-        $('#op_bar').css('width', `${pct}%`);
+        return '<div class="pa-head">'
+            +   '<div class="pa-head-top">'
+            +     `<div class="pa-head-ico">${this.ico('wallet')}</div>`
+            +     '<div class="pa-head-text"><h2 id="paTitle">Gestión de pagos</h2>'
+            +       '<p class="pa-head-meta">'
+            +         `<span>${this.ico('file-text')}Folio <b>#${this.prefix()}${esc(o.folio)}</b></span>`
+            +         `<span class="is-client">${this.ico('user')}<em>${esc(o.customer || this.noClient())}</em></span>`
+            +         (day ? `<span>${this.ico('calendar')}Entrega ${day}</span>` : '')
+            +       '</p>'
+            +     '</div>'
+            +     `<button type="button" class="pa-x" data-act="close" aria-label="Cerrar">${this.ico('x')}</button>`
+            +   '</div>'
+            +   '<div class="pa-tabs" role="tablist">'
+            +     tab('pay', 'hand-coins', 'Registrar pago')
+            +     tab('history', 'history', 'Historial', `<span class="pa-count">${this.payments.length}</span>`)
+            +   '</div>'
+            + '</div>';
     }
 
-    tabs() {
-        const icon = this.canPay ? 'banknote' : this.blockView().icon;
+    // Los recuadros de alpha: Total, Pagado y Restante (verde al saldar). Los llena paintSummary.
+    summaryHtml() {
+        const done = this.isSettled();
 
-        return `
-            <div class="ord-pay-tabs" role="tablist">
-                <button type="button" class="ord-pay-tab" data-tab="pay" role="tab" aria-selected="false">
-                    <i data-lucide="${icon}" class="w-4 h-4"></i><span>Registrar pago</span>
-                </button>
-                <button type="button" class="ord-pay-tab" data-tab="history" role="tab" aria-selected="false">
-                    <i data-lucide="history" class="w-4 h-4"></i><span>Historial de pagos</span><span class="ord-pay-count">${this.payments.length}</span>
-                </button>
-            </div>`;
+        return '<div class="pa-sum">'
+            +   `<div class="pa-stat is-total"><span>${this.ico('wallet')}Total</span><b id="paSumTotal"></b><small id="paSumTotalNote"></small></div>`
+            +   `<div class="pa-stat is-paid"><span>${this.ico('circle-check')}Pagado</span><b id="paSumPaid"></b></div>`
+            +   `<div class="pa-stat is-due" id="paSumDueBox"><span>${this.ico(done ? 'circle-check' : 'clock')}${done ? 'Pagado completo' : 'Restante'}</span><b id="paSumDue"></b><small id="paSumDueNote"></small></div>`
+            + '</div>';
     }
 
-    setTab(tab) {
-        this.tab = tab === 'history' ? 'history' : 'pay';
+    // El subtítulo de alpha (misma sucursal u otra) y el punto del turno; el detalle queda en title.
+    turnLine(b) {
+        const st    = this.turnState(b);
+        const folio = b.turn && b.turn.folio != null ? esc(b.turn.folio) : '';
+        const where = this.isCross() ? 'Cobro en otra sucursal' : 'Misma sucursal de origen';
 
-        const modal = $('#modalOrderPay');
+        if (st === 'open') return `<span class="pa-dot pa-turn-open"></span>${where} · Turno ${folio}`;
+        if (st === 'old')  return `<span class="pa-dot pa-turn-old"></span>Turno ${folio} sin cerrar`;
 
-        modal.toggleClass('is-history', this.tab === 'history');
+        return '<span class="pa-dot pa-turn-none"></span>Sin turno abierto';
+    }
 
-        modal.find('button.ord-pay-tab').each((i, el) => {
-            const on = $(el).data('tab') === this.tab;
+    turnTitle(b) {
+        const st = this.turnState(b);
+        const t  = b.turn || {};
 
-            $(el).toggleClass('is-active', on).attr('aria-selected', on ? 'true' : 'false');
-        });
+        if (st === 'open') return `Turno ${t.folio} abierto${t.opened_by ? ` · ${t.opened_by}` : ''}`;
+        if (st === 'old')  return `Turno ${t.folio}${t.opened_by ? ` de ${t.opened_by}` : ''} sin cerrar desde el ${ordDate(t.opened_at)}`;
 
-        if (this.tab === 'pay' && this.canPay) this.focusRow(this.auto || this.methods[0].id);
+        return 'Sin turno abierto';
+    }
+
+    // Cada bloque lleva su rótulo encima, como los lbl del formulario de alpha.
+    label(text, aside = '') {
+        return `<div class="pa-label"><span>${text}</span>${aside ? `<small>${aside}</small>` : ''}</div>`;
+    }
+
+    // Las dos tarjetas de alpha: de dónde es el pedido y qué sucursal cobra.
+    branchesHtml(lock) {
+        const origin = this.originBranch();
+        const cobro  = this.cobroBranch();
+        const off    = lock === 'paid' || lock === 'block';
+        const fixed  = off || this.branches.length < 2;
+        const opts   = this.branches.map((b) => `<option value="${b.id}"${b.id === this.cobro ? ' selected' : ''}>${esc(b.name)}${b.session ? ' · tu sesión' : ''}</option>`).join('');
+
+        return '<div class="pa-field">'
+            +   this.label(this.originLabel())
+            +   '<div class="pa-branch">'
+            +     `<span class="pa-branch-ico">${this.ico('house')}</span>`
+            +     `<span class="pa-branch-text"><b>${esc(origin.name)}</b><small>Sucursal donde se generó la venta</small></span>`
+            +   '</div>'
+            + '</div>'
+            + '<div class="pa-field">'
+            +   this.label('Sucursal que cobrará')
+            +   `<div class="pa-branch is-cobro${this.isCross() ? ' is-cross' : ''}${off ? ' is-off' : ''}" title="${esc(this.turnTitle(cobro))}">`
+            +     `<span class="pa-branch-ico">${this.ico('landmark')}</span>`
+            +     `<span class="pa-branch-text"><b>${esc(cobro.name)}</b><small>${this.turnLine(cobro)}</small></span>`
+            +     (fixed ? '' : `<span class="pa-branch-chev">${this.ico('chevron-down')}</span>`)
+            +     `<select id="paCobro" aria-label="Sucursal que cobrará"${fixed ? ' disabled' : ''}>${opts}</select>`
+            +   '</div>'
+            +   this.alertHtml(lock)
+            + '</div>';
+    }
+
+    /*  El aviso de alpha (#cobroShiftAlert) bajo la sucursal que cobra: la forma
+        sigue a la vista, apagada, y se puede elegir otra sucursal sin cerrar. */
+    alertHtml(lock) {
+        if (!['turn', 'methods', 'block'].includes(lock)) return '';
+
+        const cobro = this.cobroBranch();
+        const home  = this.sessionBranch();
+        const go    = (act, icon, text) => `<button type="button" class="pa-alert-go" data-act="${act}">${this.ico(icon)}${esc(text)}</button>`;
+        const here  = home && home.id !== this.cobro && this.usable(home) ? go('cobro-here', 'landmark', `Cobrar en ${home.name}`) : '';
+
+        let title = '';
+        let text  = '';
+        let btns  = '';
+
+        if (lock === 'turn') {
+            const b = cobro.block || {};
+
+            title = b.title || `${cobro.name} no tiene turno abierto`;
+            text  = b.message || 'Abre el turno para registrar este pago.';
+
+            // Abrir el turno o ver el cierre solo se puede en la sucursal de la sesión.
+            if (cobro.session) {
+                const label = this.turnGo(b);
+
+                btns = go('go', this.goIcon(label), label);
+            }
+
+            btns += here;
+        } else if (lock === 'methods') {
+            title = `${cobro.name} no tiene formas de pago activas`;
+            text  = 'Elige otra sucursal o da de alta una forma de pago en Catálogo.';
+            btns  = here;
+        } else {
+            const v = this.blockView();
+
+            title = v.title;
+            text  = v.text;
+            btns  = v.go ? go('go', this.goIcon(v.go), v.go) : '';
+        }
+
+        return `<div class="pa-alert" role="alert">${this.ico('lock')}`
+            +   `<div class="pa-alert-text"><b>${esc(title)}</b>${text ? `<p>${esc(text)}</p>` : ''}${btns ? `<div class="pa-alert-row">${btns}</div>` : ''}</div>`
+            + '</div>';
+    }
+
+    turnGo(b) {
+        if (b.day) return 'Ver cierre del día';
+
+        return /otro d[ií]a/i.test(b.title || '') ? 'Ver turno' : 'Abrir turno';
+    }
+
+    goIcon(label) {
+        const icons = { 'Abrir turno': 'lock-open', 'Ver turno': 'clock', 'Ver cierre del día': 'calendar-days', 'Editar pedido': 'pencil' };
+
+        return icons[label] || 'lock-open';
+    }
+
+    // En táctil el teclado es el de la ventana: el del sistema no sale.
+    inputMode() {
+        return this.touch ? 'none' : 'decimal';
+    }
+
+    rowHtml(m) {
+        return `<div class="pa-row" data-field="${m.id}" style="--m:${m.color}">`
+            +   `<button type="button" class="pa-row-name" data-act="rest" data-id="${m.id}" title="Que ${esc(m.name)} cubra lo que falta">`
+            +     `<span class="pa-row-ico">${this.ico(m.icon)}</span>`
+            +     `<span class="pa-row-text"><b>${esc(m.name)}</b><small data-hint>${esc(m.hint)}</small></span>`
+            +   '</button>'
+            +   `<div class="pa-amt"><span>$</span><input id="paAmt${m.id}" type="text" inputmode="${this.inputMode()}" autocomplete="off" placeholder="0.00" data-field="${m.id}" aria-label="Importe en ${esc(m.name)}"></div>`
+            + '</div>';
+    }
+
+    recvHtml() {
+        return '<div class="pa-row is-recv" id="paRecvRow" data-field="received" hidden>'
+            +   '<span class="pa-recv-label">Recibe en efectivo</span>'
+            +   `<div class="pa-amt"><span>$</span><input id="paRecv" type="text" inputmode="${this.inputMode()}" autocomplete="off" placeholder="0.00" data-field="received" aria-label="Recibe en efectivo"></div>`
+            + '</div>';
+    }
+
+    // La tabla de Soft: encabezado, una fila por forma de pago y «Recibe» al final.
+    rowsHtml() {
+        const list = this.payMethods();
+
+        if (!list.length) return '';
+
+        return `<div class="pa-grid-head"><span>Forma de pago · ${esc(this.cobroBranch().name)}</span><span>Importe</span></div>`
+            + list.map((m) => this.rowHtml(m)).join('')
+            + (this.cashOf() ? this.recvHtml() : '');
+    }
+
+    // Teclado de caja: 7-8-9 arriba. La tecla alta pasa de campo, no cobra.
+    padHtml() {
+        if (!this.touch) return '';
+
+        const key = (k, text, cls = '', aria = '') => `<button type="button" class="pa-key${cls ? ` ${cls}` : ''}" data-act="key" data-key="${k}"${aria ? ` aria-label="${aria}"` : ''}>${text}</button>`;
+
+        return '<div class="pa-pad" aria-label="Teclado">'
+            +   key('7', '7') + key('8', '8') + key('9', '9') + key('back', this.ico('delete'), 'is-fn', 'Borrar')
+            +   key('4', '4') + key('5', '5') + key('6', '6') + key('clear', 'C', 'is-clear', 'Limpiar')
+            +   key('1', '1') + key('2', '2') + key('3', '3') + key('next', `${this.ico('corner-down-left')}Siguiente`, 'is-next')
+            +   key('0', '0') + key('00', '00') + key('.', '.')
+            + '</div>';
+    }
+
+    discHtml() {
+        const seg = (mode, text) => `<button type="button" class="pa-seg-btn${this.discMode === mode ? ' is-active' : ''}" data-act="mode" data-value="${mode}">${text}</button>`;
+        const opt = (r) => `<option value="${esc(r.id)}">${esc(r.name)} · ${Number(r.requires_authorization) === 1 ? 'pide autorización' : `hasta ${Number(r.max_percent)} %`}</option>`;
+
+        return `<div class="pa-disc" id="paDisc"${this.discOpen ? '' : ' hidden'}>`
+            +   `<select id="paReason" class="pa-input" aria-label="Motivo del descuento"><option value="">Motivo del descuento</option>${this.reasons.map(opt).join('')}</select>`
+            +   '<div class="pa-disc-value" id="paDiscField">'
+            +     `<input id="paDiscValue" class="pa-input" type="text" inputmode="${this.inputMode()}" autocomplete="off" placeholder="0" data-field="disc" aria-label="Descuento">`
+            +     `<div class="pa-seg">${seg('percent', '%')}${seg('amount', '$')}</div>`
+            +   '</div>'
+            +   '<p class="pa-disc-msg" id="paDiscMsg"></p>'
+            + '</div>';
+    }
+
+    // Un descuento por pedido y con motivo. Si ya tiene uno, o el corte cerró, solo se avisa.
+    discArea() {
+        const o = this.o;
+
+        if (!this.canDiscount()) return '';
+
+        if (o.discount_amount > 0) {
+            const why = o.discount_reason ? ` (${esc(o.discount_reason)})` : '';
+
+            return `<p class="pa-note-line">${this.ico('percent')}<span>Este pedido ya tiene un descuento de <b>${money(o.discount_amount)}</b>${why}. Solo se aplica uno.</span></p>`;
+        }
+
+        if (!this.reasons.length) return '';
+
+        // Corte cerrado: el descuento movería su vendido; lo autoriza Dueño o Supervisor.
+        if (this.discBlock) return `<p class="pa-note-line">${this.ico('lock')}<span>${esc(this.discBlock)}</span></p>`;
+
+        return `<button type="button" class="pa-extra-btn" id="paDiscBtn" data-act="disc" aria-pressed="false">${this.ico('percent')}<span>Descuento</span></button>`
+            + this.discHtml();
+    }
+
+    /*  Horizontal: el saldo arriba a lo ancho; a la izquierda de dónde es el
+        pedido, quién cobra, la observación y el descuento; a la derecha las
+        formas de pago y, en táctil, el teclado. Pagado o sin turno: la misma
+        forma, apagada, y la ventana no cambia de tamaño. El fieldset apaga todo
+        lo de adentro; la sucursal que cobra queda fuera para poder elegir otra. */
+    payHtml(lock) {
+        const off = lock ? ' disabled' : '';
+        const cls = lock ? ' is-locked' : '';
+
+        return '<div class="pa-form" id="paPayForm">'
+            +   this.summaryHtml()
+            +   '<div class="pa-cols">'
+            +     '<div class="pa-col pa-col-info">'
+            +       this.branchesHtml(lock)
+            +       `<fieldset class="pa-set${cls}"${off}>`
+            +         '<div class="pa-field">'
+            +           this.label('Observación', 'Opcional')
+            +           '<textarea id="paNote" class="pa-input pa-textarea" rows="2" maxlength="200" placeholder="Ej. paga la mamá de la festejada" aria-label="Observación"></textarea>'
+            +         '</div>'
+            +         this.discArea()
+            +       '</fieldset>'
+            +     '</div>'
+            +     `<fieldset class="pa-col pa-col-pay${cls}"${off}>`
+            +       this.label('Importe', 'Toca una forma para que cubra lo que falta')
+            +       `<div class="pa-rows" id="paRows" role="group" aria-label="Formas de pago">${this.rowsHtml()}</div>`
+            +       this.padHtml()
+            +     '</fieldset>'
+            +   '</div>'
+            + '</div>';
+    }
+
+    // Lo que dice el aviso si se pulsa el botón apagado.
+    lockText(lock) {
+        const b = this.cobroBranch();
+
+        if (lock === 'paid')    return `${this.paidLabel()}.`;
+        if (lock === 'turn')    return `${b.name}: ${(b.block && b.block.message) || 'sin turno abierto'}`;
+        if (lock === 'methods') return `${b.name} no tiene formas de pago activas.`;
+
+        const v = this.blockView();
+
+        return v.text || v.title;
     }
 
     // -- Sin cobro: por qué --
 
-    // El aviso de la pestaña «Registrar pago» cuando no se puede cobrar. go = el botón que lo resuelve.
+    // El aviso cuando no se puede cobrar. go = el botón que lo resuelve.
     blockView() {
         const o = this.o;
         const b = this.payBlock || {};
@@ -347,30 +758,12 @@ class OrderPay extends Templates {
         return { tone: 'is-info', icon: 'lock', title: b.title || 'No se puede cobrar', text: b.message || '', go: '' };
     }
 
-    blockHtml() {
-        const v     = this.blockView();
-        const icons = { 'Abrir turno': 'lock-open', 'Ver turno': 'clock', 'Ver cierre del día': 'calendar-days', 'Editar pedido': 'pencil' };
-        const go    = v.go
-            ? `<button type="button" class="ord-pay-go"><i data-lucide="${icons[v.go] || 'lock-open'}" class="w-4 h-4"></i>${esc(v.go)}</button>`
-            : '';
-
-        return `
-            <div class="ord-pay-state ${v.tone}">
-                <span class="ord-pay-state-ico"><i data-lucide="${v.icon}" class="w-5 h-5"></i></span>
-                <div class="min-w-0">
-                    <p class="ord-pay-state-title">${esc(v.title)}</p>
-                    <p class="ord-pay-state-text">${esc(v.text)}</p>
-                    ${go}
-                </div>
-            </div>`;
-    }
-
     // Abre el turno (o el cierre del día) y, con el turno abierto, regresa a este cobro.
     goTurn() {
         const id         = this.o.id;
         const fromDetail = this.fromDetail;
         const deliver    = this.thenDeliver;
-        const day        = !!(this.payBlock && this.payBlock.day);
+        const day        = !!((this.cobroBranch().block || this.payBlock || {}).day);
 
         const next = () => this.open(id, fromDetail, { deliver: deliver });
 
@@ -396,96 +789,788 @@ class OrderPay extends Templates {
     historyHtml() {
         const list = this.payments;
 
+        // Sin pagos: el aviso vacío de alpha, en lugar de la tabla.
         if (!list.length) {
-            return `
-                <div class="ord-pay-empty">
-                    <i data-lucide="inbox" class="w-8 h-8"></i>
-                    <p class="ord-pay-empty-title">Aún no se ha realizado ningún abono</p>
-                    <p class="ord-pay-empty-text">Los pagos registrados aparecerán aquí.</p>
-                </div>`;
+            return this.summaryHtml()
+                + '<div class="pa-empty">'
+                +   `<span class="pa-empty-ico">${this.ico('history')}</span>`
+                +   '<b>Aún no se ha realizado ningún abono</b>'
+                +   '<p>Los pagos registrados aparecerán aquí.</p>'
+                + '</div>';
         }
 
-        const sum = ordRound(list.reduce((s, p) => s + Number(p.amount), 0));
-
-        return `
-            <div class="ord-pay-list">${list.map((p) => this.historyRow(p)).join('')}</div>
-            <div class="ord-pay-total">
-                <span>Total pagado · ${list.length} ${list.length === 1 ? 'pago' : 'pagos'}</span>
-                <b>${money(sum)}</b>
-            </div>`;
-    }
-
-    // Un pago: método, concepto, cuándo, quién cobró y el cambio. La papelera solo con el turno abierto.
-    historyRow(p) {
-        const icon   = this.methodIcon({ code: p.method_code, name: p.method, cash: Number(p.is_cash) === 1 });
-        const who    = p.received_by ? `<span>Cobró ${esc(p.received_by)}</span>` : '';
-        const change = Number(p.change_amount) > 0.005
-            ? `<span>Recibió ${money(p.tendered_amount)} · cambio ${money(p.change_amount)}</span>`
+        const liq  = this.isSettled() && this.keyOnSettled();
+        const hint = this.canDelete
+            ? `<p class="pa-hint">Un pago se quita solo con el turno abierto de la sucursal que lo cobró, y pide el motivo${liq ? '; con el pedido liquidado, también tu contraseña' : ''}.</p>`
             : '';
 
-        let action = '';
-
-        if (this.canDelete && p.turn_status !== 'closed') {
-            action = `<button type="button" class="ord-pay-del" data-payment="${Number(p.id)}" aria-label="Quitar este pago"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`;
-        } else if (this.canDelete) {
-            action = `<span class="ord-pay-lock" title="El turno ${esc(p.turn_folio || '')} ya cerró: reábrelo para quitar este pago."><i data-lucide="lock" class="w-3.5 h-3.5"></i>Turno cerrado</span>`;
-        }
-
-        return `
-            <div class="ord-pay-row">
-                <span class="ord-pay-row-ico"><i data-lucide="${icon}" class="w-4 h-4"></i></span>
-                <div class="min-w-0 flex-1">
-                    <p class="ord-pay-row-title">${esc(p.method || 'Pago')}<span>${esc(p.description || '')}</span></p>
-                    <p class="ord-pay-row-meta"><span>${ordDate(p.paid_at, true)}</span>${who}${change}</p>
-                </div>
-                <b class="ord-pay-row-amount">${money(p.amount)}</b>
-                ${action}
-            </div>`;
+        return this.summaryHtml()
+            + '<div class="pa-hist-wrap"><table class="pa-hist">'
+            +   '<thead><tr><th>Fecha</th><th>Forma de pago</th><th>Cobró en</th><th class="pa-hide-sm">Observación</th><th class="r">Importe</th><th class="c"></th></tr></thead>'
+            +   `<tbody>${list.map((p) => this.historyRow(p, liq)).join('')}</tbody>`
+            + '</table></div>'
+            + hint;
     }
 
-    discountFields() {
+    // En el celular la fecha va sin año y se esconden el turno y la observación.
+    historyRow(p, liq) {
+        const d      = ordDate(p.paid_at) || '';
+        const time   = String(p.paid_at || '').slice(11, 16);
+        const hour   = /^\d{2}:\d{2}$/.test(time) ? ordHour(time) : '';
+        const icon   = this.methodIcon({ code: p.method_code, name: p.method, cash: Number(p.is_cash) === 1 });
+        const change = Number(p.change_amount) > 0.005 ? `<small>Cambio ${money(p.change_amount)}</small>` : '';
+        const bid    = Number(p.branch_id) || 0;
+        const other  = bid && bid !== this.origin ? `<span class="pa-chip" title="Otra sucursal">${this.ico('arrow-right-left')}<span>Otra sucursal</span></span>` : '';
+        const turn   = [p.turn_folio ? `Turno ${esc(p.turn_folio)}` : '', esc(p.received_by || '')].filter(Boolean).join(' · ');
+        const title  = liq ? 'Quitar pago (pide contraseña: liquidado)' : 'Quitar pago';
+
+        let act = '';
+
+        if (this.canDelete && p.turn_status !== 'closed') {
+            act = `<button type="button" class="pa-del" data-act="del" data-id="${Number(p.id)}" title="${title}" aria-label="${title}">${this.ico('trash-2')}</button>`;
+        } else if (this.canDelete) {
+            act = `<span class="pa-lock" title="El turno ${esc(p.turn_folio || '')} ya cerró: reábrelo para quitar este pago.">${this.ico('lock')}</span>`;
+        }
+
+        return '<tr>'
+            +   `<td>${d.slice(0, 5)}<span class="pa-hide-sm">${d.slice(5)}</span>${hour ? `<small>${hour}</small>` : ''}</td>`
+            +   `<td><span class="pa-hist-method"><span class="pa-row-ico" style="--m:${this.methodColor(icon)}">${this.ico(icon)}</span><span><b>${esc(p.method || 'Pago')}</b>${change}</span></span></td>`
+            +   `<td><span class="pa-hist-branch">${esc(p.branch || this.originBranch().name)}${other}</span>${turn ? `<small class="pa-hide-sm">${turn}</small>` : ''}</td>`
+            +   `<td class="pa-hist-note pa-hide-sm" title="${esc(p.description || '')}">${esc(p.description || '')}</td>`
+            +   `<td class="r"><b>${money(p.amount)}</b></td>`
+            +   `<td class="c">${act}</td>`
+            + '</tr>';
+    }
+
+    // -- Pie y confirmación --
+
+    // Como alpha: el resultado en una línea y un solo botón. El historial no lleva pie.
+    footHtml(lock) {
+        if (lock === 'paid') {
+            const n = this.payments.length;
+
+            return '<div class="pa-foot">'
+                +   `<div class="pa-res is-ok"><span>${esc(this.paidLabel())}</span><small>· ${money(this.o.paid)} en ${n} ${n === 1 ? 'pago' : 'pagos'}</small></div>`
+                +   `<button type="button" class="pa-save is-quiet" data-act="view" data-value="history">${this.ico('history')}<span>Ver historial</span></button>`
+                + '</div>';
+        }
+
+        let res = '<div class="pa-res" id="paRes" aria-live="polite"></div>';
+
+        if (lock) {
+            const b    = this.cobroBranch();
+            const name = esc(b.name);
+            const st   = this.turnState(b);
+            const turn = st === 'none' ? 'Sin turno' : st === 'old' ? 'Turno sin cerrar' : esc((b.block && b.block.title) || 'No se cobra');
+            const says = {
+                turn:    [turn, `En ${name} no se registran pagos`],
+                methods: ['Sin formas de pago', `${name} no tiene formas activas`],
+                block:   [esc(this.blockView().title), '']
+            }[lock];
+
+            res = `<div class="pa-res is-bad"><span>${says[0]}</span>${says[1] ? `<small>· ${says[1]}</small>` : ''}</div>`;
+        }
+
+        return '<div class="pa-foot">'
+            +   res
+            +   `<button type="button" class="pa-save${lock ? ' is-off' : ''}" id="paSave" data-act="save"><span class="pa-save-ico" id="paSaveIco" data-icon="check">${this.ico('check')}</span><span id="paSaveLabel">Registrar pago</span></button>`
+            + '</div>';
+    }
+
+    // La confirmación de alpha: importe, forma, sucursal que cobra y el aviso de cobro cruzado.
+    confirmHtml(c) {
+        const o     = this.o;
+        const b     = this.cobroBranch();
+        const turn  = b.turn && b.turn.folio != null ? `Turno ${esc(b.turn.folio)}` : '';
+        const after = Math.max(0, ordRound(c.balance - c.applied));
+        const disc  = c.applied <= 0;
+        const name  = (id) => { const m = this.methodOf(id); return m ? esc(m.name) : 'Pago'; };
+        const row   = (dt, dd, rowCls = '', ddCls = '') => `<div${rowCls ? ` class="${rowCls}"` : ''}><dt>${dt}</dt><dd${ddCls ? ` class="${ddCls}"` : ''}>${dd}</dd></div>`;
+
+        let how = '';
+
+        if (c.payments.length === 1)    how = row('Forma de pago', name(c.payments[0].method_id));
+        else if (c.payments.length > 1) how = c.payments.map((p) => row(name(p.method_id), money(p.amount))).join('');
+
+        const cross = this.isCross()
+            ? `<p class="pa-confirm-warn">${this.ico('triangle-alert')}<span>Cobro cruzado: ${this.theNoun()} es de <b>${esc(this.originBranch().name)}</b>, pero el cobro entra al ${turn || 'turno'} de <b>${esc(b.name)}</b>.</span></p>`
+            : '';
+
+        return '<div class="pa-confirm" id="paConfirm" role="alertdialog" aria-modal="true" aria-labelledby="paConfirmTitle">'
+            +   '<div class="pa-confirm-card">'
+            +     `<div class="pa-confirm-head"><div class="pa-head-ico">${this.ico(disc ? 'percent' : 'hand-coins')}</div><h3 id="paConfirmTitle">${disc ? '¿Aplicar descuento?' : '¿Registrar pago?'}</h3><p>#${this.prefix()}${esc(o.folio)} · ${esc(o.customer || this.noClient())}</p></div>`
+            +     '<dl class="pa-confirm-rows">'
+            +       row(disc ? 'Descuento' : 'Importe', money(disc ? c.d.amount : c.applied), 'is-big')
+            +       how
+            +       (c.change > 0.005 ? row('Recibe', `${money(c.cashGiven)} · cambio ${money(c.change)}`) : '')
+            +       (c.d.amount > 0 && !disc ? row('Descuento', `−${money(c.d.amount)} · ${esc(c.d.reason.name)}`) : '')
+            +       (c.note ? row('Observación', esc(c.note)) : '')
+            +       row('Sucursal que cobra', `${esc(b.name)}${turn ? ` · ${turn}` : ''}`, '', 'is-brand')
+            +       row('Saldo después', after <= 0.005 ? 'Queda pagado' : money(after))
+            +     '</dl>'
+            +     cross
+            +     '<div class="pa-confirm-foot">'
+            +       '<button type="button" class="pa-btn" data-act="confirm-no">Cancelar</button>'
+            +       `<button type="button" class="pa-btn is-primary" id="paConfirmYes" data-act="confirm-yes"><span data-label>${disc ? 'Sí, aplicar' : 'Sí, registrar'}</span></button>`
+            +     '</div>'
+            +   '</div>'
+            + '</div>';
+    }
+
+    delKeyHtml() {
+        return '<div class="pa-field pa-del-field" id="paDelKeyField">'
+            +   this.label('Contraseña')
+            +   '<input type="password" id="paDelKey" class="pa-input" placeholder="••••••••" autocomplete="off" aria-label="Contraseña">'
+            +   '<p class="pa-del-msg" id="paDelKeyMsg" hidden>Escribe tu contraseña.</p>'
+            + '</div>';
+    }
+
+    // El motivo de alpha: sin motivo no se quita; con el pedido liquidado, también la contraseña.
+    delHtml(p) {
+        const liq  = this.isSettled() && this.keyOnSettled();
+        const day  = (ordDate(p.paid_at) || '').slice(0, 5);
+        const what = `<b>${money(p.amount)}</b> en ${esc(p.method || 'Pago')}${day ? ` del ${day}` : ''}`;
+        const who  = this.theNoun().charAt(0).toUpperCase() + this.theNoun().slice(1);
+        const text = liq
+            ? `Ingresa tu contraseña para quitar el pago de ${what}. ${who} regresa a pendiente.`
+            : `Se quita el pago de ${what} de forma permanente.`;
+
+        return '<div class="pa-confirm" id="paDel" role="alertdialog" aria-modal="true" aria-labelledby="paDelTitle">'
+            +   '<div class="pa-confirm-card">'
+            +     `<div class="pa-confirm-head"><div class="pa-head-ico is-bad">${this.ico(liq ? 'lock' : 'trash-2')}</div><h3 id="paDelTitle">${liq ? `${this.noun()} liquidado` : '¿Quitar pago?'}</h3>`
+            +       `<p>${text}</p></div>`
+            +     (liq ? this.delKeyHtml() : '')
+            +     '<div class="pa-field pa-del-field" id="paDelReasonField">'
+            +       this.label('Motivo')
+            +       '<textarea id="paDelReason" class="pa-input pa-textarea" rows="2" maxlength="200" placeholder="Ej. el pago se registró dos veces" aria-label="Motivo"></textarea>'
+            +       '<p class="pa-del-msg" id="paDelMsg" hidden>Escribe el motivo.</p>'
+            +     '</div>'
+            +     '<div class="pa-confirm-foot">'
+            +       '<button type="button" class="pa-btn" data-act="del-no">Cancelar</button>'
+            +       '<button type="button" class="pa-btn is-danger" id="paDelYes" data-act="del-yes">Quitar pago</button>'
+            +     '</div>'
+            +   '</div>'
+            + '</div>';
+    }
+
+    // -- Pintar --
+
+    render() {
+        const win = $('#paWin');
+
+        if (!win.length) return;
+
+        const pay  = this.view === 'pay';
+        const lock = this.lockState();
+
+        win.html(
+            this.headHtml()
+            + `<div class="pa-body">${pay ? this.payHtml(lock) : this.historyHtml()}</div>`
+            + (pay ? this.footHtml(lock) : '')
+        );
+
+        this.icons();
+
+        if (pay && lock === '') {
+            this.paintCalc();
+            this.focusField(this.active);
+        } else {
+            this.paintStatic();
+        }
+    }
+
+    // Con descuento, el total de antes sale tachado (como en alpha).
+    totalNote(cut) {
         const o = this.o;
 
-        if (o.discount_amount > 0) {
-            const why  = o.discount_reason ? ` (${esc(o.discount_reason)})` : '';
-            const note = `<p class="text-[12.5px] text-gray-500 mb-0">Este pedido ya tiene un descuento de <b>${money(o.discount_amount)}</b>${why}. Solo se aplica uno.</p>`;
+        let note = '';
 
-            return [{ id: 'op_disc_bar', tipo: 'html', class: 'w-full', html: note }];
+        if (cut > 0)                    note = `<s>${money(o.total)}</s>`;
+        else if (o.discount_amount > 0) note = `<s>${money(o.subtotal)}</s>`;
+
+        return note + this.totalExtra(note !== '');
+    }
+
+    // dueNote: el saldo de antes, tachado, mientras se escribe un cobro.
+    paintSummary(v) {
+        $('#paSumTotal').text(money(v.total));
+        $('#paSumTotalNote').html(v.totalNote || '');
+        $('#paSumPaid').text(money(v.paid));
+        $('#paSumDue').text(money(v.due));
+        $('#paSumDueNote').html(v.dueNote || '');
+        $('#paSumDueBox').toggleClass('is-done', v.total > 0.005 && v.due <= 0.005);
+    }
+
+    // Pagado, sin turno o historial: el resumen sin cobro en curso.
+    paintStatic() {
+        const o = this.o;
+
+        this.paintSummary({ total: o.total, totalNote: this.totalNote(0), paid: o.paid, due: Math.max(0, ordRound(o.total - o.paid)) });
+    }
+
+    /*  Las filas no se vuelven a pintar al teclear (se perdería el foco); solo
+        cambian su marca, su pista y, la que cubre lo que falta, su monto. */
+    paintCalc() {
+        if (!document.getElementById('paPayForm') || this.lockState() !== '') return;
+
+        const c = this.calc();
+        const o = this.o;
+
+        c.rows.forEach((r) => {
+            const input = this.fieldInput(r.m.id);
+
+            if (!input) return;
+
+            const row  = input.closest('.pa-row');
+            const hint = row ? row.querySelector('[data-hint]') : null;
+            const auto = r.m.id === this.auto;
+
+            if (auto) input.value = r.amount > 0 ? r.amount.toFixed(2) : '';
+
+            if (row) row.classList.toggle('is-auto', auto);
+            if (hint) hint.textContent = this.rowHint(r, c);
+
+            input.parentElement.classList.toggle('is-bad', c.bad === r.m);
+        });
+
+        // «Recibe» sale solo cuando Efectivo lleva monto.
+        const recvRow = document.getElementById('paRecvRow');
+        const recv    = document.getElementById('paRecv');
+
+        if (recv && recvRow) {
+            if (c.cashPaid <= 0 && recv.value !== '') recv.value = '';
+
+            recvRow.hidden   = c.cashPaid <= 0;
+            recv.placeholder = c.cashPaid > 0 ? c.cashPaid.toFixed(2) : '0.00';
+            recv.parentElement.classList.toggle('is-bad', c.badRec);
         }
 
-        if (!this.reasons.length) return [];
+        if ((!recvRow || recvRow.hidden) && this.active === 'received') this.active = this.homeId();
 
-        // Corte cerrado: el descuento movería su vendido; lo autoriza Dueño o Supervisor.
-        if (this.discBlock) {
-            const note = `<p class="text-[12.5px] text-amber-700 mb-0"><i data-lucide="lock" class="w-3.5 h-3.5 inline -mt-0.5"></i> ${esc(this.discBlock)}</p>`;
+        // Restante baja con lo que se escribe; el saldo de antes queda tachado debajo.
+        const after = Math.max(0, ordRound(c.balance - c.applied));
 
-            return [{ id: 'op_disc_bar', tipo: 'html', class: 'w-full', html: note }];
+        this.paintSummary({
+            total:     c.total,
+            totalNote: this.totalNote(c.d.amount),
+            paid:      o.paid,
+            due:       after,
+            dueNote:   c.applied > 0 ? `<s>${money(c.balance)}</s>` : ''
+        });
+
+        this.paintResult(c);
+        this.paintDiscount(c);
+        this.paintActive();
+        this.paintSave(c);
+    }
+
+    // El ícono solo se cambia cuando cambia la forma (lucide reemplaza el <i> por un <svg>).
+    paintSave(c) {
+        const [text, icon] = this.saveLabel(c);
+        const box          = document.getElementById('paSaveIco');
+
+        $('#paSaveLabel').text(text);
+        $('#paSave').toggleClass('is-off', this.problem(c) !== '');
+
+        if (!box || box.dataset.icon === icon) return;
+
+        box.dataset.icon = icon;
+        box.innerHTML    = this.ico(icon);
+        this.icons();
+    }
+
+    // Lo que va a pasar, en una sola línea del pie.
+    paintResult(c) {
+        const res = document.getElementById('paRes');
+
+        if (!res) return;
+
+        // El saldo que queda ya lo dice Restante arriba.
+        const after = Math.max(0, ordRound(c.balance - c.applied));
+        const tail  = after <= 0.005 ? 'Queda pagado' : 'Queda como abono';
+
+        let st;   // [clase, etiqueta, monto, nota]
+
+        if (c.d.error)                                      st = ['is-bad', 'Corrige', '', 'El descuento no es válido'];
+        else if (c.bad)                                     st = ['is-bad', 'Corrige', '', `El monto de ${c.bad.name} no es válido`];
+        else if (c.badRec)                                  st = ['is-bad', 'Corrige', '', 'Lo recibido en efectivo no es válido'];
+        else if (c.over > 0.005)                            st = ['is-bad', 'Sobran', money(c.over), 'No se cobra de más: baja algún monto'];
+        else if (c.applied <= 0 && c.d.amount > 0)          st = ['is-info', 'Solo descuento', money(c.d.amount), `El total queda en ${money(c.total)}`];
+        else if (c.applied <= 0)                            st = ['', 'Sin monto', '', 'Escribe cuánto paga el cliente'];
+        else if (c.missing > 0.005)                         st = ['is-bad', 'Faltan', money(c.missing), 'El efectivo recibido no alcanza'];
+        else if (c.change > 0.005)                          st = ['is-ok', 'Cambio', money(c.change), tail];
+        else if (c.payments.length === 1 && c.cashPaid > 0) st = ['is-ok', 'Efectivo exacto', '', tail];
+        else                                                st = ['is-ok', 'Cobra', money(c.applied), tail];
+
+        res.className = `pa-res${st[0] ? ` ${st[0]}` : ''}`;
+        res.innerHTML = `<span>${esc(st[1])}</span>${st[2] ? `<b>${st[2]}</b>` : ''}<small>· ${esc(st[3])}</small>`;
+    }
+
+    paintDiscount(c) {
+        const msg = document.getElementById('paDiscMsg');
+
+        if (!msg) return;
+
+        const d = c.d;
+
+        msg.className = `pa-disc-msg${d.error ? ' is-bad' : (d.amount ? ' is-ok' : '')}`;
+        msg.innerHTML = d.error
+            ? esc(d.error)
+            : (d.amount ? `Descuento de <b>${money(d.amount)}</b> (${d.percent} %). El total queda en ${money(c.total)}.` : 'Elige el motivo y escribe el descuento.');
+
+        $('#paDiscBtn').toggleClass('is-on', this.discOpen).attr('aria-pressed', String(this.discOpen));
+
+        $('#modalOrderPay button.pa-seg-btn').each((i, el) => {
+            el.classList.toggle('is-active', el.dataset.value === this.discMode);
+        });
+    }
+
+    // La fila (o el campo) donde escribe el teclado lleva la barra de color.
+    paintActive() {
+        $('#modalOrderPay .pa-row').each((i, el) => {
+            el.classList.toggle('is-active', el.dataset.field === String(this.active));
+        });
+
+        $('#paDiscField').toggleClass('is-active', this.active === 'disc');
+    }
+
+    // -- Teclado --
+
+    focusField(f) {
+        const input = this.fieldInput(f);
+
+        if (!input) return;
+
+        input.focus({ preventScroll: true });
+        input.select();
+    }
+
+    // Mismo orden que la tabla: las formas, «Recibe» y el descuento.
+    visibleFields() {
+        const list = this.payMethods().map((m) => String(m.id));
+        const recv = document.getElementById('paRecvRow');
+
+        if (recv && !recv.hidden) list.push('received');
+        if (this.discOpen)        list.push('disc');
+
+        return list;
+    }
+
+    nextField() {
+        const list = this.visibleFields();
+
+        if (!list.length) return;
+
+        const at = list.indexOf(String(this.active));
+
+        this.focusField(list[(at + 1) % list.length]);
+    }
+
+    // Escribir en la fila que cubre lo que falta la vuelve fija.
+    typed(input) {
+        this.fresh = false;
+
+        if (String(this.auto) === input.dataset.field) this.auto = 0;
+
+        this.paintCalc();
+    }
+
+    press(k) {
+        if (k === 'next') return this.nextField();
+
+        const input = this.fieldInput(this.active);
+
+        if (!input) return;
+
+        let v = this.fresh && k !== 'back' ? '' : input.value;
+
+        if (k === 'back') {
+            v = v.slice(0, -1);
+        } else if (k === 'clear') {
+            v = '';
+        } else if (k === '.') {
+            if (v.includes('.')) return;
+            v = `${v || '0'}.`;
+        } else {
+            const dot = v.indexOf('.');
+            const dec = dot < 0 ? -1 : v.length - dot - 1;
+
+            if (dec >= 2) return;
+
+            v = (v === '0' ? '' : v) + (k === '00' && dec === 1 ? '0' : k);
+
+            if (/^0+$/.test(v)) v = '0';
         }
 
-        const lock = this.canAuthorize ? '' : ' · requiere Dueño o Supervisor';
-        const data = this.reasons.map((r) => ({
-            id:    r.id,
-            valor: `${r.name} (hasta ${Number(r.max_percent)} %)${Number(r.requires_authorization) === 1 ? lock : ''}`
-        }));
+        input.value = v;
+        this.typed(input);
+    }
 
-        const segs = '<div class="flex">'
-            + '<button type="button" class="ord-seg" data-mode="percent">%</button>'
-            + '<button type="button" class="ord-seg" data-mode="amount">$</button>'
-            + '</div>';
+    // Tocar el nombre de una forma: esa cubre lo que falta (la anterior se limpia).
+    takeRest(id) {
+        const old = this.fieldInput(this.auto);
 
-        return [
-            {
-                id:    'op_disc_bar',
-                tipo:  'html',
-                class: 'w-full',
-                html:  '<button type="button" class="ord-disc-toggle"><i data-lucide="percent" class="w-4 h-4"></i><span>Aplicar descuento</span></button>'
-            },
-            { id: 'op_reason', lbl: 'Motivo', tipo: 'select', data: data, empty: '— Elige el motivo —', class: 'w-full sm:w-1/2 op-disc hidden' },
-            { id: 'op_disc_value', lbl: 'Descuento', tipo: 'number', min: 0, step: '0.01', ph: '0', class: 'w-[60%] sm:w-1/4 op-disc hidden' },
-            { id: 'op_disc_mode', tipo: 'html', class: 'w-[40%] sm:w-1/4 op-disc hidden', html: '<p class="block text-xs font-semibold text-gray-500 mb-1.5">En</p>' + segs },
-            { id: 'op_disc_note', lbl: 'Nota del descuento (opcional)', tipo: 'text', maxlength: 255, ph: 'Ej. Cliente frecuente', class: 'w-full op-disc hidden' },
-            { id: 'op_disc_hint', tipo: 'html', class: 'w-full op-disc hidden', html: '<div id="op_disc_msg" class="text-[12.5px]"></div>' }
-        ];
+        if (old && this.auto !== id) old.value = '';
+
+        this.auto = id;
+        this.paintCalc();
+        this.focusField(String(id));
+    }
+
+    toggleDisc() {
+        const panel = document.getElementById('paDisc');
+
+        if (!panel || !document.getElementById('paPayForm') || this.lockState() !== '') return;
+
+        this.discOpen = !this.discOpen;
+        panel.hidden  = !this.discOpen;
+
+        if (this.discOpen) {
+            panel.scrollIntoView({ block: 'nearest' });
+            document.getElementById('paReason').focus({ preventScroll: true });
+        } else {
+            $('#paReason, #paDiscValue').val('');
+
+            if (this.active === 'disc') this.active = this.homeId();
+
+            this.focusField(this.active);
+        }
+
+        this.paintCalc();
+    }
+
+    // Otra sucursal que cobra: otro turno y otro catálogo de formas de pago. La observación se queda.
+    pickBranch(id) {
+        if (!this.branchOf(id) || Number(id) === this.cobro) return;
+
+        const note = $('#paNote').val() || '';
+
+        this.cobro = Number(id);
+        this.resetForm();
+        this.render();
+
+        $('#paNote').val(note);
+    }
+
+    // -- Guardar --
+
+    // El botón, Enter o F2: revisa y pide la confirmación. Nada se guarda todavía.
+    save() {
+        if (this.confirmCalc || this.delPay || this.busy) return;
+
+        // En el historial, F2 lleva a registrar.
+        if (!document.getElementById('paPayForm')) {
+            if (this.view === 'history' && this.lockState() === '') {
+                this.view = 'pay';
+                this.resetForm();
+                this.render();
+            }
+            return;
+        }
+
+        // El botón apagado avisa por qué.
+        const lock = this.lockState();
+
+        if (lock) return this.warn(this.lockText(lock));
+
+        const c   = this.calc();
+        const why = this.problem(c);
+
+        if (why) return this.warn(why);
+
+        c.note           = String($('#paNote').val() || '').trim();
+        this.confirmCalc = c;
+
+        $('#paWin').append(this.confirmHtml(c));
+        this.icons();
+        $('#paConfirmYes').trigger('focus');
+    }
+
+    closeConfirm() {
+        if (this.busy) return;
+
+        this.confirmCalc = null;
+        $('#paConfirm').remove();
+
+        this.focusField(this.active);
+    }
+
+    // Mientras se registra no se cierra la ventana ni se vuelve a cobrar.
+    setBusy(on) {
+        this.busy = on;
+
+        $('#modalOrderPay').toggleClass('is-busy', on);
+        $('#paWin button.pa-x').prop('disabled', on);
+    }
+
+    // «Sí, registrar»: el candado (busy) y el token impiden un segundo cobro con doble clic o doble Enter.
+    async commit() {
+        if (this.busy || !this.confirmCalc) return;
+
+        const c          = this.confirmCalc;
+        const id         = this.o.id;
+        const fromDetail = this.fromDetail;
+        const deliver    = this.thenDeliver;
+        const cross      = this.isCross();
+
+        this.setBusy(true);
+        $('#paConfirmYes').prop('disabled', true).find('[data-label]').text('Registrando…');
+
+        const discount = c.d.amount > 0
+            ? JSON.stringify({
+                reason_id: c.d.reason.id,
+                percent:   this.discMode === 'percent' ? c.d.value : '',
+                amount:    this.discMode === 'amount' ? c.d.value : '',
+                note:      ''
+            })
+            : '';
+
+        const data = await useFetch({
+            url:  this._link,
+            data: {
+                opc:        'payOrder',
+                id:         id,
+                token:      this.token,
+                payments:   c.payments.length ? JSON.stringify(c.payments) : '',
+                discount:   discount,
+                note:       c.note || '',
+                pay_branch: this.cobro
+            }
+        });
+
+        // Sin turno: en la sesión se ofrece abrirlo; en otra sucursal solo se avisa y se vuelve a abrir.
+        if (data && data.status == 423) {
+            const reopen = () => this.open(id, fromDetail, { deliver: deliver });
+
+            this.closeQuiet('modalOrderPay', this.modal.close);
+            this.busy = false;
+
+            if (!cross) return orderTurn.locked(data, reopen);
+
+            await alert({ icon: 'warning', title: data.title || 'Sin turno abierto', text: data.message || '', btn1: true, btn1Text: 'Entendido' });
+
+            return reopen();
+        }
+
+        if (!data || data.status != 200) {
+            this.setBusy(false);
+            this.confirmCalc = null;
+            $('#paConfirm').remove();
+
+            alert({
+                icon:     data && data.status && data.status < 500 ? 'warning' : 'error',
+                title:    'No se registró el cobro',
+                text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar. No se cobra dos veces.',
+                btn1:     true,
+                btn1Text: 'Entendido'
+            });
+            return;
+        }
+
+        this.token = ordToken();
+        this.closeQuiet('modalOrderPay', this.modal.close);
+        this.busy = false;
+        this.afterChange();
+
+        const print  = orders.can('print');
+        const change = Number(data.change) > 0.005
+            ? `<p class="text-[12px] font-semibold uppercase tracking-wide mb-0">Cambio</p><p class="text-[32px] font-bold text-emerald-600 leading-tight mb-2">${money(data.change)}</p>`
+            : '';
+        const owes   = Number(data.balance) > 0.005;
+        const left   = owes ? `Saldo pendiente: <b>${money(data.balance)}</b>` : `<b>${this.paidShort()}</b>`;
+
+        // «Cobrar y entregar» solo entrega si el cobro dejó el saldo en cero.
+        const handOver = this.thenDeliver && !owes;
+        const pending  = this.thenDeliver && owes ? '<p class="text-[12.5px] mt-1 mb-0" style="color:rgb(var(--brand-600))">No se entrega todavía: falta cobrar el saldo.</p>' : '';
+
+        const answer = await alert({
+            icon:     'success',
+            title:    data.message,
+            html:     `${change}<p class="text-[14px] mb-0">${left}</p>${pending}`,
+            btn1:     print,
+            btn1Text: 'Imprimir ticket',
+            btn2:     true,
+            btn2Text: handOver ? 'Entregar pedido' : 'Listo'
+        });
+
+        if (answer && answer.isConfirmed) await orderDetail.print(this.o.id);
+
+        // La entrega pide la contraseña: esa ventana es la confirmación.
+        if (handOver) return orderDetail.deliver(this.o.id, { fromDetail: this.fromDetail });
+
+        this.back();
+    }
+
+    // -- Quitar un pago (en la ventana) --
+
+    openDel(id) {
+        if (this.delPay || this.confirmCalc || this.busy) return;
+
+        const p = this.payments.find((x) => Number(x.id) === Number(id));
+
+        if (!p) return;
+
+        this.delPay = p;
+
+        $('#paWin').append(this.delHtml(p));
+        this.icons();
+
+        (document.getElementById('paDelKey') || document.getElementById('paDelReason')).focus();
+    }
+
+    closeDel() {
+        if (this.busy) return;
+
+        this.delPay = null;
+        $('#paDel').remove();
+    }
+
+    // Marca el campo que falta y lo enfoca.
+    delMissing(field, msg) {
+        $(`#${msg}`).prop('hidden', false);
+        $(`#${field}`).addClass('is-bad').trigger('focus');
+    }
+
+    // Sin motivo no se quita (el ctrl lo exige y lo deja en la bitácora); liquidado, tampoco sin contraseña.
+    async removePay() {
+        if (this.busy || !this.delPay) return;
+
+        const p      = this.delPay;
+        const keyEl  = document.getElementById('paDelKey');
+        const reason = String($('#paDelReason').val() || '').trim();
+
+        if (keyEl && !keyEl.value) return this.delMissing('paDelKey', 'paDelKeyMsg');
+        if (!reason)               return this.delMissing('paDelReason', 'paDelMsg');
+
+        const id         = this.o.id;
+        const fromDetail = this.fromDetail;
+        const deliver    = this.thenDeliver;
+
+        this.setBusy(true);
+        $('#paDelYes').prop('disabled', true);
+
+        const data = await useFetch({
+            url:  this._link,
+            data: { opc: 'deletePayment', id: id, payment_id: Number(p.id), reason: reason, key: keyEl ? keyEl.value : '' }
+        });
+
+        this.setBusy(false);
+        $('#paDelYes').prop('disabled', false);
+
+        // El ctrl pide (o rechaza) la contraseña: el campo aparece o se marca.
+        if (data && data.key) {
+            if (!document.getElementById('paDelKey')) $('#paDelReasonField').before(this.delKeyHtml());
+
+            $('#paDelKeyMsg').text(data.message || 'Escribe tu contraseña.').prop('hidden', false);
+            $('#paDelKey').addClass('is-bad').val('').trigger('focus');
+            return;
+        }
+
+        if (!data || data.status != 200) {
+            alert({
+                icon:     data && data.status == 409 ? 'warning' : 'error',
+                title:    'No se quitó el pago',
+                text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
+                btn1:     true,
+                btn1Text: 'Entendido'
+            });
+            return;
+        }
+
+        this.delPay = null;
+        this.closeQuiet('modalOrderPay', this.modal.close);
+        this.afterChange();
+        this.open(id, fromDetail, { tab: 'history', deliver: deliver });
+
+        alert({ icon: 'success', title: data.message, timer: 1800 });
+    }
+
+    // -- Quitar un pago (desde el detalle) --
+
+    removePayment(orderId, paymentId) {
+        $('#modalOrderDetails .cs-modal-x').trigger('click');
+
+        const d        = typeof orderDetail !== 'undefined' ? orderDetail.last : null;
+        const same     = !!(d && d.order && Number(d.order.id) === Number(orderId));
+        const p        = same ? (d.payments || []).find((x) => Number(x.id) === Number(paymentId)) : null;
+        const settled  = same && Number(d.order.total) > 0 && ordRound(Number(d.order.total) - Number(d.order.paid)) <= 0.005;
+        const key      = settled && this.keyOnSettled();
+        const back     = () => orderDetail.show(orderId);
+        const subtitle = `${this.noun()} #${this.prefix()}${(same && d.order.folio) || orderId}${p ? ' · ' + p.method + ' ' + money(p.amount) : ''}`;
+        const json     = [];
+
+        if (key) json.push({ id: 'pd_key', lbl: 'Contraseña', class: 'w-full' });
+
+        json.push({ id: 'pd_reason', lbl: 'Motivo', tipo: 'textarea', required: true, maxlength: 200, rows: 3, ph: 'Ej. Se registró dos veces', class: 'w-full' });
+
+        this.csModal({
+            id:         'modalOrderPayDelete',
+            title:      'Quitar pago',
+            subtitle:   subtitle,
+            lucideIcon: 'trash-2',
+            width:      'max-w-lg',
+            saveText:   'Quitar pago',
+            cancelText: 'Volver',
+            info:       'El pago queda en la bitácora como quitado.',
+            json:       json,
+            onSave:     (values, close) => this.saveRemove(orderId, paymentId, values, close, back)
+        });
+
+        if (key) $('#pd_key').attr('type', 'password').attr('autocomplete', 'off');
+
+        this.onDismiss('modalOrderPayDelete', back);
+
+        $(key ? '#pd_key' : '#pd_reason').trigger('focus');
+    }
+
+    async saveRemove(orderId, paymentId, values, close, back) {
+        if (this.saving) return;
+
+        const reason = String(values.pd_reason || '').trim();
+
+        if (!reason) return this.warn('Escribe por qué se quita el pago.');
+
+        this.saving = true;
+
+        const button = $('#modalOrderPayDelete .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({
+            url:  this._link,
+            data: { opc: 'deletePayment', id: orderId, payment_id: paymentId, reason: reason, key: String($('#pd_key').val() || '') }
+        });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        // El pedido quedó liquidado después de abrir el detalle: el ctrl pide la contraseña.
+        if (data && data.key) {
+            if (!$('#pd_key').length) {
+                $('#pd_reason').closest('div').before(
+                    '<div class="w-full px-2 mt-[12px]"><label for="pd_key" class="block text-xs font-semibold text-gray-500 mb-1.5">Contraseña</label><input id="pd_key" type="password" autocomplete="off" class="w-full text-sm text-gray-800 bg-[#fff] border-[1px] border-gray-300 rounded-lg px-[12px] py-2 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"><p id="pd_key_msg" class="text-xs text-rose-600 mt-1 mb-0"></p></div>'
+                );
+            }
+
+            $('#pd_key_msg').text(data.message || '');
+            $('#pd_key').trigger('focus');
+            return;
+        }
+
+        if (!data || data.status != 200) {
+            alert({
+                icon:     data && data.status == 409 ? 'warning' : 'error',
+                title:    'No se quitó el pago',
+                text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
+                btn1:     true,
+                btn1Text: 'Entendido'
+            });
+            return;
+        }
+
+        this.closeQuiet('modalOrderPayDelete', close);
+        this.afterChange();
+
+        (back || (() => orderDetail.show(orderId)))();
+
+        alert({ icon: 'success', title: data.message, timer: 1800 });
     }
 
     // -- Eventos --
@@ -493,219 +1578,163 @@ class OrderPay extends Templates {
     bind() {
         const modal = $('#modalOrderPay');
 
-        modal.on('click', 'button.ord-pay-tab', (e) => this.setTab(String($(e.currentTarget).data('tab'))));
+        // :disabled también cubre los botones dentro de un fieldset apagado.
+        modal.on('click', '#paWin [data-act]', (e) => {
+            const el = e.currentTarget;
 
-        modal.on('click', 'button.ord-pay-del', (e) => this.removePayment(this.o.id, Number($(e.currentTarget).data('payment')), true));
-
-        modal.on('click', 'button.ord-pay-go', () => this.blockView().go === 'Editar pedido' ? this.goEdit() : this.goTurn());
-
-        // Escribir en la fila que cubría lo que falta la deja con lo escrito.
-        modal.on('input', '.op-row input', (e) => {
-            if (Number($(e.currentTarget).closest('.op-row').data('id')) === this.auto) this.auto = 0;
-
-            this.paint();
+            if (!el.matches(':disabled')) this.act(el.dataset.act, el);
         });
 
-        // Tocar el nombre o el ícono: esa forma de pago cubre lo que falta.
-        modal.on('click', '.op-row > label, .op-row > .ord-method-ico', (e) => {
-            e.preventDefault();
-            this.takeRest(Number($(e.currentTarget).closest('.op-row').data('id')));
+        // El teclado no le quita el foco al campo.
+        modal.on('mousedown', 'button.pa-key', (e) => e.preventDefault());
+
+        modal.on('input', '#paWin input, #paWin textarea', (e) => {
+            const el = e.target;
+
+            if (el.id === 'paDelReason' || el.id === 'paDelKey') {
+                $(el.id === 'paDelKey' ? '#paDelKeyMsg' : '#paDelMsg').prop('hidden', true);
+                el.classList.remove('is-bad');
+                return;
+            }
+
+            if (el.id === 'paNote' || !el.closest('#paPayForm')) return;
+
+            if (el.dataset.field) this.typed(el);
+            else this.paintCalc();
         });
 
-        modal.on('input', '#op_received', () => this.paint());
+        modal.on('change', '#paReason', () => this.paintCalc());
 
-        modal.on('click', 'button.ord-bill', (e) => {
-            $('#op_received').val(Number($(e.currentTarget).data('amount')).toFixed(2));
-            this.paint();
-        });
+        modal.on('change', '#paCobro', (e) => this.pickBranch(Number(e.target.value)));
 
-        modal.on('click', 'button.ord-disc-toggle', () => {
-            this.discOpen = !this.discOpen;
-
-            if (!this.discOpen) $('#op_reason, #op_disc_value, #op_disc_note').val('');
-
-            this.paint();
-
-            if (this.discOpen) $('#op_reason').trigger('focus');
-        });
-
-        modal.on('click', 'button.ord-seg', (e) => {
-            this.discMode = String($(e.currentTarget).data('mode'));
-            this.paint();
-        });
-
-        modal.on('input change', '#op_reason, #op_disc_value', () => this.paint());
-
-        modal.on('keydown', 'input', (e) => {
-            if (e.key !== 'Enter') return;
-
-            e.preventDefault();
-            modal.find('.cs-modal-save').trigger('click');
+        modal.on('focusin', '#paPayForm input[data-field]', (e) => {
+            this.active = String(e.currentTarget.dataset.field);
+            this.fresh  = true;
+            this.paintActive();
         });
     }
 
-    // -- Calculo --
+    act(name, el) {
+        const value = el.dataset.value;
 
-    calc() {
-        const o       = this.o;
-        const d       = this.discountCalc();
-        const total   = ordRound(o.total - d.amount);
-        const balance = Math.max(0, ordRound(total - o.paid));
+        switch (name) {
+            case 'close':
+                if (!this.busy) $('#modalOrderPay .cs-modal-x').trigger('click');
+                break;
 
-        // Lo escrito en cada fila. La que cubre lo que falta no se lee: toma lo que dejan las demás.
-        let bad = null;
+            case 'view':
+                if (this.view === value) return;
+                this.view = value === 'history' ? 'history' : 'pay';
+                this.resetForm();
+                this.render();
+                break;
 
-        const rows = this.methods.map((m) => {
-            if (m.id === this.auto) return { m: m, amount: 0 };
+            case 'rest':        this.takeRest(Number(el.dataset.id)); break;
+            case 'key':         this.press(el.dataset.key); break;
+            case 'disc':        this.toggleDisc(); break;
+            case 'save':        this.save(); break;
+            case 'confirm-no':  this.closeConfirm(); break;
+            case 'confirm-yes': this.commit(); break;
+            case 'del':         this.openDel(el.dataset.id); break;
+            case 'del-no':      this.closeDel(); break;
+            case 'del-yes':     this.removePay(); break;
+            case 'cobro-here':  this.pickBranch(this.sessionBranch().id); break;
 
-            const raw   = String($(`#op_amt_${m.id}`).val() || '').trim();
-            const value = raw === '' ? 0 : ordAmount(raw);
+            case 'mode':
+                this.discMode = value === 'amount' ? 'amount' : 'percent';
+                this.paintCalc();
+                break;
 
-            if (value === null && !bad) bad = m;
-
-            return { m: m, amount: value || 0 };
-        });
-
-        const fixed = ordRound(rows.reduce((s, r) => s + r.amount, 0));
-        const auto  = rows.find((r) => r.m.id === this.auto);
-
-        if (auto) auto.amount = Math.max(0, ordRound(balance - fixed));
-
-        /*  Efectivo: lo escrito en su fila es «hasta cuánto». Se aplica lo que
-            cabe en el saldo después de los demás métodos y lo que sobra es
-            cambio. «Recibe en efectivo», si se llena, es el billete entregado. */
-        const cashRow   = this.cash ? rows.find((r) => r.m.id === this.cash.id) : null;
-        const cashTyped = cashRow ? cashRow.amount : 0;
-        const others    = ordRound(rows.reduce((s, r) => s + (r === cashRow ? 0 : r.amount), 0));
-        const room      = Math.max(0, ordRound(balance - others));
-        const cashPaid  = ordRound(Math.min(cashTyped, room));
-        const rawRec    = String($('#op_received').val() || '').trim();
-        const rec       = rawRec === '' || cashPaid <= 0 ? null : ordAmount(rawRec);
-        const badRec    = rawRec !== '' && cashPaid > 0 && rec === null;
-        const cashGiven = rec === null ? cashTyped : rec;
-
-        const payments = [];
-
-        rows.forEach((r) => {
-            const amount = r === cashRow ? cashPaid : r.amount;
-
-            if (amount <= 0) return;
-
-            payments.push({ method_id: r.m.id, amount: amount, tendered: r === cashRow ? cashGiven : amount });
-        });
-
-        // Solo lo que no es efectivo puede sobrar; el efectivo que ya no cabe también sobra.
-        const over    = ordRound(Math.max(0, others - balance) + (cashTyped > 0 && cashPaid <= 0 ? cashTyped : 0));
-        const applied = ordRound(payments.reduce((s, p) => s + p.amount, 0));
-        const missing = cashPaid > 0 ? Math.max(0, ordRound(cashPaid - cashGiven)) : 0;
-        const change  = cashPaid > 0 ? Math.max(0, ordRound(cashGiven - cashPaid)) : 0;
-
-        return { d, total, balance, rows, bad, badRec, cashTyped, cashPaid, cashGiven, payments, applied, over, missing, change };
-    }
-
-    discountCalc() {
-        const off = { amount: 0, error: '' };
-
-        if (!this.discOpen) return off;
-
-        const o      = this.o;
-        const raw    = String($('#op_disc_value').val() || '').trim();
-        const reason = this.reasons.find((r) => String(r.id) === String($('#op_reason').val()));
-        const value  = ordAmount(raw);
-        const fail   = (error) => ({ amount: 0, error: error });
-
-        if (raw === '' && !reason) return off;
-        if (!reason)               return fail('Elige el motivo del descuento.');
-        if (raw === '')            return fail('Escribe el descuento.');
-        if (value === null || value <= 0)              return fail('El descuento tiene que ser mayor a 0.');
-        if (this.discMode === 'percent' && value > 100) return fail('El descuento no puede pasar de 100 %.');
-
-        const amount = this.discMode === 'percent' ? ordRound(o.subtotal * value / 100) : value;
-        const max    = Number(reason.max_percent);
-        const cap    = ordRound(o.subtotal * max / 100);
-
-        if (amount <= 0)                                  return fail('El descuento tiene que ser mayor a $0.');
-        if (amount > cap + 0.005)                         return fail(`«${reason.name}» permite hasta ${max} % (${money(cap)}).`);
-        if (amount > o.total + 0.005)                     return fail('El descuento no puede ser mayor que el total.');
-        if (ordRound(o.total - amount) + 0.005 < o.paid)  return fail(`Con ese descuento el total queda debajo de lo ya abonado (${money(o.paid)}).`);
-
-        if (Number(reason.requires_authorization) === 1 && !this.canAuthorize) {
-            return fail(`«${reason.name}» lo autoriza un Dueño o Supervisor.`);
+            case 'go':
+                if (this.lockState() === 'block' && this.blockView().go === 'Editar pedido') this.goEdit();
+                else this.goTurn();
+                break;
         }
+    }
 
-        return {
-            amount:  amount,
-            error:   '',
-            reason:  reason,
-            value:   value,
-            percent: o.subtotal > 0 ? ordRound(amount / o.subtotal * 100) : 0
+    /*  En captura (antes que csModal): con la confirmación o el quitar pago
+        abiertos, Esc y Enter son de ellos y no llegan al Escape de csModal. Un
+        Esc libre sí le llega y cierra la ventana. Con un aviso (Swal) encima,
+        Esc cierra solo el aviso. */
+    bindKeys() {
+        this.unbindKeys();
+
+        this.keyHandler = (e) => {
+            if (!document.getElementById('paWin')) return this.unbindKeys();
+
+            const stop = () => {
+                e.stopPropagation();
+                e.preventDefault();
+            };
+
+            if (window.Swal && Swal.isVisible()) {
+                if (e.key === 'Escape') {
+                    stop();
+                    Swal.close();
+                }
+                return;
+            }
+
+            if (this.busy) {
+                if (['Escape', 'Enter', 'F2'].includes(e.key)) stop();
+                return;
+            }
+
+            // Quitar un pago: Esc cancela; Enter quita (Shift+Enter hace otra línea en el motivo).
+            if (this.delPay) {
+                if (e.key === 'Escape') {
+                    stop();
+                    this.closeDel();
+                } else if (e.key === 'Enter' && !e.shiftKey) {
+                    stop();
+                    this.removePay();
+                }
+                return;
+            }
+
+            // Con la confirmación abierta solo cuentan Esc (cancelar) y Enter / F2 (registrar).
+            if (this.confirmCalc) {
+                if (e.key === 'Escape') {
+                    stop();
+                    this.closeConfirm();
+                } else if (e.key === 'Enter' || e.key === 'F2') {
+                    stop();
+                    this.commit();
+                }
+                return;
+            }
+
+            if (e.key === 'F2') {
+                stop();
+                this.save();
+            } else if (e.key === 'F4') {
+                stop();
+                this.toggleDisc();
+            } else if (e.key === 'Enter' && e.target && e.target.matches && e.target.matches('#paPayForm input')) {
+                stop();
+                this.save();
+            }
         };
+
+        document.addEventListener('keydown', this.keyHandler, true);
     }
 
-    // -- Pintar --
+    unbindKeys() {
+        if (!this.keyHandler) return;
 
-    paint() {
-        if (!this.canPay) {
-            this.paintHead(this.o.total);
-
-            if (window.lucide) lucide.createIcons();
-            return;
-        }
-
-        const c = this.calc();
-
-        this.paintHead(c.total);
-        this.paintRows(c);
-
-        // Lo recibido y los billetes acompañan a la fila de efectivo solo cuando lleva monto.
-        if (c.cashPaid <= 0 && $('#op_received').val() !== '') $('#op_received').val('');
-
-        $('#modalOrderPay .op-cash').toggleClass('hidden', c.cashPaid <= 0);
-        $('#op_received').attr('placeholder', c.cashPaid > 0 ? `Exacto: ${money(c.cashPaid)}` : '0.00');
-        $('#op_bill_chips').html(this.bills(c.cashPaid));
-
-        $('#op_sum').html(this.summary(c));
-
-        $('#modalOrderPay .cs-modal-save').text(this.saveLabel(c));
-
-        this.paintDiscount(c);
-
-        if (window.lucide) lucide.createIcons();
+        document.removeEventListener('keydown', this.keyHandler, true);
+        this.keyHandler = null;
     }
 
-    /*  Las filas no se vuelven a pintar (se perdería el foco al teclear): solo
-        se les cambia la marca, la pista y, a la que cubre lo que falta, el monto.
-        is-on = lleva monto; is-auto = cubre lo que falta. */
-    paintRows(c) {
-        c.rows.forEach((r) => {
-            const input = $(`#op_amt_${r.m.id}`);
-            const row   = input.closest('.op-row');
-            const auto  = r.m.id === this.auto;
-
-            if (auto) input.val(r.amount > 0 ? r.amount.toFixed(2) : '');
-
-            row.toggleClass('is-on', r.amount > 0).toggleClass('is-auto', auto);
-            row.children('p').text(this.rowHint(r, c));
-        });
+    // La página se recarga al cambiar de sucursal; si la ventana sigue abierta, se cierra sin volver al detalle.
+    onBranchChange() {
+        if (this.isOpen && this.modal && $('#paWin').length) this.closeQuiet('modalOrderPay', this.modal.close);
     }
 
-    rowHint(r, c) {
-        if (this.cash && r.m.id === this.cash.id && c.cashPaid > 0 && c.cashTyped > c.cashPaid + 0.005) {
-            return `Se aplican ${money(c.cashPaid)}; lo demás es cambio`;
-        }
+    // -- Complements --
 
-        if (r.m.id === this.auto) return 'Cubre lo que falta del saldo';
-
-        return this.methodHint(r.m);
-    }
-
-    // El botón dice lo que va a pasar: el monto, solo el descuento o cobrar y entregar.
-    saveLabel(c) {
-        if (c.bad || c.over > 0.005)                                              return 'Registrar pago';
-        if (c.applied <= 0 && c.d.amount > 0)                                     return 'Aplicar descuento';
-        if (this.thenDeliver && c.applied > 0 && c.applied + 0.005 >= c.balance)  return 'Cobrar y entregar';
-
-        return c.applied > 0 ? `Registrar pago · ${money(c.applied)}` : 'Registrar pago';
+    methodOf(id) {
+        return this.payMethods().find((m) => m.id === Number(id)) || null;
     }
 
     methodIcon(m) {
@@ -726,273 +1755,39 @@ class OrderPay extends Templates {
         return hints[this.methodIcon(m)] || 'Otro método';
     }
 
-    // Exacto y los 3 billetes redondos siguientes a lo que falta.
-    bills(remaining) {
-        if (remaining <= 0) return '';
+    methodColor(icon) {
+        const colors = { 'banknote': '#16A34A', 'credit-card': '#2563EB', 'arrow-left-right': '#7C3AED', 'wallet': '#0891B2' };
 
-        const next = [];
-
-        [50, 100, 200, 500, 1000].forEach((step) => {
-            const value = Math.ceil(remaining / step) * step;
-
-            if (value > remaining && !next.includes(value)) next.push(value);
-        });
-
-        const list = next.sort((a, b) => a - b).slice(0, 3);
-
-        return `<button type="button" class="ord-bill" data-amount="${remaining}">Exacto</button>`
-             + list.map((v) => `<button type="button" class="ord-bill" data-amount="${v}">$${v.toLocaleString('es-MX')}</button>`).join('');
+        return colors[icon] || colors.wallet;
     }
 
-    // A la izquierda el desglose (cada método si son varios, lo que abona y lo recibido); a la derecha el aviso.
-    summary(c) {
-        const row   = (label, value) => `<div class="flex items-center justify-between text-[13px] text-gray-600"><span>${label}</span><span class="font-semibold text-gray-800">${value}</span></div>`;
-        const after = Math.max(0, ordRound(c.balance - c.applied));
-        const used  = c.payments.map((p) => ({ m: this.methodOf(p.method_id), amount: p.amount })).filter((u) => u.m);
-        const names = esc(used.map((u) => u.m.name).join(' + '));
-        const cash  = c.cashPaid > 0;
+    // ordAmount es estricto: aquí también pasan «5.», «.5», «$1,200».
+    num(raw) {
+        let s = String(raw == null ? '' : raw).replace(/[$,\s]/g, '');
 
-        let state = '';
+        if (/^\d+\.$/.test(s)) s = s.slice(0, -1);
+        if (/^\.\d+$/.test(s)) s = '0' + s;
 
-        if (c.bad) {
-            state = `<p class="ord-sum-big text-rose-600">Monto no válido</p><p class="text-[12px] text-rose-600 mb-0">Revisa lo escrito en ${esc(c.bad.name)}.</p>`;
-        } else if (c.badRec) {
-            state = '<p class="ord-sum-big text-rose-600">Monto recibido no válido</p>';
-        } else if (c.over > 0.005) {
-            state = `<p class="ord-sum-big text-rose-600">Sobran ${money(c.over)}</p><p class="text-[12px] text-rose-600 mb-0">No se cobra de más: baja algún monto.</p>`;
-        } else if (c.applied <= 0 && c.d.amount > 0) {
-            state = `<p class="ord-sum-big text-blue-700">Solo descuento</p><p class="text-[12px] text-gray-500 mb-0">El total queda en ${money(c.total)}.</p>`;
-        } else if (c.applied <= 0) {
-            state = '<p class="text-[12.5px] text-gray-500 mb-0">Escribe cuánto paga el cliente.</p>';
-        } else if (c.missing > 0.005) {
-            state = `<p class="ord-sum-big text-rose-600">Faltan ${money(c.missing)}</p><p class="text-[12px] text-gray-500 mb-0">El efectivo recibido no alcanza.</p>`;
-        } else if (c.change > 0.005) {
-            state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-emerald-700 mb-0">Cambio</p><p class="ord-sum-big text-emerald-600">${money(c.change)}</p>`;
-        } else if (used.length === 1 && cash) {
-            state = '<p class="ord-sum-big text-emerald-600">Exacto, sin cambio</p>';
-        } else {
-            state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-emerald-700 mb-0">Cobra con ${names}</p><p class="ord-sum-big text-emerald-600">${money(c.applied)}</p>`;
-        }
-
-        // Con algo por corregir no se promete «Queda pagado»: se deja el saldo de hoy.
-        const stuck = c.bad || c.badRec || c.over > 0.005 || c.missing > 0.005;
-
-        let end = `Saldo después: <b>${money(after)}</b>`;
-
-        if (stuck)                                                  end = `Saldo: <b>${money(c.balance)}</b>`;
-        else if (after <= 0.005 && (c.applied > 0 || c.d.amount > 0)) end = '<span class="text-emerald-700 font-semibold">Queda pagado</span>';
-
-        return `
-            <div class="ord-sum rounded-xl border-[1px] border-gray-200 bg-gray-50 px-[14px] py-[12px] flex flex-col sm:flex-row gap-[12px] sm:items-center">
-                <div class="flex-1 flex flex-col gap-[4px]">
-                    ${used.length > 1 ? used.map((u) => row(esc(u.m.name), money(u.amount))).join('') : ''}
-                    ${row('Abona', money(c.applied))}
-                    ${cash ? row('Efectivo recibido', money(c.cashGiven)) : ''}
-                    <div class="text-[12.5px] text-gray-500 mt-1">${end}</div>
-                </div>
-                <div class="sm:text-right sm:min-w-[200px]">${state}</div>
-            </div>`;
+        return ordAmount(s);
     }
 
-    paintDiscount(c) {
-        const d = c.d;
+    dateOf(v) {
+        const s = String(v || '');
 
-        $('#modalOrderPay .op-disc').toggleClass('hidden', !this.discOpen);
-        $('#modalOrderPay button.ord-disc-toggle').toggleClass('is-active', this.discOpen);
-        $('#modalOrderPay button.ord-disc-toggle span').text(this.discOpen ? 'Quitar descuento' : 'Aplicar descuento');
-
-        $('#modalOrderPay button.ord-seg').each((i, el) => {
-            $(el).toggleClass('is-active', $(el).data('mode') === this.discMode);
-        });
-
-        let msg = '<span class="text-gray-400">Elige el motivo y escribe el descuento.</span>';
-
-        if (d.error)        msg = `<span class="text-rose-600">${esc(d.error)}</span>`;
-        else if (d.amount)  msg = `<span class="text-emerald-700">Descuento de <b>${money(d.amount)}</b> (${d.percent} % del subtotal). El total queda en ${money(c.total)}.</span>`;
-
-        $('#op_disc_msg').html(msg);
+        return !s || /^0000/.test(s) ? '' : ordDate(s);
     }
 
-    // -- Guardar --
-
-    async save(close) {
-        if (this.saving) return;
-
-        const c = this.calc();
-
-        if (c.d.error) return this.warn(c.d.error);
-        if (c.bad) return this.warn(`El monto de ${c.bad.name} no es válido.`);
-        if (c.badRec) return this.warn('El monto recibido en efectivo no es válido.');
-        if (c.over > 0.005) return this.warn(`Los pagos pasan del saldo por ${money(c.over)}. El saldo es ${money(c.balance)}: no se cobra de más.`);
-        if (c.applied <= 0 && !c.d.amount) return this.warn('Escribe cuánto paga el cliente.');
-        if (c.payments.length > 6) return this.warn('Un cobro admite hasta 6 métodos de pago.');
-        if (c.missing > 0.005) return this.warn(`Faltan ${money(c.missing)} por recibir en efectivo.`);
-
-        const discount = c.d.amount > 0
-            ? JSON.stringify({
-                reason_id: c.d.reason.id,
-                percent:   this.discMode === 'percent' ? c.d.value : '',
-                amount:    this.discMode === 'amount' ? c.d.value : '',
-                note:      String($('#op_disc_note').val() || '').trim()
-            })
-            : '';
-
-        const payload = {
-            opc:      'payOrder',
-            id:       this.o.id,
-            token:    this.token,
-            payments: c.payments.length ? JSON.stringify(c.payments) : '',
-            discount: discount,
-            note:     String($('#op_note').val() || '').trim()
-        };
-
-        this.saving = true;
-
-        const button = $('#modalOrderPay .cs-modal-save').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: payload });
-
-        this.saving = false;
-        button.prop('disabled', false);
-
-        if (data && data.status == 423) {
-            const id = this.o.id; const fromDetail = this.fromDetail; const deliver = this.thenDeliver;
-
-            this.closeQuiet('modalOrderPay', close);
-            orderTurn.locked(data, () => this.open(id, fromDetail, { deliver: deliver }));
-            return;
-        }
-
-        if (!data || data.status != 200) {
-            alert({
-                icon:     data && data.status && data.status < 500 ? 'warning' : 'error',
-                title:    'No se registró el cobro',
-                text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar. No se cobra dos veces.',
-                btn1:     true,
-                btn1Text: 'Entendido'
-            });
-            return;
-        }
-
-        this.token = ordToken();
-        this.closeQuiet('modalOrderPay', close);
-
-        orders.lsOrders();
-        orderTurn.touch();
-
-        const print  = orders.can('print');
-        const change = Number(data.change) > 0.005
-            ? `<p class="text-[12px] font-semibold uppercase tracking-wide mb-0">Cambio</p><p class="text-[32px] font-bold text-emerald-600 leading-tight mb-2">${money(data.change)}</p>`
-            : '';
-        const owes   = Number(data.balance) > 0.005;
-        const left   = owes ? `Saldo pendiente: <b>${money(data.balance)}</b>` : '<b>Pedido pagado.</b>';
-
-        // «Cobrar y entregar» solo entrega si el cobro dejó el saldo en cero.
-        const deliver = this.thenDeliver && !owes;
-        const pending = this.thenDeliver && owes ? '<p class="text-[12.5px] text-amber-700 mt-1 mb-0">No se entrega todavía: falta cobrar el saldo.</p>' : '';
-
-        const answer = await alert({
-            icon:     'success',
-            title:    data.message,
-            html:     `${change}<p class="text-[14px] mb-0">${left}</p>${pending}`,
-            btn1:     print,
-            btn1Text: 'Imprimir ticket',
-            btn2:     true,
-            btn2Text: deliver ? 'Entregar pedido' : 'Listo'
-        });
-
-        if (answer && answer.isConfirmed) await orderDetail.print(this.o.id);
-
-        // La entrega pide la contraseña: esa ventana es la confirmación.
-        if (deliver) return orderDetail.deliver(this.o.id, { fromDetail: this.fromDetail });
-
-        this.back();
+    ico(name) {
+        return `<i data-lucide="${name}"></i>`;
     }
 
-    // -- Quitar un pago --
-
-    // Desde el detalle (papelera del pago) o desde el historial de esta ventana (fromPay).
-    removePayment(orderId, paymentId, fromPay) {
-        let subtitle = `Pedido #P${orderId}`;
-        let back     = () => orderDetail.show(orderId);
-
-        if (fromPay && this.o) {
-            const p          = this.payments.find((x) => Number(x.id) === Number(paymentId));
-            const fromDetail = this.fromDetail;
-            const deliver    = this.thenDeliver;
-
-            subtitle = `Pedido #P${this.o.folio}${p ? ' · ' + p.method + ' ' + money(p.amount) : ''}`;
-            back     = () => this.open(orderId, fromDetail, { tab: 'history', deliver: deliver });
-
-            this.closeQuiet('modalOrderPay', this.modal.close);
-        } else {
-            $('#modalOrderDetails .cs-modal-x').trigger('click');
-        }
-
-        this.csModal({
-            id:         'modalOrderPayDelete',
-            title:      'Quitar pago',
-            subtitle:   subtitle,
-            lucideIcon: 'trash-2',
-            width:      'max-w-lg',
-            saveText:   'Quitar pago',
-            cancelText: 'Volver',
-            info:       'El pago queda en la bitácora como quitado.',
-            json: [
-                { id: 'pd_reason', lbl: 'Motivo', tipo: 'textarea', required: true, maxlength: 200, rows: 3, ph: 'Ej. Se registró dos veces', class: 'w-full' }
-            ],
-            onSave: (values, close) => this.saveRemove(orderId, paymentId, values, close, back)
-        });
-
-        this.onDismiss('modalOrderPayDelete', back);
-
-        $('#pd_reason').trigger('focus');
-    }
-
-    async saveRemove(orderId, paymentId, values, close, back) {
-        if (this.saving) return;
-
-        const reason = String(values.pd_reason || '').trim();
-
-        if (!reason) return this.warn('Escribe por qué se quita el pago.');
-
-        this.saving = true;
-
-        const button = $('#modalOrderPayDelete .cs-modal-save').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: { opc: 'deletePayment', id: orderId, payment_id: paymentId, reason: reason } });
-
-        this.saving = false;
-        button.prop('disabled', false);
-
-        if (!data || data.status != 200) {
-            alert({
-                icon:     data && data.status == 409 ? 'warning' : 'error',
-                title:    'No se quitó el pago',
-                text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
-                btn1:     true,
-                btn1Text: 'Entendido'
-            });
-            return;
-        }
-
-        this.closeQuiet('modalOrderPayDelete', close);
-
-        orders.lsOrders();
-        orderTurn.touch();
-
-        (back || (() => orderDetail.show(orderId)))();
-
-        alert({ icon: 'success', title: data.message, timer: 1800 });
-    }
-
-    // -- Complements --
-
-    methodOf(id) {
-        return this.methods.find((m) => m.id === Number(id)) || null;
+    icons() {
+        if (window.lucide) lucide.createIcons();
     }
 
     /*  csModal no avisa cuando lo cierran a mano (X, Volver, fondo o Escape).
-        Su Escape se enlazo antes que este, asi que al llegar aqui el modal ya
-        no esta en el DOM si se cerro. */
+        Su Escape se enlazó antes que este, así que al llegar aquí el modal ya
+        no está en el DOM si se cerró. */
     onDismiss(id, fn) {
         const ns   = `keydown.${id}`;
         const done = () => {
@@ -1007,7 +1802,14 @@ class OrderPay extends Templates {
         });
     }
 
+    // Cierra sin el «volver» de onDismiss. Otras ventanas (entregar, cancelar venta…) también la usan.
     closeQuiet(id, close) {
+        if (id === 'modalOrderPay') {
+            this.isOpen = false;
+            this.unbindKeys();
+            $('#modalOrderPay').removeClass('is-busy');
+        }
+
         $(document).off(`keydown.${id}`);
         close();
     }

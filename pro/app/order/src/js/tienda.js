@@ -840,6 +840,7 @@ class OnlineShop extends Templates {
             hover:   true,
             f_size:  13,
             center:  [3, 4],
+            ...ORD_TABLE,
             ...this.emptyProducts(loaded)
         });
 
@@ -970,6 +971,7 @@ class OnlineShop extends Templates {
             hover:   true,
             f_size:  13,
             center:  [5],
+            ...ORD_TABLE,
             ...this.emptyOrders(loaded, state)
         });
 

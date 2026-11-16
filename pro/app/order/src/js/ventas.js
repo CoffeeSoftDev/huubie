@@ -16,8 +16,9 @@
     Con dueño, la venta queda a nombre de ese cliente. Al cobrar se vuelve a
     leer por si la desactivaron o le cambiaron el tipo.
 
-    El cobro (SalePay) sigue con tarjetas de método y «Agregar otro método»:
-    OrderPay pasó a una fila por forma de pago y ya no pinta esos chips.
+    El cobro (SalePay) sigue con tarjetas de método y «Agregar otro método».
+    OrderPay pasó a la ventana horizontal de pagos; SalePayBase conserva su
+    forma vieja (recibido, billetes y descuento op_*) para la venta.
 
     Manda el ctrl (ctrl-ventas.php): aqui solo se arma la venta y se avisa
     antes de mandar. `orders` apunta a esta pantalla porque el turno y el
@@ -60,8 +61,10 @@ class Sale extends OrderForm {
         this.pay = new SalePay(this._link, 'root');
 
         this.restoreTickets();
-        this.open();
-        this.bindKeys();
+        orderTurn.paintStrip(true);
+        this.paintTurn();
+
+        $(document).off('fullscreenchange.sale').on('fullscreenchange.sale', () => this.paintFull());
     }
 
     async loadOptions() {
@@ -88,81 +91,48 @@ class Sale extends OrderForm {
 
     // -- Interface --
 
-    // Las pestañas viven en el panel de la venta: el encabezado solo lleva las teclas (desde xl).
+    // Las pestañas viven en el panel de la venta: Ventas no usa el encabezado.
+    // sale-pos: colores del tema oscuro como la captura de alpha, solo aquí (order.css).
     layout() {
         super.layout();
 
-        $('#posOrderHead').removeClass('flex').addClass('hidden xl:flex');
-
-        $('#posOrderHead').append($('<div>', {
-            id:    'saleTurn',
-            class: 'ml-auto flex items-center gap-[12px] flex-wrap justify-end'
-        }));
+        $('#posOrderHost').addClass('sale-pos');
+        $('#posOrderHead').removeClass('flex').addClass('hidden');
     }
 
-    // Ventas no tiene «Volver a pedidos»: aquí solo se pintan las teclas y la franja de caja.
+    // Ventas no tiene «Volver a pedidos»: aquí solo se pinta la franja de caja.
     backButton() {
-        this.paintTurn();
-
         orderTurn.paintStrip(true);
     }
 
-    // Un solo color para todas las cards: el de la marca (--po-brand del componente).
+    // El catálogo es el de OrderForm (mismo diseño en Pedidos); aquí solo cambian las acciones.
     catalog() {
-        const tone = 'var(--po-brand)';
+        super.catalog();
+        this.paintFull();
+    }
 
-        this.looks = {};
+    // Ventas no tiene «Pastel personalizado».
+    catalogActions() {
+        const actions = [
+            {
+                id:      'btnOrderFree',
+                text:    'Línea libre',
+                icon:    'pencil-line',
+                onClick: () => this.free()
+            }
+        ];
 
-        const categories = (this.opts.categories || []).map((c) => {
-            const name = this.categoryName(c.name);
-            const look = { icon: this.categoryIcon(name), tone: tone };
+        // Solo si el navegador la permite (iPhone no la tiene).
+        if (document.fullscreenEnabled) {
+            actions.push({
+                id:      'btnSaleFull',
+                text:    'Pantalla completa',
+                icon:    'maximize',
+                onClick: () => this.toggleFull()
+            });
+        }
 
-            this.looks[c.id] = look;
-
-            return {
-                id:    c.id,
-                name:  name,
-                total: c.total,
-                icon:  look.icon,
-                tone:  look.tone
-            };
-        });
-
-        const json = (this.opts.products || []).map((p) => {
-            const look  = this.looks[p.category_id] || { icon: 'package', tone: tone };
-            const image = String(p.image || '').trim();
-
-            return {
-                id:            p.id,
-                name:          String(p.name || '').trim(),
-                price:         money(p.price),
-                category_id:   p.category_id,
-                image:         image ? fileUrl(image) : '',
-                imageFallback: image && !/^https?:/i.test(image) ? ORDER_FILES_REMOTE + encodeURI(image.replace(/^\/+/, '')) : '',
-                sku:           p.sku || '',
-                barcode:       p.barcode || '',
-                icon:          look.icon,
-                tone:          look.tone
-            };
-        });
-
-        // sale-cat: foto más alta sin crecer la card, nombre en una línea y categorías en una fila (order.css).
-        this.posCatalog({
-            parent:     'posOrderCatalogMain',
-            id:         'posOrderCatalogList',
-            class:      'flex-1 min-h-0 flex flex-col sale-cat',
-            json:       json,
-            categories: categories,
-            actions: [
-                {
-                    id:      'btnOrderFree',
-                    text:    'Línea libre',
-                    icon:    'pencil-line',
-                    onClick: () => this.free()
-                }
-            ],
-            onAdd: (item) => this.addProduct(item.id)
-        });
+        return actions;
     }
 
     ticket() {
@@ -354,6 +324,7 @@ class Sale extends OrderForm {
     }
 
     // sale-lines: estilo de la partida en Ventas (order.css). typing: la cantidad se escribe.
+    // stepDelete false: el «−» no se vuelve bote; con cantidad 1 queda apagado.
     renderLines() {
         this.posTicketLines({
             parent:     'posOrderTkLines',
@@ -362,6 +333,7 @@ class Sale extends OrderForm {
             json:       this.lines.map((line, i) => this.lineView(line, i)),
             empty:      { title: 'Venta vacía', text: 'Toca un producto o búscalo con Ctrl K.' },
             typing:     true,
+            stepDelete: false,
             onUpdate:   (index, quantity) => this.setQuantity(index, quantity),
             onEdit:     (index) => this.editLine(index),
             onDelete:   (index) => this.removeLine(index),
@@ -373,16 +345,23 @@ class Sale extends OrderForm {
     }
 
     // La partida con descuento lo dice debajo del nombre y su importe ya va neto.
+    // Si el producto tiene foto, va en el cuadro de la partida en vez del ícono.
     lineView(line, i) {
-        const view = super.lineView(line, i);
-        const off  = this.lineOff(line);
+        const view  = super.lineView(line, i);
+        const off   = this.lineOff(line);
+        const photo = line.type === 'product' ? this.photos[line.product_id] : null;
+
+        if (photo && photo.image) {
+            view.image         = photo.image;
+            view.imageFallback = photo.fallback;
+        }
 
         if (off <= 0) return view;
 
         const d    = line.discount;
         const rate = d.mode === 'percent' ? ` (${d.value} %)` : '';
 
-        view.sub.push({ tone: 'discount', icon: 'percent', text: `Descuento −${money(off)}${rate} · ${d.reason}` });
+        view.sub.push({ tone: 'discount', icon: 'tag', text: `Descuento −${money(off)}${rate} · ${d.reason}` });
         view.amount     = money(this.round2(this.unitPrice(line) * line.quantity - off));
         view.discounted = true;
 
@@ -404,8 +383,6 @@ class Sale extends OrderForm {
             json.push({ text: 'Subtotal', value: money(subtotal), tone: 'muted' });
             json.push({ text: `Tarjeta ${card.type} · ${card.discount_percent} %`, value: '−' + money(off), tone: 'discount' });
         }
-
-        if (count) json.push({ text: 'IVA incluido', value: money(this.round2(total - total / 1.16)), tone: 'muted' });
 
         const actions = [
             {
@@ -457,27 +434,28 @@ class Sale extends OrderForm {
         this.persistTickets();
     }
 
-    // El turno ya lo muestra la franja de caja (caja-strip.js); aquí solo quedan las teclas.
-    // «Cierre del día» no va en Ventas: se hace desde Cortes.
+    // La venta siempre se pinta, sin nada encima. Sin turno no deja agregar productos
+    // ni cobrar: turnReady() pide abrirlo. El turno y el cierre llaman orders.paintTurn()
+    // en cada cambio. this.pay: init() ya terminó.
     paintTurn() {
-        if (!$('#saleTurn').length) return;
+        if (!this.pay) return;
 
-        this.createLayout({
-            parent: 'saleTurn',
-            design: false,
-            data: {
-                id:    'saleTurnBody',
-                class: 'flex items-center gap-[12px] flex-wrap justify-end',
-                container: [
-                    {
-                        type:  'span',
-                        id:    'saleKeys',
-                        class: 'hidden xl:inline text-[12px] text-gray-500',
-                        text:  'F2 Cobrar · F8 Cliente · F9 Descuento'
-                    }
-                ]
-            }
-        });
+        if (!$('#posOrderHost').length) this.open();
+    }
+
+    // El botón de pantalla completa dice en qué estado está (ícono y título).
+    paintFull() {
+        const button = $('#btnSaleFull');
+
+        if (!button.length) return;
+
+        const on    = !!document.fullscreenElement;
+        const label = on ? 'Salir de pantalla completa' : 'Pantalla completa';
+
+        button.attr({ title: label, 'aria-label': label });
+        button.children('svg, i').replaceWith($('<i>', { 'data-lucide': on ? 'minimize' : 'maximize', 'aria-hidden': 'true' }));
+
+        if (window.lucide) lucide.createIcons({ root: button[0] });
     }
 
     paintTabs() {
@@ -510,7 +488,7 @@ class Sale extends OrderForm {
         return `Ticket ${t.n}<span class="sale-tab-count">${pieces}</span><span class="sale-tab-x" data-n="${t.n}" title="Cerrar ticket ${t.n}">×</span>`;
     }
 
-    blocked(message) {
+    blocked(message, text = 'Si crees que es un error, pide acceso a quien administra Huubie.') {
         this.createLayout({
             parent: 'root',
             design: false,
@@ -527,7 +505,7 @@ class Sale extends OrderForm {
                         class: 'flex flex-col',
                         children: [
                             { type: 'p', class: 'ord-aviso-titulo', text: message },
-                            { type: 'p', class: 'ord-aviso-texto', text: 'Si crees que es un error, pide acceso a quien administra Huubie.' }
+                            { type: 'p', class: 'ord-aviso-texto', text: text }
                         ]
                     }
                 ]
@@ -535,30 +513,21 @@ class Sale extends OrderForm {
         });
     }
 
-    bindKeys() {
-        $(document).off('keydown.sale').on('keydown.sale', (e) => {
-            if (!['F2', 'F8', 'F9'].includes(e.key)) return;
+    /*  Pantalla completa del navegador (como F11). Se pide para la página entera:
+        los modales del cobro cuelgan de <body> y así siguen a la vista.
+        Con el teclado tomado (Chrome / Edge) un Esc cierra el modal sin sacar de
+        la pantalla completa; para salir, el mismo botón o Esc sostenido. */
+    toggleFull() {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+            return;
+        }
 
-            e.preventDefault();
-
-            if ($('.cs-modal-bg, .cf-overlay').length || (window.Swal && Swal.isVisible())) return;
-
-            if (e.key === 'F2') return this.charge();
-            if (e.key === 'F9') return this.charge({ discount: true });
-
-            this.focusCustomer();
-        });
-    }
-
-    focusCustomer() {
-        const select = $('#of_customer_id');
-
-        if (this.ticketBox) this.ticketBox.section(true);
-
-        if (select.prop('disabled')) return;
-
-        if (select.data('select2')) select.select2('open');
-        else select.trigger('focus');
+        document.documentElement.requestFullscreen()
+            .then(() => {
+                if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(['Escape']).catch(() => { });
+            })
+            .catch(() => this.warn('El navegador no permitió la pantalla completa.'));
     }
 
     previewSale() {
@@ -597,7 +566,6 @@ class Sale extends OrderForm {
                 ${off > 0 ? row('Subtotal', money(subtotal)) : ''}
                 ${off > 0 ? row(`Descuento · Tarjeta ${esc(card.type)}`, '−' + money(off)) : ''}
                 ${row('Total', money(total), true)}
-                ${row('IVA incluido', money(this.round2(total - total / 1.16)))}
             </table>
             <hr>
             <div class="c"><b>PRE-CUENTA · NO ES COMPROBANTE</b></div>`;
@@ -651,7 +619,7 @@ class Sale extends OrderForm {
                 ${points ? row('Puntos al monedero', money(t.points)) : ''}
             </table>
             <hr>
-            <div class="c s">IVA incluido · Impreso ${ordNow()}</div>`;
+            <div class="c s">Impreso ${ordNow()}</div>`;
 
         ordPrint(`Venta V${t.folio}`, body);
     }
@@ -660,18 +628,7 @@ class Sale extends OrderForm {
 
     async charge(options = {}) {
         if (!this.lines.length) return this.warn('Agrega al menos un producto.');
-
-        const turn = dataInit.turn;
-
-        if (!turn || turn.old) {
-            orderTurn.locked({
-                title:   turn ? 'Turno de otro día' : 'Sin turno abierto',
-                message: turn
-                    ? `El turno ${turn.folio} es de otro día. Ciérralo y abre el de hoy para cobrar.`
-                    : 'Abre un turno de caja en esta sucursal para cobrar.'
-            });
-            return;
-        }
+        if (!this.turnReady('cobrar')) return;
 
         if (!(this.opts.methods || []).length) {
             alert({
@@ -887,7 +844,7 @@ class Sale extends OrderForm {
             id:         'modalSaleLineDiscount',
             title:      'Descuento del producto',
             subtitle:   `${line.quantity} × ${line.name} · ${money(gross)}`,
-            lucideIcon: 'percent',
+            lucideIcon: 'tag',
             width:      'max-w-md',
             saveText:   d ? 'Guardar' : 'Aplicar',
             action:     d ? { text: 'Quitar descuento', lucideIcon: 'x', onClick: () => this.removeLineDiscount(index) } : null,
@@ -1413,10 +1370,37 @@ class Sale extends OrderForm {
         return '';
     }
 
+    // Tocar un producto que ya está en la venta le suma 1 sin pasar por canAdd():
+    // por eso aquí también se pide el turno.
+    addProduct(id) {
+        if (!this.turnReady('agregar productos')) return;
+
+        super.addProduct(id);
+    }
+
+    // Sin turno no entra nada nuevo: ni producto del catálogo ni línea libre.
     canAdd() {
+        if (!this.turnReady('agregar productos')) return false;
         if (this.lines.length < 100) return true;
 
         this.warn('Una venta admite hasta 100 productos.');
+
+        return false;
+    }
+
+    // Sin turno de hoy no se agregan productos ni se cobra: avisa con «Abrir turno»
+    // (OrderTurn.locked) y devuelve false. what: lo que se quiso hacer.
+    turnReady(what) {
+        const turn = dataInit.turn;
+
+        if (turn && !turn.old) return true;
+
+        orderTurn.locked({
+            title:   turn ? 'Turno de otro día' : 'Sin turno abierto',
+            message: turn
+                ? `El turno ${turn.folio} es de otro día. Ciérralo y abre el de hoy para ${what}.`
+                : `Abre un turno de caja en esta sucursal para ${what}.`
+        });
 
         return false;
     }
@@ -1434,9 +1418,176 @@ class Sale extends OrderForm {
     }
 }
 
+// -- SalePayBase --
+
+/*  La forma vieja del cobro: recibido, billetes y el descuento con campos
+    op_*. OrderPay pasó a la ventana horizontal; la venta la sigue usando. */
+class SalePayBase extends OrderPay {
+
+    bind() {
+        const modal = $('#modalOrderPay');
+
+        modal.on('input', '#op_received', () => this.paint());
+
+        modal.on('click', 'button.ord-bill', (e) => {
+            $('#op_received').val(Number($(e.currentTarget).data('amount')).toFixed(2));
+            this.paint();
+        });
+
+        modal.on('click', 'button.ord-disc-toggle', () => {
+            this.discOpen = !this.discOpen;
+
+            if (!this.discOpen) $('#op_reason, #op_disc_value, #op_disc_note').val('');
+
+            this.paint();
+
+            if (this.discOpen) $('#op_reason').trigger('focus');
+        });
+
+        modal.on('click', 'button.ord-seg', (e) => {
+            this.discMode = String($(e.currentTarget).data('mode'));
+            this.paint();
+        });
+
+        modal.on('input change', '#op_reason, #op_disc_value', () => this.paint());
+
+        modal.on('keydown', 'input', (e) => {
+            if (e.key !== 'Enter') return;
+
+            e.preventDefault();
+            modal.find('.cs-modal-save').trigger('click');
+        });
+    }
+
+    discountFields() {
+        const o = this.o;
+
+        if (o.discount_amount > 0) {
+            const why  = o.discount_reason ? ` (${esc(o.discount_reason)})` : '';
+            const note = `<p class="text-[12.5px] text-gray-500 mb-0">Este pedido ya tiene un descuento de <b>${money(o.discount_amount)}</b>${why}. Solo se aplica uno.</p>`;
+
+            return [{ id: 'op_disc_bar', tipo: 'html', class: 'w-full', html: note }];
+        }
+
+        if (!this.reasons.length) return [];
+
+        // Corte cerrado: el descuento movería su vendido; lo autoriza Dueño o Supervisor.
+        if (this.discBlock) {
+            const note = `<p class="text-[12.5px] text-amber-700 mb-0"><i data-lucide="lock" class="w-3.5 h-3.5 inline -mt-0.5"></i> ${esc(this.discBlock)}</p>`;
+
+            return [{ id: 'op_disc_bar', tipo: 'html', class: 'w-full', html: note }];
+        }
+
+        const lock = this.canAuthorize ? '' : ' · requiere Dueño o Supervisor';
+        const data = this.reasons.map((r) => ({
+            id:    r.id,
+            valor: `${r.name} (hasta ${Number(r.max_percent)} %)${Number(r.requires_authorization) === 1 ? lock : ''}`
+        }));
+
+        const segs = '<div class="flex">'
+            + '<button type="button" class="ord-seg" data-mode="percent">%</button>'
+            + '<button type="button" class="ord-seg" data-mode="amount">$</button>'
+            + '</div>';
+
+        return [
+            {
+                id:    'op_disc_bar',
+                tipo:  'html',
+                class: 'w-full',
+                html:  '<button type="button" class="ord-disc-toggle"><i data-lucide="percent" class="w-4 h-4"></i><span>Aplicar descuento</span></button>'
+            },
+            { id: 'op_reason', lbl: 'Motivo', tipo: 'select', data: data, empty: '— Elige el motivo —', class: 'w-full sm:w-1/2 op-disc hidden' },
+            { id: 'op_disc_value', lbl: 'Descuento', tipo: 'number', min: 0, step: '0.01', ph: '0', class: 'w-[60%] sm:w-1/4 op-disc hidden' },
+            { id: 'op_disc_mode', tipo: 'html', class: 'w-[40%] sm:w-1/4 op-disc hidden', html: '<p class="block text-xs font-semibold text-gray-500 mb-1.5">En</p>' + segs },
+            { id: 'op_disc_note', lbl: 'Nota del descuento (opcional)', tipo: 'text', maxlength: 255, ph: 'Ej. Cliente frecuente', class: 'w-full op-disc hidden' },
+            { id: 'op_disc_hint', tipo: 'html', class: 'w-full op-disc hidden', html: '<div id="op_disc_msg" class="text-[12.5px]"></div>' }
+        ];
+    }
+
+    discountCalc() {
+        const off = { amount: 0, error: '' };
+
+        if (!this.discOpen) return off;
+
+        const o      = this.o;
+        const raw    = String($('#op_disc_value').val() || '').trim();
+        const reason = this.reasons.find((r) => String(r.id) === String($('#op_reason').val()));
+        const value  = ordAmount(raw);
+        const fail   = (error) => ({ amount: 0, error: error });
+
+        if (raw === '' && !reason) return off;
+        if (!reason)               return fail('Elige el motivo del descuento.');
+        if (raw === '')            return fail('Escribe el descuento.');
+        if (value === null || value <= 0)              return fail('El descuento tiene que ser mayor a 0.');
+        if (this.discMode === 'percent' && value > 100) return fail('El descuento no puede pasar de 100 %.');
+
+        const amount = this.discMode === 'percent' ? ordRound(o.subtotal * value / 100) : value;
+        const max    = Number(reason.max_percent);
+        const cap    = ordRound(o.subtotal * max / 100);
+
+        if (amount <= 0)                                  return fail('El descuento tiene que ser mayor a $0.');
+        if (amount > cap + 0.005)                         return fail(`«${reason.name}» permite hasta ${max} % (${money(cap)}).`);
+        if (amount > o.total + 0.005)                     return fail('El descuento no puede ser mayor que el total.');
+        if (ordRound(o.total - amount) + 0.005 < o.paid)  return fail(`Con ese descuento el total queda debajo de lo ya abonado (${money(o.paid)}).`);
+
+        if (Number(reason.requires_authorization) === 1 && !this.canAuthorize) {
+            return fail(`«${reason.name}» lo autoriza un Dueño o Supervisor.`);
+        }
+
+        return {
+            amount:  amount,
+            error:   '',
+            reason:  reason,
+            value:   value,
+            percent: o.subtotal > 0 ? ordRound(amount / o.subtotal * 100) : 0
+        };
+    }
+
+    paintDiscount(c) {
+        const d = c.d;
+
+        $('#modalOrderPay .op-disc').toggleClass('hidden', !this.discOpen);
+        $('#modalOrderPay button.ord-disc-toggle').toggleClass('is-active', this.discOpen);
+        $('#modalOrderPay button.ord-disc-toggle span').text(this.discOpen ? 'Quitar descuento' : 'Aplicar descuento');
+
+        $('#modalOrderPay button.ord-seg').each((i, el) => {
+            $(el).toggleClass('is-active', $(el).data('mode') === this.discMode);
+        });
+
+        let msg = '<span class="text-gray-400">Elige el motivo y escribe el descuento.</span>';
+
+        if (d.error)        msg = `<span class="text-rose-600">${esc(d.error)}</span>`;
+        else if (d.amount)  msg = `<span class="text-emerald-700">Descuento de <b>${money(d.amount)}</b> (${d.percent} % del subtotal). El total queda en ${money(c.total)}.</span>`;
+
+        $('#op_disc_msg').html(msg);
+    }
+
+    // Exacto y los 3 billetes redondos siguientes a lo que falta.
+    bills(remaining) {
+        if (remaining <= 0) return '';
+
+        const next = [];
+
+        [50, 100, 200, 500, 1000].forEach((step) => {
+            const value = Math.ceil(remaining / step) * step;
+
+            if (value > remaining && !next.includes(value)) next.push(value);
+        });
+
+        const list = next.sort((a, b) => a - b).slice(0, 3);
+
+        return `<button type="button" class="ord-bill" data-amount="${remaining}">Exacto</button>`
+             + list.map((v) => `<button type="button" class="ord-bill" data-amount="${v}">$${v.toLocaleString('es-MX')}</button>`).join('');
+    }
+
+    methodOf(id) {
+        return this.methods.find((m) => m.id === Number(id)) || null;
+    }
+}
+
 // -- SalePay --
 
-class SalePay extends OrderPay {
+class SalePay extends SalePayBase {
 
     // -- Initial --
 
@@ -1559,8 +1710,8 @@ class SalePay extends OrderPay {
             </div>`;
     }
 
-    // OrderPay cobra con una fila por forma de pago. La venta sigue con tarjetas de
-    // método y «Agregar otro método», así que esos clics se enlazan aquí.
+    // SalePayBase trae la forma vieja (recibido, billetes, descuento); aquí se suman
+    // las tarjetas de método y «Agregar otro método».
     bind() {
         super.bind();
 

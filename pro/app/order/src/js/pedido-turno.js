@@ -30,17 +30,19 @@ class OrderTurn extends Templates {
     // -- Entrada --
 
     // opts.afterOpen: lo que sigue cuando el turno queda abierto (p. ej. volver al cobro).
+    // opts.partial: «Corte caja X» de la franja; enseña el corte sin cerrar ni abrir turno.
     async open(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
         this.afterOpen = (opts && opts.afterOpen) || null;
 
-        const data = await this.fetchTurn(id);
+        const partial = !!(opts && opts.partial);
+        const data    = await this.fetchTurn(id);
         if (!data) return;
 
-        if (!id && !data.brief && data.can.open) return this.openForm(data);
+        if (!id && !data.brief && !partial && data.can.open) return this.openForm(data);
 
-        if (!id && !data.brief && data.can.open_reason) {
+        if (!id && !data.brief && !partial && data.can.open_reason) {
             return this.locked({ title: dataInit.day && dataInit.day.closed ? 'Día cerrado' : 'Día pendiente de cierre', message: data.can.open_reason, day: true }, this.afterOpen);
         }
 
@@ -49,7 +51,7 @@ class OrderTurn extends Templates {
             return;
         }
 
-        this.cut(data);
+        this.cut(data, partial);
     }
 
     // 423 del ctrl. Con day = true el bloqueo es el día (cerrado o pendiente), no el turno.
@@ -178,7 +180,7 @@ class OrderTurn extends Templates {
             json: [
                 { opc: 'display', id: 'sucursal',    lbl: 'Sucursal',              icon: icon('house'), value: esc(branch) },
                 { opc: 'display', id: 'responsable', lbl: 'Responsable',           icon: icon('user'),  value: esc(data.user || 'Sin asignar') },
-                { opc: 'money',   id: 'openingAmount', lbl: 'Fondo inicial de caja', placeholder: '0.00', min: 0, step: 0.01, autofocus: true }
+                { opc: 'money',   id: 'openingAmount', lbl: 'Fondo inicial de caja (opcional)', placeholder: '0.00', min: 0, step: 0.01, autofocus: true }
             ],
             onConfirm: (values, modal) => { this.saveOpen(values, modal, branch); }
         });
@@ -194,14 +196,21 @@ class OrderTurn extends Templates {
     async saveOpen(values, modal, branch) {
         if (this.saving) return;
 
-        const cash = ordAmount(values.openingAmount);
+        // El fondo es opcional: vacío abre el turno en $0.
+        const raw  = String(values.openingAmount == null ? '' : values.openingAmount).trim();
+        const cash = raw === '' ? 0 : ordAmount(raw);
 
-        if (cash === null) return this.warn('Escribe el fondo inicial de caja. Si no hay efectivo, escribe 0.');
+        if (cash === null) return this.warn('El fondo inicial no es una cantidad válida.');
 
+        const fund = cash > 0 ? `con un fondo inicial de <strong>${money(cash)}</strong>` : '<strong>sin fondo inicial</strong>';
+
+        // La sucursal va aparte y resaltada (.ord-turn-branch): es lo que se revisa antes de confirmar.
         const answer = await alert({
             icon:     'question',
             title:    '¿Aperturar turno?',
-            html:     `<p>Se abrirá un nuevo turno de caja en <strong>${esc(branch)}</strong> con un fondo inicial de <strong>${money(cash)}</strong>.</p>`,
+            html:     '<p>Se abrirá un nuevo turno de caja en</p>'
+                    + `<div class="ord-turn-branch"><i class="icon-home"></i>${esc(branch)}</div>`
+                    + `<p>${fund}.</p>`,
             btn1Text: 'Sí, aperturar',
             btn2Text: 'Cancelar'
         });
@@ -213,7 +222,7 @@ class OrderTurn extends Templates {
 
         modal.close();
 
-        this.sync(data.brief, true);
+        this.sync(data.brief, true, data.day);
 
         const next = this.afterOpen;
 
@@ -226,9 +235,10 @@ class OrderTurn extends Templates {
 
     // -- Corte --
 
-    cut(data) {
+    // partial: Corte X pedido desde la franja; el turno abierto se ve sin cerrarlo.
+    cut(data, partial = false) {
         const t        = data.turn;
-        const closing  = !t.closed && data.can.close;
+        const closing  = !t.closed && data.can.close && !partial;
         const reopen   = t.closed && data.can.reopen;
         const canPrint = orders.can('print');
 

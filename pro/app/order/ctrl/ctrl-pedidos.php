@@ -16,7 +16,11 @@ require_once __DIR__ . '/core-order.php';
       - Un pedido nuevo nace como Cotizacion y exige el turno de HOY abierto.
         Capturar no mueve dinero: el estado lo cambia el cobro (ctrl-cobro).
       - Cancelar con abonos deja lo pagado como saldo a favor del cliente
-        (customer.wallet): no hay devolucion.
+        (customer.wallet): no hay devolucion. Cancelar pide la contraseña de
+        quien opera (core::needKey), antes de tocar la base.
+      - «Editar entrega» cambia solo fecha, hora, tipo, direccion y nota
+        (core::editDelivery). Sirve tambien en un pagado: ahi lo autoriza Dueño
+        o Supervisor con su contraseña.
       - Nombre y precio de un producto del catalogo, y precio de cada opcion del
         pastel, salen de la base: lo que mande el navegador no cuenta.
       - Una linea ya guardada conserva su producto y su precio.
@@ -174,6 +178,11 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-cancel', 'text' => 'Cancelar', 'onclick' => "orderForm.cancel({$id})"];
         }
 
+        // Eliminar: solo Dueño (permiso delete), con contraseña y sin abonos.
+        if (in_array('delete', $actions, true) && $this->deleteBlock($o) === '') {
+            $menu[] = ['icon' => 'icon-trash', 'text' => 'Eliminar', 'onclick' => "orderForm.remove({$id})"];
+        }
+
         return [
             'id'               => $id,
             'Folio'            => $this->cellFolio($id, $o['folio'], $inTurn, $cancelled),
@@ -253,14 +262,12 @@ class ctrl extends core {
         return $this->moneyBtn($id, $paid, '<span class="text-emerald-700 whitespace-nowrap">' . money($paid) . '</span>', 'Ver pagos', 'history');
     }
 
-    // Negativo = pago de mas: saldo a favor. Con saldo cobrable lleva «Cobrar» debajo.
+    // Negativo = pago de mas: saldo a favor. El importe abre la ventana de pagos.
     private function cellBalance($id, $balance, $canPay) {
         $balance = round($balance, 2);
 
         if ($balance > 0) {
-            $pay = $canPay ? '<span class="ord-row-pay"><i data-lucide="banknote" class="w-3 h-3"></i>Cobrar</span>' : '';
-
-            return $this->moneyBtn($id, $balance, '<span class="font-bold text-red-600 whitespace-nowrap">' . money($balance) . '</span>' . $pay, $canPay ? 'Cobrar' : 'Pagos del pedido');
+            return $this->moneyBtn($id, $balance, '<span class="font-bold text-red-600 whitespace-nowrap">' . money($balance) . '</span>', $canPay ? 'Cobrar' : 'Pagos del pedido');
         }
 
         // A favor ordena como negativo: queda debajo de los saldos en cero.
@@ -704,6 +711,11 @@ class ctrl extends core {
         return $answer;
     }
 
+    // Solo fecha, hora, tipo de entrega, dirección y nota. Lo mismo que en el calendario.
+    public function editOrderDelivery() {
+        return $this->editDelivery($this->postId());
+    }
+
     public function cancelOrder() {
         $fail = $this->need('cancel') ?: $this->needBranch();
         if ($fail) return $fail;
@@ -714,6 +726,9 @@ class ctrl extends core {
         if ($id <= 0)                     return $this->fail(422, 'Falta el pedido.');
         if ($reason === '')               return $this->fail(422, 'Escribe el motivo de la cancelación.');
         if ($this->tooLong($reason, 255)) return $this->fail(422, 'El motivo admite hasta 255 caracteres.');
+
+        $fail = $this->needKey('cancelar');
+        if ($fail) return $fail;
 
         return $this->attempt(function () use ($id, $reason) {
             return $this->transaction(function () use ($id, $reason) {
@@ -756,6 +771,44 @@ class ctrl extends core {
                 return $this->ok($message, ['id' => $id, 'wallet' => $paid]);
             });
         }, 'No se pudo cancelar el pedido.');
+    }
+
+    /*  Como en alpha: solo el Dueño, con motivo y su contraseña. Es borrado lógico
+        (active = 0): el pedido sale de las listas y la bitácora guarda quién y por qué. */
+    public function deleteOrder() {
+        $fail = $this->need('delete') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id     = $this->postId();
+        $reason = trim((string) preg_replace('/\s+/u', ' ', $this->post('reason')));
+
+        if ($id <= 0)                        return $this->fail(422, 'Falta el pedido.');
+        if (mb_strlen($reason, 'UTF-8') < 5) return $this->fail(422, 'Escribe el motivo de la eliminación (mínimo 5 caracteres).');
+        if ($this->tooLong($reason, 255))    return $this->fail(422, 'El motivo admite hasta 255 caracteres.');
+
+        $fail = $this->needKey('eliminar');
+        if ($fail) return $fail;
+
+        return $this->attempt(function () use ($id, $reason) {
+            return $this->transaction(function () use ($id, $reason) {
+                $order = $this->qLockOrder($id, $this->branchId());
+
+                if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
+
+                $block = $this->deleteBlock($order);
+                if ($block !== '') return $this->fail(409, $block);
+
+                $this->log($id, 'deletion', 'Pedido eliminado', 'Motivo: ' . $reason);
+
+                $this->must($this->qUpdateOrder([
+                    'values' => ['active', 'updated_at = NOW()'],
+                    'where'  => ['id'],
+                    'data'   => [0, $id]
+                ]), 'deleteOrder');
+
+                return $this->ok("Pedido P{$id} eliminado.", ['id' => $id]);
+            });
+        }, 'No se pudo eliminar el pedido.');
     }
 
     // -- Captura: lectura y validacion --

@@ -157,10 +157,12 @@ function posCakeCSS() {
         + '.pos-ck-total > b{font-size:18px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--po-ink)}'
 
         + '.pos-ck-more{grid-area:more;display:flex;flex-direction:column;flex-shrink:0;gap:10px;padding:14px}'
-        + '.pos-ck-more-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 14px}'
-        + '.pos-ck-photos{display:flex;flex-direction:column;min-width:0}'
-        + '.pos-ck-shots-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px}'
-        + '.pos-ck-shots-title{font-size:12px;font-weight:600;line-height:1.3;color:var(--po-ink-2)}'
+        + '.pos-ck-more-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}'
+        + '.pos-ck-sec{display:flex;flex-direction:column;gap:10px;min-width:0}'
+        + '.pos-ck-sec.is-photos{padding-left:14px;border-left:1px solid var(--po-line)}'
+        + '.pos-ck-sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px}'
+        + '.pos-ck-sec-title{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;line-height:1.3;letter-spacing:.04em;text-transform:uppercase;color:var(--po-muted)}'
+        + '.pos-ck .pos-ck-sec-title svg{width:14px;height:14px;color:var(--po-brand)}'
         + '.pos-ck-count{font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--po-muted)}'
         + '.pos-ck-shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}'
         + '.pos-ck-shot{position:relative;aspect-ratio:1 / 1;border:1px solid var(--po-line);border-radius:10px;background:var(--po-sunken);overflow:hidden}'
@@ -204,6 +206,7 @@ function posCakeCSS() {
         + '.pos-ck-side{overflow:visible}'
         + '.pos-ck-tot{position:static;margin:0;padding:8px 0 0;background:none}'
         + '.pos-ck-more-grid{grid-template-columns:minmax(0,1fr)}'
+        + '.pos-ck-sec.is-photos{padding:14px 0 0;border-left:0;border-top:1px solid var(--po-line)}'
         + '}'
         + '@media (max-width:639px){'
         + '.pos-ck{gap:10px;padding:12px 14px 6px}'
@@ -323,7 +326,7 @@ Templates.prototype.posCake = function (options) {
     const inName       = $('<input>', { id: `${opts.id}Name`, class: 'pos-ck-in', type: 'text', maxlength: 150, autocomplete: 'off', placeholder: 'Ej. Pastel de cumpleaños para Ana' }).val(value.name);
     const inDedication = $('<input>', { id: `${opts.id}Dedication`, class: 'pos-ck-in', type: 'text', maxlength: 255, autocomplete: 'off', placeholder: 'Ej. Feliz cumpleaños, Ana' }).val(value.dedication);
     const inDetails    = $('<textarea>', { id: `${opts.id}Details`, class: 'pos-ck-in', rows: 2, maxlength: 255, placeholder: 'Colores, forma, alergias…' }).val(value.details);
-    const photos       = $('<div>', { class: 'pos-ck-photos' });
+    const photos       = $('<div>', { class: 'pos-ck-sec is-photos' });
     const shots        = $('<div>', { id: `${opts.id}Shots`, class: 'pos-ck-shots' });
     const counter      = $('<span>', { class: 'pos-ck-count' });
     const file         = $('<input>', { id: `${opts.id}File`, type: 'file', accept: 'image/*', multiple: true });
@@ -754,17 +757,24 @@ Templates.prototype.posCake = function (options) {
 
     shots.append(drop);
 
-    photos.append(
-        $('<div>', { class: 'pos-ck-shots-head' }).append($('<span>', { class: 'pos-ck-shots-title', text: 'Fotos de referencia' }), counter),
-        shots
+    // -- Detalles del pastel: dos secciones, Datos y Fotos de referencia --
+
+    const secHead = (name, text, extra) => $('<div>', { class: 'pos-ck-sec-head' }).append(
+        $('<span>', { class: 'pos-ck-sec-title' }).append(icon(name), $('<span>', { text: text })),
+        extra || null
     );
+
+    photos.append(secHead('image', 'Fotos de referencia', counter), shots);
 
     more.append(
         $('<span>', { class: 'pos-ck-card-title', text: 'Detalles del pastel' }),
         $('<div>', { class: 'pos-ck-more-grid' }).append(
-            field('Nombre del pastel', inName),
-            field('Dedicatoria', inDedication),
-            field('Observaciones', inDetails),
+            $('<div>', { class: 'pos-ck-sec' }).append(
+                secHead('notebook-pen', 'Datos'),
+                field('Nombre del pastel', inName),
+                field('Dedicatoria', inDedication),
+                field('Observaciones', inDetails)
+            ),
             photos
         )
     );

@@ -1141,6 +1141,15 @@ class mdl extends CRUD {
         ", [$branchId, $from, $to]);
     }
 
+    // Cuántos turnos se abrieron ese día, abiertos o cerrados.
+    public function qDayTurnCount($branchId, $from, $to) {
+        return $this->qCount("
+            SELECT COUNT(*)
+            FROM {$this->pos}turn t
+            WHERE " . $this->qDayTurnWhere('t') . "
+        ", [$branchId, $from, $to]);
+    }
+
     // Vendido del día: pedidos y ventas de sus turnos (la cotización no cuenta).
     public function qDayTotals($branchId, $from, $to) {
         return $this->qRow("

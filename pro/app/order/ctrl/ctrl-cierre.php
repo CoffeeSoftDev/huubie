@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../../core/security/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-order.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
 
 /*  Pedidos › cierre del día: ver, cerrar y reabrir.
 
@@ -22,6 +23,7 @@ require_once __DIR__ . '/core-order.php';
 
     Permisos: cerrar = create (la cajera). Reabrir = cancel (Dueño, Supervisor). */
 class ctrl extends core {
+    use WhatsAppNotices;
 
     // -- Lectura --
 
@@ -430,6 +432,12 @@ class ctrl extends core {
         }
 
         $this->rememberToken($token, $answer);
+
+        // Cierre del dia por WhatsApp, ya guardado (nunca tumba el cierre).
+        if ($answer['status'] === 200) {
+            session_write_close();
+            $this->notifyDay($day, $note);
+        }
 
         return $answer;
     }

@@ -48,7 +48,9 @@ function posTicketCSS() {
         + '.pos-tkl-item:hover{border-color:var(--po-line-hi)}'
         + '.pos-tkl-item.is-new{animation:posTkNew .9s ease-out}'
         + '@keyframes posTkNew{0%{background:var(--po-brand-soft);box-shadow:0 0 0 2px var(--po-brand-line)}100%{background:var(--po-surface);box-shadow:0 0 0 0 transparent}}'
-        + 'button.pos-tkl-ico{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;padding:0;border:0;border-radius:9px;background:color-mix(in srgb,var(--tone,#9CA3AF) 12%,var(--po-surface));color:var(--tone,#6B7280);cursor:pointer}'
+        + 'button.pos-tkl-ico{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;padding:0;border:0;border-radius:9px;background:color-mix(in srgb,var(--tone,#9CA3AF) 12%,var(--po-surface));color:var(--tone,#6B7280);overflow:hidden;cursor:pointer}'
+        + 'button.pos-tkl-ico img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .2s}'
+        + 'button.pos-tkl-ico img.is-ready{opacity:1}'
         + 'body.dark-mode button.pos-tkl-ico{background:color-mix(in srgb,var(--tone,#9CA3AF) 18%,var(--po-surface));color:color-mix(in srgb,var(--tone,#9CA3AF) 60%,#fff)}'
         + 'button.pos-tkl-ico svg{width:17px;height:17px}'
         + '.pos-tkl-main{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}'
@@ -247,6 +249,9 @@ Templates.prototype.posTicketLines = function (options) {
         max:      9999,
         empty:    { title: 'Pedido vacío', text: 'Toca un producto o búscalo con Ctrl K.' },
         typing:   false,
+        // true: con cantidad 1 el «−» se vuelve bote y quita la partida.
+        // false: siempre «−», apagado en 1 (la partida se quita con el bote de la derecha).
+        stepDelete: true,
         onUpdate: () => { },
         onEdit:   () => { },
         onDelete: () => { },
@@ -301,6 +306,7 @@ Templates.prototype.posTicketLines = function (options) {
     const row = (line, index) => {
         const quantity = Number(line.quantity) || 1;
         const single   = quantity <= 1;
+        const trash    = single && opts.stepDelete;
         const el       = $('<div>', { class: 'pos-tkl-item', 'data-index': index });
         const main     = $('<div>', { class: 'pos-tkl-main' });
         const top      = $('<div>', { class: 'pos-tkl-top' });
@@ -310,12 +316,30 @@ Templates.prototype.posTicketLines = function (options) {
         const acts     = $('<div>', { class: 'pos-tkl-acts' });
         const thumb    = $('<button>', { type: 'button', class: 'pos-tkl-ico', 'aria-label': `Editar ${line.name}` }).append(posTicketIcon(line.icon || 'package'));
         const label    = $('<button>', { type: 'button', class: 'pos-tkl-name', text: line.name });
-        const less     = $('<button>', { type: 'button', class: `pos-tkl-step${single ? ' is-del' : ''}`, 'aria-label': single ? 'Quitar' : 'Menos' }).append(posTicketIcon(single ? 'trash-2' : 'minus'));
+        const less     = $('<button>', { type: 'button', class: `pos-tkl-step${trash ? ' is-del' : ''}`, 'aria-label': trash ? 'Quitar' : 'Menos' }).append(posTicketIcon(trash ? 'trash-2' : 'minus'));
         const more     = $('<button>', { type: 'button', class: 'pos-tkl-step', 'aria-label': 'Más' }).append(posTicketIcon('plus'));
         const edit     = $('<button>', { type: 'button', class: 'pos-tkl-act', 'aria-label': 'Editar' }).append(posTicketIcon('pencil'));
         const remove   = $('<button>', { type: 'button', class: 'pos-tkl-act is-del', 'aria-label': 'Quitar' }).append(posTicketIcon('trash-2'));
 
         if (line.tone) el[0].style.setProperty('--tone', line.tone);
+
+        // Foto opcional sobre el ícono: si no carga, prueba imageFallback y luego queda el ícono.
+        if (line.image) {
+            const img = $('<img>', { loading: 'lazy', alt: '', src: line.image });
+
+            img.on('load', () => img.addClass('is-ready'));
+
+            img.on('error', () => {
+                if (line.imageFallback && img.attr('src') !== line.imageFallback) {
+                    img.attr('src', line.imageFallback);
+                    return;
+                }
+
+                img.remove();
+            });
+
+            thumb.append(img);
+        }
 
         if (line.isNew) {
             el.addClass('is-new');
@@ -334,6 +358,7 @@ Templates.prototype.posTicketLines = function (options) {
         });
 
         if (quantity >= opts.max) more.prop('disabled', true);
+        if (single && !trash)     less.prop('disabled', true);
 
         thumb.on('click', () => opts.onEdit(index));
         label.on('click', () => opts.onEdit(index));
@@ -342,7 +367,7 @@ Templates.prototype.posTicketLines = function (options) {
         more.on('click', () => opts.onUpdate(index, quantity + 1));
 
         less.on('click', () => {
-            if (single) {
+            if (trash) {
                 opts.onDelete(index);
                 return;
             }
@@ -354,7 +379,7 @@ Templates.prototype.posTicketLines = function (options) {
 
         // Opcional: botón de descuento por partida (resaltado si la partida ya lo tiene).
         if (opts.onDiscount) {
-            const off = $('<button>', { type: 'button', class: `pos-tkl-act${line.discounted ? ' is-on' : ''}`, 'aria-label': 'Descuento' }).append(posTicketIcon('percent'));
+            const off = $('<button>', { type: 'button', class: `pos-tkl-act${line.discounted ? ' is-on' : ''}`, 'aria-label': 'Descuento' }).append(posTicketIcon('tag'));
 
             off.on('click', () => opts.onDiscount(index));
             acts.append(off);

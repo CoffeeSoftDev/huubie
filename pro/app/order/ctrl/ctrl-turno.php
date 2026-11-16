@@ -3,11 +3,12 @@ require_once __DIR__ . '/../../../core/security/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-order.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
 
 /*  Pedidos › turno de caja: abrir, corte Z y reabrir.
 
     Reglas que no se ven en el codigo de un vistazo:
-      - Un solo turno abierto por sucursal. Abrir pide el fondo inicial (puede ser $0).
+      - Un solo turno abierto por sucursal. El fondo inicial es opcional: vacío = $0.
       - Esperado en caja = fondo + pagos en efectivo del turno (payment.turn_id).
       - Vendido = total de pedidos y ventas del turno en Pendiente o Pagado.
       - El corte Z congela el turno: guarda contado, esperado y vendido en turn y
@@ -25,6 +26,7 @@ require_once __DIR__ . '/core-order.php';
 
     Permisos: abrir y cerrar = create (la cajera). Reabrir y recalcular = cancel (Dueño, Supervisor). */
 class ctrl extends core {
+    use WhatsAppNotices;
 
     const MAX_CASH = 1000000;
 
@@ -282,9 +284,9 @@ class ctrl extends core {
         $again = $this->tokenResult($token);
         if ($again) return $again;
 
-        $cash = $this->amountOf($this->post('opening_cash'), null);
+        $cash = $this->amountOf($this->post('opening_cash'), 0);
 
-        if ($cash === null)          return $this->fail(422, 'Escribe con cuánto efectivo empieza el turno (puede ser $0).');
+        if ($cash === null)          return $this->fail(422, 'El fondo inicial no es una cantidad válida.');
         if ($cash > self::MAX_CASH) return $this->fail(422, 'El fondo inicial no puede pasar de ' . money(self::MAX_CASH) . '.');
 
         $answer = $this->attempt(function () use ($cash) {
@@ -313,7 +315,11 @@ class ctrl extends core {
             });
         }, 'No se pudo abrir el turno.');
 
-        if ($answer['status'] === 200) $answer['brief'] = $this->turnBrief();
+        // day: abrir suma un turno al día y la franja lo cuenta para «Cierre del día».
+        if ($answer['status'] === 200) {
+            $answer['brief'] = $this->turnBrief();
+            $answer['day']   = $this->dayBrief();
+        }
 
         $this->rememberToken($token, $answer);
 
@@ -373,6 +379,12 @@ class ctrl extends core {
         if ($answer['status'] === 200) $answer['brief'] = $this->turnBrief();
 
         $this->rememberToken($token, $answer);
+
+        // Corte Z por WhatsApp, ya con el turno guardado (nunca tumba el cierre).
+        if ($answer['status'] === 200) {
+            session_write_close();
+            $this->notifyTurn((int) $answer['id']);
+        }
 
         return $answer;
     }

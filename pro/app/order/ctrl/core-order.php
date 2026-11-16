@@ -30,7 +30,8 @@ class core extends mdl {
     // Días hacia atrás en que se buscan días sin cerrar (como alpha).
     const PENDING_WINDOW = 15;
 
-    // Contraseña al entregar: fallos seguidos que se toleran y segundos de espera después.
+    // Contraseña (entregar, cancelar, quitar un pago, editar la entrega de un pagado):
+    // fallos seguidos que se toleran y segundos de espera después.
     const KEY_TRIES = 5;
     const KEY_WAIT  = 300;
 
@@ -216,13 +217,17 @@ class core extends mdl {
         return '';
     }
 
-    // El día para la cabecera: cerrado hoy y días anteriores sin cerrar.
+    // El día para la cabecera: cerrado hoy, días anteriores sin cerrar y cuántos turnos
+    // se abrieron hoy (con más de uno, la franja de Ventas enciende «Cierre del día»).
     protected function dayBrief() {
         if ($this->branchId() === 0) return null;
 
+        [$from, $to] = $this->dayRange(date('Y-m-d'));
+
         return [
             'closed'  => $this->dayClosedToday(),
-            'pending' => array_column($this->pendingDays(), 'date')
+            'pending' => array_column($this->pendingDays(), 'date'),
+            'turns'   => $this->qDayTurnCount($this->branchId(), $from, $to)
         ];
     }
 
@@ -390,6 +395,13 @@ class core extends mdl {
         return '';
     }
 
+    // '' = se puede eliminar. Con abonos no: se cancela, para conservar el rastro del dinero.
+    protected function deleteBlock($o) {
+        if (abs((float) $o['paid']) >= 0.005) return 'Un pedido cobrado no se elimina: cancélalo para conservar el rastro del dinero.';
+
+        return '';
+    }
+
     /*  Opcion "multiple" del pastel: se suma por cantidad, no por porcion.
         Igual que alpha: grupo marcado como extra o cuyo nombre dice "decoraci".
         Sin grupo tambien cuenta como multiple (no hay grupo que limite a una). */
@@ -428,7 +440,8 @@ class core extends mdl {
         la pantalla deje la ventana abierta y marque el campo.
         KEY_TRIES fallos seguidos hacen esperar KEY_WAIT segundos: sin ese freno
         la contraseña se podría adivinar probando desde una caja abierta.
-        $what completa los avisos: «para entregar», «para quitar un pago». */
+        $what completa los avisos: «para entregar», «para cancelar», «para quitar
+        un pago», «para editar la entrega». */
     protected function needKey($what = 'entregar') {
         $guard = isset($_SESSION['order_key']) && is_array($_SESSION['order_key']) ? $_SESSION['order_key'] : [];
         $fails = isset($guard['fails']) ? (int) $guard['fails'] : 0;
@@ -553,6 +566,135 @@ class core extends mdl {
                 return $this->ok("Se deshizo la entrega del pedido P{$id}.", ['id' => $id]);
             });
         }, 'No se pudo deshacer la entrega.');
+    }
+
+    // -- Datos de entrega --
+
+    /*  '' = se pueden cambiar los datos de entrega. A diferencia de editBlock,
+        el pagado sí entra: aquí no se tocan productos ni dinero. */
+    protected function deliveryBlock($o) {
+        $status = (int) $o['sale_status_id'];
+
+        if ($status === self::CANCELLED) return 'Un pedido cancelado no se edita.';
+        if (!in_array($status, [self::QUOTE, self::PENDING, self::PAID], true)) return 'Este pedido no se puede editar en su estado actual.';
+        if ((int) $o['delivery_status'] === 1) return 'Un pedido entregado no se edita.';
+
+        return '';
+    }
+
+    /*  «Editar datos de entrega» (como alpha): solo fecha, hora, tipo de
+        entrega, dirección y nota. Lo abren Pedidos y Calendario desde el
+        detalle, así que no depende de ver la tabla. Pide 'update' de Pedidos.
+        Un pedido pagado lo autoriza Dueño o Supervisor (permiso cancel) con su
+        contraseña. Todo se valida antes de escribir: transaction() confirma lo
+        hecho aunque se devuelva un fail. */
+    protected function editDelivery($id) {
+        $fail = $this->need('update', 'editar la entrega de pedidos') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
+
+        $method   = $this->post('delivery_method') === '1' ? 1 : 0;
+        $date     = $this->postDate('delivery_date', null);
+        $time     = $this->postTime('delivery_time');
+        $location = $method === 1 ? trim((string) preg_replace('/\s+/u', ' ', $this->post('location'))) : '';
+        $note     = $this->textOrNull('note');
+
+        if ($date === null)                    return $this->fail(422, 'Elige la fecha de entrega.');
+        if ($time === null)                    return $this->fail(422, 'Elige la hora de entrega.');
+        if ($method === 1 && $location === '') return $this->fail(422, 'Escribe la dirección de envío.');
+        if ($this->tooLong($location, 255))    return $this->fail(422, 'La dirección admite hasta 255 caracteres.');
+        if ($this->tooLong($note, 2000))       return $this->fail(422, 'La nota admite hasta 2,000 caracteres.');
+
+        $in = [
+            'method'   => $method,
+            'date'     => $date,
+            'time'     => $time,
+            'location' => $location === '' ? null : $location,
+            'note'     => $note
+        ];
+
+        return $this->attempt(function () use ($id, $in) {
+            return $this->transaction(function () use ($id, $in) {
+                $order = $this->qLockOrder($id, $this->branchId());
+
+                if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
+
+                $block = $this->deliveryBlock($order);
+                if ($block !== '') return $this->fail(409, $block);
+
+                // La fecha que ya tenía se respeta aunque haya pasado: solo una nueva no puede ser anterior a hoy.
+                if ((string) $order['delivery_date'] !== $in['date'] && $in['date'] < date('Y-m-d')) {
+                    return $this->fail(422, 'La fecha de entrega no puede ser anterior a hoy.');
+                }
+
+                $paid = (int) $order['sale_status_id'] === self::PAID;
+
+                if ($paid) {
+                    $fail = $this->need('cancel', 'editar la entrega de un pedido pagado') ?: $this->needKey('editar la entrega');
+                    if ($fail) return $fail;
+                }
+
+                $changes = $this->deliveryChanges($order, $in);
+
+                if (empty($changes)) return $this->ok('Sin cambios.', ['id' => $id, 'unchanged' => true, 'changes' => []]);
+
+                $this->must($this->qUpdateOrder([
+                    'values' => ['delivery_method', 'delivery_date', 'delivery_time', 'location', 'note', 'edit_user_id', 'updated_at = NOW()'],
+                    'where'  => ['id'],
+                    'data'   => [$in['method'], $in['date'], $in['time'], $in['location'], $in['note'], $this->userId() ?: null, $id]
+                ]), 'editDelivery');
+
+                $this->log($id, 'edition', 'Pedido editado',
+                    implode(' · ', array_column($changes, 'log')) . ($paid ? ' (pedido pagado, autorizado con contraseña)' : ''));
+
+                // La pantalla lista cada cambio: campo, antes y después.
+                $shown = array_map(function ($c) {
+                    return ['field' => $c['field'], 'before' => $c['before'], 'after' => $c['after']];
+                }, $changes);
+
+                return $this->ok("Entrega del pedido P{$id} actualizada.", ['id' => $id, 'changes' => $shown]);
+            });
+        }, 'No se pudo guardar la entrega.');
+    }
+
+    /*  Lo que cambia de la entrega: campo, antes, después y su renglón de
+        bitácora (log), con las mismas frases que deja editar el pedido. */
+    protected function deliveryChanges($order, array $in) {
+        $names   = ['Recoge en tienda', 'Envío a domicilio'];
+        $changes = [];
+
+        if ((string) $order['delivery_date'] !== $in['date']) {
+            $before    = dmy($order['delivery_date']) ?: 'sin fecha';
+            $after     = dmy($in['date']);
+            $changes[] = ['field' => 'Fecha de entrega', 'before' => $before, 'after' => $after, 'log' => "Fecha de entrega: {$before} » {$after}"];
+        }
+
+        if (substr((string) $order['delivery_time'], 0, 5) !== substr($in['time'], 0, 5)) {
+            $before    = hour12($order['delivery_time']) ?: 'sin hora';
+            $after     = hour12($in['time']);
+            $changes[] = ['field' => 'Hora de entrega', 'before' => $before, 'after' => $after, 'log' => "Hora: {$before} » {$after}"];
+        }
+
+        $was = (int) $order['delivery_method'] === 1 ? 1 : 0;
+
+        if ($was !== $in['method']) {
+            $changes[] = ['field' => 'Tipo de entrega', 'before' => $names[$was], 'after' => $names[$in['method']], 'log' => "Entrega: {$names[$was]} » {$names[$in['method']]}"];
+        }
+
+        $place = trim((string) preg_replace('/\s+/u', ' ', (string) $order['location']));
+
+        if ($in['location'] !== null && $place !== $in['location']) {
+            $changes[] = ['field' => 'Dirección', 'before' => $place !== '' ? $place : 'sin dirección', 'after' => $in['location'], 'log' => 'Dirección: ' . $in['location']];
+        }
+
+        $note = trim((string) $order['note']);
+
+        if ($note !== (string) $in['note']) {
+            $changes[] = ['field' => 'Nota', 'before' => $note !== '' ? $note : 'sin nota', 'after' => $in['note'] !== null ? $in['note'] : 'sin nota', 'log' => 'Nota actualizada'];
+        }
+
+        return $changes;
     }
 
     // -- Detalle --
@@ -681,23 +823,35 @@ class core extends mdl {
         $alive   = (int) $order['sale_status_id'] !== self::CANCELLED;
         $given   = (int) $order['delivery_status'] === 1;
         $undo    = $this->need('cancel') === null && $this->undeliverBlock($order) === '';
+        $delete  = $this->need('delete') === null ? $this->deleteBlock($order) : 'Solo el Dueño puede eliminar pedidos.';
+
+        // Datos de entrega: el pagado lo edita solo Dueño o Supervisor, con contraseña.
+        $isPaid   = (int) $order['sale_status_id'] === self::PAID;
+        $delivery = !$update ? 'Tu rol no puede editar pedidos.' : $this->deliveryBlock($order);
+
+        if ($delivery === '' && $isPaid && $this->need('cancel') !== null) $delivery = 'La entrega de un pedido pagado la edita Dueño o Supervisor.';
 
         return [
-            'edit'           => $edit === '',
-            'edit_reason'    => $edit,
-            'money'          => $money === '',
-            'money_reason'   => $money,
-            'cut'            => $this->closedCut($order),
-            'cancel'         => $cancel === '',
-            'cancel_reason'  => $cancel,
-            'pay'            => $pay === '',
-            'pay_reason'     => $pay,
-            'deliver'        => $deliver === '',
-            'deliver_reason' => $deliver,
-            'settle'         => $update && $pay === '' && $this->settleFirst($order),
-            'undeliver'      => $undo,
+            'edit'            => $edit === '',
+            'edit_reason'     => $edit,
+            'money'           => $money === '',
+            'money_reason'    => $money,
+            'cut'             => $this->closedCut($order),
+            'cancel'          => $cancel === '',
+            'cancel_reason'   => $cancel,
+            'pay'             => $pay === '',
+            'pay_reason'      => $pay,
+            'deliver'         => $deliver === '',
+            'deliver_reason'  => $deliver,
+            'settle'          => $update && $pay === '' && $this->settleFirst($order),
+            'undeliver'       => $undo,
+            'delivery'        => $delivery === '',
+            'delivery_reason' => $delivery,
+            'delivery_key'    => $delivery === '' && $isPaid,
+            'delete'          => $delete === '',
+            'delete_reason'   => $delete,
             // Entregado = el dinero ya se cerró con el cliente: primero se deshace la entrega.
-            'delete_payment' => $alive && !$given && $this->need('delete') === null
+            'delete_payment'  => $alive && !$given && $this->need('delete') === null
         ];
     }
 

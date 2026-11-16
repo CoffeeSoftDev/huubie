@@ -12,6 +12,10 @@
     Entregar pide la contraseña de quien opera: deliver() abre la ventana y
     saveDeliver() la manda al ctrl, que es quien la revisa.
 
+    «Editar entrega» (como alpha) va al pie de Informacion y sale tambien en
+    el calendario: editDelivery() cambia solo fecha, hora, tipo, direccion y
+    nota. En un pagado la misma ventana pide la contraseña.
+
     Lo usan pedidos.js y calendario.js: orderDetail.show(id), .print(id), .deliver(id). */
 
 // -- Ayudantes compartidos con pedidos.js --
@@ -114,6 +118,23 @@ function ordNow() {
     return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${ordHour(pad(now.getHours()) + ':' + pad(now.getMinutes()))}`;
 }
 
+// -- Tablas --
+
+/*  El color de las tablas de Catálogo (design 'flowbite': encabezado #F9FAFB,
+    filas blancas y cebra #F9FAFB) con la forma de Pedidos: encabezado centrado
+    y sin mayúsculas. Va con ...ORD_TABLE en cada createCoffeeTable3 del módulo. */
+const ORD_TABLE = { design: 'flowbite', th_case: 'capitalize', th_align: 'center' };
+
+/*  createCoffeeTable3 raya por posición al armar la tabla: al ordenar o cambiar
+    de página la cebra se descuadra. Esto la repinta en el orden visible, como
+    'flowbite': blanca la primera fila, gris la segunda. En página oscura no hay
+    cebra (dark-mode.css): no se toca. */
+function ordStripe(tbody) {
+    if (cfPageTheme('light') === 'dark') return;
+
+    $(tbody).children('tr').each((i, tr) => $(tr).children('td').toggleClass('bg-white', i % 2 === 0).toggleClass('bg-[#F9FAFB]', i % 2 === 1));
+}
+
 // -- Fotos --
 /*  Las rutas son 'alpha_files/...'. En local esos archivos no existen: si la
     primera carga falla se reintenta en produccion, y si tambien falla queda
@@ -158,12 +179,13 @@ class OrderDetail extends Templates {
 
     constructor(link, div_modulo) {
         super(link, div_modulo);
-        this.PROJECT_NAME = 'PedidoDetalle';
-        this.galleries    = {};
-        this.loading      = false;
-        this.editable     = true;   // false en el calendario: la captura vive en Pedidos
-        this.delivering   = false;
-        this.limited      = false;  // true = el pedido llego sin dinero (Produccion)
+        this.PROJECT_NAME   = 'PedidoDetalle';
+        this.galleries      = {};
+        this.loading        = false;
+        this.editable       = true;   // false en el calendario: la captura vive en Pedidos
+        this.delivering     = false;
+        this.savingDelivery = false;
+        this.limited        = false;  // true = el pedido llego sin dinero (Produccion)
     }
 
     // Estados de sale_status, iguales a los del ctrl.
@@ -191,6 +213,7 @@ class OrderDetail extends Templates {
         }
 
         this.limited = !!data.limited;
+        this.last    = data;
 
         return data;
     }
@@ -321,7 +344,23 @@ class OrderDetail extends Templates {
                </div>`
             : '';
 
-        return this.card('info', 'Información del pedido', `<div class="divide-y divide-gray-200">${rows.join('')}</div>${note}${this.cancelBox(o)}`, this.orderActions(data));
+        return this.card('info', 'Información del pedido', `<div class="divide-y divide-gray-200">${rows.join('')}</div>${note}${this.deliveryButton(data)}${this.cancelBox(o)}`, this.orderActions(data));
+    }
+
+    // Al pie de los datos que edita, como alpha. Sale aunque la captura no (calendario).
+    deliveryButton(data) {
+        const can = data.can || {};
+
+        if (!can.delivery) return '';
+
+        const title = can.delivery_key ? 'Editar datos de entrega (pide tu contraseña)' : 'Editar datos de entrega';
+
+        return `
+            <div class="mt-[12px] flex justify-end">
+                <button type="button" class="ord-edit-delivery" title="${title}" onclick="orderDetail.editDelivery(${Number(data.order.id)}, { fromDetail: true })">
+                    <i data-lucide="${can.delivery_key ? 'lock' : 'pencil'}" class="w-4 h-4"></i>Editar entrega
+                </button>
+            </div>`;
     }
 
     /*  Botones del encabezado de Informacion. «Ya se elaboro» solo a Produccion
@@ -1056,6 +1095,195 @@ class OrderDetail extends Templates {
         // show() reemplaza el modal abierto con el pedido ya marcado.
         orders.lsOrders();
         this.show(id);
+    }
+
+    // -- Datos de entrega --
+
+    /*  «Editar entrega» (como alpha): solo fecha, hora, tipo de entrega,
+        direccion y nota; productos y pagos no se tocan. Pide el pedido de
+        nuevo para saber si todavia se puede. En un pagado la contraseña va en
+        la misma ventana. Si vino del detalle, lo vuelve a abrir al terminar. */
+    async editDelivery(id, opts = {}) {
+        $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        if (this.savingDelivery) return;
+
+        const data = await this.fetchOrder(id);
+        if (!data) return;
+
+        const o   = data.order;
+        const can = data.can || {};
+
+        if (!can.delivery) {
+            alert({ icon: 'info', title: 'No se puede editar la entrega', text: can.delivery_reason || 'Este pedido ya no se edita.', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        // Hoy en la hora de la PC (toISOString daria la fecha en UTC).
+        const now   = new Date();
+        const pad   = (n) => String(n).padStart(2, '0');
+        const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+        const fromDetail = !!opts.fromDetail;
+        const back       = () => (fromDetail ? this.show(id) : null);
+        const date       = String(o.delivery_date || '').slice(0, 10);
+        const ctx        = { date: date, today: today, keyed: !!can.delivery_key };
+
+        if (fromDetail) $('#modalOrderDetails .cs-modal-x').trigger('click');
+
+        const json = [];
+
+        if (ctx.keyed) {
+            json.push({
+                id: 'ed_paid', tipo: 'html', class: 'w-full',
+                html: `<div class="flex items-start gap-2 p-[10px] rounded-lg bg-amber-50 border-[1px] border-amber-200 text-[12.5px] text-amber-800">
+                           <i data-lucide="lock" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                           <span>Pedido pagado: guardar pide tu contraseña.</span>
+                       </div>`
+            });
+        }
+
+        json.push(
+            { id: 'ed_date', lbl: 'Fecha de entrega', tipo: 'date', required: true, value: date, min: date && date < today ? date : today },
+            { id: 'ed_time', lbl: 'Hora de entrega', tipo: 'text', required: true, value: String(o.delivery_time || '').slice(0, 5) },
+            {
+                id: 'ed_method', lbl: 'Tipo de entrega', tipo: 'select', empty: false, class: 'w-full', value: Number(o.delivery_method) === 1 ? 1 : 0,
+                data: [{ id: 0, valor: 'Recoge en tienda' }, { id: 1, valor: 'Envío a domicilio' }]
+            },
+            { id: 'ed_location', lbl: 'Dirección de envío', tipo: 'text', required: true, maxlength: 255, class: 'w-full', icon: 'map-pin', value: o.location || '', ph: 'Calle, número y colonia' },
+            { id: 'ed_note', lbl: 'Nota', tipo: 'textarea', maxlength: 2000, rows: 3, class: 'w-full', value: o.note || '', ph: 'Ej. Entregar en recepción' }
+        );
+
+        if (ctx.keyed) json.push({ id: 'ed_key', lbl: 'Tu contraseña', tipo: 'text', required: true, class: 'w-full', help: 'La misma con la que entras a Huubie.' });
+
+        this.csModal({
+            id:         'modalOrderDelivery',
+            title:      'Editar datos de entrega',
+            subtitle:   `Pedido #P${o.folio || o.id} · ${o.customer || 'Sin cliente'}`,
+            lucideIcon: 'calendar-clock',
+            width:      'max-w-lg',
+            saveText:   'Guardar',
+            cancelText: 'Volver',
+            info:       'Productos y pagos no cambian.',
+            json:       json,
+            onSave:     (values, close) => this.saveDelivery(id, ctx, close, back)
+        });
+
+        orderPay.onDismiss('modalOrderDelivery', back);
+
+        // csModal no tiene campo de hora ni de contraseña: se pintan de texto y aqui se cambian.
+        $('#ed_time').attr('type', 'time');
+
+        // La direccion solo va con envio.
+        const place = () => $('#ed_location').closest('.px-2').toggleClass('hidden', $('#ed_method').val() !== '1');
+
+        $('#ed_method').on('change', () => {
+            place();
+            if ($('#ed_method').val() === '1') $('#ed_location').trigger('focus');
+        });
+
+        place();
+
+        // one-time-code: el navegador no la rellena sola.
+        $('#ed_key')
+            .attr({ type: 'password', autocomplete: 'one-time-code', spellcheck: 'false' })
+            .on('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+
+                e.preventDefault();
+                $('#modalOrderDelivery .cs-modal-save').trigger('click');
+            });
+    }
+
+    /*  Lo que falta se avisa sin cerrar la ventana (no se pierde lo escrito).
+        Contraseña mal (data.key): el aviso va bajo el campo. Al guardar, lista
+        cada cambio: antes y despues. */
+    async saveDelivery(id, ctx, close, back) {
+        if (this.savingDelivery) return;
+
+        const date     = String($('#ed_date').val() || '');
+        const time     = String($('#ed_time').val() || '');
+        const method   = $('#ed_method').val() === '1' ? 1 : 0;
+        const location = String($('#ed_location').val() || '').trim();
+        const note     = String($('#ed_note').val() || '').trim();
+        const field    = $('#ed_key');
+        const key      = ctx.keyed ? String(field.val() || '') : '';
+
+        const warn  = (text) => alert({ icon: 'warning', title: 'Revisa la entrega', text: text, btn1: true, btn1Text: 'Entendido' });
+        const wrong = (text) => {
+            field.next('p').removeClass('text-gray-400').addClass('text-red-600 font-semibold').text(text);
+            field.val('').trigger('focus');
+        };
+
+        if (!date)                                 return warn('Elige la fecha de entrega.');
+        if (date !== ctx.date && date < ctx.today) return warn('La fecha de entrega no puede ser anterior a hoy.');
+        if (!time)                                 return warn('Elige la hora de entrega.');
+        if (method === 1 && !location)             return warn('Escribe la dirección de envío.');
+        if (ctx.keyed && !key)                     return wrong('Escribe tu contraseña para editar la entrega.');
+
+        this.savingDelivery = true;
+
+        const button = $('#modalOrderDelivery .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({
+            url:  this._link,
+            data: {
+                opc:             'editOrderDelivery',
+                id:              id,
+                delivery_date:   date,
+                delivery_time:   time,
+                delivery_method: method,
+                location:        method === 1 ? location : '',
+                note:            note,
+                key:             key
+            }
+        });
+
+        this.savingDelivery = false;
+        button.prop('disabled', false);
+
+        if (!data)                       return warn('No hubo respuesta. Revisa la conexión y vuelve a intentar.');
+        if (data.key && ctx.keyed)       return wrong(data.message || 'Contraseña incorrecta.');
+        if (Number(data.status) === 422) return warn(data.message || 'Revisa los datos de entrega.');
+
+        orderPay.closeQuiet('modalOrderDelivery', close);
+
+        if (data.status != 200) {
+            const soft = [403, 404, 409].includes(Number(data.status));
+
+            await alert({ icon: soft ? 'info' : 'error', title: 'No se guardó la entrega', text: data.message || 'Vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+
+            return back();
+        }
+
+        if (!data.unchanged) orders.lsOrders();
+
+        await alert({
+            icon:     data.unchanged ? 'info' : 'success',
+            title:    data.unchanged ? 'Sin cambios' : 'Pedido actualizado',
+            html:     this.deliveryChangesHtml(data.changes || []),
+            btn1:     true,
+            btn1Text: 'Entendido'
+        });
+
+        back();
+    }
+
+    // Un renglon por cambio: campo, antes tachado y despues resaltado.
+    deliveryChangesHtml(changes) {
+        if (!changes.length) return '<p class="text-[14px] mb-0">No cambió ningún dato de entrega.</p>';
+
+        const cut  = (t) => { const s = String(t == null ? '' : t); return s.length > 120 ? s.slice(0, 117) + '…' : s; };
+        const rows = changes.map((c) => `
+            <li class="py-1.5 break-words">
+                <span class="block text-[11px] font-semibold uppercase tracking-wide opacity-60">${esc(c.field)}</span>
+                <span class="line-through opacity-60">${esc(cut(c.before))}</span>
+                <span class="mx-1 opacity-60">→</span>
+                <span class="font-semibold">${esc(cut(c.after))}</span>
+            </li>`).join('');
+
+        const count = changes.length === 1 ? 'Se guardó 1 cambio' : `Se guardaron ${changes.length} cambios`;
+
+        return `<p class="text-[13px] mb-1">${count}:</p><ul class="text-left text-[13px] mb-0 pl-0 list-none">${rows}</ul>`;
     }
 
     // -- Impresion --

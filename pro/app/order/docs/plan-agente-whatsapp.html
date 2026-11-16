@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan por fases · Agente de WhatsApp en Huubie PRO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: una columna de lectura (980px); el flujo y el chat de ejemplo lado a lado; fases como lista con horas */
+:root {
+  color-scheme: light;
+  --bg: #f5f6f9;
+  --surface: #ffffff;
+  --ink: #18202b;
+  --muted: #5a6577;
+  --line: #dde2ea;
+  --accent: #5a46c8;
+  --accent-soft: #edeafc;
+  --ok: #1d7448;
+  --ok-soft: #e2f2e9;
+  --no: #a3432b;
+  --no-soft: #f8e5df;
+  --part: #475569;
+  --part-soft: #e7ebf1;
+  --chat-bg: #efeae2;
+  --bubble-in: #ffffff;
+  --bubble-out: #d9fdd3;
+  --bubble-ink: #111b21;
+  --bubble-meta: #667781;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141b; --surface: #171d26; --ink: #e5e8ee; --muted: #9ba5b5; --line: #2a3240;
+    --accent: #a596ff; --accent-soft: #272246;
+    --ok: #6fd19c; --ok-soft: #15301f; --no: #f2957c; --no-soft: #3a1e17; --part: #b6c1d2; --part-soft: #232b37;
+    --chat-bg: #0b141a; --bubble-in: #202c33; --bubble-out: #005c4b; --bubble-ink: #e9edef; --bubble-meta: #8696a0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141b; --surface: #171d26; --ink: #e5e8ee; --muted: #9ba5b5; --line: #2a3240;
+  --accent: #a596ff; --accent-soft: #272246;
+  --ok: #6fd19c; --ok-soft: #15301f; --no: #f2957c; --no-soft: #3a1e17; --part: #b6c1d2; --part-soft: #232b37;
+  --chat-bg: #0b141a; --bubble-in: #202c33; --bubble-out: #005c4b; --bubble-ink: #e9edef; --bubble-meta: #8696a0;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.wrap {
+  max-width: 980px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 64px;
+  display: grid;
+  gap: 48px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.4rem; font-weight: 600; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code { font-family: var(--font-mono); font-size: 0.86em; background: var(--part-soft); padding: 1px 5px; border-radius: 4px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.eyebrow {
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+section { display: grid; gap: 16px; min-width: 0; }
+.sec-head { display: grid; gap: 6px; }
+.sec-head p { color: var(--muted); }
+
+/* -- Cabecera -- */
+header { display: grid; gap: 14px; }
+header .lead { font-size: 1.08rem; color: var(--ink); max-width: 64ch; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 20px; padding-top: 4px; }
+.fact { display: grid; gap: 0; }
+.fact b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fact span { font-size: 0.78rem; color: var(--muted); }
+
+/* -- Dos piezas -- */
+.pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.piece { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 8px; align-content: start; }
+.piece p { color: var(--muted); font-size: 0.94rem; }
+
+.pill { display: inline-block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.no { background: var(--no-soft); color: var(--no); }
+.pill.part { background: var(--part-soft); color: var(--part); }
+.pill.acc { background: var(--accent-soft); color: var(--accent); }
+h3 .pill { margin-left: 6px; vertical-align: 2px; font-family: var(--font-body); }
+
+/* -- Tablas -- */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; min-width: 680px; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+td .pill { margin-bottom: 4px; }
+td small { color: var(--muted); display: block; }
+tr.sub td { background: var(--bg); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-block: 7px; }
+
+/* -- Flujo + chat -- */
+.flow-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 760px) { .flow-grid { grid-template-columns: minmax(0, 1fr); } }
+ol.flow { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: paso; }
+ol.flow li { counter-increment: paso; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding-bottom: 14px; position: relative; }
+ol.flow li::before {
+  content: counter(paso); font-family: var(--font-mono); font-size: 0.8rem; font-weight: 500;
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
+}
+ol.flow li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 30px; bottom: 2px; width: 1px; background: var(--line); }
+ol.flow li div { display: grid; gap: 2px; padding-top: 3px; }
+ol.flow li span { color: var(--muted); font-size: 0.9rem; }
+
+.phone { background: var(--chat-bg); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.phone-top { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 0.85rem; }
+.phone-top b { display: block; font-size: 0.92rem; }
+.phone-top small { color: var(--muted); font-size: 0.75rem; }
+.chat { padding: 14px 12px 16px; display: grid; gap: 8px; }
+.bub { max-width: 86%; padding: 7px 10px 18px; border-radius: 8px; font-size: 0.88rem; line-height: 1.45; color: var(--bubble-ink); position: relative; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }
+.bub.in { background: var(--bubble-in); justify-self: start; border-top-left-radius: 2px; }
+.bub.out { background: var(--bubble-out); justify-self: end; border-top-right-radius: 2px; }
+.bub .t { position: absolute; right: 8px; bottom: 3px; font-size: 0.68rem; color: var(--bubble-meta); font-variant-numeric: tabular-nums; }
+.bub.draft { outline: 1.5px dashed var(--accent); outline-offset: 2px; }
+.draft-note { justify-self: end; font-size: 0.74rem; color: var(--accent); font-weight: 600; margin-top: -2px; }
+.chat-foot { font-size: 0.75rem; color: var(--muted); padding: 0 14px 12px; }
+
+/* -- Reglas -- */
+ul.rules { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px 24px; }
+ul.rules li { padding-left: 18px; position: relative; font-size: 0.94rem; }
+ul.rules li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 7px; height: 7px; border-radius: 2px; background: var(--accent); }
+
+/* -- Fases -- */
+.phases { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.phase { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 16px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.phase:last-child { border-bottom: 0; }
+.phase-id { display: grid; gap: 4px; align-content: start; }
+.phase-id b { font-family: var(--font-mono); font-size: 1rem; color: var(--accent); }
+.phase-id span { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.phase-body { display: grid; gap: 6px; }
+.phase-body ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 0.92rem; }
+.done-when { font-size: 0.86rem; color: var(--muted); }
+.done-when b { color: var(--ink); font-weight: 600; }
+.phase.total { background: var(--bg); }
+.phase.total .phase-body { font-family: var(--font-display); font-weight: 600; }
+@media (max-width: 520px) { .phase { grid-template-columns: minmax(0, 1fr); gap: 6px; } .phase-id { grid-auto-flow: column; justify-content: start; gap: 10px; align-items: baseline; } }
+
+/* -- Decisiones -- */
+ol.decisions { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; counter-reset: dec; }
+ol.decisions li { counter-increment: dec; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px 14px 52px; position: relative; display: grid; gap: 4px; }
+ol.decisions li::before { content: counter(dec); position: absolute; left: 18px; top: 14px; font-family: var(--font-mono); font-weight: 500; color: var(--accent); }
+ol.decisions p { font-size: 0.93rem; color: var(--muted); }
+ol.decisions .rec { color: var(--ink); }
+ol.decisions .rec b { color: var(--accent); font-weight: 600; }
+
+/* -- Fuentes -- */
+ul.sources { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.92rem; }
+ul.sources span { color: var(--muted); }
+.note { font-size: 0.86rem; color: var(--muted); }
+
+@media (max-width: 520px) { h1 { font-size: 1.85rem; } .wrap { padding-block: 28px 48px; gap: 40px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Plan · Huubie pro · 15/11/2026 · decisiones de F0 respondidas</div>
+    <h1>Agente de WhatsApp</h1>
+    <p class="lead">Los clientes le escriben al número de la empresa y un agente contesta con los datos del punto de venta: catálogo, precios, estado del pedido y lo que deben. Toma pedidos del catálogo elegido como borrador en Tienda en línea; lo personalizado pasa a una persona. Solo atiende en horario y arranca proponiendo respuestas que una persona aprueba.</p>
+    <div class="facts">
+      <div class="fact"><b>52–66 h</b><span>por construir, F1 a F6</span></div>
+      <div class="fact"><b>F0 hecha</b><span>8 decisiones del 15/11/2026</span></div>
+      <div class="fact"><b>Nada construido</b><span>este documento es el plan</span></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Contexto</div>
+      <h2>Son dos piezas distintas</h2>
+    </div>
+    <div class="pieces">
+      <div class="piece">
+        <span class="pill ok">Hecho en local · 15/11/2026</span>
+        <h3>Avisos de WhatsApp</h3>
+        <p>Huubie le escribe al dueño o al encargado: pedido nuevo, cierre de turno y cierre del día. Página <code>pos-whatsapp</code>, mismo envío que alpha y credenciales en el <code>.env</code>. Probado en modo simulado.</p>
+        <p>Falta: correr las migraciones en producción antes del código y probar un envío real.</p>
+      </div>
+      <div class="piece">
+        <span class="pill acc">Este plan</span>
+        <h3>Agente de WhatsApp</h3>
+        <p>Ahora el que escribe es el cliente y Huubie contesta por el número de la empresa. Reusa lo de los avisos: <code>_WhatsApp.php</code> (gana el proveedor Meta), <code>wa_recipient</code>, <code>wa_log</code> y la página.</p>
+        <p>Sigue el patrón del plan de avatars del 14/11/2026: el webhook solo guarda, un proceso por minuto piensa y una bandeja aprueba.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Referencia</div>
+      <h2>Lo que hace Pulpos y dónde estamos</h2>
+      <p>Pulpos describe su producto como un «ERP minimalista y conversacional» con agentes de IA en WhatsApp. Lo de abajo sale de tres fuentes públicas; no probé Pulpos.</p>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:36%">Lo que hace Pulpos</th><th style="width:16%">Fuente</th><th>En Huubie pro hoy</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>«Respuestas automáticas a clientes sin intervención humana constante»</td>
+            <td>Ecosistema Startup</td>
+            <td><span class="pill no">Falta</span><small>Es el núcleo de este plan (F3 y F6).</small></td>
+          </tr>
+          <tr>
+            <td>«Gestión de adeudos con recordatorios y seguimiento personalizados»</td>
+            <td>Ecosistema Startup</td>
+            <td><span class="pill part">Parcial</span><small>Crédito y adeudos ya existen (<code>mdl-credito.php</code>, <code>portalDebts</code>). Faltan los recordatorios (F5).</small></td>
+          </tr>
+          <tr>
+            <td>Comprobantes digitales; tickets «Imprímelos o compártelos por WhatsApp»</td>
+            <td>Ecosistema Startup, pulpos.com</td>
+            <td><span class="pill part">Parcial</span><small>El portal del cliente muestra ventas y recibe comprobantes. El agente manda el enlace y acepta la foto por chat (F4). La factura CFDI vive en el facturador y queda fuera.</small></td>
+          </tr>
+          <tr>
+            <td>«Recibe pedidos de tu tienda directamente por WhatsApp»</td>
+            <td>pulpos.com</td>
+            <td><span class="pill part">Parcial</span><small>Tienda en línea arma el pedido y abre WhatsApp con el resumen. Falta que el pedido se haga dentro del chat, con el catálogo que elija el dueño (F4, decisión 8).</small></td>
+          </tr>
+          <tr>
+            <td>«Actualización de inventarios en tiempo real directamente desde el chat»</td>
+            <td>Ecosistema Startup</td>
+            <td><span class="pill no">Fuera por ahora</span><small>Decisión 6: no hay inventarios en pro (0 coincidencias de <code>stock</code> en <code>pro/app</code>). El inventario vive en el ERP <code>inventory/</code>.</small></td>
+          </tr>
+          <tr>
+            <td>Agentes y conectores por WhatsApp para pronóstico de demanda, cobranza y automatización</td>
+            <td>descubre.vc</td>
+            <td><span class="pill part">Parcial</span><small>Cobranza entra en F5. Pronóstico de demanda queda fuera de este plan.</small></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Arquitectura</div>
+      <h2>Cómo viaja un mensaje</h2>
+    </div>
+    <div class="flow-grid">
+      <ol class="flow">
+        <li><div><b>El cliente escribe al número de la empresa</b><span>El número dice qué empresa atiende. La sucursal la elige el cliente la primera vez y queda guardada en <code>wa_chat</code>. El texto del cliente nunca cambia la empresa.</span></div></li>
+        <li><div><b>Meta avisa al webhook</b><span>Meta Cloud API llama a <code>wa-webhook.php</code> en producción. En local no hay webhook: todo se prueba con el simulador.</span></div></li>
+        <li><div><b>El webhook solo guarda</b><span>Valida la firma de Meta, escribe en <code>wa_message</code>, descarta repetidos por el id del mensaje y responde 200 al instante. No llama al modelo.</span></div></li>
+        <li><div><b>Un proceso por minuto toma los pendientes, solo en horario</b><span>Cron. Fuera de horario no corre: los mensajes esperan a la apertura. Junta los últimos 20 mensajes del chat, los datos de la sucursal y las herramientas permitidas.</span></div></li>
+        <li><div><b>El agente responde con datos reales</b><span>Solo consulta por herramientas, cada una filtrada por la sucursal del chat y el teléfono. El modelo se elige en F3 midiendo (decisión 4).</span></div></li>
+        <li><div><b>La respuesta sale o espera</b><span>Modo propuesta: va a la bandeja con Enviar, Editar y Descartar. Modo automático: sale por <code>WhatsApp::send()</code> con el proveedor Meta.</span></div></li>
+        <li><div><b>Todo queda registrado</b><span>La conversación en <code>wa_message</code> y cada envío en <code>wa_log</code>, como los avisos.</span></div></li>
+      </ol>
+      <div class="phone" role="img" aria-label="Conversación de ejemplo entre una clienta y el agente">
+        <div class="phone-top">
+          <div class="avatar">R</div>
+          <div><b>Reginas</b><small>Ejemplo con datos inventados</small></div>
+        </div>
+        <div class="chat">
+          <div class="bub in">Hola, ¿me apartan un pastel de tres leches para el sábado?<span class="t">10:41</span></div>
+          <div class="bub out">Hola, Laura. ¿Qué sucursal te atiende? Responde con el número:<br><b>1</b> Guadalupe · <b>2</b> Kafeto · <b>3</b> Cuarta<span class="t">10:41 ✓✓</span></div>
+          <div class="bub in">2<span class="t">10:42</span></div>
+          <div class="bub out">Listo, Kafeto. Del catálogo tengo el pastel tres leches mediano: <b>$420.00</b>. ¿Te lo aparto para el sábado 21/11/2026?<span class="t">10:42 ✓✓</span></div>
+          <div class="bub in">Sí, pero con la foto de mi hija encima<span class="t">10:43</span></div>
+          <div class="bub out draft">Un pastel con foto lo arma una persona del equipo. Ya le pasé tu pedido y te escribe en un momento.<span class="t">10:43</span></div>
+          <div class="draft-note">Personalizado · pasa a una persona</div>
+        </div>
+        <div class="chat-foot">El nombre sale del teléfono registrado en Clientes, no de lo que el cliente diga. El menú de sucursales es fijo: no lo escribe el modelo.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Alcance</div>
+      <h2>Dos agentes sobre el mismo número</h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:20%"></th><th>Agente de clientes</th><th>Agente del dueño</th></tr></thead>
+        <tbody>
+          <tr><td><b>Quién escribe</b></td><td>Cualquier número</td><td>Solo números dados de alta en Destinatarios con permiso para preguntar</td></tr>
+          <tr><td><b>Cómo lo reconoce</b></td><td>El teléfono que manda Meta, buscado en Clientes de la empresa. La sucursal la elige él la primera vez</td><td>Teléfono en <code>wa_recipient</code> con la marca nueva <code>can_ask</code></td></tr>
+          <tr><td><b>Cuándo contesta</b></td><td>Solo en el horario de <code>wa_agent</code></td><td>Solo en horario, igual que a clientes</td></tr>
+          <tr><td><b>Qué contesta</b></td><td>Catálogo, precios, horario, estado de su pedido, su saldo y el enlace de su portal</td><td>Ventas del día, turno abierto, pedidos web pendientes, cartera de adeudos</td></tr>
+          <tr><td><b>Qué puede escribir</b></td><td>Borrador de pedido web y «pasar a una persona»</td><td>Nada en F6. Aceptar pedidos desde el chat queda para después</td></tr>
+          <tr><td><b>Modo inicial</b></td><td>Propone; una persona envía</td><td>Contesta directo</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Herramientas</div>
+      <h2>Lo único que el agente puede consultar</h2>
+      <p>Cada herramienta recibe desde el servidor la empresa del número, la sucursal elegida y el teléfono del chat. El modelo no puede pedir datos de otro teléfono, otra sucursal ni otra empresa.</p>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:20%">Herramienta</th><th style="width:34%">Qué contesta</th><th>Reusa</th><th style="width:13%">Acceso</th></tr></thead>
+        <tbody>
+          <tr class="sub"><td colspan="4">Agente de clientes</td></tr>
+          <tr><td><code>sucursal_elegir</code></td><td>Menú fijo de sucursales activas de la empresa; guarda la elegida. Sale la primera vez o si el cliente pide cambiar. Con una sola activa, se asigna sola</td><td><code>branches</code> de la empresa del número</td><td><span class="pill part">Marca</span><small>en <code>wa_chat</code></small></td></tr>
+          <tr><td><code>catalogo_buscar</code></td><td>Productos del catálogo elegido para el agente, con precio y foto</td><td><code>qStoreProducts</code> en <code>mdl-tienda.php</code>, o la lista de <code>wa_agent_product</code></td><td><span class="pill ok">Lectura</span></td></tr>
+          <tr><td><code>negocio_datos</code></td><td>Horario, dirección, entrega y formas de pago</td><td><code>storeInfo</code> en <code>ctrl-pedir.php</code>; el horario sale de <code>wa_agent.hours</code></td><td><span class="pill ok">Lectura</span></td></tr>
+          <tr><td><code>pedido_estado</code></td><td>Estado de los pedidos web de ese teléfono</td><td><code>qWebOrders</code>, <code>qOrdersFromPhone</code></td><td><span class="pill ok">Lectura</span></td></tr>
+          <tr><td><code>saldo_cliente</code></td><td>Saldo y ventas a crédito de ese teléfono</td><td><code>qCreditDebt</code>, <code>portalDebts</code></td><td><span class="pill ok">Lectura</span></td></tr>
+          <tr><td><code>portal_enlace</code></td><td>Enlace del portal para ver ventas y subir comprobantes</td><td><code>qPortal</code>, <code>qCreatePortal</code></td><td><span class="pill ok">Lectura</span><small>crea el enlace si no hay</small></td></tr>
+          <tr><td><code>pedido_borrador</code></td><td>Deja el pedido en Tienda en línea como «Nuevo» para que la tienda lo acepte. Solo acepta productos del catálogo elegido</td><td><code>resolveLines</code>, <code>qCreateWebOrder</code> (mismo camino que la tienda)</td><td><span class="pill part">Borrador</span></td></tr>
+          <tr><td><code>pasar_a_persona</code></td><td>Pedido personalizado, queja o petición del cliente: apaga al agente en ese chat y avisa al encargado con el resumen</td><td><code>Message::aviso</code>, <code>wa_recipient</code></td><td><span class="pill part">Marca</span></td></tr>
+          <tr class="sub"><td colspan="4">Agente del dueño</td></tr>
+          <tr><td><code>ventas_hoy</code></td><td>Total, tickets y ticket promedio del día por sucursal</td><td><code>ctrl-dashboard.php</code>, <code>ctrl-ventas.php</code></td><td><span class="pill ok">Lectura</span></td></tr>
+          <tr><td><code>turno_estado</code></td><td>Turno abierto, quién lo tiene y efectivo esperado</td><td><code>ctrl-turno.php</code></td><td><span class="pill ok">Lectura</span></td></tr>
+          <tr><td><code>cartera</code></td><td>Clientes con saldo, del más antiguo al más reciente</td><td><code>qCreditCustomers</code></td><td><span class="pill ok">Lectura</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">El manejo de herramientas ya existe en <code>inventory/conf/_IaOllama.php</code> (<code>chatRonda</code>). Si Ollama gana la medición de F3 (decisión 4), se copia a <code>pro/core/helpers</code>.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Seguridad</div>
+      <h2>Reglas que no se negocian</h2>
+    </div>
+    <ul class="rules">
+      <li>Lo que escribe el cliente es dato, nunca instrucción. No cambia la empresa, el teléfono ni las herramientas; la sucursal solo sale del menú de sucursales activas de su empresa.</li>
+      <li>Sin cobros, cancelaciones, descuentos ni cambios de precio por chat.</li>
+      <li>«Hablar con una persona» siempre funciona y apaga al agente en ese chat por 24 h.</li>
+      <li>Fuera de horario no se atiende: ni agente ni mensaje fijo. Lo que llega espera a la apertura.</li>
+      <li>Solo vende lo del catálogo elegido; lo personalizado pasa a una persona. No promete existencias: pro no las lleva.</li>
+      <li>Tope de respuestas por chat por hora, contra abusos y gasto del modelo.</li>
+      <li>Recordatorios de adeudo: uno por semana como máximo, en horario, y «BAJA» los apaga.</li>
+      <li>El webhook valida la firma de Meta (<code>X-Hub-Signature-256</code>). Token y secreto de la app viven en el <code>.env</code>.</li>
+      <li>Pruebas solo en modo simulado. Ningún envío real sin permiso explícito.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Fases</div>
+      <h2>Orden de construcción</h2>
+      <p>Cada fase termina con algo que se puede probar en el simulador. Los cambios de base de datos van como migración con rollback y se corren en producción antes del código.</p>
+    </div>
+    <div class="phases">
+      <div class="phase">
+        <div class="phase-id"><b>F0</b><span>Hecha</span></div>
+        <div class="phase-body">
+          <h3>Decisiones <span class="pill ok">15/11/2026</span></h3>
+          <ul><li>Las 8 decisiones tienen respuesta. Están abajo, con lo que cambia en el plan.</li></ul>
+          <div class="done-when"><b>Listo:</b> respuestas del 15/11/2026 aplicadas en este documento.</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-id"><b>F1</b><span>6–8 h</span></div>
+        <div class="phase-body">
+          <h3>Entrada de mensajes</h3>
+          <ul>
+            <li>Migración <code>wa_chat</code>, <code>wa_message</code>, <code>wa_proposal</code>, <code>wa_agent</code>, <code>wa_agent_product</code>, con rollback.</li>
+            <li><code>wa-webhook.php</code> en producción: responde la verificación de Meta (<code>hub.challenge</code>), valida <code>X-Hub-Signature-256</code>, guarda y descarta repetidos.</li>
+            <li>La empresa sale del <code>phone_number_id</code> que Meta manda en cada mensaje, buscado en <code>wa_agent</code>.</li>
+          </ul>
+          <div class="done-when"><b>Listo cuando:</b> un mensaje simulado aparece una sola vez en <code>wa_message</code> aunque llegue dos veces, y uno con firma falsa se rechaza.</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-id"><b>F2</b><span>11–13 h</span></div>
+        <div class="phase-body">
+          <h3>Bandeja de conversaciones</h3>
+          <ul>
+            <li>Pestaña «Conversaciones» en la página WhatsApp: lista de chats, hilo con burbujas (reusa <code>wspBubble</code>) y respuesta a mano.</li>
+            <li><code>_WhatsApp.php</code> gana el proveedor <code>meta</code>: número como <code>52</code> + 10 dígitos. Los avisos siguen por Green API.</li>
+            <li>Menú fijo de sucursales la primera vez; la elegida queda en <code>wa_chat.branch_id</code>.</li>
+            <li>Pestaña «Agente»: encender y horario por día. Atender la bandeja pide un permiso nuevo sobre <code>pos-whatsapp</code>.</li>
+            <li>Si el último mensaje del cliente tiene más de 24 h, la bandeja no deja escribir libre: Meta solo acepta plantilla.</li>
+            <li>Simulador: escribir como si fueras el cliente, sin Meta.</li>
+          </ul>
+          <div class="done-when"><b>Listo cuando:</b> se atiende un chat completo a mano desde Huubie, y un mensaje que llega fuera de horario no recibe nada automático hasta la apertura.</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-id"><b>F3</b><span>10–14 h</span></div>
+        <div class="phase-body">
+          <h3>Agente de clientes en modo propuesta</h3>
+          <ul>
+            <li>Medir en el simulador Ollama (<code>_IaOllama.php</code> copiado a <code>pro/core/helpers</code>) contra un modelo en la nube y quedarse con uno (decisión 4).</li>
+            <li>Herramientas de lectura: catálogo, datos del negocio, estado de pedido, saldo y portal.</li>
+            <li>Corre solo en horario; al abrir propone respuesta a lo que llegó cerrado.</li>
+            <li>Cada propuesta muestra qué herramientas usó y qué datos leyó.</li>
+          </ul>
+          <div class="done-when"><b>Listo cuando:</b> 20 preguntas típicas en el simulador reciben una propuesta correcta y ninguna lee datos de otra sucursal ni de otra empresa.</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-id"><b>F4</b><span>10–12 h</span></div>
+        <div class="phase-body">
+          <h3>Pedidos y comprobantes por chat</h3>
+          <ul>
+            <li>«Catálogo del agente» en la pestaña Agente: el de Tienda en línea (<code>in_catalog</code>) o una lista propia (<code>wa_agent_product</code>).</li>
+            <li><code>pedido_borrador</code> crea el pedido web por el mismo camino que la tienda, solo con productos de ese catálogo; aparece en Tienda en línea para Aceptar.</li>
+            <li>Lo que pide algo fuera del catálogo (foto, diseño, tamaño o sabor distinto) va a <code>pasar_a_persona</code> con el resumen.</li>
+            <li>Foto de comprobante por chat → <code>customer_receipt</code> pendiente, igual que en el portal.</li>
+          </ul>
+          <div class="done-when"><b>Listo cuando:</b> un pedido del catálogo se acepta en Tienda en línea y llega a Pedidos, y uno personalizado llega a la bandeja para una persona.</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-id"><b>F5</b><span>7–9 h</span></div>
+        <div class="phase-body">
+          <h3>Recordatorios de adeudo y plantillas</h3>
+          <ul>
+            <li>Tipo nuevo <code>debt</code> en <code>wa_notice</code>: saldo y enlace del portal, uno por semana (decisión 7).</li>
+            <li>Sale como plantilla aprobada por Meta: cambiar el texto pide otra aprobación.</li>
+            <li>Plantilla «ya abrimos, ¿seguimos?» para contestar después de un cierre de más de 24 h.</li>
+            <li>Cron diario con topes, horario y «BAJA».</li>
+          </ul>
+          <div class="done-when"><b>Listo cuando:</b> se ve la lista de quién recibiría recordatorio hoy antes de mandar nada.</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-id"><b>F6</b><span>8–10 h</span></div>
+        <div class="phase-body">
+          <h3>Agente del dueño y modo automático</h3>
+          <ul>
+            <li>Números autorizados preguntan ventas, turno, pedidos y cartera.</li>
+            <li>Interruptor por tema: horario y catálogo en automático; saldo y pedidos siguen en propuesta.</li>
+            <li>Métricas: tiempo de respuesta y % resuelto sin persona.</li>
+          </ul>
+          <div class="done-when"><b>Listo cuando:</b> el dueño pregunta «¿cuánto llevamos hoy?» y recibe el total correcto por sucursal.</div>
+        </div>
+      </div>
+      <div class="phase total">
+        <div class="phase-id"><b>Total</b><span>52–66 h</span></div>
+        <div class="phase-body">Suma de F1 a F6; F0 quedó hecha el 15/11/2026. No incluye subir a producción ni el trámite con Meta del número de cada empresa.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Base de datos</div>
+      <h2>Tablas nuevas en <code>fayxzvov_pos</code></h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:18%">Tabla</th><th style="width:30%">Para qué</th><th>Columnas clave</th></tr></thead>
+        <tbody>
+          <tr><td><code>wa_chat</code></td><td>Una conversación por teléfono y empresa</td><td><code>company_id</code>, <code>branch_id</code> (la elige el cliente), <code>phone</code>, <code>customer_id</code>, <code>mode</code> (agente / persona), <code>human_until</code>, <code>opt_out</code>, <code>last_in_at</code> (ventana de 24 h)</td></tr>
+          <tr><td><code>wa_message</code></td><td>Cada mensaje que entra o sale</td><td><code>chat_id</code>, <code>direction</code>, <code>provider_id</code> (único, el <code>wamid</code> de Meta), <code>body</code>, <code>media_path</code>, <code>status</code></td></tr>
+          <tr><td><code>wa_proposal</code></td><td>Respuesta que propone el agente</td><td><code>message_id</code>, <code>body</code>, <code>tools_used</code>, <code>status</code> (pendiente / enviada / editada / descartada), <code>decided_by</code></td></tr>
+          <tr><td><code>wa_agent</code></td><td>Ajustes por empresa: un número cada una</td><td><code>company_id</code> (único), <code>phone_number_id</code> de Meta (único), <code>enabled</code>, <code>hours</code> (por día), <code>catalog_mode</code> (tienda / propio), <code>auto_topics</code>, <code>hourly_cap</code></td></tr>
+          <tr><td><code>wa_agent_product</code></td><td>Catálogo propio del agente, si no usa el de Tienda en línea</td><td><code>company_id</code>, <code>product_id</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Se quedan: <code>wa_notice</code> (gana el tipo <code>debt</code>), <code>wa_recipient</code> (gana <code>can_ask</code>) y <code>wa_log</code>. Token, secreto de la app y token de verificación de Meta van en el <code>.env</code>; en la base solo el <code>phone_number_id</code> de cada empresa. Los productos <code>is_custom</code> nunca entran al catálogo: <code>qStoreProducts</code> ya los excluye.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">F0 · 15/11/2026</div>
+      <h2>Decisiones tomadas</h2>
+      <p>Las respuestas del 15/11/2026 y lo que cambian en el plan. Lo marcado «con interpretación mía» lo completé yo; si no era así, se corrige aquí.</p>
+    </div>
+    <ol class="decisions">
+      <li>
+        <h3>Proveedor del agente</h3>
+        <p class="rec"><b>Decidido:</b> la recomendación. Meta Cloud API para el agente; Green API se queda en los avisos internos.</p>
+        <p><b>Cambia:</b> <code>_WhatsApp.php</code> gana el proveedor <code>meta</code> (F2), con el número como <code>52</code> + 10 dígitos; Green API sigue con <code>521</code>. Fuera de la ventana de 24 h, Meta solo acepta plantilla aprobada (F5).</p>
+      </li>
+      <li>
+        <h3>Un número por empresa <span class="pill part">con interpretación mía</span></h3>
+        <p class="rec"><b>Decidido:</b> uno por empresa dada de alta.</p>
+        <p><b>Cambia:</b> el webhook reconoce la empresa por el <code>phone_number_id</code> que manda Meta (<code>wa_agent</code>). La primera vez sale un menú con las sucursales activas y la elegida queda en <code>wa_chat.branch_id</code>. El WhatsApp de cada sucursal en Tienda en línea no cambia.</p>
+        <p><b>Interpretación mía:</b> el menú es fijo, no lo escribe el modelo; con una sola sucursal activa se asigna sola. Los números van en la cuenta de Meta de CoffeeSoft, con un solo token en el <code>.env</code>. Una empresa con cuenta de Meta propia queda fuera de este plan.</p>
+      </li>
+      <li>
+        <h3>URL pública para el webhook</h3>
+        <p class="rec"><b>Decidido:</b> la recomendación. Webhook en producción desde F1.</p>
+        <p><b>Cambia:</b> se quita la lectura periódica de Green API. En local todo se prueba con el simulador: Meta no alcanza la red de Hamachi.</p>
+      </li>
+      <li>
+        <h3>Modelo</h3>
+        <p class="rec"><b>Decidido:</b> la recomendación. Se elige en F3 midiendo el tiempo de respuesta en el simulador.</p>
+        <p>Ollama como CoffeeIA no cobra por mensaje, pero depende de que el equipo esté prendido y alcanzable desde producción. Un modelo en la nube cobra por uso.</p>
+      </li>
+      <li>
+        <h3>Horario <span class="pill part">con interpretación mía</span></h3>
+        <p class="rec"><b>Decidido:</b> no se atiende fuera de horario.</p>
+        <p><b>Cambia:</b> se quita el mensaje fijo de fuera de horario. El horario por día va en <code>wa_agent.hours</code>. Cerrado, el webhook guarda pero el agente no corre y no sale nada, ni el menú de sucursales.</p>
+        <p><b>Interpretación mía:</b> lo que llega cerrado se contesta al abrir; si pasaron más de 24 h, primero sale la plantilla «ya abrimos, ¿seguimos?». Un solo horario por número, también para el agente del dueño. «Quién atiende» quedó sin respuesta: un permiso nuevo sobre <code>pos-whatsapp</code>.</p>
+      </li>
+      <li>
+        <h3>Inventario desde el chat</h3>
+        <p class="rec"><b>Decidido:</b> de momento no: no hay inventarios en pro.</p>
+        <p><b>Cambia:</b> el agente no promete existencias. Toma el pedido y la tienda lo confirma.</p>
+      </li>
+      <li>
+        <h3>Frecuencia de los recordatorios</h3>
+        <p class="rec"><b>Decidido:</b> uno por semana, con saldo y enlace del portal.</p>
+        <p><b>Cambia:</b> con Meta el recordatorio es plantilla aprobada: no se edita libre en Avisos y cambiar el texto pide otra aprobación.</p>
+      </li>
+      <li>
+        <h3>Catálogo del agente <span class="pill acc">nueva</span> <span class="pill part">con interpretación mía</span></h3>
+        <p class="rec"><b>Decidido:</b> el dueño elige un catálogo y el cliente escoge de ahí; si pide algo muy personalizado, pasa a una persona.</p>
+        <p><b>Cambia:</b> selector «Catálogo del agente» en la pestaña Agente (F4). <code>pedido_borrador</code> solo acepta productos de ese catálogo. Los productos <code>is_custom</code> ya quedan fuera: <code>qStoreProducts</code> los excluye.</p>
+        <p><b>Interpretación mía:</b> dos formas de catálogo, el de Tienda en línea (<code>in_catalog</code>, ya existe) o una lista propia (<code>wa_agent_product</code>). «Muy personalizado» es lo que sale del catálogo: foto, diseño, tamaño o sabor distinto.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Fuentes</div>
+      <h2>De dónde sale lo de Pulpos</h2>
+    </div>
+    <ul class="sources">
+      <li><a href="https://ecosistemastartup.com/pulpos-levanta-5m-para-llevar-ia-a-pymes-via-whatsapp-2/" target="_blank" rel="noopener">Ecosistema Startup: Pulpos levanta $5M para llevar IA a pymes vía WhatsApp</a> <span>· 09/04/2026. Ronda liderada por Dalus Capital; más de 5,000 pymes activas.</span></li>
+      <li><a href="https://pulpos.com" target="_blank" rel="noopener">pulpos.com</a> <span>· sitio oficial, consultado el 15/11/2026. Tickets y pedidos por WhatsApp, crédito, tienda en línea.</span></li>
+      <li><a href="https://www.descubre.vc/pulpos" target="_blank" rel="noopener">descubre.vc/pulpos</a> <span>· ficha de la empresa, consultada el 15/11/2026. Agentes de IA y conectores por WhatsApp.</span></li>
+    </ul>
+  </section>
+
+</div>
+
+</body>
+</html>

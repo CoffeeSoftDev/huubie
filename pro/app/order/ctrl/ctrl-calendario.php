@@ -14,6 +14,9 @@ require_once __DIR__ . '/core-order.php';
       - Entregar pide 'update' de PEDIDOS, sin saldo (decision 5: el saldo se
         cobra al entregar; la pantalla encadena cobro y entrega) y la contraseña
         de quien entrega (core::needKey).
+      - «Editar entrega» (fecha, hora, tipo, direccion y nota) tambien se hace
+        desde aqui: pide 'update' de PEDIDOS (core::editDelivery). Un pagado lo
+        edita Dueño o Supervisor, con su contraseña.
       - Quien no ve Pedidos ve solo pendientes y pagados: ni cotizaciones ni
         cancelados, como Produccion en alpha. Tampoco ve dinero: el calendario
         le llega sin total, abonado ni saldo, y el detalle sin importes, abonos
@@ -166,6 +169,10 @@ class ctrl extends core {
 
     public function undeliverOrder() {
         return $this->undeliver($this->postId());
+    }
+
+    public function editOrderDelivery() {
+        return $this->editDelivery($this->postId());
     }
 
     // -- Ayudantes --

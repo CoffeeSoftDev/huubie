@@ -2,13 +2,13 @@
 /*  Tarjetas de lealtad y puntos (V4 del plan de Ventas).
 
     Va aparte de mdl-order.php y de mdl-credito.php, que no se tocan.
-    Lo usan ctrl-puntos, ctrl-ventas y ctrl-historial con `use LoyaltyCards;`.
+    Lo usan lealtad/ctrl/ctrl-tarjetas, ctrl-ventas y ctrl-historial con `use LoyaltyCards;`.
 
     Reglas que no se ven en el codigo de un vistazo:
       - card_type dice que da la tarjeta (descuento O puntos: uno solo, lo cuida
-        ctrl-puntos) y de que color se dibuja; card es el plastico: un numero,
+        ctrl-tarjetas) y de que color se dibuja; card es el plastico: un numero,
         un titular impreso y, si se quiere, un cliente dueño.
-      - card_type.color solo lo lee la pagina Puntos (qCardTypes, qCardType y
+      - card_type.color solo lo lee la pagina Lealtad › Tarjetas (qCardTypes, qCardType y
         qCards). cardColumns() no lo trae: Vender e Historial no dependen de el.
       - card NO guarda saldo. Los puntos son dinero: se suman a customer.wallet
         (el monedero de V3) y se gastan pagando con «Monedero».

@@ -1,9 +1,6 @@
 <?php
-require_once __DIR__ . '/../../core/security/_Permission.php';
-Permission::page('pos-puntos', '../../');
-
-$title  = 'Puntos';
-$script = 'puntos';
-
-require __DIR__ . '/layout/head.php';
-require __DIR__ . '/layout/scripts.php';
+/*  Puntos se mudo al modulo Lealtad el 15/11/2026: hoy es Lealtad › Tarjetas
+    (app/lealtad/tarjetas.php), con la misma seccion pos-puntos.
+    Esta puerta solo existe para enlaces y marcadores viejos. */
+header('Location: ../lealtad/');
+exit;

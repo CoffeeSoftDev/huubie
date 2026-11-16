@@ -3,7 +3,8 @@
 
     Solo el correo. De alla se quedaron fuera:
       - whatsapp() y whatsapp_file(): llevan escrito el token de la instancia de
-        ultramsg de Grupo Varoch, y users no guarda telefono.
+        ultramsg de Grupo Varoch, y users no guarda telefono. El WhatsApp de pro
+        esta en _WhatsApp.php (proveedor y token en el .env).
       - correoDesde(): manda desde el buzon del colaborador y depende de
         _Buzon.php (IMAP de coffeeIA), que pro/ no tiene. */
 class Message {

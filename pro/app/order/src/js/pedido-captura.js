@@ -18,6 +18,7 @@ class OrderForm extends Templates {
         this.cakeBox      = null;
         this.ticketBox    = null;
         this.looks        = {};
+        this.photos       = {};
         this.flash        = -1;
         this.scrollTop    = 0;
         this.optionIndex  = {};
@@ -183,6 +184,9 @@ class OrderForm extends Templates {
         $('#pageOrders').removeClass('hidden');
         $('#main__content').scrollTop(this.scrollTop);
 
+        // Sin la captura, la franja vuelve sin «Volver a pedidos».
+        orderTurn.paintStrip();
+
         this.cake      = null;
         this.cakeBox   = null;
         this.ticketBox = null;
@@ -231,26 +235,23 @@ class OrderForm extends Templates {
         });
     }
 
+    // «Volver a pedidos» va en la franja de caja, junto al turno (CajaStrip.backButton).
     backButton() {
-        this.coffeeForm({
-            parent:       'posOrderBack',
-            id:           'formOrderBack',
-            class:        'flex',
-            showRequired: false,
-            json: [
-                { opc: 'button', id: 'btnOrderBack', class: 'col-12', text: 'Volver a pedidos', icon: 'icon-left-open', color_btn: 'outline', onClick: () => this.askClose() }
-            ]
-        });
+        orderTurn.paintStrip();
     }
 
+    // Mismo diseño que Ventas: un solo color para todas las cards (el de la marca) y
+    // sale-cat (foto más alta, nombre en una línea, categorías en una fila; order.css).
+    // Las cards con foto van primero; entre ellas sigue el orden del ctrl (por nombre).
     catalog() {
-        const tones = ['#C05A40', '#D97706', '#7C3AED', '#0284C7', '#059669', '#DB2777', '#4F46E5', '#0D9488', '#EA580C', '#65A30D'];
+        const tone = 'var(--po-brand)';
 
-        this.looks = {};
+        this.looks  = {};
+        this.photos = {};
 
-        const categories = (this.opts.categories || []).map((c, i) => {
+        const categories = (this.opts.categories || []).map((c) => {
             const name = this.categoryName(c.name);
-            const look = { icon: this.categoryIcon(name), tone: tones[i % tones.length] };
+            const look = { icon: this.categoryIcon(name), tone: tone };
 
             this.looks[c.id] = look;
 
@@ -258,16 +259,22 @@ class OrderForm extends Templates {
         });
 
         const json = (this.opts.products || []).map((p) => {
-            const look  = this.looks[p.category_id] || { icon: 'package', tone: '#6B7280' };
+            const look  = this.looks[p.category_id] || { icon: 'package', tone: tone };
             const image = String(p.image || '').trim();
+            const photo = {
+                image:    image ? fileUrl(image) : '',
+                fallback: image && !/^https?:/i.test(image) ? ORDER_FILES_REMOTE + encodeURI(image.replace(/^\/+/, '')) : ''
+            };
+
+            this.photos[p.id] = photo;
 
             return {
                 id:            p.id,
                 name:          String(p.name || '').trim(),
                 price:         money(p.price),
                 category_id:   p.category_id,
-                image:         image ? fileUrl(image) : '',
-                imageFallback: image && !/^https?:/i.test(image) ? ORDER_FILES_REMOTE + encodeURI(image.replace(/^\/+/, '')) : '',
+                image:         photo.image,
+                imageFallback: photo.fallback,
                 sku:           p.sku || '',
                 barcode:       p.barcode || '',
                 icon:          look.icon,
@@ -275,17 +282,25 @@ class OrderForm extends Templates {
             };
         });
 
+        // sort es estable: los que no tienen foto conservan su orden.
+        json.sort((a, b) => (b.image ? 1 : 0) - (a.image ? 1 : 0));
+
         this.posCatalog({
             parent:     'posOrderCatalogMain',
             id:         'posOrderCatalogList',
+            class:      'flex-1 min-h-0 flex flex-col sale-cat',
             json:       json,
             categories: categories,
-            actions: [
-                { id: 'btnOrderCake', text: 'Pastel personalizado', icon: 'cake-slice', onClick: () => this.cakeForm() },
-                { id: 'btnOrderFree', text: 'Línea libre', icon: 'pencil-line', onClick: () => this.free() }
-            ],
-            onAdd: (item) => this.addProduct(item.id)
+            actions:    this.catalogActions(),
+            onAdd:      (item) => this.addProduct(item.id)
         });
+    }
+
+    // Pedidos ya no ofrece «Línea libre»; las que ya estaban guardadas se siguen editando (editLine).
+    catalogActions() {
+        return [
+            { id: 'btnOrderCake', text: 'Pastel personalizado', icon: 'cake-slice', onClick: () => this.cakeForm() }
+        ];
     }
 
     ticket() {
@@ -562,7 +577,7 @@ class OrderForm extends Templates {
         if (!line && !this.canAdd()) return;
 
         if (!line && !data.length) {
-            alert({ icon: 'info', title: 'Sin catálogo', text: 'Esta sucursal no tiene productos de catálogo. Usa una línea libre o un pastel personalizado.', btn1: true, btn1Text: 'Entendido' });
+            alert({ icon: 'info', title: 'Sin catálogo', text: 'Esta sucursal no tiene productos de catálogo. Usa un pastel personalizado.', btn1: true, btn1Text: 'Entendido' });
             return;
         }
 
@@ -1026,29 +1041,129 @@ class OrderForm extends Templates {
                 ? `Lo abonado (${money(o.paid)}) queda como saldo a favor de ${o.customer || 'el cliente'}. No hay devolución.`
                 : 'El pedido queda en la lista como Cancelado.',
             json: [
-                { id: 'ox_reason', lbl: 'Motivo de la cancelación', tipo: 'textarea', required: true, maxlength: 255, rows: 3, ph: 'Ej. El cliente ya no lo necesita', class: 'w-full' }
+                { id: 'ox_reason', lbl: 'Motivo de la cancelación', tipo: 'textarea', required: true, maxlength: 255, rows: 3, ph: 'Ej. El cliente ya no lo necesita', class: 'w-full' },
+                { id: 'ox_key', lbl: 'Tu contraseña', tipo: 'text', required: true, class: 'w-full', help: 'La misma con la que entras a Huubie.' }
             ],
             onSave: (values, close) => this.saveCancel(o, values, close)
         });
+
+        // csModal no tiene campo de contraseña: se pinta de texto y aqui se oculta lo escrito.
+        // one-time-code: el navegador no la rellena sola (si no, la clave no pediria nada).
+        $('#ox_key')
+            .attr({ type: 'password', autocomplete: 'one-time-code', spellcheck: 'false' })
+            .on('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+
+                e.preventDefault();
+                $('#modalOrderCancel .cs-modal-save').trigger('click');
+            });
     }
 
+    // El ctrl revisa la contraseña. Si falla (data.key) la ventana sigue abierta y lo dice bajo el campo.
     async saveCancel(o, values, close) {
         if (this.saving) return;
 
         const reason = String(values.ox_reason || '').trim();
+        const key    = String(values.ox_key || '');
+        const field  = $('#ox_key');
+        const wrong  = (text) => {
+            field.next('p').removeClass('text-gray-400').addClass('text-red-600 font-semibold').text(text);
+            field.val('').trigger('focus');
+        };
 
         if (!reason) return this.warn('Escribe el motivo de la cancelación.');
+        if (!key)    return wrong('Escribe tu contraseña para cancelar.');
 
         this.saving = true;
 
         const button = $('#modalOrderCancel .cs-modal-save').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: { opc: 'cancelOrder', id: o.id, reason: reason } });
+        const data   = await useFetch({ url: this._link, data: { opc: 'cancelOrder', id: o.id, reason: reason, key: key } });
 
         this.saving = false;
         button.prop('disabled', false);
 
+        if (data && data.key) return wrong(data.message || 'Contraseña incorrecta.');
+
         if (!data || data.status != 200) {
             alert({ icon: 'error', title: 'No se canceló el pedido', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        close();
+
+        alert({ icon: 'success', title: data.message, timer: 1600 });
+
+        orders.lsOrders();
+        orderTurn.touch();
+    }
+
+    // Eliminar: solo el Dueño, con motivo y su contraseña (igual que en alpha).
+    async remove(id) {
+        $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        const data = await orderDetail.fetchOrder(id);
+        if (!data) return;
+
+        const o = data.order;
+
+        if (!data.can || !data.can.delete) {
+            alert({ icon: 'info', title: 'No se puede eliminar', text: (data.can && data.can.delete_reason) || '', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        this.csModal({
+            id:         'modalOrderRemove',
+            title:      `Eliminar pedido #P${o.folio || o.id}`,
+            subtitle:   `${o.customer || 'Sin cliente'} · Total ${money(o.total)}`,
+            lucideIcon: 'trash-2',
+            width:      'max-w-lg',
+            saveText:   'Eliminar pedido',
+            cancelText: 'Volver',
+            info:       'Es permanente: el pedido sale de la lista y no se puede recuperar.',
+            json: [
+                { id: 'od_reason', lbl: 'Motivo de la eliminación', tipo: 'textarea', required: true, maxlength: 255, rows: 3, ph: 'Ej. Pedido capturado por error', class: 'w-full' },
+                { id: 'od_key', lbl: 'Tu contraseña', tipo: 'text', required: true, class: 'w-full', help: 'La misma con la que entras a Huubie.' }
+            ],
+            onSave: (values, close) => this.saveRemove(o, values, close)
+        });
+
+        // Mismo trato que en cancelar: campo de texto que se oculta y no se autorrellena.
+        $('#od_key')
+            .attr({ type: 'password', autocomplete: 'one-time-code', spellcheck: 'false' })
+            .on('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+
+                e.preventDefault();
+                $('#modalOrderRemove .cs-modal-save').trigger('click');
+            });
+    }
+
+    async saveRemove(o, values, close) {
+        if (this.saving) return;
+
+        const reason = String(values.od_reason || '').trim();
+        const key    = String(values.od_key || '');
+        const field  = $('#od_key');
+        const wrong  = (text) => {
+            field.next('p').removeClass('text-gray-400').addClass('text-red-600 font-semibold').text(text);
+            field.val('').trigger('focus');
+        };
+
+        if (reason.length < 5) return this.warn('Escribe el motivo de la eliminación (mínimo 5 caracteres).');
+        if (!key)              return wrong('Escribe tu contraseña para eliminar.');
+
+        this.saving = true;
+
+        const button = $('#modalOrderRemove .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({ url: this._link, data: { opc: 'deleteOrder', id: o.id, reason: reason, key: key } });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (data && data.key) return wrong(data.message || 'Contraseña incorrecta.');
+
+        if (!data || data.status != 200) {
+            alert({ icon: 'error', title: 'No se eliminó el pedido', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
             return;
         }
 

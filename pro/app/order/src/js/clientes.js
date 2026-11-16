@@ -10,11 +10,18 @@
     Dar crédito y fijar el límite solo le sale a quien puede activar o
     desactivar clientes (hoy el Dueño).
 
+    Comprobantes (portal del cliente): cada cliente tiene un enlace por
+    sucursal (portal.php) donde ve lo que debe y sube la foto de su
+    transferencia. «Comprobantes» abre la bandeja: se abonan (entran al turno
+    abierto) o se rechazan con un motivo que el cliente lee. El ícono de enlace
+    de cada fila arma el mensaje de WhatsApp. Clase Receipts, servida por
+    ctrl-comprobantes.
+
     El detalle, el turno y el cobro llaman a orders.lsOrders(), orders.can() y
     orders.paintTurn(): aquí `orders` es la misma instancia que `customers`. */
 
 let api = 'ctrl/ctrl-clientes.php';
-let customers, orders, orderDetail, orderTurn, orderPay, orderClosure;
+let customers, orders, orderDetail, orderTurn, orderPay, orderClosure, receipts;
 let dataInit = {};
 
 $(async () => {
@@ -27,7 +34,10 @@ $(async () => {
     orderClosure         = new OrderClosure('ctrl/ctrl-cierre.php', 'root');
     customers            = new Customers(api, 'root');
     orders               = customers;
+    receipts             = new Receipts('ctrl/ctrl-comprobantes.php', 'root');
     customers.init();
+
+    if (dataInit.status == 200 && customers.allow('show')) receipts.init();
 });
 
 // -- Customers --
@@ -159,16 +169,25 @@ class Customers extends Templates {
         // Desde aquí se cobra un pedido o se abona crédito: la franja dice si hay turno.
         orderTurn.paintStrip(true);
 
-        if (!this.allow('create')) return;
+        const json = [];
+
+        // La insignia de «Comprobantes» la pinta receipts.paintCounts().
+        if (this.allow('show')) {
+            json.push({ opc: 'button', id: 'btnReceipts', class: 'col-auto', text: 'Comprobantes <span id="rcpBadge" class="rcp-badge hidden" aria-hidden="true"></span>', icon: 'icon-inbox', color_btn: 'outline', onClick: () => receipts.list() });
+        }
+
+        if (this.allow('create')) {
+            json.push({ opc: 'button', id: 'btnNewCustomer', class: 'col-auto', text: 'Nuevo cliente', icon: 'icon-plus', color_btn: 'primary', onClick: () => this.add() });
+        }
+
+        if (!json.length) return;
 
         this.coffeeForm({
             parent:       `headerActions${this.PROJECT_NAME}`,
             id:           'formHeaderCustomers',
-            class:        'flex gap-[8px]',
+            class:        'flex gap-[8px] flex-wrap',
             showRequired: false,
-            json: [
-                { opc: 'button', id: 'btnNewCustomer', class: 'col-auto', text: 'Nuevo cliente', icon: 'icon-plus', color_btn: 'primary', onClick: () => this.add() }
-            ]
+            json:         json
         });
     }
 
@@ -280,6 +299,7 @@ class Customers extends Templates {
             f_size:  13,
             right:   [4, 5, 6, 7, 8],
             center:  [2, 3, 9],
+            ...ORD_TABLE,
             ...this.emptyState(loaded)
         });
 
@@ -749,6 +769,842 @@ class Customers extends Templates {
         const soft = data && [403, 404, 409, 422].includes(Number(data.status));
 
         alert({
+            icon:     soft ? 'warning' : 'error',
+            title:    title,
+            text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
+            btn1:     true,
+            btn1Text: 'Entendido'
+        });
+    }
+}
+
+// -- Receipts --
+
+/*  Clientes › Comprobantes (portal del cliente).
+
+    La bandeja de lo que mandan los clientes desde su enlace (portal.php): se
+    abre el comprobante, se ve la foto o el PDF y se abona (entra al turno
+    abierto) o se rechaza con un motivo que el cliente lee en su enlace. También
+    arma el enlace de cada cliente para mandarlo por WhatsApp.
+
+    Servido por ctrl-comprobantes; el archivo sale por ctrl/comprobante.php.
+    El reparto que se ve antes de abonar copia el del ctrl (applyQueue y
+    applyParts): primero el folio elegido y luego lo que debe, del más viejo al
+    más nuevo. Una cotización solo recibe si es la elegida: es su anticipo. */
+class Receipts extends Templates {
+
+    // -- Initial --
+
+    constructor(link, div_modulo) {
+        super(link, div_modulo);
+        this.PROJECT_NAME = 'Receipts';
+        this.tab          = 'pending';
+        this.counts       = { pending: 0, applied: 0, rejected: 0 };
+        this.request      = 0;
+        this.current      = null;
+        this.owes         = false;
+        this.mode         = 'apply';
+        this.prefilled    = null;
+        this.saving       = false;
+        this.applyToken   = '';
+        this.rejectToken  = '';
+        this.closeReview  = null;
+        this.timer        = 0;
+        this.portalData   = null;
+    }
+
+    // La insignia del botón: al abrir la página y cada minuto mientras la pestaña se ve.
+    init() {
+        this.count();
+
+        clearInterval(this.timer);
+        this.timer = setInterval(() => { if (!document.hidden) this.count(); }, 60000);
+    }
+
+    // -- Contador --
+
+    async count() {
+        const res = await useFetch({ url: this._link, data: { opc: 'countReceipts' } });
+
+        if (res && res.status == 200) this.paintCounts(res.counts);
+    }
+
+    paintCounts(counts) {
+        this.counts = Object.assign({ pending: 0, applied: 0, rejected: 0 }, counts || {});
+
+        const pending = Number(this.counts.pending) || 0;
+
+        $('#rcpBadge').text(pending > 99 ? '99+' : String(pending)).toggleClass('hidden', pending === 0);
+        $('#btnReceipts').attr('aria-label', pending ? `Comprobantes: ${pending} en revisión` : 'Comprobantes');
+        $('#receiptInbox button.ord-seg[data-tab="pending"]').text(pending ? `En revisión (${pending})` : 'En revisión');
+    }
+
+    // -- Bandeja --
+
+    list() {
+        const scope = dataInit.scope || {};
+
+        this.tab = 'pending';
+
+        this.csModal({
+            id:         'modalReceiptInbox',
+            title:      'Comprobantes',
+            subtitle:   [scope.branch ? `Sucursal ${scope.branch}` : '', 'Lo que mandan los clientes desde su enlace'].filter(Boolean).join(' · '),
+            lucideIcon: 'inbox',
+            width:      'max-w-3xl',
+            saveText:   false,
+            cancelText: 'Cerrar',
+            info:       'Abonar entra al corte del turno abierto.',
+            body:       `<div id="receiptInbox" class="rcp-inbox">${this.tabs()}<p id="rcpNote" class="rcp-note"></p><div id="rcpList" class="rcp-list" aria-live="polite"></div></div>`
+        });
+
+        $('#modalReceiptInbox')
+            .on('click', 'button.ord-seg[data-tab]', (e) => this.switchTab(e.currentTarget.dataset.tab))
+            .on('click', 'button.rcp-row', (e) => this.review(Number(e.currentTarget.dataset.id)));
+
+        this.load();
+    }
+
+    tabs() {
+        const pending = Number(this.counts.pending) || 0;
+
+        const tab = (key, text) => {
+            const on = this.tab === key;
+
+            return `<button type="button" class="ord-seg${on ? ' is-active' : ''}" data-tab="${key}" role="tab" aria-selected="${on}">${esc(text)}</button>`;
+        };
+
+        return '<div class="rcp-tabs flex" role="tablist" aria-label="Comprobantes">'
+            + tab('pending', pending ? `En revisión (${pending})` : 'En revisión')
+            + tab('reviewed', 'Revisados')
+            + '</div>';
+    }
+
+    switchTab(tab) {
+        if (!['pending', 'reviewed'].includes(tab) || tab === this.tab) return;
+
+        this.tab = tab;
+
+        $('#receiptInbox button.ord-seg[data-tab]').each((i, el) => {
+            const on = el.dataset.tab === tab;
+
+            $(el).toggleClass('is-active', on).attr('aria-selected', String(on));
+        });
+
+        this.load();
+    }
+
+    async load() {
+        const request = ++this.request;
+        const tab     = this.tab;
+
+        $('#rcpList').addClass('opacity-50');
+
+        const res = await useFetch({ url: this._link, data: { opc: 'lsReceipts', status: tab } });
+
+        // Solo pinta la última petición: un cambio rápido de pestaña no mezcla listas.
+        if (request !== this.request || !$('#rcpList').length) return;
+
+        const box = $('#rcpList').removeClass('opacity-50');
+
+        if (!res || res.status != 200) {
+            $('#rcpNote').text('');
+            box.html(this.emptyBox('triangle-alert', (res && res.message) || 'No se pudieron leer los comprobantes. Revisa la conexión y vuelve a intentar.'));
+
+            return this.icons();
+        }
+
+        this.paintCounts(res.counts);
+
+        const rows    = res.rows || [];
+        const limit   = Number(res.limit) || 0;
+        const pending = Number(this.counts.pending) || 0;
+        const cut     = limit > 0 && rows.length >= limit;
+
+        $('#rcpNote').text(tab === 'pending'
+            ? 'Del más viejo al más nuevo. Ábrelo para ver la foto y abonarlo o rechazarlo.' + (cut && pending > limit ? ` Se muestran los primeros ${limit} de ${pending}.` : '')
+            : 'Los revisados más recientes primero.' + (cut ? ` Se muestran los últimos ${limit}.` : ''));
+
+        if (!rows.length) {
+            box.html(tab === 'pending'
+                ? this.emptyBox('inbox', 'No hay comprobantes por revisar. Cuando un cliente mande uno desde su enlace, sale aquí.')
+                : this.emptyBox('archive', 'Todavía no se revisa ningún comprobante.'));
+
+            return this.icons();
+        }
+
+        box.html(rows.map((r) => this.row(r)).join(''));
+
+        // Una miniatura que no carga deja ver el ícono de abajo.
+        box.find('img').on('error', (e) => $(e.currentTarget).remove());
+
+        this.icons();
+    }
+
+    // Una fila: la miniatura, quién y para qué folio, cuánto y cómo quedó.
+    row(r) {
+        const thumb = r.kind === 'pdf'
+            ? '<span class="rcp-thumb is-pdf"><i data-lucide="file-text" class="w-5 h-5"></i></span>'
+            : `<span class="rcp-thumb"><i data-lucide="image" class="w-5 h-5"></i><img src="${esc(r.file_url)}" loading="lazy" decoding="async" alt=""></span>`;
+
+        const sub = [r.folio, r.target ? `para ${r.target}` : 'sin folio', this.when(r.created_at)].filter(Boolean);
+        let extra = '';
+
+        if (r.status === 'applied')  extra = [`Abonó ${money(r.applied)}`, this.when(r.reviewed_at), r.reviewer].filter(Boolean).join(' · ');
+        if (r.status === 'rejected') extra = `Motivo: ${r.reject_reason}`;
+
+        return `
+            <button type="button" class="rcp-row" data-id="${Number(r.id)}" aria-label="${esc(`Abrir comprobante ${r.folio} de ${r.customer}`)}">
+                ${thumb}
+                <span class="rcp-row-main">
+                    <span class="rcp-row-name">${esc(r.customer)}</span>
+                    <span class="rcp-row-sub">${esc(sub.join(' · '))}</span>
+                    ${extra ? `<span class="rcp-row-sub">${esc(extra)}</span>` : ''}
+                </span>
+                <span class="rcp-row-money">
+                    <span class="rcp-row-amount">${esc(money(r.amount))}</span>
+                    <span class="rcp-pill is-${esc(r.status)}">${esc(r.status_text)}</span>
+                </span>
+                <i data-lucide="chevron-right" class="rcp-row-go w-4 h-4"></i>
+            </button>`;
+    }
+
+    emptyBox(icon, text) {
+        return `<div class="cus-empty"><i data-lucide="${esc(icon)}" class="w-5 h-5 shrink-0"></i>${esc(text)}</div>`;
+    }
+
+    // -- Revisar --
+
+    async review(id) {
+        if (this.saving || !id) return;
+
+        const res = await useFetch({ url: this._link, data: { opc: 'getReceipt', id: id } });
+
+        if (!res || res.status != 200) return this.fail(res, 'No se pudo abrir el comprobante');
+
+        const r    = res.receipt;
+        const open = r.status === 'pending' && Boolean(res.can_review);
+
+        this.current     = res;
+        this.owes        = open && ((res.debts || []).length + (res.quotes || []).length) > 0;
+        this.mode        = this.owes ? 'apply' : 'reject';
+        this.prefilled   = null;
+        this.applyToken  = ordToken();
+        this.rejectToken = ordToken();
+
+        const json = [
+            { id: 'rcpPreviewBox', tipo: 'html', html: this.preview(r), class: 'w-full' },
+            { id: 'rcpSentBox',    tipo: 'html', html: this.sent(res),  class: 'w-full' }
+        ];
+
+        if (r.status !== 'pending') json.push({ id: 'rcpResultBox', tipo: 'html', html: this.result(r), class: 'w-full' });
+        else if (!open)             json.push({ id: 'rcpBlockBox',  tipo: 'html', html: this.notice(res.block || 'Tu rol no puede abonar ni rechazar comprobantes.'), class: 'w-full' });
+        else                        json.push(...this.reviewFields(res));
+
+        const modal = this.csModal({
+            id:         'modalReceipt',
+            title:      `Comprobante ${r.folio}`,
+            subtitle:   [r.customer, r.phone].filter(Boolean).join(' · '),
+            lucideIcon: 'receipt',
+            width:      'max-w-4xl',
+            saveText:   open ? 'Abonar' : false,
+            cancelText: open ? 'Cancelar' : 'Cerrar',
+            info:       open ? 'Abonar entra al corte del turno abierto.' : '',
+            json:       json,
+            onSave:     (values, close) => this.save(values, close)
+        });
+
+        this.closeReview = modal.close;
+
+        $('#modalReceipt')
+            .on('click', 'button.ord-seg[data-mode]', (e) => this.setMode(e.currentTarget.dataset.mode))
+            .on('click', 'button.rcp-chip', (e) => this.useReason(e.currentTarget.dataset.text))
+            .on('change', '#rc_target', () => this.onTarget())
+            .on('input change', '#rc_amount, #rc_method', () => this.paintSplit());
+
+        $('#rcpPreviewBox img').on('error', () => $('#rcpPreviewBox .rcp-preview').addClass('is-broken'));
+
+        if (open) this.setMode(this.mode);
+    }
+
+    // Quien revisa: abonar (folio, monto, método y cómo se reparte) o rechazar (motivo).
+    reviewFields(res) {
+        const r      = res.receipt;
+        const fields = [{ id: 'rcpModeBox', tipo: 'html', html: this.modes(), class: 'w-full' }];
+
+        if (!this.owes) {
+            fields.push({ id: 'rcpOweBox', tipo: 'html', html: this.notice('Ya no debe nada en esta sucursal. Si el pago no corresponde, recházalo con un motivo.'), class: 'w-full rcp-for-apply' });
+        } else {
+            const target  = this.defaultTarget(res);
+            const cap     = this.split(target, 0).cap;
+            const amount  = ordRound(Math.min(Number(r.amount) || 0, cap));
+            const lock    = !res.can_apply;
+            const methods = res.methods || [];
+
+            this.prefilled = amount;
+
+            if (lock) fields.push({ id: 'rcpBlockBox', tipo: 'html', html: this.notice(res.block || 'Ahora no se puede abonar.'), class: 'w-full rcp-for-apply' });
+
+            fields.push(
+                { id: 'rc_target', lbl: 'A qué folio va', tipo: 'select', empty: false, data: this.targetOptions(res), value: target, disabled: lock, class: 'w-full rcp-for-apply' },
+                { id: 'rc_amount', lbl: 'Monto que se abona', tipo: 'number', icon: 'dollar-sign', min: 0, step: '0.01', value: amount > 0 ? amount.toFixed(2) : '', disabled: lock, class: 'w-full sm:w-1/2 rcp-for-apply' },
+                { id: 'rc_method', lbl: 'Entra como', tipo: 'select', empty: false, data: methods.map((m) => ({ id: m.id, valor: m.name })), value: res.method_id, disabled: lock, class: 'w-full sm:w-1/2 rcp-for-apply' },
+                { id: 'rcpSplitBox', tipo: 'html', html: '', class: 'w-full rcp-for-apply' }
+            );
+        }
+
+        fields.push(
+            { id: 'rcpChipsBox', tipo: 'html', html: this.chips(), class: 'w-full rcp-for-reject hidden' },
+            { id: 'rc_reason', lbl: 'Motivo (lo lee el cliente)', tipo: 'textarea', rows: 3, maxlength: 255, ph: 'Escribe por qué no se abona o elige uno de arriba.', class: 'w-full rcp-for-reject hidden' }
+        );
+
+        return fields;
+    }
+
+    modes() {
+        const button = (mode, icon, text) => {
+            const on = this.mode === mode;
+
+            return `<button type="button" class="ord-seg${on ? ' is-active' : ''}" data-mode="${mode}" aria-pressed="${on}"><i data-lucide="${icon}" class="w-4 h-4"></i>${esc(text)}</button>`;
+        };
+
+        return '<div class="flex rcp-modes" role="group" aria-label="Qué hacer con el comprobante">'
+            + button('apply', 'hand-coins', 'Abonar')
+            + button('reject', 'ban', 'Rechazar')
+            + '</div>';
+    }
+
+    targetOptions(res) {
+        const items   = res.debts || [];
+        const options = [];
+
+        if (items.length > 1) options.push({ id: 0, valor: `Todo lo que debe · ${money(res.debt)} (del más viejo al más nuevo)` });
+
+        items.forEach((s) => options.push({ id: s.id, valor: `${s.folio} · ${s.kind === 'credit' ? 'venta a crédito' : 'pedido'} · debe ${money(s.left)}` }));
+
+        (res.quotes || []).forEach((q) => options.push({ id: q.id, valor: `${q.folio} · cotización · anticipo de hasta ${money(q.left)}` }));
+
+        return options;
+    }
+
+    // El folio que pidió el cliente si sigue con saldo; si no, «Todo» o el único que hay.
+    defaultTarget(res) {
+        const items = res.debts || [];
+        const all   = items.concat(res.quotes || []);
+        const asked = Number(res.receipt.sale_id) || 0;
+
+        if (asked && all.some((s) => Number(s.id) === asked)) return asked;
+        if (items.length > 1) return 0;
+
+        return all.length ? Number(all[0].id) : 0;
+    }
+
+    // El reparto del ctrl: cap = lo más que admite; parts = cuánto recibe cada folio; after = lo que sigue debiendo.
+    split(target, amount) {
+        const res   = this.current || {};
+        const items = res.debts || [];
+        const quote = (res.quotes || []).find((q) => Number(q.id) === Number(target)) || null;
+
+        const chosen = items.find((s) => Number(s.id) === Number(target)) || quote;
+        const queue  = (chosen ? [chosen] : []).concat(items.filter((s) => !chosen || Number(s.id) !== Number(chosen.id)));
+        const cap    = ordRound(queue.reduce((total, s) => total + Number(s.left || 0), 0));
+
+        const parts = [];
+        let rest    = ordRound(amount);
+
+        for (const s of queue) {
+            if (rest <= 0.005) break;
+
+            const pay = ordRound(Math.min(rest, Number(s.left)));
+
+            rest = ordRound(rest - pay);
+            parts.push({ folio: s.folio, kind: s.kind, quote: s === quote, pay: pay, after: ordRound(Number(s.left) - pay) });
+        }
+
+        const after = ordRound(Number(res.debt || 0) + (quote ? Number(quote.left) : 0) - Number(amount || 0));
+
+        return { cap: cap, parts: parts, after: Math.max(after, 0) };
+    }
+
+    setMode(mode) {
+        if (!['apply', 'reject'].includes(mode)) return;
+
+        this.mode = mode;
+
+        const modal = $('#modalReceipt');
+
+        modal.find('button.ord-seg[data-mode]').each((i, el) => {
+            const on = el.dataset.mode === mode;
+
+            $(el).toggleClass('is-active', on).attr('aria-pressed', String(on));
+        });
+
+        modal.find('.rcp-for-apply').toggleClass('hidden', mode !== 'apply');
+        modal.find('.rcp-for-reject').toggleClass('hidden', mode !== 'reject');
+        modal.find('.cs-modal-info').text(mode === 'reject' ? 'El cliente ve el motivo en su enlace.' : 'Abonar entra al corte del turno abierto.');
+
+        if (mode === 'reject') $('#rc_reason').trigger('focus');
+
+        this.paintSplit();
+    }
+
+    // Otro folio: si nadie tocó el monto, se ajusta a lo que ese folio admite.
+    onTarget() {
+        const amount = ordAmount($('#rc_amount').val());
+
+        if (this.prefilled !== null && amount !== null && Math.abs(amount - this.prefilled) < 0.005) {
+            const cap = this.split(Number($('#rc_target').val()) || 0, 0).cap;
+
+            this.prefilled = ordRound(Math.min(Number(this.current.receipt.amount) || 0, cap));
+
+            $('#rc_amount').val(this.prefilled > 0 ? this.prefilled.toFixed(2) : '');
+        }
+
+        this.paintSplit();
+    }
+
+    // Cómo queda el reparto con lo escrito, y el texto del botón.
+    paintSplit() {
+        const res  = this.current;
+        const save = $('#modalReceipt .cs-modal-save');
+
+        if (!res || !save.length) return;
+
+        if (this.mode === 'reject') {
+            save.text('Rechazar comprobante').removeClass('is-blocked');
+            return;
+        }
+
+        save.toggleClass('is-blocked', !this.owes || !res.can_apply);
+
+        if (!this.owes) {
+            save.text('Abonar');
+            return;
+        }
+
+        const r      = res.receipt;
+        const amount = ordAmount($('#rc_amount').val());
+        const method = (res.methods || []).find((m) => Number(m.id) === Number($('#rc_method').val()));
+        const plan   = this.split(Number($('#rc_target').val()) || 0, amount || 0);
+        const all    = (res.debts || []).concat(res.quotes || []);
+        const valid  = amount !== null && amount > 0 && amount <= plan.cap + 0.005;
+        const notes  = [];
+
+        if (r.sale_id && !all.some((s) => Number(s.id) === Number(r.sale_id))) notes.push(`El cliente lo mandó para ${r.target}, que ya no tiene saldo.`);
+        if (Number(r.amount) > plan.cap + 0.005) notes.push(`Dice que mandó ${money(r.amount)}; lo más que se puede abonar aquí es ${money(plan.cap)}.`);
+
+        let body = '';
+
+        if (amount === null || amount <= 0) {
+            body = `<p class="rcp-split-muted">Escribe cuánto se abona. Lo más es ${esc(money(plan.cap))}.</p>`;
+        } else if (!valid) {
+            body = `<p class="rcp-split-over">Lo más que se puede abonar aquí es ${esc(money(plan.cap))}.</p>`;
+        } else {
+            const parts = plan.parts.map((p) => `<strong>${esc(p.folio)}</strong> ${esc(money(p.pay))} (${esc(this.partText(p))})`).join(' · ');
+
+            body = `<p>Se reparte: ${parts}</p>`
+                 + `<p class="rcp-split-after">${plan.after <= 0.005 ? 'Queda al corriente.' : `Después de abonar debe ${esc(money(plan.after))}.`}</p>`;
+        }
+
+        $('#rcpSplitBox').html(`<div class="rcp-split">${body}${notes.map((n) => `<p class="rcp-split-note">${esc(n)}</p>`).join('')}</div>`);
+
+        save.text(valid && method ? `Abonar ${money(amount)} en ${method.name}` : 'Abonar');
+    }
+
+    partText(p) {
+        if (p.after <= 0.005) return p.kind === 'credit' ? 'liquidada' : 'queda pagado';
+
+        return p.quote ? `anticipo · resta ${money(p.after)}` : `resta ${money(p.after)}`;
+    }
+
+    save(values, close) {
+        if (this.saving || !this.current) return;
+
+        return this.mode === 'reject' ? this.reject(values, close) : this.apply(values, close);
+    }
+
+    async apply(values, close) {
+        const res = this.current;
+        const r   = res.receipt;
+
+        if (!this.owes)     return this.stop('Ya no debe nada en esta sucursal. Si el pago no corresponde, recházalo con un motivo.');
+        if (!res.can_apply) return this.stop(res.block || 'Ahora no se puede abonar.');
+
+        const target = Number(values.rc_target) || 0;
+        const amount = ordAmount(values.rc_amount);
+        const method = (res.methods || []).find((m) => Number(m.id) === Number(values.rc_method));
+        const cap    = this.split(target, 0).cap;
+
+        if (amount === null || amount <= 0) return this.warn('Escribe cuánto se abona.');
+        if (amount > cap + 0.005)           return this.warn(`Lo más que se puede abonar aquí es ${money(cap)}.`);
+        if (!method)                        return this.warn('Elige con qué método entra el abono.');
+
+        this.saving = true;
+
+        const button = $('#modalReceipt .cs-modal-save').prop('disabled', true);
+        const answer = await useFetch({
+            url:  this._link,
+            data: { opc: 'applyReceipt', id: r.id, amount: amount, method_id: method.id, sale_id: target, token: this.applyToken }
+        });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (answer && Number(answer.status) === 423) {
+            await alert({ icon: 'warning', title: answer.title || 'Sin turno abierto', text: answer.message || 'Abre un turno para abonar el comprobante.', btn1: true, btn1Text: 'Entendido' });
+
+            return this.reopen(r.id);
+        }
+
+        if (answer && Number(answer.status) === 409) {
+            await this.fail(answer, 'No se abonó el comprobante');
+            this.refresh();
+
+            return this.reopen(r.id);
+        }
+
+        if (!answer || answer.status != 200) return this.fail(answer, 'No se abonó el comprobante');
+
+        close();
+
+        alert({ icon: 'success', title: answer.message, text: answer.detail || '', timer: 2200 });
+
+        this.afterChange();
+    }
+
+    async reject(values, close) {
+        const r      = this.current.receipt;
+        const reason = String(values.rc_reason || '').replace(/\s+/g, ' ').trim();
+
+        if (!reason)             return this.warn('Escribe el motivo: el cliente lo va a leer.');
+        if (reason.length > 255) return this.warn('El motivo admite hasta 255 caracteres.');
+
+        this.saving = true;
+
+        const button = $('#modalReceipt .cs-modal-save').prop('disabled', true);
+        const answer = await useFetch({
+            url:  this._link,
+            data: { opc: 'rejectReceipt', id: r.id, reason: reason, token: this.rejectToken }
+        });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (answer && Number(answer.status) === 409) {
+            await this.fail(answer, 'No se rechazó el comprobante');
+            this.refresh();
+
+            return this.reopen(r.id);
+        }
+
+        if (!answer || answer.status != 200) return this.fail(answer, 'No se rechazó el comprobante');
+
+        close();
+
+        alert({ icon: 'success', title: answer.message, timer: 2200 });
+
+        this.afterChange();
+    }
+
+    reopen(id) {
+        if (this.closeReview) this.closeReview();
+
+        return this.review(id);
+    }
+
+    // Con la bandeja abierta se vuelve a leer; cerrada, solo la insignia.
+    refresh() {
+        return $('#receiptInbox').length ? this.load() : this.count();
+    }
+
+    afterChange() {
+        this.refresh();
+        customers.lsCustomers();
+        customers.refreshHistory();
+    }
+
+    // -- Piezas de la ventana --
+
+    preview(r) {
+        const url  = esc(r.file_url);
+        const name = [r.file_name || r.folio, r.size].filter(Boolean).join(' · ');
+
+        const file = r.kind === 'pdf'
+            ? `<iframe src="${url}" class="rcp-preview-frame" aria-label="${esc(`Comprobante ${r.folio} en PDF`)}"></iframe>`
+            : `<a href="${url}" target="_blank" rel="noopener" class="rcp-preview-img" aria-label="Abrir la foto en otra pestaña"><img src="${url}" alt="${esc(`Comprobante ${r.folio} de ${r.customer}`)}"></a>`;
+
+        return `
+            <div class="rcp-preview">
+                <div class="rcp-preview-file">
+                    ${file}
+                    <p class="rcp-preview-broken"><i data-lucide="image-off" class="w-5 h-5"></i>No se pudo mostrar el archivo. Ábrelo en otra pestaña.</p>
+                </div>
+                <div class="rcp-preview-foot">
+                    <span class="rcp-preview-name">${esc(name)}</span>
+                    <a href="${url}" target="_blank" rel="noopener" class="rcp-preview-open"><i data-lucide="external-link" class="w-4 h-4"></i>Abrir</a>
+                </div>
+            </div>`;
+    }
+
+    // Lo que escribió el cliente y, si sigue en revisión, lo que debe hoy.
+    sent(res) {
+        const r   = res.receipt;
+        const sub = [r.target ? `Para ${r.target}` : 'Sin folio elegido', this.when(r.created_at)].filter(Boolean);
+
+        const note = r.note
+            ? `<p class="rcp-sent-note"><i data-lucide="message-square" class="w-4 h-4 shrink-0"></i><span>${esc(r.note)}</span></p>`
+            : '';
+
+        let owe = '';
+
+        if (r.status === 'pending' && res.can_review) {
+            const folios = (res.debts || []).length;
+            const quotes = (res.quotes || []).length;
+            const parts  = [];
+
+            if (folios) parts.push(`Hoy debe ${money(res.debt)} en ${folios} ${folios === 1 ? 'folio' : 'folios'}`);
+            if (quotes) parts.push(`${quotes} ${quotes === 1 ? 'cotización' : 'cotizaciones'} sin anticipo`);
+
+            owe = `<p class="rcp-sent-owe">${esc(parts.length ? parts.join(' · ') : 'Hoy no debe nada en esta sucursal')}.</p>`;
+        }
+
+        return `
+            <div class="rcp-sent">
+                <div class="rcp-sent-head">
+                    <span class="rcp-sent-label">Dice que transfirió</span>
+                    <span class="rcp-pill is-${esc(r.status)}">${esc(r.status_text)}</span>
+                </div>
+                <p class="rcp-sent-amount">${esc(money(r.amount))}</p>
+                <p class="rcp-sent-sub">${esc(sub.join(' · '))}</p>
+                ${note}
+                ${owe}
+            </div>`;
+    }
+
+    // Un comprobante ya revisado: cómo quedó.
+    result(r) {
+        const applied = r.status === 'applied';
+
+        const rows = applied
+            ? [
+                ['Se abonó',   r.applied !== null ? money(r.applied) : ''],
+                ['Para',       r.target || 'Lo que debía, del más viejo al más nuevo'],
+                ['Entró como', r.method],
+                ['Turno',      r.turn_folio],
+                ['Revisó',     r.reviewer],
+                ['Fecha',      this.when(r.reviewed_at)]
+            ]
+            : [
+                ['Motivo', r.reject_reason],
+                ['Revisó', r.reviewer],
+                ['Fecha',  this.when(r.reviewed_at)]
+            ];
+
+        return `
+            <div class="rcp-result is-${applied ? 'applied' : 'rejected'}">
+                <p class="rcp-result-title">${applied ? 'Abonado' : 'Rechazado: el cliente ve este motivo en su enlace'}</p>
+                <dl>${rows.map(([label, value]) => `<dt>${esc(label)}</dt><dd>${esc(value || '-')}</dd>`).join('')}</dl>
+            </div>`;
+    }
+
+    notice(text) {
+        return `<div class="rcp-block" role="note"><i data-lucide="info" class="w-4 h-4 shrink-0"></i><span>${esc(text)}</span></div>`;
+    }
+
+    chips() {
+        const reasons = [
+            ['No se ve el monto',    'No se alcanza a ver el monto. Manda una foto donde se lea completo.'],
+            ['No ha llegado',        'Todavía no nos llega esta transferencia. Si ya la hiciste, espera unos minutos y vuelve a mandarla.'],
+            ['El monto no coincide', 'El monto de la transferencia no coincide con el que escribiste.'],
+            ['Es de otra cuenta',    'La transferencia no es a la cuenta de la tienda.'],
+            ['No se lee el archivo', 'El archivo no se abre o no se lee. Mándalo otra vez.']
+        ];
+
+        return '<p class="rcp-chips-label">Motivos frecuentes</p>'
+            + `<div class="rcp-chips">${reasons.map(([label, text]) => `<button type="button" class="rcp-chip" data-text="${esc(text)}">${esc(label)}</button>`).join('')}</div>`;
+    }
+
+    useReason(text) {
+        const box = $('#rc_reason');
+
+        box.val(text || '').trigger('focus');
+
+        const el = box.get(0);
+
+        if (el && el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length);
+    }
+
+    // -- Enlace --
+
+    async portal(customerId) {
+        const res = await useFetch({ url: this._link, data: { opc: 'getPortalLink', id: customerId } });
+
+        if (!res || res.status != 200) return this.fail(res, 'No se pudo preparar el enlace');
+
+        this.portalData = res;
+
+        const phone = String(res.customer.phone || '').replace(/\D/g, '').slice(-10);
+
+        this.csModal({
+            id:         'modalPortalLink',
+            title:      'Enlace del cliente',
+            subtitle:   [res.customer.name, res.branch].filter(Boolean).join(' · '),
+            lucideIcon: 'link',
+            width:      'max-w-lg',
+            saveText:   'Abrir WhatsApp',
+            cancelText: 'Cerrar',
+            info:       'El cliente lo abre sin cuenta ni contraseña.',
+            action:     { text: 'Copiar enlace', lucideIcon: 'copy', onClick: () => this.copyLink() },
+            json: [
+                { id: 'rcpLinkSummary', tipo: 'html', html: this.linkSummary(res), class: 'w-full' },
+                { id: 'pl_phone', lbl: 'WhatsApp del cliente', tipo: 'text', icon: 'phone', value: phone, ph: '10 dígitos', maxlength: 16, help: 'Vacío: WhatsApp te deja elegir el contacto.', class: 'w-full' },
+                { id: 'pl_message', lbl: 'Mensaje', tipo: 'textarea', rows: 5, maxlength: 1000, value: this.linkMessage(res), class: 'w-full' },
+                { id: 'rcpLinkBox', tipo: 'html', html: this.linkBox(res), class: 'w-full' }
+            ],
+            onSave: (values, close) => this.sendLink(values, close)
+        });
+
+        $('#modalPortalLink').on('click', 'button.rcp-renew', () => this.renew());
+    }
+
+    linkSummary(res) {
+        const debt   = Number(res.debt) || 0;
+        const folios = Number(res.folios) || 0;
+        const quotes = Number(res.quotes) || 0;
+        const parts  = [];
+
+        if (debt > 0.005) parts.push(`Debe <strong>${esc(money(debt))}</strong> en ${folios} ${folios === 1 ? 'folio' : 'folios'}`);
+        if (quotes)       parts.push(`${quotes} ${quotes === 1 ? 'cotización' : 'cotizaciones'} sin anticipo`);
+
+        const head = parts.length ? parts.join(' · ') : 'Hoy no debe nada en esta sucursal';
+
+        return `<div class="rcp-linksum"><i data-lucide="wallet" class="w-4 h-4 shrink-0"></i><span>${head}. En su enlace ve esto mismo y puede mandar la foto de su transferencia.</span></div>`;
+    }
+
+    linkMessage(res) {
+        const name  = String(res.customer.name || '').trim();
+        const first = name !== '' && name !== 'Sin nombre' ? name.split(/\s+/)[0] : '';
+        const where = res.branch ? ` de ${res.branch}` : '';
+        const debt  = Number(res.debt) || 0;
+
+        return `${first ? `Hola ${first}` : 'Hola'}, este es tu enlace${where}.\n`
+            + (debt > 0.005
+                ? `Ahí ves lo que tienes pendiente (${money(debt)}) y puedes mandar la foto de tu transferencia:\n`
+                : 'Ahí puedes ver tus pedidos y mandar el comprobante de tu transferencia:\n')
+            + res.link;
+    }
+
+    linkBox(res) {
+        const renew = res.can_renew
+            ? '<button type="button" class="rcp-renew"><i data-lucide="refresh-cw" class="w-4 h-4"></i>Nuevo enlace</button>'
+            : '';
+
+        return `
+            <div class="rcp-linkbox">
+                <p class="rcp-linkbox-url"><i data-lucide="link" class="w-4 h-4 shrink-0"></i><a href="${esc(res.link)}" target="_blank" rel="noopener" class="truncate">${esc(res.link)}</a></p>
+                <div class="rcp-linkbox-foot">
+                    <span>${esc(res.since ? `Activo desde ${res.since}` : 'Activo')}</span>
+                    ${renew}
+                </div>
+            </div>`;
+    }
+
+    async copyLink() {
+        const link = this.portalData && this.portalData.link;
+
+        if (!link) return;
+
+        const done = await ticketCopy(link);
+
+        alert(done
+            ? { icon: 'success', title: 'Enlace copiado', timer: 1200 }
+            : { icon: 'warning', title: 'No se pudo copiar', text: 'Selecciona el enlace y cópialo a mano.', btn1: true, btn1Text: 'Entendido' });
+    }
+
+    // Token nuevo: el enlace anterior deja de abrir.
+    async renew() {
+        const data = this.portalData;
+
+        if (!data || this.saving) return;
+
+        const ask = await alert({
+            icon:     'warning',
+            title:    '¿Crear un enlace nuevo?',
+            text:     'El enlace anterior deja de abrir. Úsalo si lo mandaste a otra persona por error.',
+            btn1:     true,
+            btn1Text: 'Crear enlace nuevo',
+            btn2:     true,
+            btn2Text: 'Cancelar'
+        });
+
+        if (!ask || !ask.isConfirmed || this.saving) return;
+
+        this.saving = true;
+
+        const res = await useFetch({ url: this._link, data: { opc: 'newPortalLink', id: data.customer.id } });
+
+        this.saving = false;
+
+        if (!res || res.status != 200) return this.fail(res, 'No se cambió el enlace');
+
+        this.portalData = res;
+
+        $('#rcpLinkBox').html(this.linkBox(res));
+        $('#rcpLinkSummary').html(this.linkSummary(res));
+
+        // El mensaje que ya escribieron se queda; solo cambia el enlace.
+        const message = $('#pl_message');
+        const text    = String(message.val() || '');
+
+        message.val(text.includes(data.link) ? text.split(data.link).join(res.link) : this.linkMessage(res));
+
+        this.icons();
+
+        alert({ icon: 'success', title: res.message || 'Enlace nuevo listo.', timer: 1600 });
+    }
+
+    sendLink(values, close) {
+        const data  = this.portalData;
+        const phone = ticketPhone(values.pl_phone);
+
+        if (!data) return;
+
+        if (phone === null) {
+            return alert({ icon: 'warning', title: 'Teléfono no válido', text: 'Escribe los 10 dígitos o deja el campo vacío.', btn1: true, btn1Text: 'Entendido' });
+        }
+
+        let text = String(values.pl_message || '').trim();
+
+        // Sin el enlace el mensaje no sirve: si lo borraron, va al final.
+        if (!text.includes(data.link)) text = (text !== '' ? text + '\n' : '') + data.link;
+
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+
+        close();
+    }
+
+    // -- Complements --
+
+    when(value) {
+        return ordDate(value, true);
+    }
+
+    icons() {
+        if (window.lucide) lucide.createIcons();
+    }
+
+    stop(text) {
+        return alert({ icon: 'warning', title: 'No se puede abonar', text: text, btn1: true, btn1Text: 'Entendido' });
+    }
+
+    warn(text) {
+        return alert({ icon: 'warning', title: 'Falta un dato', text: text, btn1: true, btn1Text: 'Entendido' });
+    }
+
+    fail(data, title) {
+        const soft = data && [403, 404, 409, 422].includes(Number(data.status));
+
+        return alert({
             icon:     soft ? 'warning' : 'error',
             title:    title,
             text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',

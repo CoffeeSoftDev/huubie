@@ -59,8 +59,8 @@ class Loyalty extends Templates {
         // Colores rápidos del tipo de tarjeta: los de Catálogo › Métodos de pago (donde está la «Tarjeta de regalo»).
         this.colors = ['#16A34A', '#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#0891B2', '#64748B'];
 
-        // Filtro propio de DataTables: solo actúa sobre la tabla de tarjetas (número, titular, tipo y cliente).
-        $.fn.dataTable.ext.search.push((settings, row) => settings.nTable.id !== 'tbLoyCards' || this.matches([row[0], row[1], row[3]].join(' ')));
+        // Filtro propio de DataTables: solo actúa sobre la tabla de tarjetas (cliente, número, titular y tipo).
+        $.fn.dataTable.ext.search.push((settings, row) => settings.nTable.id !== 'tbLoyCards' || this.matches([row[0], row[1], row[2]].join(' ')));
     }
 
     // -- Interface --
@@ -312,7 +312,8 @@ class Loyalty extends Templates {
             striped: true,
             hover:   true,
             f_size:  13,
-            center:  [3, 5, 6],
+            center:  [4, 5, 6],
+            ...ORD_TABLE,
             ...this.emptyCards(loaded)
         });
 
@@ -478,6 +479,7 @@ class Loyalty extends Templates {
             hover:   true,
             f_size:  13,
             center:  [2, 3, 4],
+            ...ORD_TABLE,
             ...this.emptyTypes(loaded)
         });
 

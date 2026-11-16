@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../../core/security/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-order.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
 
 /*  Pedidos › cobrar (Etapa 3).
 
@@ -29,6 +30,7 @@ require_once __DIR__ . '/core-order.php';
       - Se valida todo ANTES de la primera escritura: transaction() solo deshace
         si algo lanza una excepcion. */
 class ctrl extends core {
+    use WhatsAppNotices;
 
     const MAX_PAYMENTS = 6;
     const MAX_AMOUNT   = 1000000;
@@ -292,12 +294,19 @@ class ctrl extends core {
                     'paid'    => $paidNow,
                     'change'  => round($change, 2),
                     'balance'     => $left,
-                    'sale_status' => $status
+                    'sale_status' => $status,
+                    'first_payment' => (int) $order['sale_status_id'] === self::QUOTE && $status !== self::QUOTE
                 ]);
             });
         }, 'No se pudo registrar el cobro.');
 
         $this->rememberToken($token, $answer);
+
+        // El anticipo que vuelve pedido a la cotizacion: aviso por WhatsApp (nunca tumba el cobro).
+        if (!empty($answer['first_payment'])) {
+            session_write_close();
+            $this->notifyOrder($id);
+        }
 
         return $answer;
     }
