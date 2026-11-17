@@ -6,16 +6,19 @@
     día pendiente de cierre y sin turno.
 
     Con la captura de Pedidos abierta, «Volver a pedidos» va a la izquierda,
-    junto al estado del turno.
+    junto al estado del turno: un círculo con la flecha, sin texto.
 
     A la derecha, los botones de Soft Restaurant: recuadro con la tecla arriba,
     el ícono al centro y el nombre abajo. Abrir turno (F2) y Cerrar turno (F3)
     están siempre; el que no aplica al estado se ve apagado.
     Con el día pendiente se suma «Ir a Cortes»: ahí se cierra el día.
     En Ventas se suma «Cierre del día»: se enciende cuando hoy ya se abrió más
-    de un turno. En las demás pantallas se queda en su encabezado.
+    de un turno. En Pedidos también se suma: se enciende cuando ya no hay turno
+    abierto y hubo uno cerrado. En las demás pantallas se queda en su encabezado.
     También en Ventas, al final, va «Ir a Pedidos»: cambia a pedidos.php.
     Lo ve quien ve esa sección, tenga o no create.
+    Quien llegó a Pedidos por ese botón (pedidos.php?from=ventas) ve «Ventas»
+    al principio, junto a «Abrir turno», para regresar.
 
     Quien no tiene create (Consulta) no ve Abrir, Cerrar, «Cierre del día» ni «Ir a Cortes». */
 
@@ -75,7 +78,8 @@ class CajaStrip extends Templates {
 
     // -- Volver a pedidos --
 
-    // Mismo botón que tenía el encabezado de la captura; askClose() pregunta si hay cambios.
+    // Círculo con la flecha, sin texto (order.css); el nombre va en title y aria-label.
+    // askClose() pregunta si hay cambios.
     backButton() {
         this.coffeeForm({
             parent:       'cajaStripBack',
@@ -83,9 +87,11 @@ class CajaStrip extends Templates {
             class:        'flex',
             showRequired: false,
             json: [
-                { opc: 'button', id: 'btnOrderBack', class: 'col-12', text: 'Volver a pedidos', icon: 'icon-left-open', color_btn: 'outline', onClick: () => orderForm.askClose() }
+                { opc: 'button', id: 'btnOrderBack', class: 'col-12', text: '', icon: 'icon-left-open', color_btn: 'outline', onClick: () => orderForm.askClose() }
             ]
         });
+
+        $('#btnOrderBack').attr({ title: 'Volver a pedidos', 'aria-label': 'Volver a pedidos' });
     }
 
     // -- Estado --
@@ -162,6 +168,11 @@ class CajaStrip extends Templates {
         const can  = this.canCreate();
         const list = [];
 
+        // Pedidos › llegó desde Ventas: «Ventas» va primero, junto a «Abrir turno», para regresar.
+        if (this.fromSale()) {
+            list.push({ id: 'btnCajaSales', icon: 'shopping-bag', text: 'Ventas', kind: 'is-nav', on: true, onClick: () => { location.href = 'ventas.php'; } });
+        }
+
         if (can) {
             list.push({ id: 'btnCajaOpen', key: 'F2', icon: 'clock', text: 'Abrir turno', kind: 'is-open', on: s.open, onClick: () => orderTurn.open() });
             list.push({ id: 'btnCajaClose', key: 'F3', icon: 'alarm-clock-off', text: 'Cerrar turno', kind: 'is-close', on: s.close, onClick: () => orderTurn.open() });
@@ -171,6 +182,11 @@ class CajaStrip extends Templates {
             list.push({ id: 'btnCajaDay', icon: 'calendar-check', text: 'Cierre del día', kind: 'is-day', on: this.dayReady(), onClick: () => orderClosure.open() });
         }
 
+        // Pedidos: abre el día pendiente si lo hay; si no, el de hoy.
+        if (can && this.onOrders()) {
+            list.push({ id: 'btnCajaDay', icon: 'calendar-check', text: 'Cierre del día', kind: 'is-day', on: this.turnClosed(), onClick: () => orderClosure.open(this.pendingDay()) });
+        }
+
         if (can && s.cuts) {
             list.push({ id: 'btnCajaCuts', icon: 'file-text', text: 'Ir a Cortes', kind: 'is-cuts', on: true, onClick: () => { location.href = 'cortes.php'; } });
         }
@@ -178,7 +194,7 @@ class CajaStrip extends Templates {
         // Ventas › cambiar a Pedidos sin pasar por el menú. No depende de create ni del turno.
         // is-nav no tiene color propio en order.css: el ícono sale gris.
         if (this.onSale() && this.seesOrders()) {
-            list.push({ id: 'btnCajaOrders', icon: 'clipboard-list', text: 'Ir a Pedidos', kind: 'is-nav', on: true, onClick: () => { location.href = 'pedidos.php'; } });
+            list.push({ id: 'btnCajaOrders', icon: 'clipboard-list', text: 'Ir a Pedidos', kind: 'is-nav', on: true, onClick: () => { location.href = 'pedidos.php?from=ventas'; } });
         }
 
         this.coffeeForm({
@@ -242,10 +258,20 @@ class CajaStrip extends Templates {
         return typeof Sale !== 'undefined' && orders instanceof Sale;
     }
 
+    // Pedidos (pedidos.js) lleva «Cierre del día» en la franja.
+    onOrders() {
+        return typeof Orders !== 'undefined' && orders instanceof Orders;
+    }
+
     // Ve Pedidos quien tiene al menos una acción en esa sección: la regla del menú.
     // En Ventas dataInit.actions son las de pos-pedidos (ctrl-ventas.php › init).
     seesOrders() {
         return ((dataInit && dataInit.actions) || []).length > 0;
+    }
+
+    // Pedidos abierto desde «Ir a Pedidos» de Ventas: la franja ofrece el regreso.
+    fromSale() {
+        return typeof orderForm !== 'undefined' && !!orderForm && !this.onSale() && new URLSearchParams(location.search).get('from') === 'ventas';
     }
 
     // La captura de Pedidos está abierta (Ventas usa el mismo #posOrderHost, pero no vuelve a ningún lado).
@@ -259,5 +285,19 @@ class CajaStrip extends Templates {
         const day = dataInit.day || {};
 
         return Number(day.turns || 0) > 1 && !day.closed;
+    }
+
+    // Pedidos: sin turno abierto y con un turno ya cerrado (hoy o en un día pendiente).
+    turnClosed() {
+        const day = dataInit.day || {};
+
+        return !dataInit.turn && (Number(day.turns || 0) > 0 || this.pendingDay() !== '');
+    }
+
+    // El día anterior que falta cerrar; '' = ninguno.
+    pendingDay() {
+        const day = dataInit.day || {};
+
+        return day.pending && day.pending.length ? day.pending[0] : '';
     }
 }

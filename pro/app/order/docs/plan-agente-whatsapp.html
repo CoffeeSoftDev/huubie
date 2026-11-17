@@ -184,14 +184,14 @@ ul.sources span { color: var(--muted); }
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">Plan · Huubie pro · 15/11/2026 · F1 y F2 hechas en local el 16/11/2026</div>
+    <div class="eyebrow">Plan · Huubie pro · 15/11/2026 · F1 a F3 hechas en local el 16/11/2026, F4 a F6 el 17/11/2026</div>
     <h1>Agente de WhatsApp</h1>
     <p class="lead">Los clientes le escriben al número de la empresa y un agente contesta con los datos del punto de venta: catálogo, precios, estado del pedido y lo que deben. Toma pedidos del catálogo elegido como borrador en Tienda en línea; lo personalizado pasa a una persona. Solo atiende en horario y arranca proponiendo respuestas que una persona aprueba.</p>
     <div class="facts">
-      <div class="fact"><b>35–45 h</b><span>por construir, F3 a F6</span></div>
-      <div class="fact"><b>F0, F1 y F2 hechas</b><span>decisiones 15/11 · entrada y bandeja 16/11</span></div>
+      <div class="fact"><b>F0 a F6 hechas</b><span>decisiones 15/11 · entrada, bandeja y propuestas 16/11 · pedidos, comprobantes, recordatorios, agente del dueño y automático 17/11</span></div>
       <div class="fact"><b>Solo en local</b><span>producción: migración antes del código</span></div>
     </div>
+    <p class="note">Cómo subirlo a producción, etapa por etapa, y la ficha de cada fase: <a href="plan-implementacion-whatsapp.html">plan-implementacion-whatsapp.html</a>.</p>
   </header>
 
   <section>
@@ -228,22 +228,22 @@ ul.sources span { color: var(--muted); }
           <tr>
             <td>«Respuestas automáticas a clientes sin intervención humana constante»</td>
             <td>Ecosistema Startup</td>
-            <td><span class="pill no">Falta</span><small>Es el núcleo de este plan (F3 y F6).</small></td>
+            <td><span class="pill ok">Hecho en local · 17/11/2026</span><small>F3 propone; desde F6, horario y catálogo pueden salir solos, apagados de fábrica. Lo demás pasa por una persona.</small></td>
           </tr>
           <tr>
             <td>«Gestión de adeudos con recordatorios y seguimiento personalizados»</td>
             <td>Ecosistema Startup</td>
-            <td><span class="pill part">Parcial</span><small>Crédito y adeudos ya existen (<code>mdl-credito.php</code>, <code>portalDebts</code>). Faltan los recordatorios (F5).</small></td>
+            <td><span class="pill part">Parcial</span><small>Crédito y adeudos ya existen (<code>mdl-credito.php</code>, <code>portalDebts</code>). Recordatorios semanales por WhatsApp: F5, hecha en local el 17/11/2026.</small></td>
           </tr>
           <tr>
             <td>Comprobantes digitales; tickets «Imprímelos o compártelos por WhatsApp»</td>
             <td>Ecosistema Startup, pulpos.com</td>
-            <td><span class="pill part">Parcial</span><small>El portal del cliente muestra ventas y recibe comprobantes. El agente manda el enlace y acepta la foto por chat (F4). La factura CFDI vive en el facturador y queda fuera.</small></td>
+            <td><span class="pill part">Parcial</span><small>El portal del cliente muestra ventas y recibe comprobantes. El agente manda el enlace y acepta la foto por chat (F4, hecha en local el 17/11/2026). La factura CFDI vive en el facturador y queda fuera.</small></td>
           </tr>
           <tr>
             <td>«Recibe pedidos de tu tienda directamente por WhatsApp»</td>
             <td>pulpos.com</td>
-            <td><span class="pill part">Parcial</span><small>Tienda en línea arma el pedido y abre WhatsApp con el resumen. Falta que el pedido se haga dentro del chat, con el catálogo que elija el dueño (F4, decisión 8).</small></td>
+            <td><span class="pill ok">Hecho en local · 17/11/2026</span><small>Tienda en línea arma el pedido y abre WhatsApp con el resumen. Desde F4 el pedido también se hace dentro del chat, con el catálogo que elija el dueño (decisión 8); una persona lo manda y lo acepta.</small></td>
           </tr>
           <tr>
             <td>«Actualización de inventarios en tiempo real directamente desde el chat»</td>
@@ -331,16 +331,18 @@ ul.sources span { color: var(--muted); }
           <tr><td><code>pedido_estado</code></td><td>Estado de los pedidos web de ese teléfono</td><td><code>qWebOrders</code>, <code>qOrdersFromPhone</code></td><td><span class="pill ok">Lectura</span></td></tr>
           <tr><td><code>saldo_cliente</code></td><td>Saldo y ventas a crédito de ese teléfono</td><td><code>qCreditDebt</code>, <code>portalDebts</code></td><td><span class="pill ok">Lectura</span></td></tr>
           <tr><td><code>portal_enlace</code></td><td>Enlace del portal para ver ventas y subir comprobantes</td><td><code>qPortal</code>, <code>qCreatePortal</code></td><td><span class="pill ok">Lectura</span><small>crea el enlace si no hay</small></td></tr>
-          <tr><td><code>pedido_borrador</code></td><td>Deja el pedido en Tienda en línea como «Nuevo» para que la tienda lo acepte. Solo acepta productos del catálogo elegido</td><td><code>resolveLines</code>, <code>qCreateWebOrder</code> (mismo camino que la tienda)</td><td><span class="pill part">Borrador</span></td></tr>
-          <tr><td><code>pasar_a_persona</code></td><td>Pedido personalizado, queja o petición del cliente: apaga al agente en ese chat y avisa al encargado con el resumen</td><td><code>Message::aviso</code>, <code>wa_recipient</code></td><td><span class="pill part">Marca</span></td></tr>
+          <tr><td><code>pedido_borrador</code></td><td>Revisa el pedido contra el catálogo elegido y deja el borrador en la propuesta. El pedido nace cuando una persona la manda y cae en Tienda en línea como «Nuevo»</td><td><code>qStoreProducts</code>, <code>qCreateWebOrder</code> (mismo camino que la tienda)</td><td><span class="pill part">Borrador</span><small>crea al mandar</small></td></tr>
+          <tr><td><code>pasar_a_persona</code></td><td>Pedido personalizado, queja o petición del cliente: el agente deja de proponer solo en ese chat por 24 h y avisa a la sucursal con el resumen</td><td><code>_WhatsApp.php</code>, <code>wa_recipient</code> (los que reciben «Pedido nuevo»)</td><td><span class="pill part">Marca</span></td></tr>
+          <tr><td><code>comprobante_guardar</code></td><td>La foto o el PDF del pago que mandó el cliente pasa a comprobante en revisión; el agente no confirma el pago</td><td><code>qCreateReceipt</code>, <code>storage/receipts</code> (igual que el portal)</td><td><span class="pill part">Escribe</span><small>queda pendiente</small></td></tr>
           <tr class="sub"><td colspan="4">Agente del dueño</td></tr>
           <tr><td><code>ventas_hoy</code></td><td>Total, tickets y ticket promedio del día por sucursal</td><td><code>ctrl-dashboard.php</code>, <code>ctrl-ventas.php</code></td><td><span class="pill ok">Lectura</span></td></tr>
           <tr><td><code>turno_estado</code></td><td>Turno abierto, quién lo tiene y efectivo esperado</td><td><code>ctrl-turno.php</code></td><td><span class="pill ok">Lectura</span></td></tr>
+          <tr><td><code>pedidos_pendientes</code></td><td>Pedidos de la tienda por aceptar y entregas de hoy sin entregar</td><td><code>qWebOrders</code></td><td><span class="pill ok">Lectura</span></td></tr>
           <tr><td><code>cartera</code></td><td>Clientes con saldo, del más antiguo al más reciente</td><td><code>qCreditCustomers</code></td><td><span class="pill ok">Lectura</span></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">El manejo de herramientas ya existe en <code>inventory/conf/_IaOllama.php</code> (<code>chatRonda</code>). Si Ollama gana la medición de F3 (decisión 4), se copia a <code>pro/core/helpers</code>.</p>
+    <p class="note">El manejo de herramientas viene de <code>inventory/conf/_IaOllama.php</code> (<code>chatRonda</code>); desde F3 hay una copia recortada en <code>pro/core/helpers/_IaOllama.php</code>.</p>
   </section>
 
   <section>
@@ -409,59 +411,80 @@ ul.sources span { color: var(--muted); }
         </div>
       </div>
       <div class="phase">
-        <div class="phase-id"><b>F3</b><span>10–14 h</span></div>
+        <div class="phase-id"><b>F3</b><span>Hecha</span></div>
         <div class="phase-body">
-          <h3>Agente de clientes en modo propuesta</h3>
+          <h3>Agente de clientes en modo propuesta <span class="pill ok">16/11/2026 · local</span></h3>
           <ul>
-            <li>Medir en el simulador Ollama (<code>_IaOllama.php</code> copiado a <code>pro/core/helpers</code>) contra un modelo en la nube y quedarse con uno (decisión 4).</li>
-            <li>Herramientas de lectura: catálogo, datos del negocio, estado de pedido, saldo y portal.</li>
-            <li>Corre solo en horario; al abrir propone respuesta a lo que llegó cerrado.</li>
-            <li>Cada propuesta muestra qué herramientas usó y qué datos leyó.</li>
+            <li><code>core/helpers/_IaOllama.php</code>: copia recortada del de inventory (solo <code>chatRonda</code>). Modelo <code>gpt-oss:120b-cloud</code>; se cambia con <code>WHATSAPP_AGENT_MODEL</code> en el <code>.env</code> (decisión 4).</li>
+            <li>Trait <code>WhatsAppAgentAI</code> (<code>mdl/mdl-whatsapp-ia.php</code>): hasta 4 vueltas con herramientas y una final sin ellas. Lee los últimos 20 mensajes del chat. Si no hay nada que contestar, el modelo responde «NADA» y la propuesta se descarta sola.</li>
+            <li>Cinco herramientas de lectura, siempre con la empresa y la sucursal del chat: <code>catalogo_buscar</code>, <code>negocio_datos</code>, <code>pedido_estado</code>, <code>saldo_cliente</code> y <code>portal_enlace</code>. Los argumentos que no conoce se ignoran y quedan anotados.</li>
+            <li>Puertas antes de proponer: agente encendido y en horario, sucursal asignada, ventana de 24 h abierta y sin baja del cliente. En automático también: que ninguna persona haya contestado y el tope por hora del chat (<code>wa_agent.hourly_cap</code>).</li>
+            <li><code>ctrl/cron-whatsapp-agente.php</code>, solo por consola: cada minuto manda el menú de sucursales y luego propone a lo que quedó sin contestar, también lo que llegó cerrado. Tiene candado contra dos corridas a la vez y un tope de 4 min.</li>
+            <li>Bandeja: tarjeta «Propuesta del agente» con el texto editable, las herramientas que usó y «Datos que leyó». Botones Mandar, Otra y Descartar; «Proponer» a mano. Nada sale hasta que una persona la manda.</li>
+            <li>Migración <code>2026-11-16_whatsapp-propuestas.sql</code>, con rollback: estados <code>working</code>, <code>pending</code>, <code>sent</code>, <code>edited</code>, <code>discarded</code> y <code>failed</code>; columnas <code>requested_by</code>, <code>elapsed_ms</code> y <code>error</code>; índice <code>ix_wa_proposal_message</code>.</li>
           </ul>
-          <div class="done-when"><b>Listo cuando:</b> 20 preguntas típicas en el simulador reciben una propuesta correcta y ninguna lee datos de otra sucursal ni de otra empresa.</div>
+          <div class="done-when"><b>Listo:</b> 16/11/2026. Arnés F3 con 117 pruebas en verde, más F1 (58) y F2 (79) sin regresiones. Con el modelo real: 21 preguntas típicas, 21 correctas con <code>gpt-oss:120b-cloud</code> y ninguna leyó datos de otra sucursal ni de otra empresa. En el navegador, la tarjeta se mandó editada (quedó <code>edited</code> y el mensaje <code>simulated</code>) y otra se descartó.</div>
+          <div class="done-when"><b>Falta en producción, en este orden:</b> migraciones de F1 y F2, luego <code>2026-11-16_whatsapp-propuestas.sql</code>, código, <code>OLLAMA_API_KEY</code> en el <code>.env</code> (y <code>WHATSAPP_AGENT_MODEL</code> si se quiere otro modelo), fila de la empresa en <code>wa_agent</code>, webhook en Meta y la línea del cron: <code>* * * * * php …/app/order/ctrl/cron-whatsapp-agente.php</code>. <code>WHATSAPP_META_TOKEN</code> va al final: es el que hace salir mensajes reales.</div>
         </div>
       </div>
       <div class="phase">
-        <div class="phase-id"><b>F4</b><span>10–12 h</span></div>
+        <div class="phase-id"><b>F4</b><span>Hecha</span></div>
         <div class="phase-body">
-          <h3>Pedidos y comprobantes por chat</h3>
+          <h3>Pedidos y comprobantes por chat <span class="pill ok">17/11/2026 · local</span></h3>
           <ul>
-            <li>«Catálogo del agente» en la pestaña Agente: el de Tienda en línea (<code>in_catalog</code>) o una lista propia (<code>wa_agent_product</code>).</li>
-            <li><code>pedido_borrador</code> crea el pedido web por el mismo camino que la tienda, solo con productos de ese catálogo; aparece en Tienda en línea para Aceptar.</li>
-            <li>Lo que pide algo fuera del catálogo (foto, diseño, tamaño o sabor distinto) va a <code>pasar_a_persona</code> con el resumen.</li>
-            <li>Foto de comprobante por chat → <code>customer_receipt</code> pendiente, igual que en el portal.</li>
+            <li>Trait <code>WhatsAppAgentOrders</code> (<code>mdl/mdl-whatsapp-pedidos.php</code>), solo en la bandeja y en el cron. Tres herramientas nuevas: <code>pedido_borrador</code>, <code>pasar_a_persona</code> y <code>comprobante_guardar</code>.</li>
+            <li>«Catálogo del agente» en la pestaña Agente: el de Tienda en línea (<code>in_catalog</code>) o una lista propia (<code>wa_agent_product</code>) que se arma en «Elegir productos». Solo entran productos que Pedidos sabe vender.</li>
+            <li><code>pedido_borrador</code> no escribe: revisa productos, entrega, fecha, hora y pago contra la tienda de la sucursal y pide la confirmación del cliente. Con el «sí», la propuesta lleva el pedido (<code>wa_proposal.action = 'order'</code>).</li>
+            <li>El pedido nace cuando una persona pulsa «Mandar y crear pedido»: se revisa todo otra vez (catálogo, precio, fecha, tienda encendida) y entra como pedido web, tipo 4 en Cotización, con <code>online_order.ip = 'whatsapp'</code>. <code>{folio}</code> del texto se cambia por el folio real. Queda en Tienda en línea › Nuevos para Aceptar.</li>
+            <li><code>pasar_a_persona</code>: el chat queda con una persona 24 h (<code>wa_chat.mode</code>, <code>handoff_note</code>), el agente deja de proponer solo y se avisa a los destinatarios de «Pedido nuevo». El aviso queda en el historial como «Cliente pide una persona». «Devolver al agente» lo regresa.</li>
+            <li>Si el cliente pide una persona con todas sus letras, la propuesta sale de una regla, sin llamar al modelo ni contar para el tope por hora.</li>
+            <li><code>comprobante_guardar</code>: la foto o el PDF más reciente del chat pasa a <code>customer_receipt</code> en revisión, igual que en el portal. Una foto da un solo comprobante y un cliente tiene a lo más 3 pendientes. El agente no confirma el pago.</li>
+            <li>El simulador deja adjuntar una foto o un PDF (<code>storage/whatsapp/&lt;empresa&gt;</code>, cerrada a la web). Lo que llega por Meta se baja al momento con <code>WhatsAppMeta::media()</code>.</li>
+            <li>Dos frenos por lo visto con el modelo real: si escribe «Pasar a persona: …» en vez de llamar la herramienta, cuenta como llamada; si el texto nombra una herramienta, la propuesta falla y no se puede mandar.</li>
+            <li>Migración <code>2026-11-16_whatsapp-pedidos.sql</code>, con rollback: <code>wa_proposal.action</code>, <code>action_data</code> y <code>sale_id</code>; <code>wa_message.receipt_id</code>; <code>wa_chat.handoff_note</code>.</li>
           </ul>
-          <div class="done-when"><b>Listo cuando:</b> un pedido del catálogo se acepta en Tienda en línea y llega a Pedidos, y uno personalizado llega a la bandeja para una persona.</div>
+          <div class="done-when"><b>Listo:</b> 17/11/2026. Arnés F4 con 93 pruebas en verde, más F1 (58), F2 (79) y F3 (117) sin regresiones. En el navegador, sucursal Reginas Cuarta, todo simulado y con <code>gpt-oss:120b-cloud</code>: el cliente pidió 2 pasteles, confirmó, la propuesta creó el pedido P1704, se aceptó en Tienda en línea y apareció en Pedidos como cotización. Un pastel personalizado quedó en la bandeja con la marca «Persona» y el aviso en el historial. La foto del pago quedó como comprobante C4 en revisión. Los datos de prueba se borraron.</div>
+          <div class="done-when"><b>Falta en producción, en este orden:</b> migraciones de F1, F2 y F3, luego <code>2026-11-16_whatsapp-pedidos.sql</code>, código (con <code>storage/whatsapp/.htaccess</code>), permiso de escritura en <code>storage/receipts</code> y <code>storage/whatsapp</code>, y lo demás de F3. Para que los pedidos caigan, la tienda en línea de la sucursal tiene que estar encendida; para que el aviso llegue, hace falta al menos un destinatario con «Pedido nuevo».</div>
+          <div class="done-when"><b>Sin probar:</b> archivos reales de Meta (<code>media()</code> necesita token) y el aviso a la sucursal por un proveedor real.</div>
         </div>
       </div>
       <div class="phase">
-        <div class="phase-id"><b>F5</b><span>7–9 h</span></div>
+        <div class="phase-id"><b>F5</b><span>Hecha</span></div>
         <div class="phase-body">
-          <h3>Recordatorios de adeudo y plantillas</h3>
+          <h3>Recordatorios de adeudo y plantillas <span class="pill ok">17/11/2026 · local</span></h3>
           <ul>
-            <li>Tipo nuevo <code>debt</code> en <code>wa_notice</code>: saldo y enlace del portal, uno por semana (decisión 7).</li>
-            <li>Sale como plantilla aprobada por Meta: cambiar el texto pide otra aprobación.</li>
-            <li>Plantilla «ya abrimos, ¿seguimos?» para contestar después de un cierre de más de 24 h.</li>
-            <li>Cron diario con topes, horario y «BAJA».</li>
+            <li>Pestaña «Recordatorios» (<code>src/js/whatsapp-recordatorios.js</code>): quién debe en las sucursales de la empresa y si le toca hoy, con el motivo de cada uno («Sale hoy», «Esta semana ya», «BAJA», «Otra sucursal», «Mañana», «Sin WhatsApp»). Muestra cómo le llega al cliente y el texto exacto que debe quedar aprobado en Meta.</li>
+            <li>Trait <code>WhatsAppReminders</code> (<code>mdl/mdl-whatsapp-recordatorios.php</code>). El saldo es el mismo del portal del cliente (<code>portalDebts</code>): pedidos con anticipo o pendientes y ventas a crédito.</li>
+            <li>Uno por semana por teléfono, en el horario del agente, a lo más 50 al día por empresa. Si debe en dos sucursales, le llega el de la deuda mayor. El automático (<code>wa_agent.reminders</code>, apagado de fábrica) lo manda el cron, 20 por corrida; «Mandar los de hoy» lo hace a mano.</li>
+            <li>Sale como plantilla aprobada de Meta (<code>WhatsAppMeta::sendTemplate</code>): <code>huubie_saldo_pendiente</code> con nombre, negocio, saldo y enlace del portal. Los nombres se cambian en el <code>.env</code> (<code>WHATSAPP_META_TPL_SALDO</code>, <code>WHATSAPP_META_TPL_ABRIMOS</code>, <code>WHATSAPP_META_TPL_IDIOMA</code>). Queda en la conversación del cliente como «Plantilla».</li>
+            <li>«Ya abrimos» (<code>huubie_ya_abrimos</code>): botón en la bandeja cuando la ventana de 24 h cerró y el cliente se quedó esperando respuesta. Solo en horario; el mensaje se aparta antes de mandarlo, así un segundo clic no lo repite.</li>
+            <li>«BAJA» (el mensaje entero) apaga recordatorios y plantillas; «ALTA» los vuelve a encender. <b>Cambio:</b> antes la baja bloqueaba también las respuestas; ahora lo que el cliente escribe se le sigue contestando. Al BAJA o ALTA el agente no propone respuesta.</li>
+            <li>Migración <code>2026-11-17_whatsapp-recordatorios.sql</code>, con rollback: <code>wa_agent.reminders</code>, <code>wa_chat.opt_out_at</code> y la tabla <code>wa_reminder</code>.</li>
           </ul>
-          <div class="done-when"><b>Listo cuando:</b> se ve la lista de quién recibiría recordatorio hoy antes de mandar nada.</div>
+          <div class="done-when"><b>Listo:</b> 17/11/2026. Arnés F5 con 43 pruebas en verde, más F1 (58), F2 (79), F3 (117) y F4 (93) sin regresiones. En el navegador, empresa Reginas: la lista mostró 50 de 122 que deben como «Sale hoy» sin mandar nada; encender y apagar el automático; «Mandar los de hoy» con el agente apagado no mandó nada; BAJA y ALTA en el simulador; «Ya abrimos» salió simulado y el segundo intento se frenó. Revisado a 390 px. Los datos de prueba se borraron.</div>
+          <div class="done-when"><b>Falta en producción, en este orden:</b> migraciones de F1 a F4 y luego <code>2026-11-17_whatsapp-recordatorios.sql</code>, código, aprobar en Meta las dos plantillas con el texto exacto de la pestaña, <code>WHATSAPP_PUBLIC_URL</code> en el <code>.env</code> (sin ella el cron no arma el enlace) y lo demás de F3. Encender el automático es decisión del dueño: el primer día salen hasta 50.</div>
+          <div class="done-when"><b>Sin probar:</b> el envío real de plantillas (pide token y plantillas aprobadas) y el cron corriendo solo con el automático encendido.</div>
         </div>
       </div>
       <div class="phase">
-        <div class="phase-id"><b>F6</b><span>8–10 h</span></div>
+        <div class="phase-id"><b>F6</b><span>Hecha</span></div>
         <div class="phase-body">
-          <h3>Agente del dueño y modo automático</h3>
+          <h3>Agente del dueño y modo automático <span class="pill ok">17/11/2026 · local</span></h3>
           <ul>
-            <li>Números autorizados preguntan ventas, turno, pedidos y cartera.</li>
-            <li>Interruptor por tema: horario y catálogo en automático; saldo y pedidos siguen en propuesta.</li>
-            <li>Métricas: tiempo de respuesta y % resuelto sin persona.</li>
+            <li>Agente del dueño (<code>mdl/mdl-whatsapp-dueno.php</code>): en Destinatarios, «Le pregunta al agente» (<code>wa_recipient.can_ask</code>). Ese número escribe al número del agente y le contesta directo, sin bandeja, en horario y con el mismo tope por hora. Con sucursal solo ve esa; sin sucursal, todas. No le sale el menú de sucursales.</li>
+            <li>Cuatro consultas de lectura: <code>ventas_hoy</code> (las cifras del cierre del día: vendido, cobrado, tickets, ticket promedio, cancelados; también otro día de los últimos dos meses), <code>turno_estado</code> (quién tiene la caja, fondo, efectivo esperado), <code>pedidos_pendientes</code> (por aceptar en Tienda en línea y por entregar hoy) y <code>cartera</code> (quién debe, del más antiguo). Las de clientes no existen en su chat ni las suyas en el de un cliente.</li>
+            <li>Interruptor por tema (<code>mdl/mdl-whatsapp-automatico.php</code>, <code>wa_agent.auto_topics</code>): en la pestaña Agente, «Salen solas: horario, dirección y pago» y «Salen solas: catálogo y precios», apagadas de fábrica y con confirmación. Sale sola si el barrido la armó, todo lo que consultó es de temas encendidos, ninguna consulta falló y no trae pedido ni paso a persona; al mandarla se revisa que siga siendo la respuesta al último mensaje y que nadie haya contestado. Saldo, pedidos, comprobantes y lo que no consultó datos siempre pasan por una persona.</li>
+            <li>Cada propuesta lleva su tema (<code>wa_proposal.topic</code>); la tarjeta lo muestra. Lo que sale solo queda <code>auto_sent</code> y en el hilo dice «Agente · salió sola».</li>
+            <li>Pestaña «Métricas»: conversaciones resueltas sin persona (por chat y día), tiempo típico de respuesta del agente y de una persona, propuestas por tema (salieron solas, tal cual, cambiadas, descartadas, fallidas) y preguntas del dueño.</li>
+            <li>Migración <code>2026-11-17_whatsapp-dueno.sql</code>, con rollback: <code>wa_recipient.can_ask</code>; <code>wa_proposal.kind</code>, <code>auto_sent</code>, <code>topic</code> e índices por fecha y por mensaje enviado.</li>
           </ul>
-          <div class="done-when"><b>Listo cuando:</b> el dueño pregunta «¿cuánto llevamos hoy?» y recibe el total correcto por sucursal.</div>
+          <div class="done-when"><b>Listo:</b> 17/11/2026. Arnés F6 con 68 pruebas en verde, con las cifras comparadas contra consultas directas a la base, y F1 a F5 sin regresiones. En el navegador con el modelo real, sucursal Reginas Cuarta: «¿cuánto vendimos el sábado 15?» dio $205.60 vendido, $150.60 cobrado y 6 tickets, igual que la base; a «¿y Guadalupe?» contestó que solo puede consultar Cuarta; con catálogo encendido, «¿qué pasteles tienen?» salió sola; «¿cuánto debo?» se quedó en la bandeja. Revisado a 390 px. Los datos de prueba se borraron.</div>
+          <div class="done-when"><b>Falta en producción, en este orden:</b> migraciones de F1 a F5 y luego <code>2026-11-17_whatsapp-dueno.sql</code>, código y lo demás de F3. No pide llaves nuevas. Encender un tema o «Le pregunta al agente» es decisión del dueño; conviene una semana viendo Métricas antes.</div>
         </div>
       </div>
       <div class="phase total">
         <div class="phase-id"><b>Total</b><span>52–66 h</span></div>
-        <div class="phase-body">Suma de F1 a F6; F0 quedó hecha el 15/11/2026. No incluye subir a producción ni el trámite con Meta del número de cada empresa.</div>
+        <div class="phase-body">Lo estimado de F1 a F6, todas hechas en local; F0 quedó hecha el 15/11/2026. No incluye subir a producción ni el trámite con Meta del número de cada empresa (ver el plan de implementación).</div>
       </div>
     </div>
   </section>
@@ -514,6 +537,18 @@ ul.sources span { color: var(--muted); }
         <h3>Modelo</h3>
         <p class="rec"><b>Decidido:</b> la recomendación. Se elige en F3 midiendo el tiempo de respuesta en el simulador.</p>
         <p>Ollama como CoffeeIA no cobra por mensaje, pero depende de que el equipo esté prendido y alcanzable desde producción. Un modelo en la nube cobra por uso.</p>
+        <p><b>Medido el 16/11/2026</b> (21 preguntas en Ollama Cloud, que es un servicio en la red: el hilo del chat sale del servidor):</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>Modelo</th><th>Correctas</th><th>Promedio</th><th>Máximo</th></tr></thead>
+            <tbody>
+              <tr><td><code>gpt-oss:120b-cloud</code></td><td>21/21</td><td>1.5 s</td><td>2.0 s</td></tr>
+              <tr><td><code>glm-5.3-flash</code></td><td>21/21</td><td>1.8 s</td><td>3.2 s</td></tr>
+              <tr><td><code>deepseek-v4.1-flash</code></td><td>20/21 (la que falló era del patrón del arnés)</td><td>2.1 s</td><td>4.4 s</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>Queda:</b> <code>gpt-oss:120b-cloud</code>, el más rápido y el más breve. Alternativa: <code>glm-5.3-flash</code> con <code>WHATSAPP_AGENT_MODEL</code> (usa emojis y da más detalle). <code>qwen3-coder:480b-cloud</code> ya no existe (410). El costo por mensaje de Ollama Cloud no está medido.</p>
       </li>
       <li>
         <h3>Horario <span class="pill part">con interpretación mía</span></h3>
@@ -530,6 +565,7 @@ ul.sources span { color: var(--muted); }
         <h3>Frecuencia de los recordatorios</h3>
         <p class="rec"><b>Decidido:</b> uno por semana, con saldo y enlace del portal.</p>
         <p><b>Cambia:</b> con Meta el recordatorio es plantilla aprobada: no se edita libre en Avisos y cambiar el texto pide otra aprobación.</p>
+        <p><b>Ajuste del 17/11/2026 (F5):</b> no quedó como tipo <code>debt</code> en <code>wa_notice</code> (esos avisos son para el dueño y se editan libre); va en su propia pestaña «Recordatorios», con el interruptor en <code>wa_agent.reminders</code> y el historial en <code>wa_reminder</code>. <b>Interpretación mía:</b> le llega a todo cliente con saldo y teléfono de 10 dígitos, haya escrito antes o no; BAJA apaga solo lo que inicia la empresa.</p>
       </li>
       <li>
         <h3>Catálogo del agente <span class="pill acc">nueva</span> <span class="pill part">con interpretación mía</span></h3>

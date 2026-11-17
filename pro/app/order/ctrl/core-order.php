@@ -37,6 +37,7 @@ class core extends mdl {
     const KEY_WAIT  = 300;
 
     private $scopeCache = null;
+    private $viewCache  = [];
 
     // -- Empresa y sucursal --
 
@@ -77,6 +78,75 @@ class core extends mdl {
 
     protected function branchId() {
         return $this->scope()['branch_id'];
+    }
+
+    // -- Todas las sucursales --
+
+    /*  Las sucursales que el usuario puede ver juntas en $section (code):
+        Dueño y root, todas las activas de la empresa, como la barra; los
+        demás, aquellas donde su rol tiene 'show'. Solo sirve para CONSULTAR:
+        toda escritura sigue atada a branchId(). [id => nombre] */
+    protected function viewBranches($section) {
+        if (isset($this->viewCache[$section])) return $this->viewCache[$section];
+
+        $all  = !empty($_SESSION['is_owner']) || !empty($_SESSION['is_root']) ? 1 : 0;
+        $rows = $this->companyId() > 0 ? $this->qViewBranches($this->companyId(), $all, $this->userId(), $section) : [];
+        $list = [];
+
+        foreach ($rows as $row) $list[(int) $row['id']] = $row['name'];
+
+        return $this->viewCache[$section] = $list;
+    }
+
+    /*  Para la barra: se ofrece «Todas las sucursales» si ve más de una.
+        key = empresa:usuario, para que la elección guardada en el navegador
+        no pase a otra cuenta. null = no se ofrece. */
+    protected function allOffer($section) {
+        $count = count($this->viewBranches($section) + [$this->branchId() => '']);
+
+        return $count > 1 ? ['key' => $this->companyId() . ':' . $this->userId(), 'count' => $count] : null;
+    }
+
+    // Las sucursales de la consulta: la activa y, con all = 1, las demás que deja ver.
+    protected function readBranches($section) {
+        $ids = [$this->branchId()];
+
+        if ($this->post('all') === '1') $ids = array_merge($ids, array_keys($this->viewBranches($section)));
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    // De cuál de esas sucursales es el pedido: [branch_id, branch] o null.
+    protected function orderBranch($id, $section) {
+        return $id > 0 ? $this->qOrderBranch($id, $this->readBranches($section)) : null;
+    }
+
+    /*  Pedido de otra sucursal (vista «todas»): solo se ve. Para cobrarlo,
+        editarlo o entregarlo se elige su sucursal en la barra. */
+    protected function foreignCan($order, $name) {
+        $why = "Es de {$name}: para hacer cambios, elige esa sucursal en la barra de arriba.";
+
+        return [
+            'edit'            => false,
+            'edit_reason'     => $why,
+            'money'           => false,
+            'money_reason'    => $why,
+            'cut'             => $this->closedCut($order),
+            'cancel'          => false,
+            'cancel_reason'   => $why,
+            'pay'             => false,
+            'pay_reason'      => $why,
+            'deliver'         => false,
+            'deliver_reason'  => $why,
+            'settle'          => false,
+            'undeliver'       => false,
+            'delivery'        => false,
+            'delivery_reason' => $why,
+            'delivery_key'    => false,
+            'delete'          => false,
+            'delete_reason'   => $why,
+            'delete_payment'  => false
+        ];
     }
 
     // Matriz = la primera sucursal activa de la empresa: en BD no hay marca.
@@ -287,6 +357,14 @@ class core extends mdl {
     // Quien no ve Pedidos y entra solo por el calendario (Producción): ve el pedido sin dinero.
     protected function limited() {
         return $this->need('show') !== null;
+    }
+
+    /*  Dueño: el de la cuenta (is_owner), root, o quien tiene el rol Dueño en la
+        sucursal activa. El rol del sistema es 'owner'; Reginas tiene el suyo, 'dueno'. */
+    protected function isOwner() {
+        if (!empty($_SESSION['is_owner']) || !empty($_SESSION['is_root'])) return true;
+
+        return in_array($this->qRoleCode($this->userId(), (int) ($_SESSION['branch_id'] ?? 0)), ['owner', 'dueno'], true);
     }
 
     // -- Reglas de cobro --
@@ -710,12 +788,29 @@ class core extends mdl {
 
     /*  El detalle completo: lo abren Pedidos y Calendario con el mismo modal.
         Cada ctrl valida antes su permiso de ver. A quien no ve Pedidos
-        (Producción) le llega sin importes ni abonos: limited = true. */
-    protected function orderBundle($id) {
-        $branch = $this->scope()['branch'];
-        $order  = $id > 0 ? $this->qGetOrder($id, $this->branchId()) : null;
+        (Producción) le llega sin importes ni abonos: limited = true.
+        Con all = 1 (vista «todas») también abre el de otra sucursal que el rol
+        deja ver en $section: foreign = true, solo lectura (foreignCan). */
+    protected function orderBundle($id, $section = self::SECTION) {
+        $branch  = $this->scope()['branch'];
+        $order   = $id > 0 ? $this->qGetOrder($id, $this->branchId()) : null;
+        $place   = null;
+        $foreign = false;
 
-        if (!$order) return $this->fail(404, "El pedido P{$id} no existe en {$branch}.");
+        if (!$order && $this->post('all') === '1') {
+            $place = $this->orderBranch($id, $section);
+
+            if ($place) {
+                $order   = $this->qGetOrder($id, (int) $place['branch_id']);
+                $foreign = (bool) $order;
+            }
+        }
+
+        if (!$order) {
+            $where = count($this->readBranches($section)) > 1 ? 'tus sucursales' : $branch;
+
+            return $this->fail(404, "El pedido P{$id} no existe en {$where}.");
+        }
 
         $lines   = $this->qOrderLines($id);
         $lineIds = array_map('intval', array_column($lines, 'id'));
@@ -743,17 +838,21 @@ class core extends mdl {
 
         $bundle = [
             'status'   => 200,
-            'branch'   => $branch,
+            'branch'   => $foreign ? $place['branch'] : $branch,
             'order'    => $order,
             'lines'    => $lines,
             'payments' => $this->qPayments($id),
             'history'  => $this->qHistory($id),
             'actions'  => $this->actions(),
-            'can'      => $this->orderCan($order),
-            'limited'  => false
+            'can'      => $foreign ? $this->foreignCan($order, $place['branch']) : $this->orderCan($order),
+            'limited'  => false,
+            'foreign'  => $foreign
         ];
 
-        return $this->limited() ? $this->withoutMoney($bundle) : $bundle;
+        // El dinero de otra sucursal sale solo si ahí el rol ve Pedidos.
+        $limited = $foreign ? !isset($this->viewBranches(self::SECTION)[(int) $place['branch_id']]) : $this->limited();
+
+        return $limited ? $this->withoutMoney($bundle) : $bundle;
     }
 
     /*  El detalle sin dinero. Se quita aquí y no en la pantalla: lo que no viaja

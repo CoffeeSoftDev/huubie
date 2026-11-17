@@ -64,7 +64,9 @@ main {
 
 /* -- Filtros --
    La barra es createfilterBar de CoffeeSoft: los campos traen su propio estilo.
-   .ord-period solo marca los filtros que la busqueda ignora (se atenuan). */
+   .ord-period solo marca los filtros que la busqueda ignora (se atenuan).
+   «Nuevo pedido» va al final de la barra (pedidos.js › filterBar): su texto no se parte. */
+#ord_btnNewOrder { white-space: nowrap; }
 
 /* -- Tablas del módulo --
    Llevan el color de las de Catálogo (design 'flowbite': ORD_TABLE, en
@@ -101,6 +103,9 @@ button.ord-folio:hover {
     text-underline-offset: 2px;
 }
 
+/* Lista de pedidos: folio sin negrita. Las demás tablas del módulo lo conservan. */
+#tbOrders button.ord-folio { font-weight: 400; }
+
 /* Del turno abierto. */
 .ord-dot {
     width: 6px;
@@ -121,6 +126,9 @@ button.ord-folio:hover {
     font-size: 11.5px;
     color: rgb(var(--gray-400, 148 163 184));
 }
+
+/* Lista de pedidos: el teléfono bajo el cliente, más chico que los demás .ord-sub. */
+#tbOrders .ord-phone { font-size: 10.5px; }
 
 .ord-pill {
     display: inline-flex;
@@ -155,6 +163,22 @@ button.ord-money {
 
 button.ord-money:hover { background: rgb(var(--brand-600, 192 90 64) / .08); }
 button.ord-money:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 1px; }
+
+/* -- Columna Entregado --
+   El badge es un .ord-pill, como los de Estado. El que se puede entregar es
+   botón (abre «Entregar pedido»). El fondo va en el .ord-pill de dentro: el
+   preflight de Tailwind pisa el de un [type=button].
+   No es .ord-deliver: ese es el botón verde «Entregar» del detalle. */
+button.ord-deliv-btn {
+    display: inline-flex;
+    padding: 0;
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer;
+}
+
+button.ord-deliv-btn:hover { opacity: .8; }
+button.ord-deliv-btn:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 1px; }
 
 /* "Mostrar N registros" y el buscador en una sola fila, uno junto al otro.
    El buscador vive fuera de #tableOrders (se reescribe en cada busqueda) y
@@ -302,6 +326,42 @@ body:not(.dark-mode) .swal2-cancel:hover {
     background-color: #F5F5F4 !important;
 }
 
+/* -- «¿Cómo se guarda el pedido?» (OrderForm.askHow) --
+   Tres botones: Seguir editando, Cotización (deny) y Pendiente (confirm, morado).
+   SweetAlert pinta deny en rojo, como si borrara, y compact.css solo le da
+   medida a confirm y cancel: Cotización va con contorno del acento y la misma
+   medida que los otros dos. */
+.ord-ask-save .ord-ask-line {
+    margin: 0 0 4px;
+}
+
+.ord-ask-save button.swal2-deny {
+    padding: .5rem 1.5rem !important;
+    border: 1px solid rgb(var(--brand-600, 192 90 64)) !important;
+    border-radius: .25rem !important;
+    background-color: transparent !important;
+    color: rgb(var(--brand-600, 192 90 64)) !important;
+    font-size: .8rem !important;
+}
+
+.ord-ask-save button.swal2-deny:hover {
+    background-color: rgb(var(--brand-600, 192 90 64) / .08) !important;
+}
+
+.ord-ask-save button.swal2-deny:focus {
+    box-shadow: 0 0 0 3px rgb(var(--brand-600, 192 90 64) / .3) !important;
+}
+
+body.dark-mode .ord-ask-save button.swal2-deny {
+    border-color: rgb(var(--brand-300, 216 180 254)) !important;
+    color: rgb(var(--brand-300, 216 180 254)) !important;
+}
+
+/* Pendiente no trae borde y quedaba 2 px más bajo que los otros dos. */
+.ord-ask-save button.swal2-confirm {
+    border: 1px solid transparent !important;
+}
+
 /* -- Sucursal en «¿Aperturar turno?» (OrderTurn.saveOpen) --
    Va aparte, en grande y con el acento: antes de confirmar se revisa en qué
    sucursal se abre el turno. Los tokens --accent-* ya traen su tono oscuro. */
@@ -367,19 +427,40 @@ body.dark-mode #modalOrderDetails .ord-well {
     border-color: transparent !important;
 }
 
-/* -- Boton «Nuevo pedido» del encabezado --
-   coffeeForm pone una etiqueta vacia arriba del boton (para alinearlo con
-   campos); en el encabezado no hay campos, asi que se oculta. */
-#formHeaderOrders label { display: none; }
-#formHeaderOrders > div { margin-top: 0 !important; }
-#btnNewOrder { white-space: nowrap; }
-
 /* -- Captura tipo POS: «Volver a pedidos» --
-   Va en la franja de caja (caja-strip.js). Mismo caso que «Nuevo pedido»: no
-   lleva campos al lado, asi que sobra la etiqueta vacia de coffeeForm. */
+   Va en la franja de caja (caja-strip.js): un circulo con la flecha, sin texto.
+   coffeeForm pone una etiqueta vacia arriba del boton (para alinearlo con
+   campos); aqui no lleva campos al lado, asi que se oculta. Colores de los botones de la franja (caja-tile)
+   y !important por lo mismo que ellos: Bootstrap, soft.css y dark-mode.css pisan
+   el relleno, el radio, el borde y el color del btnOutline. */
 #formOrderBack label { display: none; }
 #formOrderBack > div { margin-top: 0 !important; }
-#btnOrderBack { white-space: nowrap; }
+#cajaStrip button#btnOrderBack {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px !important;
+    min-width: 38px;
+    height: 38px !important;
+    padding: 0 !important;
+    border: 1px solid #D6D3D1 !important;
+    border-radius: 999px !important;
+    background-color: #FFFFFF !important;
+    color: #44403C !important;
+    font-size: 16px;
+    line-height: 1;
+    box-shadow: 0 1px 2px rgba(28, 25, 23, .06);
+    transition: background-color .15s ease, border-color .15s ease;
+}
+#cajaStrip button#btnOrderBack i::before { margin: 0; }
+#cajaStrip button#btnOrderBack:hover { background-color: #FAFAF9 !important; border-color: #A8A29E !important; }
+#cajaStrip button#btnOrderBack:active { background-color: #F5F5F4 !important; }
+#cajaStrip button#btnOrderBack:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(87, 83, 78, .18); }
+
+body.dark-mode #cajaStrip button#btnOrderBack { border-color: rgba(255, 255, 255, .16) !important; background-color: #1F2A37 !important; color: #E5E7EB !important; box-shadow: none; }
+body.dark-mode #cajaStrip button#btnOrderBack:hover { background-color: #273445 !important; border-color: rgba(255, 255, 255, .28) !important; }
+body.dark-mode #cajaStrip button#btnOrderBack:active { background-color: #2D3B4E !important; }
+body.dark-mode #cajaStrip button#btnOrderBack:focus-visible { box-shadow: 0 0 0 3px rgba(255, 255, 255, .16); }
 
 /* -- Captura tipo POS: datos del pedido dentro del ticket --
    El ticket es angosto: etiquetas chicas y menos aire entre campos. */
@@ -403,15 +484,29 @@ body.dark-mode #modalOrderDetails .ord-well {
 #formOrderTicket input[type="date"],
 #formOrderTicket input[type="time"] { height: 34px !important; }
 
+/* Sin cliente: un punto chico y lento dentro del selector, esperando que se elija uno (waitCustomer). */
+#formOrderTicket .ord-wait .select2-selection__rendered::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    border-radius: 999px;
+    background: rgb(var(--brand-600, 192 90 64));
+    vertical-align: middle;
+    animation: ordVtagPulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) { #formOrderTicket .ord-wait .select2-selection__rendered::before { animation: none; } }
+
 /* Mientras se guarda no se puede tocar ni el catalogo ni el ticket. */
 #posOrderHost.is-saving #posOrderBody { pointer-events: none; opacity: 0.6; }
 
 /* -- Turno en el encabezado --
-   El encabezado de Pedidos solo lleva «Nuevo pedido»: «Cierre del día» vive en Cortes.
-   El turno pasó a la franja de caja (abajo).
+   El encabezado de Pedidos ya no lleva botones: «Nuevo pedido» pasó a la barra de
+   filtros y «Cierre del día» vive en Cortes. El turno pasó a la franja de caja (abajo).
    .ord-turn-chip ya no lo pinta ninguna pantalla: lo usan las maquetas de templates/
    para el «antes». .ord-turn-dot sí sigue: es el punto del título de la franja. */
-#formHeaderOrders { gap: 8px; }
 
 .ord-turn-chip {
     display: inline-flex;
@@ -499,8 +594,9 @@ body.dark-mode .caja-strip-stats b { color: var(--dk-text, #F5F5F5); }
 
 .caja-strip-actions { display: flex; flex-shrink: 0; margin-left: auto; }
 
-/* «Volver a pedidos» (CajaStrip.backButton): solo con la captura de Pedidos abierta. */
-.caja-strip-back { flex-shrink: 0; }
+/* «Volver a pedidos» (CajaStrip.backButton): solo con la captura de Pedidos abierta.
+   El margen deja ver el anillo de foco: caja-strip-main recorta lo que se sale. */
+.caja-strip-back { flex-shrink: 0; margin: 3px 0 3px 3px; }
 
 /* coffeeForm pone un <label>&nbsp;</label> y margen arriba a cada botón: aquí sobran. */
 #formCajaStrip label { display: none; }
@@ -1072,6 +1168,120 @@ button.ord-pay-go:hover { background: rgb(var(--brand-700, 168 74 51)); }
     #modalOrderCake .cs-modal-panel { height: calc(100vh - 2rem); height: calc(100dvh - 2rem); }
 }
 
+/* -- Pastel personalizado en laptop --
+   Pantalla baja (hasta 820 px de alto: 1366×768, 1280×800, 1440×900): la ventana usa casi
+   todo el alto y cada pieza baja un punto (márgenes, pasos, opciones, campos), para que las
+   opciones y «Detalles del pastel» quepan sin recorrer. En escritorio (1920×1080) no cambia.
+   pos-cake.js mete su CSS al final del <head>: todo va con #modalOrderCake para ganarle. */
+@media (min-width: 768px) and (max-height: 820px) {
+    #modalOrderCake { padding: 1rem; }
+    #modalOrderCake .cs-modal-panel { height: calc(100vh - 2rem); height: calc(100dvh - 2rem); }
+    #modalOrderCake .cs-modal-head { padding-top: 12px; padding-bottom: 10px; }
+    #modalOrderCake .cs-modal-foot { padding-top: 10px; padding-bottom: 10px; }
+
+    #modalOrderCake .pos-ck { gap: 8px; padding: 10px 1rem 8px; font-size: 12.5px; }
+    #modalOrderCake .pos-ck-prog { gap: 6px; padding: 8px 12px 6px; }
+    #modalOrderCake .pos-ck-prog-icon { width: 28px; height: 28px; }
+    #modalOrderCake .pos-ck-prog-title { font-size: 13px; }
+    #modalOrderCake .pos-ck-prog-text { font-size: 11px; }
+    #modalOrderCake .pos-ck-badge { height: 22px; font-size: 11px; }
+    #modalOrderCake .pos-ck-bar { height: 6px; }
+    #modalOrderCake button.pos-ck-step { gap: 2px; padding: 4px 4px 3px; font-size: 11px; }
+    #modalOrderCake .pos-ck-num { width: 18px; height: 18px; font-size: 10px; }
+
+    #modalOrderCake .pos-ck-main { gap: 8px; }
+    #modalOrderCake .pos-ck-stage { min-height: 170px; gap: 8px; padding: 10px 12px; }
+    #modalOrderCake .pos-ck-stage-icon { width: 26px; height: 26px; }
+    #modalOrderCake .pos-ck-title { font-size: 14.5px; }
+    #modalOrderCake .pos-ck-hint { font-size: 11.5px; }
+    #modalOrderCake button.pos-ck-navbtn { height: 28px; font-size: 12px; }
+
+    #modalOrderCake .pos-ck-list { gap: 6px; min-height: 76px; }
+    #modalOrderCake button.pos-ck-opt,
+    #modalOrderCake div.pos-ck-opt { min-height: 36px; padding: 4px 6px 4px 10px; font-size: 12.5px; }
+    #modalOrderCake .pos-ck-pill { height: 20px; padding: 0 8px; font-size: 11px; }
+    #modalOrderCake button.pos-ck-add,
+    #modalOrderCake .pos-ck-qty { height: 26px; }
+
+    #modalOrderCake input.pos-ck-in { height: 32px !important; font-size: 12.5px !important; }
+    #modalOrderCake textarea.pos-ck-in { min-height: 44px; padding: 6px 10px; font-size: 12.5px !important; }
+    #modalOrderCake .pos-ck-field > label.pos-ck-lbl { margin: 0 0 3px !important; font-size: 11.5px !important; }
+    #modalOrderCake .pos-ck-money > span { height: 32px; }
+
+    #modalOrderCake .pos-ck-side { gap: 8px; padding: 10px 12px; }
+    #modalOrderCake .pos-ck-cake { font-size: 24px; }
+    #modalOrderCake .pos-ck-side-title { font-size: 13.5px; }
+    #modalOrderCake button.pos-ck-sumrow { padding: 4px 6px 4px 8px; }
+    #modalOrderCake .pos-ck-tot { bottom: -10px; margin: auto -12px -10px; padding: 8px 12px 10px; }
+    #modalOrderCake .pos-ck-total { padding: 5px 10px; }
+    #modalOrderCake .pos-ck-total > b { font-size: 16px; }
+
+    #modalOrderCake .pos-ck-more { gap: 8px; padding: 10px 12px; }
+    #modalOrderCake .pos-ck-more-grid { gap: 12px; }
+    #modalOrderCake .pos-ck-sec { gap: 8px; }
+    #modalOrderCake .pos-ck-sec.is-photos { padding-left: 12px; }
+    #modalOrderCake .pos-ck-shots { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); }
+    #modalOrderCake .pos-ck-shots.is-empty label.pos-ck-drop { min-height: 52px; }
+}
+
+/* -- Pastel personalizado en laptop baja --
+   Hasta 700 px de alto: una laptop de 1366×768 o de 1280×720 deja ~600–660 px ya con las
+   barras del navegador. Ahí la ventana se ensancha (las opciones caben en cuatro columnas y
+   Nombre y Dedicatoria quedan lado a lado) y cada pieza baja otro punto: el progreso pasa a
+   un solo renglón y se recortan márgenes, pasos, opciones y campos. Así «Detalles del pastel»
+   se ve completo sin recorrer. Las letras no bajan: lo que se recorta es el aire. */
+@media (min-width: 768px) and (max-height: 700px) {
+    #modalOrderCake { padding: 8px; }
+    #modalOrderCake .cs-modal-panel { max-width: 1180px; height: calc(100vh - 16px); height: calc(100dvh - 16px); }
+    #modalOrderCake .cs-modal-head { padding-top: 8px; padding-bottom: 7px; }
+    #modalOrderCake .cs-modal-head > div:first-child > span { width: 28px; height: 28px; }
+    #modalOrderCake .cs-modal-title { font-size: 15px; line-height: 1.2; }
+    #modalOrderCake .cs-modal-foot { padding-top: 6px; padding-bottom: 6px; }
+
+    #modalOrderCake .pos-ck { gap: 6px; padding: 8px 1rem 6px; }
+    #modalOrderCake .pos-ck-prog { gap: 4px; padding: 6px 10px 4px; }
+    #modalOrderCake .pos-ck-prog-icon { width: 20px; height: 20px; }
+    #modalOrderCake .pos-ck-prog-icon svg { width: 12px; height: 12px; }
+    #modalOrderCake .pos-ck-prog-main { flex-direction: row; align-items: baseline; gap: 8px; }
+    #modalOrderCake .pos-ck-badge { height: 20px; }
+    #modalOrderCake .pos-ck-bar { height: 5px; }
+    #modalOrderCake button.pos-ck-step { gap: 1px; padding: 3px 4px 2px; }
+    #modalOrderCake .pos-ck-num { width: 16px; height: 16px; font-size: 9.5px; }
+
+    #modalOrderCake .pos-ck-main { gap: 6px; }
+    #modalOrderCake .pos-ck-stage { min-height: 132px; gap: 6px; padding: 8px 10px; }
+    #modalOrderCake .pos-ck-stage-icon { width: 24px; height: 24px; }
+    #modalOrderCake .pos-ck-title { font-size: 14px; }
+    #modalOrderCake button.pos-ck-navbtn { height: 26px; }
+
+    #modalOrderCake .pos-ck-list { gap: 5px; min-height: 68px; }
+    #modalOrderCake button.pos-ck-opt,
+    #modalOrderCake div.pos-ck-opt { min-height: 32px; padding: 3px 6px 3px 10px; }
+    #modalOrderCake .pos-ck-pill { height: 18px; }
+    #modalOrderCake button.pos-ck-add,
+    #modalOrderCake .pos-ck-qty { height: 24px; }
+
+    #modalOrderCake input.pos-ck-in { height: 30px !important; }
+    #modalOrderCake textarea.pos-ck-in { padding: 4px 10px; }
+    #modalOrderCake .pos-ck-field > label.pos-ck-lbl { margin: 0 0 2px !important; }
+    #modalOrderCake .pos-ck-money > span { height: 30px; }
+
+    #modalOrderCake .pos-ck-side { gap: 6px; padding: 8px 10px; }
+    #modalOrderCake .pos-ck-cake { font-size: 20px; }
+    #modalOrderCake button.pos-ck-sumrow { padding: 3px 6px 3px 8px; }
+    #modalOrderCake .pos-ck-tot { bottom: -8px; margin: auto -10px -8px; padding: 6px 10px 8px; }
+    #modalOrderCake .pos-ck-total { padding: 4px 10px; }
+
+    #modalOrderCake .pos-ck-more { gap: 6px; padding: 8px 10px; }
+    #modalOrderCake .pos-ck-card-title { font-size: 13px; }
+    #modalOrderCake .pos-ck-more-grid { gap: 10px; }
+    #modalOrderCake .pos-ck-data { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    #modalOrderCake .pos-ck-sec { gap: 6px; }
+    #modalOrderCake .pos-ck-sec.is-photos { padding-left: 10px; }
+    #modalOrderCake .pos-ck-shots { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); }
+    #modalOrderCake .pos-ck-shots.is-empty label.pos-ck-drop { min-height: 46px; padding: 6px 10px; }
+}
+
 /* -- Turno y cobro oscuros -- */
 body.dark-mode .ord-turn-chip.is-open { color: #6EE7B7; background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); }
 body.dark-mode .ord-turn-chip.is-old  { color: #FCD34D; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
@@ -1428,11 +1638,20 @@ body.dark-mode button.ord-cut-print { background: var(--dk-input, #111827); bord
 body.dark-mode kbd.ord-key { background: var(--dk-row, #283341); border-color: var(--dk-line, #374151); color: var(--dk-muted, #9CA3AF); }
 body.dark-mode .cs-modal-save kbd.ord-key { border-color: rgb(255 255 255 / .35); background: rgb(255 255 255 / .2); color: #FFFFFF; }
 
-/* -- Entregar y elaborar (encabezado de Información en el detalle) -- */
+/* -- Acciones del detalle, en el pie del modal: cobrar, entregar, elaborar, editar, imprimir --
+   Izquierda, lo que corrige o imprime; derecha, «Cerrar» y el avance del pedido.
+   El aviso (cs-modal-info) ocupa su propio renglón para no apretar los botones. */
+#modalOrderDetails .cs-modal-foot { flex-wrap: wrap; justify-content: space-between; row-gap: 8px; }
+#modalOrderDetails .cs-modal-foot .cs-modal-info { flex-basis: 100%; }
+#modalOrderDetails .cs-modal-foot > div { flex-wrap: wrap; }
+#modalOrderDetails .cs-modal-foot > div:last-child { justify-content: flex-end; margin-left: auto; }
+.ord-detail-side { display: flex; align-items: center; gap: 6px; }
+
 button.ord-deliver,
 button.ord-produce,
 button.ord-undeliver,
 button.ord-edit-delivery,
+button.ord-act,
 button.ord-sale-cancel {
     display: inline-flex;
     align-items: center;
@@ -1452,11 +1671,13 @@ button.ord-produce:hover { background: #EDE9FE; }
 button.ord-produce.is-on { border-color: rgb(var(--gray-300, 214 211 209)); background: #FFFFFF; color: rgb(var(--gray-600, 87 83 78)); }
 button.ord-produce.is-on:hover { background: rgb(var(--gray-100, 245 245 244)); }
 
-/* Deshacer entrega y Editar entrega: secundarios, para que no compitan con Entregar. */
+/* Editar pedido, Editar entrega, Deshacer entrega e Imprimir: secundarios, para que no compitan con Entregar. */
 button.ord-undeliver,
-button.ord-edit-delivery { border: 1px solid rgb(var(--gray-300, 214 211 209)); background: #FFFFFF; color: rgb(var(--gray-600, 87 83 78)); }
+button.ord-edit-delivery,
+button.ord-act { border: 1px solid rgb(var(--gray-300, 214 211 209)); background: #FFFFFF; color: rgb(var(--gray-600, 87 83 78)); }
 button.ord-undeliver:hover,
-button.ord-edit-delivery:hover { background: rgb(var(--gray-100, 245 245 244)); }
+button.ord-edit-delivery:hover,
+button.ord-act:hover { background: rgb(var(--gray-100, 245 245 244)); }
 
 /* Cancelar venta (Historial, V2): el mismo molde, en rojo. */
 button.ord-sale-cancel { border: 1px solid #FECACA; background: #FEF2F2; color: #B91C1C; }
@@ -1583,29 +1804,38 @@ body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
 }
 
 .ord-cal .ord-cal-event.is-dim { opacity: .3; }
-.ord-cal .ord-cal-event.is-match .ord-cal-ev { box-shadow: inset 0 0 0 2px rgb(var(--brand-600, 192 90 64)); }
+.ord-cal .ord-cal-event.is-match .ord-cal-ev { box-shadow: inset 0 0 0 2px #FFFFFF, 0 0 0 2px rgb(var(--brand-600, 192 90 64)); }
 
+/* Color sólido del estado, igual en claro y en oscuro; todo el texto va en blanco. */
 .ord-cal-ev {
     position: relative;
     padding: 4px 24px 5px 8px;
-    border-left: 3px solid var(--ev, rgb(var(--gray-500, 120 113 108)));
     border-radius: 6px;
-    background: var(--ev-bg, rgb(var(--gray-100, 245 245 244)));
-    color: rgb(var(--gray-800, 41 37 36));
+    background: var(--ev, #78716C);
+    color: #FFFFFF;
     font-size: 11.5px;
     line-height: 1.3;
     white-space: normal;
     overflow: hidden;
 }
 
-.ord-cal-ev:hover { filter: brightness(.97); }
+.ord-cal-ev:hover { filter: brightness(.93); }
 .ord-cal-ev.is-produced,
 .ord-cal-card.is-produced { opacity: .6; }
 
-.ord-cal-ev-top { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; color: var(--ev, rgb(var(--gray-500, 120 113 108))); }
-.ord-cal-folio { font-weight: 600; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-cal-ev-top { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; }
+.ord-cal-folio { font-weight: 500; }
 .ord-cal-ev-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ord-cal-ev-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 1px; font-size: 10.5px; color: rgb(var(--gray-500, 120 113 108)); }
+
+/* Con «Todas las sucursales»: de cuál es el pedido. */
+.ord-cal-ev-branch,
+.ord-cal-card-branch { display: flex; align-items: center; gap: 4px; margin: 0; font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+.ord-cal-ev-branch span,
+.ord-cal-card-branch span { overflow: hidden; text-overflow: ellipsis; }
+.ord-cal-ev-branch svg,
+.ord-cal-card-branch svg { width: 11px; height: 11px; flex-shrink: 0; }
+.ord-cal-card-branch { margin-top: 2px; font-size: 11px; color: var(--ev, #78716C); }
+.ord-cal-ev-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 1px; font-size: 10.5px; }
 .ord-cal-ev-meta svg { width: 12px; height: 12px; flex-shrink: 0; }
 
 .ord-cal-tag {
@@ -1621,7 +1851,11 @@ body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
 
 .ord-cal-tag.is-done   { background: #D1FAE5; color: #047857; }
 .ord-cal-tag.is-debt   { background: #FEE2E2; color: #B91C1C; }
-.ord-cal-tag.is-status { background: var(--ev-bg, rgb(var(--gray-100, 245 245 244))); color: var(--ev, rgb(var(--gray-600, 87 83 78))); }
+.ord-cal-tag.is-status { background: var(--ev, #78716C); color: #FFFFFF; }
+
+/* Sobre el color sólido la etiqueta es blanca, para que no se pierda. */
+.ord-cal-ev .ord-cal-tag.is-done { background: #FFFFFF; color: #047857; }
+.ord-cal-ev .ord-cal-tag.is-debt { background: #FFFFFF; color: #B91C1C; }
 
 /* Casilla «ya se elaboró»: boton para Produccion, marca fija para los demas. */
 .ord-cal-check {
@@ -1643,8 +1877,9 @@ body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
 .ord-cal-check svg { width: 12px; height: 12px; stroke-width: 3; }
 button.ord-cal-check { background: #FFFFFF; cursor: pointer; }
 button.ord-cal-check:hover { border-color: #059669; color: #A7F3D0; }
+/* El aro blanco la separa del fondo cuando la tarjeta también es verde. */
 .ord-cal-check.is-on,
-button.ord-cal-check.is-on { border-color: #059669; background: #059669; color: #FFFFFF; }
+button.ord-cal-check.is-on { border-color: #FFFFFF; background: #059669; color: #FFFFFF; }
 button.ord-cal-check.is-on:hover { background: #047857; color: #FFFFFF; }
 .ord-cal-check.is-static { cursor: default; }
 
@@ -1670,27 +1905,46 @@ button.ord-cal-legend.is-off { color: rgb(var(--gray-400, 168 162 158)); text-de
 button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ev, rgb(var(--gray-500, 120 113 108))); }
 
 .ord-cal-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ev, rgb(var(--gray-500, 120 113 108))); flex-shrink: 0; }
-.ord-cal-total { margin-left: auto; font-size: 12.5px; color: rgb(var(--gray-500, 120 113 108)); }
-.ord-cal-hint { display: inline-flex; align-items: center; gap: 6px; flex-basis: 100%; font-size: 12px; color: rgb(var(--gray-500, 120 113 108)); }
-.ord-cal-hint svg { width: 14px; height: 14px; color: #059669; }
+.ord-cal-total { font-size: 12.5px; color: rgb(var(--gray-500, 120 113 108)); text-align: right; }
 
-/* Vista Día: galería por hora. */
+/* Filtros y píldoras en la misma fila: los filtros a la izquierda, las píldoras a la derecha.
+   Si no caben juntos, las píldoras bajan y siguen a la derecha. */
+.ord-cal-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
+.ord-cal-filters { flex: 1 1 480px; max-width: 600px; min-width: 0; }
+.ord-cal-legends { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 0; margin-left: auto; }
+.ord-cal-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+/* Instrucción de Producción, debajo del título del mes. */
+.ord-cal.fc .fc-toolbar-title { text-align: center; }
+.ord-cal-hint { margin: 2px 0 0; font-size: 12px; text-align: center; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-cal.fc .fc-toolbar-chunk .ord-cal-hint { margin-left: 0; }   /* FullCalendar separa a los hermanos del título con margen izquierdo */
+
+/* Con la instrucción, el bloque del título toma el espacio libre entre los botones:
+   si no cabe, el texto se dobla ahí en vez de mandar los botones de vista a otro renglón. */
+.ord-cal.fc .fc-toolbar-chunk.ord-cal-titlebox { flex: 1 1 0; min-width: 0; }
+.ord-cal-hint svg { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: #059669; }   /* en línea: si el texto se dobla, el ícono sigue pegado a él */
+
+/* Vistas Semana y Día: galería por día o por hora. */
 .ord-cal-day { display: flex; flex-direction: column; gap: 20px; padding: 16px 2px 4px; }
 .ord-cal-empty { margin: 0; padding: 48px 0; text-align: center; font-size: 13px; color: rgb(var(--gray-400, 168 162 158)); }
 .ord-cal-hour-title { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: rgb(var(--gray-800, 41 37 36)); }
 .ord-cal-hour-title span { font-weight: 500; color: rgb(var(--gray-400, 168 162 158)); }
-.ord-cal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.ord-cal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
 
+/* Como .pos-cat-card del POS: franja del color del estado arriba, cuerpo y pie con la hora. */
 .ord-cal-card {
+    display: flex;
+    flex-direction: column;
     border: 1px solid rgb(var(--gray-200, 231 229 228));
     border-radius: 12px;
     background: #FFFFFF;
     overflow: hidden;
     cursor: pointer;
-    transition: box-shadow .15s ease, transform .15s ease;
+    transition: box-shadow .15s ease, transform .1s ease;
 }
 
-.ord-cal-card:hover { box-shadow: 0 8px 20px rgb(28 25 23 / .1); transform: translateY(-1px); }
+.ord-cal-card:hover { box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .25); }
+.ord-cal-card:active { transform: scale(.985); }
 .ord-cal-card:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 2px; }
 .ord-cal-card.is-dim { opacity: .3; }
 .ord-cal-card.is-match { border-color: rgb(var(--brand-600, 192 90 64)); box-shadow: 0 0 0 2px rgb(var(--brand-600, 192 90 64) / .35); }
@@ -1700,49 +1954,58 @@ button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow:
     display: flex;
     align-items: center;
     justify-content: center;
-    aspect-ratio: 4 / 3;
-    background: #FAF5FC;
-    color: #B37BC4;
+    height: 96px;
+    flex-shrink: 0;
+    background: var(--ev, #78716C);
+    color: #FFFFFF;
     overflow: hidden;
 }
 
-.ord-cal-photo-hour {
-    position: absolute;
-    left: 8px;
-    bottom: 8px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgb(28 25 23 / .78);
-    color: #FFFFFF;
-    font-size: 11px;
-    font-weight: 700;
-}
-
-.ord-cal-photo-dot { position: absolute; top: 10px; left: 10px; width: 12px; height: 12px; border-radius: 50%; background: var(--ev, rgb(var(--gray-500, 120 113 108))); box-shadow: 0 0 0 2px #FFFFFF; }
+.ord-cal-photo > svg { width: 26px; height: 26px; }
+/* El pastel que sale cuando la foto no carga (orderImageError) llega en lila: aquí va en blanco. */
+.ord-cal-photo > div { color: #FFFFFF; }
 .ord-cal-photo .ord-cal-check { top: 8px; right: 8px; width: 28px; height: 28px; }
 .ord-cal-photo .ord-cal-check svg { width: 16px; height: 16px; }
 
-.ord-cal-card-body { padding: 10px 12px 12px; }
-.ord-cal-card-name { margin: 0; font-size: 13px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ord-cal-card-sub { margin: 2px 0 8px; font-size: 11.5px; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-cal-card-body { display: flex; flex: 1; flex-direction: column; gap: 6px; padding: 8px 10px 10px; }
+.ord-cal-card-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    min-height: 2.6em;
+    margin: 0;
+    overflow: hidden;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: rgb(var(--gray-900, 28 25 23));
+}
+.ord-cal-card-sub { margin: 0; font-size: 11.5px; color: rgb(var(--gray-500, 120 113 108)); }
 .ord-cal-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.ord-cal-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; }
+.ord-cal-card-foot b { font-size: 14px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); white-space: nowrap; }
+.ord-cal-card-foot .ord-cal-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 639px) {
     .ord-cal.fc .fc-toolbar-title { font-size: 15px; }
-    .ord-cal-total { margin-left: 0; flex-basis: 100%; }
-    .ord-cal-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .ord-cal-legends { align-items: flex-start; width: 100%; margin-left: 0; }
+    .ord-cal-chips { justify-content: flex-start; }
+    .ord-cal-total { text-align: left; }
+    .ord-cal.fc .fc-toolbar-chunk.ord-cal-titlebox { flex-basis: 100%; }
+    .ord-cal-grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); }
 
-    /* Rejilla en celular: solo la hora con el color del estado. El número del día abre la vista Día. */
+    /* Rejilla en celular: solo la hora sobre el color del estado. El número del día abre la vista Día. */
     .ord-cal .fc-col-header-cell-cushion { padding: 6px 0; font-size: 10px; letter-spacing: 0; }
     .ord-cal .fc-daygrid-day-number { padding: 4px 5px; }
     .ord-cal .fc-daygrid-more-link { padding: 0 2px; font-size: 10px; }
     .ord-cal .fc-daygrid-day-events .ord-cal-event { margin: 1px; }
-    .ord-cal .fc-daygrid-day-events .ord-cal-ev { padding: 3px 2px; border-left-width: 2px; }
+    .ord-cal .fc-daygrid-day-events .ord-cal-ev { padding: 3px 2px; }
     .ord-cal .fc-daygrid-day-events .ord-cal-ev-top { justify-content: center; font-size: 10px; white-space: nowrap; }
     .ord-cal .fc-daygrid-day-events .ord-cal-ev-short { display: inline; }
     .ord-cal .fc-daygrid-day-events .ord-cal-ev-hour,
     .ord-cal .fc-daygrid-day-events .ord-cal-folio,
     .ord-cal .fc-daygrid-day-events .ord-cal-ev-name,
+    .ord-cal .fc-daygrid-day-events .ord-cal-ev-branch,
     .ord-cal .fc-daygrid-day-events .ord-cal-ev-meta,
     .ord-cal .fc-daygrid-day-events .ord-cal-check { display: none; }
 }
@@ -1768,20 +2031,11 @@ body.dark-mode .ord-cal .fc-day-today .fc-daygrid-day-number { color: #FFFFFF; }
 body.dark-mode .ord-cal .fc-popover { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
 body.dark-mode .ord-cal .fc-popover-header { background: var(--dk-row, #283341); color: var(--dk-text, #F3F4F6); }
 
-/* El fondo claro del estado se cambia por su color al 18 %. */
-body.dark-mode .ord-cal-ev { background: color-mix(in srgb, var(--ev, #78716C) 18%, transparent); color: var(--dk-text, #F3F4F6); }
-body.dark-mode .ord-cal-ev-top { color: color-mix(in srgb, var(--ev, #78716C) 55%, #FFFFFF); }
-body.dark-mode .ord-cal-folio,
-body.dark-mode .ord-cal-ev-meta { color: var(--dk-muted, #9CA3AF); }
+/* Lo que va sobre el color sólido (tarjeta del Mes, franja, casilla) no cambia en oscuro. */
+body.dark-mode .ord-cal-card-branch { color: color-mix(in srgb, var(--ev, #78716C) 55%, #FFFFFF); }
 
-body.dark-mode .ord-cal-tag.is-done   { background: rgba(16, 185, 129, 0.16); color: #6EE7B7; }
-body.dark-mode .ord-cal-tag.is-debt   { background: rgba(220, 38, 38, 0.18); color: #FCA5A5; }
-body.dark-mode .ord-cal-tag.is-status { background: color-mix(in srgb, var(--ev, #78716C) 20%, transparent); color: color-mix(in srgb, var(--ev, #78716C) 55%, #FFFFFF); }
-
-body.dark-mode .ord-cal-check,
-body.dark-mode button.ord-cal-check { background: var(--dk-input, #111827); border-color: var(--dk-muted, #9CA3AF); }
-body.dark-mode .ord-cal-check.is-on,
-body.dark-mode button.ord-cal-check.is-on { background: #059669; border-color: #059669; }
+body.dark-mode .ord-cal-card .ord-cal-tag.is-done { background: rgba(16, 185, 129, 0.16); color: #6EE7B7; }
+body.dark-mode .ord-cal-card .ord-cal-tag.is-debt { background: rgba(220, 38, 38, 0.18); color: #FCA5A5; }
 
 body.dark-mode button.ord-cal-legend { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
 body.dark-mode button.ord-cal-legend b { background: var(--dk-row, #283341); color: var(--dk-text-soft, #D1D5DB); }
@@ -1792,15 +2046,15 @@ body.dark-mode .ord-cal-empty,
 body.dark-mode .ord-cal-card-sub { color: var(--dk-muted, #9CA3AF); }
 
 body.dark-mode .ord-cal-hour-title,
-body.dark-mode .ord-cal-card-name { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-cal-card-name,
+body.dark-mode .ord-cal-card-foot b { color: var(--dk-text, #F3F4F6); }
 body.dark-mode .ord-cal-card { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
-body.dark-mode .ord-cal-photo { background: var(--dk-row, #283341); }
-body.dark-mode .ord-cal-photo-dot { box-shadow: 0 0 0 2px var(--dk-card, #1F2A37); }
 
 body.dark-mode button.ord-produce { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.14); color: #C4B5FD; }
 body.dark-mode button.ord-produce.is-on,
 body.dark-mode button.ord-undeliver,
-body.dark-mode button.ord-edit-delivery { border-color: var(--dk-line, #374151); background: var(--dk-input, #111827); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode button.ord-edit-delivery,
+body.dark-mode button.ord-act { border-color: var(--dk-line, #374151); background: var(--dk-input, #111827); color: var(--dk-text-soft, #D1D5DB); }
 
 /* -- Cortes: visor (Etapa 5) --
    Lista del periodo a la izquierda; a la derecha la barra y el papel del corte
@@ -2776,11 +3030,15 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
 
 @media (min-width: 640px) {
     #modalLoyCard .loy-split,
-    #modalLoyType .loy-split {
+    #modalLoyType .loy-split,
+    #modalLoyShare .loy-split {
         position: relative;
         min-height: 270px;
         padding-left: 316px;
     }
+
+    /* Tarjeta digital: el QR es más alto que el dibujo. */
+    #modalLoyShare .loy-split { min-height: 340px; }
 
     .loy-split > .loy-preview {
         position: absolute;
@@ -2798,12 +3056,13 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
     }
 }
 
-/*  El plástico, de un solo color: el de su tipo (--loy-color, lo pone paintFace en
-    puntos.js; sin tipo, el celeste claro). data-ink lo elige puntos.js por luminancia:
-    «dark» = letra oscura teñida del mismo color; «light» = letra blanca.
-    El beneficio (data-benefit) cambia la forma, no el color:
-    descuento = cupón (una muesca a media altura en cada lado) con marca de agua %;
-    puntos = moneda (la estrella dentro de un aro).
+/*  El plástico: un rectángulo liso de un solo color, el de su tipo (--loy-color, lo
+    pone paintFace en tarjetas.js; sin tipo, el celeste claro). Sin recortes, sin
+    filos, sin sombra y sin marca de agua: solo el color y la letra.
+    data-ink lo elige tarjetas.js por luminancia: «dark» = letra oscura teñida del
+    mismo color; «light» = letra blanca.
+    Dos caras: la de la tarjeta (número y titular) y la del tipo (is-type: el
+    nombre y, en grande, lo que da).
     Movimiento: entra subiendo y enfocándose; al cambiar de color se funde
     (@property deja animar --loy-color). Todo se apaga con «reducir movimiento». */
 @property --loy-color {
@@ -2815,7 +3074,6 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
 .loy-card {
     --loy-color: #BAE6FD;
     position: relative;
-    isolation: isolate;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -2839,51 +3097,8 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
     text-shadow: none;
 }
 
-/*  Cupón: una muesca de 9px a media altura en cada lado, como un boleto.
-    Cada mitad de la máscara lleva su agujero; juntas cubren toda la tarjeta. */
-.loy-card[data-benefit="discount"],
-.loy-card[data-benefit="both"] {
-    -webkit-mask:
-        radial-gradient(circle 9px at 0 50%, rgb(0 0 0 / 0) 98%, #000) left / 51% 100% no-repeat,
-        radial-gradient(circle 9px at 100% 50%, rgb(0 0 0 / 0) 98%, #000) right / 51% 100% no-repeat;
-    mask:
-        radial-gradient(circle 9px at 0 50%, rgb(0 0 0 / 0) 98%, #000) left / 51% 100% no-repeat,
-        radial-gradient(circle 9px at 100% 50%, rgb(0 0 0 / 0) 98%, #000) right / 51% 100% no-repeat;
-}
-
-/* Marca de agua del beneficio: % si da descuento, estrella si da puntos. Del color de la letra. */
-.loy-card-mark {
-    position: absolute;
-    top: 50%;
-    right: -18px;
-    z-index: -1;
-    width: 140px;
-    height: 140px;
-    margin-top: -56px;
-    opacity: .16;
-    transform: rotate(-12deg);
-    pointer-events: none;
-}
-
-/* Moneda: la estrella dentro de un aro. */
-.loy-card[data-benefit="points"] .loy-card-mark {
-    padding: 24px;
-    border-radius: 999px;
-    box-shadow: inset 0 0 0 7px currentColor;
-}
-
-.loy-card-mark svg {
-    display: none;
-    width: 100%;
-    height: 100%;
-    stroke-width: 1.4;
-}
-
-.loy-card[data-benefit="discount"] .loy-card-mark .is-discount,
-.loy-card[data-benefit="both"] .loy-card-mark .is-discount,
-.loy-card[data-benefit="points"] .loy-card-mark .is-points { display: block; }
-
-.loy-card-mark.is-in { animation: loy-mark-in .55s cubic-bezier(.2, .8, .2, 1); }
+/* La marca de agua ya no se dibuja; el viejo puntos.js, si alguien lo carga, todavía la emite. */
+.loy-card-mark { display: none; }
 
 @keyframes loy-card-in {
     from {
@@ -2891,10 +3106,6 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
         transform: translateY(18px) scale(.96);
         filter: blur(6px);
     }
-}
-
-@keyframes loy-mark-in {
-    from { opacity: 0; transform: rotate(-50deg) scale(.6); }
 }
 
 @keyframes loy-pop {
@@ -2976,35 +3187,68 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
 .loy-card-perks {
     display: flex;
     flex-shrink: 0;
-    gap: 6px;
+    gap: 14px;
 }
 
-/* El sello del beneficio: solo un filo del color de la letra; salta cuando cambia el porcentaje (is-pop). */
+/* El beneficio va solo en letra: el porcentaje en grande y, debajo, qué es. Salta cuando cambia el porcentaje (is-pop). */
 .loy-card-perks.is-pop { animation: loy-pop .4s cubic-bezier(.3, 1.6, .5, 1); }
 
 .loy-card-perk {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    min-width: 56px;
-    padding: 4px 8px;
-    border-radius: 9px;
-    box-shadow: inset 0 0 0 1.5px currentColor;
-    font-size: 9px;
+    align-items: flex-end;
+    font-size: 9.5px;
     font-weight: 600;
-    letter-spacing: .05em;
-    line-height: 1.25;
+    letter-spacing: .08em;
+    line-height: 1.3;
     text-transform: uppercase;
 }
 
 .loy-card-perk b {
-    font-size: 15px;
+    font-size: 20px;
     font-weight: 700;
     letter-spacing: 0;
+    line-height: 1.1;
     white-space: nowrap;
 }
 
+/* La cara del tipo: sin número ni titular. El nombre arriba y, abajo a la izquierda, el beneficio en grande. */
+.loy-card.is-type .loy-card-type { font-size: 18px; }
+.loy-card.is-type .loy-card-perks { gap: 18px; }
+.loy-card.is-type .loy-card-perk { align-items: flex-start; font-size: 11px; }
+.loy-card.is-type .loy-card-perk b { font-size: 34px; font-weight: 800; line-height: 1; }
+
 .loy-card .is-empty { opacity: .55; }
+
+/*  Sellos (tipo de sellos): uno por sello de la meta, hasta 10 por renglón; se
+    encogen si la tarjeta es angosta. Sin bordes:
+      sin icono   círculo liso del color de la letra; el que falta, tenue.
+      con icono   el que falta es el icono solo, tenue; el juntado, el icono del
+                  color de la tarjeta sobre un círculo lleno del color de la letra.
+    --loy-ink es el color de la letra (blanca u oscura teñida, según data-ink). */
+.loy-card { --loy-ink: #FFFFFF; }
+.loy-card[data-ink="dark"] { --loy-ink: color-mix(in srgb, var(--loy-color) 22%, #0F172A); }
+
+.loy-card-stamps { --loy-stamp: 20px; display: grid; grid-template-columns: repeat(10, minmax(0, var(--loy-stamp))); gap: 5px; }
+.loy-card.is-type .loy-card-stamps { --loy-stamp: 22px; }
+.loy-card-stamps:empty { display: none; }
+
+.loy-stamp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: var(--loy-stamp);
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: var(--loy-ink);
+    opacity: .26;
+}
+
+.loy-stamp.is-on { opacity: 1; }
+.loy-stamp.has-icon { background: transparent; color: var(--loy-ink); opacity: .5; }
+.loy-stamp.has-icon.is-on { background: var(--loy-ink); color: var(--loy-color); opacity: 1; }
+.loy-stamp svg { width: 62%; height: 62%; stroke-width: 2.2; }
 
 @media (prefers-reduced-motion: reduce) {
     .loy-card,
@@ -3013,7 +3257,6 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
         animation: none;
     }
 
-    .loy-card-mark.is-in,
     .loy-card-perks.is-pop { animation: none; }
 }
 
@@ -3094,7 +3337,7 @@ button.loy-color-other.is-active .loy-color-other-dot {
     color: #92400E;
 }
 
-/* En las listas: el nombre del tipo con la muestra de su color. */
+/* En las listas: el nombre del tipo con la muestra de su color, una tarjeta en chiquito, lisa. */
 .loy-type {
     display: inline-flex;
     align-items: center;
@@ -3103,10 +3346,9 @@ button.loy-color-other.is-active .loy-color-other-dot {
 
 .loy-dot {
     flex: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 999px;
-    box-shadow: 0 0 0 1px rgb(0 0 0 / .12);
+    width: 22px;
+    height: 14px;
+    border-radius: 3px;
 }
 
 .loy-card-caption {
@@ -3115,6 +3357,137 @@ button.loy-color-other.is-active .loy-color-other-dot {
     line-height: 1.45;
     color: rgb(var(--gray-500, 120 113 108));
 }
+
+/*  Resumen de arriba (infoCard): las cajas van lisas, solo con su color de fondo.
+    Su borde es el .border de Bootstrap (con !important): se apaga con su variable. */
+#kpiCardsLoyalty > div { --bs-border-width: 0; }
+
+/*  Lealtad › Tarjetas: galería de tipos. Cada tipo es su tarjeta, lisa y sin caja
+    alrededor (clic = ver sus tarjetas); debajo, cuántas tiene, sus ventas del mes
+    y una fila de botones planos (loy-act). */
+/*  250 px: caben más por renglón y cada tarjeta sale más chica. Bajo 310 px
+    «Nueva tarjeta» se queda solo con su ícono (is-squeeze, más abajo). */
+.loy-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 22px 16px; }
+
+/* El dibujo de la galería, a la medida del mosaico chico. La vista previa del formulario y la ficha no cambian. */
+.loy-tile .loy-card { padding: 12px 14px; border-radius: 14px; }
+.loy-tile .loy-card.is-type .loy-card-type { font-size: 15px; }
+.loy-tile .loy-card.is-type .loy-card-perks { gap: 14px; }
+.loy-tile .loy-card.is-type .loy-card-perk { font-size: 10px; }
+.loy-tile .loy-card.is-type .loy-card-perk b { font-size: 26px; }
+
+/* Al recargar (después de guardar o filtrar) los dibujos ya no vuelven a entrar. */
+.loy-gallery.is-still .loy-card { animation: none; }
+
+.loy-tile { min-width: 0; container-type: inline-size; }
+.loy-tile-body { display: flex; flex-direction: column; gap: 10px; height: 100%; }
+
+/* Mosaico angosto (teléfono): «Nueva tarjeta» (is-squeeze) se queda con su ícono para que la fila no se doble. */
+@container (max-width: 309px) {
+    button.loy-act.is-squeeze { width: 30px; padding: 0; }
+    button.loy-act.is-squeeze .loy-act-text { display: none; }
+}
+
+/* Se levanta al pasar el ratón. Va en el envoltorio: la tarjeta de adentro ya usa transform para entrar. */
+.loy-tile-face { cursor: pointer; transition: transform .18s ease; }
+.loy-tile.is-off .loy-tile-face { opacity: .55; filter: grayscale(.6); }
+
+@media (hover: hover) {
+    .loy-tile-face:hover { transform: translateY(-3px); }
+}
+
+/* En la galería y en la ficha los datos van aparte: sin el pie del dibujo. */
+.loy-tile .loy-card-caption,
+.loy-detail-face .loy-card-caption { display: none; }
+
+.loy-tile-facts { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 0 2px; }
+.loy-tile-facts p { margin: 0; }
+.loy-tile-count { font-size: 13.5px; font-weight: 600; color: rgb(var(--gray-900, 28 25 23)); }
+.loy-tile-fact { font-size: 12.5px; line-height: 1.4; color: rgb(var(--gray-500, 120 113 108)); }
+.loy-tile-off { font-size: 12px; font-weight: 600; color: #B45309; }
+.loy-tile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: auto; }
+
+/*  Botones de Lealtad: píldoras planas, sin filo. Los de solo ícono (is-icon)
+    llevan su nombre en aria-label. button.X: el preflight de Tailwind CDN pisa
+    los fondos de [type=button]. */
+button.loy-act {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: rgb(var(--gray-100, 245 244 250));
+    font-size: 12px;
+    font-weight: 600;
+    color: rgb(var(--gray-700, 68 64 60));
+    white-space: nowrap;
+    transition: background-color .15s, color .15s;
+}
+
+button.loy-act:hover { background: rgb(var(--gray-200, 231 229 228)); color: rgb(var(--gray-900, 28 25 23)); }
+button.loy-act.is-icon { flex: none; width: 30px; padding: 0; }
+button.loy-act.is-push { margin-left: auto; }
+button.loy-act.is-danger:hover { background: #FEE2E2; color: #B91C1C; }
+
+@media (prefers-reduced-motion: reduce) {
+    .loy-tile-face,
+    button.loy-act { transition: none; }
+
+    .loy-tile-face:hover { transform: none; }
+}
+
+/* Lista: el monedero de hoy del cliente dueño. Ficha: lo que dio cada compra. */
+.loy-wallet { font-weight: 600; color: rgb(var(--gray-400, 168 162 158)); white-space: nowrap; }
+.loy-wallet.is-on { color: #047857; }
+.loy-move { font-weight: 600; white-space: nowrap; }
+.loy-move.is-discount { color: #B45309; }
+.loy-move.is-points { color: #047857; }
+
+/*  Ficha de la tarjeta: el dibujo a la izquierda; el cliente y sus cifras a la
+    derecha; abajo, las compras. En el teléfono va todo en una columna. */
+.loy-detail-face,
+.loy-detail-side { width: 100%; }
+
+@media (min-width: 640px) {
+    #modalLoyDetail .loy-detail-face { width: 320px; flex: none; }
+    #modalLoyDetail .loy-detail-side { flex: 1 1 0; min-width: 0; }
+}
+
+@media (max-width: 639px) {
+    #modalLoyDetail .loy-detail-face .loy-card { max-width: 340px; margin: 0 auto; }
+}
+
+.loy-detail-owner { display: grid; grid-template-columns: 32px minmax(0, 1fr); column-gap: 10px; row-gap: 2px; align-items: start; }
+.loy-detail-owner > * { grid-column: 2; margin: 0; min-width: 0; }
+.loy-detail-owner > .loy-avatar { grid-column: 1; grid-row: 1 / span 2; }
+.loy-detail-name { font-size: 15px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loy-detail-note { font-size: 12px; font-weight: 600; line-height: 1.4; color: #B45309; }
+.loy-detail-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.loy-detail-tiles p { margin: 0; }
+
+/* Las cajas de cifras (cus-tile, de Clientes) van lisas aquí; si son impares, la última ocupa el renglón. */
+#modalLoyDetail .cus-tile { border-color: transparent; background: rgb(var(--gray-100, 245 244 250)); }
+.loy-detail-tiles > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.loy-detail-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/*  Ventana «Tarjeta digital»: el QR del enlace sobre un panel liso (el QR trae
+    su propio margen blanco, que necesita el lector), y el enlace con «Nuevo enlace». */
+.loy-qr { max-width: 240px; margin: 0 auto; padding: 12px; border-radius: 16px; background: rgb(var(--gray-100, 245 244 250)); }
+.loy-qr svg { display: block; width: 100%; height: auto; border-radius: 8px; }
+.loy-share-off { margin: 8px 2px 0; font-size: 12px; font-weight: 600; line-height: 1.4; color: #B45309; }
+
+.loy-share-link { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 10px; background: rgb(var(--gray-100, 245 244 250)); }
+.loy-share-url { display: block; overflow: hidden; font-size: 12.5px; color: rgb(var(--brand-600, 192 90 64)); text-overflow: ellipsis; white-space: nowrap; }
+.loy-share-url:hover { text-decoration: underline; }
+.loy-share-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: rgb(var(--gray-500, 120 113 108)); }
+.loy-share-link button.loy-act:not(:hover) { background: #FFFFFF; }
+
+/* «Mandar desde el WhatsApp de la tienda», bajo el teléfono. */
+.loy-share-send { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.loy-detail-title { margin: 4px 0 8px; font-size: 13px; font-weight: 700; color: rgb(var(--gray-700, 68 64 60)); }
 
 /* Debajo del lector de Vender: qué hace la tarjeta leída. */
 #of_card_hint {
@@ -3180,9 +3553,35 @@ body.dark-mode .loy-legacy {
     color: #FCD34D;
 }
 
-body.dark-mode .loy-dot { box-shadow: 0 0 0 1px rgb(255 255 255 / .18); }
 body.dark-mode .loy-avatar { background: rgb(var(--brand-600, 192 90 64) / .18); color: rgb(var(--brand-300, 232 166 143)); }
 body.dark-mode .loy-avatar.is-empty { background: rgb(255 255 255 / .06); color: var(--dk-muted, #9CA3AF); }
+
+body.dark-mode .loy-tile-count,
+body.dark-mode .loy-detail-name,
+body.dark-mode .loy-detail-title { color: var(--dk-text, #F3F4F6); }
+
+body.dark-mode button.loy-act { background: rgb(255 255 255 / .08); color: var(--dk-text, #F3F4F6); }
+body.dark-mode button.loy-act:hover { background: rgb(255 255 255 / .16); color: #FFFFFF; }
+body.dark-mode button.loy-act.is-danger:hover { background: rgb(239 68 68 / .22); color: #FCA5A5; }
+
+body.dark-mode #modalLoyDetail .cus-tile { background: var(--dk-panel, #29374A); }
+
+body.dark-mode .loy-qr,
+body.dark-mode .loy-share-link { background: var(--dk-panel, #29374A); }
+body.dark-mode .loy-share-url { color: #F0A58F; }
+body.dark-mode .loy-share-foot { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .loy-share-off { color: #FCD34D; }
+body.dark-mode .loy-share-link button.loy-act:not(:hover) { background: rgb(255 255 255 / .08); }
+
+body.dark-mode .loy-tile-fact,
+body.dark-mode .loy-wallet { color: var(--dk-muted, #9CA3AF); }
+
+body.dark-mode .loy-tile-off,
+body.dark-mode .loy-detail-note,
+body.dark-mode .loy-move.is-discount { color: #FCD34D; }
+
+body.dark-mode .loy-wallet.is-on,
+body.dark-mode .loy-move.is-points { color: #6EE7B7; }
 
 body.dark-mode #of_card_hint { color: #F0A58F; }
 

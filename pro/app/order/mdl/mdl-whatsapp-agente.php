@@ -75,11 +75,17 @@ trait WhatsAppInbox {
     protected function qWaAgent($companyId) {
         return $this->qRow("
             SELECT id, company_id, phone_number_id, IFNULL(display_phone, '') AS display_phone,
-                   enabled, hours, updated_at
+                   enabled, hours, IFNULL(catalog_mode, 'store') AS catalog_mode, IFNULL(auto_topics, '') AS auto_topics, updated_at
             FROM {$this->pos}wa_agent
             WHERE company_id = ?
             LIMIT 1
         ", [$companyId]);
+    }
+
+    // 1 si el telefono del chat c es de un destinatario con «Pregunta» (agente del dueño, F6).
+    private function qWaOwnerSql() {
+        return "EXISTS (SELECT 1 FROM {$this->pos}wa_recipient wr
+                        WHERE wr.company_id = c.company_id AND wr.phone = c.phone AND wr.active = 1 AND IFNULL(wr.can_ask, 0) = 1)";
     }
 
     // -- Bandeja --
@@ -108,12 +114,14 @@ trait WhatsAppInbox {
         return $this->qRows("
             SELECT c.id, c.phone, c.wa_id, c.name, c.branch_id, IFNULL(b.name, '') AS branch,
                    c.opt_out, c.last_in_at, c.last_message_at, c.seen_at, c.menu_at,
+                   IFNULL(c.mode, 'agent') AS mode, c.human_until, IFNULL(c.handoff_note, '') AS handoff_note,
                    (SELECT COUNT(*)
                     FROM {$this->pos}wa_message mi
                     WHERE mi.chat_id = c.id AND mi.direction = 'in'
                         AND (c.seen_at IS NULL OR mi.created_at > c.seen_at)) AS unread,
                    IFNULL(lm.body, '') AS last_body, IFNULL(lm.type, '') AS last_type,
-                   IFNULL(lm.direction, '') AS last_dir, IFNULL(lm.status, '') AS last_status
+                   IFNULL(lm.direction, '') AS last_dir, IFNULL(lm.status, '') AS last_status,
+                   {$this->qWaOwnerSql()} AS owner
             FROM {$this->pos}wa_chat c
             LEFT JOIN {$this->bd}branches b ON b.id = c.branch_id
             LEFT JOIN {$this->pos}wa_message lm
@@ -127,7 +135,9 @@ trait WhatsAppInbox {
     protected function qWaChat($chatId, $companyId) {
         return $this->qRow("
             SELECT c.id, c.company_id, c.phone, c.wa_id, c.name, c.branch_id, IFNULL(b.name, '') AS branch,
-                   c.opt_out, c.last_in_at, c.last_message_at, c.seen_at, c.menu_at
+                   c.opt_out, c.opt_out_at, c.last_in_at, c.last_message_at, c.seen_at, c.menu_at, c.customer_id,
+                   IFNULL(c.mode, 'agent') AS mode, c.human_until, IFNULL(c.handoff_note, '') AS handoff_note,
+                   {$this->qWaOwnerSql()} AS owner
             FROM {$this->pos}wa_chat c
             LEFT JOIN {$this->bd}branches b ON b.id = c.branch_id
             WHERE c.id = ? AND c.company_id = ?
@@ -144,14 +154,15 @@ trait WhatsAppInbox {
         ", [$companyId, $phone]);
     }
 
-    // Los ultimos 200 mensajes, del mas viejo al mas nuevo.
+    // Los ultimos 200 mensajes, del mas viejo al mas nuevo. auto = propuesta que salio sola (F6).
     protected function qWaThread($chatId) {
         return $this->qRows("
             SELECT t.*
             FROM (
                 SELECT m.id, m.direction, m.type, IFNULL(m.body, '') AS body, IFNULL(m.media_type, '') AS media_type,
-                       m.status, IFNULL(m.error, '') AS error, m.sent_at, m.user_id,
-                       IFNULL(CONCAT_WS(' ', u.name, u.last_name), '') AS user
+                       m.status, IFNULL(m.error, '') AS error, m.sent_at, m.user_id, m.receipt_id,
+                       IFNULL(CONCAT_WS(' ', u.name, u.last_name), '') AS user,
+                       EXISTS (SELECT 1 FROM {$this->pos}wa_proposal p WHERE p.sent_message_id = m.id AND p.auto_sent = 1) AS auto
                 FROM {$this->pos}wa_message m
                 LEFT JOIN {$this->bd}users u ON u.id = m.user_id
                 WHERE m.chat_id = ?
@@ -210,7 +221,8 @@ trait WhatsAppInbox {
 
     /*  Los chats a los que les toca el menu de sucursales: sin sucursal, sin
         menu, sin baja, con la ventana de 24 h abierta y sin nada que haya
-        salido de Huubie (si una persona ya contesto, el menu sobra). */
+        salido de Huubie (si una persona ya contesto, el menu sobra). Al
+        dueño (F6) no le sale: ve las sucursales de su alta. */
     protected function qWaMenuPending($companyId, $since) {
         return $this->qRows("
             SELECT c.id
@@ -220,6 +232,7 @@ trait WhatsAppInbox {
                 AND c.menu_at IS NULL
                 AND c.opt_out = 0
                 AND c.last_in_at >= ?
+                AND NOT {$this->qWaOwnerSql()}
                 AND NOT EXISTS (
                     SELECT 1 FROM {$this->pos}wa_message m
                     WHERE m.chat_id = c.id AND m.direction = 'out'
@@ -286,7 +299,10 @@ trait WhatsAppInbox {
         hay menu: el chat se le asigna directo.
       - Nada sale si pasaron 24 h desde el ultimo mensaje del cliente (regla de
         Meta: despues de eso solo plantillas aprobadas, F5).
-      - Un chat del simulador (wa_id 'SIM-...') nunca sale a la red. */
+      - Un chat del simulador (wa_id 'SIM-...') nunca sale a la red.
+      - «BAJA» (el mensaje entero) deja opt_out = 1: no le llegan recordatorios
+        ni plantillas, ni el menu de sucursales. Lo que escriba se le sigue
+        pudiendo contestar. «ALTA» lo deshace (F5). */
 trait WhatsAppAgentFlow {
 
     private $inboxMetaCache = null;
@@ -308,7 +324,8 @@ trait WhatsAppAgentFlow {
 
     // -- Lo que llega --
 
-    // Un mensaje del cliente, dentro de transaction(). Devuelve el id del chat, o 0 si ya estaba (Meta lo repitio).
+    /*  Un mensaje del cliente, dentro de transaction(). Devuelve el id del chat, o 0 si ya estaba (Meta lo repitio).
+        media_path solo lo trae el simulador (el archivo ya esta en storage/whatsapp); lo de Meta se baja con media_id. */
     protected function inboxSave($companyId, array $msg) {
         $now    = date('Y-m-d H:i:s', $this->inboxNow());
         $sentAt = date('Y-m-d H:i:s', $msg['sent_at']);
@@ -319,13 +336,26 @@ trait WhatsAppAgentFlow {
         if ($this->qWaMessageExists($msg['wamid'])) return 0;
 
         $this->inboxMust($this->qCreateWaMessage([
-            'values' => ['chat_id', 'direction', 'provider_id', 'type', 'body', 'media_id', 'media_type', 'status', 'sent_at', 'raw', 'created_at'],
-            'data'   => [$chatId, 'in', $msg['wamid'], $msg['type'], $msg['body'], $msg['media_id'], $msg['media_type'], 'received', $sentAt, $msg['raw'], $now],
+            'values' => ['chat_id', 'direction', 'provider_id', 'type', 'body', 'media_id', 'media_type', 'media_path', 'status', 'sent_at', 'raw', 'created_at'],
+            'data'   => [$chatId, 'in', $msg['wamid'], $msg['type'], $msg['body'], $msg['media_id'], $msg['media_type'], $msg['media_path'] ?? null, 'received', $sentAt, $msg['raw'], $now],
         ]), 'wa_message');
 
         $this->qWaTouchChat($chatId, $sentAt, $now);
 
+        // BAJA apaga recordatorios y plantillas (lo que inicia la empresa); ALTA los vuelve a encender.
+        $word = in_array($msg['type'], ['text', 'button', 'interactive'], true) ? $this->inboxKeyword($msg['body']) : '';
+
+        if ($word === 'baja') $this->qWaRun("UPDATE {$this->pos}wa_chat SET opt_out = 1, opt_out_at = ?, updated_at = ? WHERE id = ?", [$sentAt, $now, $chatId]);
+        if ($word === 'alta') $this->qWaRun("UPDATE {$this->pos}wa_chat SET opt_out = 0, opt_out_at = NULL, updated_at = ? WHERE id = ?", [$now, $chatId]);
+
         return $chatId;
+    }
+
+    // 'baja' | 'alta' si el mensaje es solo esa palabra (sin importar mayusculas, acentos ni signos); si no, ''.
+    protected function inboxKeyword($text) {
+        $word = (string) preg_replace('/[^a-z]+/', '', $this->inboxFold($text));
+
+        return in_array($word, ['baja', 'alta'], true) ? $word : '';
     }
 
     /*  Despues de guardar (fuera de la transaccion): la respuesta al menu y el

@@ -43,8 +43,35 @@
         alert:    '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
         moon:     '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
         link:     '<path d="M9 17H7A5 5 0 0 1 7 7"/><path d="M15 7h2a5 5 0 0 1 4 8"/><path d="M8 12h4"/><path d="m2 2 20 20"/>',
-        refresh:  '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
+        refresh:  '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+
+        // Iconos de categoria de las cards: los mismos de lucide que usa el POS.
+        package:         '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/>',
+        'cake-slice':    '<path d="M16 13H3"/><path d="M16 17H3"/><path d="m7.2 7.9-3.388 2.5A2 2 0 0 0 3 12.01V20a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-8.654c0-2-2.44-6.026-6.44-8.026a1 1 0 0 0-1.082.057L10.4 5.6"/><circle cx="9" cy="7" r="2"/>',
+        cake:            '<path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v3"/><path d="M12 8v3"/><path d="M17 8v3"/><path d="M7 4h.01"/><path d="M12 4h.01"/><path d="M17 4h.01"/>',
+        cookie:          '<path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/>',
+        croissant:       '<path d="M10.2 18H4.774a1.5 1.5 0 0 1-1.352-.97 11 11 0 0 1 .132-6.487"/><path d="M18 10.2V4.774a1.5 1.5 0 0 0-.97-1.352 11 11 0 0 0-6.486.132"/><path d="M18 5a4 3 0 0 1 4 3 2 2 0 0 1-2 2 10 10 0 0 0-5.139 1.42"/><path d="M5 18a3 4 0 0 0 3 4 2 2 0 0 0 2-2 10 10 0 0 1 1.42-5.14"/><path d="M8.709 2.554a10 10 0 0 0-6.155 6.155 1.5 1.5 0 0 0 .676 1.626l9.807 5.42a2 2 0 0 0 2.718-2.718l-5.42-9.807a1.5 1.5 0 0 0-1.626-.676"/>',
+        dessert:         '<path d="M10.162 3.167A10 10 0 0 0 2 13a2 2 0 0 0 4 0v-1a2 2 0 0 1 4 0v4a2 2 0 0 0 4 0v-4a2 2 0 0 1 4 0v1a2 2 0 0 0 4-.006 10 10 0 0 0-8.161-9.826"/><path d="M20.804 14.869a9 9 0 0 1-17.608 0"/><circle cx="12" cy="4" r="2"/>',
+        sandwich:        '<path d="m2.37 11.223 8.372-6.777a2 2 0 0 1 2.516 0l8.371 6.777"/><path d="M21 15a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-5.25"/><path d="M3 15a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h9"/><path d="m6.67 15 6.13 4.6a2 2 0 0 0 2.8-.4l3.15-4.2"/><rect width="20" height="4" x="2" y="11" rx="1"/>',
+        utensils:        '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>',
+        sparkles:        '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
+        'clipboard-list': '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+        'cup-soda':      '<path d="m6 8 1.75 12.28a2 2 0 0 0 2 1.72h4.54a2 2 0 0 0 2-1.72L18 8"/><path d="M5 8h14"/><path d="M7 15a6.47 6.47 0 0 1 5 0 6.47 6.47 0 0 0 5 0"/><path d="m12 8 1-6h2"/>'
     };
+
+    // Mismas reglas que OrderForm.categoryIcon (pedido-captura.js): nombre de la categoria -> icono.
+    const CAT_ICONS = [
+        [/porci/, 'cake-slice'],
+        [/pastel/, 'cake'],
+        [/galleta/, 'cookie'],
+        [/\bpan\b/, 'croissant'],
+        [/postre/, 'dessert'],
+        [/bocadillo/, 'sandwich'],
+        [/charola/, 'utensils'],
+        [/decora/, 'sparkles'],
+        [/pedido/, 'clipboard-list'],
+        [/bebida|caf/, 'cup-soda']
+    ];
 
     // -- Estado --
 
@@ -290,22 +317,26 @@
 
     // -- Piezas --
 
-    function photo(p, badge) {
+    // Foto del carrito y de la ficha: si no hay foto, las iniciales.
+    function photo(p) {
         const ini   = initials(p.name);
-        const q     = badge ? (S.cart.get(Number(p.id)) || 0) : 0;
         const inner = p.image
             ? '<img src="' + esc(p.image) + '" data-src="' + esc(p.image) + '" data-ini="' + esc(ini) + '" alt="" loading="lazy" decoding="async">'
             : '<span class="ini">' + esc(ini) + '</span>';
 
-        return '<div class="ph' + (p.image ? '' : ' is-empty') + '">' + inner + (q ? '<span class="badge">' + q + '</span>' : '') + '</div>';
+        return '<div class="ph' + (p.image ? '' : ' is-empty') + '">' + inner + '</div>';
+    }
+
+    function catIcon(categoryId) {
+        const cat  = S.categories.find(c => Number(c.id) === Number(categoryId));
+        const name = plain(cat ? cat.name : '');
+        const hit  = CAT_ICONS.find(rule => rule[0].test(name));
+
+        return hit ? hit[1] : 'package';
     }
 
     function control(id, size) {
         const q = S.cart.get(id) || 0;
-
-        if (!q && size !== 'sm') {
-            return '<button type="button" class="add" data-act="add" data-id="' + id + '" aria-label="Agregar al pedido">' + icon('plus', 20) + '</button>';
-        }
 
         return '<div class="step ' + (size || '') + '">'
              +   '<button type="button" data-act="dec" data-id="' + id + '" aria-label="' + (q === 1 ? 'Quitar del pedido' : 'Uno menos') + '">' + icon(q === 1 ? 'trash' : 'minus', 16) + '</button>'
@@ -314,42 +345,51 @@
              + '</div>';
     }
 
+    // Card como la del POS: foto (o icono de la categoria), nombre en una linea, precio y «+».
+    // La foto va sin data-ini: si no carga, se quita y queda el icono (ver el <script> de pedir.php).
     function card(p) {
-        const id = Number(p.id);
-        const q  = S.cart.get(id) || 0;
+        const id  = Number(p.id);
+        const q   = S.cart.get(id) || 0;
+        const img = p.image ? '<img src="' + esc(p.image) + '" data-src="' + esc(p.image) + '" alt="" loading="lazy" decoding="async">' : '';
 
         return '<article class="card' + (q ? ' is-in' : '') + '" data-id="' + id + '" data-text="' + esc(plain(p.name + ' ' + p.description)) + '">'
              +   '<a class="open" href="#producto-' + id + '" data-act="view" data-id="' + id + '">'
-             +     photo(p, true)
-             +     '<div class="txt"><h3>' + esc(p.name) + '</h3>' + (p.description ? '<p class="desc">' + esc(p.description) + '</p>' : '') + '</div>'
+             +     '<span class="pc-top">' + icon(catIcon(p.category_id), 26) + img + (q ? '<span class="badge">' + q + '</span>' : '') + '</span>'
+             +     '<span class="pc-body">'
+             +       '<span class="pc-name" title="' + esc(p.name) + '">' + esc(p.name) + '</span>'
+             +       '<span class="pc-foot"><b>' + money(p.price) + '</b></span>'
+             +     '</span>'
              +   '</a>'
-             +   '<div class="foot"><span class="price">' + money(p.price) + '</span><div class="ctl" data-ctl="' + id + '">' + control(id) + '</div></div>'
+             +   '<button type="button" class="pc-add" data-act="add" data-id="' + id + '" aria-label="Agregar ' + esc(p.name) + '">' + icon('plus', 14) + '</button>'
              + '</article>';
     }
 
-    // Una tarjeta ya pintada: insignia, borde y boton, sin repintar todo el catalogo.
+    // Una card ya pintada: insignia y borde, sin repintar todo el catalogo.
     function paintItem(id) {
         const q = S.cart.get(id) || 0;
 
         $$('.card[data-id="' + id + '"]').forEach(el => {
             el.classList.toggle('is-in', q > 0);
 
-            const ph = $('.ph', el);
-            let badge = $('.badge', ph);
+            const top = $('.pc-top', el);
+            let badge = $('.badge', top);
 
             if (q && !badge) {
                 badge = document.createElement('span');
                 badge.className = 'badge';
-                ph.appendChild(badge);
+                top.appendChild(badge);
             }
 
             if (badge) {
                 if (q) badge.textContent = q;
                 else badge.remove();
             }
-
-            $('.ctl', el).innerHTML = control(id);
         });
+    }
+
+    // El mismo «latido» del POS al agregar desde la card.
+    function pulse(el) {
+        if (el && el.animate) el.animate([{ transform: 'scale(1)' }, { transform: 'scale(.94)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
     }
 
     // -- Armazon --
@@ -555,7 +595,7 @@
             } else {
                 const list = lines.map(l => {
                     const id = Number(l.p.id);
-                    return '<div class="line">' + photo(l.p, false)
+                    return '<div class="line">' + photo(l.p)
                          +   '<div><b title="' + esc(l.p.name) + '">' + esc(l.p.name) + '</b><small>' + money(l.p.price) + ' c/u</small></div>'
                          +   '<div class="right"><span class="amt">' + money(l.amount) + '</span>' + control(id, 'sm') + '</div>'
                          + '</div>';
@@ -622,7 +662,7 @@
         dlgQty = S.cart.get(id) || 1;
 
         dlg.innerHTML = '<button type="button" class="x" data-act="close" aria-label="Cerrar">' + icon('x') + '</button>'
-            + photo(p, false)
+            + photo(p)
             + '<div class="dlg-body">'
             +   '<h2 id="dlgTitle">' + esc(p.name) + '</h2>'
             +   '<strong class="price">' + money(p.price) + '</strong>'
@@ -1095,6 +1135,9 @@
 
         switch (act) {
             case 'add':
+                pulse(el.closest('.card'));
+                setQty(id, (S.cart.get(id) || 0) + 1);
+                break;
             case 'inc':
                 setQty(id, (S.cart.get(id) || 0) + 1);
                 break;

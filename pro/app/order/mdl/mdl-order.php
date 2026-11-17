@@ -134,6 +134,43 @@ class mdl extends CRUD {
         ", [$companyId]);
     }
 
+    /*  «Todas las sucursales»: las de la empresa donde el rol del usuario
+        tiene 'show' en la seccion $section (code). Con $all = 1 (Dueño o
+        root) entran todas las activas, como en la barra (ctrl-nav). */
+    public function qViewBranches($companyId, $all, $userId, $section) {
+        return $this->qRows("
+            SELECT b.id, b.name
+            FROM {$this->bd}branches b
+            WHERE b.company_id = ?
+                AND IFNULL(b.is_active, 1) = 1
+                AND (? = 1 OR EXISTS (
+                        SELECT 1
+                        FROM {$this->bd}users_braches ub
+                        INNER JOIN {$this->bd}roles r              ON r.id = ub.role_id AND r.is_active = 1
+                        INNER JOIN {$this->bd}permissions_roles pr ON pr.role_id = r.id
+                        INNER JOIN {$this->bd}permissions p        ON p.id = pr.permission_id AND p.is_active = 1
+                        INNER JOIN {$this->bd}type_permissions tp  ON tp.id = p.type_permission_id AND tp.is_active = 1 AND tp.code = 'show'
+                        INNER JOIN {$this->bd}sections s           ON s.id = p.section_id AND s.is_active = 1
+                        WHERE ub.user_id = ? AND ub.branch_id = b.id AND s.code = ?
+                    ))
+            ORDER BY b.name, b.id
+        ", [$companyId, $all, $userId, $section]);
+    }
+
+    // De cual de esas sucursales es el pedido (null si de ninguna).
+    public function qOrderBranch($id, array $branchIds) {
+        return $this->qRow("
+            SELECT s.branch_id, IFNULL(b.name, '') AS branch
+            FROM {$this->pos}sale s
+            LEFT JOIN {$this->bd}branches b ON b.id = s.branch_id
+            WHERE s.id = ?
+                AND s.sale_type_id = 1
+                AND IFNULL(s.active, 1) = 1
+                AND s.branch_id IN ({$this->qIn($branchIds)})
+            LIMIT 1
+        ", array_merge([$id], $branchIds));
+    }
+
     // -- Catalogos del filtro --
 
     // Los de la empresa y las plantillas de Huubie (company_id NULL).
@@ -170,7 +207,7 @@ class mdl extends CRUD {
 
     // -- Lista --
 
-    /*  $f: branch_id, date_type ('created'|'delivery'), fi, ff, status (int|null),
+    /*  $f: branches (ids; una sola salvo «todas»), date_type ('created'|'delivery'), fi, ff, status (int|null),
         order_type ('custom'|'normal'|''), search (null o
         ['id' => int, 'like' => '%texto%'|null, 'phone' => '%digitos%'|null]).
 
@@ -204,6 +241,8 @@ class mdl extends CRUD {
                 s.total,
                 s.turn_id,
                 s.customer_id,
+                s.branch_id,
+                IFNULL(b.name, '')  AS branch,
                 IFNULL(c.name, '')  AS customer,
                 IFNULL(c.phone, '') AS phone,
                 {$this->qPaidSql('s')} AS paid,
@@ -211,6 +250,7 @@ class mdl extends CRUD {
             FROM {$this->pos}sale s
             LEFT JOIN {$this->pos}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->pos}customer c     ON c.id = s.customer_id
+            LEFT JOIN {$this->bd}branches b      ON b.id = s.branch_id
             WHERE {$where}
             {$order}
         ", $data);
@@ -230,8 +270,8 @@ class mdl extends CRUD {
 
     // El WHERE comun de lista y conteo: [sql, datos].
     private function qOrdersWhere(array $f) {
-        $where = ['s.branch_id = ?', 's.sale_type_id = 1', 'IFNULL(s.active, 1) = 1'];
-        $data  = [$f['branch_id']];
+        $where = ['s.branch_id IN (' . $this->qIn($f['branches']) . ')', 's.sale_type_id = 1', 'IFNULL(s.active, 1) = 1'];
+        $data  = array_values($f['branches']);
 
         if ($f['search'] !== null) {
             $or     = ['s.id = ?'];
@@ -275,12 +315,15 @@ class mdl extends CRUD {
     // -- Calendario --
 
     /*  Los pedidos que se entregan entre fi y ff. La foto es la primera de
-        referencia (pastel personalizado) o, si no hay, la del primer producto. */
-    public function qCalendarOrders($branchId, $fi, $ff) {
+        referencia (pastel personalizado) o, si no hay, la del primer producto.
+        $branchIds: la sucursal activa o, con «todas», las que el rol deja ver. */
+    public function qCalendarOrders(array $branchIds, $fi, $ff) {
         return $this->qRows("
             SELECT
                 s.id,
                 s.folio,
+                s.branch_id,
+                IFNULL(b.name, '') AS branch,
                 s.delivery_date,
                 s.delivery_time,
                 s.delivery_method,
@@ -316,12 +359,13 @@ class mdl extends CRUD {
             FROM {$this->pos}sale s
             LEFT JOIN {$this->pos}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->pos}customer c     ON c.id = s.customer_id
-            WHERE s.branch_id = ?
+            LEFT JOIN {$this->bd}branches b      ON b.id = s.branch_id
+            WHERE s.branch_id IN ({$this->qIn($branchIds)})
                 AND s.sale_type_id = 1
                 AND IFNULL(s.active, 1) = 1
                 AND s.delivery_date BETWEEN ? AND ?
             ORDER BY s.delivery_date, s.delivery_time, s.id
-        ", [$branchId, $fi, $ff]);
+        ", array_merge(array_values($branchIds), [$fi, $ff]));
     }
 
     // -- Detalle --
@@ -1065,6 +1109,20 @@ class mdl extends CRUD {
         $row = $this->qRow("SELECT password FROM {$this->bd}users WHERE id = ? LIMIT 1", [$userId]);
 
         return $row ? (string) $row['password'] : '';
+    }
+
+    // El code del rol de quien opera en la sucursal ('owner', 'dueno', ...). '' = sin rol ahí.
+    public function qRoleCode($userId, $branchId) {
+        $row = $this->qRow("
+            SELECT IFNULL(r.code, '') AS code
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
+            WHERE ub.user_id = ?
+                AND ub.branch_id = ?
+            LIMIT 1
+        ", [$userId, $branchId]);
+
+        return $row ? (string) $row['code'] : '';
     }
 
     // -- Turno y cobro: escrituras --

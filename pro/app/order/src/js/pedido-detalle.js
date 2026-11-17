@@ -181,6 +181,8 @@ const ORD_TICKET_CSS = `
     .tk-name { font-weight: 700; text-transform: capitalize; }
     .tk-notes { margin-top: 1.5px; padding-left: 6px; }
     .tk-notes div { margin-left: 3px; }
+    .tk-notes div.tk-portion { margin-left: 0; font-size: 10.5px; line-height: 15px; }
+    .tk-totals > .tk-rest { margin-top: 6px; }
     hr.tk-cut { margin: 6px 0; }
     .tk-totals { margin-top: 12px; text-align: right; }
     .tk-totals > * + * { margin-top: 3px; }
@@ -238,6 +240,14 @@ function ordPrintTicket(t, opts = {}) {
     const credit = Number(t.credit) > 0.005;
     const points = Number(t.points) > 0.005;
     const reason = t.discount && t.discount.reason ? ' · ' + esc(t.discount.reason) : '';
+
+    /*  Sellos de la tarjeta (Lealtad): los que sumó y cómo quedó. El premio ya sale como el descuento.
+        En la reimpresión (Historial) solo se sabe lo de esta compra: goal y balance llegan en null. */
+    const s      = t.stamps && (Number(t.stamps.goal) > 0 || Number(t.stamps.earned) > 0) ? t.stamps : null;
+    const stamps = !s ? ''
+        : Number(s.goal) > 0
+            ? `<div>Sellos${Number(s.earned) > 0 ? ` +${Number(s.earned)}` : ''}: ${Number(s.balance) >= Number(s.goal) ? `${Number(s.balance)} juntados` : `${Number(s.balance)} de ${Number(s.goal)}`}${Number(s.rewards) > 0 ? ' · PREMIO LISTO' : ''}</div>`
+            : `<div>Sellos de esta compra: +${Number(s.earned)}</div>`;
 
     const body = `
         <div class="tk">
@@ -297,6 +307,7 @@ function ordPrintTicket(t, opts = {}) {
                 ${payments}
                 ${credit ? `<div class="tk-bold">A crédito: ${money(t.credit)}</div>` : ''}
                 ${points ? `<div>Puntos al monedero: ${amount(money(t.points))}</div>` : ''}
+                ${stamps}
             </div>
             <div class="tk-foot">
                 <p>${draft ? 'PRE-CUENTA · NO ES COMPROBANTE' : 'ESTE NO ES UN COMPROBANTE FISCAL'}</p>
@@ -376,6 +387,7 @@ class OrderDetail extends Templates {
         this.delivering     = false;
         this.savingDelivery = false;
         this.limited        = false;  // true = el pedido llego sin dinero (Produccion)
+        this.all            = false;  // «Todas las sucursales»: abre también el de otra (solo lectura)
     }
 
     // Estados de sale_status, iguales a los del ctrl.
@@ -393,7 +405,7 @@ class OrderDetail extends Templates {
 
         this.loading = true;
 
-        const data = await useFetch({ url: this._link, data: { opc: 'getOrder', id: id } });
+        const data = await useFetch({ url: this._link, data: { opc: 'getOrder', id: id, all: this.all ? 1 : 0 } });
 
         this.loading = false;
 
@@ -415,21 +427,20 @@ class OrderDetail extends Templates {
         if (!data) return;
 
         const o         = data.order;
-        const canPrint  = (data.actions || []).includes('print');
         const folio     = o.folio || o.id;
 
         this.galleries = {};
 
+        // Las acciones van en el pie, junto a «Cerrar» (footActions): el detalle empieza justo bajo el título.
         this.csModal({
             id: 'modalOrderDetails',
             title: `Pedido #P${folio}`,
             lucideIcon: 'cake',
             width: 'max-w-5xl',
-            saveText: this.editable && data.can && data.can.edit ? 'Editar pedido' : false,
+            saveText: false,
             cancelText: 'Cerrar',
-            info: !this.editable || !data.can ? '' : !data.can.edit ? (data.can.edit_reason || '') : (data.can.money_reason || ''),
-            onSave: (values, close) => { close(); orderForm.edit(id); },
-            action: canPrint ? { text: 'Imprimir', lucideIcon: 'printer', onClick: () => this.printData(data) } : null,
+            // El de otra sucursal dice dónde se cambia, también en el calendario.
+            info: !data.can ? '' : data.foreign ? (data.can.edit_reason || '') : !this.editable ? '' : !data.can.edit ? (data.can.edit_reason || '') : (data.can.money_reason || ''),
             body: `
                 <div id="orderDetailsContainer" class="flex flex-col lg:flex-row gap-[16px] p-[20px] max-h-[70vh] overflow-y-auto">
                     <div class="lg:w-1/3 flex flex-col gap-[16px] min-w-0">
@@ -445,6 +456,7 @@ class OrderDetail extends Templates {
 
         $('#modalOrderDetails .cs-modal-title').after(this.badges(data));
 
+        this.footActions(data);
         this.bindGalleries();
 
         if (window.lucide) lucide.createIcons();
@@ -534,59 +546,73 @@ class OrderDetail extends Templates {
                </div>`
             : '';
 
-        return this.card('info', 'Información del pedido', `<div class="divide-y divide-gray-200">${rows.join('')}</div>${note}${this.deliveryButton(data)}${this.cancelBox(o)}`, this.orderActions(data));
+        return this.card('info', 'Información del pedido', `<div class="divide-y divide-gray-200">${rows.join('')}</div>${note}${this.cancelBox(o)}`);
     }
 
-    // Al pie de los datos que edita, como alpha. Sale aunque la captura no (calendario).
-    deliveryButton(data) {
-        const can = data.can || {};
+    // -- Acciones del pie --
 
-        if (!can.delivery) return '';
+    /*  Todas las acciones del pedido en un solo lugar: el pie del modal, que
+        antes solo tenía «Cerrar». Izquierda, lo que corrige o imprime. Derecha,
+        junto a «Cerrar», el avance del pedido: elaborar, cobrar y entregar. */
+    footActions(data) {
+        const { main, side } = this.actions(data);
 
-        const title = can.delivery_key ? 'Editar datos de entrega (pide tu contraseña)' : 'Editar datos de entrega';
+        if (!main.length && !side.length) return;
 
-        return `
-            <div class="mt-[12px] flex justify-end">
-                <button type="button" class="ord-edit-delivery" title="${title}" onclick="orderDetail.editDelivery(${Number(data.order.id)}, { fromDetail: true })">
-                    <i data-lucide="${can.delivery_key ? 'lock' : 'pencil'}" class="w-4 h-4"></i>Editar entrega
-                </button>
-            </div>`;
+        const buttons = $('#modalOrderDetails .cs-modal-foot > div').last();
+
+        if (side.length) buttons.before(`<div class="ord-detail-side">${side.join('')}</div>`);
+
+        buttons.append(main.join(''));
     }
 
-    /*  Botones del encabezado de Informacion. «Ya se elaboro» solo a Produccion
-        (data.producer, del calendario). Entregar si no hay saldo; con saldo,
-        «Cobrar y entregar» encadena el cobro y la entrega (decision 5). */
-    orderActions(data) {
-        const o   = data.order;
-        const id  = Number(o.id);
-        const can = data.can || {};
-        const out = [];
+    /*  «Ya se elaboró» solo a Producción y al Dueño (data.producer, del
+        calendario). Entregar si no hay saldo; con saldo, «Cobrar y entregar»
+        encadena el cobro y la entrega (decision 5). */
+    actions(data) {
+        const o    = data.order;
+        const id   = Number(o.id);
+        const can  = data.can || {};
+        const main = [];
+        const side = [];
 
+        const btn = (cls, icon, text, click, title) => `
+            <button type="button" class="${cls}"${title ? ` title="${title}"` : ''} onclick="${click}">
+                <i data-lucide="${icon}" class="w-4 h-4"></i>${text}
+            </button>`;
+
+        // En el orden en que avanza el pedido: lo último que se hace queda en la orilla derecha.
         if (data.producer && this.producible(o)) {
             const on = !!o.produced_at;
 
-            out.push(`<button type="button" class="ord-produce${on ? ' is-on' : ''}" onclick="orderDetail.produce(${id}, ${on ? 0 : 1})">
-                          <i data-lucide="${on ? 'rotate-ccw' : 'chef-hat'}" class="w-4 h-4"></i>${on ? 'Quitar elaborado' : 'Ya se elaboró'}
-                      </button>`);
+            main.push(btn(`ord-produce${on ? ' is-on' : ''}`, on ? 'rotate-ccw' : 'chef-hat', on ? 'Quitar elaborado' : 'Ya se elaboró', `orderDetail.produce(${id}, ${on ? 0 : 1})`));
         }
 
-        if (can.deliver) {
-            out.push(`<button type="button" class="ord-deliver" onclick="orderDetail.deliver(${id}, { fromDetail: true })">
-                          <i data-lucide="package-check" class="w-4 h-4"></i>Entregar
-                      </button>`);
-        } else if (can.settle) {
-            out.push(`<button type="button" class="ord-deliver" onclick="orderPay.open(${id}, true, { deliver: true })">
-                          <i data-lucide="hand-coins" class="w-4 h-4"></i>Cobrar y entregar
-                      </button>`);
+        // Sin dinero (Producción) no hay Cobrar, como antes en Resumen de pago.
+        if (!this.limited && can.pay) main.push(btn('ord-pay-open', 'banknote', 'Cobrar', `orderPay.open(${id}, true)`));
+
+        if (can.deliver)     main.push(btn('ord-deliver', 'package-check', 'Entregar', `orderDetail.deliver(${id}, { fromDetail: true })`));
+        else if (can.settle) main.push(btn('ord-deliver', 'hand-coins', 'Cobrar y entregar', `orderPay.open(${id}, true, { deliver: true })`));
+
+        if (this.editable && can.edit) side.push(btn('ord-act', 'pencil-line', 'Editar pedido', `orderDetail.editOrder(${id})`));
+
+        // Sale aunque la captura no (calendario).
+        if (can.delivery) {
+            side.push(btn('ord-edit-delivery', can.delivery_key ? 'lock' : 'pencil', 'Editar entrega', `orderDetail.editDelivery(${id}, { fromDetail: true })`,
+                can.delivery_key ? 'Editar datos de entrega (pide tu contraseña)' : 'Editar datos de entrega'));
         }
 
-        if (can.undeliver) {
-            out.push(`<button type="button" class="ord-undeliver" onclick="orderDetail.undeliver(${id}, { fromDetail: true })">
-                          <i data-lucide="undo-2" class="w-4 h-4"></i>Deshacer entrega
-                      </button>`);
-        }
+        if (can.undeliver) side.push(btn('ord-undeliver', 'undo-2', 'Deshacer entrega', `orderDetail.undeliver(${id}, { fromDetail: true })`));
 
-        return out.length ? `<div class="flex flex-wrap gap-[6px]">${out.join('')}</div>` : '';
+        if ((data.actions || []).includes('print')) side.push(btn('ord-act', 'printer', 'Imprimir', 'orderDetail.printData(orderDetail.last)'));
+
+        return { main, side };
+    }
+
+    // «Editar pedido»: cierra el detalle y abre la captura.
+    editOrder(id) {
+        $('#modalOrderDetails .cs-modal-x').trigger('click');
+        orderForm.edit(id);
     }
 
     // Pendiente o pagado y sin entregar: lo unico que Produccion palomea.
@@ -676,13 +702,8 @@ class OrderDetail extends Templates {
                 ${balanceHtml}
             </div>`;
 
-        const pay = data.can && data.can.pay
-            ? `<button type="button" class="ord-pay-open" onclick="orderPay.open(${Number(o.id)}, true)">
-                   <i data-lucide="banknote" class="w-4 h-4"></i>Cobrar
-               </button>`
-            : '';
-
-        return this.card('wallet', 'Resumen de pago', body, pay);
+        // «Cobrar» vive en el pie del modal (footActions).
+        return this.card('wallet', 'Resumen de pago', body);
     }
 
     paymentIcon(p) {
@@ -1122,8 +1143,10 @@ class OrderDetail extends Templates {
     // -- Entrega y elaboracion --
 
     /*  Entregar pide la contraseña de quien opera: esta ventana es la
-        confirmacion (tabla, detalle o al terminar «Cobrar y entregar»). Si vino
-        del detalle, lo cierra antes y lo vuelve a abrir al terminar o al volver. */
+        confirmacion (badge o menu de la tabla, detalle o al terminar «Cobrar y
+        entregar»). Es createCoffeeModalForm, el modal compacto de Huubie
+        (coffee-modal-form.js). Si vino del detalle, lo cierra antes y lo vuelve
+        a abrir al terminar o al volver (onCancel). */
     deliver(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
@@ -1134,44 +1157,43 @@ class OrderDetail extends Templates {
 
         if (fromDetail) $('#modalOrderDetails .cs-modal-x').trigger('click');
 
-        this.csModal({
-            id:         'modalOrderDeliver',
-            title:      'Entregar pedido',
-            subtitle:   `Pedido #P${id}`,
-            lucideIcon: 'package-check',
-            width:      'max-w-md',
-            saveText:   'Entregar',
-            cancelText: 'Volver',
-            info:       'Queda como entregado y ya no se edita.',
+        // Sin required: saveDeliver dice qué falta bajo el campo (#modalOrderDeliver-help).
+        this.createCoffeeModalForm({
+            id:          'modalOrderDeliver',
+            title:       'Entregar pedido',
+            iconSvg:     '<i data-lucide="package-check" class="w-5 h-5"></i>',
+            iconBg:      'bg-emerald-600',
+            confirmText: 'Entregar',
+            cancelText:  'Volver',
+            footerNote:  'Queda como entregado y ya no se edita.',
             json: [
-                { id: 'dl_key', lbl: 'Tu contraseña', tipo: 'text', required: true, class: 'w-full', help: 'La misma con la que entras a Huubie.' }
+                { opc: 'display', id: 'folio', lbl: 'Pedido', icon: '<i data-lucide="receipt" class="w-4 h-4"></i>', value: `#P${id}` },
+                { opc: 'text', type: 'password', id: 'key', lbl: 'Tu contraseña', autofocus: true },
+                { opc: 'html', html: '<p id="modalOrderDeliver-help" class="text-[11px] text-gray-400 mb-0">La misma con la que entras a Huubie.</p>' }
             ],
-            onSave: (values, close) => this.saveDeliver(id, close, back)
+            onConfirm: (values, modal) => { this.saveDeliver(id, values, modal, back); },
+            onCancel:  back
         });
 
-        orderPay.onDismiss('modalOrderDeliver', back);
-
-        // csModal no tiene campo de contraseña: se pinta de texto y aqui se oculta lo escrito.
         // one-time-code: el navegador no la rellena sola (si no, la clave no pediria nada).
-        $('#dl_key')
-            .attr({ type: 'password', autocomplete: 'one-time-code', spellcheck: 'false' })
+        $('#modalOrderDeliver-key')
+            .attr({ autocomplete: 'one-time-code', spellcheck: 'false' })
             .on('keydown', (e) => {
                 if (e.key !== 'Enter') return;
 
                 e.preventDefault();
-                $('#modalOrderDeliver .cs-modal-save').trigger('click');
-            })
-            .trigger('focus');
+                $('#modalOrderDeliver .cf-confirm').trigger('click');
+            });
     }
 
     // El ctrl revisa la contraseña. Si falla (data.key) la ventana sigue abierta y lo dice bajo el campo.
-    async saveDeliver(id, close, back) {
+    async saveDeliver(id, values, modal, back) {
         if (this.delivering) return;
 
-        const field = $('#dl_key');
-        const key   = String(field.val() || '');
+        const field = $('#modalOrderDeliver-key');
+        const key   = String(values.key || '');
         const wrong = (text) => {
-            field.next('p').removeClass('text-gray-400').addClass('text-red-600 font-semibold').text(text);
+            $('#modalOrderDeliver-help').removeClass('text-gray-400').addClass('text-red-600 font-semibold').text(text);
             field.val('').trigger('focus');
         };
 
@@ -1179,7 +1201,7 @@ class OrderDetail extends Templates {
 
         this.delivering = true;
 
-        const button = $('#modalOrderDeliver .cs-modal-save').prop('disabled', true);
+        const button = $('#modalOrderDeliver .cf-confirm').prop('disabled', true);
         const data   = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id, key: key } });
 
         this.delivering = false;
@@ -1188,7 +1210,8 @@ class OrderDetail extends Templates {
         if (!data)    return wrong('No hubo respuesta. Revisa la conexión y vuelve a intentar.');
         if (data.key) return wrong(data.message || 'Contraseña incorrecta.');
 
-        orderPay.closeQuiet('modalOrderDeliver', close);
+        // modal.close() no dispara onCancel: el detalle se reabre abajo, con back().
+        modal.close();
 
         if (data.status != 200) {
             const soft = [403, 404, 409].includes(Number(data.status));
@@ -1491,61 +1514,136 @@ class OrderDetail extends Templates {
             return;
         }
 
+        ordPrintDoc(`Pedido P${data.order.folio || data.order.id}`, ORD_TICKET_CSS, this.ticketHtml(data));
+    }
+
+    /*  El ticket de pedido de alpha (ticketPasteleria): logo, «PEDIDOS DE
+        PASTELERÍA», folio y entrega, cliente, PRODUCTOS con su detalle debajo y
+        los totales a la derecha. Usa el CSS del ticket de venta (ORD_TICKET_CSS).
+        limited = sin dinero: ni importes ni totales. */
+    ticketHtml(data) {
         const o       = data.order;
-        const limited = !!data.limited;   // sin dinero: ni importes ni totales
-        const total   = Number(o.total || 0);
-        const paid    = Number(o.paid || 0);
-        const balance = Math.round((total - paid) * 100) / 100;
+        const limited = !!data.limited;
+        const scope   = (typeof dataInit !== 'undefined' && dataInit && dataInit.scope) || {};
+        const company = scope.company || '';
+        const initial = esc(String(company || data.branch || 'H').charAt(0).toUpperCase());
+        const amount  = (text) => `<span class="tk-amt">${text}</span>`;
+        const status  = Number(o.sale_status_id);
         const ship    = Number(o.delivery_method) === 1;
 
-        const row = (a, b, strong) => `<tr${strong ? ' class="b"' : ''}><td>${a}</td><td class="r">${b}</td></tr>`;
+        const logo = scope.logo
+            ? `<div class="tk-logo is-img"><img src="${esc(scope.logo)}" alt="Logo" onerror="this.parentNode.className='tk-logo is-none'"><span>${initial}</span></div>`
+            : `<div class="tk-logo is-none"><span>${initial}</span></div>`;
 
+        const tag = status === 4 ? 'CANCELADO' : (status === 1 ? 'COTIZACIÓN' : '');
+
+        // Como alpha: porción y opciones del personalizado, observaciones y dedicatoria van debajo del renglón.
         const lines = (data.lines || []).map((l) => {
-            const extra = [
-                l.dedication ? `Dedicatoria: ${esc(l.dedication)}` : '',
-                l.details ? `Obs.: ${esc(l.details)}` : '',
-                (l.modifiers || []).length ? (l.modifiers || []).map((m) => esc(m.name)).join(', ') : ''
-            ].filter(Boolean).map((t) => `<div class="s">${t}</div>`).join('');
+            const custom = Number(l.is_custom) === 1;
+            const notes  = [];
 
-            return `<tr><td>${Number(l.quantity || 1)} × ${esc(l.name || l.product_name)}${extra}</td>${limited ? '' : `<td class="r">${money(this.lineTotal(l))}</td>`}</tr>`;
+            if (custom && (l.modifiers || []).length) {
+                notes.push(`<div class="tk-portion">Porción: ${Number(l.portion_qty) || 1}</div>`);
+                (l.modifiers || []).forEach((m) => notes.push(`<div>-${esc(m.group_name)}: ${esc(m.name)} x ${Number(m.quantity) || 1}</div>`));
+            }
+
+            if (l.details)    notes.push(`<div>Obs.: ${esc(l.details)}</div>`);
+            if (l.dedication) notes.push(`<div class="tk-amt">Dedicatoria: ${esc(l.dedication)}</div>`);
+
+            return `
+                <div class="tk-line">
+                    <div class="tk-cols">
+                        <div class="tk-c1">${Number(l.quantity || 1)}</div>
+                        <div class="tk-c2 tk-name">${esc(l.name || l.product_name)}${custom ? ' (Personalizado)' : ''}</div>
+                        <div class="tk-c3">${limited ? '' : money(this.lineTotal(l))}</div>
+                    </div>
+                    ${notes.length ? `<div class="tk-notes">${notes.join('')}</div>` : ''}
+                </div>`;
         }).join('');
 
-        const payments = (data.payments || []).map((p) => {
+        return `
+        <div class="tk">
+            <div class="tk-head">
+                ${logo}
+                ${company ? `<div class="tk-company">${esc(company)}</div>` : ''}
+                ${data.branch ? `<div class="tk-branch">${esc(data.branch)}</div>` : ''}
+                <h1>PEDIDOS DE PASTELERÍA</h1>
+                ${tag ? `<div class="tk-tag">${tag}</div>` : ''}
+                ${status === 4 && o.cancel_reason ? `<div class="tk-reason">${esc(o.cancel_reason)}</div>` : ''}
+            </div>
+            <div class="tk-data">
+                <div class="tk-row">
+                    <div>
+                        <div class="tk-label">FOLIO:</div>
+                        <div class="tk-up">P${esc(o.folio || o.id)}</div>
+                    </div>
+                    <div>
+                        <div class="tk-label">FECHA Y HORA DE ENTREGA:</div>
+                        <div class="tk-up">${o.delivery_date ? `${ordDate(o.delivery_date)} ${ordHour(o.delivery_time)}` : 'SIN FECHA'}</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="tk-label">NOMBRE:</div>
+                    <div class="tk-up">${esc(o.customer || 'Sin cliente')}</div>
+                    ${o.phone ? `<div class="tk-up">TEL: ${esc(o.phone)}</div>` : ''}
+                </div>
+                ${ship ? `
+                <div>
+                    <div class="tk-label">ENVÍO A DOMICILIO:</div>
+                    <div>${esc(o.location || '')}</div>
+                </div>` : ''}
+                ${o.note ? `
+                <div>
+                    <div class="tk-label">NOTA:</div>
+                    <div>${esc(o.note)}</div>
+                </div>` : ''}
+                ${o.created_at ? `<div class="tk-stamp">Creado: ${ordDate(o.created_at, true)}</div>` : ''}
+                <hr>
+            </div>
+            <div class="tk-items">
+                <div class="tk-items-title">PRODUCTOS</div>
+                <div class="tk-cols is-head">
+                    <div class="tk-c1">CANT.</div>
+                    <div class="tk-c2">DESCRIPCIÓN</div>
+                    <div class="tk-c3">${limited ? '' : 'IMPORTE'}</div>
+                </div>
+                ${lines || '<div class="tk-line">Sin productos</div>'}
+            </div>
+            ${limited ? '' : this.ticketTotals(data, amount)}
+            <div class="tk-foot">
+                <p>ESTE NO ES UN COMPROBANTE FISCAL</p>
+                <p class="tk-brand">Huubie</p>
+                <p>GRACIAS POR SU PREFERENCIA</p>
+            </div>
+        </div>`;
+    }
+
+    // Como alpha: sin pagos, solo TOTAL grande; con pagos, cada forma y RESTANTE grande.
+    ticketTotals(data, amount) {
+        const o        = data.order;
+        const total    = Number(o.total || 0);
+        const paid     = Number(o.paid || 0);
+        const balance  = ordRound(total - paid);
+        const discount = Number(o.discount_amount) > 0;
+        const reason   = o.discount_reason ? ' · ' + esc(o.discount_reason) : '';
+        const list     = data.payments || [];
+
+        const payments = list.map((p) => {
             const change = Number(p.change_amount) > 0
-                ? `<tr><td colspan="2" class="s">Recibió ${money(p.tendered_amount)} · cambio ${money(p.change_amount)}</td></tr>`
+                ? `<div class="tk-small">Recibió ${money(p.tendered_amount)} · cambio ${money(p.change_amount)}</div>`
                 : '';
 
-            return row(`${esc(p.method || 'Pago')} · ${ordDate(p.paid_at, true)}`, money(p.amount)) + change;
+            return `<div>${esc(p.method || 'Pago')}: ${amount(money(p.amount))}</div>${change}`;
         }).join('');
 
-        const body = `
-            <h1>Pedido P${esc(o.folio || o.id)}</h1>
-            <div class="c">${esc(data.branch)}</div>
-            <div class="c s">Creado ${ordDate(o.created_at, true)}${o.status ? ' · ' + esc(o.status) : ''}</div>
-            <hr>
-            <table>
-                ${row('Cliente', esc(o.customer || 'Sin cliente'))}
-                ${o.phone ? row('Teléfono', esc(o.phone)) : ''}
-                ${row('Entrega', o.delivery_date ? `${ordDate(o.delivery_date)} ${ordHour(o.delivery_time)}` : 'Sin fecha')}
-                ${row('Tipo', ship ? 'Envío a domicilio' : 'Recoge en tienda')}
-            </table>
-            ${ship && o.location ? `<div class="s">${esc(o.location)}</div>` : ''}
-            ${o.note ? `<div class="s">Nota: ${esc(o.note)}</div>` : ''}
-            <hr>
-            <table>${lines || '<tr><td>Sin productos</td></tr>'}</table>
-            ${limited ? '' : `<hr>
-            <table>
-                ${row('Subtotal', money(o.subtotal))}
-                ${Number(o.discount_amount) > 0 ? row('Descuento', '−' + money(o.discount_amount)) : ''}
-                ${row('Total', money(total), true)}
+        return `
+            <hr class="tk-cut">
+            <div class="tk-totals">
+                ${discount ? `<div class="tk-base">Subtotal: ${amount(money(o.subtotal))}</div>` : ''}
+                ${discount ? `<div>Descuento${reason}: ${amount('−' + money(o.discount_amount))}</div>` : ''}
+                <div class="${list.length ? 'tk-base tk-bold' : 'tk-big'}">TOTAL: ${money(total)}</div>
                 ${payments}
-                ${row('Abonado', money(paid))}
-                ${row(balance < 0 ? 'Saldo a favor' : 'Saldo', money(Math.abs(balance)), true)}
-            </table>`}
-            ${Number(o.sale_status_id) === 4 ? `<hr><div class="c b">CANCELADO</div>${o.cancel_reason ? `<div class="c s">${esc(o.cancel_reason)}</div>` : ''}` : ''}
-            <hr>
-            <div class="c s">Impreso ${ordNow()}</div>`;
-
-        ordPrint(`Pedido P${o.folio || o.id}`, body);
+                ${list.length ? `<div class="tk-big tk-rest">${balance < 0 ? 'SALDO A FAVOR' : 'RESTANTE'}: ${money(Math.abs(balance))}</div>` : ''}
+            </div>`;
     }
 }

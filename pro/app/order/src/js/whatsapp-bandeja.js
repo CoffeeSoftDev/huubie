@@ -20,6 +20,31 @@
     «Proponer» la pide a mano (sin tope por hora, solo en horario). Mientras
     se arma, la tarjeta se vuelve a pedir cada 4 s.
 
+    Pedidos y comprobantes por chat (F4):
+      - Una propuesta puede traer un pedido: la tarjeta lo enseña y el botón
+        dice «Mandar y crear pedido». El pedido nace al mandarla y cae en
+        Tienda en línea › Nuevos; {folio} del texto se cambia por su folio.
+      - Si el agente pasó el chat a una persona, sale la marca «Persona» y una
+        banda con lo que quiere el cliente. Mientras tanto el agente no
+        propone solo; «Devolver al agente» lo regresa.
+      - Una foto que el agente guardó como comprobante lleva su folio (C…).
+        El simulador deja adjuntar una foto o un PDF para probarlo.
+      - «Agente» elige de dónde sale el catálogo: la Tienda en línea o una
+        lista propia («Elegir productos», que se guarda aparte del horario).
+
+    Plantillas y BAJA (F5): con la ventana de 24 h cerrada y el cliente
+    esperando respuesta, sale «Mandar «Ya abrimos»». Un cliente que escribió
+    BAJA lleva la marca «BAJA»: no recibe recordatorios ni plantillas, pero lo
+    que escriba se le contesta. Los recordatorios viven en whatsapp-recordatorios.js.
+
+    Agente del dueño y automático (F6):
+      - Un chat de un número del equipo con «Le pregunta al agente» lleva la
+        marca «Dueño»: el agente le contesta directo (ventas, turno, pedidos,
+        cartera), sin sucursal y sin tarjeta que aprobar.
+      - En «Agente» se encienden los temas que salen solos: horario,
+        dirección y pago; catálogo y precios. Lo demás sigue en la bandeja.
+        Un mensaje que salió solo dice «Agente · salió sola».
+
     La lista se vuelve a pedir cada 20 s mientras la pestaña está a la vista.
     Ver es pos-whatsapp/show; contestar, simular, asignar sucursal y las
     propuestas, /update; cambiar el agente, /create. La instancia vive en
@@ -28,7 +53,7 @@
 const WSP_DAYS  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const WSP_WEEK  = [1, 2, 3, 4, 5, 6, 0];
 const WSP_POLL  = 20000;
-const WSP_MEDIA = { image: 'image', audio: 'mic', video: 'video', document: 'file-text', sticker: 'sticker', location: 'map-pin', contacts: 'contact', reaction: 'smile' };
+const WSP_MEDIA = { image: 'image', audio: 'mic', video: 'video', document: 'file-text', sticker: 'sticker', location: 'map-pin', contacts: 'contact', reaction: 'smile', template: 'file-check' };
 const WSP_TICKS = {
     sent:      ['check', 'Enviado'],
     delivered: ['check-check', 'Entregado'],
@@ -37,7 +62,15 @@ const WSP_TICKS = {
     simulated: ['flask-conical', 'Simulado: no salió a la red']
 };
 const WSP_PROP_POLL  = 4000;
-const WSP_PROP_ICONS = { catalogo_buscar: 'book-open', negocio_datos: 'store', pedido_estado: 'package', saldo_cliente: 'wallet', portal_enlace: 'link' };
+const WSP_PROP_ICONS = { catalogo_buscar: 'book-open', negocio_datos: 'store', pedido_estado: 'package', saldo_cliente: 'wallet', portal_enlace: 'link',
+    pedido_borrador: 'shopping-cart', pasar_a_persona: 'user-round', comprobante_guardar: 'receipt',
+    ventas_hoy: 'chart-column', turno_estado: 'wallet-cards', pedidos_pendientes: 'package', cartera: 'hand-coins' };
+// Los temas que pueden salir solos (F6), en el orden de la pestaña «Agente».
+const WSP_AUTO = [
+    { key: 'negocio', id: 'autoNegocio', text: 'Salen solas: horario, dirección y pago' },
+    { key: 'catalogo', id: 'autoCatalogo', text: 'Salen solas: catálogo y precios' }
+];
+const WSP_FILE_MAX   = 5 * 1024 * 1024;
 // Por qué no hubo propuesta automática que vale decir en la caja (las demás no se dicen).
 const WSP_PROP_QUIET = ['done', 'busy', 'answered', 'closed', 'retired'];
 
@@ -116,6 +149,9 @@ function wspInboxCSS() {
         .wsp-lock { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 10px 12px; border-radius: 12px; background: ${aBg};
             font-size: 13px; line-height: 1.45; color: ${aFg}; }
         .wsp-lock svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; }
+        .wsp-lock .wsp-lock-text { flex: 1; min-width: 0; }
+        .wsp-lock button.wsp-btn { flex-shrink: 0; align-self: center; }
+        @media (max-width: 760px) { .wsp-lock { flex-wrap: wrap; } .wsp-lock button.wsp-btn { width: 100%; justify-content: center; } }
 
         .wsp-pane-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px;
             text-align: center; font-size: 13.5px; color: ${mute}; }
@@ -130,8 +166,10 @@ function wspInboxCSS() {
         .wsp-foot-row .wsp-foot-hint { margin: 0 2px; }
         .wsp-foot-row button.wsp-btn { flex-shrink: 0; padding: 4px 10px; font-size: 12.5px; }
 
-        .wsp-prop { display: flex; flex-direction: column; gap: 8px; max-height: min(330px, 48vh); overflow-y: auto; margin-bottom: 10px;
+        .wsp-prop { display: flex; flex-direction: column; gap: 8px; max-height: min(360px, 50vh); margin-bottom: 10px;
             padding: 10px 12px; border: 1px solid ${aLine}; border-radius: 12px; background: ${tint}; }
+        .wsp-prop-body { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+        .wsp-prop-body > * { flex-shrink: 0; }
         .wsp-prop-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; }
         .wsp-prop-title { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: ${aFg}; }
         .wsp-prop-title svg { width: 15px; height: 15px; }
@@ -158,6 +196,41 @@ function wspInboxCSS() {
         button.wsp-btn.wsp-prop-send:hover { border-color: ${brand}; background: ${brand}; color: #FFFFFF; opacity: .9; }
         button.wsp-btn:disabled { opacity: .55; cursor: wait; }
         @media (prefers-reduced-motion: reduce) { .wsp-prop-dot { animation: none; opacity: .8; } }
+
+        .wsp-handoff { display: flex; align-items: flex-start; gap: 10px; padding: 8px 14px; border-bottom: 1px solid ${line}; background: ${aBg};
+            font-size: 12.5px; line-height: 1.45; color: ${aFg}; }
+        .wsp-handoff > svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+        .wsp-handoff p { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+        .wsp-handoff button.wsp-btn { flex-shrink: 0; padding: 4px 10px; font-size: 12.5px; }
+
+        .wsp-prop-draft { padding: 8px 10px; border: 1px solid ${aLine}; border-radius: 10px; background: #FFFFFF; font-size: 12.5px; color: ${body}; }
+        .wsp-prop-draft p { margin: 0; overflow-wrap: anywhere; }
+        .wsp-prop-draft p.wsp-prop-draft-title { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-weight: 700; color: ${aFg}; }
+        .wsp-prop-draft-title svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .wsp-prop-draft ul { margin: 0 0 6px; padding: 0; list-style: none; }
+        .wsp-prop-draft li { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; color: ${ink}; }
+        .wsp-prop-draft li span:last-child { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .wsp-prop-draft li.is-total { margin-top: 2px; padding-top: 5px; border-top: 1px solid ${line}; font-weight: 700; }
+
+        .wsp-pick-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+        .wsp-pick-bar input { flex: 1; min-width: 180px; padding: 7px 10px; border: 1px solid ${line}; border-radius: 10px; background: #FFFFFF;
+            font-size: 13.5px; color: ${ink}; }
+        .wsp-pick-bar input:focus { outline: none; border-color: ${brand}; box-shadow: 0 0 0 3px ${aBg}; }
+        .wsp-pick-count { font-size: 12.5px; font-weight: 600; color: ${aFg}; }
+        .wsp-pick-list { max-height: min(46vh, 420px); overflow-y: auto; border: 1px solid ${line}; border-radius: 10px; }
+        .wsp-pick-cat { position: sticky; top: 0; z-index: 1; margin: 0; padding: 5px 10px; background: rgb(var(--gray-100, 245 245 244));
+            font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: ${mute}; }
+        label.wsp-pick { display: flex; align-items: center; gap: 10px; margin: 0; padding: 7px 10px; border-top: 1px solid ${line};
+            font-size: 13.5px; color: ${ink}; cursor: pointer; }
+        label.wsp-pick:hover { background: ${tint}; }
+        label.wsp-pick[hidden], .wsp-pick-cat[hidden] { display: none; }
+        label.wsp-pick input { flex-shrink: 0; width: 16px; height: 16px; accent-color: ${brand}; }
+        .wsp-pick-name { flex: 1; min-width: 0; }
+        .wsp-pick-sub { display: block; font-size: 11.5px; color: ${mute}; }
+        .wsp-pick-price { flex-shrink: 0; font-variant-numeric: tabular-nums; color: ${body}; }
+
+        label.wsp-file { display: flex; flex-direction: column; gap: 5px; margin: 0; font-size: 13px; color: ${body}; }
+        label.wsp-file input { font-size: 13px; }
 
         @media (max-width: 760px) {
             .wsp-inbox { grid-template-columns: minmax(0, 1fr); height: auto; }
@@ -197,6 +270,21 @@ function wspInboxCSS() {
         body.dark-mode .wsp-prop-tool p { color: #D1D5DB; }
         body.dark-mode .wsp-prop-title,
         body.dark-mode .wsp-prop-data summary { color: rgb(var(--brand-300, 196 181 253)); }
+        body.dark-mode .wsp-prop-draft,
+        body.dark-mode .wsp-pick-bar input { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); color: var(--dk-text, #F3F4F6); }
+        body.dark-mode .wsp-prop-draft li,
+        body.dark-mode label.wsp-pick { color: var(--dk-text, #F3F4F6); }
+        body.dark-mode .wsp-handoff,
+        body.dark-mode .wsp-pick-list,
+        body.dark-mode label.wsp-pick,
+        body.dark-mode .wsp-prop-draft li.is-total { border-color: var(--dk-line, #374151); }
+        body.dark-mode .wsp-pick-cat { background: #111827; color: #D1D5DB; }
+        body.dark-mode label.wsp-pick:hover { background: rgba(255, 255, 255, .04); }
+        body.dark-mode .wsp-handoff,
+        body.dark-mode .wsp-prop-draft p.wsp-prop-draft-title,
+        body.dark-mode .wsp-pick-count { color: rgb(var(--brand-300, 196 181 253)); }
+        body.dark-mode label.wsp-file,
+        body.dark-mode .wsp-pick-price { color: #D1D5DB; }
     `;
 
     $('<style id="wsp-inbox-css">').text(css).appendTo('head');
@@ -235,6 +323,10 @@ class WhatsAppInbox extends Templates {
         this.dropped   = new Set();   // de esos, los que se descartaron mientras se armaban
         this.note      = null;        // { id, text }: por qué no hubo propuesta automática
         this.deciding  = false;
+
+        // Catálogo del agente (F4).
+        this.ownCount  = null;        // productos en la lista propia (lo dicen getAgent y los guardados)
+        this.picking   = false;
     }
 
     // -- Interface --
@@ -303,6 +395,8 @@ class WhatsAppInbox extends Templates {
         inbox.on('click', 'button[data-act="back"]', () => this.closeChat());
         inbox.on('click', 'button[data-act="branch"]', () => this.formBranch());
         inbox.on('click', 'button[data-act="as-client"]', () => this.formSimulate(true));
+        inbox.on('click', 'button[data-act="agent-back"]', () => this.agentBack());
+        inbox.on('click', 'button[data-act="reopen"]', () => this.sendReopen());
         inbox.on('submit', '.wsp-composer', (e) => {
             e.preventDefault();
             this.sendReply();
@@ -462,14 +556,16 @@ class WhatsAppInbox extends Templates {
         const unread = Number(r.unread) || 0;
         const tick   = r.last_dir === 'out' ? this.tick(r.last_status) : '';
         const tags   = [
-            r.branch ? `<span class="wsp-tag">${esc(r.branch)}</span>` : '<span class="wsp-tag">Sin sucursal</span>',
+            r.owner ? '<span class="wsp-tag is-accent"><i data-lucide="briefcase"></i>Dueño</span>'
+                : r.branch ? `<span class="wsp-tag">${esc(r.branch)}</span>` : '<span class="wsp-tag">Sin sucursal</span>',
             r.sim ? '<span class="wsp-tag is-accent">Simulado</span>' : '',
+            r.human ? '<span class="wsp-tag is-accent"><i data-lucide="user-round"></i>Persona</span>' : '',
             r.proposal === 'pending' ? '<span class="wsp-tag is-accent"><i data-lucide="sparkles"></i>Propuesta</span>' : '',
             r.proposal === 'working' ? '<span class="wsp-tag"><i data-lucide="sparkles"></i>Armando</span>' : '',
             r.window ? '' : '<span class="wsp-tag"><i data-lucide="lock"></i>24 h</span>',
-            r.opt_out ? '<span class="wsp-tag is-warn">No recibe</span>' : ''
+            r.opt_out ? '<span class="wsp-tag is-warn" aria-label="Escribió BAJA: no recibe recordatorios">BAJA</span>' : ''
         ].join('');
-        const label  = `Abrir la conversación con ${r.name}${unread ? `, ${unread} sin leer` : ''}${r.proposal === 'pending' ? ', con propuesta del agente' : ''}`;
+        const label  = `Abrir la conversación con ${r.name}${r.owner ? ' (número del equipo)' : ''}${unread ? `, ${unread} sin leer` : ''}${r.human ? ', la atiende una persona' : ''}${r.proposal === 'pending' ? ', con propuesta del agente' : ''}`;
 
         return `<button type="button" class="wsp-item${active ? ' is-active' : ''}${unread ? ' is-unread' : ''}" data-id="${Number(r.id)}" aria-label="${esc(label)}"${active ? ' aria-current="true"' : ''}>`
              +   `<span class="wsp-avatar" aria-hidden="true">${esc(this.initial(r.name))}</span>`
@@ -483,7 +579,7 @@ class WhatsAppInbox extends Templates {
 
     // Lo que cambia cuando el hilo abierto necesita volver a pedirse (no cuenta los no leídos).
     rowSignature(r) {
-        return [r.when, r.preview, r.last_dir, r.last_status, r.branch_id, r.window, r.opt_out, r.proposal].join('|');
+        return [r.when, r.preview, r.last_dir, r.last_status, r.branch_id, r.window, r.opt_out, r.proposal, r.human].join('|');
     }
 
     // -- Hilo --
@@ -570,14 +666,17 @@ class WhatsAppInbox extends Templates {
         const near = box ? box.scrollHeight - box.scrollTop - box.clientHeight < 80 : true;
         const sub  = [
             `<span>${esc(c.phone)}</span>`,
-            c.branch ? `<span class="wsp-tag">${esc(c.branch)}</span>` : '<span class="wsp-tag">Sin sucursal</span>',
-            c.sim ? '<span class="wsp-tag is-accent">Simulado</span>' : ''
+            c.owner ? '<span class="wsp-tag is-accent"><i data-lucide="briefcase"></i>Dueño · le contesta el agente directo</span>'
+                : c.branch ? `<span class="wsp-tag">${esc(c.branch)}</span>` : '<span class="wsp-tag">Sin sucursal</span>',
+            c.sim ? '<span class="wsp-tag is-accent">Simulado</span>' : '',
+            c.human ? '<span class="wsp-tag is-accent"><i data-lucide="user-round"></i>Persona</span>' : ''
         ].join('');
 
         const actions = [];
 
         if (this.page.allow('update')) {
-            actions.push('<button type="button" class="wsp-btn" data-act="branch" aria-label="Asignar la sucursal de esta conversación"><i data-lucide="store"></i><span class="wsp-th-label">Sucursal</span></button>');
+            // El dueño ve las sucursales de su alta en Destinatarios: no se le asigna una.
+            if (!c.owner) actions.push('<button type="button" class="wsp-btn" data-act="branch" aria-label="Asignar la sucursal de esta conversación"><i data-lucide="store"></i><span class="wsp-th-label">Sucursal</span></button>');
 
             if (c.sim && this.conn.simulated) {
                 actions.push('<button type="button" class="wsp-btn" data-act="as-client" aria-label="Escribir como este cliente (simulador)"><i data-lucide="flask-conical"></i><span class="wsp-th-label">Como cliente</span></button>');
@@ -590,12 +689,48 @@ class WhatsAppInbox extends Templates {
             +   `<span class="wsp-avatar" aria-hidden="true">${esc(this.initial(c.name))}</span>`
             +   `<div class="wsp-th-main"><p class="wsp-th-name">${esc(c.name)}</p><p class="wsp-th-sub">${sub}</p></div>`
             +   `<div class="wsp-th-actions">${actions.join('')}</div>`
-            + '</div>');
+            + '</div>'
+            + (c.human ? this.handoffBand(c) : ''));
 
         $('#wspThreadBody').html(this.thread());
         this.paintFoot();
 
         if (box && (toBottom || near)) box.scrollTop = box.scrollHeight;
+    }
+
+    // Bajo el encabezado: el agente pasó el chat a una persona y ya no propone solo.
+    handoffBand(c) {
+        const until = c.human_until ? ` hasta el ${c.human_until}` : '';
+        const note  = c.handoff ? ` Qué necesita: ${c.handoff}` : '';
+        const back  = this.page.allow('update')
+            ? '<button type="button" class="wsp-btn" data-act="agent-back" aria-label="Devolver esta conversación al agente"><i data-lucide="bot"></i><span>Devolver al agente</span></button>'
+            : '';
+
+        return '<div class="wsp-handoff" role="status"><i data-lucide="user-round"></i>'
+             +   `<p><strong>La atiende una persona${esc(until)}.</strong> El agente no propone solo en este chat.${esc(note)}</p>`
+             +   back
+             + '</div>';
+    }
+
+    async agentBack() {
+        const id = this.current;
+
+        if (!id || !this.chat || this.saving) return;
+
+        this.saving = true;
+
+        const button = $('#wspThreadHead button[data-act="agent-back"]').prop('disabled', true);
+        const data   = await useFetch({ url: this._link, data: { opc: 'agentBack', id: id } });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (!data || data.status != 200) return this.page.fail(data, 'No se devolvió la conversación al agente');
+
+        alert({ icon: 'success', title: data.message, timer: 1600 });
+
+        await this.lsChats(true);
+        if (id === this.current) this.openChat(id, { quiet: true });
     }
 
     // La caja de abajo (propuesta + respuesta). Conserva lo escrito en las dos y el foco.
@@ -668,6 +803,9 @@ class WhatsAppInbox extends Templates {
         if (icon) head = `<span class="wsp-media"><i data-lucide="${icon}"></i>${esc(m.label)}</span>`;
         else if (m.type !== 'text' && !String(m.body || '').trim()) head = '<span class="wsp-media"><i data-lucide="circle-help"></i>Mensaje que Huubie no puede mostrar</span>';
 
+        // El agente la guardó como comprobante: se revisa en Clientes › Comprobantes.
+        if (m.receipt) head += `<span class="wsp-media"><i data-lucide="receipt"></i>Comprobante ${esc(m.receipt)}</span>`;
+
         const bubble = wspMsg(m.body, m.hour, {
             dir:  m.dir,
             tail: tail,
@@ -687,17 +825,14 @@ class WhatsAppInbox extends Templates {
         const max  = Number(dataInit.replyMax) || 4096;
 
         if (!this.page.allow('update')) return lock('eye', 'Tu rol puede leer las conversaciones, pero no contestarlas.');
-        if (c.opt_out) return lock('ban', 'Este cliente pidió no recibir mensajes.');
 
-        if (!c.window) {
-            return lock('lock', 'Pasaron más de 24 h desde el último mensaje del cliente'
-                + (c.closes ? ` (la ventana cerró el ${c.closes})` : '')
-                + '. WhatsApp solo deja mandarle una plantilla aprobada; Huubie todavía no las manda. Cuando el cliente vuelva a escribir, se abre otra vez.');
-        }
+        if (!c.window) return this.closedFoot(c);
 
-        const hint = this.conn.simulated || c.sim
+        // BAJA apaga recordatorios y plantillas; lo que escribe el cliente se le sigue contestando.
+        const baja = c.opt_out ? `Escribió BAJA${c.opt_out_at ? ` el ${c.opt_out_at}` : ''}: no recibe recordatorios ni plantillas. Lo que escriba sí se le contesta.` : '';
+        const hint = baja || (this.conn.simulated || c.sim
             ? 'Modo simulado: la respuesta queda en la conversación y no sale a la red.'
-            : 'Enter manda · Shift + Enter, renglón nuevo.';
+            : 'Enter manda · Shift + Enter, renglón nuevo.');
         const note = this.note && this.note.id === c.id && this.note.count === this.messages.length ? this.note.text : '';
         const ask  = this.canPropose() && !this.proposal && !this.asking.has(c.id)
             ? this.propButton('propose', 'sparkles', 'Proponer', 'Pedirle al agente una propuesta de respuesta')
@@ -711,6 +846,53 @@ class WhatsAppInbox extends Templates {
              +   '</form>'
              +   `<div class="wsp-foot-row"><p class="wsp-foot-hint">${esc(note || hint)}</p>${ask}</div>`
              + '</div>';
+    }
+
+    /*  Ventana de 24 h cerrada: solo se puede mandar una plantilla aprobada. Si el
+        cliente se quedó esperando respuesta, «Ya abrimos» la retoma (c.reopen:
+        'ok' se puede · 'closed' fuera de horario · 'baja' · 'agent' sin número · '' no aplica). */
+    closedFoot(c) {
+        const base = 'Pasaron más de 24 h desde el último mensaje del cliente'
+            + (c.closes ? ` (la ventana cerró el ${c.closes})` : '')
+            + '. WhatsApp solo deja mandarle una plantilla aprobada.';
+        const why  = {
+            ok:     'El cliente se quedó esperando respuesta: mándale «Ya abrimos» para retomar la conversación.',
+            closed: 'El cliente se quedó esperando: «Ya abrimos» sale en el horario del agente.',
+            baja:   'Escribió BAJA: no se le mandan plantillas hasta que vuelva a escribir.',
+            agent:  'La empresa no tiene número de WhatsApp dado de alta.'
+        }[c.reopen] || 'Cuando el cliente vuelva a escribir, se abre otra vez.';
+        const send = c.reopen === 'ok'
+            ? '<button type="button" class="wsp-btn wsp-prop-send" data-act="reopen" aria-label="Mandar al cliente la plantilla «Ya abrimos»"><i data-lucide="send-horizontal"></i><span>Mandar «Ya abrimos»</span></button>'
+            : '';
+
+        return '<div class="wsp-foot">'
+             +   `<div class="wsp-lock"><i data-lucide="lock"></i><span class="wsp-lock-text">${esc(base + ' ' + why)}</span>${send}</div>`
+             + '</div>';
+    }
+
+    async sendReopen() {
+        if (this.sending || !this.chat) return;
+
+        this.sending = true;
+
+        const id     = this.chat.id;
+        const button = $('#wspThreadFoot button[data-act="reopen"]').prop('disabled', true);
+        const data   = await useFetch({ url: this._link, data: { opc: 'sendReopen', id: id } });
+
+        this.sending = false;
+        button.prop('disabled', false);
+
+        if (!data || data.status != 200) {
+            this.page.fail(data, 'No salió «Ya abrimos»');
+            if (data && [404, 409].includes(Number(data.status)) && id === this.current) this.openChat(id, { quiet: true, bottom: true });
+            return;
+        }
+
+        alert({ icon: data.sent === 'simulated' ? 'info' : 'success', title: data.message, timer: 2400 });
+
+        if (id === this.current) await this.openChat(id, { quiet: true, bottom: true });
+
+        this.lsChats(true);
     }
 
     // -- Propuesta del agente --
@@ -731,7 +913,8 @@ class WhatsAppInbox extends Templates {
 
         if (!p) return '';
 
-        const meta  = [p.auto ? 'Automática' : 'Pedida a mano', p.when, p.model, p.seconds !== null && p.seconds !== undefined ? `${p.seconds} s` : ''].filter(Boolean).join(' · ');
+        // El tema (F6) dice por qué no salió sola: solo horario y catálogo pueden.
+        const meta  = [p.auto ? 'Automática' : 'Pedida a mano', p.topic, p.when, p.model, p.seconds !== null && p.seconds !== undefined ? `${p.seconds} s` : ''].filter(Boolean).join(' · ');
         const again = this.canPropose()
             ? this.propButton('propose', 'refresh-cw', p.status === 'pending' ? 'Otra' : 'Proponer de nuevo', 'Pedirle al agente otra propuesta')
             : '';
@@ -745,22 +928,50 @@ class WhatsAppInbox extends Templates {
             return this.propBox(meta, `<p class="wsp-note is-bad">No se armó: ${esc(p.error || 'el agente no devolvió respuesta.')}</p>`, again + drop);
         }
 
-        const max  = Number(dataInit.replyMax) || 4096;
-        const body = (p.outdated ? '<p class="wsp-note">El cliente escribió después de que se armó: revísala o pide otra.</p>' : '')
+        const max   = Number(dataInit.replyMax) || 4096;
+        const order = p.action === 'order' && p.draft;
+        const extra = order
+            ? this.propDraftBox(p.draft)
+            : p.action === 'handoff' ? `<p class="wsp-note">El agente pasó este chat a una persona${p.handoff ? `: ${esc(p.handoff)}` : '.'}</p>` : '';
+        const body  = (p.outdated ? '<p class="wsp-note">El cliente escribió después de que se armó: revísala o pide otra.</p>' : '')
+            + extra
             + `<textarea id="wspPropText" rows="2" maxlength="${max}" aria-label="Propuesta del agente para ${esc(c.name)}. Puedes cambiarla antes de mandarla">${esc(p.body)}</textarea>`
             + this.propTools(p.tools || []);
-        const send = this.propButton('prop-send', 'send-horizontal', 'Mandar', 'Mandar la propuesta al cliente (Ctrl + Enter)', ' wsp-prop-send');
+        const send  = order
+            ? this.propButton('prop-send', 'send-horizontal', 'Mandar y crear pedido', 'Mandar la propuesta al cliente y crear el pedido (Ctrl + Enter)', ' wsp-prop-send')
+            : this.propButton('prop-send', 'send-horizontal', 'Mandar', 'Mandar la propuesta al cliente (Ctrl + Enter)', ' wsp-prop-send');
+        const hint  = order ? 'El pedido se crea al mandarla.' : 'Nada sale hasta que la mandes.';
 
-        return this.propBox(meta, body, send + again + drop + '<span class="wsp-prop-hint">Nada sale hasta que la mandes.</span>');
+        return this.propBox(meta, body, send + again + drop + `<span class="wsp-prop-hint">${hint}</span>`);
     }
 
+    // El pedido que se crea al mandar la propuesta (el borrador que armó el agente).
+    propDraftBox(d) {
+        const lines = (d.lines || []).map((l) => `<li><span>${Number(l.quantity) || 0} × ${esc(l.name)}</span><span>${esc(this.money(l.amount))}</span></li>`).join('');
+        const facts = [
+            d.delivery + (d.address ? `: ${d.address}` : ''),
+            d.when,
+            d.payment,
+            d.name ? `A nombre de ${d.name}` : '',
+            d.note ? `Nota: ${d.note}` : ''
+        ].filter(Boolean).join(' · ');
+
+        return '<div class="wsp-prop-draft">'
+             +   '<p class="wsp-prop-draft-title"><i data-lucide="shopping-cart"></i>Al mandarla se crea este pedido en Tienda en línea › Nuevos</p>'
+             +   `<ul>${lines}<li class="is-total"><span>Total</span><span>${esc(this.money(d.total))}</span></li></ul>`
+             +   `<p>${esc(facts)}</p>`
+             +   '<p>En el texto, {folio} se cambia por el folio del pedido.</p>'
+             + '</div>';
+    }
+
+    // Solo el cuerpo se desplaza: el título y los botones quedan siempre a la vista.
     propBox(meta, body, actions) {
         return '<section class="wsp-prop" aria-label="Propuesta del agente">'
              +   '<div class="wsp-prop-head">'
              +     '<span class="wsp-prop-title"><i data-lucide="sparkles"></i>Propuesta del agente</span>'
              +     (meta ? `<span class="wsp-prop-meta">${esc(meta)}</span>` : '')
              +   '</div>'
-             +   body
+             +   `<div class="wsp-prop-body">${body}</div>`
              +   (actions ? `<div class="wsp-prop-actions">${actions}</div>` : '')
              + '</section>';
     }
@@ -778,7 +989,8 @@ class WhatsAppInbox extends Templates {
         if (!tools.length) return '<p class="wsp-prop-meta">Contestó sin consultar datos del negocio.</p>';
 
         const name  = (t) => {
-            const v = t.args ? (t.args.texto || t.args.folio || '') : '';
+            const a = t.args || {};
+            const v = a.texto || a.folio || a.productos || (a.monto ? `$${a.monto}` : '');
 
             return t.label + (v ? ` · «${v}»` : '');
         };
@@ -884,6 +1096,19 @@ class WhatsAppInbox extends Templates {
             return;
         }
 
+        // Salió sola (tema en automático o pregunta del dueño, F6): el mensaje ya está en el hilo.
+        if (data.state === 'sent') {
+            if (id === this.current) {
+                this.proposal = null;
+                await this.openChat(id, { quiet: true, bottom: true });
+                this.note = { id: id, text: data.message || 'Salió sola.', count: this.messages.length };
+                this.paintFoot();
+            }
+
+            this.lsChats(true);
+            return;
+        }
+
         if (id === this.current) {
             this.proposal = data.proposal || null;
 
@@ -934,6 +1159,9 @@ class WhatsAppInbox extends Templates {
 
         this.propDraft = null;
         this.note      = null;
+
+        // Con pedido: se avisa el folio y dónde quedó.
+        if (data.folio) alert({ icon: 'success', title: `Pedido ${data.folio} creado`, text: data.message, timer: 3200 });
 
         if (id === this.current) await this.openChat(id, { quiet: true, bottom: true });
 
@@ -1082,6 +1310,8 @@ class WhatsAppInbox extends Templates {
                 { id: 'ws_phone', lbl: 'Teléfono del cliente', maxlength: 14, ph: '962 123 4567', icon: 'phone', value: this.page.phone(phone), help: '10 dígitos. El chat queda marcado «Simulado».', class: 'w-full sm:w-1/2' },
                 { id: 'ws_name', lbl: 'Nombre (como en su WhatsApp)', maxlength: 120, ph: 'Ej. Laura Gómez', value: name, class: 'w-full sm:w-1/2' },
                 { id: 'ws_text', lbl: 'Lo que escribe el cliente', tipo: 'textarea', rows: 4, maxlength: Number(dataInit.replyMax) || 4096, ph: 'Hola, ¿tienen pastel de chocolate para mañana?', class: 'w-full' },
+                { id: 'ws_file', tipo: 'html', class: 'w-full', html: '<label class="wsp-file" for="wsFile"><span>Foto o PDF que manda el cliente (opcional; sirve para probar un comprobante de pago, hasta 5 MB)</span>'
+                    + '<input type="file" id="wsFile" accept="image/jpeg,image/png,image/webp,application/pdf"></label>' },
                 { id: 'ws_note', tipo: 'html', class: 'w-full', html: `<p class="wsp-note">${esc(note)}</p>` }
             ],
             onSave: (values, close) => this.simulate(values, close)
@@ -1097,14 +1327,18 @@ class WhatsAppInbox extends Templates {
         const phone = String(values.ws_phone || '').replace(/\D/g, '');
         const name  = String(values.ws_name || '').replace(/\s+/g, ' ').trim();
         const text  = String(values.ws_text || '').replace(/\r/g, '').trim();
+        const input = document.getElementById('wsFile');
+        const file  = input && input.files && input.files[0] ? input.files[0] : null;
 
         if (phone.length !== 10) return this.page.warn('El teléfono del cliente va a 10 dígitos, sin lada de país.');
-        if (!text) return this.page.warn('Escribe lo que manda el cliente.');
+        if (!text && !file) return this.page.warn('Escribe lo que manda el cliente, o adjunta una foto.');
+        if (file && file.size > WSP_FILE_MAX) return this.page.warn('El archivo pesa más de 5 MB: adjunta uno más ligero.');
 
         this.saving = true;
 
-        const button = $('#modalWspSim .cs-modal-save').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: { opc: 'simulate', phone: phone, name: name, text: text } });
+        const button  = $('#modalWspSim .cs-modal-save').prop('disabled', true);
+        const payload = { opc: 'simulate', phone: phone, name: name, text: text };
+        const data    = file ? await this.postFile(payload, file) : await useFetch({ url: this._link, data: payload });
 
         this.saving = false;
         button.prop('disabled', false);
@@ -1127,6 +1361,22 @@ class WhatsAppInbox extends Templates {
         if (data.open) this.autoPropose(chatId);
     }
 
+    // useFetch manda todo como texto: con un archivo, la petición va como formulario.
+    async postFile(data, file) {
+        const form = new FormData();
+
+        Object.keys(data).forEach((key) => form.append(key, data[key]));
+        form.append('file', file);
+
+        try {
+            const response = await fetch(this._link, { method: 'POST', body: form });
+
+            return await response.json();
+        } catch (e) {
+            return null;
+        }
+    }
+
     // -- Agente --
 
     layoutAgent() {
@@ -1143,7 +1393,23 @@ class WhatsAppInbox extends Templates {
             }
         });
 
-        const data = [{ opc: 'checkbox', id: 'enabled', text: 'Agente encendido', class: 'col-12' }];
+        // Catálogo + «Elegir productos» llenan su renglón (5 + 4 de 12): los días empiezan en el siguiente.
+        const data = [
+            { opc: 'checkbox', id: 'enabled', text: 'Agente encendido', class: 'col-12' },
+            {
+                opc:      'select',
+                id:       'catalog',
+                lbl:      'Catálogo del agente',
+                required: false,
+                class:    'col-12 col-sm-6 col-md-5',
+                data:     [{ id: 'store', valor: 'Tienda en línea' }, { id: 'own', valor: 'Lista propia' }],
+                onchange: 'wap.inbox.paintCatalog()'
+            },
+            { opc: 'button', id: 'btnWspPick', class: 'col-12 col-sm-6 col-md-4', text: 'Elegir productos', icon: 'icon-th-list', color_btn: 'outline', onClick: () => this.formProducts() }
+        ];
+
+        // F6: los temas que salen sin pasar por la bandeja (apagados de fábrica).
+        WSP_AUTO.forEach((t) => data.push({ opc: 'checkbox', id: t.id, text: t.text, class: 'col-12 col-sm-6' }));
 
         WSP_WEEK.forEach((day, i) => {
             data.push(
@@ -1154,7 +1420,7 @@ class WhatsAppInbox extends Templates {
         });
 
         if (this.page.allow('create')) {
-            data.push({ opc: 'button', id: 'btnWspAgentSave', class: 'col-12 col-sm-6 col-md-4', text: 'Guardar horario', icon: 'icon-floppy', color_btn: 'primary', onClick: () => this.saveAgent() });
+            data.push({ opc: 'button', id: 'btnWspAgentSave', class: 'col-12 col-sm-6 col-md-4', text: 'Guardar agente', icon: 'icon-floppy', color_btn: 'primary', onClick: () => this.saveAgent() });
         }
 
         this.createfilterBar({
@@ -1169,6 +1435,10 @@ class WhatsAppInbox extends Templates {
             $(`#wsa_f${day}`).attr('aria-label', `${WSP_DAYS[day]}: abre a las`);
             $(`#wsa_t${day}`).attr('aria-label', `${WSP_DAYS[day]}: cierra a las (00:00 = medianoche)`);
         });
+
+        $('#wsa_catalog').attr('aria-label', 'De dónde sale el catálogo del agente');
+        WSP_AUTO.forEach((t) => $(`#wsa_${t.id}`).attr('aria-label', `${t.text}, sin que una persona las revise`));
+        $('#wsa_btnWspPick').attr('aria-label', 'Elegir los productos de la lista propia del agente');
 
         // Día apagado = sin horas; al encenderlo se proponen 09:00 a 20:00.
         $('#fbWspAgent').on('change', 'input[type="checkbox"][id^="wsa_d"]', (e) => {
@@ -1191,12 +1461,56 @@ class WhatsAppInbox extends Templates {
 
         this.agent = data.agent || {};
         this.conn  = data.conn || this.conn;
+        this.keepOwnCount(data.agent);
 
         this.paintAgent();
         this.paintChatsNote();
     }
 
+    // La lista de chats trae el agente sin ese conteo: se guarda aparte para no perderlo.
+    keepOwnCount(agent) {
+        if (agent && typeof agent.own_count === 'number') this.ownCount = agent.own_count;
+    }
+
+    // Las cajas y las notas de arriba, y el formulario con lo guardado.
     paintAgent() {
+        const a = this.agent || {};
+
+        this.paintAgentInfo();
+
+        $('#wsa_enabled').prop('checked', Number(a.enabled) === 1);
+        $('#wsa_catalog').val(a.catalog_mode === 'own' ? 'own' : 'store');
+        WSP_AUTO.forEach((t) => $(`#wsa_${t.id}`).prop('checked', (a.auto_topics || []).includes(t.key)));
+
+        WSP_WEEK.forEach((day) => {
+            const range = ((a.hours || [])[day] || [])[0];
+            const on    = Boolean(range);
+
+            $(`#wsa_d${day}`).prop('checked', on);
+            $(`#wsa_f${day}`).val(on ? range[0] : '');
+            $(`#wsa_t${day}`).val(on ? (range[1] === '24:00' ? '00:00' : range[1]) : '');
+
+            this.toggleDay(day, on);
+        });
+
+        // Sin permiso de cambiarlo, o sin número dado de alta: se ve y no se toca.
+        if (!this.page.allow('create') || !a.exists) {
+            $('#fbWspAgent :input').prop('disabled', true);
+        }
+
+        this.paintCatalog();
+    }
+
+    // «Elegir productos» solo aplica a la lista propia.
+    paintCatalog() {
+        const own = String($('#wsa_catalog').val() || 'store') === 'own';
+        const can = this.page.allow('create') && Boolean(this.agent && this.agent.exists);
+
+        $('#wsa_btnWspPick').prop('disabled', !own || !can);
+    }
+
+    // Solo lo de arriba: no toca lo que la persona esté cambiando en el formulario.
+    paintAgentInfo() {
         const a    = this.agent || {};
         const c    = this.conn || {};
         const key  = (name) => `<code class="wsp-key">${esc(name)}</code>`;
@@ -1216,25 +1530,25 @@ class WhatsAppInbox extends Templates {
         if (!a.exists) html += '<p class="wsp-note is-bad">La empresa todavía no tiene número de WhatsApp para el agente: el horario se guarda cuando soporte lo dé de alta.</p>';
         if ((a.hours || []).some((h) => h.length > 1)) html += '<p class="wsp-note">Algún día tiene más de un tramo: aquí se ve y se guarda solo el primero.</p>';
 
-        $('#wspAgentInfo').html(html + '</div>');
+        if (a.exists) {
+            const n   = this.ownCount;
+            const own = a.catalog_mode === 'own';
+            const src = own
+                ? `la lista propia${n !== null ? ` (${n} producto${n === 1 ? '' : 's'})` : ''}`
+                : 'los productos de la Tienda en línea (los que tienen encendido «Catálogo»)';
 
-        $('#wsa_enabled').prop('checked', Number(a.enabled) === 1);
+            html += `<p class="wsp-note">Catálogo del agente: ${esc(src)}. Con eso da precios y arma pedidos; lo que no esté ahí lo pasa a una persona. `
+                  + 'Los pedidos por WhatsApp caen en Tienda en línea › Nuevos, así que la tienda de la sucursal tiene que estar encendida.</p>';
 
-        WSP_WEEK.forEach((day) => {
-            const range = ((a.hours || [])[day] || [])[0];
-            const on    = Boolean(range);
+            const on = WSP_AUTO.filter((t) => (a.auto_topics || []).includes(t.key)).map((t) => t.text.replace('Salen solas: ', ''));
 
-            $(`#wsa_d${day}`).prop('checked', on);
-            $(`#wsa_f${day}`).val(on ? range[0] : '');
-            $(`#wsa_t${day}`).val(on ? (range[1] === '24:00' ? '00:00' : range[1]) : '');
-
-            this.toggleDay(day, on);
-        });
-
-        // Sin permiso de cambiarlo, o sin número dado de alta: se ve y no se toca.
-        if (!this.page.allow('create') || !a.exists) {
-            $('#fbWspAgent :input').prop('disabled', true);
+            html += `<p class="wsp-note">${on.length
+                ? `Salen solas, sin que nadie las revise: ${esc(on.join(' y '))}. Solo cuando para contestar consultó únicamente eso y ninguna consulta falló.`
+                : 'Todas las respuestas pasan por la bandeja: una persona las manda.'} Saldo, pedidos, comprobantes y lo que no consultó datos siempre pasan por una persona. `
+                  + 'Al número del equipo con «Le pregunta al agente» (Destinatarios) le contesta directo. Cómo van: pestaña «Métricas».</p>';
         }
+
+        $('#wspAgentInfo').html(html + '</div>');
     }
 
     toggleDay(day, on) {
@@ -1262,10 +1576,31 @@ class WhatsAppInbox extends Templates {
 
         if (enabled && !hours.some((h) => h.length)) return this.page.warn('Marca al menos un día con horario, o deja el agente apagado.');
 
+        // Encender un tema que sale solo pide confirmar: esas respuestas le llegan al cliente sin que nadie las vea antes.
+        const added = WSP_AUTO.filter((t) => $(`#wsa_${t.id}`).is(':checked') && !(this.agent.auto_topics || []).includes(t.key));
+
+        if (added.length) {
+            const what = added.map((t) => t.text.replace('Salen solas: ', '')).join(' y ');
+            const r    = await alert({
+                icon:     'question',
+                title:    '¿Que estas respuestas salgan solas?',
+                text:     `Las de ${what} le llegan al cliente sin que una persona las revise. Saldo, pedidos y comprobantes siguen pasando por la bandeja.`
+                          + (this.conn.simulated ? ' Modo simulado: no salen a la red.' : ''),
+                btn1:     true,
+                btn1Text: 'Sí, que salgan solas',
+                btn2:     true,
+                btn2Text: 'Cancelar'
+            });
+
+            if (!r || !r.isConfirmed) return;
+        }
+
         this.saving = true;
 
         const button = $('#wsa_btnWspAgentSave').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: { opc: 'saveAgent', enabled: enabled ? '1' : '0', hours: JSON.stringify(hours) } });
+        const mode   = String($('#wsa_catalog').val() || 'store') === 'own' ? 'own' : 'store';
+        const topics = WSP_AUTO.filter((t) => $(`#wsa_${t.id}`).is(':checked')).map((t) => t.key).join(',');
+        const data   = await useFetch({ url: this._link, data: { opc: 'saveAgent', enabled: enabled ? '1' : '0', hours: JSON.stringify(hours), catalog_mode: mode, auto_topics: topics } });
 
         this.saving = false;
         button.prop('disabled', false);
@@ -1273,11 +1608,123 @@ class WhatsAppInbox extends Templates {
         if (!data || data.status != 200) return this.page.fail(data, 'No se guardó el agente');
 
         this.agent = data.agent || this.agent;
+        this.keepOwnCount(data.agent);
 
         this.paintAgent();
         this.paintChatsNote();
 
         alert({ icon: 'success', title: data.message, timer: 1800 });
+    }
+
+    // -- Lista propia del agente --
+
+    // Los productos de toda la empresa, por categoría, con los ya elegidos marcados. Se guarda aparte del horario.
+    async formProducts() {
+        if (this.saving || this.picking || !this.page.allow('create')) return;
+
+        this.picking = true;
+
+        const data = await useFetch({ url: this._link, data: { opc: 'lsAgentProducts' } });
+
+        this.picking = false;
+
+        if (!data || data.status != 200) return this.page.fail(data, 'No se pudieron cargar los productos');
+
+        const rows = data.row || [];
+
+        if (!rows.length) return this.page.warn('La empresa todavía no tiene productos en el catálogo.');
+
+        let list = '';
+        let cat  = null;
+
+        rows.forEach((p) => {
+            if (p.category !== cat) {
+                cat   = p.category;
+                list += `<p class="wsp-pick-cat">${esc(cat)}</p>`;
+            }
+
+            const sub = [p.branch, p.store ? 'Sale en la tienda en línea' : ''].filter(Boolean).join(' · ');
+
+            list += `<label class="wsp-pick" data-text="${esc(this.fold(`${p.name} ${p.category} ${p.branch}`))}">`
+                  +   `<input type="checkbox" value="${Number(p.id)}"${p.picked ? ' checked' : ''}>`
+                  +   `<span class="wsp-pick-name">${esc(p.name)}${sub ? `<span class="wsp-pick-sub">${esc(sub)}</span>` : ''}</span>`
+                  +   `<span class="wsp-pick-price">${esc(this.money(p.price))}</span>`
+                  + '</label>';
+        });
+
+        this.csModal({
+            id:         'modalWspPick',
+            title:      'Lista propia del agente',
+            subtitle:   'Los productos que el agente puede ofrecer y pedir por WhatsApp.',
+            lucideIcon: 'list-checks',
+            width:      'max-w-2xl',
+            saveText:   'Guardar lista',
+            cancelText: 'Cancelar',
+            json: [
+                {
+                    id:    'wp_list',
+                    tipo:  'html',
+                    class: 'w-full',
+                    html:  '<div class="wsp-pick-bar">'
+                         +   '<input type="search" id="wspPickSearch" maxlength="60" autocomplete="off" placeholder="Buscar producto" aria-label="Buscar producto en la lista">'
+                         +   '<span class="wsp-pick-count" id="wspPickCount" aria-live="polite"></span>'
+                         + '</div>'
+                         + `<div class="wsp-pick-list" id="wspPickList" role="group" aria-label="Productos de la empresa">${list}</div>`
+                }
+            ],
+            onSave: (values, close) => this.saveProducts(close)
+        });
+
+        const count = () => {
+            const n = $('#wspPickList input:checked').length;
+
+            $('#wspPickCount').text(n === 1 ? '1 elegido' : `${n} elegidos`);
+        };
+
+        $('#wspPickList').on('change', 'input', count);
+
+        // El buscador esconde lo que no coincide, y la categoría que se queda sin productos.
+        $('#wspPickSearch').on('input', (e) => {
+            const q = this.fold(e.currentTarget.value);
+
+            $('#wspPickList label.wsp-pick').each((i, el) => {
+                el.hidden = Boolean(q) && !String(el.getAttribute('data-text') || '').includes(q);
+            });
+
+            $('#wspPickList .wsp-pick-cat').each((i, el) => {
+                el.hidden = !$(el).nextUntil('.wsp-pick-cat').filter((j, item) => !item.hidden).length;
+            });
+        });
+
+        count();
+        this.page.icons();
+        $('#wspPickSearch').trigger('focus');
+    }
+
+    async saveProducts(close) {
+        if (this.saving) return;
+
+        const ids = $('#wspPickList input:checked').map((i, el) => Number(el.value)).get();
+
+        this.saving = true;
+
+        const button = $('#modalWspPick .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({ url: this._link, data: { opc: 'saveAgentProducts', product_ids: JSON.stringify(ids) } });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (!data || data.status != 200) return this.page.fail(data, 'No se guardó la lista');
+
+        this.keepOwnCount(data.agent);
+        close();
+
+        // La lista ya quedó; que el agente la use depende de «Guardar agente».
+        const pending = String($('#wsa_catalog').val() || 'store') === 'own' && this.agent.catalog_mode !== 'own';
+
+        this.paintAgentInfo();
+
+        alert({ icon: 'success', title: data.message, text: pending ? 'Falta «Guardar agente» para que el agente use la lista propia.' : '', timer: pending ? 3200 : 1800 });
     }
 
     // -- Complements --
@@ -1309,6 +1756,18 @@ class WhatsAppInbox extends Templates {
         const ch = String(name || '').trim().charAt(0);
 
         return ch ? ch.toUpperCase() : '?';
+    }
+
+    // $450 o $450.50.
+    money(n) {
+        const v = Number(n) || 0;
+
+        return '$' + v.toLocaleString('es-MX', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 });
+    }
+
+    // Para buscar: minúsculas y sin acentos.
+    fold(text) {
+        return String(text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
     }
 
     // La caja crece con el texto hasta ~6 renglones (max en px).

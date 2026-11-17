@@ -307,9 +307,31 @@ class OrderForm extends Templates {
             subtitle: `Sucursal ${this.opts.branch}`,
             tag:      o ? 'Editando' : '',
             icon:     'receipt-text',
+            // Dos pasos, uno abierto a la vez (como el panel «Datos del pedido» de la plantilla
+            // pos-order.html): primero los datos; con «Continuar» se pliegan y abre la lista.
             section:  { title: 'Datos del pedido', icon: 'calendar-days', open: !o },
+            lines:    { title: 'Lista del pedido', icon: 'shopping-cart', accordion: true },
             launcher: { parent: 'posOrderLauncher', text: 'Ver pedido' }
         });
+
+        // Ventas arma su propio ticket y no lo usa.
+        this.accordion = true;
+    }
+
+    // -- Pasos del ticket --
+
+    // «Continuar»: si falta un dato lo dice y los datos siguen abiertos; si está todo, abre la lista.
+    toList() {
+        const error = this.dataError(this.ticketValues());
+
+        if (error) return this.warn(error);
+
+        this.ticketBox.section(false);
+    }
+
+    // Al agregar o cambiar un producto se ve la lista, aunque los datos estuvieran abiertos.
+    showList() {
+        if (this.accordion && this.ticketBox) this.ticketBox.section(false);
     }
 
     ticketForm() {
@@ -327,9 +349,14 @@ class OrderForm extends Templates {
                 { opc: 'input', id: 'of_delivery_time', lbl: 'Hora', type: 'time', class: 'col-6', value: o ? String(o.delivery_time || '').slice(0, 5) : '' },
                 { opc: 'select', id: 'of_delivery_method', lbl: 'Entrega', class: 'col-12', data: [{ id: '0', valor: 'Recoge en sucursal' }, { id: '1', valor: 'Envío a domicilio' }], value: o ? String(Number(o.delivery_method) === 1 ? 1 : 0) : '0' },
                 { opc: 'input', id: 'of_location', lbl: 'Dirección de envío', class: 'col-12', required: false, placeholder: 'Calle, número, colonia y referencias', value: o ? o.location || '' : '' },
-                { opc: 'textarea', id: 'of_note', lbl: 'Nota del pedido', class: 'col-12', rows: 2, required: false, placeholder: 'Indicaciones para producción o entrega', value: o ? o.note || '' : '' }
+                { opc: 'textarea', id: 'of_note', lbl: 'Nota del pedido', class: 'col-12', rows: 2, required: false, placeholder: 'Indicaciones para producción o entrega', value: o ? o.note || '' : '' },
+                { opc: 'button', id: 'btnOfNext', class: 'col-12', text: 'Continuar a la lista', color_btn: 'primary', onClick: () => this.toList() }
             ]
         });
+
+        // El botón no lleva etiqueta: sin el renglón vacío que le pone coffeeForm.
+        $('#btnOfNext').addClass('w-full').prev('label').remove();
+        $('#btnOfNext').parent().addClass('mt-2');
 
         if (!o) $('#of_delivery_date').attr('min', this.opts.today);
 
@@ -337,10 +364,19 @@ class OrderForm extends Templates {
         $('#of_note').attr('maxlength', 2000);
 
         $('#of_delivery_method').on('change', () => this.toggleLocation());
+        $('#of_customer_id').on('change', () => this.waitCustomer());
         $('#formOrderTicket').on('change input', () => this.refreshSummary());
 
         this.toggleLocation();
+        this.waitCustomer();
         this.refreshSummary();
+    }
+
+    // Sin cliente, el selector parpadea (un punto chico, order.css › .ord-wait) hasta que se elige uno.
+    waitCustomer() {
+        const value = String($('#of_customer_id').val() || '');
+
+        $('#of_customer_id').parent().toggleClass('ord-wait', value === '' || value === '0');
     }
 
     refreshSummary() {
@@ -373,6 +409,9 @@ class OrderForm extends Templates {
             sub.find('.cs-modal-cancel').trigger('click');
             return;
         }
+
+        // Con otra ventana encima (los pagos del pedido nuevo), Escape es de esa ventana.
+        if ($('.cs-modal-bg, .cf-overlay').length) return;
 
         if ($('body').hasClass('pos-tk-open')) {
             $('body').removeClass('pos-tk-open');
@@ -465,6 +504,22 @@ class OrderForm extends Templates {
         const json     = [];
         const after    = [];
 
+        let actions = [
+            { id: 'btnOrderSave', text: o ? 'Guardar cambios' : 'Guardar pedido', icon: 'check', class: 'ok', disabled: this.saving, onClick: () => this.submit() }
+        ];
+
+        if (canPay && !o) {
+            // Pedido nuevo: un solo botón. Abre los pagos; sin importe, ahí pregunta cómo se guarda (askHow).
+            actions = [
+                { id: 'btnOrderSavePay', text: 'Guardar y cobrar', icon: 'wallet', class: 'ok', disabled: this.saving, onClick: () => this.submit(true) }
+            ];
+        } else if (canPay) {
+            actions = [
+                { id: 'btnOrderSave', text: 'Solo guardar', icon: 'check', class: 'ghost', disabled: this.saving, onClick: () => this.submit() },
+                { id: 'btnOrderSavePay', text: 'Guardar y cobrar', icon: 'wallet', class: 'ok', disabled: this.saving, onClick: () => this.submit(true) }
+            ];
+        }
+
         if (count && discount > 0) {
             json.push({ text: 'Subtotal', value: money(subtotal), tone: 'muted' }, { text: 'Descuento', value: `− ${money(discount)}`, tone: 'discount' });
         }
@@ -479,16 +534,10 @@ class OrderForm extends Templates {
             json:   json,
             total:  { label: 'Total', caption: caption, value: money(count ? total : 0) },
             after:  after,
-            actions: canPay
-                ? [
-                    { id: 'btnOrderSave', text: 'Solo guardar', icon: 'check', class: 'ghost', disabled: this.saving, onClick: () => this.submit() },
-                    { id: 'btnOrderSavePay', text: o ? 'Guardar y cobrar' : 'Guardar y dejar anticipo', icon: 'wallet', class: 'ok', disabled: this.saving, onClick: () => this.submit(true) }
-                ]
-                : [
-                    { id: 'btnOrderSave', text: o ? 'Guardar cambios' : 'Guardar pedido', icon: 'check', class: 'ok', disabled: this.saving, onClick: () => this.submit() }
-                ]
+            actions: actions
         });
 
+        $('#posOrderTkLinesCount').text(caption);
         $('#posOrderTkLauncherCount').text(pieces);
         $('#posOrderTkLauncherTotal').text(money(count ? total : 0));
     }
@@ -528,6 +577,7 @@ class OrderForm extends Templates {
 
         this.flash = index;
         this.renderLines();
+        this.showList();
     }
 
     editLine(index) {
@@ -553,6 +603,7 @@ class OrderForm extends Templates {
 
         this.flash = index === undefined ? this.lines.length - 1 : index;
         this.renderLines();
+        this.showList();
     }
 
     canAdd() {
@@ -826,11 +877,29 @@ class OrderForm extends Templates {
         });
     }
 
-    // pay = true: al guardar abre «Gestión de pagos» para dejar el anticipo.
+    /*  pay = true: «Guardar y cobrar». En un pedido nuevo abre los pagos ANTES
+        de guardar (payDraft): con anticipo, el pedido se crea al confirmar el
+        cobro; sin importe, la ventana pregunta cómo se guarda (askHow). En uno
+        que ya existe, guarda los cambios y abre sus pagos. */
     submit(pay) {
+        const values  = this.ticketValues();
+        const missing = this.dataError(values) !== '';
+
+        // Falta un dato: se abren los datos. Está todo: se ve la lista (por si faltan productos).
+        if (missing && this.ticketBox) {
+            this.ticketBox.section(true);
+            $('#posOrderTk .pos-tk-body').scrollTop(0);
+        } else {
+            this.showList();
+        }
+
+        this.save(values, !!pay);
+    }
+
+    ticketValues() {
         const customer = String($('#of_customer_id').val() || '');
 
-        const values = {
+        return {
             of_customer_id:     customer === '0' ? '' : customer,
             of_delivery_date:   $('#of_delivery_date').val(),
             of_delivery_time:   $('#of_delivery_time').val(),
@@ -838,28 +907,132 @@ class OrderForm extends Templates {
             of_location:        $('#of_location').val(),
             of_note:            $('#of_note').val()
         };
+    }
 
-        const delivery = values.of_delivery_method === '1';
-        const missing  = !values.of_customer_id || !values.of_delivery_date || !values.of_delivery_time || (delivery && !String(values.of_location || '').trim());
+    // Lo primero que falta en «Datos del pedido»; '' si está completo.
+    dataError(values) {
+        if (!values.of_customer_id) return 'Elige el cliente.';
+        if (!values.of_delivery_date) return 'Elige la fecha de entrega.';
+        if (!values.of_delivery_time) return 'Elige la hora de entrega.';
+        if (values.of_delivery_method === '1' && !String(values.of_location || '').trim()) return 'Escribe la dirección de envío.';
 
-        if (missing && this.ticketBox) {
-            this.ticketBox.section(true);
-            $('#posOrderTk .pos-tk-body').scrollTop(0);
-        }
-
-        this.save(values, !!pay);
+        return '';
     }
 
     async save(values, pay) {
         if (this.saving) return;
 
-        const delivery = values.of_delivery_method === '1';
+        const error = this.dataError(values);
 
-        if (!values.of_customer_id) return this.warn('Elige el cliente.');
-        if (!values.of_delivery_date) return this.warn('Elige la fecha de entrega.');
-        if (!values.of_delivery_time) return this.warn('Elige la hora de entrega.');
-        if (delivery && !String(values.of_location || '').trim()) return this.warn('Escribe la dirección de envío.');
+        if (error) return this.warn(error);
         if (!this.lines.length) return this.warn('Agrega al menos un producto.');
+
+        // Pedido nuevo: se guarda desde los pagos. Sin importe que cobrar solo queda cotización.
+        if (pay && !this.order) {
+            if (this.orderTotal() > 0.005) return this.payDraft(values);
+
+            if (await this.askHow() !== 'quote') return;
+
+            pay = false;
+        }
+
+        const data = await this.send(values);
+
+        if (!data || data.status != 200) {
+            this.warnFail(data, 'No se guardó el pedido');
+            return;
+        }
+
+        this.finish();
+
+        orders.lsOrders();
+        orderTurn.touch();
+
+        if (pay && data.id) {
+            await alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 900 });
+            return orderPay.open(Number(data.id));
+        }
+
+        alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 1600 });
+    }
+
+    orderTotal() {
+        return this.round2(this.lines.reduce((sum, line) => sum + this.unitPrice(line) * line.quantity, 0));
+    }
+
+    /*  «¿Cómo se guarda?»: 'quote' (Cotización), 'pending' (Pendiente) o '' si
+        cerró la pregunta (sigue editando). El estado lo pone el dinero
+        (core-order.php › statusFor): pendiente es el pedido que deja anticipo.
+        Sin importe que cobrar, o con block (por qué no se cobra), solo queda Cotización.
+        back = false: al cerrar, SweetAlert no regresa el foco al botón que la abrió
+        (lo usa la ventana de pagos, que lo manda al importe). */
+    async askHow(block = '', back = true) {
+        const due  = this.orderTotal() > 0.005 && !block;
+        const line = (name, text) => `<p class="ord-ask-line"><b>${name}</b> ${text}</p>`;
+        const why  = block ? line('Sin cobro:', esc(block)) : line('Sin importe:', 'no hay nada que cobrar.');
+
+        const asking = this.swalQuestion({
+            opts: {
+                icon:              'question',
+                title:             '¿Cómo se guarda el pedido?',
+                html:              line('Cotización:', 'se guarda sin dinero; se cobra después.')
+                    + (due ? line('Pendiente:', 'escribe el anticipo y registra el pago.') : why),
+                showConfirmButton: due,
+                showDenyButton:    true,
+                reverseButtons:    true,
+                returnFocus:       back,
+                confirmButtonText: 'Pendiente',
+                denyButtonText:    'Cotización',
+                cancelButtonText:  'Seguir editando'
+            },
+            extends: true
+        });
+
+        // SweetAlert pinta «Cotización» (deny) en rojo, como si borrara: order.css › .ord-ask-save.
+        const popup = window.Swal && Swal.getPopup ? Swal.getPopup() : null;
+
+        if (popup) popup.classList.add('ord-ask-save');
+
+        const answer = await asking;
+
+        if (answer && answer.isConfirmed) return 'pending';
+        if (answer && answer.isDenied)    return 'quote';
+
+        return '';
+    }
+
+    // Pedido nuevo: abre los pagos sin guardar. El pedido se crea cuando la ventana
+    // confirma el cobro o elige cotización (OrderPay.saveDraft llama a send()).
+    async payDraft(values) {
+        const total = this.orderTotal();
+
+        this.saving = true;
+
+        const button = $('#btnOrderSave, #btnOrderSavePay').prop('disabled', true);
+
+        try {
+            await orderPay.openDraft({
+                customer: $('#of_customer_id option:selected').text().split(' · ')[0].trim(),
+                total:    total,
+                delivery: values.of_delivery_date,
+                ask:      (block) => this.askHow(block, false),
+                save:     async () => {
+                    const data = await this.send(values);
+
+                    if (data && data.status == 200) this.finish();
+
+                    return data;
+                }
+            });
+        } finally {
+            this.saving = false;
+            button.prop('disabled', false);
+        }
+    }
+
+    // La petición de guardar, sin avisos: la usan save() y el cobro del pedido nuevo.
+    async send(values) {
+        const delivery = values.of_delivery_method === '1';
 
         this.saving = true;
 
@@ -886,23 +1059,13 @@ class OrderForm extends Templates {
         host.removeClass('is-saving');
         button.prop('disabled', false);
 
-        if (!data || data.status != 200) {
-            this.warnFail(data, 'No se guardó el pedido');
-            return;
-        }
+        return data;
+    }
 
+    // Ya guardado: la captura se cierra sin preguntar por cambios.
+    finish() {
         this.initial = this.snapshot();
         this.close();
-
-        orders.lsOrders();
-        orderTurn.touch();
-
-        if (pay && data.id) {
-            await alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 900 });
-            return orderPay.open(Number(data.id));
-        }
-
-        alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 1600 });
     }
 
     saveProduct(index, values, close) {

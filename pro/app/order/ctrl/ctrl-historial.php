@@ -318,10 +318,19 @@ class ctrl extends core {
                 'undeliver'      => false
             ],
             'limited'  => false,
-            'ticket'   => $this->ticketOf($sale, $lines, $payments, $credit, $points ? (float) $points['amount'] : 0),
+            'ticket'   => $this->ticketOf($sale, $lines, $payments, $credit, $points ? (float) $points['amount'] : 0) + ['stamps' => $alive ? $this->saleStampsInfo($id) : null],
             // V7: el enlace al ticket va con el mismo permiso que imprimirlo.
             'share'    => in_array('print', (array) $actions, true) ? $this->ticketShare($id, $sale['phone']) : null
         ];
+    }
+
+    /*  Los sellos que sumo la venta, para la reimpresion. Solo lo de esta compra:
+        cuantos tenia la tarjeta en ese momento no se guarda (balance null). */
+    private function saleStampsInfo($saleId) {
+        $rows   = $this->qSaleStamps($saleId);
+        $earned = array_sum(array_map(fn ($r) => $r['kind'] === 'sello' ? (int) $r['qty'] : 0, $rows));
+
+        return $earned > 0 ? ['earned' => $earned, 'balance' => null, 'goal' => null, 'rewards' => 0, 'reward' => null] : null;
     }
 
     // La forma de ticketData de ctrl-ventas, con lo guardado. $credit = lo que sigue a credito; $points = abonado al monedero.
@@ -331,8 +340,9 @@ class ctrl extends core {
         $discount = round((float) $s['discount_amount'], 2);
         $cardType = (string) ($s['card_type'] ?? '');
         $cardNum  = (string) ($s['card_number'] ?? '');
-        // El descuento de una tarjeta no tiene motivo: se nombra por su tipo, como al vender.
-        $reason   = (string) $s['discount_reason'] !== '' ? $s['discount_reason'] : ($cardType !== '' ? 'Tarjeta ' . $cardType : '');
+        // El descuento de una tarjeta no tiene motivo: se nombra por su tipo, como al vender; el premio de sellos, por su nota («Premio Café gratis · …»).
+        $prize    = strpos((string) ($s['discount_note'] ?? ''), 'Premio ') === 0 ? trim(explode(' · ', (string) $s['discount_note'])[0]) : '';
+        $reason   = (string) $s['discount_reason'] !== '' ? $s['discount_reason'] : ($prize !== '' ? $prize : ($cardType !== '' ? 'Tarjeta ' . $cardType : ''));
 
         return [
             'folio'         => (string) ($s['folio'] ?: $s['id']),
@@ -717,6 +727,11 @@ class ctrl extends core {
                 $holder   = $pointsTo > 0 ? $this->qCreditCustomer($pointsTo, true) : null;
                 $clawed   = 0;
 
+                // Sellos de la tarjeta (Lealtad): se anulan los que dio y regresa el premio que canjeó.
+                $stampRows = $this->qSaleStamps($id);
+                $stampsOut = array_sum(array_map(fn ($s) => $s['kind'] === 'sello' ? (int) $s['qty'] : 0, $stampRows));
+                $stampsIn  = array_sum(array_map(fn ($s) => $s['kind'] === 'canje' ? -(int) $s['qty'] : 0, $stampRows));
+
                 if ($holder) {
                     $room   = (float) $holder['wallet'] + ($pointsTo === $customerId ? $purse + $closed : 0);
                     $clawed = round(min((float) $points['amount'], max($room, 0)), 2);
@@ -738,6 +753,7 @@ class ctrl extends core {
 
                 if ($points) $this->voidPoints((int) $points['id'], 'cancelSale points');
                 if ($charge) $this->voidSaleLedger($id, 'cancelSale ledger');
+                if ($stampRows) $this->voidSaleStamps($id, 'cancelSale stamps');
 
                 $cutNote = $this->cutNote($sale);
                 $name    = $customerId > 0 ? ($this->qCustomerName($customerId) ?: 'el cliente') : '';
@@ -755,6 +771,9 @@ class ctrl extends core {
                     elseif ($clawed > 0.005)        $notes[] = 'De los ' . money($earned) . ' en puntos solo se quitan ' . money($clawed) . ': el monedero de ' . $owner . ' ya no tenía más.';
                     else                            $notes[] = 'Los ' . money($earned) . ' en puntos no se quitan: el monedero de ' . $owner . ' ya estaba en cero.';
                 }
+
+                if ($stampsOut > 0) $notes[] = 'Se quitan ' . $stampsOut . ($stampsOut === 1 ? ' sello' : ' sellos') . ' de la tarjeta.';
+                if ($stampsIn > 0)  $notes[] = 'Regresan a la tarjeta los ' . $stampsIn . ' sellos del premio que se canjeó.';
 
                 $returned = implode(' ', $notes);
 

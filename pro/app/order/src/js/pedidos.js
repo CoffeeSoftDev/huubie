@@ -11,6 +11,11 @@ $(async () => {
     orderPay     = new OrderPay('ctrl/ctrl-cobro.php', 'root');
     orderClosure = new OrderClosure('ctrl/ctrl-cierre.php', 'root');
     orders       = new Orders(api, 'root');
+
+    // «Todas las sucursales» de la barra (navbar.offerAll): la comparte con el Calendario.
+    orders.all      = !!(dataInit.all && window.navbar && typeof navbar.offerAll === 'function' && navbar.offerAll('order', dataInit.all));
+    orderDetail.all = orders.all;
+
     orders.init();
 });
 
@@ -28,12 +33,12 @@ class Orders extends Templates {
         this.request      = 0;
         this.searchTimer  = null;
         this.pageLength   = 15;
+        this.all          = false;   // todas las sucursales
     }
 
     get filters() {
         return {
             q:          String($('#ord_q').val() || '').trim(),
-            date_type:  $('#ord_date_type').val(),
             ...getDataRangePicker('ord_calendar'),
             status:     $('#ord_status').val(),
             order_type: $('#ord_order_type').val()
@@ -115,51 +120,50 @@ class Orders extends Templates {
 
     filterBar() {
         const saved = this.savedRange();
-        const col   = 'col-12 col-sm-6 col-lg-3 col-xl-2';   // los cuatro filtros miden lo mismo
+        const col   = 'col-12 col-sm-6 col-lg-3 col-xl-2';   // los tres filtros y el botón miden lo mismo
+
+        // El periodo filtra siempre por fecha de captura (el ctrl la toma por defecto).
+        const data = [
+            {
+                opc:      'input-calendar',
+                id:       'calendar',
+                lbl:      'Buscar por fecha de captura',
+                required: false,
+                readonly: true,
+                class:    `${col} ord-period`
+            },
+            {
+                opc:      'select',
+                id:       'status',
+                lbl:      'Estado',
+                required: false,
+                class:    `${col} ord-period`,
+                data:     [{ id: '', valor: 'Todos' }, ...(dataInit.statuses || [])],
+                onchange: 'orders.lsOrders()'
+            },
+            {
+                opc:      'select',
+                id:       'order_type',
+                lbl:      'Tipo',
+                required: false,
+                class:    col,
+                data:     [{ id: '', valor: 'Todos' }, { id: 'custom', valor: 'Personalizado' }, { id: 'normal', valor: 'Normal' }],
+                onchange: 'orders.lsOrders()'
+            }
+        ];
+
+        // «Nuevo pedido» va al final de la barra, junto a los filtros. Solo con create.
+        // Por el prefijo de la barra su id queda como ord_btnNewOrder.
+        if (this.can('create')) {
+            data.push({ opc: 'button', id: 'btnNewOrder', class: col, text: 'Nuevo pedido', icon: 'icon-plus', color_btn: 'primary', onClick: () => orderForm.add() });
+        }
 
         this.createfilterBar({
             parent:     `filterBar${this.PROJECT_NAME}`,
             id:         `fb${this.PROJECT_NAME}`,
             prefijo:    'ord_',
             coffeesoft: true,
-            data: [
-                {
-                    opc:      'select',
-                    id:       'date_type',
-                    lbl:      'Filtrar por',
-                    required: false,
-                    class:    `${col} ord-period`,
-                    data:     [{ id: 'created', valor: 'Fecha de captura' }, { id: 'delivery', valor: 'Fecha de entrega' }],
-                    value:    saved.dateType,
-                    onchange: 'orders.onPeriodChange()'
-                },
-                {
-                    opc:      'input-calendar',
-                    id:       'calendar',
-                    lbl:      'Periodo',
-                    required: false,
-                    readonly: true,
-                    class:    `${col} ord-period`
-                },
-                {
-                    opc:      'select',
-                    id:       'status',
-                    lbl:      'Estado',
-                    required: false,
-                    class:    `${col} ord-period`,
-                    data:     [{ id: '', valor: 'Todos' }, ...(dataInit.statuses || [])],
-                    onchange: 'orders.lsOrders()'
-                },
-                {
-                    opc:      'select',
-                    id:       'order_type',
-                    lbl:      'Tipo',
-                    required: false,
-                    class:    col,
-                    data:     [{ id: '', valor: 'Todos' }, { id: 'custom', valor: 'Personalizado' }, { id: 'normal', valor: 'Normal' }],
-                    onchange: 'orders.lsOrders()'
-                }
-            ]
+            data:       data
         });
 
         dataPicker({
@@ -223,8 +227,7 @@ class Orders extends Templates {
                         type:  'div',
                         class: 'flex items-end justify-between gap-[12px] flex-wrap',
                         children: [
-                            { type: 'div', id: `headerText${this.PROJECT_NAME}`, class: 'min-w-0' },
-                            { type: 'div', id: `headerActions${this.PROJECT_NAME}`, class: 'shrink-0' }
+                            { type: 'div', id: `headerText${this.PROJECT_NAME}`, class: 'min-w-0' }
                         ]
                     }
                 ]
@@ -239,7 +242,7 @@ class Orders extends Templates {
                 class: 'w-full',
                 container: [
                     { type: 'h1', class: 'cp-pagina-titulo', text: 'Pedidos' },
-                    { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, scope.branch].filter(Boolean).join(' · ') || 'Pedidos y cotizaciones de la sucursal' }
+                    { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, this.all ? 'Todas las sucursales' : scope.branch].filter(Boolean).join(' · ') || 'Pedidos y cotizaciones de la sucursal' }
                 ]
             }
         });
@@ -251,35 +254,10 @@ class Orders extends Templates {
         orderTurn.paintStrip(true);
     }
 
-    // Botón del encabezado. El turno lo muestra la franja de caja (caja-strip.js).
-    // orderTurn.sync() lo repinta.
-    paintTurn() {
-        if (!$(`#headerActions${this.PROJECT_NAME}`).length) return;
-
-        this.createLayout({
-            parent: `headerActions${this.PROJECT_NAME}`,
-            design: false,
-            data: {
-                id:    `headerActionsBody${this.PROJECT_NAME}`,
-                class: 'flex items-center gap-[12px] flex-wrap justify-end',
-                container: [
-                    { type: 'div', id: `headerButtons${this.PROJECT_NAME}`, class: 'flex' }
-                ]
-            }
-        });
-
-        if (!this.can('create')) return;
-
-        this.coffeeForm({
-            parent:       `headerButtons${this.PROJECT_NAME}`,
-            id:           'formHeaderOrders',
-            class:        'flex gap-[8px]',
-            showRequired: false,
-            json: [
-                { opc: 'button', id: 'btnNewOrder', class: 'col-auto', text: 'Nuevo pedido', icon: 'icon-plus', color_btn: 'primary', onClick: () => orderForm.add() }
-            ]
-        });
-    }
+    // El encabezado ya no lleva botones: «Nuevo pedido» vive en la barra de filtros
+    // y el turno en la franja de caja (caja-strip.js). Se queda vacío porque
+    // orderTurn.sync() lo llama en todas las pantallas.
+    paintTurn() {}
 
     blocked(message) {
         this.createLayout({
@@ -312,7 +290,7 @@ class Orders extends Templates {
         $('.ord-period').toggleClass('opacity-50', filters.q !== '');
         $(`#table${this.PROJECT_NAME}`).addClass('opacity-50');
 
-        const data = await useFetch({ url: this._link, data: { opc: 'lsOrders', ...filters } });
+        const data = await useFetch({ url: this._link, data: { opc: 'lsOrders', ...filters, all: this.all ? 1 : 0 } });
 
         if (request !== this.request) return;
 
@@ -330,9 +308,9 @@ class Orders extends Templates {
             data:    loaded && data.row ? data : { thead: [], row: [] },
             striped: true,
             hover:   true,
-            f_size:  13,
+            f_size:  12,
             right:   [4, 5, 6],
-            center:  [2, 7, 8, 9, 10],
+            center:  [1,2, 7, 8, 9, 10],
             ...ORD_TABLE,
             ...this.emptyState(loaded ? data : null)
         });
@@ -412,14 +390,12 @@ class Orders extends Templates {
     }
 
     savedRange() {
-        const saved = { dateType: 'created', dates: this.rangeDates('month') };
+        const saved = { dates: this.rangeDates('month') };
 
         try {
             const raw = JSON.parse(localStorage.getItem(this.rangeKey) || '{}') || {};
             const fi  = moment(raw.fi, 'YYYY-MM-DD', true);
             const ff  = moment(raw.ff, 'YYYY-MM-DD', true);
-
-            if (['created', 'delivery'].includes(raw.dateType)) saved.dateType = raw.dateType;
 
             if (Object.keys(this.ranges).includes(raw.range)) saved.dates = this.rangeDates(raw.range);
             else if (raw.range === 'custom' && fi.isValid() && ff.isValid() && !ff.isBefore(fi)) saved.dates = [fi, ff];
@@ -434,7 +410,7 @@ class Orders extends Templates {
         const { fi, ff } = getDataRangePicker('ord_calendar');
 
         try {
-            localStorage.setItem(this.rangeKey, JSON.stringify({ dateType: $('#ord_date_type').val(), range: this.rangeName(fi, ff), fi, ff }));
+            localStorage.setItem(this.rangeKey, JSON.stringify({ range: this.rangeName(fi, ff), fi, ff }));
         } catch (e) {
             return;
         }

@@ -35,6 +35,19 @@ class WhatsAppMeta {
     private $token;
     private $graph = self::GRAPH;
 
+    /*  Plantillas aprobadas en Meta (F5): la clave de Huubie => [nombre en
+        Meta, idioma]. El texto lo aprueba Meta; Huubie solo manda los valores.
+        Los nombres se cambian en el .env (WHATSAPP_META_TPL_SALDO,
+        WHATSAPP_META_TPL_ABRIMOS, WHATSAPP_META_TPL_TARJETA, WHATSAPP_META_TPL_PREMIO,
+        WHATSAPP_META_TPL_IDIOMA). 'tarjeta' y 'premio' son de Lealtad (tarjeta
+        digital y premio de sellos listo). */
+    private $templates = [
+        'saldo'   => ['name' => 'huubie_saldo_pendiente', 'lang' => 'es_MX'],
+        'abrimos' => ['name' => 'huubie_ya_abrimos', 'lang' => 'es_MX'],
+        'tarjeta' => ['name' => 'huubie_tarjeta_digital', 'lang' => 'es_MX'],
+        'premio'  => ['name' => 'huubie_premio_listo', 'lang' => 'es_MX'],
+    ];
+
     // Sin argumentos lee el .env. Con los tres (el arnes de pruebas) no lo toca.
     function __construct($secret = null, $verifyToken = null, $token = null) {
         if ($secret === null || $verifyToken === null || $token === null) {
@@ -45,6 +58,13 @@ class WhatsAppMeta {
 
             $graph = $env['WHATSAPP_META_GRAPH_VERSION'] ?? '';
             if (preg_match('/^v\d{1,3}\.\d{1,2}$/', $graph)) $this->graph = $graph;
+
+            $lang = $env['WHATSAPP_META_TPL_IDIOMA'] ?? '';
+            foreach (['saldo' => 'WHATSAPP_META_TPL_SALDO', 'abrimos' => 'WHATSAPP_META_TPL_ABRIMOS', 'tarjeta' => 'WHATSAPP_META_TPL_TARJETA', 'premio' => 'WHATSAPP_META_TPL_PREMIO'] as $key => $var) {
+                $name = $env[$var] ?? '';
+                if (preg_match('/^[a-z0-9_]{1,512}$/', $name)) $this->templates[$key]['name'] = $name;
+                if (preg_match('/^[a-z]{2,3}(_[A-Z]{2})?$/', $lang)) $this->templates[$key]['lang'] = $lang;
+            }
         }
 
         $this->secret      = (string) $secret;
@@ -269,9 +289,136 @@ class WhatsAppMeta {
         return array_merge($answer, ['detail' => self::cut($detail, 255)]);
     }
 
+    // Nombre e idioma de cada plantilla, para la pantalla (no son secretos).
+    function templates() {
+        return $this->templates;
+    }
+
+    /*  Una plantilla aprobada (F5): lo unico que Meta deja mandar fuera de la
+        ventana de 24 h. $key = 'saldo' | 'abrimos' | 'tarjeta' | 'premio'; $params = los valores
+        {{1}}, {{2}}… en orden. Meta no acepta saltos de linea ni tabuladores
+        en un valor: se cambian por espacios. Devuelve lo mismo que send(). */
+    function sendTemplate($phoneNumberId, $phone, $key, array $params) {
+        $to     = self::metaPhone($phone);
+        $tpl    = $this->templates[$key] ?? null;
+        $answer = ['ok' => false, 'status' => 'failed', 'detail' => '', 'provider_id' => null, 'to' => $to];
+
+        if ($to === '')  return array_merge($answer, ['detail' => 'El teléfono del cliente no es válido.']);
+        if (!$tpl)       return array_merge($answer, ['detail' => 'Esa plantilla no existe.']);
+
+        $values = [];
+
+        foreach (array_values($params) as $value) {
+            $value = trim((string) preg_replace('/\s+/u', ' ', (string) $value));
+            if ($value === '') return array_merge($answer, ['detail' => 'A la plantilla le falta un dato.']);
+
+            $values[] = ['type' => 'text', 'text' => self::cut($value, 1000)];
+        }
+
+        if ($this->token === '') return self::simulated($to);
+
+        if (!preg_match('/^\d{1,32}$/', (string) $phoneNumberId)) {
+            return array_merge($answer, ['detail' => 'El número de la empresa no tiene phone_number_id.']);
+        }
+
+        $url  = 'https://graph.facebook.com/' . $this->graph . '/' . $phoneNumberId . '/messages';
+        $body = json_encode([
+            'messaging_product' => 'whatsapp',
+            'recipient_type'    => 'individual',
+            'to'                => $to,
+            'type'              => 'template',
+            'template'          => [
+                'name'       => $tpl['name'],
+                'language'   => ['code' => $tpl['lang']],
+                'components' => $values ? [['type' => 'body', 'parameters' => $values]] : [],
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        try {
+            $res = $this->request($url, $body);
+        } catch (Throwable $e) {
+            self::log('[ PLANTILLA ] :: ' . $e->getMessage());
+
+            return array_merge($answer, ['detail' => 'No se pudo llamar a Meta.']);
+        }
+
+        $wamid = self::pick($res['body'] ?? null, ['messages', 0, 'id']);
+
+        if ($res['code'] >= 200 && $res['code'] < 300 && $wamid !== '' && strlen($wamid) <= 128) {
+            return array_merge($answer, ['ok' => true, 'status' => 'sent', 'provider_id' => $wamid]);
+        }
+
+        $detail = self::pick($res['body'] ?? null, ['error', 'message']);
+        if ($detail === '') $detail = $res['error'] !== '' ? $res['error'] : 'Meta contestó HTTP ' . $res['code'] . '.';
+
+        self::log('[ PLANTILLA ] :: ' . $tpl['name'] . ' · HTTP ' . $res['code'] . ' · ' . $detail);
+
+        return array_merge($answer, ['detail' => self::cut($detail, 255)]);
+    }
+
     // La respuesta de un envio que no sale a la red.
     static function simulated($to) {
         return ['ok' => true, 'status' => 'simulated', 'detail' => '', 'provider_id' => null, 'to' => (string) $to];
+    }
+
+    // -- Archivos que mando el cliente --
+
+    /*  Baja una foto o un documento que llego al webhook (media_id). Meta da
+        primero una url temporal (5 min) y luego los bytes, las dos con el token.
+        Devuelve ok, bytes, mime y detail. Sin token o mas de $max bytes = ok false. */
+    function media($mediaId, $max = 5242880) {
+        $answer = ['ok' => false, 'bytes' => '', 'mime' => '', 'detail' => ''];
+
+        if ($this->token === '') return array_merge($answer, ['detail' => 'Sin token de Meta no se pueden bajar archivos.']);
+        if (!preg_match('/^\d{1,64}$/', (string) $mediaId)) return array_merge($answer, ['detail' => 'El archivo no tiene un id de Meta.']);
+
+        try {
+            $info = $this->fetch('https://graph.facebook.com/' . $this->graph . '/' . $mediaId, 2048);
+            $meta = $info['code'] === 200 ? json_decode($info['raw'], true) : null;
+            $url  = self::pick($meta, ['url']);
+            $size = (int) self::pick($meta, ['file_size']);
+
+            if (!preg_match('~^https://[^\s]+$~', $url)) return array_merge($answer, ['detail' => 'Meta no dio el archivo (HTTP ' . $info['code'] . ').']);
+            if ($size > $max)                            return array_merge($answer, ['detail' => 'El archivo pesa más de ' . round($max / 1048576) . ' MB.']);
+
+            $file = $this->fetch($url, $max + 1);
+        } catch (Throwable $e) {
+            self::log('[ ARCHIVO ] :: ' . $e->getMessage());
+
+            return array_merge($answer, ['detail' => 'No se pudo bajar el archivo de Meta.']);
+        }
+
+        if ($file['code'] !== 200 || $file['raw'] === '') return array_merge($answer, ['detail' => 'Meta no dio el archivo (HTTP ' . $file['code'] . ').']);
+        if (strlen($file['raw']) > $max)                   return array_merge($answer, ['detail' => 'El archivo pesa más de ' . round($max / 1048576) . ' MB.']);
+
+        return ['ok' => true, 'bytes' => $file['raw'], 'mime' => self::pick($meta, ['mime_type']), 'detail' => ''];
+    }
+
+    // GET con el token; corta en $max bytes. El token nunca va al log.
+    protected function fetch($url, $max) {
+        $curl = curl_init();
+        $raw  = '';
+
+        curl_setopt_array($curl, [
+            CURLOPT_URL            => $url,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $this->token],
+            CURLOPT_WRITEFUNCTION  => function ($ch, $chunk) use (&$raw, $max) {
+                if (strlen($raw) + strlen($chunk) > $max) return 0;
+
+                $raw .= $chunk;
+
+                return strlen($chunk);
+            },
+        ]);
+
+        curl_exec($curl);
+        $code = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        return ['code' => $code, 'raw' => $raw];
     }
 
     // [code, error, body]. El token va en el encabezado y nunca al log.

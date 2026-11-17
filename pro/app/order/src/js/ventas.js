@@ -616,13 +616,24 @@ class Sale extends OrderForm {
             ? `<p class="text-[14px] text-emerald-700 mb-0">Puntos <b>${money(data.points)}</b> al monedero</p>`
             : '';
 
+        // Sellos de la tarjeta: el premio canjeado, los que sumó y cómo quedó.
+        const s      = data.stamps;
+        const earned = s && s.earned > 0 ? `+${s.earned} ${s.earned === 1 ? 'sello' : 'sellos'} · ` : '';
+        const told   = s && s.whatsapp && ['sent', 'simulated'].includes(s.whatsapp.status)
+            ? `<p class="text-[12.5px] text-gray-500 mb-0">Completó un premio: le avisamos por WhatsApp${s.whatsapp.status === 'simulated' ? ' (simulado)' : ''}.</p>`
+            : '';
+        const have   = s && s.balance >= s.goal ? `<b>${s.balance}</b> sellos: premio listo` : (s ? `<b>${s.balance} de ${s.goal}</b> sellos` : '');
+        const stamps = s
+            ? `<p class="text-[14px] text-emerald-700 mb-0">${s.reward ? `Premio canjeado: <b>${esc(s.reward.name)}</b> · ` : ''}${earned}lleva ${have}</p>${told}`
+            : '';
+
         // V7: «Enviar por WhatsApp» es el botón del medio (deny de SweetAlert).
         const share = !!(data.share && data.share.link);
 
         const asking = alert({
             icon:     'success',
             title:    data.message,
-            html:     `${change}<p class="text-[14px] mb-0">Cobrado <b>${money(t.charged)}</b></p>${credit}${points}`,
+            html:     `${change}<p class="text-[14px] mb-0">Cobrado <b>${money(t.charged)}</b></p>${credit}${points}${stamps}`,
             btn1:     this.canSell('print'),
             btn1Text: 'Imprimir ticket',
             btn2:     true,
@@ -1008,10 +1019,18 @@ class Sale extends OrderForm {
             && next.type === card.type
             && next.discount_percent === card.discount_percent
             && next.points_percent === card.points_percent
+            && next.stamp_goal === card.stamp_goal
+            && next.reward_value === card.reward_value
             && next.customer_id === card.customer_id;
 
         if (same) {
             if (data.customer) this.keepCustomer(data.customer);
+
+            // Los sellos pudieron moverse en otra caja: se toman los de hoy sin avisar (el premio se ofrece con esos).
+            card.stamps  = next.stamps;
+            card.rewards = next.rewards;
+            this.persistTickets();
+
             return true;
         }
 
@@ -1048,6 +1067,7 @@ class Sale extends OrderForm {
         const number  = String(raw.number || '').trim().slice(0, 40);
         const owner   = Number(raw.customer_id);
         const percent = (v) => Math.min(100, Math.max(0, Number(v) || 0));
+        const count   = (v) => Math.max(0, Math.floor(Number(v) || 0));
 
         if (!Number.isInteger(id) || id <= 0 || !number) return null;
 
@@ -1058,9 +1078,21 @@ class Sale extends OrderForm {
             type:             String(raw.type || ''),
             discount_percent: percent(raw.discount_percent),
             points_percent:   percent(raw.points_percent),
+            // Sellos (Lealtad): la meta, $ por sello, el premio y lo que lleva hoy (stamps) y cuántos premios completos (rewards).
+            stamp_goal:       count(raw.stamp_goal),
+            stamp_amount:     Math.max(0, Number(raw.stamp_amount) || 0),
+            reward_name:      String(raw.reward_name || ''),
+            reward_value:     Math.max(0, Number(raw.reward_value) || 0),
+            stamps:           count(raw.stamps),
+            rewards:          count(raw.rewards),
             customer_id:      Number.isInteger(owner) && owner > 0 ? owner : null,
             customer:         String(raw.customer || '')
         };
+    }
+
+    // «7 de 10 sellos»; si ya pasó la meta (premio sin canjear), «12 sellos juntados».
+    stampsText(card) {
+        return card.stamps >= card.stamp_goal ? `${card.stamps} sellos juntados` : `${card.stamps} de ${card.stamp_goal} sellos`;
     }
 
     // Mismo redondeo que el servidor: round(subtotal × % / 100, 2).
@@ -1075,6 +1107,12 @@ class Sale extends OrderForm {
 
         if (card.points_percent > 0) {
             parts.push(this.customerAccount() ? `${card.points_percent} % en puntos` : 'elige un cliente para sumar puntos');
+        }
+
+        if (card.stamp_goal > 0) {
+            parts.push(this.stampsText(card));
+
+            if (card.rewards > 0) parts.push(`premio listo: ${card.reward_name} (se canjea al cobrar)`);
         }
 
         return parts.join(' · ');
@@ -1567,6 +1605,7 @@ class SalePay extends SalePayBase {
         this.methods      = (sale.opts.methods || []).map((m) => ({ id: Number(m.id), name: m.name, code: m.code, cash: Number(m.is_cash) === 1 }));
         this.account      = sale.customerAccount();
         this.card         = sale.currentTicket().card || null;
+        this.redeem       = false;
         this.onCredit     = false;
 
         // El monedero se ofrece solo si el cliente trae saldo.
@@ -1687,10 +1726,22 @@ class SalePay extends SalePayBase {
 
         modal.on('input', '#op_tip_amount', () => this.paint());
 
-        modal.on('click', 'button.ord-credit', () => {
+        modal.on('click', 'button.ord-credit:not(.ord-reward)', () => {
             this.onCredit = !this.onCredit;
             this.paint();
             $('#op_received').trigger('focus');
+        });
+
+        // Canjear el premio de sellos: es el descuento de la venta, así que cierra el descuento manual.
+        modal.on('click', 'button.ord-reward', () => {
+            this.redeem = !this.redeem;
+
+            if (this.redeem && this.discOpen) {
+                this.discOpen = false;
+                $('#op_reason, #op_disc_value, #op_disc_note').val('');
+            }
+
+            this.paint();
         });
     }
 
@@ -1739,7 +1790,8 @@ class SalePay extends SalePayBase {
         if (window.lucide) lucide.createIcons();
     }
 
-    // Con tarjeta se avisa lo que hace. Si su tipo descuenta, ese es el descuento y no se ofrece otro.
+    /*  Con tarjeta se avisa lo que hace. Si su tipo descuenta, ese es el descuento y no se ofrece otro.
+        Con sellos: cuántos lleva y, si ya completó la meta, «Canjear premio» (con el estilo de «Resto a crédito»). */
     discountFields() {
         if (!this.card) return super.discountFields();
 
@@ -1748,20 +1800,43 @@ class SalePay extends SalePayBase {
 
         if (card.discount_percent > 0) parts.push(`${card.discount_percent} % de descuento`);
         if (card.points_percent > 0) parts.push(this.account ? `${card.points_percent} % de lo pagado va al monedero` : 'sin cliente no suma puntos');
+        if (card.stamp_goal > 0) parts.push(`lleva ${sale.stampsText(card)} y suma 1 por cada ${money(card.stamp_amount)} pagados`);
 
-        const bar = {
+        const fields = [{
             id:    'op_card_bar',
             tipo:  'html',
             class: 'w-full',
             html:  `<p class="sale-card-note"><i data-lucide="credit-card" class="w-4 h-4"></i><span>Tarjeta <b>${esc(card.type)}</b> · ${esc(card.number)}${parts.length ? ': ' + parts.join(' y ') : ''}.</span></p>`
-        };
+        }];
 
-        return this.cardDiscounts() ? [bar] : [bar, ...super.discountFields()];
+        if (card.stamp_goal > 0 && card.rewards > 0) {
+            fields.push({
+                id:    'op_reward',
+                tipo:  'html',
+                class: 'w-full',
+                html:  `<button type="button" class="ord-credit ord-reward" aria-pressed="false"><i data-lucide="gift" class="w-4 h-4"></i><span>Canjear premio: <b>${esc(card.reward_name)}</b> (hasta ${money(card.reward_value)})</span></button>`
+            });
+        }
+
+        return this.cardDiscounts() ? fields : [...fields, ...super.discountFields()];
     }
 
-    // Mismo redondeo que el servidor (cardDiscount en ctrl-ventas.php).
+    // Mismo redondeo que el servidor (cardDiscount y rewardDiscount en ctrl-ventas.php).
     discountCalc() {
         if (!this.cardDiscounts()) return super.discountCalc();
+
+        if (this.redeem) {
+            const amount = ordRound(Math.min(this.card.reward_value, this.o.subtotal));
+
+            return {
+                amount:  amount,
+                error:   '',
+                reason:  null,
+                value:   amount,
+                percent: this.o.subtotal > 0 ? ordRound(amount / this.o.subtotal * 100) : 0,
+                card:    true
+            };
+        }
 
         return {
             amount:  sale.cardOff(this.o.subtotal, this.card),
@@ -1773,8 +1848,17 @@ class SalePay extends SalePayBase {
         };
     }
 
+    // El descuento lo pone la tarjeta: su porcentaje o el premio de sellos que se va a canjear.
     cardDiscounts() {
-        return !!(this.card && this.card.discount_percent > 0);
+        return !!(this.card && (this.card.discount_percent > 0 || this.redeem));
+    }
+
+    // Con el premio puesto, el descuento manual se esconde.
+    paintDiscount(c) {
+        $('#modalOrderPay button.ord-reward').toggleClass('is-active', this.redeem).attr('aria-pressed', String(this.redeem));
+        $('#op_disc_bar').toggleClass('hidden', this.redeem);
+
+        super.paintDiscount(c);
     }
 
     // OrderPay llena aquí sus mosaicos de Total, Pagado y Restante: los de la venta son otros.
@@ -1960,7 +2044,8 @@ class SalePay extends SalePayBase {
             payments:    c.payments.length ? JSON.stringify(c.payments) : '',
             discount:    discount,
             credit:      c.credit > 0.005 ? '1' : '',
-            card_id:     this.card ? this.card.id : ''
+            card_id:     this.card ? this.card.id : '',
+            redeem:      this.card && this.redeem ? '1' : ''
         };
 
         this.saving = true;

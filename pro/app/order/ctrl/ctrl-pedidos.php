@@ -42,18 +42,22 @@ class ctrl extends core {
 
         return [
             'status'   => 200,
-            'scope'    => ['company' => $scope['company'], 'branch' => $scope['branch']],
+            'scope'    => ['company' => $scope['company'], 'branch' => $scope['branch'], 'logo' => $this->companyLogo()],
             'actions'  => $this->actions(),
             'tickets'  => Permission::actions(self::TICKETS),
             'statuses' => $scope['company_id'] > 0 ? $this->qStatuses($scope['company_id']) : [],
             'today'    => date('Y-m-d'),
             'turn'     => $this->turnBrief(),
-            'day'      => $this->dayBrief()
+            'day'      => $this->dayBrief(),
+            'all'      => $this->allOffer(self::SECTION)
         ];
     }
 
     // -- Lista --
 
+    /*  all = 1: los pedidos de todas las sucursales donde el rol ve Pedidos.
+        Los de otra sucursal solo se ven e imprimen: para cobrarlos o
+        cambiarlos se elige su sucursal en la barra. */
     public function lsOrders() {
         $fail = $this->need('show') ?: $this->needBranch();
         if ($fail) return $fail;
@@ -99,7 +103,7 @@ class ctrl extends core {
         $type = $this->post('order_type');
 
         return [
-            'branch_id'  => $this->branchId(),
+            'branches'   => $this->readBranches(self::SECTION),
             'date_type'  => $this->post('date_type') === 'delivery' ? 'delivery' : 'created',
             'fi'         => $fi,
             'ff'         => $ff,
@@ -135,15 +139,26 @@ class ctrl extends core {
         ];
     }
 
-    // Una fila de la tabla. Las claves son los encabezados.
+    /*  Una fila de la tabla. Las claves son los encabezados. La de otra
+        sucursal deja solo Ver e Imprimir y sus importes no abren la ventana
+        de pagos (cobrar escribe en la activa). */
     private function orderRow($o, $turnId, array $actions) {
         $id        = (int) $o['id'];
         $statusId  = (int) $o['sale_status_id'];
         $cancelled = $statusId === self::CANCELLED;
         $custom    = (int) $o['is_custom'] === 1;
         $inTurn    = $turnId > 0 && (int) $o['turn_id'] === $turnId;
+        $foreign   = (int) $o['branch_id'] !== $this->branchId();
 
         $menu = [['icon' => 'icon-eye', 'text' => 'Ver', 'onclick' => "orderDetail.show({$id})"]];
+
+        if ($foreign) {
+            if (in_array('print', $actions, true)) {
+                $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
+            }
+
+            return $this->rowCells($o, $inTurn, $cancelled, $custom, false, false, false, $menu);
+        }
 
         if (in_array('update', $actions, true) && $this->editBlock($o) === '') {
             $menu[] = ['icon' => 'icon-pencil', 'text' => 'Editar', 'onclick' => "orderForm.edit({$id})"];
@@ -158,11 +173,12 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-money', 'text' => 'Pagos', 'onclick' => "orderPay.open({$id}, false, { tab: 'history' })"];
         }
 
-        // Entregar; con saldo, cobrar primero y entregar al terminar (decision 5).
-        if (in_array('update', $actions, true) && $this->deliverBlock($o) === '') {
+        // Entregar, solo sin saldo. Con saldo se cobra primero desde «Cobrar».
+        // El badge de la columna Entregado abre la misma ventana.
+        $canDeliver = in_array('update', $actions, true) && $this->deliverBlock($o) === '';
+
+        if ($canDeliver) {
             $menu[] = ['icon' => 'icon-ok-circled', 'text' => 'Entregar', 'onclick' => "orderDetail.deliver({$id})"];
-        } elseif (in_array('update', $actions, true) && in_array('create', $actions, true) && $this->settleFirst($o) && $this->payBlock($o) === '') {
-            $menu[] = ['icon' => 'icon-truck', 'text' => 'Cobrar y entregar', 'onclick' => "orderPay.open({$id}, false, { deliver: true })"];
         }
 
         // Entregado por error: lo regresa Dueño o Supervisor (permiso cancel).
@@ -183,18 +199,27 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-trash', 'text' => 'Eliminar', 'onclick' => "orderForm.remove({$id})"];
         }
 
+        return $this->rowCells($o, $inTurn, $cancelled, $custom, $canPay, true, $canDeliver, $menu);
+    }
+
+    // Las celdas de la fila. $open = los importes abren la ventana de pagos.
+    // $canDeliver = el badge de Entregado es botón y entrega.
+    private function rowCells($o, $inTurn, $cancelled, $custom, $canPay, $open, $canDeliver, array $menu) {
+        $id       = (int) $o['id'];
+        $statusId = (int) $o['sale_status_id'];
+
         return [
             'id'               => $id,
             'Folio'            => $this->cellFolio($id, $o['folio'], $inTurn, $cancelled),
             'Creación'         => '<span class="text-gray-600"' . $this->sortKey($o['created_at']) . '>' . shortDate($o['created_at']) . '</span>',
             'Cliente'          => $this->cellCustomer($o['customer'], $o['phone'], $custom),
-            'Total'            => $this->cellTotal($id, $o['total'], $o['subtotal'], $o['discount_amount']),
-            'Abono'            => $this->cellPaid($id, $o['paid']),
-            'Saldo'            => $this->cellBalance($id, (float) $o['total'] - (float) $o['paid'], $canPay),
+            'Total'            => $this->cellTotal($id, $o['total'], $o['subtotal'], $o['discount_amount'], $open),
+            'Abono'            => $this->cellPaid($id, $o['paid'], $open),
+            'Saldo'            => $this->cellBalance($id, (float) $o['total'] - (float) $o['paid'], $canPay, $open),
             'Fecha de entrega' => $this->cellDeliveryDate($o['delivery_date'], $o['delivery_time']),
             'Hora'             => '<span class="text-gray-600 whitespace-nowrap"' . $this->sortKey($o['delivery_time']) . '>' . hour12($o['delivery_time']) . '</span>',
             'Estado'           => $this->statusPill($statusId, $o['status']),
-            'Entregado'        => $this->cellDelivered($statusId, (int) $o['delivery_status']),
+            'Entregado'        => $this->cellDelivered($id, $statusId, (int) $o['delivery_status'], $canDeliver),
             'Entrega'          => $this->cellMethod((int) $o['delivery_method']),
             'dropdown'         => $menu
         ];
@@ -223,11 +248,11 @@ class ctrl extends core {
               ? '<i data-lucide="cake" class="w-3.5 h-3.5 text-blue-600 shrink-0" aria-label="Pastel personalizado"></i>'
               : '';
 
-        $html = '<div class="flex items-center gap-1.5 font-semibold text-gray-800">'
+        $html = '<div class="flex items-center gap-1.5 text-gray-800">'
               .   $icon . '<span class="ord-cliente">' . h($name !== '' ? $name : 'Sin cliente') . '</span>'
               . '</div>';
 
-        if ($phone !== '') $html .= '<div class="ord-sub">' . h($phone) . '</div>';
+        if ($phone !== '') $html .= '<div class="ord-sub ord-phone">' . h($phone) . '</div>';
 
         return $html;
     }
@@ -237,42 +262,47 @@ class ctrl extends core {
         return '<span class="text-gray-400"' . $this->sortKey(0) . '>-</span>';
     }
 
-    // Importe que abre la ventana de pagos. Con 'history' abre directo en el historial.
-    private function moneyBtn($id, $amount, $html, $label, $tab = '') {
-        $open = $tab === 'history' ? "orderPay.open({$id}, false, { tab: 'history' })" : "orderPay.open({$id})";
+    /*  Importe que abre la ventana de pagos. Con 'history' abre directo en el
+        historial. $open = false (pedido de otra sucursal): el mismo importe, sin abrir nada. */
+    private function moneyBtn($id, $amount, $html, $label, $tab = '', $open = true) {
+        $sort = $this->sortKey(round((float) $amount, 2));
 
-        return '<button type="button" class="ord-money" onclick="' . $open . '" title="' . h($label) . '"' . $this->sortKey(round((float) $amount, 2)) . '>' . $html . '</button>';
+        if (!$open) return '<span class="inline-flex flex-col items-end gap-[2px] text-right leading-tight"' . $sort . '>' . $html . '</span>';
+
+        $click = $tab === 'history' ? "orderPay.open({$id}, false, { tab: 'history' })" : "orderPay.open({$id})";
+
+        return '<button type="button" class="ord-money" onclick="' . $click . '" title="' . h($label) . '"' . $sort . '>' . $html . '</button>';
     }
 
     // Con descuento: el neto en verde y el bruto tachado debajo.
-    private function cellTotal($id, $total, $subtotal, $discount) {
+    private function cellTotal($id, $total, $subtotal, $discount, $open = true) {
         if (abs((float) $total) < 0.005) return $this->cellZero();
 
         $html = (float) $discount > 0
-            ? '<span class="font-bold text-emerald-700 whitespace-nowrap">' . money($total) . '</span>'
+            ? '<span class="text-emerald-700 whitespace-nowrap">' . money($total) . '</span>'
               . '<span class="text-[11px] text-gray-400 line-through whitespace-nowrap">' . money($subtotal) . '</span>'
-            : '<span class="font-semibold text-gray-800 whitespace-nowrap">' . money($total) . '</span>';
+            : '<span class="text-gray-800 whitespace-nowrap">' . money($total) . '</span>';
 
-        return $this->moneyBtn($id, $total, $html, 'Pagos del pedido');
+        return $this->moneyBtn($id, $total, $html, 'Pagos del pedido', '', $open);
     }
 
-    private function cellPaid($id, $paid) {
+    private function cellPaid($id, $paid, $open = true) {
         if (abs((float) $paid) < 0.005) return $this->cellZero();
 
-        return $this->moneyBtn($id, $paid, '<span class="text-emerald-700 whitespace-nowrap">' . money($paid) . '</span>', 'Ver pagos', 'history');
+        return $this->moneyBtn($id, $paid, '<span class="text-emerald-700 whitespace-nowrap">' . money($paid) . '</span>', 'Ver pagos', 'history', $open);
     }
 
     // Negativo = pago de mas: saldo a favor. El importe abre la ventana de pagos.
-    private function cellBalance($id, $balance, $canPay) {
+    private function cellBalance($id, $balance, $canPay, $open = true) {
         $balance = round($balance, 2);
 
         if ($balance > 0) {
-            return $this->moneyBtn($id, $balance, '<span class="font-bold text-red-600 whitespace-nowrap">' . money($balance) . '</span>', $canPay ? 'Cobrar' : 'Pagos del pedido');
+            return $this->moneyBtn($id, $balance, '<span class="text-red-600 whitespace-nowrap">' . money($balance) . '</span>', $canPay ? 'Cobrar' : 'Pagos del pedido', '', $open);
         }
 
         // A favor ordena como negativo: queda debajo de los saldos en cero.
         if ($balance < 0) {
-            return $this->moneyBtn($id, $balance, '<span class="font-semibold text-sky-700 whitespace-nowrap">' . money(abs($balance)) . '</span><span class="ord-sub">a favor</span>', 'Ver pagos', 'history');
+            return $this->moneyBtn($id, $balance, '<span class="text-sky-700 whitespace-nowrap">' . money(abs($balance)) . '</span><span class="ord-sub">a favor</span>', 'Ver pagos', 'history', $open);
         }
 
         return $this->cellZero();
@@ -302,23 +332,28 @@ class ctrl extends core {
         return '<span class="ord-pill ' . $tone . '">' . h($name !== '' ? $name : 'Sin estado') . '</span>';
     }
 
-    // Una cotizacion o un pedido cancelado no se entregan.
-    private function cellDelivered($statusId, $deliveryStatus) {
+    /*  Badge claro, como los de Estado (statusPill), con los colores de alpha:
+        verde Entregado, rosa En produccion, rojo Sin entregar.
+        $canDeliver: el badge es botón y abre «Entregar pedido» (orderDetail.deliver).
+        Una cotizacion o un pedido cancelado no se entregan. */
+    private function cellDelivered($id, $statusId, $deliveryStatus, $canDeliver) {
         if ($statusId === self::QUOTE || $statusId === self::CANCELLED) {
             return '<span class="ord-sub">No aplica</span>';
         }
 
-        if ($deliveryStatus === 1) {
-            return '<span class="ord-pill bg-emerald-50 text-emerald-700">'
-                 .   '<i data-lucide="circle-check" class="w-3.5 h-3.5"></i>Entregado'
-                 . '</span>';
-        }
+        $badges = [
+            0 => ['bg-red-50 text-red-700',         'Sin entregar'],
+            1 => ['bg-emerald-50 text-emerald-700', 'Entregado'],
+            2 => ['bg-pink-50 text-pink-700',       'En producción']
+        ];
 
-        if ($deliveryStatus === 2) {
-            return '<span class="font-semibold text-blue-600 whitespace-nowrap">En producción</span>';
-        }
+        list($tone, $text) = isset($badges[$deliveryStatus]) ? $badges[$deliveryStatus] : $badges[0];
 
-        return '<span class="text-gray-400 whitespace-nowrap">Sin entregar</span>';
+        $badge = '<span class="ord-pill ' . $tone . '">' . $text . '</span>';
+
+        if (!$canDeliver) return $badge;
+
+        return '<button type="button" class="ord-deliv-btn" onclick="orderDetail.deliver(' . (int) $id . ')" title="Entregar pedido">' . $badge . '</button>';
     }
 
     private function cellMethod($method) {

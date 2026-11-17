@@ -21,6 +21,13 @@
     <script src="<?= $asset('assets/components/cs-modal.js') ?>"></script>
 
     <?php
+    // Lo que la pagina pide de mas ($extra: rutas desde pro/), antes de su JS.
+    foreach (($extra ?? []) as $file):
+    ?>
+    <script src="<?= $asset($file) ?>"></script>
+    <?php
+    endforeach;
+
     // La pagina: src/js/<$script>.js. Sin el detalle, el turno ni el cobro de Pedidos.
     $page = __DIR__ . '/../src/js/' . $script . '.js';
     if (is_file($page)):

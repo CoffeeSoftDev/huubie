@@ -82,21 +82,22 @@ class Cuts extends Templates {
             design: false,
             data: {
                 id:    `page${this.PROJECT_NAME}`,
-                class: 'flex flex-col gap-[16px]',
+                class: 'flex flex-1 flex-col gap-[16px]',
                 container: [
                     { type: 'div', id: `header${this.PROJECT_NAME}`, class: 'w-full' },
-                    { type: 'div', id: `body${this.PROJECT_NAME}`, class: 'w-full' }
+                    { type: 'div', id: `body${this.PROJECT_NAME}`, class: 'w-full flex flex-1 flex-col' }
                 ]
             }
         });
 
+        // La tarjeta llena el alto del módulo, como Pedidos.
         this.primaryLayout({
             parent: `body${this.PROJECT_NAME}`,
             id:     this.PROJECT_NAME,
-            class:  'ord-card',
+            class:  'ord-card flex flex-1 flex-col',
             card: {
                 name:      `card${this.PROJECT_NAME}`,
-                class:     'flex flex-col',
+                class:     'flex flex-1 flex-col',
                 filterBar: { class: 'w-full mb-[14px]' },
                 container: { class: 'w-full' }
             }

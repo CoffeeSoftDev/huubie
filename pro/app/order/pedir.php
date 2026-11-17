@@ -106,6 +106,10 @@ if ($s) {
     $title = 'Enlace no válido';
 }
 
+// Fondo claro de la portada: 6 % del color de la tienda sobre blanco. Tambien tiñe la barra del navegador.
+[$r, $g, $b] = sscanf($accent, '#%02x%02x%02x');
+$heroBg = sprintf('#%02X%02X%02X', round($r * .06 + 255 * .94), round($g * .06 + 255 * .94), round($b * .06 + 255 * .94));
+
 $icons = [
     'store'    => '<path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>',
     'truck'    => '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
@@ -135,8 +139,8 @@ $jsVersion = @filemtime(__DIR__ . '/src/js/pedir.js') ?: 1;
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex, nofollow">
-    <meta name="color-scheme" content="light dark">
-    <meta name="theme-color" content="<?= $h($accent) ?>">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="<?= $h($heroBg) ?>">
     <title><?= $h($title) ?></title>
     <link rel="icon" type="image/svg+xml" href="<?= $h($favicon) ?>">
 <?php if ($s): ?>
@@ -159,6 +163,8 @@ $jsVersion = @filemtime(__DIR__ . '/src/js/pedir.js') ?: 1;
                 img.src = 'https://huubie.com.mx' + path;
                 return;
             }
+            // Card del catalogo (sin data-ini): se quita la foto y queda el icono de la categoria, como en el POS.
+            if (!img.dataset.ini) { img.remove(); return; }
             var box = img.parentNode, span = document.createElement('span');
             span.className = 'ini';
             span.textContent = img.dataset.ini || '';
@@ -189,26 +195,7 @@ $jsVersion = @filemtime(__DIR__ . '/src/js/pedir.js') ?: 1;
             --shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 10px 30px -18px rgba(15, 23, 42, .28);
             --top: 0px;
         }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0B1018;
-                --paper: #131B27;
-                --ink: #E6EAF0;
-                --soft: #9AA6B8;
-                --faint: #64748B;
-                --line: #243041;
-                --chip: #1B2534;
-                --field: #0F1621;
-                --brand-text: color-mix(in srgb, var(--brand) 42%, #FFFFFF);
-                --brand-soft: color-mix(in srgb, var(--brand) 20%, var(--paper));
-                --brand-line: color-mix(in srgb, var(--brand) 55%, var(--line));
-                --ok: #4ADE80;
-                --ok-soft: rgba(34, 197, 94, .14);
-                --danger: #FCA5A5;
-                --danger-soft: rgba(239, 68, 68, .14);
-                --shadow: 0 0 0 1px var(--line);
-            }
-        }
+        /* Siempre en claro: sin version oscura aunque el telefono este en modo oscuro. */
         *, *::before, *::after { box-sizing: border-box; }
         html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
         html.lock { overflow: hidden; }
@@ -229,13 +216,15 @@ $jsVersion = @filemtime(__DIR__ . '/src/js/pedir.js') ?: 1;
         .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
         :focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 55%, transparent); outline-offset: 2px; }
 
-        /* -- Portada -- */
+        /* -- Portada --
+           Clara: un velo del color de la tienda sobre blanco y letra oscura.
+           El color fuerte queda para los botones y la categoria activa. */
         .hero {
             background:
-                radial-gradient(90% 140% at 100% 0%, rgba(255, 255, 255, .20), transparent 60%),
-                radial-gradient(60% 90% at 0% 100%, rgba(0, 0, 0, .18), transparent 70%),
-                var(--brand);
-            color: var(--brand-ink);
+                radial-gradient(70% 120% at 100% 0%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 65%),
+                <?= $h($heroBg) ?>;
+            color: var(--ink);
+            border-bottom: 1px solid color-mix(in srgb, var(--brand) 10%, var(--line));
             padding: 28px 0 64px;
         }
         .hero-in { display: flex; gap: 18px; align-items: center; }
@@ -243,7 +232,7 @@ $jsVersion = @filemtime(__DIR__ . '/src/js/pedir.js') ?: 1;
             width: 76px; height: 76px; flex: none;
             border-radius: 22px;
             background: var(--paper);
-            box-shadow: 0 0 0 4px rgba(255, 255, 255, .25), 0 12px 30px -12px rgba(0, 0, 0, .45);
+            box-shadow: 0 0 0 1px var(--line), 0 10px 24px -14px rgba(15, 23, 42, .35);
             display: grid; place-items: center;
             overflow: hidden;
         }
@@ -253,14 +242,14 @@ $jsVersion = @filemtime(__DIR__ . '/src/js/pedir.js') ?: 1;
             display: inline-flex; align-items: center; gap: 8px;
             font-size: 12px; font-weight: 700; letter-spacing: .02em;
             padding: 4px 10px 4px 8px; border-radius: 999px;
-            background: rgba(255, 255, 255, .16);
-            border: 1px solid rgba(255, 255, 255, .22);
+            background: var(--paper); color: var(--soft);
+            border: 1px solid var(--line);
         }
-        .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 0 3px rgba(74, 222, 128, .25); }
-        .state.is-closed::before { background: #FBBF24; box-shadow: 0 0 0 3px rgba(251, 191, 36, .25); }
+        .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #22C55E; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
+        .state.is-closed::before { background: #F59E0B; box-shadow: 0 0 0 3px rgba(245, 158, 11, .18); }
         .hero h1 { margin: 8px 0 2px; font-size: clamp(24px, 4.6vw, 36px); line-height: 1.12; letter-spacing: -.025em; font-weight: 800; }
-        .hero .msg { margin: 6px 0 0; max-width: 62ch; opacity: .92; }
-        .hero .where { margin: 8px 0 0; display: flex; gap: 6px; align-items: center; font-size: 13px; opacity: .85; }
+        .hero .msg { margin: 6px 0 0; max-width: 62ch; color: var(--soft); }
+        .hero .where { margin: 8px 0 0; display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--soft); }
         .perks {
             margin-top: -38px;
             position: relative;
@@ -336,10 +325,9 @@ $jsVersion = @filemtime(__DIR__ . '/src/js/pedir.js') ?: 1;
         }
 
         /* -- Esqueleto de carga -- */
-        .skel { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 22px 0 40px; }
-        .skel div { height: 250px; border-radius: var(--radius); background: linear-gradient(90deg, var(--chip), var(--paper), var(--chip)); background-size: 200% 100%; animation: shimmer 1.4s infinite linear; }
-        @media (min-width: 720px) { .skel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-        @media (min-width: 1040px) { .skel { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+        .skel { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); padding: 22px 0 40px; }
+        .skel div { height: 140px; border-radius: 12px; background: linear-gradient(90deg, var(--chip), var(--paper), var(--chip)); background-size: 200% 100%; animation: shimmer 1.4s infinite linear; }
+        @media (max-width: 639.98px) { .skel { gap: 8px; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); } }
         @keyframes shimmer { to { background-position: -200% 0; } }
 
         /* -- Acomodo -- */
@@ -355,23 +343,55 @@ $jsVersion = @filemtime(__DIR__ . '/src/js/pedir.js') ?: 1;
         .cat { scroll-margin-top: calc(var(--top) + 12px); padding-top: 14px; }
         .cat h2 { margin: 0 0 12px; font-size: 18px; font-weight: 800; letter-spacing: -.01em; display: flex; align-items: baseline; gap: 8px; }
         .cat h2 small { font-size: 12px; font-weight: 700; color: var(--faint); }
-        .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        @media (min-width: 640px) { .grid { gap: 16px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
+        /* Cards iguales a las del POS (pos-catalog.js + sale-cat de order.css): foto de 84 px
+           con margen y esquinas, nombre en una linea, precio y un «+» redondo. Tocar la card
+           abre la ficha; el «+» agrega uno. */
+        .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); }
+        @media (max-width: 639.98px) { .grid { gap: 8px; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); } }
 
         .card {
             position: relative;
-            background: var(--paper);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            border: 1.5px solid transparent;
             display: flex; flex-direction: column;
+            min-width: 0;
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            color: #111827;
             overflow: hidden;
-            transition: border-color .18s, transform .18s;
+            transition: border-color .15s, box-shadow .15s;
         }
+        .card:hover { border-color: #D1D5DB; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .25); }
         .card.is-in { border-color: var(--brand-line); }
-        @media (hover: hover) { .card:hover { transform: translateY(-2px); } }
-        .card .open { all: unset; cursor: pointer; display: block; }
-        .card .open:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 55%, transparent); outline-offset: -3px; border-radius: var(--radius); }
+        .card .open { all: unset; cursor: pointer; display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        .card .open:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 45%, transparent); outline-offset: -3px; border-radius: 12px; }
+        .pc-top {
+            position: relative;
+            display: flex; align-items: center; justify-content: center;
+            height: 84px; margin: 6px 6px 0; flex-shrink: 0;
+            border-radius: 9px; overflow: hidden;
+            background: color-mix(in srgb, var(--brand) 9%, #FFFFFF);
+            color: var(--brand);
+        }
+        .pc-top svg { width: 26px; height: 26px; }
+        .pc-top img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .pc-body { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; padding: 8px 10px 9px; }
+        .pc-name { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+        /* min-height y padding-right: el «+» va encima, a la derecha del precio. */
+        .pc-foot { display: flex; align-items: center; min-height: 24px; margin-top: auto; padding-right: 30px; }
+        .pc-foot b { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .pc-add {
+            position: absolute; right: 10px; bottom: 9px;
+            width: 24px; height: 24px; padding: 0;
+            border: 0; border-radius: 999px;
+            background: var(--brand-soft); color: var(--brand-text);
+            display: grid; place-items: center;
+            transition: background-color .15s, color .15s;
+        }
+        /* Area de toque de 40 px sin agrandar el circulo. */
+        .pc-add::before { content: ""; position: absolute; inset: -8px; }
+        .pc-add svg { width: 14px; height: 14px; }
+        .card:hover .pc-add { background: var(--brand); color: var(--brand-ink); }
+        .pc-add:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent); }
         .ph {
             position: relative;
             aspect-ratio: 4 / 3;
@@ -381,31 +401,18 @@ $jsVersion = @filemtime(__DIR__ . '/src/js/pedir.js') ?: 1;
         }
         .ph img { width: 100%; height: 100%; object-fit: cover; }
         .ph .ini { font-weight: 800; font-size: 28px; color: var(--brand-text); opacity: .75; letter-spacing: -.02em; }
+        /* Piezas en el carrito: sobre la foto de la card. */
         .badge {
-            position: absolute; top: 10px; right: 10px;
-            min-width: 28px; height: 28px; padding: 0 8px;
+            position: absolute; top: 6px; right: 6px;
+            min-width: 24px; height: 24px; padding: 0 7px;
             border-radius: 999px;
             background: var(--brand); color: var(--brand-ink);
-            font-size: 13px; font-weight: 800;
+            font-size: 12px; font-weight: 800;
             display: grid; place-items: center;
             box-shadow: 0 4px 12px -4px rgba(0, 0, 0, .4);
         }
-        .card .txt { padding: 12px 14px 0; }
-        .card h3 { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 700; }
-        .card .desc {
-            margin: 4px 0 0; font-size: 13px; color: var(--soft);
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-        }
-        .card .foot { margin-top: auto; padding: 12px 14px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .price { font-weight: 800; font-size: 16px; letter-spacing: -.01em; }
 
-        .add {
-            width: 40px; height: 40px; border-radius: 12px;
-            border: 0; background: var(--brand); color: var(--brand-ink);
-            display: grid; place-items: center;
-            transition: transform .12s;
-        }
-        .add:active { transform: scale(.92); }
         .step {
             display: inline-flex; align-items: center;
             height: 40px; border-radius: 12px;

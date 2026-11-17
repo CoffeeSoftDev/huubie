@@ -37,6 +37,16 @@ function posTicketCSS() {
         + '.pos-tk-sec.is-open .pos-tk-sec-sum{visibility:hidden}'
         + '.pos-tk-sec-body{display:none;padding:0 14px 12px}'
         + '.pos-tk-sec.is-open .pos-tk-sec-body{display:block}'
+        + '.pos-tk-lines-head{display:flex;align-items:center;gap:8px;min-height:42px;padding:8px 14px;border-bottom:1px solid var(--po-line);background:var(--po-sunken);color:var(--po-ink)}'
+        + '.pos-tk-lines-head svg{width:16px;height:16px;flex-shrink:0;color:var(--po-brand-ink)}'
+        + '.pos-tk-lines-head b{flex-shrink:0;font-size:12.5px;font-weight:700}'
+        + '.pos-tk-lines-count{flex:1;min-width:0;font-size:11.5px;color:var(--po-muted);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+        + 'button.pos-tk-lines-head{width:100%;border:0;border-bottom:1px solid var(--po-line);background:var(--po-sunken);text-align:left;cursor:pointer}'
+        + 'button.pos-tk-lines-head:hover{background:var(--po-hover)}'
+        + 'button.pos-tk-lines-head:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--po-ring)}'
+        + 'button.pos-tk-lines-head svg.pos-tk-chev{color:var(--po-muted);transform:rotate(180deg);transition:transform .15s}'
+        + '.pos-tk-acc.is-sec-open button.pos-tk-lines-head svg.pos-tk-chev{transform:none}'
+        + '.pos-tk-acc.is-sec-open .pos-tk-lines{display:none}'
         + '.pos-tk-foot{flex-shrink:0;border-top:1px solid var(--po-line);background:var(--po-sunken)}'
 
         + '.pos-tkl{display:flex;flex-direction:column;gap:8px;padding:12px 14px}'
@@ -163,11 +173,17 @@ Templates.prototype.posTicket = function (options) {
         tag:      '',
         icon:     'receipt-text',
         section:  { title: 'Datos', icon: 'calendar-days', open: true },
+        // Con título, las partidas llevan su propio encabezado (segunda sección).
+        // Vacío: las partidas van sin encabezado, como siempre.
+        // accordion: solo una de las dos abierta. Con los datos abiertos la lista
+        // se pliega a su encabezado; al cerrar los datos, la lista ocupa todo el ticket.
+        lines:    { title: '', icon: 'shopping-cart', accordion: false },
         launcher: { parent: '', text: 'Ver ticket' }
     };
 
     const opts     = Object.assign({}, defaults, options);
     const section  = Object.assign({}, defaults.section, opts.section);
+    const list     = Object.assign({}, defaults.lines, opts.lines);
     const launcher = Object.assign({}, defaults.launcher, opts.launcher);
 
     posTicketCSS();
@@ -182,12 +198,22 @@ Templates.prototype.posTicket = function (options) {
     const sec    = $('<div>', { class: 'pos-tk-sec' });
     const toggle = $('<button>', { type: 'button', class: 'pos-tk-sec-btn', 'aria-controls': `${opts.id}Form` });
     const form   = $('<div>', { id: `${opts.id}Form`, class: 'pos-tk-sec-body' });
-    const lines  = $('<div>', { id: `${opts.id}Lines` });
+    const lines  = $('<div>', { id: `${opts.id}Lines`, class: 'pos-tk-lines' });
     const foot   = $('<div>', { id: `${opts.id}Foot`, class: 'pos-tk-foot' });
+    const accordion = Boolean(list.title && list.accordion);
+    const listHead  = accordion
+        ? $('<button>', { type: 'button', class: 'pos-tk-lines-head', 'aria-controls': `${opts.id}Lines` })
+        : $('<div>', { class: 'pos-tk-lines-head' });
 
     const setSection = (open) => {
         sec.toggleClass('is-open', !!open);
         toggle.attr('aria-expanded', open ? 'true' : 'false');
+
+        if (!accordion) return;
+
+        root.toggleClass('is-sec-open', !!open);
+        listHead.attr('aria-expanded', open ? 'false' : 'true');
+        body.scrollTop(0);
     };
 
     const setOverlay = (open) => {
@@ -210,12 +236,31 @@ Templates.prototype.posTicket = function (options) {
     );
 
     sec.append(toggle, form);
-    body.append(sec, lines);
-    root.append(head, body, foot);
+    body.append(sec);
+
+    // Encabezado de las partidas: ícono, título y, a la derecha, el conteo
+    // (lo escribe quien pinta los totales en #{id}LinesCount).
+    if (list.title) {
+        listHead.append(
+            posTicketIcon(list.icon),
+            $('<b>', { text: list.title }),
+            $('<span>', { id: `${opts.id}LinesCount`, class: 'pos-tk-lines-count' })
+        );
+
+        if (accordion) listHead.append(posTicketIcon('chevron-down', 'pos-tk-chev'));
+
+        body.append(listHead);
+    }
+
+    body.append(lines);
+    root.toggleClass('pos-tk-acc', accordion).append(head, body, foot);
 
     setSection(section.open);
 
     toggle.on('click', () => setSection(!sec.hasClass('is-open')));
+
+    // En acordeón, tocar la lista pliega los datos (y al revés).
+    if (accordion) listHead.on('click', () => setSection(!sec.hasClass('is-open')));
     shut.on('click', () => setOverlay(false));
 
     host.addClass('pos-tk-host').html(root);

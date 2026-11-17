@@ -1,13 +1,17 @@
 /*  Ventas › WhatsApp: las conversaciones con los clientes y los avisos que
     salen solos por WhatsApp.
 
-    Seis pestañas:
+    Ocho pestañas:
       - «Conversaciones» y «Agente»: la bandeja del agente y su horario. Viven
         en whatsapp-bandeja.js (wap.inbox); su envío es el de Meta
         (core/helpers/_WhatsAppMeta.php), no el de los avisos.
+      - «Recordatorios» (whatsapp-recordatorios.js, wap.reminders) y
+        «Métricas» (whatsapp-metricas.js, wap.metrics, F6).
       - «Avisos»: pedido nuevo, cierre de turno y cierre del día. Cada uno con
         su texto (editable, con variables) y cómo le llega a WhatsApp.
-      - «Destinatarios»: a quién le llegan. Sin sucursal = de todas.
+      - «Destinatarios»: a quién le llegan. Sin sucursal = de todas. «Le
+        pregunta al agente» (F6) deja a ese número preguntarle al agente del
+        dueño ventas, turno, pedidos y cartera.
       - «Historial»: cada envío (salió, simulado o falló) con su texto.
       - «Conexión»: qué proveedor está puesto en el .env y qué le falta, nunca
         un valor. Desde ahí se comprueba la instancia y se manda la prueba.
@@ -73,6 +77,46 @@ function wspBubble(text, hour) {
     return `<div class="wsp-chat">${wspMsg(text, hour)}</div>`;
 }
 
+// -- Fondo de chat --
+
+/*  El tapiz de dibujitos de línea que va detrás de las burbujas, como el de
+    WhatsApp. Es un SVG propio de 300×300 que se repite; color y opacidad
+    cambian entre claro y oscuro. */
+const WSP_DOODLES = {
+    taza:     '<path d="M-9 -3h14v7a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6z M5 -1h2a3 3 0 0 1 0 6h-2 M-5 -11c-2 2 2 3 0 5 M0 -11c-2 2 2 3 0 5"/>',
+    corazon:  '<path d="M0 8C-10 1 -10 -8 -4 -8C-1 -8 0 -5 0 -4C0 -5 1 -8 4 -8C10 -8 10 1 0 8Z"/>',
+    estrella: '<path d="M0 -10L2.47 -3.4L9.51 -3.09L3.99 1.3L5.88 8.09L0 4.2L-5.88 8.09L-3.99 1.3L-9.51 -3.09L-2.47 -3.4Z"/>',
+    globo:    '<path d="M-10 -7h20a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-12l-5 4v-4h-3a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2z"/><circle cx="-5" cy="-.5" r="1"/><circle cx="0" cy="-.5" r="1"/><circle cx="5" cy="-.5" r="1"/>',
+    panque:   '<path d="M-7 1h14l-2 9h-10z M-2 1l.5 9 M2 1l-.5 9 M-8 1a4 4 0 0 1 2 -7a6 6 0 0 1 12 0a4 4 0 0 1 2 7"/><circle cx="0" cy="-14" r="1.5"/>',
+    regalo:   '<path d="M-9 -3h18v4h-18z M-8 1h16v9h-16z M0 -3v13 M0 -3c-2 -5 -7 -5 -6 -1c1 2 6 1 6 1 M0 -3c2 -5 7 -5 6 -1c-1 2 -6 1 -6 1"/>',
+    nota:     '<path d="M-3 6V-9L7 -11V4"/><circle cx="-6" cy="6" r="3"/><circle cx="4" cy="4" r="3"/>',
+    telefono: '<rect x="-6" y="-11" width="12" height="22" rx="2.5"/><path d="M-2 7h4"/>',
+    carita:   '<circle r="10"/><circle cx="-3.5" cy="-3" r="1"/><circle cx="3.5" cy="-3" r="1"/><path d="M-5 3a6 6 0 0 0 10 0"/>',
+    destello: '<path d="M0 -10C1 -3 3 -1 10 0C3 1 1 3 0 10C-1 3 -3 1 -10 0C-3 -1 -1 -3 0 -10Z"/>',
+    dona:     '<circle r="9"/><circle r="3.5"/>',
+    helado:   '<path d="M-6 -2a6 6 0 0 1 12 0z M-6 -2l6 13l6 -13"/>',
+    sobre:    '<rect x="-10" y="-7" width="20" height="14" rx="2"/><path d="M-10 -6l10 7l10 -7"/>',
+    punto:    '<circle r="1.8"/>'
+};
+
+// [dibujo, x, y, giro]: lejos de la orilla para que el mosaico no se corte.
+const WSP_DOODLE_MAP = [
+    ['taza', 40, 40, -12], ['corazon', 118, 30, 10], ['estrella', 196, 46, 14], ['globo', 262, 34, -8],
+    ['panque', 80, 112, 8], ['regalo', 162, 112, -10], ['nota', 244, 104, 12],
+    ['telefono', 28, 176, -15], ['carita', 108, 178, 0], ['destello', 192, 172, 0], ['dona', 268, 182, 0],
+    ['helado', 52, 252, 12], ['sobre', 136, 250, -8], ['taza', 220, 246, 10], ['corazon', 280, 268, -12],
+    ['punto', 156, 64, 0], ['punto', 18, 104, 0], ['punto', 210, 140, 0], ['punto', 232, 208, 0], ['punto', 92, 220, 0], ['punto', 178, 288, 0]
+];
+
+function wspWallpaper(color, opacity) {
+    const shapes = WSP_DOODLE_MAP.map(([name, x, y, turn]) => `<g transform="translate(${x} ${y}) rotate(${turn})">${WSP_DOODLES[name]}</g>`).join('');
+    const svg    = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">'
+        + `<g fill="none" stroke="${color}" stroke-opacity="${opacity}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${shapes}</g>`
+        + '</svg>';
+
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
 // -- CSS --
 
 function wspCSS() {
@@ -98,6 +142,8 @@ function wspCSS() {
         .wsp-conn-pill.is-ok  { background: var(--ok-soft-bg, #E6F7ED); color: var(--ok-soft-fg, #15803D); }
         .wsp-conn-pill.is-sim { background: rgb(var(--gray-100, 245 245 244)); color: ${body}; }
         .wsp-conn-pill.is-bad { background: #FFF1F2; color: #BE123C; }
+        .wsp-conn-pill.is-icon { justify-content: center; width: 34px; height: 34px; padding: 0; cursor: help; }
+        .wsp-conn-pill.is-icon svg { width: 17px; height: 17px; }
 
         .wsp-banner { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 1px solid ${aLine}; border-radius: 14px; background: ${tint}; }
         .wsp-banner > svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; color: ${brand}; }
@@ -133,7 +179,8 @@ function wspCSS() {
         /* Seis pestañas no caben a 390 px: se desplaza la barra, no la página. */
         #tabsWsp { max-width: 100%; }
 
-        .wsp-chat { padding: 14px; border-radius: 12px; background: #EFEAE2; max-height: 380px; overflow-y: auto; }
+        .wsp-chat { padding: 14px; border-radius: 12px; background-color: #EFEAE2; background-image: ${wspWallpaper('#8C7B62', .2)};
+            background-size: 260px 260px; max-height: 380px; overflow-y: auto; }
         #wnPreview .wsp-chat { max-height: 440px; }
         .wsp-bubble { position: relative; width: fit-content; max-width: 100%; margin-left: auto; padding: 7px 10px 20px; border-radius: 10px 0 10px 10px;
             background: #D9FDD3; box-shadow: 0 1px .5px rgba(11, 20, 26, .13); font-size: 13.5px; line-height: 1.45; color: #111B21; overflow-wrap: anywhere; }
@@ -228,7 +275,7 @@ function wspCSS() {
         body.dark-mode .wsp-tag.is-warn,
         body.dark-mode .wsp-note.is-bad,
         body.dark-mode .wsp-banner.is-bad { background: rgba(244, 63, 94, .12); border-color: rgba(244, 63, 94, .4); color: #FDA4AF; }
-        body.dark-mode .wsp-chat { background: #0B141A; }
+        body.dark-mode .wsp-chat { background-color: #0B141A; background-image: ${wspWallpaper('#FFFFFF', .06)}; }
         body.dark-mode .wsp-bubble { background: #005C4B; color: #E9EDEF; }
         body.dark-mode .wsp-bubble::after { border-left-color: #005C4B; }
         body.dark-mode .wsp-bubble.is-in { background: #202C33; }
@@ -258,9 +305,11 @@ class WhatsAppNotices extends Templates {
         this.PROJECT_NAME = 'WhatsAppNotices';
         this.tab          = 'chats';
         this.inbox        = new WhatsAppInbox(link, div_modulo, this);
+        this.reminders    = new WhatsAppReminders(link, div_modulo, this);
+        this.metrics      = new WhatsAppMetrics(link, div_modulo, this);
         this.requests     = { notices: 0, recipients: 0, log: 0, preview: 0 };
-        this.pageLength   = { recipients: 15, log: 15 };
-        this.terms        = { recipients: '', log: '' };
+        this.pageLength   = { recipients: 15, log: 15, reminders: 15 };
+        this.terms        = { recipients: '', log: '', reminders: '' };
         this.saving       = false;
         this.notices      = {};
         this.conn         = dataInit.conn || {};
@@ -274,6 +323,7 @@ class WhatsAppNotices extends Templates {
 
             if (table === 'tbWspRecipients') return this.matches('recipients', `${row[0]} ${row[1]}`);
             if (table === 'tbWspLog') return this.matches('log', `${row[1]} ${row[2]}`);
+            if (table === 'tbWspReminders') return this.matches('reminders', `${row[0]} ${row[1]}`);
 
             return true;
         });
@@ -301,6 +351,8 @@ class WhatsAppNotices extends Templates {
         this.filterLog();
         this.connection();
         this.inbox.init();
+        this.reminders.init();
+        this.metrics.init();
         this.inbox.showChats();
     }
 
@@ -363,15 +415,19 @@ class WhatsAppNotices extends Templates {
     }
 
     // A la derecha del título: qué proveedor está puesto y si le falta algo.
+    // En simulado va solo el icono (el texto queda en el tooltip) hasta que se conecte.
     headerStatus() {
         const c    = this.conn || {};
         const name = this.providerName(c.provider);
         let pill   = ['is-bad', 'circle-alert', `${name}: faltan datos`];
 
-        if (c.simulated) pill = ['is-sim', 'flask-conical', 'Modo simulado'];
+        if (c.simulated) pill = ['is-sim is-icon', 'flask-conical', 'Modo simulado: los avisos no salen a WhatsApp'];
         else if (c.ready) pill = ['is-ok', 'circle-check', `${name} configurado`];
 
-        $(`#headerActions${this.PROJECT_NAME}`).html(`<span class="wsp-conn-pill ${pill[0]}"><i data-lucide="${pill[1]}"></i>${esc(pill[2])}</span>`);
+        const label = c.simulated ? '' : esc(pill[2]);
+        const tip   = c.simulated ? ` role="img" title="${esc(pill[2])}" aria-label="${esc(pill[2])}"` : '';
+
+        $(`#headerActions${this.PROJECT_NAME}`).html(`<span class="wsp-conn-pill ${pill[0]}"${tip}><i data-lucide="${pill[1]}"></i>${label}</span>`);
 
         this.icons();
     }
@@ -421,6 +477,8 @@ class WhatsAppNotices extends Templates {
             type:   'button',
             json: [
                 { id: 'wsChats', tab: 'Conversaciones', lucideIcon: 'message-circle', active: true, onClick: () => this.showTab('chats') },
+                { id: 'wsReminders', tab: 'Recordatorios', lucideIcon: 'bell-ring', onClick: () => this.showTab('reminders') },
+                { id: 'wsMetrics', tab: 'Métricas', lucideIcon: 'chart-column', onClick: () => this.showTab('metrics') },
                 { id: 'wsNotices', tab: 'Avisos', lucideIcon: 'bell', onClick: () => this.showTab('notices') },
                 { id: 'wsRecipients', tab: 'Destinatarios', lucideIcon: 'users', onClick: () => this.showTab('recipients') },
                 { id: 'wsLog', tab: 'Historial', lucideIcon: 'history', onClick: () => this.showTab('log') },
@@ -534,7 +592,7 @@ class WhatsAppNotices extends Templates {
                     lbl:      'Aviso',
                     required: false,
                     class:    'col-6 col-md-4 col-lg-3 col-xl-2',
-                    data:     [{ id: '', valor: 'Todos' }].concat(types, [{ id: 'test', valor: 'Pruebas' }]),
+                    data:     [{ id: '', valor: 'Todos' }].concat(types, [{ id: 'handoff', valor: 'Cliente pide una persona' }, { id: 'test', valor: 'Pruebas' }]),
                     onchange: 'wap.lsLog()'
                 },
                 {
@@ -560,6 +618,8 @@ class WhatsAppNotices extends Templates {
 
         if (tab === 'chats') return this.inbox.showChats();
         if (tab === 'agent') return this.inbox.showAgent();
+        if (tab === 'reminders') return this.reminders.show();
+        if (tab === 'metrics') return this.metrics.show();
         if (tab === 'notices') return this.loadNotices();
         if (tab === 'recipients') return this.lsRecipients();
         if (tab === 'log') return this.lsLog();
@@ -870,12 +930,12 @@ class WhatsAppNotices extends Templates {
         this.formRecipient(data.row);
     }
 
-    // r = null: nuevo, con los tres avisos marcados.
+    // r = null: nuevo, con los tres avisos marcados. «Le pregunta al agente» (F6) va apagado de fábrica.
     formRecipient(r) {
         if (this.saving) return;
 
         const isNew = !r;
-        const row   = r || { id: 0, name: '', phone: '', branch_id: '', notify_order: 1, notify_turn: 1, notify_day: 1 };
+        const row   = r || { id: 0, name: '', phone: '', branch_id: '', notify_order: 1, notify_turn: 1, notify_day: 1, can_ask: 0 };
 
         this.csModal({
             id:         'modalWspRecipient',
@@ -892,7 +952,9 @@ class WhatsAppNotices extends Templates {
                 { id: 'wr_s1', tipo: 'html', class: 'w-full', html: '<p class="wsp-section">Qué avisos recibe</p>' },
                 { id: 'wr_order', lbl: 'Pedido nuevo', tipo: 'switch', value: Number(row.notify_order) === 1 ? 1 : 0, class: 'w-full sm:w-1/3' },
                 { id: 'wr_turn', lbl: 'Cierre de turno', tipo: 'switch', value: Number(row.notify_turn) === 1 ? 1 : 0, class: 'w-full sm:w-1/3' },
-                { id: 'wr_day', lbl: 'Cierre del día', tipo: 'switch', value: Number(row.notify_day) === 1 ? 1 : 0, class: 'w-full sm:w-1/3' }
+                { id: 'wr_day', lbl: 'Cierre del día', tipo: 'switch', value: Number(row.notify_day) === 1 ? 1 : 0, class: 'w-full sm:w-1/3' },
+                { id: 'wr_s2', tipo: 'html', class: 'w-full', html: '<p class="wsp-section">Agente del dueño</p>' },
+                { id: 'wr_ask', lbl: 'Le pregunta al agente', tipo: 'switch', value: Number(row.can_ask) === 1 ? 1 : 0, help: 'Desde este WhatsApp puede escribirle al número del agente y preguntar ventas del día, turno, pedidos pendientes y quién debe. Le contesta directo, en el horario del agente. Con sucursal, solo de esa sucursal. Solo un teléfono de 10 dígitos.', class: 'w-full' }
             ],
             onSave: (values, close) => this.saveRecipient(Number(row.id) || 0, values, close)
         });
@@ -908,7 +970,8 @@ class WhatsAppNotices extends Templates {
 
         if (!name) return this.warn('Escribe el nombre de quien recibe los avisos.');
         if (!phone) return this.warn('Escribe el WhatsApp: 10 dígitos, sin lada de país.');
-        if (!values.wr_order && !values.wr_turn && !values.wr_day) return this.warn('Marca al menos un aviso para este destinatario.');
+        if (!values.wr_order && !values.wr_turn && !values.wr_day && !values.wr_ask) return this.warn('Marca al menos un aviso, o que le pueda preguntar al agente.');
+        if (values.wr_ask && (/@g\.us$/i.test(phone) || phone.replace(/\D/g, '').length < 10)) return this.warn('Para preguntarle al agente hace falta un teléfono de 10 dígitos (un grupo no puede).');
 
         this.saving = true;
 
@@ -923,7 +986,8 @@ class WhatsAppNotices extends Templates {
                 branch_id:    values.wr_branch || '',
                 notify_order: values.wr_order ? '1' : '0',
                 notify_turn:  values.wr_turn ? '1' : '0',
-                notify_day:   values.wr_day ? '1' : '0'
+                notify_day:   values.wr_day ? '1' : '0',
+                can_ask:      values.wr_ask ? '1' : '0'
             }
         });
 

@@ -1,8 +1,9 @@
 /*  Pedidos › Gestión de pagos (src/js/pedido-cobro.js).
     Sale de la maqueta aprobada el 15/11/2026 (templates/css/pagos-alpha.css):
     las piezas chicas de alpha en una ventana horizontal de 720 px; a la
-    izquierda de dónde es el pedido y quién cobra, a la derecha las formas de
-    pago como Soft. Acento morado de Huubie (--brand-600): no hay ámbar.
+    izquierda las formas de pago como Soft, a la derecha de dónde es el pedido
+    y quién cobra. El tamaño es fijo (--pa-h) y se ajusta a la pantalla.
+    Acento morado de Huubie (--brand-600): no hay ámbar.
     Todo va bajo #modalOrderPay: soft.css pinta .cs-modal-panel con !important
     y aquí la ventana trae su propio marco (.pa-win), así que el panel de
     csModal queda transparente y sin cabeza ni pie.
@@ -74,11 +75,17 @@ body.dark-mode #modalOrderPay {
 #modalOrderPay.is-busy .cs-modal-bg { pointer-events: none; }
 
 /* -- Ventana -- */
-/* Horizontal: el mismo ancho para cobrar y para el historial (no brinca al cambiar de pestaña). */
-#modalOrderPay .pa-win { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 720px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); border-radius: 14px; background: var(--pa-surface); color: var(--pa-ink); font-size: 13px; box-shadow: 0 24px 48px -12px rgb(15 23 42 / .4); overflow: hidden; }
+/* Horizontal y de tamaño fijo: mide lo mismo para cobrar y para el historial, con
+   o sin aviso, con el descuento abierto o cerrado. --pa-h es el alto; si la
+   pantalla es más baja, la ventana se ajusta a ella y lo que no cabe se recorre
+   dentro de .pa-body. Con el teclado de caja (táctil) es más alta.
+   Medido el 16/11/2026: cobro 517 px, con descuento 633, historial 329, táctil 692. */
+#modalOrderPay { --pa-h: 640px; }
+#modalOrderPay.is-touch { --pa-h: 700px; }
+#modalOrderPay .pa-win { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 720px; height: min(var(--pa-h), calc(100vh - 32px)); height: min(var(--pa-h), calc(100dvh - 32px)); border-radius: 14px; background: var(--pa-surface); color: var(--pa-ink); font-size: 13px; box-shadow: 0 24px 48px -12px rgb(15 23 42 / .4); overflow: hidden; }
 
 @media (min-width: 640px) {
-    #modalOrderPay .pa-win { max-height: calc(100vh - 64px); }
+    #modalOrderPay .pa-win { height: min(var(--pa-h), calc(100vh - 64px)); height: min(var(--pa-h), calc(100dvh - 64px)); }
 }
 
 #modalOrderPay .pa-head { padding: 12px 16px 0; }
@@ -177,8 +184,8 @@ body.dark-mode #modalOrderPay {
 #modalOrderPay .pa-note-line { display: flex; gap: 6px; margin: 0; padding: 8px 10px; border: 1px solid var(--pa-brand-line); border-radius: 8px; background: var(--pa-brand-bg); color: var(--pa-brand-ink); font-size: 12px; line-height: 1.4; }
 #modalOrderPay .pa-note-line svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
 
-/* -- Dos columnas: de dónde es y quién cobra | las formas de pago -- */
-#modalOrderPay .pa-cols { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 14px; align-items: start; }
+/* -- Dos columnas: las formas de pago | de dónde es y quién cobra -- */
+#modalOrderPay .pa-cols { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: 14px; align-items: start; }
 #modalOrderPay .pa-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 #modalOrderPay .pa-col-info .pa-disc { grid-template-columns: minmax(0, 1fr); }
 
@@ -329,7 +336,7 @@ body.dark-mode #modalOrderPay {
 #modalOrderPay .pa-hist td.pa-hist-note { max-width: 130px; overflow: hidden; color: var(--pa-ink-2); white-space: nowrap; text-overflow: ellipsis; }
 
 /* Sin pagos: el aviso vacío de alpha. */
-#modalOrderPay .pa-empty { display: flex; flex-direction: column; align-items: center; padding: 26px 16px; border: 1px solid var(--pa-line-hi); border-radius: 10px; background: var(--pa-sunken); text-align: center; }
+#modalOrderPay .pa-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 26px 16px; border: 1px solid var(--pa-line-hi); border-radius: 10px; background: var(--pa-sunken); text-align: center; }
 #modalOrderPay .pa-empty-ico { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-bottom: 10px; border-radius: 12px; background: var(--pa-line); color: var(--pa-muted); }
 #modalOrderPay .pa-empty-ico svg { width: 22px; height: 22px; }
 #modalOrderPay .pa-empty b { color: var(--pa-ink); font-size: 13.5px; }
@@ -350,14 +357,14 @@ body.dark-mode #modalOrderPay {
 #modalOrderPay .pa-lock { display: inline-flex; color: var(--pa-muted); opacity: .7; }
 #modalOrderPay .pa-lock svg { width: 14px; height: 14px; }
 
-/* -- Tableta angosta y celular: una sola columna, como alpha -- */
+/* -- Tableta angosta y celular: una sola columna -- */
+/* Mismo orden que en grande: formas de pago, sucursales (y su aviso), observación. */
 @media (max-width: 760px) {
+    #modalOrderPay,
+    #modalOrderPay.is-touch { --pa-h: 820px; } /* una columna sin descuento: 804 px */
     #modalOrderPay.pa-modal .cs-modal-panel,
     #modalOrderPay .pa-win { max-width: 480px; }
     #modalOrderPay .pa-cols { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-    /* Orden de alpha: sucursales (y su aviso), formas de pago, observación. */
-    #modalOrderPay .pa-col-info { display: contents; }
-    #modalOrderPay .pa-col-info > fieldset.pa-set { order: 1; }
     #modalOrderPay .pa-foot { flex-direction: column; align-items: stretch; gap: 6px; }
     #modalOrderPay button.pa-save { min-width: 0; width: 100%; }
 }

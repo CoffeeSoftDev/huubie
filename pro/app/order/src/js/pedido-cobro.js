@@ -5,18 +5,29 @@
     del detalle, al terminar o al cerrar vuelve a abrirlo.
 
     Ventana horizontal de dos columnas, como la de alpha (maqueta aprobada:
-    templates/pagos-alpha-propuesta.html). A la izquierda, de dónde es el
-    pedido, la sucursal que cobra (se puede elegir otra), la observación y el
-    descuento. A la derecha, las formas de pago de la sucursal que cobra, como
-    en Soft: una fila por forma, cada una con su importe. Una fila «cubre lo
-    que falta» y se ajusta sola con lo que se escribe en las demás. En
-    efectivo se anota lo recibido para el cambio. En pantalla táctil sale el
-    teclado de caja.
+    templates/pagos-alpha-propuesta.html). Se lee en el orden en que se cobra:
+    arriba el total; a la izquierda, cómo se paga: las formas de pago de la
+    sucursal que cobra, como en Soft, una fila por forma con su importe. Una
+    fila «cubre lo que falta» y se ajusta sola con lo que se escribe en las
+    demás. En efectivo se anota lo recibido para el cambio. En pantalla táctil
+    sale el teclado de caja. A la derecha, de dónde es el pedido, la sucursal
+    que cobra (se puede elegir otra), la observación y el descuento.
+
+    La ventana mide siempre lo mismo (pedido-cobro.css › --pa-h): no crece ni
+    se encoge al cambiar de pestaña, al abrir el descuento o al salir un aviso.
+    Lo que no cabe se recorre por dentro. Los importes solo aceptan dígitos y
+    punto (clean): no se puede escribir un número negativo.
 
     Registrar siempre pregunta «¿Registrar pago?»; si cobra otra sucursal,
     avisa del cobro cruzado. Quitar un pago se hace en la misma ventana y pide
     el motivo; con el pedido liquidado, también la contraseña. Sin saldo, sin
     turno o sin formas de pago la forma queda apagada y dice por qué.
+
+    Pedido nuevo (openDraft): la ventana abre ANTES de guardar. Con anticipo,
+    el pedido se crea al confirmar el cobro (saveDraft) y enseguida se registra
+    el pago. Sin importe, el botón pregunta cómo se guarda (askDraft): como
+    cotización se guarda sin dinero. Si se cierra la ventana, no queda nada
+    guardado y la captura sigue abierta.
 
     Lo que manda es el ctrl: aquí se arma el cobro y se avisa antes de mandar.
     SalePayments (historial.js) hereda de aquí; SalePay (ventas.js) también,
@@ -37,6 +48,7 @@ class OrderPay extends Templates {
         this.keyHandler   = null;
         this.isOpen       = false;
         this.modal        = null;
+        this.draft        = null;
     }
 
     // -- Entrada --
@@ -62,6 +74,41 @@ class OrderPay extends Templates {
         this.thenDeliver = !!(opts && opts.deliver);
 
         this.start(data, !!fromDetail, opts || {});
+    }
+
+    /*  Pedido nuevo con anticipo: abre la ventana SIN guardar el pedido.
+        draft = { customer, total, delivery, save }. save() es de la captura: manda
+        addOrder y devuelve su respuesta. Se llama hasta confirmar el cobro (saveDraft). */
+    async openDraft(draft) {
+        if (this.loading) return;
+
+        this.loading = true;
+
+        const data = await useFetch({ url: this._link, data: { opc: 'payDraft' } });
+
+        this.loading = false;
+
+        if (!data || data.status != 200) return this.fail(data, 'No se abrieron los pagos');
+
+        orderTurn.sync(data.turn, false);
+
+        this.thenDeliver = false;
+
+        data.order = {
+            id:              0,
+            folio:           '',
+            customer:        draft.customer,
+            subtotal:        draft.total,
+            discount_amount: 0,
+            discount_reason: '',
+            total:           draft.total,
+            paid:            0,
+            cancelled:       false,
+            delivered:       false,
+            delivery_date:   draft.delivery
+        };
+
+        this.start(data, false, { draft: draft });
     }
 
     fail(data, title) {
@@ -106,6 +153,7 @@ class OrderPay extends Templates {
         this.token        = ordToken();
         this.branches     = this.readBranches(data);
         this.mcache       = null;
+        this.draft        = (opts && opts.draft) || null;
 
         // origin = la sucursal de la sesión: el pedido es de ella. cobro = la que recibe el dinero.
         const session = this.branches.find((b) => b.session);
@@ -132,7 +180,8 @@ class OrderPay extends Templates {
             body:       '<div class="pa-win" id="paWin" role="dialog" aria-modal="true" aria-labelledby="paTitle"></div>'
         });
 
-        $('#modalOrderPay').addClass('pa-modal');
+        // is-touch: con el teclado de caja la ventana es más alta (pedido-cobro.css).
+        $('#modalOrderPay').addClass('pa-modal').toggleClass('is-touch', this.touch);
 
         this.isOpen = true;
 
@@ -273,13 +322,15 @@ class OrderPay extends Templates {
         return '';
     }
 
-    /*  auto = la fila que cubre lo que falta (arranca en Efectivo con todo el saldo).
+    /*  auto = la fila que cubre lo que falta. En pedidos arranca vacía (0): el
+        importe lo escribe quien cobra. fillsBalance() = true la arranca en
+        Efectivo con todo el saldo (historial de ventas).
         active = donde escribe el teclado: id de la forma, 'received' o 'disc'.
         fresh = la siguiente tecla reemplaza lo escrito. busy = candado contra el doble cobro. */
     resetForm() {
         const home = this.homeId();
 
-        this.auto        = Number(home) || 0;
+        this.auto        = this.fillsBalance() ? (Number(home) || 0) : 0;
         this.active      = home;
         this.fresh       = true;
         this.discOpen    = false;
@@ -305,6 +356,7 @@ class OrderPay extends Templates {
     paidShort()    { return 'Pedido pagado.'; }
     canDiscount()  { return true; }
     keyOnSettled() { return true; }
+    fillsBalance() { return false; }
     originLabel()  { return 'Origen del pedido'; }
 
     // -- Cuentas --
@@ -421,6 +473,11 @@ class OrderPay extends Templates {
         return '';
     }
 
+    // Pedido nuevo sin nada escrito: el botón no cobra, pregunta cómo se guarda (askDraft).
+    noAmount(c) {
+        return !c.d.error && !c.bad && !c.badRec && c.over <= 0.005 && c.applied <= 0 && !c.d.amount;
+    }
+
     rowHint(r, c) {
         if (r.m.cash && c.cashPaid > 0 && c.cashTyped > c.cashPaid + 0.005) return `Se aplican ${money(c.cashPaid)}; lo demás es cambio`;
         if (r.m.id === this.auto) return 'Cubre lo que falta del saldo';
@@ -459,7 +516,9 @@ class OrderPay extends Templates {
             +     `<div class="pa-head-ico">${this.ico('wallet')}</div>`
             +     '<div class="pa-head-text"><h2 id="paTitle">Gestión de pagos</h2>'
             +       '<p class="pa-head-meta">'
-            +         `<span>${this.ico('file-text')}Folio <b>#${this.prefix()}${esc(o.folio)}</b></span>`
+            +         (this.draft
+                ? `<span>${this.ico('file-text')}<b>Pedido nuevo</b> · se guarda al cobrar</span>`
+                : `<span>${this.ico('file-text')}Folio <b>#${this.prefix()}${esc(o.folio)}</b></span>`)
             +         `<span class="is-client">${this.ico('user')}<em>${esc(o.customer || this.noClient())}</em></span>`
             +         (day ? `<span>${this.ico('calendar')}Entrega ${day}</span>` : '')
             +       '</p>'
@@ -677,11 +736,12 @@ class OrderPay extends Templates {
             + this.discHtml();
     }
 
-    /*  Horizontal: el saldo arriba a lo ancho; a la izquierda de dónde es el
-        pedido, quién cobra, la observación y el descuento; a la derecha las
-        formas de pago y, en táctil, el teclado. Pagado o sin turno: la misma
-        forma, apagada, y la ventana no cambia de tamaño. El fieldset apaga todo
-        lo de adentro; la sucursal que cobra queda fuera para poder elegir otra. */
+    /*  Horizontal y en el orden en que se cobra: el total arriba a lo ancho; a
+        la izquierda cómo se paga (las formas de pago con su importe y, en
+        táctil, el teclado); a la derecha de dónde es el pedido, quién cobra,
+        la observación y el descuento. Pagado o sin turno: la misma forma,
+        apagada, y la ventana no cambia de tamaño. El fieldset apaga todo lo de
+        adentro; la sucursal que cobra queda fuera para poder elegir otra. */
     payHtml(lock) {
         const off = lock ? ' disabled' : '';
         const cls = lock ? ' is-locked' : '';
@@ -689,6 +749,11 @@ class OrderPay extends Templates {
         return '<div class="pa-form" id="paPayForm">'
             +   this.summaryHtml()
             +   '<div class="pa-cols">'
+            +     `<fieldset class="pa-col pa-col-pay${cls}"${off}>`
+            +       this.label('Importe', 'Toca una forma para que cubra lo que falta')
+            +       `<div class="pa-rows" id="paRows" role="group" aria-label="Formas de pago">${this.rowsHtml()}</div>`
+            +       this.padHtml()
+            +     '</fieldset>'
             +     '<div class="pa-col pa-col-info">'
             +       this.branchesHtml(lock)
             +       `<fieldset class="pa-set${cls}"${off}>`
@@ -699,11 +764,6 @@ class OrderPay extends Templates {
             +         this.discArea()
             +       '</fieldset>'
             +     '</div>'
-            +     `<fieldset class="pa-col pa-col-pay${cls}"${off}>`
-            +       this.label('Importe', 'Toca una forma para que cubra lo que falta')
-            +       `<div class="pa-rows" id="paRows" role="group" aria-label="Formas de pago">${this.rowsHtml()}</div>`
-            +       this.padHtml()
-            +     '</fieldset>'
             +   '</div>'
             + '</div>';
     }
@@ -765,7 +825,9 @@ class OrderPay extends Templates {
         const deliver    = this.thenDeliver;
         const day        = !!((this.cobroBranch().block || this.payBlock || {}).day);
 
-        const next = () => this.open(id, fromDetail, { deliver: deliver });
+        const draft      = this.draft;
+
+        const next = () => (draft ? this.openDraft(draft) : this.open(id, fromDetail, { deliver: deliver }));
 
         this.closeQuiet('modalOrderPay', this.modal.close);
 
@@ -871,9 +933,12 @@ class OrderPay extends Templates {
             res = `<div class="pa-res is-bad"><span>${says[0]}</span>${says[1] ? `<small>· ${says[1]}</small>` : ''}</div>`;
         }
 
+        // Pedido nuevo sin poder cobrar: el botón sigue vivo para guardarlo como cotización.
+        const ask = !!(lock && this.draft);
+
         return '<div class="pa-foot">'
             +   res
-            +   `<button type="button" class="pa-save${lock ? ' is-off' : ''}" id="paSave" data-act="save"><span class="pa-save-ico" id="paSaveIco" data-icon="check">${this.ico('check')}</span><span id="paSaveLabel">Registrar pago</span></button>`
+            +   `<button type="button" class="pa-save${lock && !ask ? ' is-off' : ''}" id="paSave" data-act="save"><span class="pa-save-ico" id="paSaveIco" data-icon="check">${this.ico('check')}</span><span id="paSaveLabel">${ask ? 'Guardar pedido' : 'Registrar pago'}</span></button>`
             + '</div>';
     }
 
@@ -884,6 +949,12 @@ class OrderPay extends Templates {
         const turn  = b.turn && b.turn.folio != null ? `Turno ${esc(b.turn.folio)}` : '';
         const after = Math.max(0, ordRound(c.balance - c.applied));
         const disc  = c.applied <= 0;
+        const draft = !!this.draft;
+        const ask   = draft
+            ? (disc ? '¿Guardar pedido y aplicar descuento?' : '¿Guardar pedido y registrar pago?')
+            : (disc ? '¿Aplicar descuento?' : '¿Registrar pago?');
+        const yes   = draft ? 'Sí, guardar' : (disc ? 'Sí, aplicar' : 'Sí, registrar');
+        const tag   = draft ? 'Pedido nuevo' : `#${this.prefix()}${esc(o.folio)}`;
         const name  = (id) => { const m = this.methodOf(id); return m ? esc(m.name) : 'Pago'; };
         const row   = (dt, dd, rowCls = '', ddCls = '') => `<div${rowCls ? ` class="${rowCls}"` : ''}><dt>${dt}</dt><dd${ddCls ? ` class="${ddCls}"` : ''}>${dd}</dd></div>`;
 
@@ -898,7 +969,7 @@ class OrderPay extends Templates {
 
         return '<div class="pa-confirm" id="paConfirm" role="alertdialog" aria-modal="true" aria-labelledby="paConfirmTitle">'
             +   '<div class="pa-confirm-card">'
-            +     `<div class="pa-confirm-head"><div class="pa-head-ico">${this.ico(disc ? 'percent' : 'hand-coins')}</div><h3 id="paConfirmTitle">${disc ? '¿Aplicar descuento?' : '¿Registrar pago?'}</h3><p>#${this.prefix()}${esc(o.folio)} · ${esc(o.customer || this.noClient())}</p></div>`
+            +     `<div class="pa-confirm-head"><div class="pa-head-ico">${this.ico(disc ? 'percent' : 'hand-coins')}</div><h3 id="paConfirmTitle">${ask}</h3><p>${tag} · ${esc(o.customer || this.noClient())}</p></div>`
             +     '<dl class="pa-confirm-rows">'
             +       row(disc ? 'Descuento' : 'Importe', money(disc ? c.d.amount : c.applied), 'is-big')
             +       how
@@ -911,7 +982,7 @@ class OrderPay extends Templates {
             +     cross
             +     '<div class="pa-confirm-foot">'
             +       '<button type="button" class="pa-btn" data-act="confirm-no">Cancelar</button>'
-            +       `<button type="button" class="pa-btn is-primary" id="paConfirmYes" data-act="confirm-yes"><span data-label>${disc ? 'Sí, aplicar' : 'Sí, registrar'}</span></button>`
+            +       `<button type="button" class="pa-btn is-primary" id="paConfirmYes" data-act="confirm-yes"><span data-label>${yes}</span></button>`
             +     '</div>'
             +   '</div>'
             + '</div>';
@@ -1066,11 +1137,12 @@ class OrderPay extends Templates {
 
     // El ícono solo se cambia cuando cambia la forma (lucide reemplaza el <i> por un <svg>).
     paintSave(c) {
-        const [text, icon] = this.saveLabel(c);
+        const ask          = !!this.draft && this.noAmount(c);
+        const [text, icon] = ask ? ['Guardar pedido', 'check'] : this.saveLabel(c);
         const box          = document.getElementById('paSaveIco');
 
         $('#paSaveLabel').text(text);
-        $('#paSave').toggleClass('is-off', this.problem(c) !== '');
+        $('#paSave').toggleClass('is-off', !ask && this.problem(c) !== '');
 
         if (!box || box.dataset.icon === icon) return;
 
@@ -1164,6 +1236,26 @@ class OrderPay extends Templates {
         const at = list.indexOf(String(this.active));
 
         this.focusField(list[(at + 1) % list.length]);
+    }
+
+    // Los importes solo llevan dígitos y un punto con dos decimales: el signo de
+    // menos, las letras y los símbolos se quitan al teclear o al pegar.
+    clean(input) {
+        const raw = input.value;
+
+        let v = raw.replace(/[^\d.]/g, '');
+
+        const dot = v.indexOf('.');
+
+        if (dot >= 0) v = v.slice(0, dot + 1) + v.slice(dot + 1).replace(/\./g, '').slice(0, 2);
+
+        if (v === raw) return;
+
+        // El cursor se queda donde iba, no brinca al final.
+        const at = Math.max(0, (input.selectionStart || 0) - (raw.length - v.length));
+
+        input.value = v;
+        input.setSelectionRange(at, at);
     }
 
     // Escribir en la fila que cubre lo que falta la vuelve fija.
@@ -1268,14 +1360,16 @@ class OrderPay extends Templates {
             return;
         }
 
-        // El botón apagado avisa por qué.
+        // El botón apagado avisa por qué. Pedido nuevo que no se puede cobrar: aún se guarda como cotización.
         const lock = this.lockState();
 
+        if (lock && this.draft) return this.askDraft(this.lockText(lock));
         if (lock) return this.warn(this.lockText(lock));
 
         const c   = this.calc();
         const why = this.problem(c);
 
+        if (this.draft && this.noAmount(c)) return this.askDraft('');
         if (why) return this.warn(why);
 
         c.note           = String($('#paNote').val() || '').trim();
@@ -1303,18 +1397,83 @@ class OrderPay extends Templates {
         $('#paWin button.pa-x').prop('disabled', on);
     }
 
+    /*  Pedido nuevo: se guarda aquí, al confirmar el cobro. true = ya existe (this.o.id).
+        Si no se guardó, la captura sigue abierta con todo lo escrito. El token de la
+        captura evita un pedido doble si se vuelve a confirmar. */
+    async saveDraft(draft) {
+        const made = await draft.save();
+
+        if (made && made.status == 200 && made.id) {
+            this.o.id    = Number(made.id);
+            this.o.folio = made.folio || made.id;
+            this.draft   = null;
+
+            return true;
+        }
+
+        if (made && made.status == 423) {
+            this.closeQuiet('modalOrderPay', this.modal.close);
+            this.busy = false;
+
+            orderTurn.locked(made, () => this.openDraft(draft));
+
+            return false;
+        }
+
+        this.setBusy(false);
+        this.confirmCalc = null;
+        $('#paConfirm').remove();
+
+        alert({
+            icon:     made && made.status && made.status < 500 ? 'warning' : 'error',
+            title:    'No se guardó el pedido',
+            text:     (made && made.message) || 'Revisa la conexión y vuelve a intentar. No se guarda dos veces.',
+            btn1:     true,
+            btn1Text: 'Entendido'
+        });
+
+        return false;
+    }
+
+    /*  Pedido nuevo sin importe: «¿Cómo se guarda?» (la pregunta es de la captura).
+        Cotización se guarda ya, sin dinero. Pendiente necesita anticipo: regresa
+        al importe. block = por qué no se cobra; entonces solo queda Cotización. */
+    async askDraft(block) {
+        const draft = this.draft;
+        const how   = await draft.ask(block);
+
+        if (how !== 'quote') return this.focusField(this.active);
+        if (this.busy || this.draft !== draft) return;
+
+        this.setBusy(true);
+
+        if (!(await this.saveDraft(draft))) return;
+
+        this.closeQuiet('modalOrderPay', this.modal.close);
+        this.busy = false;
+        this.afterChange();
+
+        alert({ icon: 'success', title: `${this.noun()} ${this.prefix()}${this.o.folio} guardado como cotización`, timer: 1600 });
+    }
+
     // «Sí, registrar»: el candado (busy) y el token impiden un segundo cobro con doble clic o doble Enter.
     async commit() {
         if (this.busy || !this.confirmCalc) return;
 
         const c          = this.confirmCalc;
-        const id         = this.o.id;
         const fromDetail = this.fromDetail;
         const deliver    = this.thenDeliver;
         const cross      = this.isCross();
+        const draft      = this.draft;
+        const created    = !!draft;
 
         this.setBusy(true);
-        $('#paConfirmYes').prop('disabled', true).find('[data-label]').text('Registrando…');
+        $('#paConfirmYes').prop('disabled', true).find('[data-label]').text(draft ? 'Guardando…' : 'Registrando…');
+
+        // Pedido nuevo: primero se guarda; si no se guardó, no se cobra.
+        if (draft && !(await this.saveDraft(draft))) return;
+
+        const id = this.o.id;
 
         const discount = c.d.amount > 0
             ? JSON.stringify({
@@ -1345,11 +1504,30 @@ class OrderPay extends Templates {
             this.closeQuiet('modalOrderPay', this.modal.close);
             this.busy = false;
 
+            if (created) this.afterChange();
+
             if (!cross) return orderTurn.locked(data, reopen);
 
             await alert({ icon: 'warning', title: data.title || 'Sin turno abierto', text: data.message || '', btn1: true, btn1Text: 'Entendido' });
 
             return reopen();
+        }
+
+        // Pedido recién guardado y el cobro no entró: queda como cotización y se abren sus pagos.
+        if (created && (!data || data.status != 200)) {
+            this.closeQuiet('modalOrderPay', this.modal.close);
+            this.busy = false;
+            this.afterChange();
+
+            await alert({
+                icon:     'warning',
+                title:    `Pedido P${id} guardado sin anticipo`,
+                text:     `${(data && data.message) || 'No se confirmó el cobro.'} Quedó como cotización: revisa sus pagos y registra el anticipo si falta.`,
+                btn1:     true,
+                btn1Text: 'Entendido'
+            });
+
+            return this.open(id);
         }
 
         if (!data || data.status != 200) {
@@ -1382,11 +1560,12 @@ class OrderPay extends Templates {
         // «Cobrar y entregar» solo entrega si el cobro dejó el saldo en cero.
         const handOver = this.thenDeliver && !owes;
         const pending  = this.thenDeliver && owes ? '<p class="text-[12.5px] mt-1 mb-0" style="color:rgb(var(--brand-600))">No se entrega todavía: falta cobrar el saldo.</p>' : '';
+        const saved    = created ? `<p class="text-[13px] mb-1">Pedido <b>P${id}</b> guardado.</p>` : '';
 
         const answer = await alert({
             icon:     'success',
             title:    data.message,
-            html:     `${change}<p class="text-[14px] mb-0">${left}</p>${pending}`,
+            html:     `${saved}${change}<p class="text-[14px] mb-0">${left}</p>${pending}`,
             btn1:     print,
             btn1Text: 'Imprimir ticket',
             btn2:     true,
@@ -1599,8 +1778,12 @@ class OrderPay extends Templates {
 
             if (el.id === 'paNote' || !el.closest('#paPayForm')) return;
 
-            if (el.dataset.field) this.typed(el);
-            else this.paintCalc();
+            if (el.dataset.field) {
+                this.clean(el);
+                this.typed(el);
+            } else {
+                this.paintCalc();
+            }
         });
 
         modal.on('change', '#paReason', () => this.paintCalc());

@@ -23,6 +23,9 @@ class Navbar {
     // Una recarga por modo, no mas: ver syncScheme().
     static get RELOAD_KEY() { return 'huubie:pro:theme-reload'; }
 
+    // «Todas las sucursales»: prefijo + scope; ver offerAll().
+    static get ALL_KEY() { return 'huubie:pro:all-branches:'; }
+
     async init() {
         this.base = this.proBase();
         this.host = document.getElementById('menu-navbar');
@@ -244,33 +247,47 @@ class Navbar {
 
     // -- Sucursal --
 
+    /*  Con «Todas» activa ninguna sucursal sale elegida; la de la sesión dice
+        «Activa»: ahí se sigue capturando, cobrando y entregando. */
     renderBranch() {
         const box      = document.getElementById('navBranch');
         const branches = this.data.branches || [];
         const current  = branches.find((b) => b.selected) || { name: this.data.branch || '' };
         const multi    = branches.length > 1;
+        const all      = multi && this.all ? this.all : null;
+        const allOn    = !!(all && all.on);
 
         if (!current.name) {
             box.innerHTML = '';
             return;
         }
 
+        const allCard = all ? `
+            <button type="button" class="branch-card branch-card-all ${allOn ? 'branch-card-sel' : ''}" data-all="1">
+                <span class="branch-card-avatar"><i data-lucide="layers"></i></span>
+                <span class="branch-card-text">
+                    <span class="branch-card-name">Todas las sucursales</span>
+                    <span class="branch-card-place">Ver las ${all.count || branches.length} juntas</span>
+                </span>
+                <span class="branch-radio"><span class="branch-radio-inner"></span></span>
+            </button>` : '';
+
         const cards = branches.map((b) => `
-            <button type="button" class="branch-card ${b.selected ? 'branch-card-sel' : ''}" data-id="${b.id}">
+            <button type="button" class="branch-card ${b.selected && !allOn ? 'branch-card-sel' : ''}" data-id="${b.id}">
                 <span class="branch-card-avatar">${this.esc(this.initials(b.name))}</span>
                 <span class="branch-card-text">
                     <span class="branch-card-name">${this.esc(b.name)}</span>
-                    <span class="branch-card-place">${this.esc(b.ubication || 'Sin dirección')}</span>
+                    <span class="branch-card-place">${allOn && b.selected ? 'Activa · ' : ''}${this.esc(b.ubication || 'Sin dirección')}</span>
                 </span>
                 <span class="branch-radio"><span class="branch-radio-inner"></span></span>
             </button>`).join('');
 
         box.innerHTML = `
             <button type="button" id="btnBranch" class="branch-pill ${multi ? '' : 'branch-pill-static'}" aria-expanded="false" ${multi ? '' : 'disabled'}>
-                <span class="branch-pill-icon"><i data-lucide="store"></i></span>
+                <span class="branch-pill-icon"><i data-lucide="${allOn ? 'layers' : 'store'}"></i></span>
                 <span class="branch-pill-text">
-                    <span class="branch-pill-label">Sucursal</span>
-                    <span class="branch-pill-name">${this.esc(current.name)}</span>
+                    <span class="branch-pill-label">${allOn ? 'Sucursales' : 'Sucursal'}</span>
+                    <span class="branch-pill-name">${allOn ? 'Todas' : this.esc(current.name)}</span>
                 </span>
                 ${multi ? '<i data-lucide="chevron-down" class="branch-pill-chev"></i>' : ''}
             </button>
@@ -280,11 +297,20 @@ class Navbar {
                     <p class="branch-dd-label">Cambiar sucursal</p>
                     <p class="branch-dd-company">${this.esc(this.data.company || '')}</p>
                 </div>
-                <div class="branch-dd-list">${cards}</div>
+                <div class="branch-dd-list">${allCard}${cards}</div>
             </div>` : ''}`;
     }
 
     async selectBranch(id) {
+        const active = (this.data.branches || []).find((b) => b.selected);
+
+        // Desde «Todas», volver a la activa no cambia la sesión: solo apaga «Todas».
+        if (active && String(active.id) === String(id)) {
+            this.clearAll();
+            window.location.reload();
+            return;
+        }
+
         const res = await this.post({ opc: 'switchBranch', id: id });
 
         if (!res || res.status !== 200) {
@@ -292,8 +318,54 @@ class Navbar {
             return;
         }
 
+        this.clearAll();
+
         // Todo lo que hay en pantalla es de la sucursal anterior.
         window.location.reload();
+    }
+
+    // -- Todas las sucursales --
+
+    /*  Una página que sabe juntar sucursales (Pedidos, Calendario) ofrece
+        «Todas» en el selector. offer = { key, count } del ctrl. La elección
+        vive en este navegador, por scope (las páginas que la comparten) y
+        atada a key (empresa:usuario): otra cuenta en el mismo equipo no la
+        hereda. Solo es para ver: la sesión sigue en su sucursal. Devuelve
+        si está activa. */
+    offerAll(scope, offer) {
+        if (!offer || !offer.key) return false;
+
+        let on = false;
+        try { on = localStorage.getItem(Navbar.ALL_KEY + scope) === String(offer.key); } catch (e) {}
+
+        this.all = { scope: scope, key: String(offer.key), count: Number(offer.count) || 0, on: on };
+
+        if (this.data && this.data.branches) {
+            this.renderBranch();
+            this.icons();
+        }
+
+        return on;
+    }
+
+    selectAll() {
+        try {
+            localStorage.setItem(Navbar.ALL_KEY + this.all.scope, this.all.key);
+        } catch (e) {
+            this.alert('No se pudo ver todas', 'Este navegador no deja guardar la elección.');
+            return;
+        }
+
+        window.location.reload();
+    }
+
+    // Elegir una sucursal concreta apaga «Todas» en todas las páginas.
+    clearAll() {
+        try {
+            Object.keys(localStorage)
+                .filter((k) => k.indexOf(Navbar.ALL_KEY) === 0)
+                .forEach((k) => localStorage.removeItem(k));
+        } catch (e) {}
     }
 
     // -- Modo: claro u oscuro --
@@ -418,6 +490,7 @@ class Navbar {
             const branch = on('.branch-card');
             if (branch) {
                 if (branch.classList.contains('branch-card-sel')) return this.closeAll();
+                if (branch.dataset.all) return this.selectAll();
                 return this.selectBranch(branch.dataset.id);
             }
         });
@@ -575,6 +648,7 @@ class Navbar {
             .branch-card-sel .branch-radio { border-color:var(--nav-accent); }
             .branch-radio-inner { width:7px; height:7px; border-radius:9999px; background:var(--nav-accent); opacity:0; }
             .branch-card-sel .branch-radio-inner { opacity:1; }
+            .branch-card-all .branch-card-avatar svg { width:14px; height:14px; }
 
             /* Modo. En la barra, un boton que muestra a donde se va: luna en
                claro, sol en oscuro. En el menu del usuario, las dos opciones. */

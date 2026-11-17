@@ -9,8 +9,8 @@ require_once __DIR__ . '/core-order.php';
     Reglas que no se ven en el codigo de un vistazo:
       - La seccion es pos-calendario: entra quien la vea, aunque no vea Pedidos
         (Produccion). El detalle lo sirve este ctrl con el mismo armado que Pedidos.
-      - Palomear «ya se elaboro» pide 'update' del CALENDARIO (en alpha, solo
-        Produccion). Solo llena produced_at y quien; no cambia la entrega.
+      - Palomear «ya se elaboro» pide 'update' del CALENDARIO (Produccion) o
+        ser el Dueño (core::isOwner). Solo llena produced_at y quien; no cambia la entrega.
       - Entregar pide 'update' de PEDIDOS, sin saldo (decision 5: el saldo se
         cobra al entregar; la pantalla encadena cobro y entrega) y la contraseña
         de quien entrega (core::needKey).
@@ -33,19 +33,23 @@ class ctrl extends core {
 
         return [
             'status'   => 200,
-            'scope'    => ['company' => $scope['company'], 'branch' => $scope['branch']],
+            'scope'    => ['company' => $scope['company'], 'branch' => $scope['branch'], 'logo' => $this->companyLogo()],
             'actions'  => $this->actions(),
             'calendar' => Permission::actions(self::CALENDAR),
             'producer' => $this->producer(),
             'statuses' => $scope['company_id'] > 0 ? $this->qStatuses($scope['company_id']) : [],
             'today'    => date('Y-m-d'),
             'turn'     => $this->turnBrief(),
-            'day'      => $this->dayBrief()
+            'day'      => $this->dayBrief(),
+            'all'      => $this->allOffer(self::CALENDAR)
         ];
     }
 
     // -- Calendario --
 
+    /*  all = 1: los pedidos de todas las sucursales que el rol deja ver en el
+        calendario. El dinero y las cotizaciones de cada una salen solo si ahí
+        el rol ve Pedidos (la misma regla que la sucursal activa). */
     public function getCalendar() {
         $fail = $this->needCalendar('show') ?: $this->needBranch();
         if ($fail) return $fail;
@@ -53,15 +57,24 @@ class ctrl extends core {
         return $this->attempt(function () {
             [$fi, $ff] = $this->calendarRange();
 
-            $limited = $this->limited();
-            $events  = [];
+            $active   = $this->branchId();
+            $branches = $this->readBranches(self::CALENDAR);
+            $limited  = $this->limited();
+            $money    = count($branches) > 1 ? $this->viewBranches(self::SECTION) : [];
+            $events   = [];
 
-            foreach ($this->qCalendarOrders($this->branchId(), $fi, $ff) as $o) {
-                $status = (int) $o['sale_status_id'];
+            foreach ($this->qCalendarOrders($branches, $fi, $ff) as $o) {
+                $status  = (int) $o['sale_status_id'];
+                $foreign = (int) $o['branch_id'] !== $active;
+                $lim     = $foreign ? !isset($money[(int) $o['branch_id']]) : $limited;
 
-                if ($limited && !in_array($status, [self::PENDING, self::PAID], true)) continue;
+                if ($lim && !in_array($status, [self::PENDING, self::PAID], true)) continue;
 
-                $events[] = $this->event($o, $limited);
+                $events[] = $this->event($o, $lim) + [
+                    'branch'   => (string) $o['branch'],
+                    'branchId' => (int) $o['branch_id'],
+                    'foreign'  => $foreign
+                ];
             }
 
             return [
@@ -70,7 +83,8 @@ class ctrl extends core {
                 'fi'      => $fi,
                 'ff'      => $ff,
                 'limited' => $limited,
-                'branch'  => $this->scope()['branch']
+                'branch'  => $this->scope()['branch'],
+                'all'     => count($branches) > 1
             ];
         }, 'No se pudo cargar el calendario.');
     }
@@ -84,14 +98,29 @@ class ctrl extends core {
 
         if (!preg_match('/^P?(\d+)(?:-\d+)?$/i', $q, $m)) return $this->fail(422, 'Escribe un folio, por ejemplo P1557.');
 
-        $id    = (int) $m[1];
-        $order = $this->qGetOrder($id, $this->branchId());
+        $id      = (int) $m[1];
+        $order   = $this->qGetOrder($id, $this->branchId());
+        $limited = $this->limited();
 
-        if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
+        // Vista «todas»: también el de otra sucursal que el rol deja ver.
+        if (!$order && $this->post('all') === '1') {
+            $place = $this->orderBranch($id, self::CALENDAR);
+
+            if ($place) {
+                $order   = $this->qGetOrder($id, (int) $place['branch_id']);
+                $limited = !isset($this->viewBranches(self::SECTION)[(int) $place['branch_id']]);
+            }
+        }
+
+        if (!$order) {
+            $where = count($this->readBranches(self::CALENDAR)) > 1 ? 'tus sucursales' : $this->scope()['branch'];
+
+            return $this->fail(404, "El pedido P{$id} no existe en {$where}.");
+        }
 
         $status = (int) $order['sale_status_id'];
 
-        if ($this->limited() && !in_array($status, [self::PENDING, self::PAID], true)) {
+        if ($limited && !in_array($status, [self::PENDING, self::PAID], true)) {
             return $this->fail(404, "El pedido P{$id} no está en el calendario de producción.");
         }
 
@@ -109,9 +138,10 @@ class ctrl extends core {
         $id = $this->postId();
 
         return $this->attempt(function () use ($id) {
-            $bundle = $this->orderBundle($id);
+            $bundle = $this->orderBundle($id, self::CALENDAR);
 
-            if ($bundle['status'] === 200) $bundle['producer'] = $this->producer();
+            // El de otra sucursal no se palomea desde aquí: toggleProduced escribe en la activa.
+            if ($bundle['status'] === 200) $bundle['producer'] = !$bundle['foreign'] && $this->producer();
 
             return $bundle;
         }, 'No se pudo abrir el pedido.');
@@ -122,7 +152,7 @@ class ctrl extends core {
     /*  produced = 1 lo marca, 0 lo desmarca. Dos clics seguidos no escriben dos
         veces: si ya esta como se pide, contesta igual sin tocar la base. */
     public function toggleProduced() {
-        $fail = $this->needCalendar('update', 'marcar pedidos como elaborados') ?: $this->needBranch();
+        $fail = ($this->producer() ? null : $this->needCalendar('update', 'marcar pedidos como elaborados')) ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id   = $this->postId();
@@ -151,10 +181,11 @@ class ctrl extends core {
                     'data'   => [$want ? $now : null, $want ? ($this->userId() ?: null) : null, $id]
                 ]), 'produced');
 
+                // Lo marca Producción o el Dueño: quién, lo dice el usuario del renglón.
                 $this->log($id, 'production',
                     $want ? 'Pedido elaborado' : 'Se quitó «elaborado»',
-                    $want ? 'Producción lo marcó como elaborado el ' . date('d/m/Y') . ' a las ' . hour12(date('H:i:s')) . '.'
-                          : 'Producción quitó la marca de elaborado.');
+                    $want ? 'Marcado como elaborado el ' . date('d/m/Y') . ' a las ' . hour12(date('H:i:s')) . '.'
+                          : 'Se quitó la marca de elaborado.');
 
                 return $this->produced($id, $want ? $now : null);
             });
@@ -184,8 +215,11 @@ class ctrl extends core {
         return ['status' => 403, 'message' => "Tu rol no tiene permiso para {$text} en esta sucursal.", 'row' => [], 'events' => []];
     }
 
+    // Palomea «ya se elaboró»: Producción ('update' del calendario) y el Dueño.
     private function producer() {
-        return Permission::can(self::CALENDAR, 'update');
+        if (Permission::can(self::CALENDAR, 'update')) return true;
+
+        return Permission::can(self::CALENDAR, 'show') && $this->isOwner();
     }
 
     // fi/ff del POST, en orden y con tope: un mes en pantalla trae 6 semanas.

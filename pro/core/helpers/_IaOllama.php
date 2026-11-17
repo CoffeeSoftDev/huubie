@@ -15,8 +15,12 @@
     OLLAMA_TIMEOUT, OLLAMA_CA_BUNDLE y WHATSAPP_AGENT_MODEL (el modelo del
     agente; sin ella, MODELO).
 
-    Medido el 16/11/2026 en el arnes de F3 (20 preguntas, datos de prueba):
-    ver la decision 4 en app/order/docs/plan-agente-whatsapp.html. */
+    Medido el 16/11/2026 en el arnes de F3 (21 preguntas, datos de prueba):
+    gpt-oss:120b-cloud fue el mas rapido (1.5 s en promedio) y acerto todas;
+    glm-5.3-flash y deepseek-v4.1-flash tambien acertaron, mas lentos.
+    qwen3-coder:480b-cloud ya no existe (410). Para cambiar de modelo:
+    WHATSAPP_AGENT_MODEL en el .env. Ver la decision 4 en
+    app/order/docs/plan-agente-whatsapp.html. */
 class IaOllama {
 
     const MODELO   = 'gpt-oss:120b-cloud';

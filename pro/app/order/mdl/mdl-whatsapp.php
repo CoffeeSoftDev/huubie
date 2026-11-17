@@ -16,7 +16,8 @@ require_once __DIR__ . '/../../../core/helpers/_WhatsApp.php';
         DESPUES de la transaccion y de rememberToken.
       - Sin fila en wa_notice = la plantilla de fabrica (waDefaults) y encendido.
       - Destinatarios: los de la empresa con branch_id NULL (todas) o de la
-        sucursal, activos y con el aviso marcado.
+        sucursal, activos y con el aviso marcado. can_ask (F6) no es un aviso:
+        deja a ese numero preguntarle al agente del dueño (mdl-whatsapp-dueno.php).
       - El aviso de un pedido sale una sola vez por referencia («Pedido P123»).
         Los cierres salen cada vez: un turno reabierto y vuelto a cerrar avisa
         otra vez con las cifras nuevas.
@@ -529,7 +530,7 @@ trait WhatsAppNotices {
     protected function qWaRecipientList($companyId) {
         return $this->qRows("
             SELECT r.id, r.name, r.phone, r.branch_id, IFNULL(b.name, '') AS branch,
-                   r.notify_order, r.notify_turn, r.notify_day, r.active, r.updated_at
+                   r.notify_order, r.notify_turn, r.notify_day, IFNULL(r.can_ask, 0) AS can_ask, r.active, r.updated_at
             FROM {$this->pos}wa_recipient r
             LEFT JOIN {$this->bd}branches b ON b.id = r.branch_id
             WHERE r.company_id = ?
@@ -539,7 +540,7 @@ trait WhatsAppNotices {
 
     protected function qWaRecipient($id, $companyId) {
         return $this->qRow("
-            SELECT id, name, phone, branch_id, notify_order, notify_turn, notify_day, active
+            SELECT id, name, phone, branch_id, notify_order, notify_turn, notify_day, IFNULL(can_ask, 0) AS can_ask, active
             FROM {$this->pos}wa_recipient
             WHERE id = ? AND company_id = ?
             LIMIT 1

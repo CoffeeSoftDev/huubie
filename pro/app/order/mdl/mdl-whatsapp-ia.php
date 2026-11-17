@@ -6,25 +6,36 @@
     la cambia o la descarta desde la bandeja.
 
     Va con WhatsAppInbox + WhatsAppAgentFlow (mdl-whatsapp-agente.php),
-    OnlineStore (mdl-tienda.php) y CustomerPortal (mdl-portal.php) sobre la
-    clase mdl. Lo usan ctrl-whatsapp.php (bandeja) y cron-whatsapp-agente.php.
+    OnlineStore (mdl-tienda.php), CustomerPortal (mdl-portal.php) y
+    WhatsAppAgentOrders (mdl-whatsapp-pedidos.php, F4) sobre la clase mdl. Lo
+    usan ctrl-whatsapp.php (bandeja) y cron-whatsapp-agente.php.
 
     Reglas que no se ven en el codigo de un vistazo:
       - Empresa, sucursal y telefono salen SIEMPRE de la fila del chat. De lo
-        que pide el modelo solo se usan dos argumentos: «texto» (que buscar en
-        el catalogo) y «folio» (de este cliente en esta sucursal). Lo demas que
-        mande se ignora y queda anotado en la propuesta.
+        que pide el modelo solo se usan los argumentos de agentToolArgs(): lo
+        demas que mande se ignora y queda anotado en la propuesta.
       - Catalogo: el de Tienda en linea (in_catalog) o la lista propia
         (wa_agent_product), segun wa_agent.catalog_mode. Los productos de la
         Matriz cuentan para todas las sucursales, como en Pedidos.
-      - portal_enlace es lo unico que escribe: crea el enlace del portal del
-        cliente si no lo tenia (el mismo que da Clientes › Comprobantes).
+      - Las de lectura no escriben, salvo portal_enlace: crea el enlace del
+        portal del cliente si no lo tenia (el de Clientes › Comprobantes).
+      - Las tres de F4 (pedido_borrador, pasar_a_persona, comprobante_guardar)
+        viven en mdl-whatsapp-pedidos.php. Lo que la propuesta hara ademas del
+        texto viaja en «_action» dentro de la respuesta de la herramienta:
+        agentRun lo saca (el modelo no lo ve) y queda en wa_proposal.action.
       - Fuera de horario no se propone nada, ni a mano. Lo que llego cerrado se
         propone en el primer barrido con el agente abierto.
       - wa_agent.hourly_cap cuenta solo las propuestas automaticas
         (requested_by NULL) por chat en la ultima hora. «Proponer» a mano no
         tiene tope pero si horario.
       - Una propuesta 'working' de mas de 3 min se da por perdida.
+      - F6: un numero del equipo con «Pregunta» (wa_recipient.can_ask) lo
+        atiende el agente del dueño (mdl-whatsapp-dueno.php): otras
+        herramientas, sin sucursal, y su respuesta sale sola (kind 'owner').
+      - F6: una propuesta del barrido cuyo tema esta en automatico
+        (wa_agent.auto_topics) sale sola por agentAutoSend
+        (mdl-whatsapp-automatico.php); state 'sent'. «Proponer» a mano nunca
+        sale solo.
       - TODO es protected o private: Permission::dispatch despacha cualquier
         metodo publico del ctrl, tambien los de un trait. */
 trait WhatsAppAgentAI {
@@ -34,7 +45,8 @@ trait WhatsAppAgentAI {
     protected function qWaAgentAI($companyId) {
         return $this->qRow("
             SELECT id, company_id, phone_number_id, IFNULL(display_phone, '') AS display_phone,
-                   enabled, hours, IFNULL(catalog_mode, 'store') AS catalog_mode, IFNULL(hourly_cap, 20) AS hourly_cap, updated_at
+                   enabled, hours, IFNULL(catalog_mode, 'store') AS catalog_mode, IFNULL(hourly_cap, 20) AS hourly_cap,
+                   IFNULL(auto_topics, '') AS auto_topics, updated_at
             FROM {$this->pos}wa_agent
             WHERE company_id = ?
             LIMIT 1
@@ -96,7 +108,9 @@ trait WhatsAppAgentAI {
     protected function qWaOpenProposal($chatId) {
         return $this->qRow("
             SELECT id, chat_id, message_id, body, IFNULL(tools_used, '') AS tools_used, status, IFNULL(model, '') AS model,
-                   requested_by, elapsed_ms, IFNULL(error, '') AS error, created_at
+                   requested_by, elapsed_ms, IFNULL(error, '') AS error, created_at,
+                   IFNULL(action, '') AS action, IFNULL(action_data, '') AS action_data, sale_id,
+                   IFNULL(kind, 'customer') AS kind, IFNULL(topic, '') AS topic
             FROM {$this->pos}wa_proposal
             WHERE chat_id = ? AND status IN ('working', 'pending', 'failed')
             ORDER BY id DESC
@@ -131,7 +145,8 @@ trait WhatsAppAgentAI {
     // Dentro de transaction(): la propuesta queda apartada hasta el commit.
     protected function qWaLockProposal($id, $companyId) {
         return $this->qRow("
-            SELECT p.id, p.chat_id, p.message_id, p.body, p.status
+            SELECT p.id, p.chat_id, p.message_id, p.body, p.status,
+                   IFNULL(p.action, '') AS action, IFNULL(p.action_data, '') AS action_data, p.sale_id
             FROM {$this->pos}wa_proposal p
             INNER JOIN {$this->pos}wa_chat c ON c.id = p.chat_id
             WHERE p.id = ? AND c.company_id = ?
@@ -153,13 +168,15 @@ trait WhatsAppAgentAI {
         ", [$userId, $now, $chatId]);
     }
 
-    // Solo si sigue 'working': si alguien la retiro mientras se armaba, se queda retirada.
-    protected function qWaFinishProposal($id, $status, $body, $tools, $elapsed, $error) {
+    /*  Solo si sigue 'working': si alguien la retiro mientras se armaba, se queda retirada.
+        $action 'order' | 'handoff' | null y su JSON: lo que pasa ademas del texto.
+        $topic: de que trato (F6, agentTopicOf). */
+    protected function qWaFinishProposal($id, $status, $body, $tools, $elapsed, $error, $action = null, $actionData = null, $topic = null) {
         $this->qWaRun("
             UPDATE {$this->pos}wa_proposal
-            SET status = ?, body = ?, tools_used = ?, elapsed_ms = ?, error = ?
+            SET status = ?, body = ?, tools_used = ?, elapsed_ms = ?, error = ?, action = ?, action_data = ?, topic = ?
             WHERE id = ? AND status = 'working'
-        ", [$status, $body, $tools, $elapsed, $error !== '' ? mb_substr($error, 0, 255, 'UTF-8') : null, $id]);
+        ", [$status, $body, $tools, $elapsed, $error !== '' ? mb_substr($error, 0, 255, 'UTF-8') : null, $action, $actionData, $topic, $id]);
     }
 
     protected function qWaDecideProposal($id, $status, $body, $userId, $now) {
@@ -174,21 +191,34 @@ trait WhatsAppAgentAI {
         $this->qWaRun("UPDATE {$this->pos}wa_proposal SET sent_message_id = ? WHERE id = ?", [$messageId, $id]);
     }
 
-    /*  Los chats que esperan propuesta automatica: con sucursal, sin baja,
-        ventana abierta, sin persona atendiendo, sin respuesta de una persona
-        despues del ultimo mensaje del cliente y sin propuesta para ese mensaje
-        (una 'working' perdida no cuenta). */
+    /*  Los chats que esperan propuesta automatica: con sucursal, ventana
+        abierta, sin persona atendiendo, sin respuesta de una persona despues
+        del ultimo mensaje del cliente, que ese mensaje no sea BAJA / ALTA y
+        sin propuesta para el (una 'working' perdida no cuenta). La BAJA no
+        frena: apaga recordatorios, no las respuestas. Un chat del dueño (F6)
+        entra aunque no tenga sucursal. */
     protected function qWaPendingChats($companyId, $since, $staleBefore, $now) {
         return $this->qRows("
             SELECT c.id
             FROM {$this->pos}wa_chat c
-            INNER JOIN {$this->bd}branches b
-                    ON b.id = c.branch_id AND b.company_id = c.company_id AND IFNULL(b.is_active, 1) = 1
+            LEFT JOIN {$this->bd}branches b
+                   ON b.id = c.branch_id AND b.company_id = c.company_id AND IFNULL(b.is_active, 1) = 1
             WHERE c.company_id = ?
-                AND c.opt_out = 0
+                AND (
+                    b.id IS NOT NULL
+                    OR EXISTS (
+                        SELECT 1 FROM {$this->pos}wa_recipient r
+                        WHERE r.company_id = c.company_id AND r.phone = c.phone AND r.active = 1 AND IFNULL(r.can_ask, 0) = 1
+                    )
+                )
                 AND c.last_in_at >= ?
                 AND NOT (IFNULL(c.mode, 'agent') = 'human' AND (c.human_until IS NULL OR c.human_until > ?))
                 AND EXISTS (SELECT 1 FROM {$this->pos}wa_message i0 WHERE i0.chat_id = c.id AND i0.direction = 'in')
+                AND NOT EXISTS (
+                    SELECT 1 FROM {$this->pos}wa_message k
+                    WHERE k.id = (SELECT MAX(i3.id) FROM {$this->pos}wa_message i3 WHERE i3.chat_id = c.id AND i3.direction = 'in')
+                        AND UPPER(TRIM(TRAILING '.' FROM TRIM(IFNULL(k.body, '')))) IN ('BAJA', 'ALTA')
+                )
                 AND NOT EXISTS (
                     SELECT 1 FROM {$this->pos}wa_message o
                     WHERE o.chat_id = c.id AND o.direction = 'out' AND o.user_id IS NOT NULL
@@ -289,7 +319,8 @@ trait WhatsAppAgentAI {
     /*  Arma la propuesta para el ultimo mensaje del cliente.
         $requestedBy null = automatica (barrido); un id = alguien pulso «Proponer».
         Devuelve ['state', 'reason', 'message', 'proposal_id'];
-        state: pending · failed · skip (no tocaba) · busy (ya se esta armando) · off (sin numero o sin llave). */
+        state: pending · sent (salio sola, F6) · failed · skip (no tocaba) ·
+        busy (ya se esta armando) · off (sin numero o sin llave). */
     protected function agentPropose($companyId, $chatId, $requestedBy = null) {
         $auto = $requestedBy === null;
         $chat = $this->qWaChatAI($chatId, $companyId);
@@ -298,11 +329,14 @@ trait WhatsAppAgentAI {
 
         $agent = $this->qWaAgentAI($companyId);
 
-        if (!$agent)                                         return $this->agentState('off', 'agent', 'La empresa no tiene número de WhatsApp para el agente.');
+        if (!$agent) return $this->agentState('off', 'agent', 'La empresa no tiene número de WhatsApp para el agente.');
+
+        // Un numero del equipo con «Pregunta»: lo atiende el agente del dueño, sin sucursal (F6).
+        $owner = $this->agentOwnerOf($companyId, $chat['phone']);
+
         if (!$this->inboxIsOpen($agent))                     return $this->agentState('skip', 'closed', 'El agente está fuera de horario: no propone nada.');
-        if ((int) $chat['opt_out'] === 1)                    return $this->agentState('skip', 'opt_out', 'Este cliente pidió no recibir mensajes.');
         if (!$this->inboxWindowOpen($chat['last_in_at']))    return $this->agentState('skip', 'window', 'Pasaron más de 24 h desde el último mensaje del cliente.');
-        if ($chat['branch_id'] === null)                     return $this->agentState('skip', 'branch', 'Asigna la sucursal del chat antes de proponer.');
+        if (!$owner && $chat['branch_id'] === null)          return $this->agentState('skip', 'branch', 'Asigna la sucursal del chat antes de proponer.');
         if ($auto && $this->agentIsHuman($chat))             return $this->agentState('skip', 'human', 'Una persona está atendiendo este chat.');
 
         $last = $this->qWaLastIn($chatId);
@@ -310,17 +344,30 @@ trait WhatsAppAgentAI {
         if (!$last)                                                 return $this->agentState('skip', 'empty', 'El cliente todavía no escribe nada.');
         if ($auto && $this->qWaAnswered($chatId, (int) $last['id'])) return $this->agentState('skip', 'answered', 'Una persona ya contestó.');
 
-        $ia = $this->agentModel();
-        if (!$ia) return $this->agentState('off', 'model', 'Falta la llave del servicio de IA (OLLAMA_API_KEY).');
+        // BAJA / ALTA ya se aplicaron al guardar el mensaje: no hay nada que contestar.
+        $word = $this->inboxKeyword($last['body']);
+
+        if ($word !== '') {
+            return $this->agentState('skip', 'keyword', $word === 'baja'
+                ? 'El cliente escribió BAJA: ya no recibe recordatorios ni plantillas. No hace falta contestar.'
+                : 'El cliente escribió ALTA: vuelve a recibir recordatorios. No hace falta contestar.');
+        }
+
+        // Pide una persona con todas sus letras: no hace falta el modelo ni cuenta para el tope. El dueño no pasa a nadie.
+        $rule = !$owner && $last['type'] === 'text' && $this->agentWantsPerson($last['body']);
+        $ia   = $rule ? null : $this->agentModel();
+
+        if (!$rule && !$ia) return $this->agentState('off', 'model', 'Falta la llave del servicio de IA (OLLAMA_API_KEY).');
 
         $now   = $this->inboxNow();
         $stamp = date('Y-m-d H:i:s', $now);
         $stale = date('Y-m-d H:i:s', $now - $this->agentStaleSeconds());
         $hour  = date('Y-m-d H:i:s', $now - 3600);
         $cap   = max(1, (int) $agent['hourly_cap']);
-        $model = mb_substr((string) $ia->modelo(), 0, 60, 'UTF-8');
+        $model = $rule ? 'regla' : mb_substr((string) $ia->modelo(), 0, 60, 'UTF-8');
+        $kind  = $owner ? 'owner' : 'customer';
 
-        $claim = $this->transaction(function () use ($chatId, $last, $auto, $requestedBy, $stamp, $stale, $hour, $cap, $model) {
+        $claim = $this->transaction(function () use ($chatId, $last, $auto, $rule, $requestedBy, $stamp, $stale, $hour, $cap, $model, $kind) {
             if (!$this->qWaLockChatById($chatId)) return $this->agentState('skip', 'chat', 'Esa conversación ya no existe.');
 
             $open = $this->qWaOpenProposal($chatId);
@@ -331,14 +378,14 @@ trait WhatsAppAgentAI {
 
             if ($auto) {
                 if ($this->qWaProposalsFor((int) $last['id'], $stale) > 0) return $this->agentState('skip', 'done', 'Ese mensaje ya tiene propuesta.');
-                if ($this->qWaProposalsLastHour($chatId, $hour) >= $cap)   return $this->agentState('skip', 'cap', 'Este chat llegó al tope de propuestas automáticas por hora.');
+                if (!$rule && $this->qWaProposalsLastHour($chatId, $hour) >= $cap) return $this->agentState('skip', 'cap', 'Este chat llegó al tope de propuestas automáticas por hora.');
             }
 
             $this->qWaRetireOpen($chatId, $requestedBy, $stamp);
 
             $this->inboxMust($this->qCreateWaProposal([
-                'values' => ['chat_id', 'message_id', 'body', 'status', 'model', 'requested_by', 'created_at'],
-                'data'   => [$chatId, (int) $last['id'], '', 'working', $model, $requestedBy, $stamp]
+                'values' => ['chat_id', 'message_id', 'kind', 'body', 'status', 'model', 'requested_by', 'created_at'],
+                'data'   => [$chatId, (int) $last['id'], $kind, '', 'working', $model, $requestedBy, $stamp]
             ]), 'wa_proposal');
 
             return $this->agentState('claimed', '', '', $this->qLastInsertId());
@@ -352,19 +399,42 @@ trait WhatsAppAgentAI {
         @set_time_limit(180);
 
         try {
-            $out = $this->agentRun($ia, $agent, $chat);
+            $out = $rule ? $this->agentRuleHandoff($last['body']) : $this->agentRun($ia, $agent, $chat, $owner);
         } catch (Throwable $e) {
             $this->inboxLog("[ AGENTE IA ] :: chat {$chatId} :: " . $e->getMessage());
-            $out = ['text' => '', 'tools' => [], 'error' => 'No se pudo armar la propuesta.'];
+            $out = ['text' => '', 'tools' => [], 'error' => 'No se pudo armar la propuesta.', 'action' => null];
         }
 
         $elapsed = (int) round((microtime(true) - $t0) * 1000);
         $tools   = json_encode($out['tools'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
-        $nothing = $out['text'] !== '' && preg_match('/^\W*nada\W*$/iu', $out['text']);
+        $action  = !$owner && isset($out['action']) && is_array($out['action']) ? $out['action'] : null;
+        $handoff = $action && $action['type'] === 'handoff';
+
+        // Paso el chat a una persona y el modelo no escribio nada util: la propuesta lleva el aviso al cliente.
+        if ($handoff && ($out['text'] === '' || preg_match('/^\W*nada\W*$/iu', $out['text']))) {
+            $out['text'] = $this->agentHandoffText();
+        }
+
+        // El texto nombra una herramienta: son notas internas, no un mensaje para el cliente.
+        $internal = $out['text'] !== '' && preg_match('/\b(?:' . implode('|', array_keys($this->agentAllToolArgs())) . ')\b/u', $out['text']);
+
+        if ($internal && $handoff) {
+            $out['text'] = $this->agentHandoffText();
+            $internal    = false;
+        }
+
+        // NADA, o vacio sin error cuando lo ultimo ya salio de nuestro lado.
+        $nothing = $out['text'] !== ''
+            ? (bool) preg_match('/^\W*nada\W*$/iu', $out['text'])
+            : $out['error'] === '' && !empty($out['ours_last']);
 
         if ($nothing) {
             $status = 'discarded';
             $error  = 'No había nada pendiente de contestar.';
+        } else if ($internal) {
+            $status      = 'failed';
+            $error       = 'El agente contestó con notas internas en vez del mensaje para el cliente: pide otra.';
+            $out['text'] = '';
         } else if ($out['text'] === '') {
             $status = 'failed';
             $error  = $out['error'] !== '' ? $out['error'] : 'El modelo no devolvió respuesta.';
@@ -373,10 +443,36 @@ trait WhatsAppAgentAI {
             $error  = '';
         }
 
-        $this->qWaFinishProposal($id, $status, $nothing ? '' : $out['text'], $tools, $elapsed, $error);
+        // Lo que hara ademas del texto solo cuenta si la propuesta quedo lista.
+        $keep  = $status === 'pending' && $action;
+        $type  = $keep ? mb_substr((string) $action['type'], 0, 10, 'UTF-8') : '';
+        $topic = $this->agentTopicOf($out['tools'], $type);
+
+        $this->qWaFinishProposal(
+            $id, $status, $nothing ? '' : $out['text'], $tools, $elapsed, $error,
+            $keep ? $type : null,
+            $keep ? json_encode($action['data'] ?? [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) : null,
+            $owner ? 'dueno' : $topic['topic']
+        );
 
         if ($this->qWaProposalStatus($id) !== $status) {
             return $this->agentState('skip', 'retired', 'La propuesta se retiró mientras se armaba.', $id);
+        }
+
+        // El chat pasa a una persona desde ya (no al mandar): el agente deja de proponer solo.
+        if ($keep && $handoff) $this->agentHandoffApply($companyId, $chat, (string) ($action['data']['summary'] ?? ''));
+
+        // F6: al dueño se le contesta directo; a un cliente, solo si el tema esta en automatico. A mano, nunca.
+        if ($status === 'pending' && $auto && ($owner || $this->agentAutoAllowed($agent, $topic, $type))) {
+            $sent = $this->agentAutoSend($companyId, $chat, $id);
+
+            if ($sent) {
+                $text = $sent['status'] === 'failed'
+                    ? 'Salió sola, pero Meta no la aceptó: ' . ($sent['detail'] !== '' ? $sent['detail'] : 'revisa la conversación.')
+                    : ($owner ? 'Le contestó al número del equipo.' : 'Salió sola: el tema está en automático.');
+
+                return $this->agentState('sent', $owner ? 'owner' : 'auto', $text, $id);
+            }
         }
 
         if ($status === 'pending')   return $this->agentState('pending', '', 'Propuesta lista.', $id);
@@ -406,7 +502,7 @@ trait WhatsAppAgentAI {
             $r = $this->agentPropose($companyId, (int) $row['id'], null);
 
             if ($r['state'] === 'off') break;
-            if ($r['state'] === 'pending' || $r['state'] === 'failed') $done++;
+            if (in_array($r['state'], ['pending', 'sent', 'failed'], true)) $done++;
         }
 
         return $done;
@@ -417,24 +513,36 @@ trait WhatsAppAgentAI {
     /*  Hasta 4 vueltas con herramientas (no empieza otra pasados 60 s) y a lo
         mas 8 consultas. Si al final no hay texto, una vuelta mas sin
         herramientas para que conteste con lo que ya leyo.
-        Devuelve ['text', 'tools', 'error']. */
-    protected function agentRun($ia, array $agent, array $chat) {
+        Devuelve ['text', 'tools', 'error', 'ours_last', 'action'].
+        action = lo que la propuesta hara ademas del texto: pasar a una persona
+        (gana) o el pedido confirmado; null = solo texto.
+        $owner (agentOwnerOf, F6): el agente del dueño, con sus consultas. */
+    protected function agentRun($ia, array $agent, array $chat, $owner = null) {
         $t0       = microtime(true);
-        $ctx      = $this->agentContext($agent, $chat);
+        $ctx      = $owner ? $this->ownerContext($agent, $chat, $owner) : $this->agentContext($agent, $chat);
         $history  = $this->agentHistory((int) $chat['id']);
-        $messages = array_merge([['role' => 'system', 'content' => $this->agentPrompt($ctx, $history['ours_last'])]], $history['messages']);
-        $tools    = $this->agentTools();
+        $prompt   = $owner ? $this->ownerPrompt($ctx, $history['ours_last']) : $this->agentPrompt($ctx, $history['ours_last']);
+        $messages = array_merge([['role' => 'system', 'content' => $prompt]], $history['messages']);
+        $tools    = $owner ? $this->ownerTools() : $this->agentTools();
+
+        // Si el chat termina en un mensaje nuestro, el modelo lo toma como suyo y
+        // a veces regresa vacio: se le recuerda al final que le toca decidir.
+        if ($history['ours_last']) {
+            $messages[] = ['role' => 'system', 'content' => 'Revisa el chat: si queda una pregunta del cliente sin contestar, contéstala; si no, responde exactamente: NADA'];
+        }
         $used     = [];
         $calls    = 0;
         $text     = '';
         $error    = '';
+        $order    = null;
+        $handoff  = null;
 
         for ($round = 0; $round < 4; $round++) {
             if ($round > 0 && microtime(true) - $t0 > 60) break;
 
             $r = $ia->chatRonda($messages, $tools);
 
-            if (!$r['ok']) return ['text' => '', 'tools' => $used, 'error' => (string) $r['error']];
+            if (!$r['ok']) return ['text' => '', 'tools' => $used, 'error' => (string) $r['error'], 'ours_last' => $history['ours_last'], 'action' => $handoff ?: $order];
 
             if (!$r['tool_calls']) {
                 $text = $this->agentClean($r['content']);
@@ -449,9 +557,20 @@ trait WhatsAppAgentAI {
                 $args = is_array($args) ? $args : (json_decode((string) $args, true) ?: []);
 
                 $calls++;
-                $result = $calls > 8
-                    ? ['error' => 'Ya hiciste muchas consultas: contesta con lo que tienes.']
-                    : $this->agentTool($name, $args, $ctx);
+
+                if ($calls > 8) {
+                    $result = ['error' => 'Ya hiciste muchas consultas: contesta con lo que tienes.'];
+                } else {
+                    $result = $owner ? $this->ownerTool($name, $args, $ctx) : $this->agentTool($name, $args, $ctx);
+
+                    // Lo que la propuesta hara al mandarse se queda aqui: no viaja al modelo.
+                    $act = isset($result['_action']) && is_array($result['_action']) ? $result['_action'] : null;
+                    unset($result['_action']);
+
+                    // El pedido vale solo si la ULTIMA revision salio confirmada: un borrador nuevo lo retira.
+                    if ($name === 'pedido_borrador') $order = $act && $act['type'] === 'order' ? $act : null;
+                    else if ($act && $act['type'] === 'handoff') $handoff = $act;
+                }
 
                 $json = json_encode($result, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 
@@ -468,7 +587,21 @@ trait WhatsAppAgentAI {
             else $error = (string) $r['error'];
         }
 
-        return ['text' => $text, 'tools' => $used, 'error' => $error];
+        // A veces el modelo ESCRIBE «Pasar a persona: …» en vez de llamar la herramienta: cuenta como llamada y ese texto no va al cliente.
+        if (!$owner && preg_match('/^\W*pasar[ _]a[ _](?:una[ _])?persona\b[\s:.,;-]*(.*)$/isu', $text, $m)) {
+            $summary = mb_substr(trim((string) preg_replace('/\s+/u', ' ', $m[1])), 0, 500, 'UTF-8');
+            $text    = '';
+
+            if (!$handoff) {
+                if (mb_strlen($summary, 'UTF-8') < 5) $summary = 'El agente lo pasó a una persona sin decir el motivo: revisa la conversación.';
+
+                $handoff = ['type' => 'handoff', 'data' => ['summary' => $summary]];
+                $used    = array_slice($used, 0, 7);
+                $used[]  = ['name' => 'pasar_a_persona', 'args' => ['resumen' => $summary], 'ignored' => [], 'summary' => 'Pasado a una persona (lo escribió en vez de llamar la herramienta)', 'data' => ''];
+            }
+        }
+
+        return ['text' => $text, 'tools' => $used, 'error' => $error, 'ours_last' => $history['ours_last'], 'action' => $handoff ?: $order];
     }
 
     // Lo que el modelo sabe del chat; las herramientas leen SOLO de aqui.
@@ -484,6 +617,8 @@ trait WhatsAppAgentAI {
         if (!$customer && $phone10 !== '') $customer = $this->qStoreCustomer($branchId, $phone10);
 
         return [
+            'chat_id'    => (int) $chat['id'],
+            'chat_name'  => (string) $chat['name'],
             'company_id' => (int) $chat['company_id'],
             'company'    => $company ? (string) $company['name'] : '',
             'branch_id'  => $branchId,
@@ -525,17 +660,27 @@ trait WhatsAppAgentAI {
         $now  = $this->inboxNow();
         $when = $days[(int) date('w', $now)] . ' ' . date('d/m/Y', $now) . ', ' . date('H:i', $now) . ' h';
 
+        // Con temas en automatico (F6) parte de lo que escribe sale sin revision.
+        $review = $this->agentAutoTopics($ctx['agent'])
+            ? 'Según el tema, lo que escribas le llega directo al cliente o una persona de la sucursal lo revisa antes: escríbelo siempre listo para mandarse.'
+            : 'Lo que escribas es una PROPUESTA: una persona de la sucursal la revisa antes de mandarla al cliente.';
+
         $lines = [
             "Contestas el WhatsApp de «{$ctx['company']}», sucursal «{$ctx['branch']}». Hoy es {$when}.",
-            'Lo que escribas es una PROPUESTA: una persona de la sucursal la revisa antes de mandarla al cliente.',
+            $review,
             '',
             'Cómo contestar:',
             '- Español de México, de tú, amable y breve: de 1 a 4 frases. Sin listas largas.',
             '- Usa SOLO datos que te den las herramientas. Si falta un dato, di que una persona del equipo lo confirma.',
+            '- Antes de decir que vendemos o que no vendemos algo, o de dar un precio, búscalo con catalogo_buscar. Nunca niegues un producto sin buscarlo.',
+            '- Si el cliente pregunta por su pedido (cómo va, si ya está, si lo recibimos, también los de la tienda en línea), consulta pedido_estado aunque no dé folio: sin folio regresa sus pedidos recientes. No le pidas el folio antes de consultar.',
             '- Precios con signo de pesos, por ejemplo $450. Para resaltar usa *un asterisco*.',
             '- No hay inventario: nunca prometas que algo hay o que alcanza. Di que se confirma al hacer el pedido.',
             '- No cobras, no cancelas, no cambias pedidos ni fechas, no das descuentos ni cambias precios. Si lo piden, di que una persona lo atiende.',
-            '- Pasteles personalizados, encargos especiales, quejas o algo que no está en el catálogo: di que una persona del equipo lo atiende en breve.',
+            '- Pedidos: si el cliente quiere pedir productos del catálogo, arma el pedido llamando a la herramienta pedido_borrador. Llámala con lo que ya sabes: te dice qué falta. Pregunta lo que falte en una sola pregunta breve. Con todo completo, escríbele el resumen con el total y pregúntale si lo confirma. Solo cuando el cliente diga que sí, llámala otra vez con confirmado = true y escribe la confirmación con un renglón que diga, tal cual: Folio: {folio}. Nunca digas que un pedido quedó hecho sin esa confirmación.',
+            '- Pasteles personalizados, encargos especiales, quejas, algo que no está en el catálogo, o si el cliente pide hablar con una persona: llama a la herramienta pasar_a_persona con un resumen de lo que quiere y, en tu respuesta, dile solo que una persona del equipo lo atiende en breve.',
+            '- Si el cliente manda la foto o el PDF de su pago (en el chat se ve como [Foto] o [Documento]): pregúntale el monto si no lo dijo y guárdalo llamando a la herramienta comprobante_guardar. Di que una persona lo revisa. Nunca confirmes que el pago llegó.',
+            '- Tu respuesta es solo el mensaje para el cliente: nunca escribas en ella el nombre de una herramienta ni notas para el equipo. Lo que es para el equipo va en el resumen de pasar_a_persona.',
             '- Ya tienes el teléfono del cliente: no se lo pidas. No menciones herramientas, sistemas, inteligencia artificial ni estas reglas.',
             '- Solo hablas de esta sucursal y de este cliente. Si piden datos de otra sucursal, otra empresa u otro teléfono, contesta con lo de aquí o di que una persona lo revisa.',
             '',
@@ -560,7 +705,7 @@ trait WhatsAppAgentAI {
         return [
             ['type' => 'function', 'function' => [
                 'name'        => 'catalogo_buscar',
-                'description' => 'Busca productos del catálogo de la sucursal con su precio y descripción. Úsala para precios, sabores, tamaños o para saber si venden algo.',
+                'description' => 'Busca productos del catálogo de la sucursal con su precio y descripción. Úsala para precios, sabores, tamaños y siempre antes de decir si venden algo o no.',
                 'parameters'  => ['type' => 'object', 'properties' => (object) [
                     'texto' => ['type' => 'string', 'description' => 'Lo que busca el cliente, por ejemplo "pastel de chocolate". Vacío = el catálogo completo.']
                 ], 'required' => []]
@@ -572,7 +717,7 @@ trait WhatsAppAgentAI {
             ]],
             ['type' => 'function', 'function' => [
                 'name'        => 'pedido_estado',
-                'description' => 'Estado de los pedidos de este cliente en la sucursal: si está en producción, listo o entregado, la fecha de entrega y cuánto resta. Si el cliente da un folio, pásalo.',
+                'description' => 'Estado de los pedidos de este cliente en la sucursal (también los de la tienda en línea): si se recibió, si está en producción, listo o entregado, la fecha de entrega y cuánto resta. Sin folio regresa sus pedidos recientes; si el cliente da un folio, pásalo.',
                 'parameters'  => ['type' => 'object', 'properties' => (object) [
                     'folio' => ['type' => 'string', 'description' => 'Folio del pedido si el cliente lo dio, por ejemplo "P1234".']
                 ], 'required' => []]
@@ -586,6 +731,40 @@ trait WhatsAppAgentAI {
                 'name'        => 'portal_enlace',
                 'description' => 'El enlace personal del cliente para ver lo que debe y mandar su comprobante de pago.',
                 'parameters'  => $none
+            ]],
+            ['type' => 'function', 'function' => [
+                'name'        => 'pedido_borrador',
+                'description' => 'Arma el pedido del cliente con productos del catálogo. No registra nada: revisa los datos, te dice qué falta y te da el resumen con el total. Llámala cada vez que el cliente dé un dato nuevo, siempre con todo lo que ya sabes.',
+                'parameters'  => ['type' => 'object', 'properties' => (object) [
+                    'productos'  => ['type' => 'array', 'description' => 'Lo que pide, con el nombre como sale en el catálogo.', 'items' => ['type' => 'object', 'properties' => (object) [
+                        'nombre'   => ['type' => 'string', 'description' => 'Nombre del producto.'],
+                        'cantidad' => ['type' => 'integer', 'description' => 'Piezas. Si no lo dijo, 1.']
+                    ], 'required' => ['nombre']]],
+                    'entrega'    => ['type' => 'string', 'enum' => ['recoger', 'domicilio'], 'description' => 'Si lo recoge en la sucursal o se le lleva a domicilio.'],
+                    'fecha'      => ['type' => 'string', 'description' => 'Día de entrega como AAAA-MM-DD.'],
+                    'hora'       => ['type' => 'string', 'description' => 'Hora de entrega en 24 horas, por ejemplo 17:30.'],
+                    'direccion'  => ['type' => 'string', 'description' => 'Dirección completa; solo si es a domicilio.'],
+                    'pago'       => ['type' => 'string', 'enum' => ['transferencia', 'en_sucursal'], 'description' => 'Cómo va a pagar.'],
+                    'nota'       => ['type' => 'string', 'description' => 'Indicaciones del cliente, si dio alguna.'],
+                    'nombre'     => ['type' => 'string', 'description' => 'A nombre de quién va el pedido, si el cliente lo dijo.'],
+                    'confirmado' => ['type' => 'boolean', 'description' => 'true solo cuando el cliente ya vio el resumen con el total y dijo que sí.']
+                ], 'required' => ['productos']]
+            ]],
+            ['type' => 'function', 'function' => [
+                'name'        => 'pasar_a_persona',
+                'description' => 'Pasa la conversación a una persona de la sucursal. Úsala para pedidos personalizados, algo fuera del catálogo, quejas, cambios o cancelaciones, o si el cliente pide hablar con alguien.',
+                'parameters'  => ['type' => 'object', 'properties' => (object) [
+                    'resumen' => ['type' => 'string', 'description' => 'Qué quiere el cliente, en una o dos frases, para quien lo va a atender.']
+                ], 'required' => ['resumen']]
+            ]],
+            ['type' => 'function', 'function' => [
+                'name'        => 'comprobante_guardar',
+                'description' => 'Guarda como comprobante de pago la foto o el PDF más reciente que mandó el cliente. Queda en revisión: una persona lo revisa antes de abonarlo.',
+                'parameters'  => ['type' => 'object', 'properties' => (object) [
+                    'monto' => ['type' => 'number', 'description' => 'De cuánto fue el pago, en pesos.'],
+                    'folio' => ['type' => 'string', 'description' => 'Folio del pedido que está pagando, si lo dijo. Por ejemplo "P1234".'],
+                    'nota'  => ['type' => 'string', 'description' => 'Algo que el cliente dijo del pago, si aplica.']
+                ], 'required' => ['monto']]
             ]]
         ];
     }
@@ -599,7 +778,10 @@ trait WhatsAppAgentAI {
             'negocio_datos'   => [],
             'pedido_estado'   => ['folio'],
             'saldo_cliente'   => [],
-            'portal_enlace'   => []
+            'portal_enlace'   => [],
+            'pedido_borrador'     => ['productos', 'entrega', 'fecha', 'hora', 'direccion', 'pago', 'nota', 'nombre', 'confirmado'],
+            'pasar_a_persona'     => ['resumen'],
+            'comprobante_guardar' => ['monto', 'folio', 'nota']
         ];
     }
 
@@ -616,6 +798,10 @@ trait WhatsAppAgentAI {
                 case 'pedido_estado':   return $this->agentOrders($keep['folio'] ?? '', $ctx);
                 case 'saldo_cliente':   return $this->agentBalance($ctx);
                 case 'portal_enlace':   return $this->agentPortal($ctx);
+
+                case 'pedido_borrador':     return $this->agentDraft($keep, $ctx);
+                case 'pasar_a_persona':     return $this->agentHandoff($keep, $ctx);
+                case 'comprobante_guardar': return $this->agentReceipt($keep, $ctx);
             }
         } catch (Throwable $e) {
             $this->inboxLog("[ AGENTE IA ] :: {$name} :: " . $e->getMessage());
@@ -625,9 +811,7 @@ trait WhatsAppAgentAI {
     }
 
     protected function agentCatalog($texto, array $ctx) {
-        $rows = $ctx['agent']['catalog_mode'] === 'own'
-            ? $this->agentDedupe($this->qWaAgentProducts($ctx['company_id'], $ctx['branch_id'], $ctx['main_id']), $ctx['branch_id'])
-            : $this->qStoreProducts($ctx['company_id'], $ctx['branch_id'], $ctx['main_id'], true);
+        $rows = $this->agentCatalogRows($ctx);
 
         if (!$rows) return ['coincidencia' => 'ninguna', 'nota' => 'El catálogo del agente está vacío: una persona contesta precios y productos.'];
 
@@ -872,28 +1056,50 @@ trait WhatsAppAgentAI {
         return $chat['human_until'] === null || strtotime((string) $chat['human_until']) > $this->inboxNow();
     }
 
-    // Solo los argumentos que se usan, como texto corto.
+    /*  Solo los argumentos que se usan, como texto corto. «productos» es la
+        unica lista (queda como [['nombre', 'cantidad']]); un booleano llega
+        como 'true' / 'false'. */
     private function agentArgs($name, array $args) {
         $keep    = [];
-        $allowed = $this->agentToolArgs()[$name] ?? [];
+        $allowed = $this->agentAllToolArgs()[$name] ?? [];
+        $long    = ['resumen' => 500, 'nota' => 300, 'direccion' => 255];
 
         foreach ($allowed as $key) {
-            if (isset($args[$key]) && is_scalar($args[$key])) $keep[$key] = mb_substr(trim((string) $args[$key]), 0, 80, 'UTF-8');
+            if (!isset($args[$key])) continue;
+
+            $value = $args[$key];
+
+            if ($key === 'productos') {
+                $keep[$key] = $this->agentDraftItems($value);
+                continue;
+            }
+
+            if (is_bool($value)) $value = $value ? 'true' : 'false';
+
+            if (is_scalar($value)) $keep[$key] = mb_substr(trim((string) $value), 0, $long[$key] ?? 80, 'UTF-8');
         }
 
         return $keep;
     }
 
-    // Lo que guarda la propuesta de cada consulta: nombre, argumentos usados e ignorados, resumen y datos leidos.
+    /*  Los argumentos de todas las herramientas (clientes y dueño), solo para
+        filtrar y mostrar. Quien puede llamar cual lo deciden agentTool y ownerTool. */
+    private function agentAllToolArgs() {
+        return $this->agentToolArgs() + (method_exists($this, 'ownerToolArgs') ? $this->ownerToolArgs() : []);
+    }
+
+    /*  Lo que guarda la propuesta de cada consulta: nombre, argumentos usados e
+        ignorados, resumen, datos leidos y si fallo (una fallida no sale sola, F6). */
     private function agentUsed($name, array $args, array $result, $json) {
-        $allowed = $this->agentToolArgs()[$name] ?? [];
+        $allowed = $this->agentAllToolArgs()[$name] ?? [];
 
         return [
             'name'    => mb_substr($name, 0, 40, 'UTF-8'),
-            'args'    => $this->agentArgs($name, $args),
+            'args'    => array_map(function ($v) { return is_array($v) ? $this->agentItemsText($v) : $v; }, $this->agentArgs($name, $args)),
             'ignored' => array_values(array_map('strval', array_diff(array_keys($args), $allowed))),
             'summary' => $this->agentSummary($name, $result),
-            'data'    => mb_substr((string) $json, 0, 2000, 'UTF-8')
+            'data'    => mb_substr((string) $json, 0, 2000, 'UTF-8'),
+            'failed'  => isset($result['error'])
         ];
     }
 
@@ -914,6 +1120,30 @@ trait WhatsAppAgentAI {
             case 'portal_enlace':
                 if (empty($result['enlace'])) return 'Cliente no registrado';
                 return !empty($result['enlace_nuevo']) ? 'Enlace creado' : 'Enlace existente';
+            case 'pedido_borrador':
+                if (isset($result['nota']))  return 'No se puede pedir por aquí';
+                if (empty($result['listo'])) return 'Faltan datos del pedido';
+                return (!empty($result['confirmado']) ? 'Pedido confirmado: ' : 'Pedido por confirmar: ') . ($result['resumen']['total'] ?? '');
+            case 'pasar_a_persona':
+                return !empty($result['pasado']) ? 'Pasado a una persona' : 'Faltó el resumen';
+            case 'comprobante_guardar':
+                if (empty($result['guardado'])) return 'Comprobante sin guardar';
+                return (!empty($result['ya_estaba']) ? 'Ya estaba: ' : 'Comprobante ') . ($result['folio'] ?? '');
+
+            // Agente del dueño (F6).
+            case 'ventas_hoy':
+                $n = count($result['sucursales'] ?? []);
+                return 'Ventas del ' . ($result['dia'] ?? 'día') . ' · ' . $n . ' sucursal' . ($n === 1 ? '' : 'es');
+            case 'turno_estado':
+                $open = count(array_filter($result['sucursales'] ?? [], function ($r) { return !empty($r['turno_abierto']); }));
+                return $open === 1 ? '1 turno abierto' : $open . ' turnos abiertos';
+            case 'pedidos_pendientes':
+                $new = array_sum(array_column($result['sucursales'] ?? [], 'tienda_por_aceptar'));
+                $due = array_sum(array_column($result['sucursales'] ?? [], 'entregas_hoy_pendientes'));
+                return "{$new} por aceptar · {$due} por entregar hoy";
+            case 'cartera':
+                $n = array_sum(array_column($result['sucursales'] ?? [], 'clientes_que_deben'));
+                return $n === 1 ? '1 cliente debe' : "{$n} clientes deben";
         }
 
         return '';
@@ -1013,7 +1243,8 @@ trait WhatsAppAgentAI {
 
     private function agentMediaLabel($type) {
         $labels = ['image' => 'Foto', 'audio' => 'Audio', 'video' => 'Video', 'document' => 'Documento',
-                   'sticker' => 'Sticker', 'location' => 'Ubicación', 'contacts' => 'Contacto', 'reaction' => 'Reacción'];
+                   'sticker' => 'Sticker', 'location' => 'Ubicación', 'contacts' => 'Contacto', 'reaction' => 'Reacción',
+                   'template' => 'Plantilla'];
 
         return $labels[$type] ?? ($type !== '' && $type !== 'text' ? 'Mensaje' : '');
     }
@@ -1022,6 +1253,10 @@ trait WhatsAppAgentAI {
     private function agentClean($text) {
         $text = preg_replace('~<think>.*?</think>~su', '', (string) $text);
         $text = str_replace(['**', "\r"], ['*', ''], $text);
+        // Espacios y guiones que no parten (gpt-oss los usa): los normales, para que se puedan buscar.
+        $text = preg_replace(['/[\x{00A0}\x{2007}\x{202F}]/u', '/[\x{2010}\x{2011}]/u'], [' ', '-'], $text);
+        // Los espacios al final del renglon (saltos de Markdown) no sirven en WhatsApp.
+        $text = preg_replace("/[ \t]+\n/", "\n", $text);
         $text = preg_replace("/\n{3,}/", "\n\n", $text);
 
         return mb_substr(trim($text), 0, 1500, 'UTF-8');

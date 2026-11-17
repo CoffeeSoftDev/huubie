@@ -44,6 +44,9 @@ pro/uploads/
 # La carpeta viaja por su .htaccess, que la cierra a la web.
 pro/storage/receipts/*
 !pro/storage/receipts/.htaccess
+# Archivos que los clientes mandan por WhatsApp (simulador): igual, cerrada a la web.
+pro/storage/whatsapp/*
+!pro/storage/whatsapp/.htaccess
 
 # ImageLab: credenciales, imagenes generadas y base de trabajos. Todo runtime.
 imagelab/.env

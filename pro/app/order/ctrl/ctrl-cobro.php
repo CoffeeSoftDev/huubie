@@ -25,6 +25,9 @@ require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
       - La ventana de pagos (payOptions) abre aunque no se pueda cobrar: trae los
         pagos del pedido y dice en can_pay / pay_block por que no (rol, pedido o
         turno). Quien decide de verdad son payOrder y deletePayment.
+      - Pedido nuevo con anticipo (payDraft): la ventana abre ANTES de guardar.
+        El pedido lo crea addOrder solo al confirmar el cobro; si se cierra la
+        ventana no queda nada guardado.
       - La observacion del cobro va pegada al concepto del pago
         (payment.description): «Abono · Ref. 4471».
       - Se valida todo ANTES de la primera escritura: transaction() solo deshace
@@ -92,6 +95,32 @@ class ctrl extends core {
         }, 'No se pudieron abrir los pagos.');
     }
 
+    // Pedido nuevo con anticipo: la ventana abre ANTES de guardar. Sin pedido todavía: sin pagos
+    // ni descuento previo. El pedido lo crea addOrder (ctrl-pedidos) al confirmar el cobro.
+    public function payDraft() {
+        $fail = $this->need('create', 'cobrar pedidos') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $stop = $this->turnStop();
+
+            return [
+                'status'        => 200,
+                'payments'      => [],
+                'can_pay'       => $stop === null,
+                'pay_block'     => $stop,
+                'can_delete'    => false,
+                'methods'       => $this->qPaymentMethods($this->branchId()),
+                'reasons'       => $this->qDiscountReasons($this->companyId()),
+                'can_authorize' => $this->need('cancel') === null,
+                'disc_block'    => '',
+                'turn'          => $this->turnBrief(),
+                'branch_id'     => $this->branchId(),
+                'branches'      => $this->payBranches()
+            ];
+        }, 'No se pudieron abrir los pagos.');
+    }
+
     /*  Sucursales donde se puede cobrar el pedido (como alpha): cada una con su
         turno, lo que le impide cobrar (block) y sus formas de pago. Así la
         ventana cambia de sucursal sin volver a preguntar. */
@@ -152,6 +181,11 @@ class ctrl extends core {
             return ['kind' => 'order', 'title' => 'No se puede cobrar', 'message' => $block, 'day' => false];
         }
 
+        return $this->turnStop();
+    }
+
+    // null = hay turno de hoy abierto. Si no, el aviso de turno que muestra la ventana de pagos.
+    private function turnStop() {
         $closed = $this->needTurn();
 
         if ($closed) {

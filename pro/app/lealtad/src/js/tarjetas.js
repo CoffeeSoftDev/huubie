@@ -1,8 +1,14 @@
 /*  Lealtad › Tarjetas (antes Ventas › Puntos, V4 del plan de Ventas).
 
-    Dos pestañas: «Tipos de tarjeta» (qué da y de qué color se dibuja), que es
-    la que abre, y «Tarjetas» (el plástico: número, titular y, si se quiere, un
-    cliente dueño).
+    Arriba, el resumen (infoCard): tarjetas activas y saldo en monederos, de
+    hoy; ventas con tarjeta, descuento dado y puntos abonados, del mes.
+    Dos pestañas: «Tipos de tarjeta», que es la que abre, es una galería: cada
+    tipo es su tarjeta, lisa y de su color, con lo que da; debajo, cuántas
+    tarjetas tiene, lo que vendió en el mes y sus botones (un clic en la tarjeta
+    o «Ver tarjetas» abre la otra pestaña ya filtrada).
+    «Tarjetas» es la lista del plástico (número, titular y, si se
+    quiere, un cliente dueño), con filtro por tipo; «Ver tarjeta» abre su ficha
+    de solo lectura: el dibujo, el cliente, sus cifras y sus últimas compras.
     Un tipo da descuento O puntos, nunca los dos; el ctrl también lo revisa.
     No se borra: se desactiva. Una tarjeta inactiva, o con su tipo inactivo,
     deja de leerse en «Vender».
@@ -11,9 +17,15 @@
     gastan pagando con «Monedero». Leer la tarjeta al cobrar es de «Vender»;
     esta página solo las administra (hoy, solo el Dueño).
 
+    Tarjeta digital (el QR de la fila o el botón de la ficha): un enlace que el
+    cliente abre en su teléfono sin cuenta (tarjeta.php) y enseña en caja; su QR
+    lleva el número, lo mismo que escribe el lector en Vender. La ventana usa
+    qrcode-generator y ticketCopy / ticketPhone (los carga tarjetas.php).
+
     Los dos formularios llevan a la izquierda el dibujo de la tarjeta, que se
-    repinta con lo que se escribe. El color es el de su tipo (card_type.color);
-    sin color, el celeste claro que manda el ctrl en dataInit.cardColor.
+    repinta con lo que se escribe. Es un rectángulo de un solo color, sin
+    recortes ni filos: el de su tipo (card_type.color); sin color, el celeste
+    claro que manda el ctrl en dataInit.cardColor.
 
     Esta página no carga el detalle, el turno ni el cobro de Pedidos: esc(),
     money() y LOY_TABLE van aquí abajo, en «Ayudantes». */
@@ -57,15 +69,20 @@ class Loyalty extends Templates {
         super(link, div_modulo);
         this.PROJECT_NAME = 'Loyalty';
         this.tab          = 'types';
-        this.requests     = { cards: 0, types: 0 };
-        this.pageLength   = { cards: 15, types: 15 };
+        this.requests     = { cards: 0, types: 0, summary: 0 };
+        this.pageLength   = { cards: 15 };
         this.saving       = false;
         this.term         = '';
         this.activeTypes  = 0;
+        this.cardType     = 'all';
+        this.galleryShown = false;
 
         // Lo que la vista previa necesita del formulario abierto.
         this.formTypes     = [];
         this.formCustomers = [];
+
+        // El enlace de la ventana «Tarjeta digital» abierta.
+        this.shareData = null;
 
         // Colores rápidos del tipo de tarjeta: los de Catálogo › Métodos de pago (donde está la «Tarjeta de regalo»).
         this.colors = ['#16A34A', '#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#0891B2', '#64748B'];
@@ -92,6 +109,7 @@ class Loyalty extends Templates {
         this.filterCards();
         this.filterTypes();
         this.lsCardTypes();
+        this.lsSummary();
     }
 
     // flex-1 en la página, el cuerpo y la tarjeta: llenan el alto de la pantalla, como Catálogo.
@@ -104,6 +122,7 @@ class Loyalty extends Templates {
                 class: 'flex flex-1 flex-col gap-[16px]',
                 container: [
                     { type: 'div', id: `header${this.PROJECT_NAME}`, class: 'w-full' },
+                    { type: 'div', id: `summary${this.PROJECT_NAME}`, class: 'w-full hidden' },
                     { type: 'div', id: `body${this.PROJECT_NAME}`, class: 'w-full flex flex-1 flex-col' }
                 ]
             }
@@ -229,13 +248,22 @@ class Loyalty extends Templates {
                     onchange: 'loyalty.lsCards()'
                 },
                 {
+                    opc:      'select',
+                    id:       'type',
+                    lbl:      'Tipo',
+                    required: false,
+                    class:    'col-6 col-md-4 col-lg-3 col-xl-2',
+                    data:     [{ id: 'all', valor: 'Todos los tipos' }],
+                    onchange: 'loyalty.pickType()'
+                },
+                {
                     opc:         'input',
                     id:          'q',
                     lbl:         'Buscar',
                     type:        'search',
                     placeholder: 'Número, titular, tipo o cliente',
                     required:    false,
-                    class:       'col-6 col-md-5 col-lg-4 col-xl-3'
+                    class:       'col-12 col-md-4 col-lg-4 col-xl-3'
                 }
             ]
         });
@@ -296,6 +324,45 @@ class Loyalty extends Templates {
         });
     }
 
+    // -- Resumen --
+
+    // Las cifras de arriba (el ctrl ya las manda con formato). Van escondidas hasta que llegan; si fallan, no se muestran.
+    async lsSummary() {
+        const request = ++this.requests.summary;
+        const data    = await useFetch({ url: this._link, data: { opc: 'getSummary' } });
+
+        if (request !== this.requests.summary) return;
+
+        if (!data || data.status != 200 || !Array.isArray(data.tiles)) return $(`#summary${this.PROJECT_NAME}`).addClass('hidden');
+
+        this.renderSummary(data);
+    }
+
+    renderSummary(data) {
+        this.createLayout({
+            parent: `summary${this.PROJECT_NAME}`,
+            design: false,
+            data: {
+                id:    `summaryBody${this.PROJECT_NAME}`,
+                class: 'w-full flex flex-col gap-[8px]',
+                container: [
+                    { type: 'p', class: 'ord-dash-note', text: data.note || '' },
+                    { type: 'div', id: `kpis${this.PROJECT_NAME}`, class: 'w-full' }
+                ]
+            }
+        });
+
+        this.infoCard({
+            parent: `kpis${this.PROJECT_NAME}`,
+            id:     `kpiCards${this.PROJECT_NAME}`,
+            style:  'file',
+            cols:   Math.min(6, Math.max(4, data.tiles.length)),
+            json:   data.tiles.map((t) => ({ title: t.label, accent: t.tone, lucideIcon: t.icon, data: { value: t.value, subtitle: t.hint } }))
+        });
+
+        $(`#summary${this.PROJECT_NAME}`).removeClass('hidden');
+    }
+
     // -- Tarjetas --
 
     async lsCards() {
@@ -303,7 +370,7 @@ class Loyalty extends Templates {
 
         $('#tableLoyCards').addClass('opacity-50');
 
-        const data = await useFetch({ url: this._link, data: { opc: 'lsCards', status: $('#loyc_status').val() || '1' } });
+        const data = await useFetch({ url: this._link, data: { opc: 'lsCards', status: $('#loyc_status').val() || '1', type: this.cardType } });
 
         if (request !== this.requests.cards) return;
 
@@ -311,7 +378,11 @@ class Loyalty extends Templates {
 
         if (!loaded) alert({ icon: 'error', title: 'No se pudo cargar la lista', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
 
-        if (loaded) this.activeTypes = Number(data.types) || 0;
+        if (loaded) {
+            this.activeTypes = Number(data.types) || 0;
+
+            if (this.fillTypeFilter(data.typeFilter || [])) return this.lsCards();
+        }
 
         $('#tableLoyCards').removeClass('opacity-50');
 
@@ -323,7 +394,8 @@ class Loyalty extends Templates {
             striped: true,
             hover:   true,
             f_size:  13,
-            center:  [4, 5, 6],
+            center:  [4, 5, 7],
+            right:   [6],
             ...LOY_TABLE,
             ...this.emptyCards(loaded)
         });
@@ -333,16 +405,43 @@ class Loyalty extends Templates {
         this.dataTable('tbLoyCards', 'cards', 'tarjetas', 'Ninguna tarjeta coincide con la búsqueda');
     }
 
-    addCard() {
-        this.formCard(0);
+    /*  Llena el filtro «Tipo» (todos los tipos de la empresa) y deja marcado el
+        elegido. Devuelve true si el elegido ya no está en la lista: el filtro
+        vuelve a «Todos» y hay que pedir la lista otra vez. */
+    fillTypeFilter(list) {
+        const found = this.cardType === 'all' || list.some((t) => String(t.id) === this.cardType);
+
+        $('#loyc_type').option_select({ data: [{ id: 'all', valor: 'Todos los tipos' }, ...list], placeholder: '' });
+
+        if (!found) this.cardType = 'all';
+
+        $('#loyc_type').val(this.cardType);
+
+        return !found;
+    }
+
+    pickType() {
+        this.cardType = String($('#loyc_type').val() || 'all');
+        this.lsCards();
+    }
+
+    // «Ver tarjetas» de la galería: abre la pestaña Tarjetas ya filtrada por ese tipo (su onClick pide la lista).
+    showCards(typeId) {
+        this.cardType = String(typeId);
+        $('#tab-loyCards').trigger('click');
+    }
+
+    // typeId: el tipo que ya viene elegido cuando el alta sale de la galería.
+    addCard(typeId = 0) {
+        this.formCard(0, typeId);
     }
 
     editCard(id) {
         this.formCard(id);
     }
 
-    // Con id 0 es un alta: el ctrl solo devuelve las opciones del formulario.
-    async formCard(id) {
+    // Con id 0 es un alta: el ctrl solo devuelve las opciones del formulario. typeId: el tipo ya elegido (alta desde la galería).
+    async formCard(id, typeId = 0) {
         if (this.saving) return;
 
         const data = await useFetch({ url: this._link, data: { opc: 'getCard', id: id } });
@@ -358,6 +457,17 @@ class Loyalty extends Templates {
         this.formTypes     = types;
         this.formCustomers = data.customers || [];
 
+        const json = [
+            { id: 'lc_preview', tipo: 'html', class: 'loy-preview', html: this.cardFace() },
+            { id: 'lc_number', lbl: 'Número', required: true, maxlength: 40, ph: 'Escríbelo o léelo con el lector', value: card ? card.number : '', help: 'Letras, números y guiones. No se repite en la sucursal.', class: 'w-full' },
+            { id: 'lc_type', lbl: 'Tipo de tarjeta', tipo: 'select', required: true, data: types, value: card ? card.card_type_id : (typeId || (types.length === 1 ? types[0].id : '')), class: 'w-full' },
+            { id: 'lc_holder', lbl: 'Titular', maxlength: 150, ph: 'Opcional: el nombre impreso', value: card ? card.holder : '', class: 'w-full' },
+            { id: 'lc_customer', lbl: 'Cliente', tipo: 'select2', data: this.formCustomers, empty: 'Sin cliente', value: card ? card.customer_id : '', class: 'w-full' }
+        ];
+
+        // Solo en el alta y si la empresa tiene número de WhatsApp: su tarjeta digital le llega sola. paintCard() lo prende o lo apaga según el cliente.
+        if (!card && this.waReady()) json.push({ id: 'lc_send_wa', lbl: 'Mandarle su tarjeta digital por WhatsApp', tipo: 'switch', value: 1, help: ' ', class: 'w-full' });
+
         this.csModal({
             id:         'modalLoyCard',
             title:      card ? 'Editar tarjeta' : 'Nueva tarjeta',
@@ -366,14 +476,8 @@ class Loyalty extends Templates {
             width:      'max-w-3xl',
             saveText:   card ? 'Guardar cambios' : 'Agregar tarjeta',
             cancelText: 'Cancelar',
-            json: [
-                { id: 'lc_preview', tipo: 'html', class: 'loy-preview', html: this.cardFace() },
-                { id: 'lc_number', lbl: 'Número', required: true, maxlength: 40, ph: 'Escríbelo o léelo con el lector', value: card ? card.number : '', help: 'Letras, números y guiones. No se repite en la sucursal.', class: 'w-full' },
-                { id: 'lc_type', lbl: 'Tipo de tarjeta', tipo: 'select', required: true, data: types, value: card ? card.card_type_id : (types.length === 1 ? types[0].id : ''), class: 'w-full' },
-                { id: 'lc_holder', lbl: 'Titular', maxlength: 150, ph: 'Opcional: el nombre impreso', value: card ? card.holder : '', class: 'w-full' },
-                { id: 'lc_customer', lbl: 'Cliente', tipo: 'select2', data: this.formCustomers, empty: 'Sin cliente', value: card ? card.customer_id : '', class: 'w-full' }
-            ],
-            onSave: (values, close) => this.saveCard(card, values, close)
+            json:       json,
+            onSave:     (values, close) => this.saveCard(card, values, close)
         });
 
         $('#lc_number')
@@ -397,12 +501,14 @@ class Loyalty extends Templates {
         if (!/^[A-Z0-9-]{3,40}$/.test(number)) return this.warn('El número lleva de 3 a 40 letras, números o guiones (sin acentos ni otros signos).');
         if (!type) return this.warn('Elige el tipo de tarjeta.');
 
+        const sendWa = $('#lc_send_wa').is(':checked') && !$('#lc_send_wa').prop('disabled');
+
         this.saving = true;
 
         const button = $('#modalLoyCard .cs-modal-save').prop('disabled', true);
         const data   = await useFetch({
             url:  this._link,
-            data: { opc: card ? 'editCard' : 'addCard', id: card ? card.id : 0, number: number, holder: holder, card_type_id: type, customer_id: customer }
+            data: { opc: card ? 'editCard' : 'addCard', id: card ? card.id : 0, number: number, holder: holder, card_type_id: type, customer_id: customer, send_wa: sendWa ? 1 : 0 }
         });
 
         this.saving = false;
@@ -411,8 +517,31 @@ class Loyalty extends Templates {
         if (!data || data.status != 200) return this.fail(data, 'No se guardó la tarjeta');
 
         close();
-        alert({ icon: 'success', title: data.message, timer: 1400 });
-        this.lsCards();
+        this.savedAlert(data);
+        this.reload();
+    }
+
+    // La tarjeta ya quedó guardada; si se pidió el WhatsApp, cómo salió (si no salió, se avisa sin quitar lo guardado).
+    savedAlert(data) {
+        const wa = data.wa;
+
+        if (!wa) return alert({ icon: 'success', title: data.message, timer: 1400 });
+
+        if (wa.status === 'sent' || wa.status === 'simulated') {
+            return alert({
+                icon:  'success',
+                title: data.message,
+                text:  wa.status === 'sent' ? 'Le mandamos su tarjeta digital por WhatsApp.' : 'WhatsApp simulado: sin token de Meta no sale a la red. Quedó en Ventas › WhatsApp.',
+                timer: 2600
+            });
+        }
+
+        alert({ icon: 'warning', title: `${data.message} El WhatsApp no salió.`, text: wa.detail || 'Revisa Ventas › WhatsApp.', btn1: true, btn1Text: 'Entendido' });
+    }
+
+    // La empresa tiene número de WhatsApp (wa_agent) para mandar la tarjeta digital.
+    waReady() {
+        return Boolean((dataInit.whatsapp || {}).ready);
     }
 
     // No borra: desactiva. La tarjeta deja de leerse en Vender.
@@ -445,7 +574,7 @@ class Loyalty extends Templates {
         if (!res || res.status != 200) return this.fail(res, 'No se cambió el estado');
 
         alert({ icon: 'success', title: res.message, timer: 1800 });
-        this.lsCards();
+        this.reload();
     }
 
     // Sin un tipo activo no hay qué asignarle a la tarjeta.
@@ -462,6 +591,336 @@ class Loyalty extends Templates {
         });
 
         if (create && r && r.isConfirmed) this.addType();
+    }
+
+    // -- Tarjetas: ficha --
+
+    /*  Solo lectura: el dibujo, el cliente, sus cifras y sus últimas compras.
+        Con permiso de editar, «Editar» cierra la ficha y abre el formulario de siempre. */
+    async viewCard(id) {
+        const data = await useFetch({ url: this._link, data: { opc: 'getCardDetail', id: id } });
+
+        if (!data || data.status != 200 || !data.card) return this.fail(data, 'No se pudo abrir la tarjeta');
+
+        const card  = data.card;
+        const modal = this.csModal({
+            id:         'modalLoyDetail',
+            title:      `Tarjeta ${card.number}`,
+            subtitle:   [card.type, card.benefit].filter(Boolean).join(' · '),
+            lucideIcon: 'credit-card',
+            width:      'max-w-4xl',
+            saveText:   false,
+            cancelText: 'Cerrar',
+            action:     this.allow('update') ? { text: 'Editar', lucideIcon: 'pencil', onClick: () => { modal.close(); this.editCard(card.id); } } : null,
+            json: [
+                { id: 'ld_face', tipo: 'html', class: 'loy-detail-face', html: this.cardFace() },
+                { id: 'ld_side', tipo: 'html', class: 'loy-detail-side', html: '' },
+                { id: 'ld_moves', tipo: 'html', class: 'w-full', html: '' }
+            ]
+        });
+
+        this.paintFace('ld_face', {
+            color:    card.color,
+            type:     card.type,
+            number:   card.number,
+            holder:   card.holder || (card.owner ? card.customer : ''),
+            discount: card.discount,
+            points:   card.points,
+            goal:     card.goal,
+            stamps:   card.stamps,
+            icon:     card.icon,
+            caption:  ''
+        });
+
+        // «Tarjeta digital» cierra la ficha y abre su ventana (dos csModal a la vez se enciman).
+        this.detailSide(card, data.totals || [], () => { modal.close(); this.shareCard(card.id); });
+        this.detailMoves(data.moves || [], data.moreText || '');
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    /*  A la derecha del dibujo: el cliente, la nota si algo impide usarla, el botón
+        de la tarjeta digital y las cifras (las cajas cus-tile de Clientes). */
+    detailSide(card, totals, share) {
+        const owner = [
+            { type: 'span', class: 'loy-avatar' + (card.owner ? '' : ' is-empty'), 'aria-hidden': 'true', html: '<i data-lucide="user-round" class="w-4 h-4"></i>' },
+            { type: 'p', class: 'loy-detail-name', text: card.customer }
+        ];
+
+        if (card.phone || card.owner) owner.push({ type: 'p', class: 'ord-sub', text: card.phone || 'Sin teléfono' });
+        if (card.note) owner.push({ type: 'p', class: 'loy-detail-note', text: card.note });
+
+        this.createLayout({
+            parent: 'ld_side',
+            design: false,
+            data: {
+                id:    'ldSide',
+                class: 'flex flex-col gap-[14px]',
+                container: [
+                    { type: 'div', class: 'loy-detail-owner', children: owner },
+                    { type: 'div', class: 'loy-detail-acts', children: [this.tileButton('qr-code', 'Tarjeta digital', share)] },
+                    { type: 'div', id: 'ldTiles', class: 'w-full' }
+                ]
+            }
+        });
+
+        this.createLayout({
+            parent: 'ldTiles',
+            design: false,
+            data: {
+                id:    'ldTilesGrid',
+                class: 'loy-detail-tiles',
+                container: totals.map((t) => ({
+                    type:     'div',
+                    class:    `cus-tile ${t.tone || ''}`,
+                    children: [
+                        { type: 'p', class: 'cus-tile-label', text: t.label },
+                        { type: 'p', class: 'cus-tile-value', text: t.value }
+                    ]
+                }))
+            }
+        });
+    }
+
+    // Abajo: las últimas compras con la tarjeta y lo que dio cada una (descuento o puntos).
+    detailMoves(moves, moreText) {
+        const container = [
+            { type: 'p', class: 'loy-detail-title', text: 'Últimas compras' },
+            { type: 'div', id: 'ldMovesTable', class: 'w-full' }
+        ];
+
+        if (moreText) container.push({ type: 'p', class: 'loy-note mt-[8px]', text: moreText });
+
+        this.createLayout({
+            parent: 'ld_moves',
+            design: false,
+            data:   { id: 'ldMoves', class: 'w-full', container: container }
+        });
+
+        this.createCoffeeTable3({
+            parent:       'ldMovesTable',
+            id:           'tbLoyMoves',
+            theme:        'light',
+            data:         moves.length ? { row: moves } : { thead: [], row: [] },
+            striped:      true,
+            hover:        false,
+            f_size:       13,
+            center:       [1, 2, 5],
+            right:        [4],
+            ...LOY_TABLE,
+            emptyMessage: 'Aún no hay compras con esta tarjeta',
+            emptyIcon:    'icon-credit-card'
+        });
+    }
+
+    // -- Tarjetas: tarjeta digital --
+
+    /*  La tarjeta digital es una página que el cliente abre en su teléfono sin
+        cuenta (tarjeta.php): su tarjeta y un QR con el número, que en caja se
+        lee igual que el plástico. Esta ventana da su enlace: un QR del ENLACE
+        para que el cliente lo escanee en el mostrador, «Copiar enlace» y WhatsApp.
+        Pedirla la primera vez crea el enlace (el ctrl pide permiso de editar). */
+    async shareCard(id) {
+        if (this.saving) return;
+
+        const res = await useFetch({ url: this._link, data: { opc: 'getCardLink', id: id } });
+
+        if (!res || res.status != 200) return this.fail(res, 'No se pudo abrir la tarjeta digital');
+
+        this.shareData = res;
+
+        // Con número de WhatsApp de la empresa y permiso de editar: también se puede mandar desde la tienda.
+        const store = this.waReady() && res.can_renew;
+
+        this.csModal({
+            id:         'modalLoyShare',
+            title:      'Tarjeta digital',
+            subtitle:   [`Tarjeta ${res.number}`, res.type].filter(Boolean).join(' · '),
+            lucideIcon: 'qr-code',
+            width:      'max-w-3xl',
+            saveText:   'Abrir mi WhatsApp',
+            cancelText: 'Cerrar',
+            info:       'El cliente la abre sin cuenta ni contraseña.',
+            action:     { text: 'Copiar enlace', lucideIcon: 'copy', onClick: () => this.copyCardLink() },
+            json: [
+                { id: 'ls_qr', tipo: 'html', class: 'loy-preview', html: '' },
+                { id: 'ls_phone', lbl: 'WhatsApp del cliente', tipo: 'text', icon: 'phone', value: res.phone, ph: '10 dígitos', maxlength: 16, help: store ? '' : 'Vacío: WhatsApp te deja elegir el contacto.', class: 'w-full' },
+                ...(store ? [{ id: 'ls_send', tipo: 'html', class: 'w-full', html: '' }] : []),
+                { id: 'ls_message', lbl: 'Mensaje', tipo: 'textarea', rows: 4, maxlength: 1000, value: this.shareMessage(res), help: '«Abrir mi WhatsApp» lo manda desde tu teléfono o tu WhatsApp Web.', class: 'w-full' },
+                { id: 'ls_link', tipo: 'html', class: 'w-full', html: '' }
+            ],
+            onSave: (values, close) => this.sendCardLink(values, close)
+        });
+
+        // El QR va a la izquierda de los campos, como el dibujo en las altas.
+        $('#modalLoyShare .loy-preview').parent().addClass('loy-split');
+
+        if (store) this.storeSendBox();
+
+        this.shareBox(res);
+    }
+
+    // Bajo el teléfono: mandar la plantilla desde el número de la empresa (queda en Ventas › WhatsApp).
+    storeSendBox() {
+        const simulated = Boolean((dataInit.whatsapp || {}).simulated);
+
+        this.createLayout({
+            parent: 'ls_send',
+            design: false,
+            data: {
+                id:    'lsSendBody',
+                class: 'loy-share-send',
+                container: [
+                    this.tileButton('send', 'Mandar desde el WhatsApp de la tienda', () => this.sendCardWa()),
+                    { type: 'p', class: 'loy-note', text: simulated ? 'Simulado: sin token de Meta no sale a la red.' : 'Sale del número de la empresa y queda en Ventas › WhatsApp.' }
+                ]
+            }
+        });
+    }
+
+    // La plantilla al teléfono escrito. El ctrl revisa el número, BAJA y que la tarjeta esté activa.
+    async sendCardWa() {
+        const data  = this.shareData;
+        const phone = String($('#ls_phone').val() || '').replace(/\D/g, '');
+
+        if (!data || this.saving) return;
+        if (!/^(52)?\d{10}$/.test(phone)) return this.warn('Escribe el WhatsApp del cliente: 10 dígitos.');
+
+        this.saving = true;
+
+        const button = $('#lsSendBody button').prop('disabled', true);
+        const res    = await useFetch({ url: this._link, data: { opc: 'sendCardWhatsApp', id: data.id, phone: phone } });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (!res || res.status != 200) return this.fail(res, 'No salió el WhatsApp');
+
+        alert({ icon: 'success', title: res.message, timer: 2400 });
+    }
+
+    // A la izquierda, el QR del enlace; abajo de los campos, el enlace y «Nuevo enlace».
+    shareBox(res) {
+        const left = [
+            { type: 'figure', class: 'loy-qr', role: 'img', 'aria-label': 'QR del enlace de la tarjeta digital', html: this.qrSvg(res.link) },
+            { type: 'p', class: 'loy-card-caption', text: 'Que el cliente lo escanee con la cámara de su teléfono: se abre su tarjeta y ahí la guarda.' }
+        ];
+
+        if (!res.usable) left.push({ type: 'p', class: 'loy-share-off', text: 'La tarjeta o su tipo están inactivos: el enlace no abre hasta reactivarlos.' });
+
+        this.createLayout({ parent: 'ls_qr', design: false, data: { id: 'lsQrBody', class: 'w-full', container: left } });
+
+        const foot = [{ type: 'span', text: res.usable ? 'Enlace activo' : 'No abre mientras esté inactiva' }];
+
+        if (res.can_renew) foot.push(this.tileButton('refresh-cw', 'Nuevo enlace', () => this.renewCardLink()));
+
+        this.createLayout({
+            parent: 'ls_link',
+            design: false,
+            data: {
+                id:    'lsLinkBody',
+                class: 'loy-share-link',
+                container: [
+                    { type: 'a', class: 'loy-share-url', href: res.link, target: '_blank', rel: 'noopener', text: res.link },
+                    { type: 'div', class: 'loy-share-foot', children: foot }
+                ]
+            }
+        });
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Un QR en SVG (qrcode-generator, en assets/plugins/qrcode). Corrección M y margen de 4 módulos, el mínimo para leerlo.
+    qrSvg(text) {
+        if (typeof qrcode !== 'function') return '';
+
+        const qr = qrcode(0, 'M');
+
+        qr.addData(String(text));
+        qr.make();
+
+        return qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true });
+    }
+
+    // El mensaje de WhatsApp: saludo con el primer nombre (con mayúscula), qué es y el enlace.
+    shareMessage(res) {
+        const word  = String(res.name || '').trim().split(/\s+/)[0] || '';
+        const first = word ? word.charAt(0).toUpperCase() + word.slice(1) : '';
+        const store = (dataInit.scope || {}).company || '';
+
+        return `${first ? `Hola ${first}` : 'Hola'}, esta es tu tarjeta${res.type ? ` ${res.type}` : ''}${store ? ` de ${store}` : ''}.\n`
+             + 'Ábrela en tu teléfono y enséñala en caja para usarla:\n'
+             + res.link;
+    }
+
+    async copyCardLink() {
+        const link = this.shareData && this.shareData.link;
+
+        if (!link) return;
+
+        const done = await ticketCopy(link);
+
+        alert(done
+            ? { icon: 'success', title: 'Enlace copiado', timer: 1200 }
+            : { icon: 'warning', title: 'No se pudo copiar', text: 'Selecciona el enlace y cópialo a mano.', btn1: true, btn1Text: 'Entendido' });
+    }
+
+    // Token nuevo: el enlace anterior deja de abrir. El mensaje ya escrito se queda; solo cambia el enlace.
+    async renewCardLink() {
+        const data = this.shareData;
+
+        if (!data || this.saving) return;
+
+        const ask = await alert({
+            icon:     'warning',
+            title:    '¿Crear un enlace nuevo?',
+            text:     'El enlace anterior deja de abrir. Úsalo si lo mandaste a otra persona por error.',
+            btn1:     true,
+            btn1Text: 'Crear enlace nuevo',
+            btn2:     true,
+            btn2Text: 'Cancelar'
+        });
+
+        if (!ask || !ask.isConfirmed || this.saving) return;
+
+        this.saving = true;
+
+        const res = await useFetch({ url: this._link, data: { opc: 'newCardLink', id: data.id } });
+
+        this.saving = false;
+
+        if (!res || res.status != 200) return this.fail(res, 'No se cambió el enlace');
+
+        this.shareData = res;
+
+        const message = $('#ls_message');
+        const text    = String(message.val() || '');
+
+        message.val(text.includes(data.link) ? text.split(data.link).join(res.link) : this.shareMessage(res));
+
+        this.shareBox(res);
+
+        alert({ icon: 'success', title: res.message || 'Enlace nuevo listo.', timer: 1600 });
+    }
+
+    // Sin el enlace el mensaje no sirve: si lo borraron, va al final.
+    sendCardLink(values, close) {
+        const data  = this.shareData;
+        const phone = ticketPhone(values.ls_phone);
+
+        if (!data) return;
+
+        if (phone === null) {
+            return alert({ icon: 'warning', title: 'Teléfono no válido', text: 'Escribe los 10 dígitos o deja el campo vacío.', btn1: true, btn1Text: 'Entendido' });
+        }
+
+        let text = String(values.ls_message || '').trim();
+
+        if (!text.includes(data.link)) text = (text !== '' ? text + '\n' : '') + data.link;
+
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+
+        close();
     }
 
     // -- Tipos de tarjeta --
@@ -481,22 +940,134 @@ class Loyalty extends Templates {
 
         $('#tableLoyTypes').removeClass('opacity-50');
 
-        this.createCoffeeTable3({
-            parent:  'tableLoyTypes',
-            id:      'tbLoyTypes',
-            theme:   'light',
-            data:    loaded && data.row ? data : { thead: [], row: [] },
-            striped: true,
-            hover:   true,
-            f_size:  13,
-            center:  [2, 3, 4],
-            ...LOY_TABLE,
-            ...this.emptyTypes(loaded)
+        if (loaded && Array.isArray(data.types) && data.types.length) return this.gallery(data.types);
+
+        this.emptyGallery(loaded);
+    }
+
+    // -- Tipos: galería --
+
+    // Una tarjeta por tipo. Al recargar (is-still) los dibujos ya no vuelven a entrar animados.
+    gallery(types) {
+        this.createLayout({
+            parent: 'tableLoyTypes',
+            design: false,
+            data: {
+                id:        'galleryLoyTypes',
+                class:     'loy-gallery' + (this.galleryShown ? ' is-still' : ''),
+                container: types.map((t) => ({ type: 'div', id: `loyTile${t.id}`, class: 'loy-tile' + (t.active ? '' : ' is-off') }))
+            }
         });
 
-        if (!loaded || !data.row || !data.row.length) return;
+        types.forEach((t) => this.tile(t));
 
-        this.dataTable('tbLoyTypes', 'types', 'tipos', 'Ningún tipo coincide con la búsqueda');
+        // Los botones de solo ícono enseñan su nombre al pasar el ratón. Con .attr(): como prop de jQuery, title abre un popover.
+        $('#galleryLoyTypes .loy-act.is-icon, #galleryLoyTypes .loy-act.is-squeeze').each((i, el) => $(el).attr('title', $(el).attr('aria-label')));
+
+        this.galleryShown = true;
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    /*  Un tipo: su tarjeta (la cara «tipo»: el nombre y lo que da), y debajo
+        cuántas tarjetas tiene, lo que vendió en el mes y sus botones.
+        Un clic en la tarjeta (o Enter con el foco en ella) abre sus tarjetas.
+        Lo que escribió el usuario entra con text: nada se lee como HTML. */
+    tile(t) {
+        const open  = () => this.showCards(t.id);
+        const facts = [
+            { type: 'p', class: 'loy-tile-count', text: t.cardsText },
+            { type: 'p', class: 'loy-tile-fact', text: t.salesText }
+        ];
+
+        // Sellos: qué se gana y cuánto vale (la cara solo dice cuántos sellos).
+        if (t.goal > 0) facts.splice(1, 0, { type: 'p', class: 'loy-tile-fact', text: `1 sello por cada ${this.moneyShort(t.stampAmount)} · ${t.goal} = ${t.reward} (hasta ${money(t.rewardValue)})` });
+
+        if (!t.active) facts.push({ type: 'p', class: 'loy-tile-off', text: 'Inactivo: sus tarjetas no se leen en Vender.' });
+
+        const buttons = [this.tileButton('credit-card', 'Ver tarjetas', open)];
+
+        if (t.active && this.allow('create')) buttons.push(this.tileButton('plus', 'Nueva tarjeta', () => this.addCard(t.id), 'is-squeeze'));
+
+        if (this.allow('update')) {
+            buttons.push(this.tileButton('pencil', `Editar el tipo ${t.name}`, () => this.editType(t.id), 'is-icon is-push'));
+            buttons.push(t.active
+                ? this.tileButton('power', `Desactivar el tipo ${t.name}`, () => this.statusType(t.id, 0), 'is-icon is-danger')
+                : this.tileButton('power', 'Activar', () => this.statusType(t.id, 1)));
+        }
+
+        this.createLayout({
+            parent: `loyTile${t.id}`,
+            design: false,
+            data: {
+                id:    `loyTileBody${t.id}`,
+                class: 'loy-tile-body',
+                container: [
+                    {
+                        type:         'section',
+                        id:           `loyFace${t.id}`,
+                        class:        'loy-tile-face',
+                        role:         'button',
+                        tabindex:     0,
+                        'aria-label': `Ver las tarjetas del tipo ${t.name}`,
+                        html:         this.cardFace('type'),
+                        click:        open,
+                        keydown:      (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } }
+                    },
+                    { type: 'div', class: 'loy-tile-facts', children: facts },
+                    { type: 'div', class: 'loy-tile-actions', children: buttons }
+                ]
+            }
+        });
+
+        this.paintFace(`loyFace${t.id}`, { color: t.color, type: t.name, discount: t.discount, points: t.points, goal: t.goal, icon: t.icon, caption: '' });
+    }
+
+    /*  Un botón de la galería: píldora plana (loy-act) con ícono y texto.
+        tone 'is-icon' = solo el ícono (su nombre también va en title, que pone gallery());
+        'is-squeeze' = el CSS le quita el texto si el mosaico es angosto.
+        aria-label siempre: el nombre se oye aunque el texto no se vea. */
+    tileButton(icon, text, click, tone = '') {
+        const only = tone.includes('is-icon');
+
+        return {
+            type:         'button',
+            class:        `loy-act ${tone}`.trim(),
+            'aria-label': text,
+            html:         `<i data-lucide="${icon}" class="w-4 h-4" aria-hidden="true"></i>` + (only ? '' : `<span class="loy-act-text">${esc(text)}</span>`),
+            click:        click
+        };
+    }
+
+    // Sin tipos que mostrar: un aviso (ord-aviso) en lugar de la galería.
+    emptyGallery(loaded) {
+        const status = $('#loyt_status').val() || '1';
+        const add    = this.allow('create')
+                     ? 'Crea uno con «Nuevo tipo»: dice si la tarjeta da descuento o puntos y de qué color se dibuja.'
+                     : 'Pide a quien administra las tarjetas que cree uno.';
+        const notice = !loaded ? ['No se pudieron cargar los tipos de tarjeta', 'Revisa la conexión y vuelve a intentar.']
+                     : status === '0' ? ['No hay tipos de tarjeta inactivos', 'Aquí aparecen los que desactives.']
+                     : [status === '1' ? 'Aún no hay tipos de tarjeta activos' : 'Aún no hay tipos de tarjeta', add];
+
+        this.createLayout({
+            parent: 'tableLoyTypes',
+            design: false,
+            data: {
+                id:    'emptyLoyTypes',
+                class: 'ord-aviso',
+                container: [
+                    { type: 'i', class: (loaded ? 'icon-tags' : 'icon-attention') + ' text-[22px]' },
+                    {
+                        type:  'div',
+                        class: 'flex flex-col',
+                        children: [
+                            { type: 'p', class: 'ord-aviso-titulo', text: notice[0] },
+                            { type: 'p', class: 'ord-aviso-texto', text: notice[1] }
+                        ]
+                    }
+                ]
+            }
+        });
     }
 
     addType() {
@@ -511,23 +1082,32 @@ class Loyalty extends Templates {
         this.formType(data.row);
     }
 
-    /*  Un tipo da descuento O puntos. Uno de antes de esa regla puede traer los
-        dos: abre en «Descuento», avisa y, al cambiar el beneficio, trae el
-        porcentaje que tenía el otro. */
+    /*  Un tipo da descuento, puntos o sellos: uno solo. Uno de antes de esa regla
+        puede traer descuento y puntos: abre en «Descuento», avisa y, al cambiar
+        el beneficio, trae el porcentaje que tenía el otro.
+        Sellos: $ por sello, cuántos para el premio, el premio y su valor; el
+        porcentaje se esconde (y los campos de sellos con los otros beneficios). */
     formType(type) {
         if (this.saving) return;
 
         const scope    = dataInit.scope || {};
         const discount = type ? Number(type.discount_percent) || 0 : 0;
         const points   = type ? Number(type.points_percent) || 0 : 0;
+        const goal     = type ? Number(type.stamp_goal) || 0 : 0;
         const both     = discount > 0 && points > 0;
-        const benefit  = points > 0 && discount <= 0 ? 'points' : 'discount';
+        const benefit  = goal > 0 ? 'stamps' : (points > 0 && discount <= 0 ? 'points' : 'discount');
         const percent  = benefit === 'points' ? points : discount;
+        const amount   = (field) => (type && Number(type[field]) > 0 ? Number(type[field]) : '');
         const json     = [
-            { id: 'lt_preview', tipo: 'html', class: 'loy-preview', html: this.cardFace() },
+            { id: 'lt_preview', tipo: 'html', class: 'loy-preview', html: this.cardFace('type') },
             { id: 'lt_name', lbl: 'Nombre', required: true, maxlength: 80, ph: 'Ej. Oro, Cliente frecuente', value: type ? type.name : '', class: 'w-full' },
-            { id: 'lt_benefit', lbl: 'Beneficio', tipo: 'select', required: true, empty: false, data: [{ id: 'discount', valor: 'Descuento al pagar' }, { id: 'points', valor: 'Puntos al monedero' }], value: benefit, class: 'w-full sm:w-1/2' },
+            { id: 'lt_benefit', lbl: 'Beneficio', tipo: 'select', required: true, empty: false, data: [{ id: 'discount', valor: 'Descuento al pagar' }, { id: 'points', valor: 'Puntos al monedero' }, { id: 'stamps', valor: 'Sellos: junta y llévate un premio' }], value: benefit, class: 'w-full sm:w-1/2' },
             { id: 'lt_percent', lbl: 'Porcentaje (%)', tipo: 'number', required: true, min: 0, max: 100, step: '0.01', ph: '0', value: percent > 0 ? percent : '', class: 'w-full sm:w-1/2' },
+            { id: 'lt_stamp_amount', lbl: '1 sello por cada ($)', tipo: 'number', required: true, min: 1, step: '0.01', ph: 'Ej. 100', value: amount('stamp_amount'), class: 'w-full sm:w-1/2' },
+            { id: 'lt_stamp_goal', lbl: 'Sellos para el premio', tipo: 'number', required: true, min: 2, max: 20, step: '1', ph: 'De 2 a 20', value: goal > 0 ? goal : '', class: 'w-full sm:w-1/2' },
+            { id: 'lt_reward_value', lbl: 'Valor del premio ($)', tipo: 'number', required: true, min: 1, step: '0.01', ph: 'Lo más que descuenta', value: amount('reward_value'), class: 'w-full sm:w-1/2' },
+            { id: 'lt_reward_name', lbl: 'Premio', required: true, maxlength: 80, ph: 'Ej. Café gratis', value: type ? type.reward_name || '' : '', class: 'w-full' },
+            { id: 'lt_stamp_icon', lbl: 'Icono del sello', tipo: 'icon', ph: 'Ej. coffee, star, cake-slice', value: goal > 0 ? type.stamp_icon || '' : 'star', class: 'w-full' },
             { id: 'lt_color', lbl: 'Color', tipo: 'color', ph: this.defaultColor(), value: type && type.color ? type.color : this.defaultColor(), class: 'w-full sm:w-1/2' },
             { id: 'lt_swatches', tipo: 'html', class: 'w-full sm:w-1/2', html: this.swatchesHtml() },
             { id: 'lt_note', tipo: 'html', class: 'w-full', html: '<p class="loy-note"></p>' }
@@ -557,15 +1137,60 @@ class Loyalty extends Templates {
         // Atado al select, corre antes que el repintado (que escucha en el modal): el dibujo ya sale con el porcentaje nuevo.
         if (both) $('#lt_benefit').on('change', (e) => $('#lt_percent').val(e.target.value === 'points' ? points : discount));
 
+        // También antes del repintado: muestra los campos del beneficio elegido.
+        $('#lt_benefit').on('change', () => this.benefitFields());
+        this.benefitFields();
+
         // Un color rápido escribe en el campo; el evento input mueve la muestra y repinta.
         $('#modalLoyType').on('click', '.loy-color', (e) => $('#lt_color').val(String($(e.currentTarget).data('color')).toUpperCase()).trigger('input'));
 
         // «Otro color» abre el selector de la muestra del campo Color; lo elegido llega por su evento input.
         $('#modalLoyType').on('click', '.loy-color-other', () => this.pickColor());
 
-        this.preview('modalLoyType', '#lt_name, #lt_benefit, #lt_percent, #lt_color, #lt_color__pick', () => this.paintType());
+        this.preview('modalLoyType', '#lt_name, #lt_benefit, #lt_percent, #lt_stamp_amount, #lt_stamp_goal, #lt_reward_name, #lt_reward_value, #lt_stamp_icon, #lt_color, #lt_color__pick', () => this.paintType());
 
         if (!type) $('#lt_name').trigger('focus');
+    }
+
+    // Con «Sellos» se ven sus 4 campos y se esconde el porcentaje; con descuento o puntos, al revés.
+    benefitFields() {
+        const stamps = $('#lt_benefit').val() === 'stamps';
+
+        $('#lt_percent').closest('.px-2').toggle(!stamps);
+        $('#lt_stamp_amount, #lt_stamp_goal, #lt_reward_value, #lt_reward_name, #lt_stamp_icon').closest('.px-2').toggle(stamps);
+    }
+
+    // Lo que se escribió de sellos: números ya revisados (null = inválido), el premio limpio y el icono (Lucide; '' = círculo).
+    stampValues() {
+        const goalText = String($('#lt_stamp_goal').val() || '').trim();
+
+        return {
+            amount: this.amount($('#lt_stamp_amount').val()),
+            goal:   /^\d{1,2}$/.test(goalText) ? Number(goalText) : (goalText === '' ? 0 : null),
+            reward: String($('#lt_reward_name').val() || '').trim().replace(/\s+/g, ' '),
+            value:  this.amount($('#lt_reward_value').val()),
+            icon:   this.stampIcon($('#lt_stamp_icon').val())
+        };
+    }
+
+    // Un nombre de icono de Lucide que exista; si no, '' (el sello sale como círculo liso).
+    stampIcon(raw) {
+        const name = String(raw || '').trim().toLowerCase();
+
+        if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name) || name.length > 40) return '';
+        if (typeof csIconExists === 'function' && !csIconExists(name)) return '';
+
+        return name;
+    }
+
+    // Un monto en pesos con hasta 2 decimales. Vacío = 0; inválido = null.
+    amount(raw) {
+        const text = String(raw === null || raw === undefined ? '' : raw).trim().replace(/[$,\s]/g, '');
+
+        if (text === '') return 0;
+        if (!/^\d{1,6}(\.\d{1,2})?$/.test(text)) return null;
+
+        return Number(text);
     }
 
     // Lo mismo que «Colores rápidos» de Catálogo › Métodos de pago, más «Otro color» para elegir uno que no esté en la lista.
@@ -595,13 +1220,23 @@ class Loyalty extends Templates {
         if (this.saving) return;
 
         const name    = String(values.lt_name || '').trim().replace(/\s+/g, ' ');
-        const benefit = $('#lt_benefit').val() === 'points' ? 'points' : 'discount';
-        const percent = this.percent($('#lt_percent').val());
+        const benefit = ['points', 'stamps'].includes($('#lt_benefit').val()) ? $('#lt_benefit').val() : 'discount';
+        const percent = benefit === 'stamps' ? 0 : this.percent($('#lt_percent').val());
+        const stamp   = benefit === 'stamps' ? this.stampValues() : null;
         const text    = String($('#lt_color').val() || '').trim();
 
         if (!name) return this.warn('Escribe el nombre del tipo de tarjeta.');
-        if (percent === null) return this.warn('El porcentaje va de 0 a 100, con hasta 2 decimales.');
-        if (percent <= 0) return this.warn(benefit === 'points' ? 'Pon cuántos puntos da (%): si no, la tarjeta no hace nada.' : 'Pon cuánto descuenta (%): si no, la tarjeta no hace nada.');
+
+        if (stamp) {
+            if (stamp.amount === null || stamp.amount <= 0) return this.warn('Pon cuántos pesos dan un sello, por ejemplo 100.');
+            if (stamp.goal === null || stamp.goal < 2 || stamp.goal > 20) return this.warn('Los sellos para el premio van de 2 a 20.');
+            if (!stamp.reward) return this.warn('Escribe el premio, por ejemplo «Café gratis».');
+            if (stamp.value === null || stamp.value <= 0) return this.warn('Pon el valor del premio: lo más que descuenta.');
+        } else {
+            if (percent === null) return this.warn('El porcentaje va de 0 a 100, con hasta 2 decimales.');
+            if (percent <= 0) return this.warn(benefit === 'points' ? 'Pon cuántos puntos da (%): si no, la tarjeta no hace nada.' : 'Pon cuánto descuenta (%): si no, la tarjeta no hace nada.');
+        }
+
         if (text && !/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(text)) return this.warn(`El color va como # y 6 letras o números, por ejemplo ${this.defaultColor()}.`);
 
         this.saving = true;
@@ -615,6 +1250,11 @@ class Loyalty extends Templates {
                 name:             name,
                 discount_percent: benefit === 'discount' ? percent : 0,
                 points_percent:   benefit === 'points' ? percent : 0,
+                stamp_amount:     stamp ? stamp.amount : '',
+                stamp_goal:       stamp ? stamp.goal : '',
+                reward_name:      stamp ? stamp.reward : '',
+                reward_value:     stamp ? stamp.value : '',
+                stamp_icon:       stamp ? stamp.icon : '',
                 color:            text ? hex6(text).toUpperCase() : ''
             }
         });
@@ -664,31 +1304,27 @@ class Loyalty extends Templates {
 
     // -- Vista previa --
 
-    /*  El dibujo de la tarjeta que acompaña a los dos formularios. No es un
-        campo: no guarda nada y lo llenan paintCard() y paintType().
-        Adorno (aria-hidden): la marca de agua del beneficio (% o estrella, según
-        data-benefit). Es de un solo color; la forma que distingue al beneficio
-        (cupón o moneda) la pone el CSS. Sin chip: no es tarjeta de banco. */
-    cardFace() {
+    /*  El dibujo de la tarjeta: un rectángulo liso de un solo color, sin
+        recortes, filos ni marca de agua. No es un campo: no guarda nada y lo
+        llena paintFace().
+        kind 'card' (alta de tarjeta y ficha): número, titular y lo que da.
+        kind 'type' (galería y alta de tipo): el nombre y, en grande, lo que da.
+        La marca de arriba es la empresa: la tarjeta vale en todas sus sucursales. */
+    cardFace(kind = 'card') {
         const scope = dataInit.scope || {};
-        const svg   = (cls, paths) => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+        const card  = kind !== 'type';
+        const owner = '<div class="loy-card-owner"><span class="loy-card-label">Titular</span><span class="loy-card-holder"></span></div>';
 
         return `
-            <div class="loy-card" data-ink="dark" data-benefit="" style="--loy-color:${this.defaultColor()}">
-                <span class="loy-card-mark" aria-hidden="true">
-                    ${svg('is-discount', '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>')}
-                    ${svg('is-points', '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>')}
-                </span>
+            <div class="loy-card${card ? '' : ' is-type'}" data-ink="dark" style="--loy-color:${this.defaultColor()}">
                 <div class="loy-card-top">
                     <span class="loy-card-type"></span>
-                    <span class="loy-card-brand">${esc(scope.branch || '')}</span>
+                    <span class="loy-card-brand">${esc(scope.company || scope.branch || '')}</span>
                 </div>
-                <p class="loy-card-number"></p>
+                ${card ? '<p class="loy-card-number"></p>' : ''}
+                <div class="loy-card-stamps" aria-hidden="true"></div>
                 <div class="loy-card-bottom">
-                    <div class="loy-card-owner">
-                        <span class="loy-card-label">Titular</span>
-                        <span class="loy-card-holder"></span>
-                    </div>
+                    ${card ? owner : ''}
                     <div class="loy-card-perks"></div>
                 </div>
             </div>
@@ -728,29 +1364,57 @@ class Loyalty extends Templates {
             holder:   holder || (customer ? customer.name : ''),
             discount: type ? type.discount : 0,
             points:   type ? type.points : 0,
+            goal:     type ? type.goal : 0,
+            icon:     type ? type.icon : '',
             caption:  this.cardCaption(type, customer)
         });
+
+        this.paintSendWa(customer);
+    }
+
+    // El interruptor del WhatsApp: solo con un cliente que tenga WhatsApp de 10 dígitos; abajo, a qué número sale.
+    paintSendWa(customer) {
+        const box = $('#lc_send_wa');
+
+        if (!box.length) return;
+
+        const phone = customer && customer.wa ? String(customer.wa) : '';
+        const hint  = !customer ? 'Elige un cliente con WhatsApp para mandársela.'
+                    : !phone    ? 'Ese cliente no tiene un WhatsApp de 10 dígitos.'
+                    : `Sale del WhatsApp de la tienda al ${phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3')}.`;
+
+        box.prop('disabled', !phone).closest('label').toggleClass('opacity-50', !phone).toggleClass('cursor-pointer', Boolean(phone));
+        box.closest('.px-2').find('p').text(hint);
     }
 
     // El tipo con su color y su único beneficio; abajo, qué hace en pesos y la nota del beneficio elegido.
     paintType() {
         const modal   = $('#modalLoyType');
         const name    = String($('#lt_name').val() || '').trim().replace(/\s+/g, ' ');
-        const benefit = $('#lt_benefit').val() === 'points' ? 'points' : 'discount';
-        const percent = this.percent($('#lt_percent').val()) || 0;
+        const benefit = ['points', 'stamps'].includes($('#lt_benefit').val()) ? $('#lt_benefit').val() : 'discount';
+        const stamp   = benefit === 'stamps' ? this.stampValues() : null;
+        const goal    = stamp && stamp.goal >= 2 && stamp.goal <= 20 ? stamp.goal : 0;
+        const percent = stamp ? 0 : this.percent($('#lt_percent').val()) || 0;
         const color   = this.pickedColor();
+        const notes   = {
+            discount: 'El descuento se aplica al leer la tarjeta en Vender. Esa venta ya no admite otro descuento.',
+            points:   'Los puntos son dinero a favor: van al monedero del cliente y se gastan pagando con «Monedero». Lo pagado con Monedero y lo que queda a crédito no da puntos.',
+            stamps:   'Los sellos son de la tarjeta (sirve aunque no tenga cliente) y no caducan. Cuentan lo pagado, sin propina, monedero ni crédito. El premio se canjea en Vender cuando el cliente quiera.'
+        };
 
         this.paintFace('modalLoyType', {
             color:    color,
             type:     name,
             discount: benefit === 'discount' ? percent : 0,
             points:   benefit === 'points' ? percent : 0,
-            caption:  this.typeCaption(benefit, percent)
+            goal:     goal,
+            stamps:   goal ? Math.min(3, goal) : 0,
+            icon:     stamp ? stamp.icon : '',
+            empty:    { discount: 'descuento', points: 'puntos', stamps: 'sellos' }[benefit],
+            caption:  stamp ? this.stampCaption(stamp) : this.typeCaption(benefit, percent)
         });
 
-        modal.find('.loy-note').text(benefit === 'points'
-            ? 'Los puntos son dinero a favor: van al monedero del cliente y se gastan pagando con «Monedero». Lo pagado con Monedero y lo que queda a crédito no da puntos.'
-            : 'El descuento se aplica al leer la tarjeta en Vender. Esa venta ya no admite otro descuento.');
+        modal.find('.loy-note').text(notes[benefit]);
 
         modal.find('.loy-color').each((i, el) => {
             const on = String($(el).data('color')).toUpperCase() === color;
@@ -775,40 +1439,54 @@ class Loyalty extends Templates {
     }
 
     /*  Lo que falta se pinta apagado (is-empty). Todo entra con .text(): nada de lo escrito se interpreta como HTML.
+        face.empty ('descuento', 'puntos' o 'sellos'): sin valor todavía, pinta «0 %» (o «0»)
+        apagado con esa palabra (alta de tipo); sin empty, no pinta nada.
+        Sellos: face.goal (la meta), face.stamps (los juntados) y face.icon (Lucide).
         Lo animado, solo al cambiar: color → se funde (is-painted prende esa transición
         después del primer pintado, para que al abrir no se funda desde el celeste);
-        beneficio → entra su marca de agua; solo el porcentaje → el sello da un salto.
-        data-benefit cambia la forma (cupón o moneda); eso y la entrada son del CSS. */
-    paintFace(modal, face) {
-        const card     = $(`#${modal} .loy-card`);
-        const number   = String(face.number || '').trim();
-        const color    = hex6(face.color || this.defaultColor()).toUpperCase();
-        const discount = Number(face.discount) > 0;
-        const points   = Number(face.points) > 0;
-        const benefit  = discount && points ? 'both' : (points ? 'points' : (discount ? 'discount' : ''));
-        const perk     = (value, label) => (Number(value) > 0 ? `<span class="loy-card-perk"><b>${this.pct(value)}</b>${label}</span>` : '');
-        const perks    = perk(face.discount, 'descuento') + perk(face.points, 'puntos');
-        const before   = card.data('face');
+        el beneficio → da un salto (is-pop). La entrada es del CSS.
+        box: el id de lo que contiene el dibujo (un formulario, una tarjeta de la galería o la ficha). */
+    paintFace(box, face) {
+        const card   = $(`#${box} .loy-card`);
+        const number = String(face.number || '').trim();
+        const color  = hex6(face.color || this.defaultColor()).toUpperCase();
+        const goal   = Math.max(0, Math.min(20, Math.floor(Number(face.goal) || 0)));
+        const have   = Math.max(0, Math.min(goal, Math.floor(Number(face.stamps) || 0)));
+        const perk   = (text, label, cls = '') => `<span class="loy-card-perk${cls}"><b>${text}</b>${label}</span>`;
+        // Sellos: en una tarjeta con sus sellos (la ficha), el avance «7/10»; en el tipo o el alta, la meta.
+        const count  = face.stamps !== undefined && face.number ? `${have}/${goal}` : goal;
+        const perks  = (Number(face.discount) > 0 ? perk(this.pct(face.discount), 'descuento') : '')
+                     + (Number(face.points) > 0 ? perk(this.pct(face.points), 'puntos') : '')
+                     + (goal > 0 ? perk(count, 'sellos') : '');
+        const empty  = face.empty ? perk(face.empty === 'sellos' ? '0' : this.pct(0), face.empty, ' is-empty') : '';
+        const before = card.data('face');
 
         card[0].style.setProperty('--loy-color', color);
-        card.attr({ 'data-ink': this.inkOf(color), 'data-benefit': benefit });
+        card.attr('data-ink', this.inkOf(color));
 
         card.find('.loy-card-type').text(face.type || 'Tipo de tarjeta').toggleClass('is-empty', !face.type);
         card.find('.loy-card-number').text(number || '0000-0000').toggleClass('is-empty', !number).toggleClass('is-long', number.length > 16);
         card.find('.loy-card-holder').text(face.holder || 'Al portador').toggleClass('is-empty', !face.holder);
-        card.find('.loy-card-perks').html(perks);
+        card.find('.loy-card-perks').html(perks || empty);
+
+        // Sellos: uno por sello de la meta, con el icono del tipo (sin icono, un círculo liso); los juntados, llenos.
+        const icon = this.stampIcon(face.icon);
+        const mark = icon ? `<i data-lucide="${icon}"></i>` : '';
+
+        card.find('.loy-card-stamps').html(Array.from({ length: goal }, (v, i) => `<span class="loy-stamp${i < have ? ' is-on' : ''}${icon ? ' has-icon' : ''}">${mark}</span>`).join(''));
+
+        if (icon && window.lucide) lucide.createIcons();
 
         if (before) {
-            if (before.benefit !== benefit && benefit) this.replay(card.find('.loy-card-mark')[0], 'is-in');
-            else if (before.perks !== perks && perks) this.replay(card.find('.loy-card-perks')[0], 'is-pop');
+            if (before.perks !== perks && perks) this.replay(card.find('.loy-card-perks')[0], 'is-pop');
         } else {
             void card[0].offsetWidth;
             card.addClass('is-painted');
         }
 
-        card.data('face', { color: color, benefit: benefit, perks: perks });
+        card.data('face', { perks: perks });
 
-        $(`#${modal} .loy-card-caption`).text(face.caption);
+        $(`#${box} .loy-card-caption`).text(face.caption);
     }
 
     /*  Letra oscura sobre colores claros y blanca sobre los fuertes. Sale de la
@@ -830,15 +1508,36 @@ class Loyalty extends Templates {
         return hex6(dataInit.cardColor || '#BAE6FD').toUpperCase();
     }
 
-    // A quién le sirve la tarjeta y a dónde van sus puntos.
+    // A quién le sirve la tarjeta y a dónde van sus puntos (o qué junta, si es de sellos).
     cardCaption(type, customer) {
-        if (!type) return 'Elige el tipo: dice si la tarjeta da descuento o puntos, y de qué color se ve.';
+        if (!type) return 'Elige el tipo: dice si la tarjeta da descuento, puntos o sellos, y de qué color se ve.';
 
         const points = Number(type.points) > 0;
+        const stamps = Number(type.goal) > 0 ? ` Junta 1 sello por cada ${this.moneyShort(type.stampAmount)}; con ${type.goal}: ${type.reward}.` : '';
 
-        if (customer) return `Solo vale en compras de ${customer.name}` + (points ? '; los puntos van a su monedero.' : '.');
+        if (customer) return `Solo vale en compras de ${customer.name}` + (points ? '; los puntos van a su monedero.' : '.') + stamps;
 
-        return 'Sin cliente: vale para quien la presente' + (points ? ' y los puntos van al cliente de esa venta.' : '.');
+        return 'Sin cliente: vale para quien la presente' + (points ? ' y los puntos van al cliente de esa venta.' : '.') + stamps;
+    }
+
+    // Un ejemplo de sellos sobre una compra de $250.00 y lo que da el premio.
+    stampCaption(s) {
+        if (!s.amount || s.amount <= 0) return 'Pon cuántos pesos dan un sello para ver un ejemplo.';
+
+        const sale  = 250;
+        const count = Math.floor(sale / s.amount);
+        const gift  = s.reward ? `«${s.reward}»` : 'el premio';
+        const goal  = s.goal >= 2 && s.goal <= 20 ? `Con ${s.goal} sellos, ${gift}` : 'Con la meta de sellos, el premio';
+        const worth = s.value > 0 ? ` descuenta hasta ${money(s.value)}.` : '.';
+
+        return `Una compra de ${money(sale)} da ${count} ${count === 1 ? 'sello' : 'sellos'}. ${goal}${worth}`;
+    }
+
+    // 100 → «$100»; 99.5 → «$99.50».
+    moneyShort(value) {
+        const n = Math.round(Number(value || 0) * 100) / 100;
+
+        return Number.isInteger(n) ? '$' + n.toLocaleString('es-MX') : money(n);
     }
 
     // Un ejemplo en pesos sobre una compra de $200.00.
@@ -864,10 +1563,11 @@ class Loyalty extends Templates {
         location.reload();
     }
 
-    // Un cambio en un tipo también se ve en la lista de tarjetas (nombre, beneficio y color).
+    // Un cambio en un tipo o en una tarjeta se ve en la galería, en la lista y en el resumen.
     reload() {
         this.lsCardTypes();
         this.lsCards();
+        this.lsSummary();
     }
 
     dataTable(id, key, noun, zero) {
@@ -935,12 +1635,6 @@ class Loyalty extends Templates {
         if (!this.activeTypes) return { emptyMessage: 'Empieza por crear un tipo de tarjeta: dice si da descuento o puntos', emptyIcon: 'icon-tags' };
 
         return { emptyMessage: 'No hay tarjetas con este filtro', emptyIcon: 'icon-credit-card' };
-    }
-
-    emptyTypes(loaded) {
-        if (!loaded) return { emptyMessage: 'No se pudo cargar la lista de tipos de tarjeta', emptyIcon: 'icon-attention' };
-
-        return { emptyMessage: 'No hay tipos de tarjeta con este filtro', emptyIcon: 'icon-tags' };
     }
 
     warn(text) {

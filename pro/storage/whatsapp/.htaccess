@@ -1,0 +1,9 @@
+# Fotos y documentos que los clientes mandan por WhatsApp (por ahora solo los
+# del simulador; lo de Meta se baja al momento con su media_id). Nunca se
+# sirven por web: el agente los lee del disco para pasarlos a comprobante.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Deny from all
+</IfModule>

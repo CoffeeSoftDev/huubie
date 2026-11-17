@@ -7,6 +7,9 @@ require_once __DIR__ . '/../mdl/mdl-credito.php';
 require_once __DIR__ . '/../mdl/mdl-lealtad.php';
 require_once __DIR__ . '/../mdl/mdl-ticket.php';
 
+// Opcional: el aviso de «premio listo» por WhatsApp (Lealtad). Sin el archivo, Vender cobra igual y no avisa.
+if (is_file(__DIR__ . '/../mdl/mdl-lealtad-whatsapp.php')) require_once __DIR__ . '/../mdl/mdl-lealtad-whatsapp.php';
+
 /*  Ventas › vender en mostrador (V1 del plan de Ventas; credito y monedero de V3;
     tarjeta de lealtad y puntos de V4).
 
@@ -47,6 +50,13 @@ require_once __DIR__ . '/../mdl/mdl-ticket.php';
         Son dinero: suben el monedero del cliente de la venta y dejan una fila
         receivable 'puntos' para poder quitarlos si la venta se cancela.
         Sin cliente no hay puntos.
+      - Sellos (Lealtad, plan-sellos.html): un tipo con stamp_goal da 1 sello por
+        cada stamp_amount de lo pagado con metodos que dan puntos (como los
+        puntos, pero sin pedir cliente: los sellos son de la tarjeta). Con
+        redeem = 1 se canjea un premio: es el descuento de la venta (hasta
+        reward_value, sin pasar del subtotal; nota «Premio …»), no se junta con
+        otro y quita stamp_goal sellos. El saldo se revisa antes y otra vez con
+        la tarjeta apartada (qLockCard): dos cajas no canjean el mismo premio.
       - Sin cliente = Público en general (customer_id NULL).
       - Se valida todo ANTES de la primera escritura: transaction() solo deshace
         si algo lanza una excepcion. */
@@ -261,6 +271,10 @@ class ctrl extends core {
             $card = $this->cardInput($in);
             if (isset($card['status'])) return $card;
 
+            $redeem = $this->post('redeem') === '1';
+            $wrong  = $redeem ? $this->rewardFail($card) : null;
+            if ($wrong) return $wrong;
+
             $lines = $this->resolveLines($in['lines']);
             if (isset($lines['status'])) return $lines;
 
@@ -271,10 +285,12 @@ class ctrl extends core {
             $discount = $this->discountInput();
             if (isset($discount['status'])) return $discount;
 
-            $cardOff = $card ? $this->cardDiscount($subtotal, $card) : null;
+            $cardOff = $card ? ($redeem ? $this->rewardDiscount($subtotal, $card) : $this->cardDiscount($subtotal, $card)) : null;
 
             if ($cardOff && $discount !== null) {
-                return $this->fail(422, 'La tarjeta ya trae su descuento. Quita el otro descuento o quita la tarjeta.');
+                return $this->fail(422, $redeem
+                    ? 'El premio ya es el descuento de la venta. Quita el otro descuento o no canjees el premio.'
+                    : 'La tarjeta ya trae su descuento. Quita el otro descuento o quita la tarjeta.');
             }
 
             if ($discount !== null) {
@@ -324,17 +340,34 @@ class ctrl extends core {
                 $points  = $this->pointsOf($earning, $total, $card['points_percent'], $this->qEarningMethodIds($this->branchId()));
             }
 
+            // Sellos: sin pedir cliente (son de la tarjeta), sobre la misma base que los puntos.
+            $stamps = 0;
+
+            if ($card && (int) $card['stamp_goal'] > 0) {
+                $earning = array_values(array_filter($rows, fn ($row) => !$row['wallet']));
+                $stamps  = $this->stampsOf($earning, $total, $card['stamp_amount'], $this->qEarningMethodIds($this->branchId()));
+            }
+
             $sale = [
                 'in' => $in, 'lines' => $lines, 'subtotal' => $subtotal, 'total' => $total, 'due' => $due,
                 'applied' => $applied, 'rows' => $rows, 'credit' => $credit, 'wallet' => $wallet,
-                'card' => $card, 'points' => $points
+                'card' => $card, 'points' => $points, 'stamps' => $stamps, 'reward' => $redeem ? $cardOff : null
             ];
 
-            return $this->transaction(function () use ($sale, $change) {
+            $done = $this->transaction(function () use ($sale, $change) {
                 $turn = $this->qLockOpenTurn($this->branchId());
 
                 if (!$turn) {
                     return ['status' => 423, 'title' => 'Sin turno abierto', 'message' => 'El turno se cerró mientras cobrabas. Abre uno nuevo e intenta otra vez.'];
+                }
+
+                // Con sellos o premio, la tarjeta queda apartada; el premio se revisa otra vez ya apartada (nada se ha escrito).
+                if ($sale['stamps'] > 0 || $sale['reward']) {
+                    $this->qLockCard((int) $sale['card']['id']);
+
+                    if ($sale['reward'] && $this->qCardStamps((int) $sale['card']['id']) < (int) $sale['card']['stamp_goal']) {
+                        return $this->fail(409, 'Ese premio ya se canjeó en otra venta. Quita el premio y cobra otra vez.');
+                    }
                 }
 
                 $usesAccount = $sale['credit'] > 0 || $sale['wallet'] > 0;
@@ -354,18 +387,29 @@ class ctrl extends core {
                     ? "Venta V{$id} registrada: " . money($sale['credit']) . ' a crédito.'
                     : "Venta V{$id} cobrada.";
 
+                // Lo que quedó en la tarjeta (ya con lo de esta venta): para la pantalla y el ticket.
+                $sale['stamps_info'] = $this->stampsInfo($sale);
+
                 return $this->ok($message, [
                     'id'       => $id,
                     'folio'    => (string) $id,
                     'change'   => round($change, 2),
                     'credit'   => $sale['credit'],
                     'points'   => $sale['points'],
+                    'stamps'   => $sale['stamps_info'],
                     'customer' => $usesAccount || $earns ? ['id' => $sale['in']['customer_id']] + $this->accountOf($sale['in']['customer_id']) : null,
                     'ticket'   => $this->ticketData($id, $sale),
                     // V7: el enlace al ticket va con el mismo permiso que imprimirlo.
                     'share'    => Permission::can(self::SALES, 'print') ? $this->ticketShare($id, $sale['in']['phone']) : null
                 ]);
             });
+
+            // Premio listo: el aviso va con la venta ya guardada; si no sale, solo se informa.
+            if ((int) ($done['status'] ?? 0) === 200 && !empty($done['stamps'])) {
+                $done['stamps']['whatsapp'] = $this->rewardNotice($sale, $done['stamps']);
+            }
+
+            return $done;
         }, 'No se pudo registrar la venta.');
 
         $this->rememberToken($token, $answer);
@@ -437,6 +481,10 @@ class ctrl extends core {
             $this->moveWallet($in['customer_id'], $sale['points'], 'addSale points');
         }
 
+        // Sellos: el premio quita la meta y lo que se pagó suma los suyos. Cada uno deja su fila (cancelar la anula).
+        if ($sale['reward']) $this->saveStamp($id, 'canje', -(int) $sale['card']['stamp_goal'], $sale['reward']['amount'], $sale);
+        if ($sale['stamps'] > 0) $this->saveStamp($id, 'sello', (int) $sale['stamps'], 0, $sale);
+
         $tip   = $in['tip'] > 0 ? ' + propina ' . money($in['tip']) : '';
         $title = $credit > 0 ? 'Venta a crédito' : 'Venta cobrada';
 
@@ -484,6 +532,7 @@ class ctrl extends core {
         return [
             'card'     => $card ? ['type' => (string) $card['type'], 'number' => (string) $card['number']] : null,
             'points'   => $sale['points'],
+            'stamps'   => $sale['stamps_info'] ?? null,
             'folio'    => (string) $id,
             'branch'   => $this->scope()['branch'],
             'date'     => date('Y-m-d H:i:s'),
@@ -807,7 +856,104 @@ class ctrl extends core {
             $text .= ' Abonó ' . money($sale['points']) . " en puntos al monedero de {$name}.";
         }
 
+        if ($sale['reward']) $text .= ' Canjeó el premio ' . $card['reward_name'] . ' (−' . money($sale['reward']['amount']) . ').';
+        if ($sale['stamps'] > 0) $text .= ' Sumó ' . $sale['stamps'] . ($sale['stamps'] === 1 ? ' sello.' : ' sellos.');
+
         return $text;
+    }
+
+    // -- Sellos --
+
+    // null = se puede canjear. Si no, la respuesta de error (antes de calcular nada).
+    private function rewardFail($card) {
+        if (!$card || (int) $card['stamp_goal'] <= 0) return $this->fail(422, 'Esa tarjeta no junta sellos: no hay premio que canjear.');
+
+        if ($this->qCardStamps((int) $card['id']) < (int) $card['stamp_goal']) {
+            return $this->fail(409, "La tarjeta {$card['number']} todavía no completa sus sellos: no hay premio que canjear.");
+        }
+
+        return null;
+    }
+
+    // El premio como descuento de la venta, con la forma de discountCheck: hasta su valor, sin pasar del subtotal.
+    private function rewardDiscount($subtotal, array $card) {
+        $amount = round(min((float) $card['reward_value'], (float) $subtotal), 2);
+
+        if ($amount <= 0) return null;
+
+        $percent = $subtotal > 0 ? round($amount / $subtotal * 100, 2) : 0;
+        $label   = 'Premio ' . $card['reward_name'];
+        $note    = $label . ' · ' . $card['type'] . ' · ' . $card['number'];
+
+        return [
+            'reason_id' => null,
+            'reason'    => $label,
+            'amount'    => $amount,
+            'percent'   => $percent,
+            'note'      => mb_substr($note, 0, 255, 'UTF-8'),
+            'total'     => round($subtotal - $amount, 2),
+            'text'      => 'Premio de la tarjeta: ' . money($amount) . ' (' . $percent . ' %) · ' . $note . '.'
+        ];
+    }
+
+    private function saveStamp($saleId, $kind, $qty, $amount, array $sale) {
+        $this->must($this->qCreateStamp([
+            'values' => ['card_id', 'sale_id', 'kind', 'qty', 'amount', 'branch_id', 'user_id', 'created_at'],
+            'data'   => [(int) $sale['card']['id'], $saleId, $kind, $qty, round((float) $amount, 2), $this->branchId(), $this->userId() ?: null, date('Y-m-d H:i:s')]
+        ]), 'addSale ' . $kind);
+    }
+
+    /*  Si con esta venta la tarjeta completó un premio y su dueño tiene WhatsApp
+        de 10 dígitos, le avisa con la plantilla 'premio' (LoyaltyNotifier). Se
+        compara contra lo que tenía después de canjear y antes de sumar: un premio
+        que ya estaba listo no se vuelve a avisar. null = no tocaba avisar. */
+    private function rewardNotice(array $sale, array $info) {
+        $card = $sale['card'];
+        $goal = (int) $info['goal'];
+
+        if ($goal <= 0 || (int) $info['earned'] <= 0 || $card['owner_id'] === null) return null;
+
+        if (intdiv(max((int) $info['balance'], 0), $goal) <= intdiv(max((int) $info['balance'] - (int) $info['earned'], 0), $goal)) return null;
+
+        $digits = (string) preg_replace('/\D/', '', (string) $card['customer_phone']);
+        $phone  = strlen($digits) === 12 && strpos($digits, '52') === 0 ? substr($digits, 2) : $digits;
+
+        if (strlen($phone) !== 10) return null;
+
+        $notifier = $this->loyaltyNotifier();
+
+        if (!$notifier) return null;
+
+        try {
+            return $notifier->rewardReady($card, $phone);
+        } catch (Throwable $e) {
+            $this->writeToLog('[ PREMIO WHATSAPP ] :: ' . $e->getMessage());
+
+            return ['status' => 'failed', 'detail' => 'No se pudo mandar.'];
+        }
+    }
+
+    // El que manda el aviso (mdl-lealtad-whatsapp.php). null si el WhatsApp no está en el servidor.
+    protected function loyaltyNotifier() {
+        return class_exists('LoyaltyNotifier') ? new LoyaltyNotifier() : null;
+    }
+
+    // Los sellos de la tarjeta despues de la venta. null = la tarjeta no junta sellos.
+    private function stampsInfo(array $sale) {
+        $card = $sale['card'];
+
+        if (!$card || (int) $card['stamp_goal'] <= 0) return null;
+
+        $goal = (int) $card['stamp_goal'];
+        $have = max($this->qCardStamps((int) $card['id']), 0);
+
+        return [
+            'earned'  => (int) $sale['stamps'],
+            'balance' => $have,
+            'goal'    => $goal,
+            'rewards' => intdiv($have, $goal),
+            'reward'  => $sale['reward'] ? ['name' => (string) $card['reward_name'], 'amount' => $sale['reward']['amount']] : null
+        ];
     }
 
     // Pagos contra los metodos de la base y lo que se cobra. Devuelve los renglones o la respuesta de error.

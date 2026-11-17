@@ -5,8 +5,8 @@
     buscador que salta al folio aunque esté en otra fecha. Clic en un pedido
     abre el mismo detalle que Pedidos (orderDetail), servido por ctrl-calendario.
 
-    Producción palomea «ya se elaboró» en la esquina de la tarjeta; los demás
-    solo ven la marca. Entregar, y cobrar antes si hay saldo, sale del detalle.
+    Producción y el Dueño palomean «ya se elaboró» en la esquina de la tarjeta;
+    los demás solo ven la marca. Entregar, y cobrar antes si hay saldo, sale del detalle.
     Quien no ve Pedidos (Producción) ve solo pendientes y pagados. */
 
 let api = 'ctrl/ctrl-calendario.php';
@@ -22,6 +22,11 @@ $(async () => {
     orderPay             = new OrderPay('ctrl/ctrl-cobro.php', 'root');
     orderClosure         = new OrderClosure('ctrl/ctrl-cierre.php', 'root');
     orders               = new OrderCalendar(api, 'root');
+
+    // «Todas las sucursales» de la barra (navbar.offerAll): la comparte con Pedidos.
+    orders.all      = !!(dataInit.all && window.navbar && typeof navbar.offerAll === 'function' && navbar.offerAll('order', dataInit.all));
+    orderDetail.all = orders.all;
+
     orders.init();
 });
 
@@ -44,6 +49,7 @@ class OrderCalendar extends Templates {
         this.term         = '';
         this.scrollToHit  = false;
         this.searchTimer  = null;
+        this.all          = false;   // todas las sucursales: cada tarjeta dice de cuál es
     }
 
     get filters() {
@@ -71,16 +77,18 @@ class OrderCalendar extends Templates {
         this.calendarView();
     }
 
+    /*  La tarjeta llena el alto del módulo, como Pedidos: flex-1 de #root
+        hasta la tarjeta. Sin min-h-0: un mes lleno crece y el único scroll
+        sigue siendo el de la página. Sin título: la sucursal ya está en la barra. */
     layout() {
         this.createLayout({
             parent: 'root',
             design: false,
             data: {
                 id:    `page${this.PROJECT_NAME}`,
-                class: 'flex flex-col gap-[16px]',
+                class: 'flex flex-1 flex-col',
                 container: [
-                    { type: 'div', id: `header${this.PROJECT_NAME}`, class: 'w-full' },
-                    { type: 'div', id: `body${this.PROJECT_NAME}`, class: 'w-full' }
+                    { type: 'div', id: `body${this.PROJECT_NAME}`, class: 'w-full flex flex-1 flex-col' }
                 ]
             }
         });
@@ -88,19 +96,35 @@ class OrderCalendar extends Templates {
         this.primaryLayout({
             parent: `body${this.PROJECT_NAME}`,
             id:     this.PROJECT_NAME,
-            class:  'ord-card',
+            class:  'ord-card flex flex-1 flex-col',
             card: {
                 name:      `card${this.PROJECT_NAME}`,
-                class:     'flex flex-col',
+                class:     'flex flex-1 flex-col',
                 filterBar: { class: 'w-full mb-[12px]' },
-                container: { class: 'w-full' }
+                container: { class: 'w-full flex flex-1 flex-col' }
             }
         });
     }
 
+    // Una sola fila: los filtros a la izquierda y las píldoras de estado a la derecha.
     filterBar() {
+        const col = 'col-12 col-sm-4';   // los tres filtros miden lo mismo y llenan su mitad de la fila
+
+        this.createLayout({
+            parent: `filterBar${this.PROJECT_NAME}`,
+            design: false,
+            data: {
+                id:    `bar${this.PROJECT_NAME}`,
+                class: 'ord-cal-bar',
+                container: [
+                    { type: 'div', id: `filters${this.PROJECT_NAME}`, class: 'ord-cal-filters' },
+                    { type: 'div', id: `legend${this.PROJECT_NAME}`, class: 'ord-cal-legends' }
+                ]
+            }
+        });
+
         this.createfilterBar({
-            parent:     `filterBar${this.PROJECT_NAME}`,
+            parent:     `filters${this.PROJECT_NAME}`,
             id:         `fb${this.PROJECT_NAME}`,
             prefijo:    'cal_',
             coffeesoft: true,
@@ -112,14 +136,14 @@ class OrderCalendar extends Templates {
                     type:        'search',
                     placeholder: 'Folio, cliente o teléfono',
                     required:    false,
-                    class:       'col-12 col-md-5 col-xl-4'
+                    class:       col
                 },
                 {
                     opc:      'select',
                     id:       'delivery',
                     lbl:      'Entrega',
                     required: false,
-                    class:    'col-6 col-md-3 col-xl-2',
+                    class:    col,
                     data:     [{ id: '', valor: 'Todas' }, { id: 'pending', valor: 'Por entregar' }, { id: 'done', valor: 'Entregados' }],
                     onchange: 'orders.onFilterChange()'
                 },
@@ -128,7 +152,7 @@ class OrderCalendar extends Templates {
                     id:       'produced',
                     lbl:      'Elaboración',
                     required: false,
-                    class:    'col-6 col-md-4 col-xl-2',
+                    class:    col,
                     data:     [{ id: '', valor: 'Todas' }, { id: 'todo', valor: 'Por elaborar' }, { id: 'done', valor: 'Elaborados' }],
                     onchange: 'orders.onFilterChange()'
                 }
@@ -139,43 +163,12 @@ class OrderCalendar extends Templates {
             .attr({ maxlength: 60, autocomplete: 'off' })
             .on('input', () => this.onSearchInput())
             .on('keydown', (e) => this.onSearchKeydown(e));
+
+        this.legend();
     }
 
+    // Sin título ni subtítulo: solo enciende la franja de caja.
     header() {
-        const scope = dataInit.scope || {};
-
-        this.createLayout({
-            parent: `header${this.PROJECT_NAME}`,
-            design: false,
-            data: {
-                id:    `title${this.PROJECT_NAME}`,
-                class: 'w-full',
-                container: [
-                    {
-                        type:  'div',
-                        class: 'flex items-end justify-between gap-[12px] flex-wrap',
-                        children: [
-                            { type: 'div', id: `headerText${this.PROJECT_NAME}`, class: 'min-w-0' },
-                            { type: 'div', id: `headerActions${this.PROJECT_NAME}`, class: 'shrink-0' }
-                        ]
-                    }
-                ]
-            }
-        });
-
-        this.createLayout({
-            parent: `headerText${this.PROJECT_NAME}`,
-            design: false,
-            data: {
-                id:    `headerTextBody${this.PROJECT_NAME}`,
-                class: 'w-full',
-                container: [
-                    { type: 'h1', class: 'cp-pagina-titulo', text: 'Calendario' },
-                    { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, scope.branch].filter(Boolean).join(' · ') || 'Pedidos por fecha de entrega' }
-                ]
-            }
-        });
-
         if (dataInit.status != 200 || !this.can('show')) return;
 
         // Cobrar al entregar pide turno abierto: la franja de caja lo muestra arriba.
@@ -215,27 +208,23 @@ class OrderCalendar extends Templates {
             design: false,
             data: {
                 id:    `calendarWrap${this.PROJECT_NAME}`,
-                class: 'flex flex-col gap-[12px]',
+                class: 'flex flex-1 flex-col gap-[12px]',
                 container: [
-                    { type: 'div', id: `legend${this.PROJECT_NAME}`, class: 'flex flex-wrap items-center gap-[8px]' },
                     { type: 'div', id: `calendar${this.PROJECT_NAME}`, class: 'ord-cal' }
                 ]
             }
         });
 
-        this.legend();
-
         this.calendar = new FullCalendar.Calendar(document.getElementById(`calendar${this.PROJECT_NAME}`), {
             initialView:    this.savedView(),
             initialDate:    dataInit.today || new Date(),
             locale:         'es',
-            headerToolbar:  { left: 'prev,next today', center: 'title', right: 'dayGridMonth,dayGridWeek,galeriaDia' },
+            headerToolbar:  { left: 'prev,next today', center: 'title', right: 'dayGridMonth,galeriaSemana,galeriaDia' },
             buttonText:     { today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día' },
             plugins:        [this.galleryPlugin()],
             height:         'auto',
             stickyHeaderDates: false,
             dayMaxEvents:   3,
-            views:          { dayGridWeek: { dayMaxEvents: false } },
             moreLinkClick:  'popover',
             moreLinkContent: (arg) => `+${arg.num} más`,
             navLinks:       true,
@@ -250,6 +239,7 @@ class OrderCalendar extends Templates {
         });
 
         this.calendar.render();
+        this.hint();
     }
 
     // De Mes a Semana o Día FullCalendar no vuelve a pedir pedidos: el conteo se repinta aquí.
@@ -257,6 +247,22 @@ class OrderCalendar extends Templates {
         this.saveView(info.view.type);
         this.paintCounts();
         this.afterSearch();
+        this.hint();
+    }
+
+    /*  La instrucción de Producción va debajo del título del mes. La barra es de
+        FullCalendar: si la vuelve a pintar, onDatesSet la repone; si sigue ahí, no la duplica. */
+    hint() {
+        if (!dataInit.producer) return;
+
+        const title = $(`#calendar${this.PROJECT_NAME} .fc-toolbar-title`);
+
+        if (!title.length || title.next('.ord-cal-hint').length) return;
+
+        title.after('<p class="ord-cal-hint"><i data-lucide="circle-check"></i>Toca el círculo de la tarjeta cuando termines de elaborar.</p>');
+        title.parent().addClass('ord-cal-titlebox');
+
+        if (window.lucide) lucide.createIcons({ root: title.parent()[0] });
     }
 
     /*  FullCalendar pide los pedidos de lo que se ve. Se guardan en rows y los
@@ -269,7 +275,7 @@ class OrderCalendar extends Templates {
 
         if (this.force || key !== this.range) {
             const request = ++this.request;
-            const data    = await useFetch({ url: api, data: { opc: 'getCalendar', fi, ff } });
+            const data    = await useFetch({ url: api, data: { opc: 'getCalendar', fi, ff, all: this.all ? 1 : 0 } });
 
             if (request !== this.request) return success([]);
 
@@ -324,8 +330,7 @@ class OrderCalendar extends Templates {
         const el = document.createElement('div');
 
         el.className = 'ord-cal-ev' + (this.dimProduced(p) ? ' is-produced' : '');
-        el.style.setProperty('--ev', this.color(p.status).line);
-        el.style.setProperty('--ev-bg', this.color(p.status).bg);
+        el.style.setProperty('--ev', this.color(p.status));
 
         el.innerHTML = `
             <div class="ord-cal-ev-top">
@@ -334,6 +339,7 @@ class OrderCalendar extends Templates {
                 <span class="ord-cal-folio">${esc(p.folio)}</span>
             </div>
             <div class="ord-cal-ev-name">${esc(arg.event.title)}</div>
+            ${this.branchLine(p, 'ord-cal-ev-branch')}
             <div class="ord-cal-ev-meta">
                 <i data-lucide="${p.method === 1 ? 'truck' : 'store'}"></i>
                 <span>${p.method === 1 ? 'Domicilio' : 'Recoge'}</span>
@@ -368,15 +374,20 @@ class OrderCalendar extends Templates {
         orderDetail.show(Number(info.event.id));
     }
 
-    // -- Vista Día: galería --
+    // -- Vistas Semana y Día: galería --
 
-    /*  Vista propia de FullCalendar para conservar Hoy, las flechas y el titulo:
-        los pedidos del dia agrupados por hora, con la foto grande arriba. Se
-        vuelve a dibujar cada vez que cambian los eventos. */
+    /*  Vistas propias de FullCalendar para conservar Hoy, las flechas y el
+        titulo. Las dos pintan las mismas tarjetas: el Día las agrupa por hora
+        y la Semana por día. Se vuelven a dibujar cada vez que cambian los eventos. */
     galleryPlugin() {
         this._gallery = this._gallery || FullCalendar.createPlugin({
-            name: 'galeriaDia',
+            name: 'galeria',
             views: {
+                galeriaSemana: {
+                    duration:   { weeks: 1 },
+                    buttonText: 'Semana',
+                    content:    (props) => ({ domNodes: [this.galleryWeek(props)] })
+                },
                 galeriaDia: {
                     duration:   { days: 1 },
                     buttonText: 'Día',
@@ -388,70 +399,105 @@ class OrderCalendar extends Templates {
         return this._gallery;
     }
 
-    galleryDay(props) {
-        const list = FullCalendar.sliceEvents(props, true)
-            .map((seg) => ({ ...seg.def.extendedProps, id: Number(seg.def.publicId), title: seg.def.title }))
-            .sort((a, b) => String(a.hour).localeCompare(String(b.hour)) || a.title.localeCompare(b.title));
+    // Los pedidos de lo que se ve, por hora y nombre; sin hora al final. day = 'AAAA-MM-DD'.
+    galleryList(props) {
+        return FullCalendar.sliceEvents(props, true)
+            .map((seg) => ({
+                ...seg.def.extendedProps,
+                id:    Number(seg.def.publicId),
+                title: seg.def.title,
+                day:   seg.range.start.toISOString().slice(0, 10)
+            }))
+            .sort((a, b) => (a.hour === '') - (b.hour === '') || String(a.hour).localeCompare(String(b.hour)) || a.title.localeCompare(b.title));
+    }
 
+    galleryDay(props) {
+        const groups = this.groupBy(this.galleryList(props), (p) => p.hour || '');
+
+        const sections = Object.keys(groups)
+            .sort((a, b) => (a === '') - (b === '') || a.localeCompare(b))
+            .map((hour) => ({ title: hour ? ordHour(hour) : 'Sin hora', items: groups[hour] }));
+
+        return this.gallery(sections, 'Sin pedidos para este día.');
+    }
+
+    galleryWeek(props) {
+        const groups = this.groupBy(this.galleryList(props), (p) => p.day);
+
+        const sections = Object.keys(groups)
+            .sort()
+            .map((day) => ({ title: this.dayTitle(day), items: groups[day] }));
+
+        return this.gallery(sections, 'Sin pedidos para esta semana.');
+    }
+
+    // Una sección por grupo (hora o día) con su rejilla de tarjetas.
+    gallery(sections, empty) {
         const wrap = document.createElement('div');
         wrap.className = 'ord-cal-day';
 
-        if (!list.length) {
-            wrap.innerHTML = '<p class="ord-cal-empty">Sin pedidos para este día.</p>';
+        if (!sections.length) {
+            wrap.innerHTML = `<p class="ord-cal-empty">${empty}</p>`;
             return wrap;
         }
 
-        const groups = {};
-        list.forEach((p) => (groups[p.hour || ''] = groups[p.hour || ''] || []).push(p));
+        sections.forEach(({ title, items }) => {
+            const section = document.createElement('section');
+            const grid    = document.createElement('div');
 
-        // Sin hora va al final.
-        Object.keys(groups)
-            .sort((a, b) => (a === '') - (b === '') || a.localeCompare(b))
-            .forEach((hour) => {
-                const items   = groups[hour];
-                const section = document.createElement('section');
-                const grid    = document.createElement('div');
+            section.className = 'ord-cal-hour';
+            section.innerHTML = `<p class="ord-cal-hour-title">${esc(title)} <span>· ${items.length} ${items.length === 1 ? 'pedido' : 'pedidos'}</span></p>`;
+            grid.className    = 'ord-cal-grid';
 
-                section.className = 'ord-cal-hour';
-                section.innerHTML = `<p class="ord-cal-hour-title">${hour ? ordHour(hour) : 'Sin hora'} <span>· ${items.length} ${items.length === 1 ? 'pedido' : 'pedidos'}</span></p>`;
-                grid.className    = 'ord-cal-grid';
+            items.forEach((p) => grid.appendChild(this.galleryCard(p)));
 
-                items.forEach((p) => grid.appendChild(this.galleryCard(p)));
-
-                section.appendChild(grid);
-                wrap.appendChild(section);
-            });
+            section.appendChild(grid);
+            wrap.appendChild(section);
+        });
 
         if (window.lucide) lucide.createIcons({ root: wrap });
 
         return wrap;
     }
 
+    // «Lunes 16 de noviembre».
+    dayTitle(day) {
+        const text = new Date(`${day}T00:00:00`).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', '');
+
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
+    groupBy(list, key) {
+        return list.reduce((groups, p) => ((groups[key(p)] = groups[key(p)] || []).push(p), groups), {});
+    }
+
+    /*  Como la tarjeta del catálogo del POS: franja arriba con la foto (o el
+        pastel sobre el color del estado), nombre en dos líneas y pie con la
+        hora y el estado. La casilla de elaborado va en la esquina de la franja. */
     galleryCard(p) {
-        const c    = this.color(p.status);
         const card = document.createElement('article');
         const hit  = p.match === 1 ? ' is-match' : p.match === 0 ? ' is-dim' : '';
+        const tag  = this.deliveryTag(p);
 
         card.className = 'ord-cal-card' + hit + (this.dimProduced(p) ? ' is-produced' : '');
         card.tabIndex  = 0;
         card.setAttribute('role', 'button');
         card.setAttribute('aria-label', `Ver el pedido ${p.folio} de ${p.title}`);
-        card.style.setProperty('--ev', c.line);
-        card.style.setProperty('--ev-bg', c.bg);
+        card.style.setProperty('--ev', this.color(p.status));
 
         card.innerHTML = `
             <div class="ord-cal-photo">
-                ${p.photo ? orderImg(p.photo, 'w-full h-full object-cover', p.title) : '<i data-lucide="cake" class="w-8 h-8"></i>'}
-                <span class="ord-cal-photo-hour">${p.hour ? ordHour(p.hour) : 'Sin hora'}</span>
-                <span class="ord-cal-photo-dot" aria-hidden="true"></span>
+                ${p.photo ? orderImg(p.photo, 'w-full h-full object-cover', p.title) : '<i data-lucide="cake"></i>'}
                 ${this.produceMark(p)}
             </div>
             <div class="ord-cal-card-body">
                 <p class="ord-cal-card-name">${esc(p.title)}</p>
                 <p class="ord-cal-card-sub">${esc(p.folio)} · ${p.method === 1 ? 'Domicilio' : 'Recoge'}</p>
-                <div class="ord-cal-card-tags">
+                ${this.branchLine(p, 'ord-cal-card-branch')}
+                ${tag ?`<div class="ord-cal-card-tags">${tag}</div>` : ''}
+                <div class="ord-cal-card-foot">
+                    <b>${p.hour ? ordHour(p.hour) : 'Sin hora'}</b>
                     <span class="ord-cal-tag is-status">${esc(this.statusName(p.status))}</span>
-                    ${this.deliveryTag(p)}
                 </div>
             </div>`;
 
@@ -470,13 +516,21 @@ class OrderCalendar extends Templates {
         return card;
     }
 
+    // Con «Todas las sucursales», de cuál es el pedido.
+    branchLine(p, cls) {
+        if (!this.all || !p.branch) return '';
+
+        return `<p class="${cls}"><i data-lucide="house"></i><span>${esc(p.branch)}</span></p>`;
+    }
+
     // -- Elaborado --
 
     /*  Produccion tiene la casilla (vacia o llena) y la cambia; los demas ven
-        solo la marca llena de lo ya elaborado. Lo entregado ya no se palomea. */
+        solo la marca llena de lo ya elaborado. Lo entregado ya no se palomea.
+        El de otra sucursal tampoco: se palomea eligiendo esa sucursal. */
     produceMark(p) {
         const on  = !!p.produced;
-        const can = dataInit.producer && [2, 3].includes(p.status) && p.delivery !== 1;
+        const can = dataInit.producer && !p.foreign && [2, 3].includes(p.status) && p.delivery !== 1;
         const at  = p.producedAt ? ordDate(p.producedAt, true) : '';
 
         if (can) {
@@ -530,20 +584,15 @@ class OrderCalendar extends Templates {
 
     legend() {
         const chips = this.statusIds().map((id) => `
-            <button type="button" class="ord-cal-legend" data-status="${id}" aria-pressed="true" style="--ev:${this.color(id).line}">
+            <button type="button" class="ord-cal-legend" data-status="${id}" aria-pressed="true" style="--ev:${this.color(id)}">
                 <span class="ord-cal-dot" aria-hidden="true"></span>${esc(this.statusName(id))}<b data-count-status="${id}">0</b>
             </button>`).join('');
 
-        const hint = dataInit.producer
-            ? '<span class="ord-cal-hint"><i data-lucide="circle-check"></i>Toca el círculo de la tarjeta cuando termines de elaborar.</span>'
-            : '';
-
+        // El conteo va arriba, a la altura de las etiquetas de los filtros; las píldoras, a la de los campos.
         $(`#legend${this.PROJECT_NAME}`)
-            .html(`${chips}<span id="total${this.PROJECT_NAME}" class="ord-cal-total"></span>${hint}`)
+            .html(`<span id="total${this.PROJECT_NAME}" class="ord-cal-total"></span><div class="ord-cal-chips">${chips}</div>`)
             .off('click')
             .on('click', 'button.ord-cal-legend', (e) => this.toggleStatus(Number(e.currentTarget.dataset.status)));
-
-        if (window.lucide) lucide.createIcons({ root: document.getElementById(`legend${this.PROJECT_NAME}`) });
     }
 
     toggleStatus(id) {
@@ -567,7 +616,7 @@ class OrderCalendar extends Templates {
         const f      = this.filters;
         const period = this.rows.filter((r) => r.start >= from && r.start < to && this.passFilters(r, f));
         const shown  = period.filter((r) => !this.hidden.has(r.status));
-        const where  = { dayGridMonth: 'el mes', dayGridWeek: 'la semana', galeriaDia: 'el día' }[view.type] || 'el periodo';
+        const where  = { dayGridMonth: 'el mes', galeriaSemana: 'la semana', galeriaDia: 'el día' }[view.type] || 'el periodo';
 
         this.statusIds().forEach((id) => $(`[data-count-status="${id}"]`).text(period.filter((r) => r.status === id).length));
 
@@ -624,7 +673,7 @@ class OrderCalendar extends Templates {
 
         if (this.onScreen().some((r) => this.matches(r))) return;
 
-        const data = await useFetch({ url: api, data: { opc: 'locateOrder', q: this.term } });
+        const data = await useFetch({ url: api, data: { opc: 'locateOrder', q: this.term, all: this.all ? 1 : 0 } });
 
         if (!data || data.status != 200) {
             alert({ icon: 'info', title: 'Folio no encontrado', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
@@ -706,16 +755,12 @@ class OrderCalendar extends Templates {
         return row ? row.valor : ({ 1: 'Cotización', 2: 'Pendiente', 3: 'Pagado', 4: 'Cancelado' }[id] || 'Sin estado');
     }
 
-    // Mismos tonos que las insignias del detalle.
+    /*  Color sólido de la tarjeta, con el texto en blanco encima. Pendiente y
+        Pagado van un tono más oscuro que su insignia para que el blanco se lea. */
     color(status) {
-        const colors = {
-            1: { line: '#2A55A3', bg: '#EAF0FA' },
-            2: { line: '#D97706', bg: '#FFF6E5' },
-            3: { line: '#059669', bg: '#E7F6EF' },
-            4: { line: '#DC2626', bg: '#FDECEC' }
-        };
+        const colors = { 1: '#2A55A3', 2: '#B45309', 3: '#047857', 4: '#DC2626' };
 
-        return colors[status] || { line: '#78716C', bg: '#F5F5F4' };
+        return colors[status] || '#78716C';
     }
 
     // Entregado, o el saldo que falta cobrar (solo a quien ve Pedidos). Una cotización todavía no debe.
@@ -727,10 +772,11 @@ class OrderCalendar extends Templates {
         return '';
     }
 
+    // La Semana de antes (dayGridWeek) abre la nueva.
     savedView() {
         try {
-            const view = localStorage.getItem(this.viewKey);
-            return ['dayGridMonth', 'dayGridWeek', 'galeriaDia'].includes(view) ? view : 'dayGridMonth';
+            const view = localStorage.getItem(this.viewKey) === 'dayGridWeek' ? 'galeriaSemana' : localStorage.getItem(this.viewKey);
+            return ['dayGridMonth', 'galeriaSemana', 'galeriaDia'].includes(view) ? view : 'dayGridMonth';
         } catch (e) {
             return 'dayGridMonth';
         }

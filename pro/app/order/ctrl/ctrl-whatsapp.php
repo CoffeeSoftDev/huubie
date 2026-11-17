@@ -8,6 +8,10 @@ require_once __DIR__ . '/../mdl/mdl-whatsapp-agente.php';
 require_once __DIR__ . '/../mdl/mdl-tienda.php';
 require_once __DIR__ . '/../mdl/mdl-portal.php';
 require_once __DIR__ . '/../mdl/mdl-whatsapp-ia.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp-pedidos.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp-recordatorios.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp-dueno.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp-automatico.php';
 require_once __DIR__ . '/../../../core/helpers/_WhatsAppMeta.php';
 require_once __DIR__ . '/../../../core/helpers/_IaOllama.php';
 
@@ -32,16 +36,47 @@ require_once __DIR__ . '/../../../core/helpers/_IaOllama.php';
         mandar texto libre (regla de Meta; las plantillas llegan en F5).
       - Abrir la bandeja tambien corre lo automatico pendiente del agente (el
         menu de sucursales), solo si el agente esta en horario.
-      - El agente de clientes (F3) solo PROPONE: la propuesta queda en
-        wa_proposal y sale cuando una persona la manda (tal cual o cambiada).
+      - El agente de clientes (F3) PROPONE: la propuesta queda en wa_proposal
+        y sale cuando una persona la manda (tal cual o cambiada), salvo los
+        temas que la empresa puso en automatico (F6, ver abajo).
         En prod las automaticas las arma cron-whatsapp-agente.php; aqui solo
         el simulador (agentAuto) y el boton «Proponer» (proposeNow). Llamar
         al modelo tarda: cada peticion suelta la sesion antes.
       - Contestar a mano retira la propuesta abierta del chat.
+      - Pedidos y comprobantes por chat (F4, mdl-whatsapp-pedidos.php): una
+        propuesta puede traer un pedido (action 'order'). El pedido se crea al
+        MANDARLA, dentro de la misma transaccion que la marca como decidida, y
+        cae en Tienda en linea › Nuevos; «{folio}» del texto se cambia por el
+        folio real. Si el pedido ya no se puede crear, la propuesta no sale.
+        Si se crea y Meta rechaza el mensaje, el pedido se queda.
+      - Un chat que el agente paso a una persona (wa_chat.mode 'human') no
+        recibe propuestas automaticas hasta «Devolver al agente» (agentBack) o
+        24 h. El aviso a la sucursal queda en el historial con tipo 'handoff'.
+      - El catalogo del agente (saveAgent / saveAgentProducts) es el de Tienda
+        en linea o una lista propia de productos de la empresa.
+      - Recordatorios de adeudo (F5, mdl-whatsapp-recordatorios.php): la
+        pestaña muestra quien recibiria hoy ANTES de mandar nada. Encender el
+        automatico y «Mandar los de hoy» piden create; salen como plantilla
+        aprobada de Meta, en horario, uno por semana por cliente.
+      - BAJA (wa_chat.opt_out) apaga recordatorios y plantillas, no las
+        respuestas: lo que el cliente escribe se le puede contestar.
+      - «Ya abrimos» (sendReopen) es la plantilla para retomar un chat que se
+        quedo sin respuesta mas de 24 h.
+      - Agente del dueño (F6, mdl-whatsapp-dueno.php): un destinatario con
+        «Pregunta» (can_ask) le escribe al numero del agente y le contesta
+        directo con ventas, turno, pedidos pendientes y cartera. Marcarlo pide
+        create, igual que los demas avisos. Su chat sale en la bandeja con la
+        marca «Dueño».
+      - Respuestas que salen solas (F6, mdl-whatsapp-automatico.php): con
+        create se encienden por tema en «Agente» (saveAgent, auto_topics).
+        Solo horario/direccion/pago y catalogo; lo demas sigue en la bandeja.
+      - Metricas (lsMetrics, show): conversaciones resueltas sin persona,
+        tiempo de respuesta y propuestas por tema.
       - La prueba queda en el historial con tipo 'test'. */
 class ctrl extends core {
 
-    use WhatsAppNotices, WhatsAppInbox, WhatsAppAgentFlow, OnlineStore, CustomerPortal, WhatsAppAgentAI;
+    use WhatsAppNotices, WhatsAppInbox, WhatsAppAgentFlow, OnlineStore, CustomerPortal, WhatsAppAgentAI, WhatsAppAgentOrders, WhatsAppReminders,
+        WhatsAppOwnerAgent, WhatsAppAgentAuto;
 
     const WA         = 'pos-whatsapp';
     const MAX_BODY   = 2000;
@@ -49,7 +84,8 @@ class ctrl extends core {
     const MAX_SEARCH = 60;
     const TYPES      = ['order', 'turn', 'day'];
     const MEDIA      = ['image' => 'Foto', 'audio' => 'Audio', 'video' => 'Video', 'document' => 'Documento',
-                        'sticker' => 'Sticker', 'location' => 'Ubicación', 'contacts' => 'Contacto', 'reaction' => 'Reacción'];
+                        'sticker' => 'Sticker', 'location' => 'Ubicación', 'contacts' => 'Contacto', 'reaction' => 'Reacción',
+                        'template' => 'Plantilla'];
 
     // -- Arranque --
 
@@ -145,9 +181,16 @@ class ctrl extends core {
                 }
             }
 
+            $head = $this->chatHead($chat);
+            $last = $messages ? $messages[count($messages) - 1] : null;
+
+            // «Ya abrimos»: '' = no aplica (ventana abierta o ya contestado); 'ok' = se puede; si no, por que no.
+            $block          = $this->reopenBlock($chat, $this->qWaAgent($this->companyId()), $last);
+            $head['reopen'] = in_array($block, ['window', 'answered'], true) ? '' : ($block === '' ? 'ok' : $block);
+
             return [
                 'status'   => 200,
-                'chat'     => $this->chatHead($chat),
+                'chat'     => $head,
                 'messages' => $messages,
                 'proposal' => $this->proposalOut($id),
                 'ai'       => (bool) $this->agentModel()
@@ -172,8 +215,6 @@ class ctrl extends core {
         return $this->attempt(function () use ($id, $text, $companyId, $userId) {
             $chat = $id > 0 ? $this->qWaChat($id, $companyId) : null;
             if (!$chat) return $this->fail(404, 'Esa conversación ya no existe.');
-
-            if ((int) $chat['opt_out'] === 1) return $this->fail(409, 'Este cliente pidió no recibir mensajes.');
 
             if (!$this->inboxWindowOpen($chat['last_in_at'])) {
                 return $this->fail(409, 'Pasaron más de 24 h desde el último mensaje del cliente: WhatsApp solo deja mandarle una plantilla aprobada.');
@@ -218,7 +259,9 @@ class ctrl extends core {
 
     /*  Escribir como si fuera el cliente, sin Meta. Solo sin WHATSAPP_META_TOKEN.
         El chat queda con wa_id 'SIM-…': nada de el sale a la red. Corre lo
-        automatico igual que un mensaje real (menu, sucursal elegida, horario). */
+        automatico igual que un mensaje real (menu, sucursal elegida, horario).
+        Con $_FILES['file'] el cliente «manda» una foto o un PDF (para probar
+        comprobantes): se guarda en storage/whatsapp/<empresa> y el texto es su pie. */
     public function simulate() {
         $fail = $this->needWa('update', 'usar el simulador') ?: $this->needBranch();
         if ($fail) return $fail;
@@ -233,18 +276,43 @@ class ctrl extends core {
 
         if (!preg_match('/^\d{10}$/', $phone))              return $this->fail(422, 'El teléfono del cliente va a 10 dígitos.');
         if ($this->tooLong($name, WhatsAppMeta::MAX_NAME))  return $this->fail(422, 'El nombre admite hasta ' . WhatsAppMeta::MAX_NAME . ' caracteres.');
-        if ($text === '')                                   return $this->fail(422, 'Escribe lo que manda el cliente.');
         if ($this->tooLong($text, WhatsAppMeta::MAX_TEXT))  return $this->fail(422, 'El mensaje admite hasta ' . number_format(WhatsAppMeta::MAX_TEXT) . ' caracteres.');
+
+        $file = $this->simFile();
+        if (isset($file['status'])) return $file;
+
+        if ($text === '' && !$file) return $this->fail(422, 'Escribe lo que manda el cliente, o adjunta una foto.');
 
         $companyId = $this->companyId();
 
         session_write_close();
 
-        return $this->attempt(function () use ($companyId, $phone, $name, $text) {
+        return $this->attempt(function () use ($companyId, $phone, $name, $text, $file) {
             $existing = $this->qWaChatByPhone($companyId, $phone);
 
             if ($existing && !$this->isSim($existing['wa_id'])) {
                 return $this->fail(409, 'Ese teléfono ya tiene una conversación real; usa otro para simular.');
+            }
+
+            $path = null;
+            $rel  = null;
+
+            if ($file) {
+                $dir = $this->agentWaDir($companyId);
+
+                if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+                    throw new RuntimeException('simulador: no se pudo crear la carpeta de archivos de la empresa ' . $companyId);
+                }
+
+                $stored = bin2hex(random_bytes(16)) . '.' . $file['ext'];
+                $path   = $dir . '/' . $stored;
+                $rel    = $companyId . '/' . $stored;
+
+                if (@file_put_contents($path, $file['bytes'], LOCK_EX) !== strlen($file['bytes'])) {
+                    @unlink($path);
+
+                    throw new RuntimeException('simulador: no se pudo guardar el archivo');
+                }
             }
 
             $msg = [
@@ -253,20 +321,31 @@ class ctrl extends core {
                 'phone'           => $phone,
                 'name'            => $name,
                 'wamid'           => 'sim.' . bin2hex(random_bytes(12)),
-                'type'            => 'text',
+                'type'            => $file ? ($file['ext'] === 'pdf' ? 'document' : 'image') : 'text',
                 'body'            => $text,
-                'media_id'        => null,
-                'media_type'      => null,
+                'media_id'        => $file ? 'SIM-' . bin2hex(random_bytes(8)) : null,
+                'media_type'      => $file ? $file['mime'] : null,
+                'media_path'      => $rel,
                 'sent_at'         => $this->inboxNow(),
                 'raw'             => null,
                 'skip'            => ''
             ];
 
-            $chatId = $this->transaction(function () use ($companyId, $msg) {
-                return $this->inboxSave($companyId, $msg);
-            });
+            try {
+                $chatId = $this->transaction(function () use ($companyId, $msg) {
+                    return $this->inboxSave($companyId, $msg);
+                });
+            } catch (Throwable $e) {
+                if ($path !== null) @unlink($path);
 
-            if ($chatId <= 0) return $this->fail(500, 'No se pudo guardar el mensaje del cliente.');
+                throw $e;
+            }
+
+            if ($chatId <= 0) {
+                if ($path !== null) @unlink($path);
+
+                return $this->fail(500, 'No se pudo guardar el mensaje del cliente.');
+            }
 
             $menus = 0;
 
@@ -378,7 +457,9 @@ class ctrl extends core {
     }
 
     /*  Manda la propuesta, tal cual (sent) o cambiada (edited). Se marca antes
-        de mandar, con la fila apartada: dos clics no la mandan dos veces. */
+        de mandar, con la fila apartada: dos clics no la mandan dos veces.
+        Si trae un pedido (action 'order'), se crea ahi mismo y «{folio}» del
+        texto se cambia por su folio; si la persona lo borro, el folio va al final. */
     public function sendProposal() {
         $fail = $this->needWa('update', 'contestar en WhatsApp') ?: $this->needBranch();
         if ($fail) return $fail;
@@ -404,17 +485,37 @@ class ctrl extends core {
                 $chat = $this->qWaChat((int) $p['chat_id'], $companyId);
 
                 if (!$chat)                                      return $this->fail(404, 'Esa conversación ya no existe.');
-                if ((int) $chat['opt_out'] === 1)                return $this->fail(409, 'Este cliente pidió no recibir mensajes.');
                 if (!$this->inboxWindowOpen($chat['last_in_at'])) return $this->fail(409, 'Pasaron más de 24 h desde el último mensaje del cliente: WhatsApp solo deja mandarle una plantilla aprobada.');
 
                 $agent = $this->qWaAgent($companyId);
                 if (!$agent && !$this->isSim($chat['wa_id'])) return $this->fail(409, 'La empresa no tiene número de WhatsApp dado de alta.');
 
-                $status = $text === trim((string) $p['body']) ? 'sent' : 'edited';
+                $status  = $text === trim((string) $p['body']) ? 'sent' : 'edited';
+                $isOrder = $p['action'] === 'order' && $p['sale_id'] === null;
+                $saleId  = 0;
 
-                $this->qWaDecideProposal($id, $status, $text, $userId ?: null, $now);
+                if (!$isOrder && strpos($text, '{folio}') !== false) {
+                    return $this->fail(422, 'La respuesta trae «{folio}», pero esta propuesta no crea un pedido. Quita esa parte o pide otra propuesta.');
+                }
 
-                return ['status' => 200, 'chat' => $chat, 'agent' => $agent ?: [], 'decided' => $status];
+                if ($isOrder && $this->tooLong($text, WhatsAppMeta::MAX_TEXT - 40)) {
+                    return $this->fail(422, 'El mensaje es muy largo para llevar el folio del pedido: acórtalo un poco.');
+                }
+
+                // El pedido se crea aqui, con la propuesta apartada. Si ya no se puede (409), no se escribio nada y la propuesta no sale.
+                if ($isOrder) {
+                    $order = $this->agentOrderCreate($p, $chat, $agent ?: [], $userId);
+
+                    if ($order['status'] !== 200) return $this->fail(409, $order['message']);
+
+                    $saleId = (int) $order['sale_id'];
+                }
+
+                $final = $this->folioIn($text, $saleId);
+
+                $this->qWaDecideProposal($id, $status, $final, $userId ?: null, $now);
+
+                return ['status' => 200, 'chat' => $chat, 'agent' => $agent ?: [], 'decided' => $status, 'text' => $final, 'sale_id' => $saleId];
             });
 
             if ($claim['status'] !== 200) return $claim;
@@ -422,7 +523,7 @@ class ctrl extends core {
             session_write_close();
 
             $chat = $claim['chat'];
-            $sent = $this->inboxSend($claim['agent'], $chat, $text, $userId);
+            $sent = $this->inboxSend($claim['agent'], $chat, $claim['text'], $userId);
 
             try {
                 $this->qWaSetProposalMessage($id, (int) $sent['message_id']);
@@ -437,12 +538,23 @@ class ctrl extends core {
                 'failed'    => 'No salió: ' . ($sent['detail'] !== '' ? $sent['detail'] : 'Meta no lo aceptó.')
             ];
 
+            $folio   = $claim['sale_id'] > 0 ? 'P' . $claim['sale_id'] : '';
+            $message = $messages[$sent['status']] ?? $messages['failed'];
+
+            if ($folio !== '') {
+                $message .= $sent['status'] === 'failed'
+                    ? " El pedido {$folio} sí se creó: está en Tienda en línea › Nuevos."
+                    : " Se creó el pedido {$folio}: acéptalo en Tienda en línea › Nuevos.";
+            }
+
             return [
                 'status'     => $sent['status'] === 'failed' ? 409 : 200,
-                'message'    => $messages[$sent['status']] ?? $messages['failed'],
+                'message'    => $message,
                 'sent'       => $sent['status'],
                 'decided'    => $claim['decided'],
-                'message_id' => (int) $sent['message_id']
+                'message_id' => (int) $sent['message_id'],
+                'sale_id'    => $claim['sale_id'] > 0 ? $claim['sale_id'] : null,
+                'folio'      => $folio
             ];
         }, 'No se pudo mandar la respuesta.');
     }
@@ -469,6 +581,22 @@ class ctrl extends core {
         }, 'No se pudo descartar la propuesta.');
     }
 
+    // «Devolver al agente»: el chat deja de estar con una persona y el agente vuelve a proponer solo.
+    public function agentBack() {
+        $fail = $this->needWa('update', 'atender las conversaciones de WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id = $this->postId();
+
+        return $this->attempt(function () use ($id) {
+            if ($id <= 0 || !$this->qWaChat($id, $this->companyId())) return $this->fail(404, 'Esa conversación ya no existe.');
+
+            $this->qWaAgentBack($id, date('Y-m-d H:i:s', $this->inboxNow()));
+
+            return $this->ok('El agente vuelve a proponer en esta conversación.');
+        }, 'No se pudo devolver la conversación al agente.');
+    }
+
     // -- Agente --
 
     public function getAgent() {
@@ -478,38 +606,330 @@ class ctrl extends core {
         return $this->attempt(function () {
             return [
                 'status' => 200,
-                'agent'  => $this->agentInfo($this->qWaAgent($this->companyId())),
+                'agent'  => $this->agentInfo($this->qWaAgent($this->companyId()), true),
                 'conn'   => (new WhatsAppMeta())->status()
             ];
         }, 'No se pudo cargar el agente.');
     }
 
-    /*  Encendido y horario por dia. hours = {"0":[["09:00","20:00"]], ...};
-        un dia sin tramos = cerrado. Cierre "00:00" = medianoche ("24:00"). */
+    /*  Encendido, horario por dia y de donde sale el catalogo del agente.
+        hours = {"0":[["09:00","20:00"]], ...}; un dia sin tramos = cerrado.
+        Cierre "00:00" = medianoche ("24:00"). catalog_mode: 'store' (Tienda en
+        linea) u 'own' (la lista de saveAgentProducts); si no llega, se queda
+        como estaba. auto_topics (F6): los temas que salen solos, separados por
+        coma ('negocio', 'catalogo'); '' = todo a la bandeja; si no llega, se
+        queda como estaba. */
     public function saveAgent() {
         $fail = $this->needWa('create', 'cambiar el agente de WhatsApp') ?: $this->needBranch();
         if ($fail) return $fail;
 
         $enabled = $this->post('enabled') === '1' ? 1 : 0;
         $hours   = $this->hoursIn($this->postedJson('hours'));
+        $mode    = isset($_POST['catalog_mode']) ? ($this->post('catalog_mode') === 'own' ? 'own' : 'store') : null;
+        $topics  = isset($_POST['auto_topics']) ? $this->agentAutoTopics(['auto_topics' => $this->post('auto_topics')]) : null;
 
         if (is_string($hours)) return $this->fail(422, $hours);
         if ($enabled && !array_filter($hours)) return $this->fail(422, 'Pon horario al menos a un día, o deja el agente apagado.');
 
-        return $this->attempt(function () use ($enabled, $hours) {
+        return $this->attempt(function () use ($enabled, $hours, $mode, $topics) {
             $agent = $this->qWaAgent($this->companyId());
             if (!$agent) return $this->fail(404, 'La empresa todavía no tiene número de WhatsApp para el agente. Lo da de alta soporte.');
 
+            if ($mode === null) $mode = (string) $agent['catalog_mode'] === 'own' ? 'own' : 'store';
+            if ($topics === null) $topics = $this->agentAutoTopics($agent);
+
+            if ($mode === 'own' && !$this->qWaAgentProductIds($this->companyId())) {
+                return $this->fail(422, 'La lista propia está vacía: elige los productos en «Elegir productos», o usa el catálogo de la Tienda en línea.');
+            }
+
             $this->must($this->qUpdateIn('wa_agent', [
-                'values' => ['enabled', 'hours', 'updated_at'],
+                'values' => ['enabled', 'hours', 'catalog_mode', 'auto_topics', 'updated_user_id', 'updated_at'],
                 'where'  => ['id', 'company_id'],
-                'data'   => [$enabled, json_encode((object) $hours), date('Y-m-d H:i:s'), (int) $agent['id'], $this->companyId()]
+                'data'   => [$enabled, json_encode((object) $hours), $mode, $topics ? implode(',', $topics) : null, $this->userId() ?: null, date('Y-m-d H:i:s'), (int) $agent['id'], $this->companyId()]
             ]), 'saveAgent');
 
             return $this->ok($enabled ? 'Agente encendido.' : 'Agente apagado: los mensajes se guardan y nada sale solo.', [
-                'agent' => $this->agentInfo($this->qWaAgent($this->companyId()))
+                'agent' => $this->agentInfo($this->qWaAgent($this->companyId()), true)
             ]);
         }, 'No se pudo guardar el agente.');
+    }
+
+    // Los productos de la empresa para armar la lista propia del agente; picked = ya esta en la lista.
+    public function lsAgentProducts() {
+        $fail = $this->needWa('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $picked = array_flip($this->qWaAgentProductIds($this->companyId()));
+            $rows   = [];
+            $count  = 0;
+
+            foreach ($this->qWaCompanyProducts($this->companyId()) as $p) {
+                $on = isset($picked[(int) $p['id']]);
+                if ($on) $count++;
+
+                $rows[] = [
+                    'id'       => (int) $p['id'],
+                    'name'     => trim((string) $p['name']),
+                    'price'    => round((float) $p['price'], 2),
+                    'category' => (string) $p['category'] !== '' ? (string) $p['category'] : 'Otros',
+                    'branch'   => (string) $p['branch'],
+                    'store'    => (int) $p['in_catalog'] === 1,
+                    'picked'   => $on
+                ];
+            }
+
+            return ['status' => 200, 'row' => $rows, 'count' => count($rows), 'picked' => $count];
+        }, 'No se pudieron cargar los productos.');
+    }
+
+    /*  La lista propia del agente, completa: lo que no llegue se quita. Solo
+        entran productos de la empresa que Pedidos sabe vender. No se puede
+        dejar vacia mientras el agente la este usando. */
+    public function saveAgentProducts() {
+        $fail = $this->needWa('create', 'cambiar el agente de WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $posted = $this->postedJson('product_ids');
+        if ($posted === null) return $this->fail(422, 'La lista no llegó bien; recarga la página.');
+
+        $ids = [];
+
+        foreach ($posted as $value) {
+            if (is_scalar($value) && (int) $value > 0) $ids[(int) $value] = (int) $value;
+        }
+
+        $ids = array_values($ids);
+
+        if (count($ids) > 500) return $this->fail(422, 'La lista propia admite hasta 500 productos.');
+
+        return $this->attempt(function () use ($ids) {
+            $companyId = $this->companyId();
+            $agent     = $this->qWaAgent($companyId);
+
+            if (!$agent) return $this->fail(404, 'La empresa todavía no tiene número de WhatsApp para el agente. Lo da de alta soporte.');
+
+            if (!$ids && (string) $agent['catalog_mode'] === 'own') {
+                return $this->fail(422, 'El agente está usando la lista propia: deja al menos un producto, o cámbialo antes a «Tienda en línea».');
+            }
+
+            $this->transaction(function () use ($companyId, $ids) {
+                $this->qWaReplaceAgentProducts($companyId, $ids, date('Y-m-d H:i:s'));
+
+                return true;
+            });
+
+            $info = $this->agentInfo($agent, true);
+            $n    = $info['own_count'];
+
+            return $this->ok($n === 1 ? 'Lista guardada: 1 producto.' : "Lista guardada: {$n} productos.", ['agent' => $info]);
+        }, 'No se pudo guardar la lista.');
+    }
+
+    // -- Recordatorios de adeudo --
+
+    // Quien debe y si le toca recordatorio hoy. No manda nada.
+    public function lsReminders() {
+        $fail = $this->needWa('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $companyId = $this->companyId();
+
+        return $this->attempt(function () use ($companyId) {
+            $agent  = $this->qWaReminderAgent($companyId);
+            $list   = $this->reminderList($companyId);
+            $count  = ['send' => 0, 'cap' => 0, 'other' => 0, 'week' => 0, 'baja' => 0, 'phone' => 0];
+            $order  = ['send' => 0, 'cap' => 1, 'other' => 2, 'week' => 3, 'baja' => 4, 'phone' => 5];
+            $sample = null;
+
+            foreach ($list as $r) {
+                $count[$r['state']]++;
+                if (!$sample && $r['state'] === 'send') $sample = $r;
+            }
+
+            usort($list, function ($a, $b) use ($order) {
+                return $order[$a['state']] <=> $order[$b['state']] ?: $b['debt'] <=> $a['debt'];
+            });
+
+            $meta    = new WhatsAppMeta();
+            $company = $this->qCompany($companyId);
+            $base    = $this->agentPublicBase();
+            $preview = $this->waTemplateFill('saldo', [
+                $sample ? $this->waFirstName($sample['name']) : 'Laura',
+                $this->waBusinessLabel($company ? $company['name'] : '', $sample ? $sample['branch'] : $this->scope()['branch']),
+                $this->agentMoney($sample ? $sample['debt'] : 450),
+                ($base !== '' ? $base : 'https://…') . '/portal.php?t=…'
+            ]);
+
+            return [
+                'status'   => 200,
+                'row'      => array_map([$this, 'reminderRow'], $list),
+                'count'    => $count,
+                'today'    => $this->qWaRemindersSince($companyId, date('Y-m-d', $this->inboxNow()) . ' 00:00:00'),
+                'dailyCap' => $this->reminderDailyCap(),
+                'agent'    => [
+                    'exists'    => (bool) $agent,
+                    'enabled'   => $agent ? (int) $agent['enabled'] : 0,
+                    'open'      => $agent ? $this->inboxIsOpen($agent) : false,
+                    'reminders' => $agent ? (int) $agent['reminders'] : 0
+                ],
+                'template' => [
+                    'saldo'   => array_merge($meta->templates()['saldo'], ['text' => $this->waTemplateText('saldo'), 'preview' => $preview]),
+                    'abrimos' => array_merge($meta->templates()['abrimos'], ['text' => $this->waTemplateText('abrimos')])
+                ],
+                'simulated' => $meta->status()['simulated']
+            ];
+        }, 'No se pudo armar la lista de recordatorios.');
+    }
+
+    // Enciende o apaga los recordatorios automaticos (los manda el cron, en horario).
+    public function toggleReminders() {
+        $fail = $this->needWa('create', 'cambiar los recordatorios de WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $on = $this->post('on') === '1';
+
+        return $this->attempt(function () use ($on) {
+            if (!$this->qWaReminderAgent($this->companyId())) {
+                return $this->fail(404, 'La empresa todavía no tiene número de WhatsApp para el agente. Lo da de alta soporte.');
+            }
+
+            $this->qWaSetReminders($this->companyId(), $on, $this->userId(), date('Y-m-d H:i:s'));
+
+            return $this->ok($on
+                ? 'Recordatorios automáticos encendidos: salen solos en el horario del agente, uno por semana por cliente.'
+                : 'Recordatorios automáticos apagados. La lista se sigue viendo y se puede mandar a mano.');
+        }, 'No se pudieron cambiar los recordatorios.');
+    }
+
+    // «Mandar los de hoy»: los que la lista marca «Sale hoy», en horario del agente.
+    public function sendReminders() {
+        $fail = $this->needWa('create', 'mandar recordatorios de WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $companyId = $this->companyId();
+        $userId    = (int) $this->userId();
+
+        return $this->attempt(function () use ($companyId, $userId) {
+            $agent = $this->qWaReminderAgent($companyId);
+
+            if (!$agent)                     return $this->fail(404, 'La empresa todavía no tiene número de WhatsApp para el agente. Lo da de alta soporte.');
+            if (!$this->inboxIsOpen($agent)) return $this->fail(409, 'El agente está apagado o fuera de horario: los recordatorios solo salen en su horario.');
+
+            session_write_close();
+
+            $r    = $this->reminderRun($companyId, $userId ?: null, $this->reminderDailyCap(), time() + 100);
+            $done = $r['sent'] + $r['simulated'];
+
+            if (!$done && !$r['failed'] && !$r['skip']) return $this->fail(409, 'Hoy no le toca recordatorio a nadie.');
+
+            $parts = [];
+            if ($r['sent'])      $parts[] = $r['sent'] === 1 ? '1 enviado' : "{$r['sent']} enviados";
+            if ($r['simulated']) $parts[] = $r['simulated'] === 1 ? '1 simulado (no salió a la red)' : "{$r['simulated']} simulados (no salieron a la red)";
+            if ($r['failed'])    $parts[] = $r['failed'] === 1 ? '1 no salió' : "{$r['failed']} no salieron";
+            if ($r['skip'])      $parts[] = $r['skip'] === 1 ? '1 se saltó' : "{$r['skip']} se saltaron";
+
+            $message = 'Recordatorios: ' . implode(', ', $parts) . '.';
+            if ($r['detail'] !== '' && ($r['failed'] || $r['skip'])) $message .= ' ' . $r['detail'];
+
+            return ['status' => $done ? 200 : 409, 'message' => $message, 'result' => $r];
+        }, 'No se pudieron mandar los recordatorios.');
+    }
+
+    /*  «Ya abrimos»: la plantilla para retomar un chat que se quedo sin respuesta
+        mas de 24 h. El mensaje se aparta (con el chat bloqueado) antes de
+        mandarlo: dos clics no la mandan dos veces. */
+    public function sendReopen() {
+        $fail = $this->needWa('update', 'contestar en WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id        = $this->postId();
+        $companyId = $this->companyId();
+        $userId    = (int) $this->userId();
+
+        return $this->attempt(function () use ($id, $companyId, $userId) {
+            $now = date('Y-m-d H:i:s', $this->inboxNow());
+
+            $claim = $this->transaction(function () use ($id, $companyId, $userId, $now) {
+                $chat = $id > 0 ? $this->qWaChat($id, $companyId) : null;
+                if (!$chat || !$this->qWaLockChatById($id)) return $this->fail(404, 'Esa conversación ya no existe.');
+
+                $agent = $this->qWaAgent($companyId);
+                $why   = [
+                    'window'   => 'La ventana de 24 h está abierta: contéstale normal.',
+                    'answered' => 'Lo último de la conversación ya es nuestro: espera a que el cliente escriba.',
+                    'baja'     => 'El cliente escribió BAJA: no se le mandan plantillas.',
+                    'agent'    => 'La empresa no tiene número de WhatsApp dado de alta.',
+                    'closed'   => 'El agente está apagado o fuera de horario: «Ya abrimos» sale en su horario.'
+                ];
+                $block = $this->reopenBlock($chat, $agent, $this->qWaLastMessage($id));
+
+                if ($block !== '') return $this->fail(409, $why[$block]);
+
+                $params    = $this->reopenParams($chat);
+                $messageId = $this->waTemplateClaim($chat, $this->waTemplateFill('abrimos', $params), $userId, $now);
+
+                return ['status' => 200, 'chat' => $chat, 'agent' => $agent, 'params' => $params, 'message_id' => $messageId];
+            });
+
+            if ($claim['status'] !== 200) return $claim;
+
+            session_write_close();
+
+            $sent = $this->waTemplateDeliver($claim['agent'], $claim['chat'], 'abrimos', $claim['params'], $claim['message_id']);
+
+            try {
+                $this->qWaSeen($id, $now);
+            } catch (Throwable $e) {
+                $this->inboxLog('[ BANDEJA ] :: no se marco como leido el chat ' . $id);
+            }
+
+            $messages = [
+                'sent'      => '«Ya abrimos» enviado. Cuando el cliente conteste, se abre otra vez la ventana de 24 h.',
+                'simulated' => 'Modo simulado: «Ya abrimos» quedó en la conversación y no salió a la red.',
+                'failed'    => 'No salió: ' . ($sent['detail'] !== '' ? $sent['detail'] : 'Meta no lo aceptó.')
+            ];
+
+            return [
+                'status'     => $sent['status'] === 'failed' ? 409 : 200,
+                'message'    => $messages[$sent['status']] ?? $messages['failed'],
+                'sent'       => $sent['status'],
+                'message_id' => (int) $sent['message_id']
+            ];
+        }, 'No se pudo mandar «Ya abrimos».');
+    }
+
+    // -- Metricas --
+
+    /*  Como va el agente en el periodo (today | 7 | 30): conversaciones
+        resueltas sin persona, tiempo de respuesta, propuestas por tema y
+        preguntas del dueño. Solo lee. */
+    public function lsMetrics() {
+        $fail = $this->needWa('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $period = in_array($this->post('period'), ['today', '7', '30'], true) ? $this->post('period') : '7';
+
+        [$from, $to] = $this->periodRange($period);
+
+        $companyId = $this->companyId();
+
+        return $this->attempt(function () use ($companyId, $from, $to) {
+            $m    = $this->agentMetrics($companyId, $from, $to);
+            $rows = [];
+
+            foreach ($m['topics'] as $t) {
+                if ($t['total'] > 0 || $t['can_auto']) $rows[] = $this->metricRow($t);
+            }
+
+            $m['response']['agent']['text']  = $this->secondsText($m['response']['agent']['median']);
+            $m['response']['person']['text'] = $this->secondsText($m['response']['person']['median']);
+            $m['owner']['text']              = $m['owner']['median_ms'] !== null ? $this->secondsText((int) round($m['owner']['median_ms'] / 1000)) : '';
+
+            unset($m['topics']);
+
+            return array_merge(['status' => 200, 'row' => $rows, 'from' => dmy(substr($from, 0, 10)), 'to' => dmy(date('Y-m-d', strtotime($to) - 1))], $m);
+        }, 'No se pudieron calcular las métricas.');
     }
 
     // -- Avisos --
@@ -627,13 +1047,16 @@ class ctrl extends core {
                     'notify_order' => (int) $r['notify_order'],
                     'notify_turn'  => (int) $r['notify_turn'],
                     'notify_day'   => (int) $r['notify_day'],
+                    'can_ask'      => (int) $r['can_ask'],
                     'active'       => (int) $r['active']
                 ]
             ];
         }, 'No se pudo abrir el destinatario.');
     }
 
-    // id 0 = nuevo.
+    /*  id 0 = nuevo. can_ask (F6) = puede preguntarle al agente del dueño: solo
+        un telefono de 10 digitos (un grupo no escribe al agente). Basta con
+        eso o con un aviso. */
     public function saveRecipient() {
         $fail = $this->needWa('create') ?: $this->needBranch();
         if ($fail) return $fail;
@@ -642,6 +1065,7 @@ class ctrl extends core {
         $name   = trim((string) preg_replace('/\s+/u', ' ', $this->post('name')));
         $phone  = WhatsApp::phone($this->post('phone'));
         $branch = $this->selectOrNull('branch_id');
+        $ask    = $this->post('can_ask') === '1' ? 1 : 0;
         $flags  = [];
 
         foreach (['notify_order', 'notify_turn', 'notify_day'] as $key) $flags[$key] = $this->post($key) === '1' ? 1 : 0;
@@ -649,30 +1073,31 @@ class ctrl extends core {
         if ($name === '')                         return $this->fail(422, 'Escribe el nombre de quien recibe los avisos.');
         if ($this->tooLong($name, self::MAX_NAME)) return $this->fail(422, 'El nombre admite hasta ' . self::MAX_NAME . ' caracteres.');
         if ($phone === '')                        return $this->fail(422, 'El teléfono va a 10 dígitos (sin lada de país) o como grupo, por ejemplo 120363000000000000@g.us.');
-        if (!array_sum($flags))                   return $this->fail(422, 'Marca al menos un aviso para este destinatario.');
+        if ($ask && !preg_match('/^\d{10}$/', $phone)) return $this->fail(422, 'Un grupo no puede preguntarle al agente: usa un teléfono de 10 dígitos.');
+        if (!array_sum($flags) && !$ask)          return $this->fail(422, 'Marca al menos un aviso, o que pueda preguntarle al agente.');
 
         if ($branch !== null && !in_array($branch, array_map('intval', array_column($this->qCompanyBranches($this->companyId()), 'id')), true)) {
             return $this->fail(422, 'Esa sucursal no es de la empresa.');
         }
 
-        return $this->attempt(function () use ($id, $name, $phone, $branch, $flags) {
+        return $this->attempt(function () use ($id, $name, $phone, $branch, $flags, $ask) {
             $now = date('Y-m-d H:i:s');
 
             if ($id > 0) {
                 if (!$this->qWaRecipient($id, $this->companyId())) return $this->fail(404, 'Ese destinatario ya no existe.');
 
                 $this->must($this->qUpdateIn('wa_recipient', [
-                    'values' => ['name', 'phone', 'branch_id', 'notify_order', 'notify_turn', 'notify_day', 'updated_at'],
+                    'values' => ['name', 'phone', 'branch_id', 'notify_order', 'notify_turn', 'notify_day', 'can_ask', 'updated_at'],
                     'where'  => ['id', 'company_id'],
-                    'data'   => [$name, $phone, $branch, $flags['notify_order'], $flags['notify_turn'], $flags['notify_day'], $now, $id, $this->companyId()]
+                    'data'   => [$name, $phone, $branch, $flags['notify_order'], $flags['notify_turn'], $flags['notify_day'], $ask, $now, $id, $this->companyId()]
                 ]), 'saveRecipient');
 
                 return $this->ok('Destinatario guardado.');
             }
 
             $this->must($this->qInsertInto('wa_recipient', [
-                'values' => ['company_id', 'branch_id', 'name', 'phone', 'notify_order', 'notify_turn', 'notify_day', 'active', 'created_at', 'updated_at'],
-                'data'   => [$this->companyId(), $branch, $name, $phone, $flags['notify_order'], $flags['notify_turn'], $flags['notify_day'], 1, $now, $now]
+                'values' => ['company_id', 'branch_id', 'name', 'phone', 'notify_order', 'notify_turn', 'notify_day', 'can_ask', 'active', 'created_at', 'updated_at'],
+                'data'   => [$this->companyId(), $branch, $name, $phone, $flags['notify_order'], $flags['notify_turn'], $flags['notify_day'], $ask, 1, $now, $now]
             ]), 'saveRecipient');
 
             return $this->ok('Destinatario agregado.');
@@ -727,7 +1152,7 @@ class ctrl extends core {
         if ($fail) return $fail;
 
         $type = $this->post('type');
-        if (!in_array($type, array_merge(self::TYPES, ['test']), true)) $type = '';
+        if (!in_array($type, array_merge(self::TYPES, ['test', 'handoff']), true)) $type = '';
 
         [$from, $to] = $this->periodRange($this->post('period', '7'));
 
@@ -882,7 +1307,8 @@ class ctrl extends core {
     }
 
     private function typeName($type) {
-        if ($type === 'test') return 'Prueba';
+        if ($type === 'test')    return 'Prueba';
+        if ($type === 'handoff') return 'Cliente pide una persona';
 
         $types = $this->waTypes();
 
@@ -905,14 +1331,93 @@ class ctrl extends core {
         return strpos((string) $waId, 'SIM-') === 0;
     }
 
-    // Lo que la pantalla sabe del numero; nunca el phone_number_id.
-    private function agentInfo($agent) {
+    /*  Lo que la pantalla sabe del numero; nunca el phone_number_id.
+        $withCatalog suma cuantos productos tiene la lista propia (la pestaña
+        «Agente»; la lista de chats lo pide cada 20 s y no lo necesita). */
+    private function agentInfo($agent, $withCatalog = false) {
+        $info = [
+            'exists'       => (bool) $agent,
+            'enabled'      => $agent ? (int) $agent['enabled'] : 0,
+            'phone'        => $agent ? (string) $agent['display_phone'] : '',
+            'open'         => $agent ? $this->inboxIsOpen($agent) : false,
+            'hours'        => $this->hoursOut($agent ? $agent['hours'] : null),
+            'catalog_mode' => $agent && (string) $agent['catalog_mode'] === 'own' ? 'own' : 'store',
+            'auto_topics'  => $agent ? $this->agentAutoTopics($agent) : []
+        ];
+
+        if ($withCatalog) $info['own_count'] = $agent ? count($this->qWaAgentProductIds((int) $agent['company_id'])) : 0;
+
+        return $info;
+    }
+
+    // «{folio}» → P123. Si la persona lo borro del texto, el folio va al final.
+    private function folioIn($text, $saleId) {
+        if ($saleId <= 0) return $text;
+
+        $folio = 'P' . (int) $saleId;
+
+        return strpos($text, '{folio}') !== false
+            ? str_replace('{folio}', $folio, $text)
+            : $text . "\n\nFolio de tu pedido: *{$folio}*";
+    }
+
+    /*  La foto o el PDF que «manda» el cliente en el simulador: ['bytes', 'ext',
+        'mime'], null si no adjunto nada, o el error para la pantalla. El tipo
+        sale del contenido, nunca del nombre. Tope 5 MB, como lo de Meta. */
+    private function simFile() {
+        $f = $_FILES['file'] ?? null;
+
+        if (!is_array($f) || !isset($f['error']) || is_array($f['error']) || (int) $f['error'] === UPLOAD_ERR_NO_FILE) return null;
+
+        $error = (int) $f['error'];
+        $big   = 'El archivo pesa demasiado: sube una foto o un PDF de hasta 5 MB.';
+
+        if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE)          return $this->fail(413, $big);
+        if ($error !== UPLOAD_ERR_OK || !is_uploaded_file((string) $f['tmp_name']))     return $this->fail(422, 'El archivo no terminó de subir. Intenta otra vez.');
+        if ((int) $f['size'] <= 0)                                                      return $this->fail(422, 'El archivo está vacío.');
+        if ((int) $f['size'] > 5242880)                                                 return $this->fail(413, $big);
+
+        $bytes = (string) @file_get_contents((string) $f['tmp_name']);
+        $kind  = $this->agentFileKind($bytes);
+
+        if (!$kind) return $this->fail(415, 'Adjunta una foto (JPG, PNG o WEBP) o un PDF.');
+
+        return ['bytes' => $bytes, 'ext' => $kind['ext'], 'mime' => $kind['mime']];
+    }
+
+    // El pedido que se crea al mandar la propuesta, listo para la tarjeta. Null si el borrador no se entiende.
+    private function draftOut($json) {
+        $d = json_decode((string) $json, true);
+
+        if (!is_array($d) || empty($d['lines']) || !is_array($d['lines'])) return null;
+
+        $lines = [];
+
+        foreach ($d['lines'] as $l) {
+            if (!is_array($l)) continue;
+
+            $qty = (int) ($l['quantity'] ?? 0);
+
+            $lines[] = ['name' => (string) ($l['name'] ?? ''), 'quantity' => $qty, 'amount' => round((float) ($l['price'] ?? 0) * $qty, 2)];
+        }
+
+        $date = (string) ($d['date'] ?? '');
+        $time = (string) ($d['time'] ?? '');
+        $home = ($d['delivery'] ?? '') === 'delivery';
+        $when = [];
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date))     $when[] = dmy($date);
+        if (preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $time))  $when[] = hour12($time);
+
         return [
-            'exists'  => (bool) $agent,
-            'enabled' => $agent ? (int) $agent['enabled'] : 0,
-            'phone'   => $agent ? (string) $agent['display_phone'] : '',
-            'open'    => $agent ? $this->inboxIsOpen($agent) : false,
-            'hours'   => $this->hoursOut($agent ? $agent['hours'] : null)
+            'lines'    => $lines,
+            'total'    => round((float) ($d['total'] ?? 0), 2),
+            'delivery' => $home ? 'Envío a domicilio' : 'Recoge en sucursal',
+            'address'  => $home ? (string) ($d['address'] ?? '') : '',
+            'when'     => implode(' · ', $when),
+            'payment'  => ($d['payment'] ?? '') === 'transfer' ? 'Transferencia' : 'Paga en sucursal',
+            'name'     => (string) ($d['name'] ?? ''),
+            'note'     => (string) ($d['note'] ?? '')
         ];
     }
 
@@ -987,7 +1492,9 @@ class ctrl extends core {
             'when'        => $this->whenText($c['last_message_at']),
             'window'      => $this->inboxWindowOpen($c['last_in_at']),
             'opt_out'     => (int) $c['opt_out'] === 1,
-            'sim'         => $this->isSim($c['wa_id'])
+            'sim'         => $this->isSim($c['wa_id']),
+            'human'       => $this->agentIsHuman($c),
+            'owner'       => (int) $c['owner'] === 1
         ];
     }
 
@@ -1012,7 +1519,14 @@ class ctrl extends core {
             'negocio_datos'   => 'Datos del negocio',
             'pedido_estado'   => 'Estado de pedido',
             'saldo_cliente'   => 'Saldo',
-            'portal_enlace'   => 'Portal'
+            'portal_enlace'   => 'Portal',
+            'pedido_borrador'     => 'Pedido',
+            'pasar_a_persona'     => 'Pasar a persona',
+            'comprobante_guardar' => 'Comprobante',
+            'ventas_hoy'          => 'Ventas del día',
+            'turno_estado'        => 'Turno',
+            'pedidos_pendientes'  => 'Pedidos pendientes',
+            'cartera'             => 'Cartera'
         ];
 
         $tools = [];
@@ -1033,8 +1547,12 @@ class ctrl extends core {
             ];
         }
 
-        $last = $this->qWaLastIn($chatId);
+        $last   = $this->qWaLastIn($chatId);
+        $action = in_array($p['action'], ['order', 'handoff'], true) ? (string) $p['action'] : '';
+        $note   = $action === 'handoff' ? json_decode((string) $p['action_data'], true) : null;
+        $topics = $this->agentTopicList();
 
+        // action: lo que pasa ademas del texto. draft = el pedido que se crea al mandarla; handoff = por que paso a una persona.
         return [
             'id'       => (int) $p['id'],
             'status'   => $status,
@@ -1045,14 +1563,25 @@ class ctrl extends core {
             'error'    => $error,
             'auto'     => $p['requested_by'] === null,
             'outdated' => $last && (int) $last['id'] > (int) $p['message_id'],
-            'when'     => $stamp ? date('g:i A', $stamp) : ''
+            'when'     => $stamp ? date('g:i A', $stamp) : '',
+            'action'   => $action,
+            'draft'    => $action === 'order' ? $this->draftOut($p['action_data']) : null,
+            'handoff'  => is_array($note) ? (string) ($note['summary'] ?? '') : '',
+            'owner'    => $p['kind'] === 'owner',
+            'topic'    => isset($topics[$p['topic']]) ? $topics[$p['topic']]['name'] : ''
         ];
     }
 
     private function chatHead($c) {
         $closes = $c['last_in_at'] ? strtotime($c['last_in_at']) + 86400 : 0;
+        $human  = $this->agentIsHuman($c);
+        $until  = $human && $c['human_until'] !== null ? strtotime((string) $c['human_until']) : 0;
 
         return [
+            'opt_out_at'  => $c['opt_out'] && $c['opt_out_at'] ? dmy(substr((string) $c['opt_out_at'], 0, 10)) : '',
+            'human'       => $human,
+            'human_until' => $until ? dmy(date('Y-m-d', $until)) . ' · ' . date('g:i A', $until) : '',
+            'handoff'     => $human ? (string) $c['handoff_note'] : '',
             'id'        => (int) $c['id'],
             'name'      => $c['name'] !== '' ? (string) $c['name'] : $this->phoneText($c['phone']),
             'phone'     => $this->phoneText($c['phone']),
@@ -1061,7 +1590,8 @@ class ctrl extends core {
             'opt_out'   => (int) $c['opt_out'] === 1,
             'sim'       => $this->isSim($c['wa_id']),
             'window'    => $this->inboxWindowOpen($c['last_in_at']),
-            'closes'    => $closes ? dmy(date('Y-m-d', $closes)) . ' · ' . date('g:i A', $closes) : ''
+            'closes'    => $closes ? dmy(date('Y-m-d', $closes)) . ' · ' . date('g:i A', $closes) : '',
+            'owner'     => (int) $c['owner'] === 1
         ];
     }
 
@@ -1079,7 +1609,8 @@ class ctrl extends core {
             'error'  => (string) $m['error'],
             'date'   => $stamp ? date('Y-m-d', $stamp) : '',
             'hour'   => $stamp ? date('g:i A', $stamp) : '',
-            'user'   => $out ? ($m['user_id'] !== null ? ((string) $m['user'] !== '' ? (string) $m['user'] : 'Usuario') : 'Agente') : ''
+            'user'   => $out ? ($m['user_id'] !== null ? ((string) $m['user'] !== '' ? (string) $m['user'] : 'Usuario') : ((int) $m['auto'] === 1 ? 'Agente · salió sola' : 'Agente')) : '',
+            'receipt' => $m['receipt_id'] !== null ? $this->receiptFolio((int) $m['receipt_id']) : ''
         ];
     }
 
@@ -1116,6 +1647,9 @@ class ctrl extends core {
         foreach (['order' => 'Pedido', 'turn' => 'Turno', 'day' => 'Día'] as $type => $label) {
             if ((int) $r['notify_' . $type] === 1) $pills .= '<span class="ord-pill wsp-pill me-1">' . $label . '</span>';
         }
+
+        // F6: le pregunta al agente del dueño (ventas, turno, pedidos, cartera).
+        if ((int) $r['can_ask'] === 1) $pills .= '<span class="ord-pill bg-emerald-50 text-emerald-700 me-1" title="Puede preguntarle al agente">Pregunta</span>';
 
         $row = [
             'id'           => $id,
@@ -1155,6 +1689,89 @@ class ctrl extends core {
         ];
 
         return $row;
+    }
+
+    // Un renglon de la lista de recordatorios (reminderList).
+    private function reminderRow($r) {
+        $pill = function ($text, $tone, $sub = '') {
+            $tones = [
+                'ok'   => 'bg-emerald-50 text-emerald-700',
+                'mute' => 'bg-slate-100 text-slate-600',
+                'bad'  => 'bg-rose-50 text-rose-700'
+            ];
+
+            return '<span class="ord-pill ' . $tones[$tone] . '">' . h($text) . '</span>'
+                 . ($sub !== '' ? '<div class="ord-sub">' . h($sub) . '</div>' : '');
+        };
+
+        $last  = $r['last'] !== '' ? strtotime($r['last']) : 0;
+        $state = [
+            'send'  => $pill('Sale hoy', 'ok'),
+            'cap'   => $pill('Mañana', 'mute', 'Hoy ya salió el tope de ' . $this->reminderDailyCap()),
+            'other' => $pill('Otra sucursal', 'mute', 'Le llega el de ' . $r['other']),
+            'week'  => $pill('Esta semana ya', 'mute', $last ? 'Vuelve a salir el ' . date('d/m/Y', $last + 7 * 86400) : ''),
+            'baja'  => $pill('BAJA', 'bad', $r['opt_out_at'] !== '' ? 'Desde el ' . dmy(substr($r['opt_out_at'], 0, 10)) : 'No recibe recordatorios'),
+            'phone' => $pill('Sin WhatsApp', 'bad', $r['raw_phone'] !== '' ? 'Teléfono no válido' : 'Sin teléfono')
+        ][$r['state']] ?? h($r['state']);
+
+        $folios = (int) $r['folios'];
+
+        return [
+            'id'                   => (int) $r['customer_id'],
+            'Cliente'              => '<div class="font-semibold text-gray-800">' . h($r['name'] !== '' ? $r['name'] : 'Sin nombre') . '</div>'
+                                    . '<div class="ord-sub whitespace-nowrap">' . h($r['phone'] !== '' ? $this->phoneText($r['phone']) : ($r['raw_phone'] !== '' ? $r['raw_phone'] : '—')) . '</div>',
+            'Sucursal'             => h($r['branch']),
+            'Debe'                 => '<div class="font-semibold text-gray-800 whitespace-nowrap">' . money($r['debt']) . '</div>'
+                                    . '<div class="ord-sub">' . ($folios === 1 ? '1 folio' : $folios . ' folios') . '</div>',
+            'Último recordatorio'  => $last
+                                    ? '<div class="whitespace-nowrap">' . date('d/m/Y', $last) . '</div><div class="ord-sub">' . date('g:i A', $last) . '</div>'
+                                    : '<span class="text-gray-500">Nunca</span>',
+            'Estado'               => $state,
+            'a'                    => []
+        ];
+    }
+
+    // Un renglon de Metricas: un tema y que paso con sus propuestas.
+    private function metricRow(array $t) {
+        $mode = $t['key'] === 'dueno'
+            ? '<span class="ord-pill bg-emerald-50 text-emerald-700">Directo</span>'
+            : ($t['auto_on']
+                ? '<span class="ord-pill bg-emerald-50 text-emerald-700">Sale sola</span>'
+                : '<span class="ord-pill bg-slate-100 text-slate-600">' . ($t['can_auto'] ? 'Bandeja' : 'Siempre bandeja') . '</span>');
+
+        $decided = $t['sent'] + $t['edited'] + $t['discarded'];
+        $pct     = function ($n) use ($decided) {
+            return $decided > 0 ? '<div class="ord-sub">' . round($n * 100 / $decided) . '%</div>' : '';
+        };
+        $num     = function ($n, $sub = '') {
+            return '<div class="font-semibold text-gray-800">' . number_format((int) $n) . '</div>' . $sub;
+        };
+
+        return [
+            'id'            => $t['key'],
+            'Tema'          => '<div class="font-semibold text-gray-800">' . h($t['name']) . '</div>',
+            'Cómo sale'     => $mode,
+            'Propuestas'    => $num($t['total']),
+            'Salieron solas' => $num($t['auto']),
+            'Tal cual'      => $num($t['sent'], $pct($t['sent'])),
+            'Cambiadas'     => $num($t['edited'], $pct($t['edited'])),
+            'Descartadas'   => $num($t['discarded'], $pct($t['discarded'])),
+            'Fallidas'      => $num($t['failed'])
+        ];
+    }
+
+    // 45 s · 3 min · 1 h 20 min. '' sin dato.
+    private function secondsText($seconds) {
+        if ($seconds === null) return '';
+
+        $s = (int) $seconds;
+
+        if ($s < 60)   return $s . ' s';
+        if ($s < 3600) return intdiv($s, 60) . ' min' . ($s % 60 && $s < 600 ? ' ' . ($s % 60) . ' s' : '');
+
+        $min = intdiv($s % 3600, 60);
+
+        return intdiv($s, 3600) . ' h' . ($min ? ' ' . $min . ' min' : '');
     }
 
     private function logRow($l) {
