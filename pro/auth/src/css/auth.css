@@ -45,7 +45,7 @@
     --acc-shadow:     0 1px 2px rgba(22, 21, 28, 0.04);
     --acc-card-shadow:0 1px 2px rgba(22, 21, 28, 0.03), 0 24px 60px -24px rgba(50, 27, 115, 0.14);
     --acc-ease:       cubic-bezier(.16, 1, .3, 1);
-    --acc-sans:       'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --acc-sans:       'Lexend', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     --acc-mono:       ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     color-scheme: light;
 }

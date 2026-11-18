@@ -48,7 +48,7 @@ $asset = function ($file) {
     <link rel="stylesheet" href="src/css/order.css?v=<?= filemtime(__DIR__ . '/../src/css/order.css') ?>">
     <!-- Ventana de cobro de pedidos y ventas (pedido-cobro.js): todo bajo #modalOrderPay. -->
     <link rel="stylesheet" href="src/css/pedido-cobro.css?v=<?= filemtime(__DIR__ . '/../src/css/pedido-cobro.css') ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 
     <style>
         /* Select2 detras de los modales; modales y alertas siempre encima. */

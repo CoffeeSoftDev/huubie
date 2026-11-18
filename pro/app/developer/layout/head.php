@@ -41,7 +41,7 @@ $asset = function ($file) {
     <!-- Estetica suave de los modulos: tablas, filtros, pestañas y botones. -->
     <link rel="stylesheet" href="<?= $asset('assets/css/soft.css') ?>">
     <link rel="stylesheet" href="<?= $asset('assets/css/dark-mode.css') ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         /* Select2 detras de los modales; modales y alertas siempre encima. */

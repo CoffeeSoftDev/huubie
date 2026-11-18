@@ -30,12 +30,12 @@ $version = function ($file) {
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="../../assets/js/tailwind-theme.js?v=<?= $version('assets/js/tailwind-theme.js') ?>"></script>
     <link rel="stylesheet" href="../../assets/css/themes.css?v=<?= $version('assets/css/themes.css') ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         /* El fondo lo pone themes.css (--bg): gris en claro, la superficie del
            scheme en oscuro. */
-        body { font-family: 'Inter', sans-serif; transition: background .2s ease; }
+        body { font-family: 'Lexend', system-ui, -apple-system, 'Segoe UI', sans-serif; transition: background .2s ease; }
     </style>
 </head>
 

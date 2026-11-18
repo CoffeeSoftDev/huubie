@@ -128,6 +128,9 @@
 
         var acento = 'rgb(var(--brand-600, 80 48 165))';
 
+        // El rail expandido. Las plantillas con su propio rail no se expanden.
+        var expandido = 'html.rail-open #menu-sidebar:not([data-rail="static"])';
+
         var css = ''
             /*  El contenedor. general.css ya lo deja fijo a la izquierda, de
                 60px y bajo la navbar. Los !important son por si una pagina le
@@ -137,7 +140,7 @@
                 El borde derecho es --chrome-line (themes.css): la MISMA linea
                 que la navbar lleva abajo, gris neutro en claro y --dk-line en
                 oscuro, para que rail y barra se lean como una sola escuadra. */
-            + '#menu-sidebar { display:flex; flex-direction:column; align-items:center; gap:4px !important; padding:10px 6px 10px !important; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF) !important; border-right-color:var(--chrome-line, #D5D9E0); font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif; }'
+            + '#menu-sidebar { display:flex; flex-direction:column; align-items:center; gap:4px !important; padding:10px 6px 10px !important; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; background-color:var(--surface, #FFFFFF) !important; border-right-color:1px solid rgba(232,227,240,.75); font-family:"Lexend",system-ui,-apple-system,"Segoe UI",sans-serif; }'
             + '#menu-sidebar::-webkit-scrollbar { display:none; }'
             + 'body.dark-mode #menu-sidebar { background-color:var(--dk-chrome, #141d2b) !important; border-right:1px solid var(--dk-line, #374151); }'
 
@@ -145,7 +148,7 @@
                 con el tinte del acento; al pasar, el acento muy diluido. */
             + '.menu-rail-item { position:relative; flex-shrink:0; width:48px; min-height:46px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; margin:0; padding:7px 1px; border:1px solid transparent; border-radius:14px; background:transparent; color:var(--ink-dim, #6B7280); font-family:inherit; text-align:center; text-decoration:none !important; cursor:pointer; transition:color .15s ease, background .15s ease, border-color .15s ease; }'
             + '.menu-rail-item i, .menu-rail-item svg { width:19px; height:19px; flex-shrink:0; }'
-            + '.menu-rail-label { font-size:8.5px; font-weight:600; letter-spacing:.01em; line-height:1; white-space:nowrap; }'
+            + '.menu-rail-label { font-size:8.5px; letter-spacing:.01em; line-height:1; white-space:nowrap; }'
             // Bootstrap pinta los <a> de azul al pasar: el color lo decide el tema.
             + 'a.menu-rail-item:hover { text-decoration:none; }'
             + '.menu-rail-item:hover { color:' + acento + '; background:var(--tint, rgb(var(--brand-600, 80 48 165) / .06)); border-color:transparent; }'
@@ -199,19 +202,49 @@
                 rail tiene overflow-y:auto y cualquier hijo absoluto quedaria
                 recortado. Por encima del rail (40) y la navbar (50), debajo de
                 los modales (9998+). */
-            + '.menu-rail-fly { position:fixed; z-index:70; display:none; min-width:186px; max-width:250px; padding:6px; background:var(--surface, #FFFFFF); border:1px solid var(--line, #E5E7EB); border-radius:12px; box-shadow:0 12px 28px rgba(15,23,42,.14); font-family:"Inter",system-ui,sans-serif; }'
+            + '.menu-rail-fly { position:fixed; z-index:70; display:none; min-width:186px; max-width:250px; padding:6px; background:var(--surface, #FFFFFF); border:1px solid var(--line, #E5E7EB); border-radius:12px; box-shadow:0 12px 28px rgba(15,23,42,.14); font-family:"Lexend",system-ui,sans-serif; }'
             + '.menu-rail-fly.is-open { display:block; }'
-            + '.menu-rail-fly-head { margin:0; padding:5px 9px; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-dim, #6B7280); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }'
-            + '.menu-rail-fly-item { display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:9px; font-size:12.5px; font-weight:500; color:var(--ink-dim, #6B7280) !important; text-decoration:none !important; transition:color .15s ease, background .15s ease; }'
+            + '.menu-rail-fly-head { margin:0; padding:5px 9px; font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-dim, #6B7280); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }'
+            + '.menu-rail-fly-item { display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:9px; font-size:12.5px; font-weight:400; color:var(--ink-dim, #6B7280) !important; text-decoration:none !important; transition:color .15s ease, background .15s ease; }'
             + '.menu-rail-fly-item svg { width:15px; height:15px; flex-shrink:0; }'
             + '.menu-rail-fly-item span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }'
             + '.menu-rail-fly-item:hover { color:var(--ink, #111827) !important; background:rgb(var(--gray-100, 243 244 246)); }'
-            + '.menu-rail-fly-item.is-active { color:rgb(var(--brand-600, 192 90 64)) !important; background:rgb(var(--brand-600, 192 90 64) / .10); font-weight:600; }'
+            + '.menu-rail-fly-item.is-active { color:rgb(var(--brand-600, 192 90 64)) !important; background:rgb(var(--brand-600, 192 90 64) / .10); font-weight:500; }'
             + '.menu-rail-fly-item.is-dead, .menu-rail-fly-item.is-dead:hover { opacity:.45; cursor:not-allowed; background:transparent; }'
             + 'body.dark-mode .menu-rail-fly { background:var(--dk-card, #1F2A37); border-color:var(--dk-line, #374151); box-shadow:0 16px 40px rgba(0,0,0,.45); }'
             + 'body.dark-mode .menu-rail-fly-head, body.dark-mode .menu-rail-fly-item { color:var(--dk-muted, #9CA3AF) !important; }'
             + 'body.dark-mode .menu-rail-fly-item:hover { color:var(--dk-text, #F9FAFB) !important; background:var(--dk-hover, #1a2332); }'
             + 'body.dark-mode .menu-rail-fly-item.is-active { color:rgb(var(--brand-300, 232 166 143)) !important; background:rgb(var(--brand-600, 192 90 64) / .18); }'
+
+            /*  EXPANDIDO (html.rail-open; ver alternar()): 220px, icono y
+                nombre en fila, y el item abierto con una barra del acento a la
+                izquierda. El ancho y el hueco del <body> estan en general.css;
+                aqui solo cambia como se acomoda cada item. Los colores son los
+                del rail contraido, salvo la tinta de los items sin elegir en
+                claro: #75728A. */
+            + '@media not all and (max-width:' + MOVIL + 'px) {'
+            +   expandido + ' { align-items:stretch; padding:12px 10px !important; }'
+            +   expandido + ' .menu-rail-item { width:100%; min-height:44px; flex-direction:row; justify-content:flex-start; gap:12px; padding:10px 12px; border-radius:10px; text-align:left; }'
+            +   expandido + ' .menu-rail-item > svg:not(.menu-rail-lock), ' + expandido + ' .menu-rail-item > i:not(.menu-rail-lock) { width:20px; height:20px; }'
+            +   expandido + ' .menu-rail-label { flex:1; min-width:0; font-size:14px; font-weight:300; letter-spacing:0; line-height:1.25; }'
+            +   expandido + ' .menu-rail-item.is-active { border-color:transparent; }'
+            +   expandido + ' .menu-rail-item.is-active .menu-rail-label { font-weight:600; }'
+            +   expandido + ' .menu-rail-item.is-active::before { content:""; position:absolute; left:-1px; top:-1px; bottom:-1px; width:4px; border-radius:4px; background:currentColor; }'
+            +   expandido + ' .menu-rail-sep { width:auto; margin:6px 10px; }'
+            +   expandido + ' .menu-rail-foot { align-items:stretch; }'
+            +   expandido + ' .menu-rail-lock { top:50%; right:12px; margin-top:-5.5px; }'
+            +   expandido + ' .menu-rail-dot { top:50%; right:12px; margin-top:-2.5px; }'
+            +   'html.rail-open:not([data-sidebar="dark"]) body:not(.dark-mode) #menu-sidebar:not([data-rail="static"]) .menu-rail-item:not(.is-active):not(:hover) { color:#75728A; }'
+            + '}'
+
+            /*  El paso entre uno y otro. Solo mientras dura (html.rail-anim):
+                el hueco no debe animarse al cargar ni al cruzar a movil. El
+                nombre se recorta sin puntos suspensivos mientras el rail
+                crece, para que se descubra en vez de parpadear "Pe…". */
+            + 'html.rail-anim #menu-sidebar { transition:width .2s ease; }'
+            + 'html.rail-anim body { transition:padding-left .2s ease; }'
+            + 'html.rail-anim #menu-sidebar .menu-rail-label { text-overflow:clip; }'
+            + '@media (prefers-reduced-motion:reduce) { html.rail-anim #menu-sidebar, html.rail-anim body { transition:none; } }'
 
             /*  Movil: el rail deja el lateral y se vuelve una barra FIJA al
                 pie, en fila y con scroll horizontal.
@@ -492,6 +525,43 @@
             e.preventDefault();
         }, { passive: false });
     }
+
+    /* ============ EXPANDIDO / CONTRAIDO ============ */
+    /*  El boton lo pone la navbar (#btnRail); el estado es la clase rail-open
+        de <html> y queda en este navegador. tailwind-theme.js la vuelve a
+        poner desde el <head> en la siguiente carga, con esta misma llave. */
+    var CLAVE_ABIERTO = 'huubie:pro:rail-open';
+    var animando      = null;
+
+    function estaAbierto() {
+        return document.documentElement.classList.contains('rail-open');
+    }
+
+    // Sin argumento, alterna. Avisa con rail:change para que el boton cambie.
+    function alternar(abrir) {
+        var html = document.documentElement;
+
+        abrir = typeof abrir === 'boolean' ? abrir : !estaAbierto();
+        if (abrir === estaAbierto()) return;
+
+        html.classList.add('rail-anim');
+        html.classList.toggle('rail-open', abrir);
+
+        try { localStorage.setItem(CLAVE_ABIERTO, abrir ? '1' : '0'); } catch (e) { /* vale solo para esta pagina */ }
+
+        /*  Al terminar, un resize: el contenido cambio de ancho y las tablas
+            y graficas que miden la ventana se vuelven a acomodar. Tambien
+            cierra el flotante, que quedo apuntando al boton viejo. */
+        clearTimeout(animando);
+        animando = setTimeout(function () {
+            html.classList.remove('rail-anim');
+            window.dispatchEvent(new Event('resize'));
+        }, 220);
+
+        document.dispatchEvent(new CustomEvent('rail:change', { detail: { open: abrir } }));
+    }
+
+    window.proRail = { abierto: estaAbierto, alternar: alternar };
 
     /* ============ MENU GUARDADO ============ */
     // Una clave por carpeta: todas las paginas de un modulo comparten el menu.

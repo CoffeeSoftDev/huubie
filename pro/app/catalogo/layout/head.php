@@ -43,7 +43,7 @@ $asset = function ($file) {
     <link rel="stylesheet" href="<?= $asset('assets/css/dark-mode.css') ?>">
     <!-- La del modulo despues de dark-mode: le quita a #main__content la tarjeta aliceblue. -->
     <link rel="stylesheet" href="src/css/catalogo.css?v=<?= filemtime(__DIR__ . '/../src/css/catalogo.css') ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 
     <style>
         /* Select2 detras de los modales; modales y alertas siempre encima. */

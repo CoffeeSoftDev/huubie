@@ -1,7 +1,16 @@
 * {
   margin: 0;
   padding: 0;
-  /* font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; */
+}
+
+/* La fuente del proyecto: Lexend (Google Fonts, en el <head> de cada pagina).
+   Bootstrap la toma de sus variables; las declara en :root y otra vez en
+   [data-bs-theme], que tailwind-theme.js pone en el <body>, por eso van aqui
+   en los dos. Tailwind la toma de su config (tailwind-theme.js). */
+:root,
+[data-bs-theme] {
+  --bs-font-sans-serif: 'Lexend', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --bs-body-font-family: var(--bs-font-sans-serif);
 }
 
 /* ============================================================================
@@ -61,8 +70,7 @@ body {
   height: 100vh;
   overflow: hidden;
   box-sizing: border-box;
-
-  /* font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; */
+  font-family: 'Lexend', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 /* ============================================================================
@@ -194,6 +202,21 @@ main > #main__content > div {
 body {
   padding-left: 60px;
   padding-top: 64px;
+}
+
+/* Rail EXPANDIDO (html.rail-open, el boton de la navbar): 220px con el nombre
+   al lado del icono. tailwind-theme.js pone la clase desde el <head>, asi que
+   el hueco sale con su ancho desde el primer pintado. Solo en escritorio: en
+   movil (<= 640px, MOVIL de sidebar.js) el rail es la barra al pie. Las
+   plantillas con rail propio (data-rail="static") se quedan en 60px. */
+@media not all and (max-width: 640px) {
+   html.rail-open #menu-sidebar:not([data-rail="static"]) {
+      width: 220px;
+   }
+
+   html.rail-open body:has(#menu-sidebar:not([data-rail="static"])) {
+      padding-left: 220px;
+   }
 }
 
 #root{

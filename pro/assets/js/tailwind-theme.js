@@ -423,6 +423,13 @@
         }
     } catch (e) { /* sin sessionStorage */ }
 
+    // Rail expandido (el boton de la navbar; ver alternar() en sidebar.js).
+    // Se marca aqui, en el <head>, para que general.css le deje su hueco desde
+    // el primer pintado y la pagina no brinque al cargar.
+    try {
+        if (localStorage.getItem('huubie:pro:rail-open') === '1') document.documentElement.classList.add('rail-open');
+    } catch (e) { /* sin localStorage: contraido */ }
+
     if (typeof tailwind === 'undefined') return;
 
     function scale(token, fallback) {
@@ -439,6 +446,11 @@
         darkMode: 'class',
         theme: {
             extend: {
+                // La fuente del proyecto (ver general.css): el <html> del
+                // preflight y font-sans.
+                fontFamily: {
+                    sans: ['Lexend', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif']
+                },
                 colors: {
                     // Acento. Respaldo: rampa terracota del tema Claro (600 = #C05A40).
                     blue: scale('brand', TERRACOTA),

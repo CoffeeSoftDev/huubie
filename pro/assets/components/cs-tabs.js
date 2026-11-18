@@ -55,7 +55,7 @@ function csTabsCSS() {
         +   ' color:rgb(var(--brand-700, 168 74 51)); }'
 
         /* Encabezado de página de CostSys (migas + título + subtítulo). */
-        + '.cp-pagina-titulo { font-family:Poppins, Inter, sans-serif; font-size:26px; font-weight:700;'
+        + '.cp-pagina-titulo { font-family:Poppins, Lexend, sans-serif; font-size:26px; font-weight:700;'
         +   ' letter-spacing:-.02em; line-height:1.15; margin:0; color:rgb(var(--primary-rgb, 41 37 36)); }'
         + '.cp-pagina-subtitulo { font-size:13px; color:#64748B; margin:5px 0 0; }'
 

@@ -89,6 +89,11 @@ class Navbar {
         this.host.innerHTML = `
             <nav class="navbar-main">
                 <div class="nav-left">
+                    <button type="button" id="btnRail" class="nav-tool-btn nav-rail-btn" aria-controls="menu-sidebar" hidden>
+                        <span class="nav-rail-to-open"><i data-lucide="panel-left-open"></i></span>
+                        <span class="nav-rail-to-close"><i data-lucide="panel-left-close"></i></span>
+                    </button>
+
                     <a class="nav-brand" href="${this.base}/app/home/" title="Ir al inicio" aria-label="Ir al inicio">
                         <img class="nav-logo nav-logo-light" src="${this.base}/assets/img/huubie_light.png" alt="Huubie">
                         <img class="nav-logo nav-logo-dark" src="${this.base}/assets/img/huubie.svg" alt="Huubie">
@@ -174,6 +179,29 @@ class Navbar {
         // Como quedo la pagina desde el <head> (tailwind-theme.js): la barra nace
         // ya en su modo, sin esperar al servidor.
         this.paintMode(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        this.paintRail();
+    }
+
+    // -- Rail: expandido o contraido --
+
+    /*  El boton solo existe donde hay un rail que expandir: Empresas no lo
+        tiene y las plantillas traen el suyo (data-rail="static"). Quien
+        expande es sidebar.js (proRail.alternar); aqui solo se pinta el boton:
+        que icono va lo decide html.rail-open en el CSS. */
+    paintRail() {
+        const rail = document.getElementById('menu-sidebar');
+        const btn  = document.getElementById('btnRail');
+        const open = document.documentElement.classList.contains('rail-open');
+        const label = open ? 'Contraer menú' : 'Expandir menú';
+
+        btn.hidden = !rail || rail.dataset.rail === 'static';
+        btn.title  = label;
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    toggleRail() {
+        if (window.proRail) window.proRail.alternar();
     }
 
     renderSession() {
@@ -295,7 +323,7 @@ class Navbar {
 
         box.innerHTML = `
             <button type="button" id="btnBranch" class="branch-pill ${multi ? '' : 'branch-pill-static'}" aria-expanded="false" ${multi ? '' : 'disabled'}>
-                <span class="branch-pill-icon"><i data-lucide="${allOn ? 'layers' : 'store'}"></i></span>
+                <span class="branch-pill-icon"><i data-lucide="${allOn ? 'layers' : 'building-2'}"></i></span>
                 <span class="branch-pill-text">
                     <span class="branch-pill-label">${allOn ? 'Sucursales' : 'Sucursal'}</span>
                     <span class="branch-pill-name">${allOn ? 'Todas' : this.esc(current.name)}</span>
@@ -485,6 +513,7 @@ class Navbar {
         this.host.addEventListener('click', (e) => {
             const on = (selector) => e.target.closest(selector);
 
+            if (on('#btnRail'))     return this.toggleRail();
             if (on('#btnUserMenu')) return this.toggle('userMenuDropdown');
             if (on('#btnMode'))     return this.selectMode(this.current === 'dark' ? 'light' : 'dark');
             if (on('#btnNotifs'))   return this.toggle('navNotifPanel');
@@ -506,6 +535,8 @@ class Navbar {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') this.closeAll();
         });
+
+        document.addEventListener('rail:change', () => this.paintRail());
     }
 
     // -- Avisos --
@@ -559,6 +590,9 @@ class Navbar {
         desplegables, de los tokens de pagina (--surface, --line, --ink) y, en
         pagina oscura, de los --dk-*.
 
+        Letra: Lexend, con la misma escala que page.css (texto en 300 y los
+        pesos un escalon abajo de los que llevaba con Inter).
+
         Varias reglas llevan !important: Bootstrap (las paginas de Developer lo
         cargan) trae a:hover, button y p con sus propios colores y margenes. */
     injectCSS() {
@@ -586,7 +620,7 @@ class Navbar {
 
             /* Sin general.css (Empresas) el anfitrion no trae alto ni capa. */
             #menu-navbar { flex:none; z-index:50; }
-            .navbar-main { position:relative; height:64px; min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px; background:#FFFFFF; border-bottom:1px solid var(--chrome-line, #D5D9E0); box-shadow:var(--chrome-shadow, 0 1px 2px rgb(16 24 40 / .04)); font-family:'Inter',system-ui,sans-serif; transition:background .2s ease; }
+            .navbar-main { background: #FFFFFF; position:relative; height:64px; min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px; border-bottom: 1px solid rgba(232,227,240,.75);  font-family:'Lexend',system-ui,sans-serif; font-weight:300; transition:background .2s ease; }
             .navbar-main button { font-family:inherit; }
             .navbar-main [hidden] { display:none !important; }
             .navbar-main p { margin:0; }
@@ -601,11 +635,11 @@ class Navbar {
             .nav-logo-dark { display:none; }
             .navbar-main.nav-dark .nav-logo-light { display:none; }
             .navbar-main.nav-dark .nav-logo-dark { display:block; }
-            .nav-company { padding-left:12px; border-left:1px solid #E8E3F0; font-size:13px; font-weight:600; color:#6D6977; line-height:22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
+            .nav-company { padding-left:12px; border-left:1px solid #E8E3F0; font-size:13px; font-weight:500; color:#6D6977; line-height:22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
             .nav-company:empty { display:none; }
 
             /* root dentro de una empresa: que no se le olvide que no es la suya. */
-            .nav-viewing { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:600; color:#92400E; background:#FEF3C7; border:1px solid #FDE68A; white-space:nowrap; }
+            .nav-viewing { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:500; color:#92400E; background:#FEF3C7; border:1px solid #FDE68A; white-space:nowrap; }
             .nav-viewing svg { width:13px; height:13px; }
 
             /* Botones de icono redondos, como .nav-tool-btn de erp-pro. */
@@ -619,34 +653,34 @@ class Navbar {
             /* Pildora de sucursal */
             .nav-branch { position:relative; min-width:0; }
             .nav-branch:empty { display:none; }
-            .branch-pill { display:flex; align-items:center; gap:10px; padding:4px 10px; border:1px solid var(--nav-accent-line); border-radius:10px; background:var(--nav-accent-tint); cursor:pointer; transition:border-color .15s ease, background .15s ease, box-shadow .15s ease; max-width:100%; }
+            .branch-pill { display:flex; align-items:center; gap:10px; padding:5px 5px;  border-radius:10px; background:var(--nav-accent-tint); cursor:pointer; transition:border-color .15s ease, background .15s ease, box-shadow .15s ease; max-width:100%; }
             .branch-pill:hover { border-color:var(--nav-accent); }
             .branch-pill.branch-pill-static { cursor:default; }
             .branch-pill.branch-pill-static:hover { border-color:var(--nav-accent-line); }
             .branch-pill-icon { width:30px; height:30px; border-radius:8px; background:var(--nav-accent-tint); display:flex; align-items:center; justify-content:center; color:var(--nav-accent); flex-shrink:0; }
             .branch-pill-icon svg { width:17px; height:17px; }
             .branch-pill-text { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; min-width:0; }
-            .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#6D6977; font-weight:600; }
-            .branch-pill-name { font-size:13px; font-weight:700; color:#16151C; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#94A3B8; font-weight:500; }
+            .branch-pill-name { font-size:13px; font-weight:600; color:#16151C; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
             .branch-pill-chev { width:16px; height:16px; color:#6D6977; transition:transform .2s ease; }
             #btnBranch[aria-expanded="true"] .branch-pill-chev { transform:rotate(180deg); }
 
             /* Desplegables: una sola piel para los tres. */
             .branch-dd, .nav-panel, .nav-dropdown { position:absolute; right:0; top:calc(100% + 10px); background:var(--nav-pop); border:1px solid var(--nav-pop-line); border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); z-index:60; color:var(--nav-pop-ink); text-align:left; }
             body.dark-mode .branch-dd, body.dark-mode .nav-panel, body.dark-mode .nav-dropdown { box-shadow:0 16px 40px rgba(0,0,0,.45); }
-            .nav-dd-label { padding:8px 10px 4px; font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--nav-pop-dim); font-weight:700; }
+            .nav-dd-label { padding:8px 10px 4px; font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--nav-pop-dim); font-weight:600; }
 
             .branch-dd { width:300px; }
             .branch-dd-head { padding:12px 14px 10px; border-bottom:1px solid var(--nav-pop-line); }
-            .branch-dd-label { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--nav-accent); font-weight:700; }
+            .branch-dd-label { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--nav-accent); font-weight:600; }
             .branch-dd-company { font-size:11px; color:var(--nav-pop-dim); margin-top:2px !important; }
             .branch-dd-list { padding:8px; display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto; }
             .branch-card { width:100%; display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--nav-pop-line); border-radius:10px; background:transparent; cursor:pointer; text-align:left; transition:border-color .15s ease, background .15s ease; }
             .branch-card:hover { border-color:var(--nav-accent-line); background:var(--nav-accent-tint); }
             .branch-card-sel { background:var(--nav-accent-tint); border-color:var(--nav-accent); }
-            .branch-card-avatar { width:28px; height:28px; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:10px; letter-spacing:.5px; color:#FFFFFF; flex-shrink:0; background:linear-gradient(135deg, rgb(var(--accent-2-700, 168 74 51)) 0%, rgb(var(--accent-2-500, 200 105 76)) 100%); }
+            .branch-card-avatar { width:28px; height:28px; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:10px; letter-spacing:.5px; color:#FFFFFF; flex-shrink:0; background:linear-gradient(135deg, rgb(var(--accent-2-700, 168 74 51)) 0%, rgb(var(--accent-2-500, 200 105 76)) 100%); }
             .branch-card-text { flex:1; min-width:0; display:flex; flex-direction:column; }
-            .branch-card-name { font-size:13px; font-weight:700; color:var(--nav-pop-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .branch-card-name { font-size:13px; font-weight:600; color:var(--nav-pop-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
             .branch-card-place { font-size:11px; color:var(--nav-pop-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
             .branch-radio { width:16px; height:16px; border-radius:9999px; border:2px solid var(--nav-pop-line); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
             .branch-card-sel .branch-radio { border-color:var(--nav-accent); }
@@ -661,29 +695,45 @@ class Navbar {
             .navbar-main.nav-dark .nav-mode-to-dark { display:none; }
             .navbar-main.nav-dark .nav-mode-to-light { display:flex; }
 
+            /* Rail. El boton cae sobre la columna del rail: con el padding de
+               16px de la barra, -5px lo centra en sus 60px. Icono de a donde
+               se va, como el del modo. En movil el rail es la barra al pie
+               (<= 640px, MOVIL de sidebar.js) y no hay que expandir. */
+            .nav-rail-btn { margin-left:-5px; flex-shrink:0; }
+            /* aria-expanded es el rail, no un desplegable: no se tiñe. */
+            .nav-rail-btn[aria-expanded="true"] { color:#6D6977 !important; background:transparent; }
+            .nav-rail-btn[aria-expanded="true"]:hover { color:#16151C !important; background:#F1EDF9; }
+            .navbar-main.nav-dark .nav-rail-btn[aria-expanded="true"] { color:#CBD5E1 !important; background:transparent; }
+            .navbar-main.nav-dark .nav-rail-btn[aria-expanded="true"]:hover { color:#FFFFFF !important; background:rgba(255,255,255,.10); }
+            .nav-rail-to-open, .nav-rail-to-close { display:flex; }
+            .nav-rail-to-close { display:none; }
+            html.rail-open .nav-rail-to-open { display:none; }
+            html.rail-open .nav-rail-to-close { display:flex; }
+            @media (max-width: 640px) { .navbar-main .nav-rail-btn { display:none !important; } }
+
             /* Notificaciones */
             .nav-tool-btn { position:relative; }
-            .nav-count { position:absolute; top:3px; right:3px; min-width:16px; height:16px; padding:0 4px; border-radius:9999px; background:#DC2626; color:#FFFFFF; font-size:10px; font-weight:700; line-height:16px; text-align:center; }
+            .nav-count { position:absolute; top:3px; right:3px; min-width:16px; height:16px; padding:0 4px; border-radius:9999px; background:#DC2626; color:#FFFFFF; font-size:10px; font-weight:600; line-height:16px; text-align:center; }
             .nav-notif-panel { width:300px; padding:6px; }
             .nav-notif { display:flex; align-items:flex-start; gap:10px; padding:10px; border-radius:10px; text-decoration:none !important; transition:background .15s ease; }
             .nav-notif:hover { background:var(--nav-pop-hover); }
             .nav-notif-ico { width:32px; height:32px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--nav-accent-tint); color:var(--nav-accent); }
             .nav-notif-ico svg { width:16px; height:16px; }
             .nav-notif-text { display:flex; flex-direction:column; min-width:0; line-height:1.35; }
-            .nav-notif-text b { font-size:13px; font-weight:700; color:var(--nav-pop-ink); }
+            .nav-notif-text b { font-size:13px; font-weight:600; color:var(--nav-pop-ink); }
             .nav-notif-text small { font-size:12px; color:var(--nav-pop-dim); }
 
             /* Usuario */
             .nav-user { position:relative; }
-            .nav-user-pill { display:flex; align-items:center; gap:10px; padding:4px 8px 4px 13px; border:1px solid transparent; border-left:1px solid #E8E3F0; border-radius:8px; background:transparent; cursor:pointer; transition:background .15s ease, border-color .15s ease; }
+            .nav-user-pill { display:flex; align-items:center; gap:10px; padding:4px 8px 4px 8px;  border-radius:8px; background:transparent; cursor:pointer; transition:background .15s ease, border-color .15s ease; }
             .nav-user-pill:hover { background:#F1EDF9; border-color:#E8E3F0; }
-            .nav-avatar, .nav-head-avatar { border-radius:9999px; background:#9CA3AF; display:flex; align-items:center; justify-content:center; color:#FFFFFF; font-weight:700; flex-shrink:0; overflow:hidden; }
+            .nav-avatar, .nav-head-avatar { border-radius:9999px; background:#9CA3AF; display:flex; align-items:center; justify-content:center; color:#FFFFFF; font-weight:600; flex-shrink:0; overflow:hidden; }
             .nav-avatar { width:36px; height:36px; font-size:12.5px; }
             .nav-head-avatar { width:46px; height:46px; font-size:15px; }
             .nav-avatar img, .nav-head-avatar img { width:100%; height:100%; object-fit:cover; }
             .nav-avatar svg { width:18px; height:18px; }
             .nav-user-text { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
-            .nav-user-name { font-size:13px; font-weight:600; color:#16151C; white-space:nowrap; max-width:170px; overflow:hidden; text-overflow:ellipsis; }
+            .nav-user-name { font-size:13px; font-weight:500; color:#16151C; white-space:nowrap; max-width:170px; overflow:hidden; text-overflow:ellipsis; }
             .nav-user-rol { font-size:11px; color:#6D6977; }
             .nav-user-rol:empty { display:none; }
             .nav-chevron { width:16px; height:16px; color:#6D6977; transition:transform .2s ease; }
@@ -692,17 +742,17 @@ class Navbar {
             .nav-dropdown { width:280px; overflow:hidden; }
             .nav-user-head { display:flex; align-items:center; gap:12px; padding:16px; }
             .nav-head-text { flex:1; min-width:0; }
-            .nav-head-name { font-size:15px; font-weight:700; color:var(--nav-pop-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+            .nav-head-name { font-size:15px; font-weight:600; color:var(--nav-pop-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
             .nav-dropdown .nav-user-rol { color:var(--nav-pop-dim); }
             .nav-head-email { font-size:12.5px; color:var(--nav-pop-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
             .nav-divider { height:1px; background:var(--nav-pop-line); }
             .nav-menu { padding:8px; }
-            .nav-menu-row { width:100%; display:flex; align-items:center; gap:10px; padding:10px 12px; border:none; border-radius:10px; background:transparent; color:var(--nav-pop-ink) !important; font-size:14px; font-weight:600; text-align:left; text-decoration:none !important; cursor:pointer; transition:background .15s ease; }
+            .nav-menu-row { width:100%; display:flex; align-items:center; gap:10px; padding:10px 12px; border:none; border-radius:10px; background:transparent; color:var(--nav-pop-ink) !important; font-size:14px; font-weight:500; text-align:left; text-decoration:none !important; cursor:pointer; transition:background .15s ease; }
             .nav-menu-row svg { width:16px; height:16px; color:var(--nav-pop-dim); }
             .nav-menu-row:hover { background:var(--nav-pop-hover); }
             .nav-only-compact { display:none; }
             .nav-logout { padding:0 12px 12px; }
-            .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1px solid var(--nav-pop-line); color:#DC2626; border-radius:12px; font-weight:600; font-size:14px; background:transparent; cursor:pointer; transition:background .15s ease, border-color .15s ease; }
+            .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1px solid var(--nav-pop-line); color:#DC2626; border-radius:12px; font-weight:500; font-size:14px; background:transparent; cursor:pointer; transition:background .15s ease, border-color .15s ease; }
             .nav-logout-btn svg { width:16px; height:16px; }
             .nav-logout-btn:hover { background:rgba(220,38,38,.08); border-color:rgba(220,38,38,.35); }
             body.dark-mode .nav-logout-btn { color:#F87171; }
@@ -733,6 +783,7 @@ class Navbar {
                ancho de la pantalla para no salirse por la izquierda. ── */
             @media (max-width: 767.98px) {
                 .navbar-main { padding:0 10px; gap:8px; }
+                .nav-rail-btn { margin-left:1px; }
                 .nav-right { gap:6px; flex-shrink:1; }
                 .navbar-main .nav-company,
                 .navbar-main .nav-viewing span,

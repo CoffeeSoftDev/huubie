@@ -27,7 +27,7 @@ $version = function ($file) {
     <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="auth/src/css/auth.css?v=<?= $version('auth/src/css/auth.css') ?>">
     <!-- Sin defer: pone data-theme antes de pintar (sin parpadeo del tema contrario). -->
     <script src="auth/src/js/theme.js?v=<?= $version('auth/src/js/theme.js') ?>"></script>

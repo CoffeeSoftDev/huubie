@@ -194,6 +194,6 @@ Templates.prototype.csSelectorCards = function (options) {
 
     anchor();
     $(window).off('resize.csSelectorCards').on('resize.csSelectorCards', anchor);
-    // La fuente (Inter) puede llegar después y cambiar los altos.
+    // La fuente (Lexend) puede llegar después y cambiar los altos.
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(anchor);
 };
