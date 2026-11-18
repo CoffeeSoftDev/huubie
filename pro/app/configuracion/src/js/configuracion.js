@@ -28,7 +28,9 @@ const CFG_CICLOS  = { monthly: 'al mes', yearly: 'al año', lifetime: 'pago úni
 const CFG_METODOS = { stripe: 'Tarjeta (Stripe)', manual: 'Registro manual', transfer: 'Transferencia', cash: 'Efectivo' };
 
 // Lo que contesto init (la empresa, los catalogos) y lo ultimo de cada pestaña.
-const cfg = { base: null, data: {} };
+// userBranch: la sucursal del filtro de Usuarios ('' = todas); sobrevive al refrescar.
+// roleState: el estado del filtro de Roles ('' = todos, '1' activos, '0' inactivos).
+const cfg = { base: null, data: {}, userBranch: '', roleState: '' };
 
 $(async () => {
     const root = document.getElementById('root');
@@ -172,6 +174,32 @@ function cfgField(id, label, value, attrs, cls) {
         </div>`;
 }
 
+// Contraseña con el ojo para verla mientras se escribe (cfgEyes lo enciende).
+function cfgPassField(id, label, attrs, cls) {
+    return `
+        <div class="pg-field ${cls || ''}">
+            <label class="pg-label" for="${id}">${label}</label>
+            <div class="pg-pass">
+                <input class="pg-input" id="${id}" name="${id}" type="password" ${attrs || ''}>
+                <button type="button" class="pg-pass-eye" data-eye="${id}" title="Ver contraseña" aria-label="Ver contraseña"><i data-lucide="eye"></i></button>
+            </div>
+        </div>`;
+}
+
+function cfgEyes(form) {
+    form.querySelectorAll('[data-eye]').forEach((eye) => eye.addEventListener('click', () => {
+        const input = form.querySelector('#' + eye.dataset.eye);
+        const show  = input.type === 'password';
+        const label = show ? 'Ocultar contraseña' : 'Ver contraseña';
+
+        input.type      = show ? 'text' : 'password';
+        eye.innerHTML   = `<i data-lucide="${show ? 'eye-off' : 'eye'}"></i>`;
+        eye.title       = label;
+        eye.setAttribute('aria-label', label);
+        Page.icons();
+    }));
+}
+
 /*  Modal con un formulario. onSubmit(datos, form) devuelve la respuesta del
     servidor: con 200 se cierra; si no, enseña el mensaje y enfoca el campo
     que el servidor señalo (res.field). Sin onSubmit es solo de consulta. */
@@ -269,7 +297,7 @@ function cfgEmpresa() {
         ${cfgField('email', 'Correo de contacto', c.email, 'type="email" maxlength="120" autocomplete="email" placeholder="A donde te escriben tus clientes"')}` : '';
 
     cfgPanel(`
-        <div class="pg-grid">
+        <div class="pg-grid is-even">
             <div class="pg-col">
                 <div class="pg-card">
                     <div class="pg-card-head"><p class="pg-card-title">Logo</p></div>
@@ -399,7 +427,7 @@ async function cfgSucursales() {
                 </div>
             </td>
             <td class="pg-td-num" data-label="Personas">${b.users}</td>
-            <td data-label="Estado"><span class="pg-chip ${b.active ? 'is-ok' : 'is-off'}">${b.active ? 'Activa' : 'Inactiva'}</span></td>
+            <td class="pg-td-center" data-label="Estado"><span class="pg-chip ${b.active ? 'is-ok' : 'is-off'}">${b.active ? 'Activa' : 'Inactiva'}</span></td>
             <td class="pg-td-actions">
                 <button type="button" class="pg-btn is-ghost is-round" data-edit="${b.id}" title="Editar" aria-label="Editar ${Page.esc(b.name)}"><i data-lucide="pencil"></i></button>
                 ${cfgSwitch(b.active, `data-toggle="${b.id}"`, b.active ? 'Desactivar' : 'Activar')}
@@ -420,7 +448,7 @@ async function cfgSucursales() {
             </div>
             <div class="pg-table-wrap">
                 <table class="pg-table">
-                    <thead><tr><th>Sucursal</th><th class="pg-td-num">Personas</th><th>Estado</th><th></th></tr></thead>
+                    <thead><tr><th>Sucursal</th><th class="pg-td-num">Personas</th><th class="pg-td-center">Estado</th><th></th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
             </div>
@@ -481,7 +509,75 @@ async function cfgUsuarios() {
     const d = await cfgLoad('usuarios', 'users');
     if (!d) return;
 
-    const rows = d.users.map((u) => {
+    // Si la sucursal del filtro ya no viene en la lista, se vuelve a «Todas».
+    if (!d.branches.some((b) => String(b.id) === cfg.userBranch)) cfg.userBranch = '';
+
+    const branchOptions = d.branches.map((b) => `
+        <option value="${b.id}" ${String(b.id) === cfg.userBranch ? 'selected' : ''}>${Page.esc(b.name)}${b.active ? '' : ' (inactiva)'}</option>`).join('');
+
+    cfgPanel(`
+        <div class="pg-card">
+            <div class="pg-card-head pg-toolbar">
+                <div>
+                    <p class="pg-card-title">Usuarios</p>
+                    <p class="pg-dim pg-small">Quién entra a Huubie, a qué sucursal y con qué rol.</p>
+                </div>
+                <div class="pg-toolbar-side">
+                    <select class="pg-input" id="cfgUserBranch" aria-label="Filtrar por sucursal">
+                        <option value="">Todas las sucursales</option>
+                        ${branchOptions}
+                    </select>
+                    ${cfgUsage('users', 'activos', d.limits.users)}
+                    <button type="button" class="pg-btn is-primary" id="btnAddUser"><i data-lucide="user-plus"></i>Agregar usuario</button>
+                </div>
+            </div>
+            <div class="pg-table-wrap">
+                <table class="pg-table" id="cfgUsersTable">
+                    <thead><tr><th>Persona</th><th>Accesos</th><th>Estado</th><th>Último ingreso</th><th></th></tr></thead>
+                    <tbody id="cfgUsersBody">${cfgUserRows(d)}</tbody>
+                </table>
+            </div>
+        </div>`);
+
+    document.getElementById('btnAddUser').addEventListener('click', () => cfgUserForm(null, d));
+
+    // Cambiar de sucursal solo vuelve a pintar las filas: los datos ya estan aqui.
+    document.getElementById('cfgUserBranch').addEventListener('change', (e) => {
+        cfg.userBranch = e.target.value;
+        document.getElementById('cfgUsersBody').innerHTML = cfgUserRows(d);
+        Page.icons();
+    });
+
+    // Un solo escucha en la tabla: sigue sirviendo aunque las filas se repinten.
+    document.getElementById('cfgUsersTable').addEventListener('click', async (e) => {
+        const edit = e.target.closest('[data-edit]');
+        if (edit) return cfgUserForm(d.users.find((u) => u.id === Number(edit.dataset.edit)), d);
+
+        const toggle = e.target.closest('[data-toggle]');
+        if (!toggle) return;
+
+        const u      = d.users.find((x) => x.id === Number(toggle.dataset.toggle));
+        const active = u.status === 'active';
+
+        if (active && !await cfgAsk(`¿Desactivar a ${u.name}?`, 'Ya no podrá entrar a Huubie. Su historial se conserva y puedes activarlo cuando quieras.', 'Sí, desactivar')) return;
+
+        const res = await Page.post(CFG_API, { opc: 'toggleUser', id: u.id, active: active ? 0 : 1 });
+
+        cfgToast(res.message || 'No se pudo cambiar el estado.', res.status === 200);
+        if (res.status === 200) cfgRefresh('usuarios', cfgUsuarios);
+    });
+}
+
+// Las filas de la tabla, solo de la sucursal del filtro. El dueño entra a todas: sale en cualquiera.
+function cfgUserRows(d) {
+    const branch = Number(cfg.userBranch);
+    const users  = branch ? d.users.filter((u) => u.owner || u.access.some((a) => a.branch_id === branch)) : d.users;
+
+    if (!users.length) {
+        return '<tr><td colspan="5"><div class="pg-empty"><i data-lucide="users"></i>Nadie entra a esta sucursal todavía.</div></td></tr>';
+    }
+
+    return users.map((u) => {
         const active = u.status === 'active';
         const full   = `${u.name} ${u.last_name}`.trim();
 
@@ -512,50 +608,20 @@ async function cfgUsuarios() {
                 </td>
             </tr>`;
     }).join('');
-
-    cfgPanel(`
-        <div class="pg-card">
-            <div class="pg-card-head pg-toolbar">
-                <div>
-                    <p class="pg-card-title">Usuarios</p>
-                    <p class="pg-dim pg-small">Quién entra a Huubie, a qué sucursal y con qué rol.</p>
-                </div>
-                <div class="pg-toolbar-side">
-                    ${cfgUsage('users', 'activos', d.limits.users)}
-                    <button type="button" class="pg-btn is-primary" id="btnAddUser"><i data-lucide="user-plus"></i>Agregar usuario</button>
-                </div>
-            </div>
-            <div class="pg-table-wrap">
-                <table class="pg-table">
-                    <thead><tr><th>Persona</th><th>Accesos</th><th>Estado</th><th>Último ingreso</th><th></th></tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>
-        </div>`);
-
-    const panel = document.getElementById('cfgPanel');
-
-    document.getElementById('btnAddUser').addEventListener('click', () => cfgUserForm(null, d));
-
-    panel.querySelectorAll('[data-edit]').forEach((el) => el.addEventListener('click', () => {
-        cfgUserForm(d.users.find((u) => u.id === Number(el.dataset.edit)), d);
-    }));
-
-    panel.querySelectorAll('[data-toggle]').forEach((el) => el.addEventListener('click', async () => {
-        const u      = d.users.find((x) => x.id === Number(el.dataset.toggle));
-        const active = u.status === 'active';
-
-        if (active && !await cfgAsk(`¿Desactivar a ${u.name}?`, 'Ya no podrá entrar a Huubie. Su historial se conserva y puedes activarlo cuando quieras.', 'Sí, desactivar')) return;
-
-        const res = await Page.post(CFG_API, { opc: 'toggleUser', id: u.id, active: active ? 0 : 1 });
-
-        cfgToast(res.message || 'No se pudo cambiar el estado.', res.status === 200);
-        if (res.status === 200) cfgRefresh('usuarios', cfgUsuarios);
-    }));
 }
 
+// La foto que se eligio en el formulario: se valida aqui y se sube al guardar.
+const CFG_PHOTO_MAX   = 2097152;   // 2 MB, igual que Mi perfil
+const CFG_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 function cfgUserForm(u, d) {
-    const color = (u && u.color) || '';
+    const color = u && /^#[0-9A-Fa-f]{6}$/.test(u.color || '') ? u.color.toUpperCase() : '';
+    const full  = u ? `${u.name} ${u.last_name}`.trim() : '';
+
+    // Un color que no es de la paleta se ve en el circulo de "personalizado".
+    const custom = color !== '' && !cfg.base.colors.includes(color);
+
+    let photo = null;
 
     // Una fila por sucursal: el rol con el que entra, o "Sin acceso". Las
     // inactivas solo salen si la persona ya tenia acceso a ellas.
@@ -585,12 +651,26 @@ function cfgUserForm(u, d) {
             <div class="pg-form">
                 ${cfgField('name', 'Nombre', u ? u.name : '', 'maxlength="80" autocomplete="off" required')}
                 ${cfgField('last_name', 'Apellidos', u ? u.last_name : '', 'maxlength="80" autocomplete="off"')}
-                ${cfgField('email', 'Correo', u ? u.email : '', 'type="email" maxlength="120" autocomplete="off" required placeholder="nombre@empresa.com"')}
-                ${cfgField('password', u ? 'Nueva contraseña' : 'Contraseña', '', `type="password" maxlength="72" autocomplete="new-password" placeholder="${u ? 'Déjala vacía para no cambiarla' : 'Mínimo 8 caracteres'}"`)}
+                ${cfgField('email', 'Correo', u ? u.email : '', 'type="email" maxlength="120" autocomplete="off" required placeholder="nombre@empresa.com"', u ? '' : 'is-wide')}
+                ${cfgPassField('password', u ? 'Nueva contraseña' : 'Contraseña', `maxlength="72" autocomplete="new-password" placeholder="${u ? 'Déjala vacía para no cambiarla' : 'Mínimo 8 caracteres'}"`)}
+                ${u ? '' : cfgPassField('password_confirmation', 'Repite la contraseña', 'maxlength="72" autocomplete="new-password" placeholder="Escríbela otra vez"')}
+                <div class="pg-field is-wide">
+                    <span class="pg-label">Foto</span>
+                    <div class="pg-row">
+                        <span id="cfgUserAvatar">${Page.avatar({ name: full || '?', photo: u ? u.photo : '', color: color }, 'lg')}</span>
+                        <label class="pg-btn is-ghost" for="cfgUserPhoto"><i data-lucide="camera"></i>${u && u.photo ? 'Cambiar foto' : 'Subir foto'}</label>
+                        <input type="file" id="cfgUserPhoto" accept="image/jpeg,image/png,image/webp" hidden>
+                        <span class="pg-dim pg-small">JPG, PNG o WebP de hasta 2 MB.</span>
+                    </div>
+                </div>
                 <div class="pg-field is-wide">
                     <span class="pg-label">Color de su avatar</span>
                     <div class="pg-swatches" id="cfgColors">
                         ${cfg.base.colors.map((c) => `<button type="button" class="pg-swatch ${c === color ? 'is-on' : ''}" data-color="${c}" style="background:${c}" aria-label="Color ${c}"></button>`).join('')}
+                        <span class="pg-swatch is-custom ${custom ? 'is-on' : ''}" title="Color personalizado">
+                            <i data-lucide="pipette"></i>
+                            <input type="color" id="cfgColorCustom" value="${custom ? color : cfg.base.colors[0]}" aria-label="Color personalizado">
+                        </span>
                     </div>
                     <input type="hidden" name="color" value="${Page.esc(color)}">
                 </div>
@@ -601,15 +681,74 @@ function cfgUserForm(u, d) {
                 ${owner ? '' : `<div class="pg-field is-wide pg-access" data-name="access">${accessRows}</div>`}
             </div>`,
         onOpen: (form) => {
-            form.querySelector('#cfgColors').addEventListener('click', (e) => {
-                const swatch = e.target.closest('.pg-swatch');
-                if (!swatch) return;
+            cfgEyes(form);
 
+            // El avatar de muestra: la foto que se ve (la guardada o la recien
+            // elegida) o, sin foto, las iniciales sobre el color marcado.
+            let shown = u ? u.photo : '';
+
+            const paint = () => {
+                form.querySelector('#cfgUserAvatar').innerHTML = Page.avatar({ name: full || '?', photo: shown, color: form.querySelector('[name="color"]').value }, 'lg');
+            };
+
+            // La foto no se sube al elegirla: se ve aqui y viaja al guardar (Cancelar la descarta).
+            const pick = form.querySelector('#cfgUserPhoto');
+
+            pick.addEventListener('change', () => {
+                const file = pick.files[0];
+                if (!file) return;
+
+                pick.value = '';
+
+                if (!CFG_PHOTO_TYPES.includes(file.type)) return cfgToast('Sube una imagen JPG, PNG o WebP.', false);
+                if (file.size > CFG_PHOTO_MAX)           return cfgToast('La foto pesa más de 2 MB.', false);
+
+                photo = file;
+                shown = URL.createObjectURL(file);
+                paint();
+            });
+
+            // Marcar un color lo pinta en el avatar de muestra al momento.
+            const pickColor = (swatch, hex) => {
                 form.querySelectorAll('.pg-swatch').forEach((el) => el.classList.toggle('is-on', el === swatch));
-                form.querySelector('[name="color"]').value = swatch.dataset.color;
+                form.querySelector('[name="color"]').value = hex;
+                paint();
+            };
+
+            form.querySelector('#cfgColors').addEventListener('click', (e) => {
+                const swatch = e.target.closest('.pg-swatch[data-color]');
+                if (swatch) pickColor(swatch, swatch.dataset.color);
+            });
+
+            // El personalizado: el selector de color del navegador. Al volver a
+            // pulsarlo, el que ya se habia elegido queda marcado otra vez.
+            const picker = form.querySelector('#cfgColorCustom');
+            const own    = picker.parentElement;
+
+            // El gotero toma la letra que se lee sobre ese color (oscura en un pastel).
+            const paintOwn = (hex) => {
+                own.style.background = hex;
+                own.style.color      = Page.ink(hex);
+                own.classList.add('has-color');
+            };
+
+            if (custom) paintOwn(color);
+
+            picker.addEventListener('input', () => {
+                paintOwn(picker.value.toUpperCase());
+                pickColor(own, picker.value.toUpperCase());
+            });
+
+            picker.addEventListener('click', () => {
+                if (own.style.background) pickColor(own, picker.value.toUpperCase());
             });
         },
         onSubmit: async (data, form) => {
+            // Al crear, la contraseña se escribe dos veces: si no coinciden, no se manda.
+            if (!u && data.password !== data.password_confirmation) {
+                return { status: 422, message: 'Las contraseñas no coinciden.', field: 'password_confirmation' };
+            }
+
             const access = Array.from(form.querySelectorAll('[data-branch]'))
                 .filter((el) => el.value !== '')
                 .map((el) => ({ branch_id: Number(el.dataset.branch), role_id: Number(el.value) }));
@@ -617,7 +756,18 @@ function cfgUserForm(u, d) {
             const res = await Page.post(CFG_API, { opc: 'saveUser', id: u ? u.id : 0, ...data, access: JSON.stringify(access) });
 
             if (res.status === 200) {
-                cfgToast(res.message, true);
+                // Su propio color: la barra lo toma sin recargar.
+                if (u && u.me && data.color && window.navbar && navbar.data) {
+                    navbar.data.color = data.color;
+                    navbar.renderSession();
+                }
+
+                const sent = photo ? await cfgUserPhoto(u ? u.id : res.id, photo, !!(u && u.me)) : null;
+
+                // Los datos ya quedaron: si la foto falla, se avisa y el modal se cierra igual.
+                if (sent && sent.status !== 200) cfgToast(`${res.message} La foto no se guardó: ${sent.message || 'inténtalo de nuevo.'}`, false);
+                else cfgToast(res.message, true);
+
                 cfgRefresh('usuarios', cfgUsuarios);
             }
 
@@ -632,13 +782,90 @@ function cfgUserForm(u, d) {
     });
 }
 
+// Sube la foto de un usuario. me = es la del propio dueño: la barra la cambia sin recargar.
+async function cfgUserPhoto(id, file, me) {
+    const body = new FormData();
+
+    body.append('opc', 'saveUserPhoto');
+    body.append('id', id);
+    body.append('photo', file);
+
+    const res = await Page.post(CFG_API, body);
+
+    if (res.status === 200 && me && window.navbar && navbar.data) {
+        navbar.data.photo = res.data.photo;
+        navbar.renderSession();
+    }
+
+    return res;
+}
+
 // =================================================================== Roles
 
 async function cfgRoles() {
     const d = await cfgLoad('roles', 'roles');
     if (!d) return;
 
-    const rows = d.roles.map((r) => `
+    const state = (value, label) => `<option value="${value}" ${cfg.roleState === value ? 'selected' : ''}>${label}</option>`;
+
+    cfgPanel(`
+        <div class="pg-card">
+            <div class="pg-card-head pg-toolbar">
+                <div>
+                    <p class="pg-card-title">Roles y permisos</p>
+                    <p class="pg-dim pg-small">Un rol dice qué puede ver y hacer alguien. Se asigna por sucursal en Usuarios.</p>
+                </div>
+                <div class="pg-toolbar-side">
+                    <select class="pg-input" id="cfgRoleState" aria-label="Filtrar por estado">
+                        ${state('', 'Todos los estados')}
+                        ${state('1', 'Activos')}
+                        ${state('0', 'Inactivos')}
+                    </select>
+                    <button type="button" class="pg-btn is-primary" id="btnAddRole"><i data-lucide="plus"></i>Crear rol</button>
+                </div>
+            </div>
+            <div class="pg-table-wrap">
+                <table class="pg-table" id="cfgRolesTable">
+                    <thead><tr><th>Rol</th><th class="pg-td-num">Personas</th><th class="pg-td-center">Estado</th><th></th></tr></thead>
+                    <tbody id="cfgRolesBody">${cfgRoleRows(d)}</tbody>
+                </table>
+            </div>
+        </div>`);
+
+    document.getElementById('btnAddRole').addEventListener('click', () => cfgRoleForm(0));
+
+    // Cambiar el estado solo vuelve a pintar las filas: los datos ya estan aqui.
+    document.getElementById('cfgRoleState').addEventListener('change', (e) => {
+        cfg.roleState = e.target.value;
+        document.getElementById('cfgRolesBody').innerHTML = cfgRoleRows(d);
+        Page.icons();
+    });
+
+    // Un solo escucha en la tabla: sigue sirviendo aunque las filas se repinten.
+    document.getElementById('cfgRolesTable').addEventListener('click', async (e) => {
+        const edit = e.target.closest('[data-edit]');
+        if (edit) return cfgRoleForm(Number(edit.dataset.edit));
+
+        const toggle = e.target.closest('[data-toggle]');
+        if (!toggle) return;
+
+        const r   = d.roles.find((x) => x.id === Number(toggle.dataset.toggle));
+        const res = await Page.post(CFG_API, { opc: 'toggleRole', id: r.id, active: r.active ? 0 : 1 });
+
+        cfgToast(res.message || 'No se pudo cambiar el estado.', res.status === 200);
+        if (res.status === 200) cfgRefresh('roles', cfgRoles);
+    });
+}
+
+// Las filas de la tabla, solo las del estado del filtro.
+function cfgRoleRows(d) {
+    const roles = cfg.roleState === '' ? d.roles : d.roles.filter((r) => String(r.active) === cfg.roleState);
+
+    if (!roles.length) {
+        return `<tr><td colspan="4"><div class="pg-empty"><i data-lucide="shield"></i>${d.roles.length ? 'No hay roles con ese estado.' : 'Todavía no hay roles.'}</div></td></tr>`;
+    }
+
+    return roles.map((r) => `
         <tr class="${r.active ? '' : 'is-off'}">
             <td>
                 <div class="pg-row">
@@ -650,48 +877,18 @@ async function cfgRoles() {
                 </div>
             </td>
             <td class="pg-td-num" data-label="Personas">${r.users}</td>
-            <td data-label="Estado"><span class="pg-chip ${r.active ? 'is-ok' : 'is-off'}">${r.active ? 'Activo' : 'Inactivo'}</span></td>
+            <td class="pg-td-center" data-label="Estado"><span class="pg-chip ${r.active ? 'is-ok' : 'is-off'}">${r.active ? 'Activo' : 'Inactivo'}</span></td>
             <td class="pg-td-actions">
                 <button type="button" class="pg-btn is-ghost is-round" data-edit="${r.id}" title="${r.system ? 'Ver permisos' : 'Editar'}" aria-label="${r.system ? 'Ver permisos de' : 'Editar'} ${Page.esc(r.name)}"><i data-lucide="${r.system ? 'eye' : 'pencil'}"></i></button>
                 ${r.system ? '' : cfgSwitch(r.active, `data-toggle="${r.id}"`, r.active ? 'Desactivar' : 'Activar')}
             </td>
         </tr>`).join('');
-
-    cfgPanel(`
-        <div class="pg-card">
-            <div class="pg-card-head pg-toolbar">
-                <div>
-                    <p class="pg-card-title">Roles y permisos</p>
-                    <p class="pg-dim pg-small">Un rol dice qué puede ver y hacer alguien. Se asigna por sucursal en Usuarios.</p>
-                </div>
-                <div class="pg-toolbar-side">
-                    <button type="button" class="pg-btn is-primary" id="btnAddRole"><i data-lucide="plus"></i>Crear rol</button>
-                </div>
-            </div>
-            <div class="pg-table-wrap">
-                <table class="pg-table">
-                    <thead><tr><th>Rol</th><th class="pg-td-num">Personas</th><th>Estado</th><th></th></tr></thead>
-                    <tbody>${rows || '<tr><td colspan="4"><div class="pg-empty"><i data-lucide="shield"></i>Todavía no hay roles.</div></td></tr>'}</tbody>
-                </table>
-            </div>
-        </div>`);
-
-    const panel = document.getElementById('cfgPanel');
-
-    document.getElementById('btnAddRole').addEventListener('click', () => cfgRoleForm(0));
-
-    panel.querySelectorAll('[data-edit]').forEach((el) => el.addEventListener('click', () => cfgRoleForm(Number(el.dataset.edit))));
-
-    panel.querySelectorAll('[data-toggle]').forEach((el) => el.addEventListener('click', async () => {
-        const r   = d.roles.find((x) => x.id === Number(el.dataset.toggle));
-        const res = await Page.post(CFG_API, { opc: 'toggleRole', id: r.id, active: r.active ? 0 : 1 });
-
-        cfgToast(res.message || 'No se pudo cambiar el estado.', res.status === 200);
-        if (res.status === 200) cfgRefresh('roles', cfgRoles);
-    }));
 }
 
-// El rol con su arbol de permisos: modulo > seccion > acciones. Los del sistema solo se consultan.
+/*  El rol con sus permisos como tabla: una fila por seccion y una columna por
+    accion (Ver, Agregar, Editar...), asi cada accion cae siempre en la misma
+    columna. Donde la seccion no tiene esa accion queda una raya. Los del
+    sistema solo se consultan. */
 async function cfgRoleForm(id) {
     const res = await Page.post(CFG_API, { opc: 'getRole', id: id });
 
@@ -699,19 +896,33 @@ async function cfgRoleForm(id) {
 
     const role = res.data;
     const lock = role.system ? 'disabled' : '';
+    const cols = role.columns || [];
+
+    const cell = (s, name) => {
+        const a = s.actions.find((x) => x.name === name);
+
+        if (!a) return '<span class="pg-tree-cell is-none" aria-hidden="true"></span>';
+
+        return `
+            <label class="pg-tree-cell" title="${Page.esc(name)} · ${Page.esc(s.name)}">
+                <input type="checkbox" data-perm="${a.id}" ${lock} ${a.granted ? 'checked' : ''}>
+                <span class="pg-tree-act">${Page.esc(name)}</span>
+            </label>`;
+    };
 
     const tree = role.modules.map((m) => `
         <div class="pg-tree-mod">
-            <p class="pg-tree-title"><i data-lucide="${Page.esc(m.icon)}"></i>${Page.esc(m.name)}</p>
+            <div class="pg-tree-head">
+                <p class="pg-tree-title"><i data-lucide="${Page.esc(m.icon)}"></i>${Page.esc(m.name)}</p>
+                ${cols.map((c) => `<span class="pg-tree-col">${Page.esc(c)}</span>`).join('')}
+            </div>
             ${m.sections.map((s) => `
                 <div class="pg-tree-sec">
                     <label class="pg-tree-all">
                         <input type="checkbox" data-all ${lock} ${s.actions.every((a) => a.granted) ? 'checked' : ''}>
                         <span>${Page.esc(s.name)}</span>
                     </label>
-                    <div class="pg-tree-acts">
-                        ${s.actions.map((a) => `<label class="pg-check"><input type="checkbox" data-perm="${a.id}" ${lock} ${a.granted ? 'checked' : ''}><span>${Page.esc(a.name)}</span></label>`).join('')}
-                    </div>
+                    ${cols.map((c) => cell(s, c)).join('')}
                 </div>`).join('')}
         </div>`).join('');
 
@@ -723,7 +934,7 @@ async function cfgRoleForm(id) {
         body: `
             <div class="pg-form is-one">
                 ${role.system ? '' : cfgField('name', 'Nombre del rol', role.name, 'maxlength="60" required placeholder="Ej. Encargado de sucursal"')}
-                <div class="pg-tree">${tree || '<div class="pg-empty"><i data-lucide="layout-grid"></i>Tu plan todavía no tiene secciones con permisos.</div>'}</div>
+                <div class="pg-tree" style="--tree-cols:${cols.length}">${tree || '<div class="pg-empty"><i data-lucide="layout-grid"></i>Tu plan todavía no tiene secciones con permisos.</div>'}</div>
             </div>`,
         onOpen: (form) => {
             // La casilla de la seccion marca o desmarca todas sus acciones, y se
@@ -787,7 +998,7 @@ async function cfgPagos() {
     }).join('');
 
     cfgPanel(`
-        <div class="pg-grid">
+        <div class="pg-grid is-even">
             <div class="pg-col">
                 <div class="pg-card">
                     <div class="pg-card-head">

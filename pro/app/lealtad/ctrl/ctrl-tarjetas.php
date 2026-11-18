@@ -10,7 +10,11 @@ require_once __DIR__ . '/../../order/mdl/mdl-lealtad.php';
 require_once __DIR__ . '/../../order/mdl/mdl-whatsapp-agente.php';
 require_once __DIR__ . '/../../order/mdl/mdl-whatsapp-recordatorios.php';
 require_once __DIR__ . '/../../../core/helpers/_WhatsAppMeta.php';
+require_once __DIR__ . '/../../order/mdl/mdl-lealtad-programa.php';
 require_once __DIR__ . '/../../order/mdl/mdl-lealtad-whatsapp.php';
+require_once __DIR__ . '/../../order/mdl/mdl-lealtad-cumple.php';
+require_once __DIR__ . '/../../order/mdl/mdl-lealtad-regreso.php';
+require_once __DIR__ . '/../../order/mdl/mdl-lealtad-niveles.php';
 
 /*  Lealtad › Tarjetas (antes Ventas › Puntos, V4 del plan de Ventas):
     tipos de tarjeta y tarjetas.
@@ -55,12 +59,34 @@ require_once __DIR__ . '/../../order/mdl/mdl-lealtad-whatsapp.php';
         WHATSAPP_META_TOKEN es simulada (no sale a la red). Sale al dar de alta
         una tarjeta con cliente (si se deja marcado) o con «Mandar desde el
         WhatsApp de la tienda» (sendCardWhatsApp, pide 'update'). No mira el
-        horario del agente: lo dispara una persona en el mostrador. */
+        horario del agente: lo dispara una persona en el mostrador.
+      - Programa (docs/plan-crecimiento.html): ajustes por EMPRESA
+        (loyalty_setting). Registro solo: un QR por SUCURSAL (loyalty_signup)
+        abre registro.php, donde el cliente se da de alta y recibe la tarjeta
+        de bienvenida. El enlace se crea la primera vez que lo pide alguien con
+        'update'; newSignupLink lo cambia y el cartel impreso deja de servir.
+      - Cumpleaños (mdl-lealtad-cumple.php): felicitacion por WhatsApp y regalo
+        (sellos o dinero al monedero) el dia de su cumpleaños, una vez al año y
+        solo a quien acepto mensajes. Sale sola con la tarea de cada hora
+        (ctrl/cron-lealtad.php); «Felicitar a los de hoy» (sendBirthdays, pide
+        'update') la adelanta.
+      - Te extrañamos (mdl-lealtad-regreso.php): a quien lleva winback_days dias
+        sin comprar, con su motivo para volver; una vez cada winback_days dias y
+        con tope diario. Igual: la tarea de cada hora, o «Mandar los de hoy» (sendWinbacks).
+      - Niveles (mdl-lealtad-niveles.php): tipos con level_min_spend forman la
+        escalera. Sube al cobrar (Vender, por LoyaltyNotifier); la revision del
+        mes (la tarea de cada hora, desde el dia 1, o «Revisar niveles» con
+        applyLevels) sube y baja a todas. Un tipo de sellos no es nivel.
+      - El Programa es su propia seccion (lealtad-programa, programa.php). Sus
+        opc siguen aqui; ctrl-programa.php hereda esta clase, deja pasar solo
+        las suyas y cambia PAGE: con eso init, needPoints y programReply
+        miran el permiso de Programa y no el de Tarjetas. */
 class ctrl extends core {
 
-    use LoyaltyCards, WhatsAppInbox, WhatsAppAgentFlow, WhatsAppReminders, LoyaltyWhatsApp;
+    use LoyaltyCards, WhatsAppInbox, WhatsAppAgentFlow, WhatsAppReminders, LoyaltyWhatsApp, LoyaltyProgram, LoyaltyBirthday, LoyaltyWinback, LoyaltyLevels;
 
     const POINTS     = 'pos-puntos';
+    const PAGE       = 'pos-puntos'; // la sección que pide permiso (ctrl-programa.php la cambia; se lee con static::). No es core::SECTION (Pedidos).
     const MAX_NUMBER = 40;
     const MAX_HOLDER = 150;
     const MAX_NAME   = 80;
@@ -69,6 +95,14 @@ class ctrl extends core {
     const MIN_GOAL   = 2;        // sellos para el premio
     const MAX_GOAL   = 20;
     const MAX_MONEY  = 100000;   // $ por sello y valor del premio
+    const MAX_GIFT   = 10000;    // $ de regalo de cumpleaños al monedero
+    const BDAY_BACK  = 7;        // la lista de cumpleaños: dias atras
+    const BDAY_AHEAD = 30;       // y dias adelante
+    const BDAY_RUN   = 200;      // felicitaciones por clic
+    const WB_RUN     = 100;      // «te extrañamos» por clic (además del tope diario)
+    const WB_LIST    = 300;      // renglones de la lista de te extrañamos
+    const LEVEL_RUN  = 100;      // cambios de nivel por clic (cada aviso tarda)
+    const MAX_LEVEL  = 10000000; // $ de gasto mínimo de un nivel
 
     // -- Arranque --
 
@@ -79,7 +113,7 @@ class ctrl extends core {
         return [
             'status'    => 200,
             'scope'     => ['company' => $scope['company'], 'branch' => $scope['branch']],
-            'points'    => Permission::actions(self::POINTS),
+            'points'    => Permission::actions(static::PAGE),
             'cardColor' => self::CARD_COLOR,
             'whatsapp'  => $this->loyaltyWaState()
         ];
@@ -236,6 +270,8 @@ class ctrl extends core {
 
             return [
                 'status'   => 200,
+                'birthday' => $card['owner_id'] !== null ? $this->detailBirthday((int) $card['owner_id']) : null,
+                'level'    => $this->detailLevel($card),
                 'card'     => $this->detailCard($card, $type) + ['stamps' => $have],
                 'totals'   => $this->detailTotals($totals, $wallet, $stamps),
                 'moves'    => array_map(fn ($m) => $this->moveRow($m), $moves),
@@ -442,6 +478,696 @@ class ctrl extends core {
         }, 'No se pudo cambiar el enlace de la tarjeta.');
     }
 
+    // -- Programa: registro solo --
+
+    // La pestaña «Programa»: el registro de la empresa y el enlace de esta sucursal.
+    public function getProgram() {
+        $fail = $this->needPoints('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            return ['status' => 200] + $this->programReply();
+        }, 'No se pudo cargar el programa.');
+    }
+
+    /*  Encender o apagar el registro y elegir la tarjeta de bienvenida (un tipo
+        activo de la empresa). Pide 'update'. */
+    public function saveSignup() {
+        $fail = $this->needPoints('update') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $enabled = $this->post('signup_enabled') === '1' ? 1 : 0;
+        $typeId  = $this->postId('signup_type_id');
+
+        if ($enabled === 1 && $typeId <= 0) return $this->fail(422, 'Elige la tarjeta que recibe quien se registra.');
+
+        return $this->attempt(function () use ($enabled, $typeId) {
+            $type = $typeId > 0 ? $this->qCardType($typeId, $this->branchId()) : null;
+
+            if ($typeId > 0 && !$type) return $this->fail(404, 'Ese tipo de tarjeta no es de esta empresa o ya no existe.');
+            if ($type && (int) $type['active'] !== 1) return $this->fail(409, 'Ese tipo de tarjeta está inactivo: actívalo o elige otro.');
+
+            $this->transaction(function () use ($enabled, $typeId) {
+                $this->must($this->qSaveLoyaltySetting($this->companyId(), [
+                    'signup_enabled' => $enabled,
+                    'signup_type_id' => $typeId > 0 ? $typeId : null
+                ], $this->userId()), 'saveSignup');
+            });
+
+            return $this->ok($enabled === 1 ? 'Registro encendido. El QR ya da tarjetas.' : 'Registro apagado. El QR ya no da tarjetas.', $this->programReply());
+        }, 'No se pudo guardar el registro.');
+    }
+
+    // Token nuevo para el QR de la sucursal: el cartel impreso antes deja de abrir.
+    public function newSignupLink() {
+        $fail = $this->needPoints('update') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $branchId = $this->branchId();
+
+            $this->transaction(function () use ($branchId) {
+                $token = $this->loyaltySignupToken();
+
+                $this->must($this->qSignupLink($branchId) ? $this->qRenewSignupLink($branchId, $token) : $this->qCreateSignupLink($branchId, $token), 'newSignupLink');
+            });
+
+            return $this->ok('Enlace nuevo listo. Imprime el cartel otra vez: el anterior ya no abre.', $this->programReply());
+        }, 'No se pudo cambiar el enlace de registro.');
+    }
+
+    // -- Programa: cumpleaños --
+
+    /*  Encender la felicitacion y el regalo: sellos (tarjetas de sellos) y $ al
+        monedero (tarjetas de puntos); 0 = solo la felicitacion. Pide 'update'. */
+    public function saveBirthday() {
+        $fail = $this->needPoints('update') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $enabled = $this->post('birthday_enabled') === '1' ? 1 : 0;
+        $stamps  = $this->post('birthday_stamps', '0');
+        $points  = $this->post('birthday_points', '0');
+
+        if (!preg_match('/^\d{1,2}$/', $stamps === '' ? '0' : $stamps) || (int) $stamps > self::MAX_GOAL) {
+            return $this->fail(422, 'Los sellos de regalo van de 0 a ' . self::MAX_GOAL . '.');
+        }
+
+        if (!preg_match('/^\d{1,5}(\.\d{1,2})?$/', $points === '' ? '0' : $points) || (float) $points > self::MAX_GIFT) {
+            return $this->fail(422, 'El regalo al monedero va de $0 a ' . money(self::MAX_GIFT) . ', con hasta 2 decimales.');
+        }
+
+        return $this->attempt(function () use ($enabled, $stamps, $points) {
+            $this->transaction(function () use ($enabled, $stamps, $points) {
+                $this->must($this->qSaveLoyaltySetting($this->companyId(), [
+                    'birthday_enabled' => $enabled,
+                    'birthday_stamps'  => (int) $stamps,
+                    'birthday_points'  => round((float) $points, 2)
+                ], $this->userId()), 'saveBirthday');
+            });
+
+            return $this->ok($enabled === 1 ? 'Cumpleaños encendido.' : 'Cumpleaños apagado.', $this->programReply());
+        }, 'No se pudo guardar Cumpleaños.');
+    }
+
+    // La lista: de 7 días atrás a 30 adelante, con el regalo y el estado de cada uno.
+    public function lsBirthdays() {
+        $fail = $this->needPoints('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $setting = $this->qLoyaltySetting($this->companyId());
+            $rows    = [];
+
+            foreach ($this->loyaltyBirthdays(date('Y-m-d'), self::BDAY_BACK, self::BDAY_AHEAD, $setting) as $b) {
+                $rows[] = [
+                    'id'         => $b['customer_id'],
+                    'Cliente'    => '<div class="font-semibold text-gray-800">' . h($b['name'] !== '' ? $b['name'] : 'Sin nombre') . '</div>'
+                                  . ($b['phone'] !== '' ? '<div class="ord-sub">' . h($b['phone']) . '</div>' : ''),
+                    'Cumpleaños' => '<span class="whitespace-nowrap">' . h($b['birthday']) . '</span><div class="ord-sub">' . $this->birthdayWhen($b['in']) . '</div>',
+                    'Tarjeta'    => '<span class="font-semibold text-gray-800">' . h($b['type']) . '</span><div class="ord-sub">' . h($b['number']) . '</div>',
+                    'Regalo'     => h($b['gift']['label']),
+                    'Estado'     => $this->birthdayPill($b),
+                    'a'          => [[
+                        'class'      => $this->actionBtnClass('neutral', true),
+                        'html'       => '<i data-lucide="eye" class="w-4 h-4"></i>',
+                        'aria-label' => 'Ver tarjeta',
+                        'onclick'    => "loyalty.listCard({$b['card_id']})"
+                    ]]
+                ];
+            }
+
+            return ['status' => 200, 'row' => $rows, 'count' => count($rows)];
+        }, 'No se pudo cargar la lista de cumpleaños.');
+    }
+
+    /*  «Felicitar a los de hoy»: el regalo y el WhatsApp a quien le toca hoy.
+        Pide 'update', Cumpleaños encendido y número de WhatsApp de la empresa. */
+    public function sendBirthdays() {
+        $fail = $this->needPoints('update') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $setting = $this->qLoyaltySetting($this->companyId());
+
+            if ((int) $setting['birthday_enabled'] !== 1) return $this->fail(409, 'Cumpleaños está apagado: enciéndelo en «Configurar».');
+            if (!$this->loyaltyWaState()['ready'])          return $this->fail(409, 'La empresa no tiene número de WhatsApp: se da de alta en Ventas › WhatsApp.');
+
+            $c    = $this->loyaltyBirthdayRun(date('Y-m-d'), $setting, self::BDAY_RUN);
+            $ok   = $c['sent'] + $c['simulated'];
+            $text = $ok > 0 ? $this->countText($ok, 'cliente felicitado', 'clientes felicitados') . ($c['simulated'] > 0 ? ' (simulado)' : '') . '.' : 'Nadie felicitado.';
+
+            if ($c['failed'] + $c['skip'] > 0) $text .= ' A ' . ($c['failed'] + $c['skip']) . ' no les salió el WhatsApp; su regalo sí quedó.';
+            if ($c['done'] > 0)                $text .= ' ' . $c['done'] . ' ya estaban felicitados.';
+
+            return $this->ok($text, $this->programReply() + ['counts' => $c]);
+        }, 'No se pudo felicitar a los de hoy.');
+    }
+
+    /*  El cumpleaños del dueño de la tarjeta, desde la ficha (día y mes; 0 y 0
+        lo borra). Pide 'update'. */
+    public function setBirthday() {
+        $fail = $this->needPoints('update') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id    = $this->postId();
+        $day   = (int) $this->post('day', '0');
+        $month = (int) $this->post('month', '0');
+
+        if (($day || $month) && !($day && $month && checkdate($month, $day, 2000))) return $this->fail(422, 'Esa fecha no existe: revisa el día y el mes.');
+
+        return $this->attempt(function () use ($id, $day, $month) {
+            $card = $id > 0 ? $this->qCard($id, $this->branchId()) : null;
+
+            if (!$card)                     return $this->fail(404, 'Esa tarjeta no es de esta empresa o ya no existe.');
+            if ($card['owner_id'] === null) return $this->fail(409, 'La tarjeta no tiene cliente: el cumpleaños es del cliente.');
+
+            $this->transaction(function () use ($card, $day, $month) {
+                $this->must($this->qSetBirthday((int) $card['owner_id'], $day ? sprintf('2000-%02d-%02d', $month, $day) : null), 'setBirthday');
+            });
+
+            return $this->ok($day ? 'Cumpleaños guardado.' : 'Cumpleaños borrado.', ['birthday' => $this->detailBirthday((int) $card['owner_id'])]);
+        }, 'No se pudo guardar el cumpleaños.');
+    }
+
+    // -- Programa: te extrañamos --
+
+    // Encender, cuántos días sin comprar y el tope de mensajes por día. Pide 'update'.
+    public function saveWinback() {
+        $fail = $this->needPoints('update') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $enabled = $this->post('winback_enabled') === '1' ? 1 : 0;
+        $days    = $this->post('winback_days');
+        $cap     = $this->post('winback_daily_cap');
+
+        if (!preg_match('/^\d{1,3}$/', $days) || (int) $days < 7 || (int) $days > 365) return $this->fail(422, 'Los días sin comprar van de 7 a 365.');
+        if (!preg_match('/^\d{1,4}$/', $cap) || (int) $cap < 1 || (int) $cap > 1000)    return $this->fail(422, 'El tope por día va de 1 a 1,000 mensajes.');
+
+        return $this->attempt(function () use ($enabled, $days, $cap) {
+            $this->transaction(function () use ($enabled, $days, $cap) {
+                $this->must($this->qSaveLoyaltySetting($this->companyId(), [
+                    'winback_enabled'   => $enabled,
+                    'winback_days'      => (int) $days,
+                    'winback_daily_cap' => (int) $cap
+                ], $this->userId()), 'saveWinback');
+            });
+
+            return $this->ok($enabled === 1 ? 'Te extrañamos encendido.' : 'Te extrañamos apagado.', $this->programReply());
+        }, 'No se pudo guardar Te extrañamos.');
+    }
+
+    // La lista: quien lleva los días sin comprar, su motivo y si le toca (o por qué no).
+    public function lsWinbacks() {
+        $fail = $this->needPoints('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $setting = $this->qLoyaltySetting($this->companyId());
+            $list    = $this->loyaltyWinbacks((int) $setting['winback_days'], time());
+            $rows    = [];
+
+            foreach (array_slice($list, 0, self::WB_LIST) as $w) {
+                $rows[] = [
+                    'id'           => $w['customer_id'],
+                    'Cliente'      => '<div class="font-semibold text-gray-800">' . h($w['name'] !== '' ? $w['name'] : 'Sin nombre') . '</div>'
+                                    . ($w['phone'] !== '' ? '<div class="ord-sub">' . h($w['phone']) . '</div>' : ''),
+                    'Última compra' => $w['bought']
+                                    ? '<span class="whitespace-nowrap">' . date('d/m/Y', strtotime($w['ref'])) . '</span><div class="ord-sub">Hace ' . $w['away'] . ' días</div>'
+                                    : '<span class="text-gray-400">Nunca</span><div class="ord-sub">Tarjeta de hace ' . $w['away'] . ' días</div>',
+                    'Tarjeta'      => '<span class="font-semibold text-gray-800">' . h($w['type']) . '</span><div class="ord-sub">' . h($w['number']) . '</div>',
+                    'Motivo'       => '<span class="text-[12.5px]">' . h($w['reason']) . '</span>',
+                    'Estado'       => $this->winbackPill($w),
+                    'a'            => [[
+                        'class'      => $this->actionBtnClass('neutral', true),
+                        'html'       => '<i data-lucide="eye" class="w-4 h-4"></i>',
+                        'aria-label' => 'Ver tarjeta',
+                        'onclick'    => "loyalty.listCard({$w['card_id']})"
+                    ]]
+                ];
+            }
+
+            $more = count($list) > self::WB_LIST ? 'Se muestran ' . self::WB_LIST . ' de ' . count($list) . ': los que dejaron de venir hace menos.' : '';
+
+            return ['status' => 200, 'row' => $rows, 'count' => count($list), 'moreText' => $more, 'days' => (int) $setting['winback_days']];
+        }, 'No se pudo cargar la lista.');
+    }
+
+    /*  «Mandar los de hoy»: el WhatsApp a los que les toca, sin pasar del tope
+        del día. Pide 'update', Te extrañamos encendido y número de la empresa. */
+    public function sendWinbacks() {
+        $fail = $this->needPoints('update') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $setting = $this->qLoyaltySetting($this->companyId());
+
+            if ((int) $setting['winback_enabled'] !== 1) return $this->fail(409, 'Te extrañamos está apagado: enciéndelo en «Configurar».');
+            if (!$this->loyaltyWaState()['ready'])        return $this->fail(409, 'La empresa no tiene número de WhatsApp: se da de alta en Ventas › WhatsApp.');
+
+            $c    = $this->loyaltyWinbackRun($setting, self::WB_RUN, time());
+            $ok   = $c['sent'] + $c['simulated'];
+            $text = $ok > 0 ? $this->countText($ok, 'mensaje enviado', 'mensajes enviados') . ($c['simulated'] > 0 ? ' (simulado)' : '') . '.' : 'No salió ningún mensaje.';
+
+            if ($c['failed'] + $c['skip'] > 0) $text .= ' A ' . ($c['failed'] + $c['skip']) . ' no les salió.';
+            if ($c['cap'] > 0)                 $text .= ' ' . $c['cap'] . ' se quedan para después (tope).';
+
+            return $this->ok($text, $this->programReply() + ['counts' => $c]);
+        }, 'No se pudieron mandar los mensajes.');
+    }
+
+    private function winbackPill(array $w) {
+        $pill = fn ($tone, $text) => '<span class="ord-pill ' . $tone . '">' . $text . '</span>';
+
+        switch ($w['state']) {
+            case 'due':     return $pill('bg-indigo-50 text-indigo-700', 'Le toca');
+            case 'sent':    return $pill('bg-emerald-50 text-emerald-700', 'Escrito el ' . date('d/m', strtotime($w['sent_at'])));
+            case 'nooptin': return $pill('bg-slate-100 text-slate-600', 'No aceptó mensajes');
+            case 'baja':    return $pill('bg-slate-100 text-slate-600', 'Escribió BAJA');
+            case 'nophone': return $pill('bg-slate-100 text-slate-600', 'Sin WhatsApp válido');
+        }
+
+        return $pill('bg-slate-100 text-slate-600', '-');
+    }
+
+    // -- Programa: niveles --
+
+    // Encender o apagar los niveles (la escalera se arma en los tipos). Pide 'update'.
+    public function saveLevels() {
+        $fail = $this->needPoints('update') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $enabled = $this->post('levels_enabled') === '1' ? 1 : 0;
+
+        return $this->attempt(function () use ($enabled) {
+            $this->transaction(function () use ($enabled) {
+                $this->must($this->qSaveLoyaltySetting($this->companyId(), ['levels_enabled' => $enabled], $this->userId()), 'saveLevels');
+            });
+
+            return $this->ok($enabled === 1 ? 'Niveles encendido. Revisa los niveles para acomodar las tarjetas de hoy.' : 'Niveles apagado.', $this->programReply());
+        }, 'No se pudo guardar Niveles.');
+    }
+
+    // Lo que haría la revisión: cada tarjeta que cambia, su gasto y de qué nivel a cuál. Solo lee.
+    public function lsLevelChanges() {
+        $fail = $this->needPoints('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $rows = [];
+            $plan = $this->loyaltyLevelPlan();
+
+            foreach ($plan as $p) {
+                $r      = $p['row'];
+                $name   = trim((string) $r['customer']) !== '' ? $r['customer'] : ($r['holder'] !== '' ? $r['holder'] : 'Sin cliente');
+                $up     = $p['direction'] === 'sube';
+                $rows[] = [
+                    'id'              => (int) $r['id'],
+                    'Tarjeta'         => '<div class="font-semibold text-gray-800">' . h($name) . '</div><div class="ord-sub">' . h($r['number']) . '</div>',
+                    'Gasto 12 meses'  => money($r['spend']),
+                    'Nivel hoy'       => h($r['type']),
+                    'Nivel nuevo'     => '<span class="font-semibold text-gray-800">' . h($p['target']['name']) . '</span>',
+                    'Cambio'          => '<span class="ord-pill ' . ($up ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700') . '">' . ($up ? 'Sube' : 'Baja') . '</span>'
+                ];
+            }
+
+            return ['status' => 200, 'row' => $rows, 'count' => count($plan), 'up' => count(array_filter($plan, fn ($p) => $p['direction'] === 'sube'))];
+        }, 'No se pudo revisar los niveles.');
+    }
+
+    /*  «Revisar niveles»: sube y baja las tarjetas que no están en su nivel, hasta
+        LEVEL_RUN por clic. Pide 'update' y Niveles encendido. */
+    public function applyLevels() {
+        $fail = $this->needPoints('update') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $setting = $this->qLoyaltySetting($this->companyId());
+
+            if ((int) $setting['levels_enabled'] !== 1) return $this->fail(409, 'Niveles está apagado: enciéndelo en «Configurar».');
+
+            $c     = $this->loyaltyLevelReview(self::LEVEL_RUN);
+            $moved = $c['up'] + $c['down'];
+            $text  = $moved > 0 ? "{$c['up']} subieron y {$c['down']} bajaron." : 'Todas las tarjetas ya estaban en su nivel.';
+
+            if ($c['told'] > 0) $text .= ' ' . $this->countText($c['told'], 'aviso', 'avisos') . ' por WhatsApp.';
+            if ($c['left'] > 0) $text .= " Faltan {$c['left']}: vuelve a revisar.";
+
+            return $this->ok($text, $this->programReply() + ['counts' => $c]);
+        }, 'No se pudieron revisar los niveles.');
+    }
+
+    /*  Para la ficha: en qué nivel está, cuánto gastó en 12 meses y cuánto le
+        falta para el siguiente. null = su tipo no está en la escalera. */
+    private function detailLevel($card) {
+        if ((int) $card['active'] !== 1) return null;
+
+        $levels = $this->qLevels($this->branchId());
+        $place  = $this->levelPlace($levels, (int) $card['card_type_id']);
+
+        if (!$place || count($levels) < 2) return null;
+
+        $row   = $this->qLevelCards($this->branchId(), $this->levelSince(), (int) $card['id'])[0] ?? null;
+        $spend = $row ? (float) $row['spend'] : 0.0;
+        $above = $this->levelAbove($levels, (int) $card['card_type_id']);
+        $text  = money($spend) . ' en 12 meses';
+        $from  = 0.0;
+
+        foreach ($levels as $l) {
+            if ((int) $l['id'] === (int) $card['card_type_id']) $from = (float) $l['level_min_spend'];
+        }
+
+        // La barra va del mínimo de su nivel al del siguiente; en el más alto, llena.
+        $goal = $above ? (float) $above['level_min_spend'] : $spend;
+        $pct  = $above && $goal > $from ? max(0, min(1, ($spend - $from) / ($goal - $from))) : 1;
+
+        if (!$above)                     $text .= ' · es el nivel más alto';
+        elseif ($spend + 0.005 >= $goal) $text .= " · ya alcanza {$above['name']}: sube en su próxima compra o en la revisión";
+        else                             $text .= ' · le faltan ' . money($goal - $spend) . " para {$above['name']}";
+
+        return [
+            'title' => "Nivel {$card['type']} · {$place} de " . count($levels),
+            'text'  => $text,
+            'note'  => (int) $this->qLoyaltySetting($this->companyId())['levels_enabled'] === 1 ? '' : 'Niveles está apagado: no sube ni baja.',
+            'bar'   => [
+                'head'  => !$above ? 'Está en el nivel más alto' : ($spend + 0.005 >= $goal ? "Ya alcanza {$above['name']}" : 'Faltan ' . $this->moneyShort($goal - $spend) . " para {$above['name']}"),
+                'side'  => $above ? $this->moneyShort($spend) . ' de ' . $this->moneyShort($goal) : $this->moneyShort($spend),
+                'pct'   => round($pct * 100, 1),
+                'top'   => !$above
+            ]
+        ];
+    }
+
+    // «Hoy», «Mañana», «En 3 días», «Hace 2 días».
+    private function birthdayWhen($in) {
+        if ($in === 0)  return 'Hoy';
+        if ($in === 1)  return 'Mañana';
+        if ($in === -1) return 'Ayer';
+
+        return $in > 0 ? "En {$in} días" : 'Hace ' . abs($in) . ' días';
+    }
+
+    // El estado de un cumpleaños en la lista, como píldora.
+    private function birthdayPill(array $b) {
+        $pill = fn ($tone, $text) => '<span class="ord-pill ' . $tone . '">' . $text . '</span>';
+        $when = $b['greeted_at'] !== '' ? ' el ' . date('d/m', strtotime($b['greeted_at'])) : '';
+
+        switch ($b['state']) {
+            case 'done':
+                if ($b['greeted'] === 'sent')      return $pill('bg-emerald-50 text-emerald-700', 'Felicitado' . $when);
+                if ($b['greeted'] === 'simulated') return $pill('bg-emerald-50 text-emerald-700', 'Felicitado' . $when . ' (simulado)');
+                if ($b['greeted'] === 'pending')   return $pill('bg-slate-100 text-slate-600', 'Mandando…');
+
+                return $pill('bg-amber-50 text-amber-700', 'Regalo dado; el WhatsApp no salió');
+            case 'due':     return $pill('bg-indigo-50 text-indigo-700', 'Le toca hoy');
+            case 'missed':  return $pill('bg-amber-50 text-amber-700', 'No se felicitó');
+            case 'nooptin': return $pill('bg-slate-100 text-slate-600', 'No aceptó mensajes');
+            case 'baja':    return $pill('bg-slate-100 text-slate-600', 'Escribió BAJA');
+            case 'nophone': return $pill('bg-slate-100 text-slate-600', 'Sin WhatsApp válido');
+        }
+
+        return $pill('bg-slate-100 text-slate-600', 'Próximo');
+    }
+
+    /*  El cumpleaños para la ficha: el texto, día y mes (para el formulario), si
+        acepta mensajes y cómo le fue este año. Null si el cliente no existe. */
+    private function detailBirthday($customerId) {
+        $row = $this->qCustomerBirthday($customerId, date('Y-01-01 00:00:00'));
+
+        if (!$row) return null;
+
+        $birthday = (string) $row['birthday'];
+        $greeted  = (string) $row['greeted'];
+        $status   = '';
+
+        if ($greeted !== '') {
+            list($at, $how) = array_pad(explode('|', $greeted, 2), 2, '');
+            $status = 'Felicitado el ' . date('d/m/Y', strtotime($at)) . (in_array($how, ['sent', 'simulated', 'pending'], true) ? '' : ' (el WhatsApp no salió)');
+        }
+
+        return [
+            'text'   => $birthday !== '' ? $this->birthdayText($birthday) : '',
+            'day'    => $birthday !== '' ? (int) substr($birthday, 8, 2) : 0,
+            'month'  => $birthday !== '' ? (int) substr($birthday, 5, 2) : 0,
+            'optin'  => $row['whatsapp_optin_at'] !== null ? 'Acepta mensajes desde el ' . date('d/m/Y', strtotime($row['whatsapp_optin_at'])) : 'No ha aceptado mensajes de la tienda',
+            'status' => $status
+        ];
+    }
+
+    /*  Lo que pinta la pestaña: el registro (encendido, tipo de bienvenida y si
+        sirve hoy), el enlace de esta sucursal, cuántos se registraron en el mes
+        y los tipos activos para elegir. Sin enlace y con 'update', lo crea. */
+    private function programReply() {
+        $scope    = $this->scope();
+        $branchId = $this->branchId();
+        $setting  = $this->qLoyaltySetting($this->companyId());
+        $canEdit  = Permission::can(static::PAGE, 'update');
+        $link     = $this->qSignupLink($branchId);
+
+        if (!$link && $canEdit) {
+            $this->transaction(function () use ($branchId) {
+                $this->must($this->qCreateSignupLink($branchId, $this->loyaltySignupToken()), 'programReply');
+            });
+
+            $link = $this->qSignupLink($branchId);
+        }
+
+        $typeId = (int) $setting['signup_type_id'];
+        $type   = $typeId > 0 ? $this->qCardType($typeId, $branchId) : null;
+        $types  = [];
+
+        foreach ($this->qCardTypes($branchId, 1) as $t) {
+            $types[] = ['id' => (int) $t['id'], 'valor' => (string) $t['name'], 'benefit' => $this->typeText($t)];
+        }
+
+        list($from, $to) = $this->monthRange();
+
+        $stats   = $this->qSignupStats($this->companyId(), $from, $to);
+        $created = (int) $stats['created'];
+        $enabled = (int) $setting['signup_enabled'] === 1;
+        $usable  = $type && (int) $type['active'] === 1;
+        $wa      = $this->loyaltyWaState();
+
+        return [
+            'can_edit' => $canEdit,
+            'signup'   => [
+                'enabled'   => $enabled,
+                'type_id'   => $type ? $typeId : 0,
+                'type'      => $type ? (string) $type['name'] : '',
+                'benefit'   => $type ? $this->typeText($type) : '',
+                'perk'      => $type ? $this->perkText($type) : '',
+                'color'     => $type ? $this->colorOf($type['color']) : self::CARD_COLOR,
+                'note'      => $this->signupNote($enabled, $type, $usable),
+                'live'      => $enabled && $usable,
+                'url'       => $link ? $this->loyaltySignupUrl($link['token']) : '',
+                'since'     => $link ? date('d/m/Y', strtotime((string) $link['created_at'])) : '',
+                'branch'    => (string) $scope['branch'],
+                'company'   => (string) $scope['company'],
+                'month'     => $created,
+                'monthText' => $created > 0 ? $this->countText($created, 'tarjeta nueva', 'tarjetas nuevas') . ' en ' . $this->monthLabel() : 'Nadie se ha registrado en ' . $this->monthLabel()
+            ],
+            'birthday' => $this->birthdayReply($setting, $wa),
+            'winback'  => $this->winbackReply($setting, $wa),
+            'levels'   => $this->levelsReply($setting),
+            'messages' => $this->programMessages($setting, $type),
+            'types'    => $types,
+            'whatsapp' => $wa
+        ];
+    }
+
+    /*  «Mensajes que salen solos» de la pestaña Programa: cada plantilla de
+        lealtad con cuándo sale, cuántos salieron este mes (sent o simulated) y su
+        texto con datos de ejemplo (la vista previa del teléfono).
+        toggle: el ajuste que lo enciende (birthday, winback o levels); '' = sale
+        siempre que la empresa tenga WhatsApp. $welcome: el tipo de bienvenida. */
+    private function programMessages(array $setting, $welcome) {
+        $business = trim((string) $this->scope()['company']);
+        $sent     = $this->qNoticeCounts($this->companyId(), date('Y-m-01 00:00:00'));
+        $link     = '…/tarjeta.php?t=…';
+        $stamps   = (int) $setting['birthday_stamps'];
+        $points   = round((float) $setting['birthday_points'], 2);
+        $days     = max(1, (int) $setting['winback_days']);
+        $cap      = (int) $setting['winback_daily_cap'];
+        $prize    = null;
+
+        // El premio de ejemplo: el del primer tipo de sellos activo de la empresa.
+        foreach ($this->qCardTypes($this->branchId(), 1) as $t) {
+            if ((int) $t['stamp_goal'] > 0) { $prize = $t; break; }
+        }
+
+        $goal   = $prize ? (int) $prize['stamp_goal'] : 10;
+        $reward = $prize ? trim((string) $prize['reward_name']) : 'Café gratis';
+        $gift   = $stamps > 0 ? 'te regalamos ' . $this->countText($stamps, 'sello', 'sellos') . ' en tu tarjeta'
+                : ($points > 0 ? 'te regalamos ' . money($points) . ' en tu monedero' : 'te esperamos con tu tarjeta');
+
+        $rows = [
+            ['key' => 'tarjeta', 'icon' => 'qr-code', 'title' => 'Tu tarjeta', 'when' => 'Al registrarse o cuando se la mandas desde Tarjetas',
+             'toggle' => '', 'on' => true, 'sent' => $sent['bienvenida'] ?? 0,
+             'params' => ['Mariana', $welcome ? (string) $welcome['name'] : 'Cliente Frecuente', $business, $link]],
+            ['key' => 'premio', 'icon' => 'gift', 'title' => 'Premio listo', 'when' => 'Al cobrar la venta que completa sus sellos',
+             'toggle' => '', 'on' => true, 'sent' => $sent['premio'] ?? 0,
+             'params' => ['Mariana', (string) $goal, $business, $reward, $link]],
+            ['key' => 'cumple', 'icon' => 'cake', 'title' => 'Cumpleaños', 'when' => 'En su día · ' . ($stamps > 0 || $points > 0 ? 'con regalo' : 'solo la felicitación'),
+             'toggle' => 'birthday', 'on' => (int) $setting['birthday_enabled'] === 1, 'sent' => $sent['cumple'] ?? 0,
+             'params' => ['Mariana', $business, $gift, $link]],
+            ['key' => 'regreso', 'icon' => 'heart-handshake', 'title' => 'Te extrañamos', 'when' => "Si lleva {$days} días sin comprar · tope de {$cap} al día",
+             'toggle' => 'winback', 'on' => (int) $setting['winback_enabled'] === 1, 'sent' => $sent['regreso'] ?? 0,
+             'params' => ['Mariana', $business, "Llevas 7 de {$goal} sellos para tu {$reward}.", $link]],
+            ['key' => 'nivel', 'icon' => 'trophy', 'title' => 'Nuevo nivel', 'when' => 'Al subir al cobrar o en la revisión de cada mes',
+             'toggle' => 'levels', 'on' => (int) $setting['levels_enabled'] === 1, 'sent' => $sent['nivel'] ?? 0,
+             'params' => ['Mariana', $business, 'VIP', '¡Felicidades! Ahora tienes 10 % de lo que pagas en puntos.', $link]]
+        ];
+
+        return array_map(function ($r) {
+            $r['text']     = $this->waTemplateFill($r['key'], $r['params']);
+            $r['sentText'] = $r['sent'] > 0 ? $this->countText($r['sent'], 'enviado', 'enviados') : 'Ninguno';
+
+            unset($r['params']);
+
+            return $r;
+        }, $rows);
+    }
+
+    /*  La caja «Te extrañamos»: ajustes, a cuántos les toca hoy (y cuánto deja el
+        tope), cuántos salieron este mes y cuántos de ellos volvieron. */
+    private function winbackReply(array $setting, array $wa) {
+        $now     = time();
+        $days    = max(1, (int) $setting['winback_days']);
+        $cap     = (int) $setting['winback_daily_cap'];
+        $list    = $this->loyaltyWinbacks($days, $now);
+        $due     = count(array_filter($list, fn ($w) => $w['state'] === 'due'));
+        $today   = $this->qWinbackCount($this->companyId(), date('Y-m-d 00:00:00', $now));
+        $room    = max(0, $cap - $today);
+        $month   = $this->qWinbackBack($this->companyId(), date('Y-m-01 00:00:00', $now));
+        $sent    = (int) $month['sent'];
+        $enabled = (int) $setting['winback_enabled'] === 1;
+
+        $note = '';
+
+        if (!$enabled)         $note = 'Apagado: no sale ningún «te extrañamos».';
+        elseif (!$wa['ready']) $note = 'La empresa no tiene número de WhatsApp: no sale nada.';
+        elseif ($room === 0)   $note = 'Hoy ya se llegó al tope de ' . $cap . ' mensajes. Mañana sigue.';
+        else                   $note = $this->autoNote();
+
+        return [
+            'enabled'   => $enabled,
+            'days'      => $days,
+            'cap'       => $cap,
+            'daysText'  => "{$days} días o más sin comprar",
+            'awayText'  => count($list) > 0 ? $this->countText(count($list), 'cliente', 'clientes') . ' en total' : 'Nadie',
+            'dueText'   => $due > 0 ? "A {$due} les toca" . ($due > $room ? " · hoy caben {$room}" : '') : 'A nadie le toca hoy',
+            'capText'   => "{$today} de {$cap} enviados hoy",
+            'monthText' => $sent > 0 ? $this->countText($sent, 'mensaje', 'mensajes') . ' · volvieron ' . (int) $month['back'] : 'Ninguno este mes',
+            'back'      => (int) $month['back'],
+            'due'       => min($due, $room),
+            'canSend'   => $enabled && $wa['ready'] && $due > 0 && $room > 0,
+            'note'      => $note
+        ];
+    }
+
+    /*  La tarea de cada hora (cron-lealtad.php) no corre sin WHATSAPP_PUBLIC_URL:
+        sin ella, lo dice en la caja. '' = lo automático puede correr. */
+    private function autoNote() {
+        return $this->loyaltyPublicBase() === '' ? 'Lo automático aún no corre en este servidor (falta su dirección pública). Mientras, usa el botón.' : '';
+    }
+
+    /*  La caja «Niveles»: la escalera, cuántas tarjetas hay en ella, lo que se
+        movió este mes y la última revisión. */
+    private function levelsReply(array $setting) {
+        $levels  = $this->qLevels($this->branchId());
+        $moves   = $this->qLevelMoves($this->branchId(), date('Y-m-01 00:00:00'));
+        $enabled = (int) $setting['levels_enabled'] === 1;
+        $ladder  = implode(' → ', array_map(fn ($l) => $l['name'] . ' (' . money($l['level_min_spend']) . ')', $levels));
+        $cards   = count($levels) >= 2 ? count($this->qLevelCards($this->branchId(), $this->levelSince())) : 0;
+        $up      = (int) $moves['up'];
+        $down    = (int) $moves['down'];
+
+        $note = '';
+
+        if (count($levels) < 2) $note = 'Faltan niveles: pon el «Gasto mínimo en 12 meses» en al menos 2 tipos de tarjeta (Tipos de tarjeta › Editar).';
+        elseif (!$enabled)      $note = 'Apagado: ninguna tarjeta sube ni baja.';
+        else                    $note = $this->autoNote();
+
+        return [
+            'enabled'    => $enabled,
+            'count'      => count($levels),
+            'ladderText' => $ladder !== '' ? $ladder : 'Sin niveles',
+            'cardsText'  => $cards > 0 ? $this->countText($cards, 'tarjeta', 'tarjetas') : 'Ninguna',
+            'monthText'  => $up + $down > 0 ? "{$up} subieron · {$down} bajaron" : 'Nadie ha cambiado de nivel',
+            'up'         => $up,
+            'down'       => $down,
+            'reviewText' => $setting['levels_reviewed_at'] ? date('d/m/Y', strtotime((string) $setting['levels_reviewed_at'])) : 'Nunca',
+            'canReview'  => $enabled && count($levels) >= 2,
+            'note'       => $note
+        ];
+    }
+
+    /*  La caja «Cumpleaños»: ajustes, quién cumple hoy y en 30 días, cuántos se
+        felicitaron en el año y si se puede mandar hoy. */
+    private function birthdayReply(array $setting, array $wa) {
+        $list    = $this->loyaltyBirthdays(date('Y-m-d'), 0, self::BDAY_AHEAD, $setting);
+        $today   = array_values(array_filter($list, fn ($b) => $b['in'] === 0));
+        $due     = count(array_filter($today, fn ($b) => $b['state'] === 'due'));
+        $next    = count($list) - count($today);
+        $year    = $this->qBirthdayCount($this->companyId(), date('Y-01-01 00:00:00'));
+        $enabled = (int) $setting['birthday_enabled'] === 1;
+        $stamps  = (int) $setting['birthday_stamps'];
+        $points  = round((float) $setting['birthday_points'], 2);
+
+        $note = '';
+
+        if (!$enabled)         $note = 'Apagado: nadie recibe felicitación ni regalo.';
+        elseif (!$wa['ready']) $note = 'La empresa no tiene número de WhatsApp: no sale la felicitación ni el regalo.';
+        else                   $note = $this->autoNote();
+
+        $done      = count(array_filter($today, fn ($b) => $b['state'] === 'done'));
+        $todayText = !$today ? 'Nadie cumple hoy' : implode(' · ', array_filter([
+            $this->countText(count($today), 'cumple', 'cumplen') . ' hoy',
+            $due > 0 && $due !== count($today) ? "a {$due} les toca" : '',
+            $done > 0 ? $this->countText($done, 'felicitado', 'felicitados') : ''
+        ]));
+
+        return [
+            'enabled'   => $enabled,
+            'stamps'    => $stamps,
+            'points'    => $points,
+            'giftText'  => implode(' · ', array_filter([
+                               $stamps > 0 ? $this->countText($stamps, 'sello', 'sellos') . ' en tarjetas de sellos' : '',
+                               $points > 0 ? money($points) . ' al monedero en tarjetas de puntos' : ''
+                           ])) ?: 'Solo la felicitación',
+            'todayText' => $todayText,
+            'nextText'  => $next > 0 ? $this->countText($next, 'cumpleaños', 'cumpleaños') . ' en los próximos ' . self::BDAY_AHEAD . ' días' : 'Ninguno en los próximos ' . self::BDAY_AHEAD . ' días',
+            'yearText'  => $year > 0 ? $this->countText($year, 'felicitado', 'felicitados') . ' en ' . date('Y') : 'Nadie felicitado en ' . date('Y'),
+            'due'       => $due,
+            'canSend'   => $enabled && $wa['ready'] && $due > 0,
+            'note'      => $note
+        ];
+    }
+
+    // Lo que da la tarjeta, dicho para el cliente (el cartel): «Con 10 sellos, Café gratis: 1 sello por cada $100».
+    private function perkText($t) {
+        if ((int) $t['stamp_goal'] > 0) {
+            return 'Con ' . (int) $t['stamp_goal'] . ' sellos, ' . trim((string) $t['reward_name']) . ': 1 sello por cada ' . $this->moneyShort($t['stamp_amount']);
+        }
+
+        $pct      = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.') . ' %';
+        $discount = (float) $t['discount_percent'];
+        $points   = (float) $t['points_percent'];
+
+        if ($discount > 0) return $pct($discount) . ' de descuento en cada compra';
+        if ($points > 0)   return $pct($points) . ' de lo que pagas regresa a tu monedero';
+
+        return '';
+    }
+
+    // Qué le pasa hoy a quien escanea el QR. '' = todo bien.
+    private function signupNote($enabled, $type, $usable) {
+        if (!$enabled) return 'Apagado: quien escanee el QR verá «Pide tu tarjeta en caja».';
+        if (!$type)    return 'Falta elegir la tarjeta de bienvenida.';
+        if (!$usable)  return 'La tarjeta de bienvenida está inactiva: el QR no da tarjetas hasta activarla o elegir otra.';
+
+        return '';
+    }
+
     // -- Tipos: galeria --
 
     // Cada tipo con lo necesario para dibujar su tarjeta, cuantas tiene y lo que vendio este mes. Los botones los pone el JS.
@@ -460,11 +1186,12 @@ class ctrl extends core {
                 $month[(int) $row['card_type_id']] = $row;
             }
 
-            $types = [];
+            $types  = [];
+            $ladder = array_map(fn ($l) => (int) $l['id'], $this->qLevels($this->branchId()));
 
             foreach ($this->qCardTypes($this->branchId(), $active) as $type) {
                 $id      = (int) $type['id'];
-                $types[] = $this->typeTile($type, isset($month[$id]) ? $month[$id] : null);
+                $types[] = $this->typeTile($type, isset($month[$id]) ? $month[$id] : null) + $this->levelTile($type, $ladder);
             }
 
             return [
@@ -476,22 +1203,44 @@ class ctrl extends core {
         }, 'No se pudo cargar la lista de tipos de tarjeta.');
     }
 
-    // Un tipo de la galeria. $month: sus ventas del mes (null = ninguna). Todo va como texto plano.
-    private function typeTile($t, $month) {
-        $cards = (int) $t['cards'];
-        $sales = $month ? (int) $month['sales'] : 0;
+    /*  La insignia de nivel de un tipo en la galeria. levelTag: «Nivel 2» ('' = no es
+        nivel); levelFrom: «Desde $5,000 en 12 meses»; levelTop: es el mas alto (la
+        insignia sale dorada). $ladder: ids de la escalera, del mas bajo al mas alto. */
+    private function levelTile($t, array $ladder) {
+        if ($t['level_min_spend'] === null) return ['levelTag' => '', 'levelFrom' => '', 'levelTop' => false, 'levelPlace' => 0, 'levelMin' => null];
 
+        $place = array_search((int) $t['id'], $ladder, true);
+        $from  = 'Desde ' . $this->moneyShort($t['level_min_spend']) . ' en 12 meses';
+        $min   = round((float) $t['level_min_spend'], 2);
+
+        if ($place === false) return ['levelTag' => 'Fuera de la escalera', 'levelFrom' => $from, 'levelTop' => false, 'levelPlace' => 0, 'levelMin' => $min];
+
+        // levelPlace (1 = el más bajo) y levelMin: la tarjeta «Niveles y beneficios» del tablero ordena y pinta la escalera.
+        return [
+            'levelTag'   => 'Nivel ' . ($place + 1),
+            'levelFrom'  => $from,
+            'levelTop'   => count($ladder) > 1 && $place + 1 === count($ladder),
+            'levelPlace' => $place + 1,
+            'levelMin'   => $min
+        ];
+    }
+
+    /*  Un tipo de la galeria. $month: sus ventas del mes (null = ninguna): cuantas,
+        cuanto sumaron y el descuento y los puntos que dieron. Todo va como texto plano. */
+    private function typeTile($t, $month) {
         return $this->stampFace($t) + [
-            'id'        => (int) $t['id'],
-            'name'      => (string) $t['name'],
-            'color'     => $this->colorOf($t['color']),
-            'discount'  => round((float) $t['discount_percent'], 2),
-            'points'    => round((float) $t['points_percent'], 2),
-            'benefit'   => $this->typeText($t),
-            'active'    => (int) $t['active'] === 1,
-            'cards'     => $cards,
-            'cardsText' => $cards > 0 ? $this->countText($cards, 'tarjeta activa', 'tarjetas activas') : 'Sin tarjetas activas',
-            'salesText' => $sales > 0 ? $this->countText($sales, 'venta', 'ventas') . ' este mes · ' . money($month['sold']) : 'Sin ventas este mes'
+            'id'            => (int) $t['id'],
+            'name'          => (string) $t['name'],
+            'color'         => $this->colorOf($t['color']),
+            'discount'      => round((float) $t['discount_percent'], 2),
+            'points'        => round((float) $t['points_percent'], 2),
+            'benefit'       => $this->typeText($t),
+            'active'        => (int) $t['active'] === 1,
+            'cards'         => (int) $t['cards'],
+            'sales'         => $month ? (int) $month['sales'] : 0,
+            'sold'          => $month ? round((float) $month['sold'], 2) : 0,
+            'discountGiven' => $month ? round((float) $month['discount'], 2) : 0,
+            'pointsGiven'   => $month ? round((float) $month['points'], 2) : 0
         ];
     }
 
@@ -514,18 +1263,22 @@ class ctrl extends core {
         $fail = $this->needPoints('create') ?: $this->needBranch();
         if ($fail) return $fail;
 
-        list($fail, $name, $discount, $points, $color, $stamps) = $this->typeFields();
+        list($fail, $name, $discount, $points, $color, $stamps, $level) = $this->typeFields();
         if ($fail) return $fail;
 
-        return $this->attempt(function () use ($name, $discount, $points, $color, $stamps) {
-            return $this->transaction(function () use ($name, $discount, $points, $color, $stamps) {
+        return $this->attempt(function () use ($name, $discount, $points, $color, $stamps, $level) {
+            return $this->transaction(function () use ($name, $discount, $points, $color, $stamps, $level) {
                 $taken = $this->qCardTypeNameTaken($this->branchId(), $name, 0);
 
                 if ($taken) return $this->fail(409, "Ya hay un tipo de tarjeta llamado {$taken['name']} en esta empresa.");
 
+                $tie = $level !== null ? $this->qLevelTaken($this->branchId(), $level, 0) : null;
+
+                if ($tie) return $this->fail(409, "El nivel {$tie['name']} ya empieza en " . money($level) . ': dos niveles no pueden tener el mismo gasto mínimo.');
+
                 $this->must($this->qCreateCardType([
-                    'values' => ['name', 'discount_percent', 'points_percent', 'stamp_amount', 'stamp_goal', 'reward_name', 'reward_value', 'stamp_icon', 'color', 'branch_id', 'active'],
-                    'data'   => array_merge([$name, $discount, $points], $stamps, [$color, $this->branchId(), 1])
+                    'values' => ['name', 'discount_percent', 'points_percent', 'stamp_amount', 'stamp_goal', 'reward_name', 'reward_value', 'stamp_icon', 'level_min_spend', 'color', 'branch_id', 'active'],
+                    'data'   => array_merge([$name, $discount, $points], $stamps, [$level, $color, $this->branchId(), 1])
                 ]), 'addCardType');
 
                 $id = $this->qLastInsertId();
@@ -541,13 +1294,13 @@ class ctrl extends core {
         $fail = $this->needPoints('update') ?: $this->needBranch();
         if ($fail) return $fail;
 
-        list($fail, $name, $discount, $points, $color, $stamps) = $this->typeFields();
+        list($fail, $name, $discount, $points, $color, $stamps, $level) = $this->typeFields();
         if ($fail) return $fail;
 
         $id = $this->postId();
 
-        return $this->attempt(function () use ($id, $name, $discount, $points, $color, $stamps) {
-            return $this->transaction(function () use ($id, $name, $discount, $points, $color, $stamps) {
+        return $this->attempt(function () use ($id, $name, $discount, $points, $color, $stamps, $level) {
+            return $this->transaction(function () use ($id, $name, $discount, $points, $color, $stamps, $level) {
                 $type = $this->qCardType($id, $this->branchId());
 
                 if (!$type) return $this->fail(404, 'Ese tipo de tarjeta no es de esta empresa o ya no existe.');
@@ -556,10 +1309,14 @@ class ctrl extends core {
 
                 if ($taken) return $this->fail(409, "Ya hay un tipo de tarjeta llamado {$taken['name']} en esta empresa.");
 
+                $tie = $level !== null ? $this->qLevelTaken($this->branchId(), $level, $id) : null;
+
+                if ($tie) return $this->fail(409, "El nivel {$tie['name']} ya empieza en " . money($level) . ': dos niveles no pueden tener el mismo gasto mínimo.');
+
                 $this->must($this->qUpdateCardType([
-                    'values' => ['name', 'discount_percent', 'points_percent', 'stamp_amount', 'stamp_goal', 'reward_name', 'reward_value', 'stamp_icon', 'color', 'updated_at = NOW()'],
+                    'values' => ['name', 'discount_percent', 'points_percent', 'stamp_amount', 'stamp_goal', 'reward_name', 'reward_value', 'stamp_icon', 'level_min_spend', 'color', 'updated_at = NOW()'],
                     'where'  => ['id'],
-                    'data'   => array_merge([$name, $discount, $points], $stamps, [$color, $id])
+                    'data'   => array_merge([$name, $discount, $points], $stamps, [$level, $color, $id])
                 ]), 'editCardType');
 
                 return $this->ok('Tipo de tarjeta actualizado.', ['id' => $id]);
@@ -599,12 +1356,15 @@ class ctrl extends core {
     // -- Complements --
 
     private function needPoints($action) {
-        if (Permission::can(self::POINTS, $action)) return null;
+        if (Permission::can(static::PAGE, $action)) return null;
 
-        $what = [
+        $what = static::PAGE === self::POINTS ? [
             'show'   => 'ver tarjetas y puntos',
             'create' => 'agregar tarjetas ni tipos de tarjeta',
             'update' => 'editar tarjetas ni tipos de tarjeta'
+        ] : [
+            'show'   => 'ver el programa de lealtad',
+            'update' => 'cambiar el programa de lealtad'
         ];
 
         $text = isset($what[$action]) ? $what[$action] : 'hacer esto';
@@ -699,18 +1459,24 @@ class ctrl extends core {
         return null;
     }
 
-    /*  [respuesta de error | null, nombre, descuento, puntos, color, sellos] ya limpios.
+    /*  [respuesta de error | null, nombre, descuento, puntos, color, sellos, nivel] ya limpios.
         Un solo beneficio: descuento, puntos o sellos; los otros en 0.
         sellos = [$ por sello, meta, premio, valor del premio, icono]; sin sellos, los 5 en NULL.
-        Color vacio = NULL (celeste por defecto). */
+        Color vacio = NULL (celeste por defecto). nivel = gasto minimo en 12 meses;
+        vacio = NULL (no es nivel). Un tipo de sellos no puede ser nivel. */
     private function typeFields() {
         $name     = trim((string) preg_replace('/\s+/u', ' ', $this->post('name')));
         $discount = $this->percentOf($this->post('discount_percent'));
         $points   = $this->percentOf($this->post('points_percent'));
         $goal     = $this->post('stamp_goal') === '' ? 0 : $this->intOf($this->post('stamp_goal'));
         $color    = strtoupper(trim((string) $this->post('color')));
+        $levelRaw = $this->post('level_min_spend');
+        $level    = $levelRaw === '' ? null : $this->amountOf($levelRaw, 0, 2);
         $none     = [null, null, null, null, null];
-        $bad      = function ($text) use ($none) { return [$this->fail(422, $text), '', 0, 0, null, $none]; };
+        $bad      = function ($text) use ($none) { return [$this->fail(422, $text), '', 0, 0, null, $none, null]; };
+
+        if ($levelRaw !== '' && ($level === null || $level > self::MAX_LEVEL)) return $bad('El gasto mínimo del nivel va de $0 a ' . money(self::MAX_LEVEL) . ', con hasta 2 decimales.');
+        if ($level !== null && $goal > 0)                                    return $bad('Una tarjeta de sellos no puede ser nivel: al cambiar de nivel sus sellos se quedarían sin premio.');
 
         if ($name === '')                           return $bad('Escribe el nombre del tipo de tarjeta.');
         if ($this->tooLong($name, self::MAX_NAME))  return $bad('El nombre admite hasta ' . self::MAX_NAME . ' caracteres.');
@@ -748,7 +1514,7 @@ class ctrl extends core {
             return $bad('El color va como # y 6 letras o números, por ejemplo ' . self::CARD_COLOR . '.');
         }
 
-        return [null, $name, $discount, $points, $color === '' ? null : $color, $stamps];
+        return [null, $name, $discount, $points, $color === '' ? null : $color, $stamps, $level];
     }
 
     // Un porcentaje de 0 a 100. Vacio = 0; invalido = null.
@@ -830,6 +1596,7 @@ class ctrl extends core {
             'reward_name'      => (string) $t['reward_name'],
             'reward_value'     => round((float) $t['reward_value'], 2),
             'stamp_icon'       => (string) $t['stamp_icon'],
+            'level_min_spend'  => $t['level_min_spend'] !== null ? round((float) $t['level_min_spend'], 2) : null,
             'color'            => $this->colorOf($t['color']),
             'active'           => (int) $t['active']
         ];
@@ -1141,4 +1908,5 @@ class ctrl extends core {
     }
 }
 
-Permission::dispatch(new ctrl(), ctrl::POINTS);
+// ctrl-programa.php carga esta clase sin despachar: despacha la suya.
+if (!defined('LOYALTY_CTRL_LIB')) Permission::dispatch(new ctrl(), ctrl::POINTS);

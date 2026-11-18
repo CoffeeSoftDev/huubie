@@ -24,7 +24,7 @@ class ctrl extends configMdl {
     const OPS = [
         'init', 'saveCompany', 'saveLogo', 'removeLogo',
         'branches', 'saveBranch', 'toggleBranch',
-        'users', 'saveUser', 'toggleUser',
+        'users', 'saveUser', 'saveUserPhoto', 'toggleUser',
         'roles', 'getRole', 'saveRole', 'toggleRole',
         'billing', 'checkout', 'portal', 'plans', 'changePlan',
     ];
@@ -36,8 +36,13 @@ class ctrl extends configMdl {
     const LOGO_MAX   = 2097152;   // 2 MB
     const LOGO_TYPES = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'];
 
-    // Colores del avatar: los mismos de Mi perfil. users.color acaba en un style="".
-    const COLORS = ['#1C64F2', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#D97706', '#16A34A', '#0D9488', '#0284C7', '#475569'];
+    // La foto de un usuario: las mismas reglas que Mi perfil (ctrl-perfil :: savePhoto).
+    const PHOTO_MAX   = 2097152;   // 2 MB
+    const PHOTO_TYPES = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'];
+
+    // Colores pastel que se ofrecen para el avatar. Tambien se acepta uno
+    // personalizado: cualquier hex #RRGGBB (users.color acaba en un style="").
+    const COLORS = ['#AEC6F4', '#C9B8F0', '#F5B8D2', '#F7B7B0', '#FAD2B4', '#F7E3A1', '#BFE5C0', '#A9E2D9', '#B4DCF0', '#D3D6DE'];
 
     // Regimenes fiscales del SAT (c_RegimenFiscal) que le tocan a un negocio.
     const REGIMES = [
@@ -377,7 +382,7 @@ class ctrl extends configMdl {
         $last     = $this->text('last_name', 80);
         $email    = strtolower((string) $this->text('email', 120));
         $password = (string) ($_POST['password'] ?? '');
-        $color    = in_array($_POST['color'] ?? '', self::COLORS, true) ? $_POST['color'] : null;
+        $color    = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) ($_POST['color'] ?? '')) ? strtoupper($_POST['color']) : null;
         $access   = $this->postedAccess();
 
         $current = null;
@@ -397,6 +402,11 @@ class ctrl extends configMdl {
 
         if ($password !== '' && mb_strlen($password) < self::PASSWORD_MIN) {
             return $this->invalid('password', 'La contraseña debe tener al menos ' . self::PASSWORD_MIN . ' caracteres.');
+        }
+
+        // Al crear se escribe dos veces; al editar va un solo campo.
+        if ($id === 0 && $password !== (string) ($_POST['password_confirmation'] ?? '')) {
+            return $this->invalid('password_confirmation', 'Las contraseñas no coinciden.');
         }
 
         $owner = $current ? (int) $current['is_owner'] === 1 : false;
@@ -433,8 +443,57 @@ class ctrl extends configMdl {
             // Si se edito a si mismo, la barra lee su nombre de la sesion.
             if ($id === (int) Session::user()) $_SESSION['user'] = trim($name . ' ' . $last);
 
-            return ['status' => 200, 'message' => $current ? 'Usuario actualizado.' : 'Usuario agregado. Ya puede entrar con su correo y contraseña.'];
+            // id: con el, la pantalla sube la foto del usuario recien creado (saveUserPhoto).
+            return ['status' => 200, 'message' => $current ? 'Usuario actualizado.' : 'Usuario agregado. Ya puede entrar con su correo y contraseña.', 'id' => (int) $id];
         });
+    }
+
+    /*  La foto de alguien de la empresa, la misma que cada quien sube en Mi
+        perfil: users.photo guarda SOLO el nombre del archivo dentro de
+        pro/uploads/users/. El tipo se lee del contenido y el nombre lo pone el
+        servidor. */
+    function saveUserPhoto() {
+        $id   = (int) ($_POST['id'] ?? 0);
+        $user = $this->companyUser($id);
+        $file = $_FILES['photo'] ?? null;
+
+        if (!$user) return ['status' => 404, 'message' => 'Esa persona no es de tu empresa.'];
+
+        if (!$file || $file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
+            return ['status' => 400, 'message' => 'No recibimos la foto. Inténtalo de nuevo.'];
+        }
+        if ($file['size'] > self::PHOTO_MAX) {
+            return ['status' => 400, 'message' => 'La foto pesa más de 2 MB.'];
+        }
+
+        $info = @getimagesize($file['tmp_name']);
+
+        if (!$info || !isset(self::PHOTO_TYPES[$info[2]])) {
+            return ['status' => 400, 'message' => 'Sube una imagen JPG, PNG o WebP.'];
+        }
+
+        $dir = __DIR__ . '/../../../uploads/users/';
+
+        if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+            return ['status' => 500, 'message' => 'No se pudo preparar la carpeta de fotos.'];
+        }
+
+        $name = 'u' . $id . '-' . time() . '.' . self::PHOTO_TYPES[$info[2]];
+
+        if (!move_uploaded_file($file['tmp_name'], $dir . $name)) {
+            return ['status' => 500, 'message' => 'No se pudo guardar la foto.'];
+        }
+
+        if ($this->updateUserPhoto([$name, $id]) !== true) {
+            @unlink($dir . $name);
+            return ['status' => 500, 'message' => 'No pudimos guardar la foto. Inténtalo de nuevo.'];
+        }
+
+        // La anterior ya no la apunta nadie. basename(): solo dentro de la carpeta.
+        $old = basename(trim((string) $user['photo']));
+        if ($old !== '' && $old !== $name && is_file($dir . $old)) @unlink($dir . $old);
+
+        return ['status' => 200, 'message' => 'La foto quedó actualizada.', 'data' => ['photo' => userPhotoUrl($name, 4)]];
     }
 
     /*  Desactivar no borra: la persona deja de poder entrar y conserva su
@@ -537,13 +596,16 @@ class ctrl extends configMdl {
             if (!$role) return ['status' => 404, 'message' => 'Ese rol no está disponible para tu empresa.'];
         }
 
+        $tree = $this->permissionTree($id);
+
         return [
             'status' => 200,
             'data'   => [
                 'id'       => $id,
                 'name'     => $role ? (string) $role['name'] : '',
                 'system'   => $role && $this->lockedRole($role) ? 1 : 0,
-                'modules'  => $this->permissionTree($id),
+                'modules'  => $tree['modules'],
+                'columns'  => $tree['columns'],
             ]
         ];
     }
@@ -634,13 +696,21 @@ class ctrl extends configMdl {
         }));
     }
 
-    // modulo > seccion > acciones, en el orden del menu.
+    /*  modulo > seccion > acciones, en el orden del menu. columns: cada accion
+        una sola vez (Ver, Agregar, Editar...) en el orden de type_permissions;
+        la pantalla las pinta como columnas de una tabla. */
     private function permissionTree($roleId) {
         $modules = [];
+        $columns = [];
 
         foreach ($this->grantable($roleId) as $r) {
             $mid = (int) $r['module_id'];
             $sid = (int) $r['section_id'];
+
+            // Mismo orden que el ORDER BY de qRolePermissions: order (NULL primero) y luego id.
+            if (!isset($columns[$r['type_name']])) {
+                $columns[$r['type_name']] = [$r['type_order'] === null ? PHP_INT_MIN : (int) $r['type_order'], (int) $r['type_id']];
+            }
 
             if (!isset($modules[$mid])) {
                 $modules[$mid] = ['id' => $mid, 'name' => $r['module_name'], 'icon' => $r['module_icon'] ?: 'layout-grid', 'sections' => []];
@@ -659,7 +729,9 @@ class ctrl extends configMdl {
         foreach ($modules as &$m) $m['sections'] = array_values($m['sections']);
         unset($m);
 
-        return array_values($modules);
+        uasort($columns, function ($a, $b) { return $a <=> $b; });
+
+        return ['modules' => array_values($modules), 'columns' => array_keys($columns)];
     }
 
     // Deja al rol exactamente con $wanted, pero solo entre lo que se puede conceder.

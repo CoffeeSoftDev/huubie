@@ -326,42 +326,6 @@ body:not(.dark-mode) .swal2-cancel:hover {
     background-color: #F5F5F4 !important;
 }
 
-/* -- «¿Cómo se guarda el pedido?» (OrderForm.askHow) --
-   Tres botones: Seguir editando, Cotización (deny) y Pendiente (confirm, morado).
-   SweetAlert pinta deny en rojo, como si borrara, y compact.css solo le da
-   medida a confirm y cancel: Cotización va con contorno del acento y la misma
-   medida que los otros dos. */
-.ord-ask-save .ord-ask-line {
-    margin: 0 0 4px;
-}
-
-.ord-ask-save button.swal2-deny {
-    padding: .5rem 1.5rem !important;
-    border: 1px solid rgb(var(--brand-600, 192 90 64)) !important;
-    border-radius: .25rem !important;
-    background-color: transparent !important;
-    color: rgb(var(--brand-600, 192 90 64)) !important;
-    font-size: .8rem !important;
-}
-
-.ord-ask-save button.swal2-deny:hover {
-    background-color: rgb(var(--brand-600, 192 90 64) / .08) !important;
-}
-
-.ord-ask-save button.swal2-deny:focus {
-    box-shadow: 0 0 0 3px rgb(var(--brand-600, 192 90 64) / .3) !important;
-}
-
-body.dark-mode .ord-ask-save button.swal2-deny {
-    border-color: rgb(var(--brand-300, 216 180 254)) !important;
-    color: rgb(var(--brand-300, 216 180 254)) !important;
-}
-
-/* Pendiente no trae borde y quedaba 2 px más bajo que los otros dos. */
-.ord-ask-save button.swal2-confirm {
-    border: 1px solid transparent !important;
-}
-
 /* -- Sucursal en «¿Aperturar turno?» (OrderTurn.saveOpen) --
    Va aparte, en grande y con el acento: antes de confirmar se revisa en qué
    sucursal se abre el turno. Los tokens --accent-* ya traen su tono oscuro. */
@@ -3056,15 +3020,19 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
     }
 }
 
-/*  El plástico: un rectángulo liso de un solo color, el de su tipo (--loy-color, lo
-    pone paintFace en tarjetas.js; sin tipo, el celeste claro). Sin recortes, sin
-    filos, sin sombra y sin marca de agua: solo el color y la letra.
+/*  La tarjeta, al estilo de los pases de Wallet (Rewardix; ver
+    lealtad/docs/propuesta-diseno.html): degradado en diagonal del color de su
+    tipo (--loy-color, lo pone paintFace en tarjetas.js; sin tipo, el celeste
+    claro) con un brillo encima. De arriba abajo: el icono del tipo en un cuadro,
+    su nombre y la cifra (SELLOS 7/10 · DESCUENTO 5 %); los sellos punteados o
+    el porcentaje en grande; la insignia de nivel; una frase; y los campos.
     data-ink lo elige tarjetas.js por luminancia: «dark» = letra oscura teñida del
-    mismo color; «light» = letra blanca.
-    Dos caras: la de la tarjeta (número y titular) y la del tipo (is-type: el
-    nombre y, en grande, lo que da).
-    Movimiento: entra subiendo y enfocándose; al cambiar de color se funde
-    (@property deja animar --loy-color). Todo se apaga con «reducir movimiento». */
+    mismo color (y un degradado más suave); «light» = letra blanca.
+    Dos caras: la de la tarjeta (campos Titular, Premio y Número) y la del tipo
+    (is-type: los campos los manda la galería).
+    Movimiento: entra subiendo con un rebote; al cambiar de color se funde
+    (@property deja animar --loy-color); la cifra salta al cambiar; en la galería
+    le cruza un brillo al pasar el ratón. Todo se apaga con «reducir movimiento». */
 @property --loy-color {
     syntax: '<color>';
     inherits: true;
@@ -3073,182 +3041,306 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
 
 .loy-card {
     --loy-color: #BAE6FD;
+    --loy-ink: #FFFFFF;
+    --loy-chip: rgb(255 255 255 / .22);
+    --loy-line: rgb(255 255 255 / .6);
+    --loy-from: color-mix(in srgb, var(--loy-color) 70%, #000000);
+    --loy-to: color-mix(in srgb, var(--loy-color) 78%, #FFFFFF);
     position: relative;
+    isolation: isolate;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    aspect-ratio: 1.586;
-    padding: 14px 16px;
     overflow: hidden;
-    border-radius: 16px;
-    background-color: var(--loy-color);
-    color: #FFFFFF;
-    text-shadow: 0 1px 1px rgb(0 0 0 / .22);
-    animation: loy-card-in .7s .05s cubic-bezier(.2, .8, .2, 1) backwards;
+    border-radius: 14px;
+    background: var(--loy-color);
+    background: linear-gradient(135deg, var(--loy-from) 0%, var(--loy-color) 58%, var(--loy-to) 100%);
+    color: var(--loy-ink);
+    text-shadow: 0 1px 1px rgb(0 0 0 / .16);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .3), inset 0 0 0 .5px rgb(0 0 0 / .1), 0 12px 24px -12px rgb(24 12 60 / .5), 0 2px 4px rgb(24 12 60 / .1);
+    animation: loy-card-in .7s .05s cubic-bezier(.2, .85, .25, 1.06) backwards;
+}
+
+/* El brillo fijo en diagonal, encima de todo. */
+.loy-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    background: linear-gradient(125deg, rgb(255 255 255 / .2) 0%, rgb(255 255 255 / 0) 35%, rgb(255 255 255 / 0) 72%, rgb(255 255 255 / .08) 100%);
+    pointer-events: none;
 }
 
 /* La transición del color se prende después del primer pintado (is-painted, en paintFace): al abrir no se funde. */
 .loy-card.is-painted { transition: --loy-color .6s ease; }
 
-/* Letra oscura teñida del mismo color, para los colores claros. */
+/* Colores claros: letra oscura teñida del mismo color, filos oscuros y un degradado más suave. */
 .loy-card[data-ink="dark"] {
-    color: #0C4A6E;
-    color: color-mix(in srgb, var(--loy-color) 22%, #0F172A);
+    --loy-ink: color-mix(in srgb, var(--loy-color) 22%, #0F172A);
+    --loy-chip: rgb(15 23 42 / .08);
+    --loy-line: rgb(15 23 42 / .32);
+    --loy-from: color-mix(in srgb, var(--loy-color) 88%, #000000);
+    --loy-to: color-mix(in srgb, var(--loy-color) 70%, #FFFFFF);
     text-shadow: none;
 }
-
-/* La marca de agua ya no se dibuja; el viejo puntos.js, si alguien lo carga, todavía la emite. */
-.loy-card-mark { display: none; }
 
 @keyframes loy-card-in {
     from {
         opacity: 0;
-        transform: translateY(18px) scale(.96);
-        filter: blur(6px);
+        transform: translateY(24px) scale(.96);
     }
 }
 
 @keyframes loy-pop {
-    45% { transform: scale(1.12); }
+    40% { transform: scale(1.3); }
 }
 
-.loy-card-top,
-.loy-card-bottom {
+@keyframes loy-sheen {
+    to { transform: translateX(330%) skewX(-18deg); }
+}
+
+/* Arriba: el icono, el nombre (con la empresa debajo) y la cifra. */
+.loy-card-head {
     display: flex;
-    justify-content: space-between;
-    gap: 10px;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 14px 0;
 }
 
-.loy-card-top    { align-items: flex-start; }
-.loy-card-bottom { align-items: flex-end; }
+.loy-card-logo {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: var(--loy-chip);
+}
+
+.loy-card-logo svg { width: 17px; height: 17px; }
+
+.loy-card-name { flex: 1 1 0; min-width: 0; }
 
 .loy-card-type {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
     font-size: 15px;
-    font-weight: 700;
-    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -.015em;
+    line-height: 1.15;
     overflow-wrap: anywhere;
 }
 
 .loy-card-brand {
-    flex-shrink: 0;
-    max-width: 45%;
+    display: block;
+    margin-top: 2px;
     overflow: hidden;
-    font-size: 10px;
+    font-size: 8.5px;
     font-weight: 600;
-    letter-spacing: .06em;
-    line-height: 1.8;
+    letter-spacing: .12em;
     text-overflow: ellipsis;
     text-transform: uppercase;
     white-space: nowrap;
-    opacity: .85;
+    opacity: .78;
 }
 
-.loy-card-number {
-    margin: 0;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: .1em;
-    line-height: 1.2;
-    overflow-wrap: anywhere;
+.loy-card-value {
+    flex: none;
+    line-height: 1;
+    text-align: right;
 }
 
-.loy-card-number.is-long {
-    font-size: 13px;
-    letter-spacing: .03em;
+.loy-card-value b {
+    display: inline-block;
+    font-size: 17px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
-.loy-card-owner { min-width: 0; }
+/* La cifra salta cuando cambia (is-pop, en paintFace). */
+.loy-card-value b.is-pop { animation: loy-pop .5s cubic-bezier(.3, 1.6, .5, 1); }
 
+/* Las etiquetas chicas: la de la cifra y las de los campos. */
 .loy-card-label {
     display: block;
-    font-size: 9.5px;
-    font-weight: 600;
-    letter-spacing: .08em;
-    line-height: 1.3;
+    margin-bottom: 4px;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    line-height: 1;
     text-transform: uppercase;
     opacity: .8;
 }
 
-.loy-card-holder {
-    display: block;
+/* Al centro: los sellos o el porcentaje, la insignia de nivel y la frase. */
+.loy-card-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    padding: 12px 14px;
+}
+
+.loy-card-stamps:empty,
+.loy-card-big:empty,
+.loy-card-tier:empty,
+.loy-card-say:empty,
+.loy-card-fields:empty { display: none; }
+
+.loy-card-big {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.loy-card-big b {
+    flex: none;
+    font-size: 34px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.035em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.loy-card-big span {
+    min-width: 0;
+    padding-bottom: 3px;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.2;
+    opacity: .9;
+}
+
+.loy-card-tier {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.loy-card-tier > span:last-child {
+    min-width: 0;
     overflow: hidden;
-    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: .92;
+}
+
+.loy-card-badge {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 21px;
+    padding: 0 9px 0 7px;
+    border-radius: 11px;
+    background: var(--loy-chip);
+    font-size: 10.5px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.loy-card-badge em { font-style: normal; }
+.loy-card-badge svg { width: 12px; height: 12px; }
+
+/* El nivel más alto: la insignia dorada. */
+.loy-card-badge.is-top {
+    background: linear-gradient(135deg, #FFF1A8, #FFDA4A 45%, #F2B01E);
+    color: #4A3200;
+    text-shadow: none;
+}
+
+.loy-card-say {
+    margin: 0;
+    font-size: 11.5px;
     font-weight: 600;
     line-height: 1.3;
+}
+
+/* Abajo: los campos en fila; el último, a la derecha. */
+.loy-card-fields {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 14px 14px;
+}
+
+.loy-card-field { min-width: 0; }
+.loy-card-field:last-child { text-align: right; }
+
+.loy-card-field b {
+    display: block;
+    overflow: hidden;
+    font-size: 11.5px;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.loy-card-perks {
-    display: flex;
-    flex-shrink: 0;
-    gap: 14px;
-}
-
-/* El beneficio va solo en letra: el porcentaje en grande y, debajo, qué es. Salta cuando cambia el porcentaje (is-pop). */
-.loy-card-perks.is-pop { animation: loy-pop .4s cubic-bezier(.3, 1.6, .5, 1); }
-
-.loy-card-perk {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    font-size: 9.5px;
-    font-weight: 600;
-    letter-spacing: .08em;
-    line-height: 1.3;
-    text-transform: uppercase;
-}
-
-.loy-card-perk b {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 0;
-    line-height: 1.1;
-    white-space: nowrap;
-}
-
-/* La cara del tipo: sin número ni titular. El nombre arriba y, abajo a la izquierda, el beneficio en grande. */
-.loy-card.is-type .loy-card-type { font-size: 18px; }
-.loy-card.is-type .loy-card-perks { gap: 18px; }
-.loy-card.is-type .loy-card-perk { align-items: flex-start; font-size: 11px; }
-.loy-card.is-type .loy-card-perk b { font-size: 34px; font-weight: 800; line-height: 1; }
-
 .loy-card .is-empty { opacity: .55; }
 
-/*  Sellos (tipo de sellos): uno por sello de la meta, hasta 10 por renglón; se
-    encogen si la tarjeta es angosta. Sin bordes:
-      sin icono   círculo liso del color de la letra; el que falta, tenue.
-      con icono   el que falta es el icono solo, tenue; el juntado, el icono del
-                  color de la tarjeta sobre un círculo lleno del color de la letra.
-    --loy-ink es el color de la letra (blanca u oscura teñida, según data-ink). */
-.loy-card { --loy-ink: #FFFFFF; }
-.loy-card[data-ink="dark"] { --loy-ink: color-mix(in srgb, var(--loy-color) 22%, #0F172A); }
-
-.loy-card-stamps { --loy-stamp: 20px; display: grid; grid-template-columns: repeat(10, minmax(0, var(--loy-stamp))); gap: 5px; }
-.loy-card.is-type .loy-card-stamps { --loy-stamp: 22px; }
-.loy-card-stamps:empty { display: none; }
-
-.loy-stamp {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    max-width: var(--loy-stamp);
-    aspect-ratio: 1;
-    border-radius: 999px;
-    background: var(--loy-ink);
-    opacity: .26;
+/* El brillo que cruza (galería al pasar el ratón; is-shine cuando algo se celebra). */
+.loy-card-sheen {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 3;
+    width: 45%;
+    background: linear-gradient(90deg, rgb(255 255 255 / 0), rgb(255 255 255 / .5), rgb(255 255 255 / 0));
+    transform: translateX(-130%) skewX(-18deg);
+    pointer-events: none;
 }
 
-.loy-stamp.is-on { opacity: 1; }
-.loy-stamp.has-icon { background: transparent; color: var(--loy-ink); opacity: .5; }
-.loy-stamp.has-icon.is-on { background: var(--loy-ink); color: var(--loy-color); opacity: 1; }
-.loy-stamp svg { width: 62%; height: 62%; stroke-width: 2.2; }
+.loy-card.is-shine .loy-card-sheen { animation: loy-sheen 1.1s .15s ease-in-out 2; }
+
+/*  Sellos: uno por sello de la meta, punteado; el juntado, lleno del color de la
+    letra con el icono del color de la tarjeta. El último es el premio (regalo).
+    Hasta 10, cinco por renglón; de 11 a 20, diez por renglón y más chicos.
+    --loy-ink es el color de la letra (blanca u oscura teñida, según data-ink). */
+.loy-card-stamps {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 30px));
+    justify-content: space-between;
+    gap: 8px 4px;
+}
+
+.loy-card-stamps.is-many {
+    grid-template-columns: repeat(10, minmax(0, 22px));
+    gap: 6px 2px;
+}
+
+.loy-stamp {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 1;
+    border: 1.5px dashed var(--loy-line);
+    border-radius: 999px;
+    color: var(--loy-ink);
+}
+
+.loy-stamp svg { width: 52%; height: 52%; stroke-width: 2.2; opacity: 0; transition: opacity .2s; }
+.loy-stamp.is-gift svg { opacity: .65; }
+
+.loy-stamp.is-on {
+    border-style: solid;
+    border-color: var(--loy-ink);
+    background: var(--loy-ink);
+    color: var(--loy-color);
+    box-shadow: 0 3px 8px rgb(0 0 0 / .18);
+}
+
+.loy-stamp.is-on svg { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
     .loy-card,
@@ -3257,7 +3349,73 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
         animation: none;
     }
 
-    .loy-card-perks.is-pop { animation: none; }
+    .loy-card-value b.is-pop,
+    .loy-card.is-shine .loy-card-sheen { animation: none; }
+}
+
+/*  Vender › «Venta cobrada»: la tarjeta chica de lealtad arriba de la ventana
+    (loyaltyMoment en ventas.js). Entra con rebote; los sellos nuevos (is-new;
+    --n es su turno) caen girando y dejan un anillo; con el premio completo
+    (is-done) brincan en ola y cruza el brillo; al subir de nivel, la insignia
+    gira y pulsa dorada (is-flip). */
+.loy-sale { max-width: 300px; margin: 4px auto 14px; text-align: left; }
+.loy-sale .loy-card { animation: loy-card-in .7s cubic-bezier(.2, .85, .25, 1.06) both; }
+.loy-sale .loy-card-head { padding: 10px 12px 0; }
+.loy-sale .loy-card-body { gap: 8px; padding: 10px 12px 12px; }
+.loy-sale .loy-card-stamps { grid-template-columns: repeat(5, minmax(0, 26px)); gap: 6px 4px; }
+.loy-sale .loy-card-stamps.is-many { grid-template-columns: repeat(10, minmax(0, 20px)); gap: 5px 2px; }
+.loy-sale .loy-stamp.is-new { animation: loy-stamp-drop .62s calc(.45s + var(--n) * 260ms) cubic-bezier(.2, 1.3, .4, 1) both; }
+
+.loy-sale .loy-stamp.is-new::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border: 2px solid var(--loy-ink);
+    border-radius: 50%;
+    animation: loy-stamp-ring .75s calc(.63s + var(--n) * 260ms) ease-out both;
+}
+
+.loy-sale .loy-card.is-done .loy-stamp { animation: loy-stamp-hop .55s calc(1.2s + var(--k) * 55ms) cubic-bezier(.3, .7, .4, 1); }
+.loy-sale .loy-card.is-done .loy-stamp.is-new { animation: loy-stamp-drop .62s calc(.45s + var(--n) * 260ms) cubic-bezier(.2, 1.3, .4, 1) both, loy-stamp-hop .55s calc(1.2s + var(--k) * 55ms) cubic-bezier(.3, .7, .4, 1); }
+.loy-sale .loy-card.is-done .loy-card-sheen { animation: loy-sheen 1.1s 1.3s ease-in-out 2; }
+.loy-sale .loy-card-badge.is-flip { animation: loy-gpulse 1s .6s ease-out 3; }
+.loy-sale .loy-card-badge.is-flip em { display: inline-block; animation: loy-flip .5s .6s ease both; }
+
+@keyframes loy-stamp-drop {
+    0%   { opacity: 0; transform: scale(2.4) rotate(-26deg); }
+    55%  { opacity: 1; transform: scale(.88) rotate(4deg); }
+    78%  { transform: scale(1.06); }
+    100% { opacity: 1; transform: none; }
+}
+
+@keyframes loy-stamp-ring {
+    from { opacity: .95; transform: scale(.8); }
+    to   { opacity: 0; transform: scale(1.9); }
+}
+
+@keyframes loy-stamp-hop {
+    0%, 100% { transform: none; }
+    40%      { transform: translateY(-8px) scale(1.08); }
+}
+
+@keyframes loy-flip {
+    from { transform: rotateX(0); }
+    to   { transform: rotateX(360deg); }
+}
+
+@keyframes loy-gpulse {
+    from { box-shadow: 0 0 0 0 rgb(255 218 74 / .85); }
+    to   { box-shadow: 0 0 0 12px rgb(255 218 74 / 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loy-sale .loy-card,
+    .loy-sale .loy-stamp.is-new,
+    .loy-sale .loy-stamp.is-new::after,
+    .loy-sale .loy-card.is-done .loy-stamp,
+    .loy-sale .loy-card.is-done .loy-card-sheen,
+    .loy-sale .loy-card-badge.is-flip,
+    .loy-sale .loy-card-badge.is-flip em { animation: none; }
 }
 
 /*  Colores rápidos del tipo (copia de .cp-pm-colores de catalogo.css, que esta
@@ -3358,42 +3516,48 @@ button.loy-color-other.is-active .loy-color-other-dot {
     color: rgb(var(--gray-500, 120 113 108));
 }
 
-/*  Resumen de arriba (infoCard): las cajas van lisas, solo con su color de fondo.
-    Su borde es el .border de Bootstrap (con !important): se apaga con su variable. */
-#kpiCardsLoyalty > div { --bs-border-width: 0; }
-
-/*  Lealtad › Tarjetas: galería de tipos. Cada tipo es su tarjeta, lisa y sin caja
-    alrededor (clic = ver sus tarjetas); debajo, cuántas tiene, sus ventas del mes
-    y una fila de botones planos (loy-act). */
-/*  250 px: caben más por renglón y cada tarjeta sale más chica. Bajo 310 px
-    «Nueva tarjeta» se queda solo con su ícono (is-squeeze, más abajo). */
+/*  Lealtad › Tarjetas: galería de tipos. Cada tipo es su tarjeta, sin caja
+    alrededor (clic = ver sus tarjetas), con sus cifras adentro; debajo, una fila
+    de botones planos (loy-act) y el menú ⋯ (loy-menu).
+    250 px: caben más por renglón y cada tarjeta sale más chica. Bajo 260 px
+    «Nueva» se queda solo con su ícono (is-squeeze, más abajo). */
 .loy-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 22px 16px; }
 
-/* El dibujo de la galería, a la medida del mosaico chico. La vista previa del formulario y la ficha no cambian. */
-.loy-tile .loy-card { padding: 12px 14px; border-radius: 14px; }
-.loy-tile .loy-card.is-type .loy-card-type { font-size: 15px; }
-.loy-tile .loy-card.is-type .loy-card-perks { gap: 14px; }
-.loy-tile .loy-card.is-type .loy-card-perk { font-size: 10px; }
-.loy-tile .loy-card.is-type .loy-card-perk b { font-size: 26px; }
+/*  La primera vez los mosaicos suben uno tras otro (--i lo pone gallery()); al
+    recargar (is-still: después de guardar o filtrar) ya no vuelven a entrar. La
+    tarjeta de adentro no trae su propia entrada: la del mosaico basta. */
+.loy-gallery .loy-card { animation: none; }
+.loy-gallery:not(.is-still) .loy-tile { animation: loy-tile-in .8s calc(var(--i, 0) * 80ms) cubic-bezier(.2, .85, .25, 1.06) both; }
 
-/* Al recargar (después de guardar o filtrar) los dibujos ya no vuelven a entrar. */
-.loy-gallery.is-still .loy-card { animation: none; }
+@keyframes loy-tile-in {
+    from { opacity: 0; transform: translateY(42px) scale(.95); }
+    60%  { opacity: 1; }
+    to   { opacity: 1; transform: none; }
+}
+
+/* En la galería la tarjeta llena el alto del mosaico: todas parejas en el renglón. */
+.loy-tile .loy-tile-face { flex: 1 1 auto; display: flex; flex-direction: column; }
+.loy-tile .loy-card { flex: 1 1 auto; }
 
 .loy-tile { min-width: 0; container-type: inline-size; }
 .loy-tile-body { display: flex; flex-direction: column; gap: 10px; height: 100%; }
 
-/* Mosaico angosto (teléfono): «Nueva tarjeta» (is-squeeze) se queda con su ícono para que la fila no se doble. */
-@container (max-width: 309px) {
+/* Con su menú abierto, el mosaico sube: la lista no queda detrás del de abajo (cada mosaico es su propia capa por container-type). */
+.loy-tile.is-raised { position: relative; z-index: 5; }
+
+/* Mosaico angosto: «Nueva» (is-squeeze) se queda con su ícono para que la fila no se doble. */
+@container (max-width: 259px) {
     button.loy-act.is-squeeze { width: 30px; padding: 0; }
     button.loy-act.is-squeeze .loy-act-text { display: none; }
 }
 
-/* Se levanta al pasar el ratón. Va en el envoltorio: la tarjeta de adentro ya usa transform para entrar. */
-.loy-tile-face { cursor: pointer; transition: transform .18s ease; }
+/* Se levanta y le cruza el brillo al pasar el ratón. Va en el envoltorio: el mosaico ya usa transform para entrar. */
+.loy-tile-face { cursor: pointer; transition: transform .35s cubic-bezier(.2, .85, .25, 1.06); }
 .loy-tile.is-off .loy-tile-face { opacity: .55; filter: grayscale(.6); }
 
 @media (hover: hover) {
-    .loy-tile-face:hover { transform: translateY(-3px); }
+    .loy-tile-face:hover { transform: translateY(-4px); }
+    .loy-tile-face:hover .loy-card-sheen { animation: loy-sheen 1s ease-in-out; }
 }
 
 /* En la galería y en la ficha los datos van aparte: sin el pie del dibujo. */
@@ -3401,11 +3565,164 @@ button.loy-color-other.is-active .loy-color-other-dot {
 .loy-detail-face .loy-card-caption { display: none; }
 
 .loy-tile-facts { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 0 2px; }
+.loy-tile-facts:empty { display: none; }
 .loy-tile-facts p { margin: 0; }
-.loy-tile-count { font-size: 13.5px; font-weight: 600; color: rgb(var(--gray-900, 28 25 23)); }
-.loy-tile-fact { font-size: 12.5px; line-height: 1.4; color: rgb(var(--gray-500, 120 113 108)); }
 .loy-tile-off { font-size: 12px; font-weight: 600; color: #B45309; }
 .loy-tile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: auto; }
+
+/*  El menú ⋯ de cada tipo (tileMenu en tarjetas.js): la lista sale debajo,
+    alineada a la derecha. button.X: el preflight de Tailwind CDN pisa los
+    fondos de [type=button]. */
+.loy-menu { position: relative; margin-left: auto; }
+
+.loy-menu-list {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 30;
+    display: none;
+    min-width: 170px;
+    padding: 6px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border-radius: 12px;
+    background: #FFFFFF;
+    box-shadow: 0 12px 28px -10px rgb(15 23 42 / .28);
+}
+
+.loy-menu.is-open .loy-menu-list { display: grid; gap: 2px; animation: loy-menu-in .16s ease-out; }
+
+@keyframes loy-menu-in {
+    from { opacity: 0; transform: translateY(-4px); }
+}
+
+button.loy-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgb(var(--gray-700, 68 64 60));
+    text-align: left;
+    white-space: nowrap;
+}
+
+button.loy-menu-item:hover,
+button.loy-menu-item:focus-visible { background: rgb(var(--gray-100, 245 244 250)); color: rgb(var(--gray-900, 28 25 23)); outline: none; }
+button.loy-menu-item.is-danger:hover,
+button.loy-menu-item.is-danger:focus-visible { background: #FEE2E2; color: #B91C1C; }
+
+/*  Nuevo tipo, paso 1 (pickStructure en tarjetas.js): «¿Qué quieres lograr?»
+    en píldoras, las 4 estructuras en tarjetitas (la elegida con filo de la
+    marca; las que no van con el objetivo, tenues) y abajo sus datos con la
+    tarjeta de ejemplo. button.X: el preflight de Tailwind CDN pisa los fondos. */
+.loy-goal-q { margin: 0 0 8px; font-size: 14px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); }
+.loy-goal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+
+button.loy-goal-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border-radius: 999px;
+    background: #FFFFFF;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgb(var(--gray-600, 87 83 78));
+    transition: border-color .15s, background-color .15s, color .15s;
+}
+
+button.loy-goal-chip:hover { border-color: rgb(var(--gray-300, 214 211 209)); color: rgb(var(--gray-900, 28 25 23)); }
+
+button.loy-goal-chip.is-on {
+    border-color: rgb(var(--brand-600, 192 90 64));
+    background: rgb(var(--brand-600, 192 90 64) / .08);
+    font-weight: 600;
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
+.loy-structs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+
+button.loy-struct {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border-radius: 14px;
+    background: #FFFFFF;
+    color: rgb(var(--gray-900, 28 25 23));
+    text-align: left;
+    transition: border-color .15s, box-shadow .15s, opacity .2s, transform .2s;
+}
+
+button.loy-struct:hover { transform: translateY(-2px); }
+button.loy-struct.is-dim { opacity: .5; }
+button.loy-struct.is-on { border-color: rgb(var(--brand-600, 192 90 64)); box-shadow: 0 0 0 3px rgb(var(--brand-600, 192 90 64) / .14); opacity: 1; }
+button.loy-struct b { font-size: 14px; }
+
+.loy-struct-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: #FFFFFF; }
+.loy-struct-text { font-size: 12px; line-height: 1.4; color: rgb(var(--gray-500, 120 113 108)); }
+.loy-struct-level { display: flex; align-items: center; gap: 6px; margin-top: auto; font-size: 11px; color: rgb(var(--gray-400, 168 162 158)); }
+.loy-struct-level > span { display: inline-flex; gap: 3px; }
+.loy-struct-level i { display: block; width: 12px; height: 4px; border-radius: 2px; background: rgb(var(--gray-200, 231 229 228)); }
+.loy-struct-level i.is-on { background: #F59E0B; }
+
+.loy-struct-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: none;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #D1FAE5;
+    font-size: 10px;
+    font-weight: 700;
+    color: #047857;
+}
+
+button.loy-struct.is-best .loy-struct-badge { display: block; }
+
+.loy-struct-detail {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: 18px;
+    align-items: center;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgb(var(--brand-600, 192 90 64) / .05);
+}
+
+.loy-struct-preview .loy-card-caption { display: none; }
+.loy-struct-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.loy-struct-facts small { display: block; margin-bottom: 4px; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: rgb(var(--gray-400, 168 162 158)); }
+.loy-struct-facts p { margin: 0; font-size: 13px; line-height: 1.45; color: rgb(var(--gray-800, 41 37 36)); }
+
+@media (max-width: 767px) {
+    .loy-structs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .loy-struct-detail { grid-template-columns: 1fr; }
+    .loy-struct-preview { max-width: 300px; }
+    .loy-struct-facts { grid-template-columns: 1fr; gap: 10px; }
+}
+
+/* Nuevo tipo desde «Niveles»: el gasto mínimo, marcado para que no se pase. */
+.loy-field-mark input { border-color: #F59E0B !important; box-shadow: 0 0 0 3px rgb(245 158 11 / .18); }
+
+@media (prefers-reduced-motion: reduce) {
+    button.loy-goal-chip,
+    button.loy-struct { transition: none; }
+
+    button.loy-struct:hover { transform: none; }
+}
 
 /*  Botones de Lealtad: píldoras planas, sin filo. Los de solo ícono (is-icon)
     llevan su nombre en aria-label. button.X: el preflight de Tailwind CDN pisa
@@ -3437,6 +3754,10 @@ button.loy-act.is-danger:hover { background: #FEE2E2; color: #B91C1C; }
     button.loy-act { transition: none; }
 
     .loy-tile-face:hover { transform: none; }
+
+    .loy-gallery:not(.is-still) .loy-tile,
+    .loy-tile-face:hover .loy-card-sheen,
+    .loy-menu.is-open .loy-menu-list { animation: none; }
 }
 
 /* Lista: el monedero de hoy del cliente dueño. Ficha: lo que dio cada compra. */
@@ -3488,6 +3809,551 @@ button.loy-act.is-danger:hover { background: #FEE2E2; color: #B91C1C; }
 /* «Mandar desde el WhatsApp de la tienda», bajo el teléfono. */
 .loy-share-send { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .loy-detail-title { margin: 4px 0 8px; font-size: 13px; font-weight: 700; color: rgb(var(--gray-700, 68 64 60)); }
+
+/*  Lealtad › Programa como tablero, al estilo del panel SaaS de Rewardix:
+    tarjetas blancas en mosaico sobre el fondo (loy-bx), cada una con su icono
+    en un cuadro de la marca (loy-bx-ic) y una etiqueta a la derecha (loy-chip).
+    Arriba «Cómo entran los clientes» y «Este mes»; abajo «Mensajes que salen
+    solos» y el detalle del elegido, con «Así le llega» (el teléfono) a la
+    derecha. En pantallas angostas, una sola columna.
+    --loy-ease es la curva de su panel: arranca rápido y frena suave. */
+.loy-board,
+.loy-bx {
+    --loy-ease: cubic-bezier(.165, .84, .44, 1);
+    --loy-grad: linear-gradient(135deg, rgb(var(--brand-600, 82 72 156)), color-mix(in srgb, rgb(var(--brand-600, 82 72 156)) 62%, #FFFFFF));
+}
+
+.loy-board {
+    display: grid;
+    grid-template-areas:
+        'entry entry stats'
+        'msgs  msgs  phone'
+        'detail detail phone';
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 340px;
+    gap: 16px;
+    align-items: start;
+}
+
+.loy-bx.is-entry  { grid-area: entry; align-self: stretch; }
+.loy-bx.is-stats  { grid-area: stats; align-self: stretch; }
+.loy-bx.is-msgs   { grid-area: msgs; }
+.loy-bx.is-phone  { grid-area: phone; }
+.loy-bx.is-detail { grid-area: detail; }
+
+@media (max-width: 1099px) {
+    .loy-board { grid-template-areas: 'entry' 'stats' 'msgs' 'phone' 'detail'; grid-template-columns: minmax(0, 1fr); }
+    .loy-bx.is-phone { justify-self: center; width: min(100%, 380px); }
+}
+
+/* Una tarjeta del tablero: entra subiendo una tras otra (--i); al repintar (is-still), no. */
+.loy-bx {
+    position: relative;
+    min-width: 0;
+    padding: 16px 18px 18px;
+    border-radius: 18px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px rgb(30 20 80 / .06), 0 14px 30px -18px rgb(30 20 80 / .28);
+    animation: loy-bx-in .7s var(--loy-ease) calc(var(--i, 0) * 80ms) both;
+}
+
+.loy-board.is-still .loy-bx,
+.loy-bx.is-still { animation: none; }
+
+/*  Lealtad › Tarjetas como tablero: «Tipos de tarjeta» (la galería) y, a la
+    derecha, «Niveles y beneficios» y «Mecánicas» apiladas; abajo, «Tarjetas»
+    (filtros y lista) a todo lo ancho. El resumen va arriba, aparte. */
+.loy-board.is-cards {
+    grid-template-areas:
+        'types side'
+        'list  list';
+    grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.loy-bx.is-types { grid-area: types; align-self: stretch; }
+.loy-bx.is-list  { grid-area: list; }
+.loy-side        { grid-area: side; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+@media (max-width: 1099px) {
+    .loy-board.is-cards { grid-template-areas: 'types' 'side' 'list'; grid-template-columns: minmax(0, 1fr); }
+}
+
+/* «Ver tarjetas» lleva la vista a la lista y su filo se enciende un momento. */
+.loy-bx.is-focus { animation: loy-focus 1.4s var(--loy-ease) both; }
+
+@keyframes loy-focus {
+    0%, 100% { box-shadow: 0 1px 2px rgb(30 20 80 / .06), 0 14px 30px -18px rgb(30 20 80 / .28); }
+    25%      { box-shadow: 0 0 0 3px rgb(var(--brand-600, 82 72 156) / .45), 0 14px 30px -18px rgb(30 20 80 / .28); }
+}
+
+/* El filtro de la galería en píldoras, con su cuenta; la marca blanca se desliza a la elegida. En teléfono baja a su propio renglón. */
+.loy-seg-wrap { flex: none; max-width: 100%; }
+
+@media (max-width: 640px) {
+    .loy-bx.is-types .loy-bx-h { flex-wrap: wrap; }
+    .loy-bx.is-types .loy-seg-wrap { order: 3; width: 100%; }
+    .loy-bx.is-types .loy-seg { display: flex; width: 100%; }
+    .loy-bx.is-types button.loy-seg-b { flex: 1 1 0; justify-content: center; padding: 0 6px; }
+    .loy-kpis.is-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .loy-kpis.is-wide .loy-kpi-v { font-size: 20px; }
+}
+.loy-seg { position: relative; display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: #F3F2F8; }
+
+.loy-seg-ind {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 0;
+    width: 0;
+    border-radius: 9px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgb(30 20 80 / .14);
+    transition: transform .45s var(--loy-ease), width .45s var(--loy-ease);
+}
+
+.loy-seg-ind.is-now { transition: none; }
+
+button.loy-seg-b {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: rgb(var(--gray-500, 120 113 108));
+    transition: color .25s;
+}
+
+button.loy-seg-b em { min-width: 18px; padding: 0 5px; border-radius: 9px; background: rgb(0 0 0 / .06); font-size: 11px; font-style: normal; text-align: center; }
+button.loy-seg-b.is-on { color: rgb(var(--brand-600, 82 72 156)); }
+button.loy-seg-b.is-on em { background: rgb(var(--brand-600, 82 72 156) / .12); }
+
+/*  «Niveles y beneficios»: la escalera en cuadros (estrella vacía, media y
+    llena en el más alto), que entran uno tras otro; abajo, la barra de cuántas
+    tarjetas hay en cada nivel, del color de cada tipo, que crece al entrar. */
+.loy-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 6px; }
+
+.loy-tier {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--c, #8373C5) 10%, #FFFFFF);
+    animation: loy-tier-in .55s var(--loy-ease) calc(.35s + var(--k, 0) * 90ms) both;
+}
+
+.loy-tier.is-top { background: #FFF6D6; }
+.loy-tier b { overflow: hidden; font-size: 12.5px; color: rgb(var(--gray-900, 28 25 23)); text-overflow: ellipsis; white-space: nowrap; }
+.loy-tier small { font-size: 11px; color: rgb(var(--gray-500, 120 113 108)); }
+.loy-tier-perk { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: color-mix(in srgb, var(--c, #52489C) 75%, #000000); }
+.loy-tier-ic { color: color-mix(in srgb, var(--c, #52489C) 80%, #000000); }
+.loy-tier-ic.is-empty { color: rgb(var(--gray-400, 168 162 158)); }
+.loy-tier.is-top .loy-tier-ic { color: #D4A106; }
+.loy-tier.is-top .loy-tier-ic svg { fill: currentColor; }
+
+@keyframes loy-tier-in {
+    from { opacity: 0; transform: translateY(8px) scale(.96); }
+}
+
+.loy-dist { display: flex; gap: 2px; height: 8px; margin-top: 14px; overflow: hidden; border-radius: 6px; background: #ECEAF3; }
+.loy-dist i { display: block; width: 0; height: 100%; background: var(--c, #8373C5); transition: width 1.4s var(--loy-ease); }
+.loy-dist-l { margin: 8px 0 0; font-size: 11.5px; color: rgb(var(--gray-500, 120 113 108)); }
+
+/* «Mecánicas»: cada tipo con su punto de color, lo que da y su interruptor; entran uno tras otro. */
+.loy-mechs { display: flex; flex-direction: column; gap: 4px; }
+
+.loy-mech {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 10px;
+    background: #F8F7FC;
+    animation: loy-tier-in .5s var(--loy-ease) calc(.4s + var(--k, 0) * 60ms) both;
+}
+
+.loy-mech-dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--c, #8373C5); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c, #8373C5) 22%, transparent); }
+.loy-mech-t { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.loy-mech-t b { overflow: hidden; font-size: 12.5px; color: rgb(var(--gray-900, 28 25 23)); text-overflow: ellipsis; white-space: nowrap; }
+.loy-mech-t small { overflow: hidden; font-size: 11px; color: rgb(var(--gray-500, 120 113 108)); text-overflow: ellipsis; white-space: nowrap; }
+.loy-mech.is-off .loy-mech-dot { filter: grayscale(1); opacity: .5; }
+.loy-mech.is-off .loy-mech-t { opacity: .6; }
+
+.loy-board.is-still .loy-tier,
+.loy-board.is-still .loy-mech { animation: none; }
+
+@keyframes loy-bx-in {
+    from { opacity: 0; transform: translateY(16px) scale(.985); }
+}
+
+.loy-bx-h { display: flex; align-items: center; gap: 10px; min-height: 30px; margin-bottom: 14px; }
+.loy-bx-ic { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--g, var(--loy-grad)); color: #FFFFFF; box-shadow: 0 6px 14px -8px rgb(30 20 80 / .55); }
+.loy-bx-t { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; font-size: 15px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); text-overflow: ellipsis; white-space: nowrap; }
+
+/* Las etiquetas: lila (por defecto), verde (is-ok), gris (is-off) o ámbar (is-warn); is-live le pone un punto que late. */
+.loy-chip {
+    flex: 0 1 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    height: 24px;
+    padding: 0 10px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: rgb(var(--brand-600, 82 72 156) / .1);
+    font-size: 11.5px;
+    font-weight: 700;
+    color: rgb(var(--brand-600, 82 72 156));
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.loy-chip:empty { display: none; }
+
+.loy-chip.is-ok   { background: #E3F7EC; color: #15803D; }
+.loy-chip.is-off  { background: rgb(var(--gray-100, 245 244 250)); color: rgb(var(--gray-500, 120 113 108)); }
+.loy-chip.is-warn { background: #FFF4CC; color: #7A5C00; }
+
+.loy-chip.is-live::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 0 currentColor;
+    animation: loy-live 1.8s ease-out infinite;
+}
+
+@keyframes loy-live {
+    0%   { box-shadow: 0 0 0 0 rgb(21 128 61 / .55); }
+    100% { box-shadow: 0 0 0 7px rgb(21 128 61 / 0); }
+}
+
+/* «Cómo entran los clientes»: el QR con una línea que lo recorre, y qué es el registro. */
+.loy-entry-body { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; align-items: center; margin-bottom: 14px; }
+
+.loy-entry-qr {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 112px;
+    height: 112px;
+    margin: 0;
+    padding: 8px;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #FFFFFF;
+    color: rgb(var(--gray-400, 168 162 158));
+    box-shadow: inset 0 0 0 1px rgb(var(--gray-200, 231 229 228));
+}
+
+.loy-entry-qr svg { display: block; width: 100%; height: 100%; }
+
+.loy-entry-qr::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 8px;
+    height: 3px;
+    border-radius: 3px;
+    background: rgb(var(--brand-600, 82 72 156));
+    box-shadow: 0 0 10px 2px rgb(var(--brand-600, 82 72 156) / .45);
+    opacity: .55;
+    animation: loy-scan 2.6s ease-in-out infinite alternate;
+}
+
+.loy-entry-qr.is-empty::after,
+.loy-bx.is-off .loy-entry-qr::after { display: none; }
+
+.loy-bx.is-off .loy-entry-qr { opacity: .5; }
+
+@keyframes loy-scan {
+    from { transform: translateY(0); }
+    to   { transform: translateY(93px); }
+}
+
+.loy-entry-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.loy-entry-name { font-size: 14px; color: rgb(var(--gray-900, 28 25 23)); }
+.loy-entry-lead { margin: 0; font-size: 12.5px; line-height: 1.45; color: rgb(var(--gray-500, 120 113 108)); }
+.loy-entry-facts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: rgb(var(--gray-600, 87 83 78)); }
+.loy-entry-facts span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* «Este mes»: 4 cifras en cuadros lilas; la cifra sube al entrar. */
+.loy-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.loy-kpis.is-wide { grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); }
+.loy-kpi { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; border-radius: 12px; background: #F8F7FC; }
+.loy-kpi-l { display: inline-flex; align-items: center; gap: 5px; overflow: hidden; font-size: 11.5px; font-weight: 600; color: rgb(var(--gray-500, 120 113 108)); white-space: nowrap; }
+.loy-kpi-v { font-size: 24px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; color: rgb(var(--gray-900, 28 25 23)); font-variant-numeric: tabular-nums; }
+.loy-kpi small { font-size: 11px; line-height: 1.3; color: rgb(var(--gray-400, 168 162 158)); }
+
+/*  «Mensajes que salen solos»: detrás de los renglones corre una marca blanca
+    con sombra (loy-msg-ind) que se desliza al elegido; el renglón no se pinta,
+    la marca sí. is-now: el primer pintado, sin deslizarse. */
+.loy-msgs { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: 14px; background: #F8F7FC; }
+
+.loy-msg-ind {
+    position: absolute;
+    top: 0;
+    left: 4px;
+    right: 4px;
+    height: 0;
+    border-radius: 11px;
+    background: #FFFFFF;
+    box-shadow: inset 0 0 0 1.5px rgb(var(--brand-600, 82 72 156) / .55), 0 8px 18px -10px rgb(30 20 80 / .4);
+    transition: transform .55s var(--loy-ease), height .55s var(--loy-ease);
+    pointer-events: none;
+}
+
+.loy-msg-ind.is-now { transition: none; }
+
+/* Un renglón: el botón que lo elige y, a la derecha, su interruptor (o «Siempre»). Va encima de la marca. */
+.loy-msg {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 12px;
+    border-radius: 11px;
+    transition: background-color .15s;
+}
+
+.loy-msg:not(.is-on):hover { background: rgb(255 255 255 / .6); }
+
+button.loy-msg-pick {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 10px 0 10px 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+}
+
+/* El icono de cada mensaje, con su gradiente (--g, de messageTone); apagado, gris. */
+.loy-msg-icon { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--g, var(--loy-grad)); color: #FFFFFF; box-shadow: 0 6px 14px -8px rgb(30 20 80 / .5); transition: filter .3s, opacity .3s; }
+.loy-msg.is-off .loy-msg-icon { filter: grayscale(1); opacity: .45; }
+.loy-msg-main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.loy-msg-main b { font-size: 13.5px; color: rgb(var(--gray-900, 28 25 23)); }
+.loy-msg-main span { overflow: hidden; font-size: 12px; color: rgb(var(--gray-500, 120 113 108)); text-overflow: ellipsis; white-space: nowrap; }
+.loy-msg-count { flex: none; min-width: 84px; font-size: 12px; color: rgb(var(--gray-500, 120 113 108)); text-align: right; }
+.loy-msg-always { flex: none; width: 40px; font-size: 10.5px; color: rgb(var(--gray-400, 168 162 158)); text-align: center; }
+
+/* El interruptor: la bolita se corre con un rebote. */
+button.loy-switch {
+    position: relative;
+    flex: none;
+    width: 40px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: #DCD8E8;
+    transition: background-color .35s var(--loy-ease, ease);
+}
+
+button.loy-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px rgb(0 0 0 / .2);
+    transition: transform .4s var(--loy-ease, ease);
+}
+
+button.loy-switch.is-on { background: rgb(var(--brand-600, 82 72 156)); }
+button.loy-switch.is-on::after { transform: translateX(18px); }
+button.loy-switch:disabled { cursor: not-allowed; opacity: .5; }
+button.loy-switch:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 2px; }
+
+/*  El teléfono de la vista previa, como un móvil de verdad: marco de metal con
+    sus botones, cristal negro, muesca, barra de estado y el chat de WhatsApp de
+    la tienda con su caja de «Mensaje». Va igual en modo oscuro. La burbuja
+    entra al cambiar de mensaje. */
+.loy-phone {
+    position: relative;
+    width: 290px;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 3px;
+    border-radius: 50px;
+    background: linear-gradient(90deg, #161618 0%, #5B5B60 1.6%, #2E2E32 4.5%, #232326 50%, #2E2E32 95.5%, #5B5B60 98.4%, #161618 100%);
+    box-shadow: inset 0 0 0 .6px rgb(255 255 255 / .28), 0 26px 44px -26px rgb(20 14 50 / .45), 0 10px 18px -12px rgb(0 0 0 / .22);
+}
+
+/* Los botones del costado: volumen a la izquierda, encendido a la derecha. */
+.loy-phone::before,
+.loy-phone::after {
+    content: '';
+    position: absolute;
+    width: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #141416, #5B5B60 60%, #2A2A2E);
+}
+
+.loy-phone::before { left: -2.5px; top: 120px; height: 52px; box-shadow: 0 -46px 0 -14px #2A2A2E; }
+.loy-phone::after  { right: -2.5px; top: 150px; height: 74px; }
+
+.loy-phone-bezel { padding: 9px; border-radius: 47px; background: #000000; }
+
+.loy-phone-screen {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 560px;
+    overflow: hidden;
+    border-radius: 38px;
+    background: #EFEAE2;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.loy-phone-notch { position: absolute; top: 10px; left: 50%; z-index: 3; width: 84px; height: 25px; margin-left: -42px; border-radius: 14px; background: #000000; }
+.loy-phone-home { position: absolute; bottom: 7px; left: 50%; z-index: 3; width: 96px; height: 4px; margin-left: -48px; border-radius: 3px; background: #111111; }
+
+.loy-phone-sb { display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 22px 0 30px; font-size: 13px; font-weight: 600; color: #FFFFFF; }
+.loy-phone-sb > span:last-child { display: inline-flex; align-items: center; gap: 4px; }
+
+.loy-wa-head { flex: none; background: #008069; color: #FFFFFF; }
+.loy-wa-bar { display: flex; align-items: center; gap: 8px; padding: 2px 10px 10px 8px; }
+.loy-wa-av { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #FFFFFF; font-size: 13px; font-weight: 800; color: #008069; }
+.loy-wa-who { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.loy-wa-who b { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.loy-wa-who small { font-size: 11px; opacity: .85; }
+.loy-wa-tools { flex: none; display: inline-flex; gap: 12px; opacity: .95; }
+
+/* El chat: fondo de WhatsApp con su trama de puntos; el mensaje queda abajo, junto a la caja de escribir. */
+.loy-wa-chat {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 8px;
+    overflow: hidden;
+    padding: 12px 10px;
+    background-color: #EFEAE2;
+    background-image: radial-gradient(rgb(0 0 0 / .045) 1px, transparent 1.2px);
+    background-size: 14px 14px;
+}
+
+.loy-wa-input { flex: none; display: flex; align-items: center; gap: 6px; padding: 6px 8px 22px; background: #EFEAE2; }
+.loy-wa-field { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-radius: 20px; background: #FFFFFF; color: #8696A0; box-shadow: 0 1px 1px rgb(0 0 0 / .08); }
+.loy-wa-field em { flex: 1 1 auto; font-size: 13.5px; font-style: normal; }
+.loy-wa-mic { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #008069; color: #FFFFFF; }
+.loy-wa-day { align-self: center; padding: 3px 9px; border-radius: 7px; background: #FFFFFF; font-size: 10.5px; color: #54656F; box-shadow: 0 1px 1px rgb(0 0 0 / .08); }
+
+.loy-wa-bub {
+    max-width: 92%;
+    padding: 8px 10px 6px;
+    border-radius: 10px;
+    border-top-left-radius: 2px;
+    background: #FFFFFF;
+    font-size: 12.5px;
+    line-height: 1.42;
+    color: #111B21;
+    box-shadow: 0 1px 1px rgb(0 0 0 / .1);
+    animation: loy-bub-in .35s cubic-bezier(.2, .85, .25, 1.06);
+}
+
+.loy-wa-bub p { margin: 0 0 7px; overflow-wrap: anywhere; }
+.loy-wa-bub time { display: block; font-size: 10px; color: #667781; text-align: right; }
+.loy-wa-link { color: #027EB5; }
+
+@keyframes loy-bub-in {
+    from { opacity: 0; transform: translateY(8px) scale(.97); }
+}
+
+/* «Escribiendo…»: tres puntos que saltan antes de que llegue la burbuja. */
+.loy-wa-typing { display: inline-flex; align-self: flex-start; gap: 4px; padding: 10px 12px; border-radius: 10px; border-top-left-radius: 2px; background: #FFFFFF; box-shadow: 0 1px 1px rgb(0 0 0 / .1); animation: loy-bub-in .3s ease-out; }
+.loy-wa-typing i { width: 7px; height: 7px; border-radius: 50%; background: #8696A0; animation: loy-dot 1s ease-in-out infinite; }
+.loy-wa-typing i:nth-child(2) { animation-delay: .15s; }
+.loy-wa-typing i:nth-child(3) { animation-delay: .3s; }
+
+@keyframes loy-dot {
+    0%, 100% { opacity: .45; transform: translateY(0); }
+    50%      { opacity: 1; transform: translateY(-3px); }
+}
+
+.loy-wa-cap { margin: 10px 0 0; font-size: 11.5px; color: rgb(var(--gray-400, 168 162 158)); text-align: center; }
+
+/* El detalle entra con un fundido cada vez que cambia el mensaje elegido. */
+.loy-detail-swap { display: flex; flex-direction: column; gap: 12px; animation: loy-swap .45s var(--loy-ease, ease); }
+
+@keyframes loy-swap {
+    from { opacity: 0; transform: translateY(6px); }
+}
+
+.loy-msg-lead { margin: 0; font-size: 12.5px; line-height: 1.5; color: rgb(var(--gray-600, 87 83 78)); }
+.loy-msg-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 8px; }
+.loy-bx .loy-prog-fact { background: #F8F7FC; }
+
+@media (prefers-reduced-motion: reduce) {
+    .loy-msg,
+    .loy-msg-ind,
+    .loy-msg-icon,
+    .loy-seg-ind,
+    .loy-dist i,
+    button.loy-switch,
+    button.loy-switch::after { transition: none; }
+
+    .loy-bx,
+    .loy-bx.is-focus,
+    .loy-tier,
+    .loy-mech,
+    .loy-chip.is-live::before,
+    .loy-entry-qr::after,
+    .loy-wa-bub,
+    .loy-wa-typing,
+    .loy-wa-typing i,
+    .loy-detail-swap { animation: none; }
+}
+
+.loy-prog-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; border-radius: 12px; background: #FFFFFF; }
+.loy-prog-fact-label { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: rgb(var(--gray-500, 120 113 108)); }
+.loy-prog-fact-text { font-size: 13.5px; font-weight: 600; line-height: 1.4; color: rgb(var(--gray-900, 28 25 23)); overflow-wrap: anywhere; }
+
+.loy-prog-note { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 1.4; color: #B45309; }
+.loy-prog-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+a.loy-act { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: rgb(var(--gray-100, 245 244 250)); font-size: 12px; font-weight: 600; color: rgb(var(--gray-700, 68 64 60)); white-space: nowrap; text-decoration: none; }
+a.loy-act:hover { background: rgb(var(--gray-200, 231 229 228)); color: rgb(var(--gray-900, 28 25 23)); }
+
+/*  Ficha: las barras de avance (sellos hacia el premio, gasto hacia el siguiente
+    nivel). La barra lleva el color de la tarjeta (--loy-bar) y se llena al abrir. */
+.loy-progress { display: flex; flex-direction: column; gap: 7px; padding: 12px 14px; border-radius: 12px; background: rgb(var(--gray-100, 245 244 250)); }
+.loy-progress-title { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; font-weight: 600; color: rgb(var(--gray-500, 120 113 108)); }
+.loy-progress-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.loy-progress-top b { font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); }
+.loy-progress-top span { flex: none; color: rgb(var(--gray-500, 120 113 108)); white-space: nowrap; }
+.loy-progress-bar { height: 8px; overflow: hidden; border-radius: 999px; background: rgb(var(--gray-200, 231 229 228)); }
+.loy-progress-bar i { display: block; height: 100%; border-radius: inherit; background: var(--loy-bar, rgb(var(--brand-600, 192 90 64))); transition: width 1.3s cubic-bezier(.3, .8, .3, 1); }
+.loy-progress small { font-size: 11.5px; line-height: 1.4; color: rgb(var(--gray-500, 120 113 108)); }
+
+@media (prefers-reduced-motion: reduce) {
+    .loy-progress-bar i { transition: none; }
+}
+
+/* Ficha: el cumpleaños del cliente, con «Cambiar» a la derecha. */
+.loy-bday { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgb(var(--gray-100, 245 244 250)); }
+.loy-bday p { margin: 0; }
+.loy-bday-date { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); }
+.loy-bday-date .is-empty { font-weight: 600; color: rgb(var(--gray-400, 168 162 158)); }
+.loy-bday-sub { font-size: 12px; line-height: 1.4; color: rgb(var(--gray-500, 120 113 108)); }
+.loy-bday button.loy-act:not(:hover) { background: #FFFFFF; }
 
 /* Debajo del lector de Vender: qué hace la tarjeta leída. */
 #of_card_hint {
@@ -3556,7 +4422,30 @@ body.dark-mode .loy-legacy {
 body.dark-mode .loy-avatar { background: rgb(var(--brand-600, 192 90 64) / .18); color: rgb(var(--brand-300, 232 166 143)); }
 body.dark-mode .loy-avatar.is-empty { background: rgb(255 255 255 / .06); color: var(--dk-muted, #9CA3AF); }
 
-body.dark-mode .loy-tile-count,
+
+body.dark-mode .loy-menu-list { border-color: var(--dk-line, #374151); background: var(--dk-card, #1F2A37); box-shadow: 0 12px 28px -10px rgb(0 0 0 / .6); }
+body.dark-mode button.loy-menu-item { color: var(--dk-text, #F3F4F6); }
+body.dark-mode button.loy-menu-item:hover,
+body.dark-mode button.loy-menu-item:focus-visible { background: rgb(255 255 255 / .08); color: #FFFFFF; }
+body.dark-mode button.loy-menu-item.is-danger:hover,
+body.dark-mode button.loy-menu-item.is-danger:focus-visible { background: rgb(239 68 68 / .22); color: #FCA5A5; }
+
+body.dark-mode .loy-goal-q,
+body.dark-mode button.loy-struct,
+body.dark-mode .loy-struct-facts p { color: var(--dk-text, #F3F4F6); }
+body.dark-mode button.loy-goal-chip,
+body.dark-mode button.loy-struct { border-color: var(--dk-line, #374151); background: var(--dk-card, #1F2A37); }
+body.dark-mode button.loy-goal-chip { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode button.loy-goal-chip:hover { color: var(--dk-text, #F3F4F6); }
+body.dark-mode button.loy-goal-chip.is-on,
+body.dark-mode button.loy-struct.is-on { border-color: rgb(var(--brand-300, 232 166 143)); background: rgb(var(--brand-600, 192 90 64) / .18); color: rgb(var(--brand-300, 232 166 143)); }
+body.dark-mode button.loy-struct.is-on { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .loy-struct-text,
+body.dark-mode .loy-struct-level,
+body.dark-mode .loy-struct-facts small { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .loy-struct-level i:not(.is-on) { background: var(--dk-line, #374151); }
+body.dark-mode .loy-struct-detail { background: rgb(255 255 255 / .04); }
+
 body.dark-mode .loy-detail-name,
 body.dark-mode .loy-detail-title { color: var(--dk-text, #F3F4F6); }
 
@@ -3573,7 +4462,63 @@ body.dark-mode .loy-share-foot { color: var(--dk-muted, #9CA3AF); }
 body.dark-mode .loy-share-off { color: #FCD34D; }
 body.dark-mode .loy-share-link button.loy-act:not(:hover) { background: rgb(255 255 255 / .08); }
 
-body.dark-mode .loy-tile-fact,
+body.dark-mode .loy-bx { background: var(--dk-card, #1F2A37); box-shadow: 0 1px 2px rgb(0 0 0 / .3), 0 14px 30px -18px rgb(0 0 0 / .7); }
+body.dark-mode .loy-seg,
+body.dark-mode .loy-mech,
+body.dark-mode .loy-dist { background: var(--dk-panel, #29374A); }
+body.dark-mode .loy-seg-ind { background: var(--dk-card, #1F2A37); box-shadow: inset 0 0 0 1px rgb(var(--brand-300, 196 181 253) / .45); }
+body.dark-mode button.loy-seg-b { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode button.loy-seg-b.is-on { color: rgb(var(--brand-300, 196 181 253)); }
+body.dark-mode button.loy-seg-b em { background: rgb(255 255 255 / .08); }
+body.dark-mode .loy-tier { background: color-mix(in srgb, var(--c, #8373C5) 22%, var(--dk-panel, #29374A)); }
+body.dark-mode .loy-tier.is-top { background: rgb(245 158 11 / .16); }
+body.dark-mode .loy-tier b,
+body.dark-mode .loy-mech-t b { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .loy-tier small,
+body.dark-mode .loy-tier-perk,
+body.dark-mode .loy-mech-t small,
+body.dark-mode .loy-dist-l { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .loy-prog-fact,
+body.dark-mode .loy-bx .loy-prog-fact,
+body.dark-mode .loy-kpi,
+body.dark-mode .loy-msgs { background: var(--dk-panel, #29374A); }
+body.dark-mode .loy-msg-ind { background: var(--dk-card, #1F2A37); box-shadow: inset 0 0 0 1.5px rgb(var(--brand-300, 196 181 253) / .55); }
+body.dark-mode .loy-msg:not(.is-on):hover { background: rgb(255 255 255 / .04); }
+body.dark-mode button.loy-switch:not(.is-on) { background: var(--dk-line-hi, #4B5563); }
+body.dark-mode .loy-chip:not(.is-ok):not(.is-off):not(.is-warn) { background: rgb(var(--brand-600, 82 72 156) / .25); color: rgb(var(--brand-300, 196 181 253)); }
+body.dark-mode .loy-chip.is-ok { background: rgb(16 185 129 / .18); color: #6EE7B7; }
+body.dark-mode .loy-chip.is-off { background: rgb(255 255 255 / .08); color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .loy-chip.is-warn { background: rgb(245 158 11 / .16); color: #FCD34D; }
+body.dark-mode .loy-bx-t,
+body.dark-mode .loy-entry-name,
+body.dark-mode .loy-kpi-v,
+body.dark-mode .loy-msg-main b,
+body.dark-mode .loy-prog-fact-text { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .loy-entry-lead,
+body.dark-mode .loy-entry-facts,
+body.dark-mode .loy-kpi-l,
+body.dark-mode .loy-kpi small,
+body.dark-mode .loy-msg-main span,
+body.dark-mode .loy-msg-count,
+body.dark-mode .loy-msg-always,
+body.dark-mode .loy-msg-lead,
+body.dark-mode .loy-wa-cap,
+body.dark-mode .loy-prog-fact-label { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .loy-prog-note { color: #FCD34D; }
+body.dark-mode .loy-prog-acts button.loy-act:not(:hover),
+body.dark-mode a.loy-act { background: rgb(255 255 255 / .08); color: var(--dk-text, #F3F4F6); }
+body.dark-mode a.loy-act:hover { background: rgb(255 255 255 / .16); color: #FFFFFF; }
+body.dark-mode .loy-bday,
+body.dark-mode .loy-progress { background: var(--dk-panel, #29374A); }
+body.dark-mode .loy-progress-top b { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .loy-progress-title,
+body.dark-mode .loy-progress-top span,
+body.dark-mode .loy-progress small { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .loy-progress-bar { background: rgb(255 255 255 / .1); }
+body.dark-mode .loy-bday-date { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .loy-bday-sub { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .loy-bday button.loy-act:not(:hover) { background: rgb(255 255 255 / .08); }
+
 body.dark-mode .loy-wallet { color: var(--dk-muted, #9CA3AF); }
 
 body.dark-mode .loy-tile-off,

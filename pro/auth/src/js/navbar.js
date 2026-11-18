@@ -158,15 +158,6 @@ class Navbar {
 
                             <div class="nav-divider"></div>
 
-                            <div class="nav-mode" role="group" aria-label="Modo de la aplicación">
-                                <button type="button" class="nav-mode-opt" data-mode="light" aria-pressed="false">
-                                    <i data-lucide="sun"></i>Claro
-                                </button>
-                                <button type="button" class="nav-mode-opt" data-mode="dark" aria-pressed="false">
-                                    <i data-lucide="moon"></i>Oscuro
-                                </button>
-                            </div>
-
                             <div class="nav-logout">
                                 <button type="button" id="btnLogout" class="nav-logout-btn">
                                     <i data-lucide="log-out"></i>Cerrar sesión
@@ -233,6 +224,7 @@ class Navbar {
         const color = /^#[0-9A-Fa-f]{6}$/.test(d.color || '') ? d.color : '';
 
         el.style.background = color;
+        el.style.color      = color ? this.ink(color) : '';
         el.innerHTML = d.photo
             ? `<img src="${this.esc(d.photo)}" alt="">`
             : `<span>${this.esc(this.initials(d.user || d.email))}</span>`;
@@ -245,10 +237,29 @@ class Navbar {
         return (first + last).toUpperCase();
     }
 
+    // Letra que se lee sobre su color (igual que Page.ink): blanca en uno fuerte;
+    // en un pastel, el mismo tono pero oscuro.
+    ink(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        const r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+
+        if (r * .299 + g * .587 + b * .114 <= .63) return '#FFFFFF';
+
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+        const l   = (max + min) / 2;
+        const s   = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+
+        let h = 0;
+        if (d) h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+
+        return `hsl(${Math.round(h * 60)} ${Math.round(Math.min(s, .65) * 100)}% 30%)`;
+    }
+
     // -- Sucursal --
 
     /*  Con «Todas» activa ninguna sucursal sale elegida; la de la sesión dice
-        «Activa»: ahí se sigue capturando, cobrando y entregando. */
+        «Activa»: ahí se sigue capturando, cobrando y entregando. Una página de
+        toda la empresa (data-branch="off" en #menu-navbar) no lleva selector. */
     renderBranch() {
         const box      = document.getElementById('navBranch');
         const branches = this.data.branches || [];
@@ -257,7 +268,7 @@ class Navbar {
         const all      = multi && this.all ? this.all : null;
         const allOn    = !!(all && all.on);
 
-        if (!current.name) {
+        if (!current.name || this.host.dataset.branch === 'off') {
             box.innerHTML = '';
             return;
         }
@@ -370,8 +381,8 @@ class Navbar {
 
     // -- Modo: claro u oscuro --
 
-    // La barra: su color y su logo cuelgan de .nav-dark; el boton y el
-    // selector del menu marcan en cual se esta.
+    // La barra: su color y su logo cuelgan de .nav-dark; el boton marca a
+    // cual se cambia.
     paintMode(mode) {
         const dark = mode === 'dark';
 
@@ -383,10 +394,6 @@ class Navbar {
 
         btn.title = label;
         btn.setAttribute('aria-label', label);
-
-        this.host.querySelectorAll('.nav-mode-opt').forEach((el) => {
-            el.setAttribute('aria-pressed', el.dataset.mode === this.current ? 'true' : 'false');
-        });
     }
 
     // Pinta la pagina (InventoryPalette) y la barra.
@@ -483,9 +490,6 @@ class Navbar {
             if (on('#btnNotifs'))   return this.toggle('navNotifPanel');
             if (on('#btnBranch'))   return this.toggle('branchDropdown');
             if (on('#btnLogout'))   return this.logout();
-
-            const mode = on('.nav-mode-opt');
-            if (mode) return this.selectMode(mode.dataset.mode);
 
             const branch = on('.branch-card');
             if (branch) {
@@ -651,18 +655,11 @@ class Navbar {
             .branch-card-all .branch-card-avatar svg { width:14px; height:14px; }
 
             /* Modo. En la barra, un boton que muestra a donde se va: luna en
-               claro, sol en oscuro. En el menu del usuario, las dos opciones. */
+               claro, sol en oscuro. */
             .nav-mode-to-dark, .nav-mode-to-light { display:flex; }
             .nav-mode-to-light { display:none; }
             .navbar-main.nav-dark .nav-mode-to-dark { display:none; }
             .navbar-main.nav-dark .nav-mode-to-light { display:flex; }
-
-            .nav-mode { display:flex; gap:4px; margin:12px; padding:4px; border:1px solid var(--nav-pop-line); border-radius:12px; }
-            .nav-mode-opt { flex:1; display:flex; align-items:center; justify-content:center; gap:7px; height:34px; border:none; border-radius:9px; background:transparent; color:var(--nav-pop-dim); font-size:13px; font-weight:600; cursor:pointer; transition:color .15s ease, background .15s ease; }
-            .nav-mode-opt svg { width:15px; height:15px; }
-            .nav-mode-opt:hover { color:var(--nav-pop-ink); }
-            .nav-mode-opt:focus-visible { outline:2px solid var(--nav-accent); outline-offset:2px; }
-            .nav-mode-opt[aria-pressed="true"] { background:rgb(var(--primary-rgb, 80 48 165)); color:#FFFFFF; }
 
             /* Notificaciones */
             .nav-tool-btn { position:relative; }

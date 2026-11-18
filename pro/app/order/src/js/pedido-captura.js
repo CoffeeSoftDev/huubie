@@ -44,6 +44,17 @@ class OrderForm extends Templates {
         this.order = null;
         this.lines = [];
         this.open();
+        this.focusCustomer();
+    }
+
+    // Pedido nuevo: el buscador de clientes abre con el cursor listo para escribir.
+    // En pantalla chica el ticket va escondido tras «Ver pedido»: ahí no se abre.
+    focusCustomer() {
+        const select = $('#of_customer_id');
+
+        if (!select.data('select2') || !select.next('.select2-container').is(':visible')) return;
+
+        select.select2('open');
     }
 
     async edit(id) {
@@ -960,49 +971,72 @@ class OrderForm extends Templates {
         return this.round2(this.lines.reduce((sum, line) => sum + this.unitPrice(line) * line.quantity, 0));
     }
 
-    /*  «¿Cómo se guarda?»: 'quote' (Cotización), 'pending' (Pendiente) o '' si
-        cerró la pregunta (sigue editando). El estado lo pone el dinero
-        (core-order.php › statusFor): pendiente es el pedido que deja anticipo.
-        Sin importe que cobrar, o con block (por qué no se cobra), solo queda Cotización.
-        back = false: al cerrar, SweetAlert no regresa el foco al botón que la abrió
-        (lo usa la ventana de pagos, que lo manda al importe). */
-    async askHow(block = '', back = true) {
+    /*  «¿Cómo se guarda?» con el alertBox del framework: 'quote' (Cotización),
+        'pending' (Pendiente: sin anticipo, con todo el saldo por cobrar; addOrder
+        › status) o '' si se cerró sin elegir (clic fuera o Escape). Sin importe
+        que cobrar, o con block (por qué no se cobra), solo queda Cotización. */
+    askHow(block = '') {
         const due  = this.orderTotal() > 0.005 && !block;
-        const line = (name, text) => `<p class="ord-ask-line"><b>${name}</b> ${text}</p>`;
+        const line = (name, text) => `<span class="block mt-1"><b>${name}</b> ${text}</span>`;
         const why  = block ? line('Sin cobro:', esc(block)) : line('Sin importe:', 'no hay nada que cobrar.');
+        const id   = 'ordAskHow';
 
-        const asking = this.swalQuestion({
-            opts: {
-                icon:              'question',
-                title:             '¿Cómo se guarda el pedido?',
-                html:              line('Cotización:', 'se guarda sin dinero; se cobra después.')
-                    + (due ? line('Pendiente:', 'escribe el anticipo y registra el pago.') : why),
-                showConfirmButton: due,
-                showDenyButton:    true,
-                reverseButtons:    true,
-                returnFocus:       back,
-                confirmButtonText: 'Pendiente',
-                denyButtonText:    'Cotización',
-                cancelButtonText:  'Seguir editando'
-            },
-            extends: true
+        return new Promise((resolve) => {
+            let done = false;
+
+            const finish = (how) => {
+                if (done) return;
+
+                done = true;
+                document.removeEventListener('keydown', onKey, true);
+                resolve(how);
+            };
+
+            // Igual que cierra el alertBox, pero sin elegir nada.
+            const leave = () => {
+                const box = $('#' + id);
+
+                box.find('.tf-alert-card, [data-ab-backdrop]').removeClass('tf-ab-in').addClass('tf-ab-out');
+                setTimeout(() => box.remove(), 200);
+                finish('');
+            };
+
+            // En captura: Escape cierra la pregunta y no llega a la captura ni a la ventana de pagos.
+            const onKey = (e) => {
+                if (e.key !== 'Escape') return;
+
+                e.preventDefault();
+                e.stopPropagation();
+                leave();
+            };
+
+            $('#' + id).remove();
+
+            this.alertBox({
+                id:          id,
+                type:        'confirm',
+                title:       '¿Cómo se guarda el pedido?',
+                detailHtml:  line('Cotización:', 'se guarda sin dinero; se cobra después.')
+                    + (due ? line('Pendiente:', 'se guarda como pedido, con todo el saldo por cobrar.') : why),
+                dual:        due,
+                cancelLabel: 'Cotización',
+                okLabel:     due ? 'Pendiente' : 'Cotización',
+                onOk:        () => finish(due ? 'pending' : 'quote'),
+                onCancel:    () => finish('quote')
+            });
+
+            // El fondo del alertBox elige un botón; aquí solo cierra.
+            const box = $('#' + id);
+
+            box.find('[data-ab-backdrop]').off('click').on('click', leave);
+            document.addEventListener('keydown', onKey, true);
+
+            setTimeout(() => box.find('[data-ab-ok]').trigger('focus'), 60);
         });
-
-        // SweetAlert pinta «Cotización» (deny) en rojo, como si borrara: order.css › .ord-ask-save.
-        const popup = window.Swal && Swal.getPopup ? Swal.getPopup() : null;
-
-        if (popup) popup.classList.add('ord-ask-save');
-
-        const answer = await asking;
-
-        if (answer && answer.isConfirmed) return 'pending';
-        if (answer && answer.isDenied)    return 'quote';
-
-        return '';
     }
 
     // Pedido nuevo: abre los pagos sin guardar. El pedido se crea cuando la ventana
-    // confirma el cobro o elige cotización (OrderPay.saveDraft llama a send()).
+    // confirma el cobro o elige cotización o pendiente (OrderPay.saveDraft llama a send()).
     async payDraft(values) {
         const total = this.orderTotal();
 
@@ -1015,9 +1049,9 @@ class OrderForm extends Templates {
                 customer: $('#of_customer_id option:selected').text().split(' · ')[0].trim(),
                 total:    total,
                 delivery: values.of_delivery_date,
-                ask:      (block) => this.askHow(block, false),
-                save:     async () => {
-                    const data = await this.send(values);
+                ask:      (block) => this.askHow(block),
+                save:     async (how) => {
+                    const data = await this.send(values, how);
 
                     if (data && data.status == 200) this.finish();
 
@@ -1031,7 +1065,8 @@ class OrderForm extends Templates {
     }
 
     // La petición de guardar, sin avisos: la usan save() y el cobro del pedido nuevo.
-    async send(values) {
+    // how = 'pending': el pedido nuevo nace Pendiente aunque no deje anticipo (askHow).
+    async send(values, how = '') {
         const delivery = values.of_delivery_method === '1';
 
         this.saving = true;
@@ -1051,6 +1086,7 @@ class OrderForm extends Templates {
                 delivery_method: delivery ? '1' : '0',
                 location:        delivery ? values.of_location : '',
                 note:            values.of_note || '',
+                status:          !this.order && how === 'pending' ? 'pending' : '',
                 lines:           JSON.stringify(this.payload())
             }
         });

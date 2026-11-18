@@ -156,7 +156,7 @@ class UserForm extends Templates {
                 $check,
                 $('<span>', { class: 'min-w-0' }).append(
                     $('<span>', { class: 'block text-sm font-semibold text-gray-800', text: 'Dueño de la empresa' }),
-                    $('<span>', { class: 'block text-xs text-gray-400', text: 'Es quien paga la suscripción. Entra a todas las sucursales de su empresa.' })
+                    $('<span>', { class: 'block text-xs text-gray-400', text: 'Es quien paga la suscripción. Solo hay uno por empresa y entra a todas sus sucursales.' })
                 )
             ),
             $input

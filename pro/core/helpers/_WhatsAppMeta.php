@@ -39,13 +39,18 @@ class WhatsAppMeta {
         Meta, idioma]. El texto lo aprueba Meta; Huubie solo manda los valores.
         Los nombres se cambian en el .env (WHATSAPP_META_TPL_SALDO,
         WHATSAPP_META_TPL_ABRIMOS, WHATSAPP_META_TPL_TARJETA, WHATSAPP_META_TPL_PREMIO,
-        WHATSAPP_META_TPL_IDIOMA). 'tarjeta' y 'premio' son de Lealtad (tarjeta
-        digital y premio de sellos listo). */
+        WHATSAPP_META_TPL_CUMPLE, WHATSAPP_META_TPL_REGRESO, WHATSAPP_META_TPL_NIVEL,
+        WHATSAPP_META_TPL_IDIOMA). 'tarjeta', 'premio', 'cumple', 'regreso' y
+        'nivel' son de Lealtad (tarjeta digital, premio de sellos listo,
+        cumpleaños, te extrañamos y cambio de nivel). */
     private $templates = [
         'saldo'   => ['name' => 'huubie_saldo_pendiente', 'lang' => 'es_MX'],
         'abrimos' => ['name' => 'huubie_ya_abrimos', 'lang' => 'es_MX'],
         'tarjeta' => ['name' => 'huubie_tarjeta_digital', 'lang' => 'es_MX'],
         'premio'  => ['name' => 'huubie_premio_listo', 'lang' => 'es_MX'],
+        'cumple'  => ['name' => 'huubie_cumpleanos', 'lang' => 'es_MX'],
+        'regreso' => ['name' => 'huubie_te_extranamos', 'lang' => 'es_MX'],
+        'nivel'   => ['name' => 'huubie_nuevo_nivel', 'lang' => 'es_MX'],
     ];
 
     // Sin argumentos lee el .env. Con los tres (el arnes de pruebas) no lo toca.
@@ -60,7 +65,7 @@ class WhatsAppMeta {
             if (preg_match('/^v\d{1,3}\.\d{1,2}$/', $graph)) $this->graph = $graph;
 
             $lang = $env['WHATSAPP_META_TPL_IDIOMA'] ?? '';
-            foreach (['saldo' => 'WHATSAPP_META_TPL_SALDO', 'abrimos' => 'WHATSAPP_META_TPL_ABRIMOS', 'tarjeta' => 'WHATSAPP_META_TPL_TARJETA', 'premio' => 'WHATSAPP_META_TPL_PREMIO'] as $key => $var) {
+            foreach (['saldo' => 'WHATSAPP_META_TPL_SALDO', 'abrimos' => 'WHATSAPP_META_TPL_ABRIMOS', 'tarjeta' => 'WHATSAPP_META_TPL_TARJETA', 'premio' => 'WHATSAPP_META_TPL_PREMIO', 'cumple' => 'WHATSAPP_META_TPL_CUMPLE', 'regreso' => 'WHATSAPP_META_TPL_REGRESO', 'nivel' => 'WHATSAPP_META_TPL_NIVEL'] as $key => $var) {
                 $name = $env[$var] ?? '';
                 if (preg_match('/^[a-z0-9_]{1,512}$/', $name)) $this->templates[$key]['name'] = $name;
                 if (preg_match('/^[a-z]{2,3}(_[A-Z]{2})?$/', $lang)) $this->templates[$key]['lang'] = $lang;
@@ -295,7 +300,7 @@ class WhatsAppMeta {
     }
 
     /*  Una plantilla aprobada (F5): lo unico que Meta deja mandar fuera de la
-        ventana de 24 h. $key = 'saldo' | 'abrimos' | 'tarjeta' | 'premio'; $params = los valores
+        ventana de 24 h. $key = 'saldo' | 'abrimos' | 'tarjeta' | 'premio' | 'cumple' | 'regreso' | 'nivel'; $params = los valores
         {{1}}, {{2}}… en orden. Meta no acepta saltos de linea ni tabuladores
         en un valor: se cambian por espacios. Devuelve lo mismo que send(). */
     function sendTemplate($phoneNumberId, $phone, $key, array $params) {

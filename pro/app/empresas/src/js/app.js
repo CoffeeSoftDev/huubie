@@ -55,6 +55,8 @@ class App extends Templates {
                 type:         'dev',
                 title:        String(data.dev.name).toUpperCase(),
                 icon:         data.dev.icon,
+                // Negro: distingue la tarjeta del administrador de las empresas.
+                iconClass:    'bg-black',
                 location:     data.dev.description,
                 locationIcon: 'wrench',
                 route:        data.dev.route,

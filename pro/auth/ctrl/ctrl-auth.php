@@ -102,7 +102,8 @@ class ctrl extends mdl {
         $_SESSION['branch_id']  = $root ? 0 : (int) $branch['id'];
         $_SESSION['branch']     = $root ? '' : $branch['name'];
         $_SESSION['role_id']    = $root ? (int) $root['id'] : (int) $branch['role_id'];
-        $_SESSION['rol']        = $root ? $root['name'] : ($branch['rol'] ?? '');
+        // El dueño no lleva filas de rol (_Permission le da acceso total): se nombra aqui.
+        $_SESSION['rol']        = $root ? $root['name'] : (($branch['rol'] ?? '') ?: ((int) $user['is_owner'] === 1 ? 'Dueño' : ''));
         $_SESSION['home']       = $home;
 
         // ¿Ya habia entrado alguna vez? Se lee antes de marcar este ingreso.

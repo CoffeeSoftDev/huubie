@@ -13,9 +13,9 @@ class mdl extends CRUD {
         $this->bd   = '';
     }
 
-    /*  Todas, tambien las que no estan activas: root tiene que poder entrar a
-        una suspendida para ver lo mismo que ve su dueño (el aviso de pago).
-        Con el plan y el estado de su ultima suscripcion. */
+    /*  Tambien las que no estan activas: root tiene que poder entrar a una
+        suspendida para ver lo mismo que ve su dueño (el aviso de pago). Las
+        canceladas no salen. Con el plan y el estado de su ultima suscripcion. */
     function listCompanies() {
         $query = "
             SELECT
@@ -36,6 +36,7 @@ class mdl extends CRUD {
                 SELECT MAX(s2.id) FROM {$this->bd}subscriptions s2 WHERE s2.company_id = c.id
             )
             LEFT JOIN {$this->bd}plans p ON p.id = s.plan_id
+            WHERE c.status <> 'cancelled'
             ORDER BY c.status = 'active' DESC, c.name ASC
         ";
 

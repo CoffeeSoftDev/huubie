@@ -18,5 +18,8 @@ $title   = 'Configuración';
 $active  = 'configuracion';
 $scripts = ['src/js/configuracion.js'];
 
+// Todo aqui es de la empresa entera: la barra no ofrece cambiar de sucursal.
+$noBranch = true;
+
 require __DIR__ . '/../../layout/head.php';
 require __DIR__ . '/../../layout/scripts.php';

@@ -88,6 +88,7 @@ class ctrl extends mdl {
         $data['owner']         = $this->owner($companyId);
         $data['business']      = $this->business($companyId);
         $data['attention']     = $this->attention($data['business'], $company);
+        $data['shortcuts']     = $this->shortcuts();
         $data['birthdays']     = $this->people($this->listBirthdaysByCompany([$companyId]));
         $data['anniversaries'] = $this->people($this->listAnniversariesByCompany([$companyId]));
 
@@ -160,6 +161,18 @@ class ctrl extends mdl {
         if ($sub['price'] !== null) return $sub['price'];
 
         return $sub['mode'] === 'custom' ? $this->getSubscriptionTotal([$sub['id']]) : null;
+    }
+
+    /*  Mi perfil y Configuración del dueño, como tarjetas junto a sus modulos:
+        el rail ya no los trae (ctrl-nav :: extras). Abren aunque la empresa no
+        este al corriente: ahi se paga. root los conserva en el rail. */
+    private function shortcuts() {
+        if (empty($_SESSION['is_owner']) || !empty($_SESSION['is_root'])) return [];
+
+        return [
+            ['code' => 'perfil', 'name' => 'Mi perfil', 'icon' => 'user-round', 'text' => 'Tus datos, tu foto y tu contraseña.', 'route' => 'app/perfil/', 'locked' => 0, 'submodules' => []],
+            ['code' => 'configuracion', 'name' => 'Configuración', 'icon' => 'settings', 'text' => 'Empresa, sucursales, usuarios, roles y plan.', 'route' => 'app/configuracion/', 'locked' => 0, 'submodules' => []],
+        ];
     }
 
     private function modules($state) {

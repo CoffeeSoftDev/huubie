@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Propuesta · Diseño de Lealtad</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* @piel plantilla-plano */
+:root{
+  color-scheme: light dark;
+  --bp-ground:    light-dark(#F1F3F6, #0C1116);
+  --bp-surface:   light-dark(#FFFFFF, #141B21);
+  --bp-surface-2: light-dark(#F5F7F9, #1B242B);
+  --bp-line:      light-dark(#DDE3E8, #2A353D);
+  --bp-line-soft: light-dark(#E9EDF1, #212A31);
+  --bp-ink:       light-dark(#0F1A21, #E4EAEE);
+  --bp-ink-soft:  light-dark(#4A5A64, #A8B7C0);
+  --bp-ink-dim:   light-dark(#6E7F8A, #7E8F99);
+  --bp-ac:        light-dark(#0B6E77, #4FB8C2);
+  --bp-ok:        light-dark(#047857, #6EE7B7);
+  --bp-write:     light-dark(#A15C08, #FCD34D);
+  --bp-ui:   "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{ background:var(--bp-ground); color:var(--bp-ink); font-family:var(--bp-ui); font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased }
+.wrap{ max-width:1240px; margin:0 auto; padding:0 16px 80px }
+.text{ max-width:1000px }
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:30px; display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,44px); line-height:1.08; letter-spacing:-.015em; max-width:24ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55; color:var(--bp-ink-soft); max-width:68ch }
+.meta{ display:flex; flex-wrap:wrap; gap:6px 26px; font-family:var(--bp-mono); font-size:11.5px; color:var(--bp-ink-dim) }
+.meta b{ color:var(--bp-ink-soft); font-weight:600 }
+section{ display:flex; flex-direction:column; gap:14px; margin-bottom:52px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:25px; line-height:1.2; display:flex; align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em; color:var(--bp-ac); flex:none }
+h3{ font-size:15px; font-weight:650; margin-top:4px }
+ul.points{ list-style:none; display:grid; gap:6px; max-width:82ch }
+ul.points li{ position:relative; padding-left:18px; color:var(--bp-ink-soft) }
+ul.points li::before{ content:""; position:absolute; left:2px; top:.62em; width:6px; height:6px; border-radius:2px; background:var(--bp-ac) }
+ul.points b{ color:var(--bp-ink); font-weight:600 }
+code{ font-family:var(--bp-mono); font-size:.86em; background:var(--bp-surface-2); border:1px solid var(--bp-line-soft); border-radius:4px; padding:.08em .34em }
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface) }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:760px }
+th,td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft); vertical-align:top }
+thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--bp-ink-dim); font-weight:500; background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line); white-space:nowrap }
+tbody tr:last-child td{ border-bottom:0 }
+td.mine{ color:var(--bp-write); font-weight:600 }
+td.yours{ color:var(--bp-ok); font-weight:600 }
+td.code{ font-family:var(--bp-mono); font-size:12px; color:var(--bp-ac); white-space:nowrap }
+.note{ border:1px solid var(--bp-line); border-left:3px solid var(--bp-ac); border-radius:8px; background:var(--bp-surface); padding:14px 18px; color:var(--bp-ink-soft); max-width:1000px }
+.note b{ color:var(--bp-ink) }
+.note .note-title{ font-size:16px; font-weight:700; color:var(--bp-ink); margin-bottom:8px }
+.note ol{ padding-left:20px; display:grid; gap:6px }
+.note .tag{ font-family:var(--bp-mono); font-size:11px; color:var(--bp-ac); font-weight:600 }
+.warn{ border-left-color:var(--bp-write) }
+.foot-note{ font-size:12.5px; color:var(--bp-ink-dim); border-top:1px solid var(--bp-line); padding-top:18px }
+
+/* -- Láminas -- */
+.sheet{ display:flex; flex-direction:column; gap:12px }
+.sheet-title{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap }
+.sheet-title h3{ font-size:17px; margin:0 }
+.sheet-title .codes{ font-family:var(--bp-mono); font-size:11.5px; color:var(--bp-ac) }
+.label{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--bp-ink-dim) }
+.label.is-new{ color:var(--bp-ok) }
+.shot{ border:1px solid var(--bp-line); border-radius:12px; overflow:hidden; background:var(--bp-surface); max-width:900px }
+.shot img{ display:block; width:100%; height:auto }
+.shot.is-narrow{ max-width:380px }
+.shots{ display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start }
+.stage{ overflow-x:auto; border-radius:14px; border:1px solid var(--bp-line) }
+
+/* -- Maqueta: la app -- */
+.mk{ color-scheme:light; font-family:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif; font-size:13px; line-height:1.4; color:#1C1B22;
+  --hb-bg:#F4F4F7; --hb-surface:#FFFFFF; --hb-line:#ECEBF1; --hb-ink:#1C1B22; --hb-soft:#5E5D6B; --hb-dim:#8E8D9A;
+  --hb-pri:#4B2A9A; --hb-pri-50:#F1ECFB; --hb-pri-100:#E4DBF7; --hb-ok:#047857; --hb-ok-50:#D1FAE5; --hb-warn:#B45309; --hb-warn-50:#FEF3C7 }
+.mk *{ box-sizing:border-box }
+.mk i[data-lucide], .mk svg.lucide{ width:16px; height:16px; flex:none }
+.mk-screen{ width:1200px; background:var(--hb-bg) }
+.mk-nav{ height:56px; background:#fff; border-bottom:1px solid var(--hb-line); display:flex; align-items:center; gap:14px; padding:0 18px }
+.mk-logo{ font-weight:800; font-size:20px; letter-spacing:-.04em; color:var(--hb-pri); line-height:.8 }
+.mk-logo span{ display:block; color:#E0457B }
+.mk-company{ border-left:1px solid var(--hb-line); padding-left:14px; color:var(--hb-soft); font-weight:500 }
+.mk-nav-right{ margin-left:auto; display:flex; align-items:center; gap:16px }
+.mk-branch{ display:flex; align-items:center; gap:10px; padding:5px 12px 5px 6px; border-radius:12px; background:var(--hb-pri-50); border:1px solid var(--hb-pri-100) }
+.mk-branch .ic{ width:28px; height:28px; border-radius:8px; background:var(--hb-pri-100); display:grid; place-items:center; color:var(--hb-pri) }
+.mk-branch small{ display:block; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--hb-dim) }
+.mk-branch b{ font-size:13px }
+.mk-user{ display:flex; align-items:center; gap:9px }
+.mk-avatar{ width:32px; height:32px; border-radius:50%; background:#2563EB; color:#fff; font-weight:700; font-size:12px; display:grid; place-items:center }
+.mk-user small{ display:block; color:var(--hb-dim); font-size:11px }
+.mk-shell{ display:flex }
+.mk-rail{ width:58px; background:#fff; border-right:1px solid var(--hb-line); display:flex; flex-direction:column; align-items:center; gap:10px; padding:12px 0 }
+.mk-rail a{ width:46px; padding:6px 0; border-radius:10px; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:9.5px; color:var(--hb-soft); text-decoration:none }
+.mk-rail a.on{ background:var(--hb-pri-50); color:var(--hb-pri); font-weight:600 }
+.mk-page{ flex:1; padding:22px 24px 26px; display:flex; flex-direction:column; gap:16px; min-width:0 }
+.mk-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px }
+.mk-h1{ font-size:21px; font-weight:700; margin:0 }
+.mk-sub{ color:var(--hb-soft); font-size:12.5px }
+.mk-btns{ display:flex; gap:8px }
+.mk-btn{ display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 14px; border-radius:9px; font-size:12.5px; font-weight:600; border:1px solid var(--hb-line); background:#fff; color:var(--hb-ink); white-space:nowrap }
+.mk-btn.pri{ background:var(--hb-pri); border-color:var(--hb-pri); color:#fff }
+.mk-btn.ghost{ border-color:transparent; background:transparent; color:var(--hb-soft) }
+.mk-btn i[data-lucide], .mk-btn svg.lucide{ width:15px; height:15px }
+.mk-note{ color:var(--hb-soft); font-size:12.5px }
+.mk-card{ background:#fff; border:1px solid var(--hb-line); border-radius:16px; padding:18px 20px; display:flex; flex-direction:column; gap:16px }
+.mk-tabs{ display:inline-flex; gap:4px; padding:4px; border-radius:12px; background:#F3F2F7; align-self:flex-start }
+.mk-tab{ display:inline-flex; align-items:center; gap:7px; padding:7px 14px; border-radius:9px; font-size:12.5px; color:var(--hb-soft); font-weight:500 }
+.mk-tab.on{ background:#fff; color:var(--hb-pri); font-weight:600; box-shadow:0 1px 3px rgb(0 0 0 / .08) }
+.mk-select{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--hb-soft) }
+.mk-select span{ width:200px; height:34px; border:1px solid var(--hb-line); border-radius:9px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; color:var(--hb-ink); font-size:13px; background:#fff }
+
+/* P1: resumen de un solo tono */
+.mk-kpis{ display:grid; grid-template-columns:repeat(6, 1fr); gap:10px }
+.mk-kpi{ background:#fff; border:1px solid var(--hb-line); border-radius:14px; padding:12px 14px; display:flex; flex-direction:column; gap:6px }
+.mk-kpi-top{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--hb-soft); font-weight:500; white-space:nowrap }
+.mk-kpi-ic{ width:26px; height:26px; border-radius:8px; background:var(--hb-pri-50); color:var(--hb-pri); display:grid; place-items:center }
+.mk-kpi-ic i[data-lucide], .mk-kpi-ic svg.lucide{ width:14px; height:14px }
+.mk-kpi-val{ font-size:22px; font-weight:700; letter-spacing:-.01em }
+.mk-kpi-hint{ font-size:11.5px; color:var(--hb-dim) }
+
+/* P2: la tarjeta con el diseño de Rewardix (degradado del color del tipo, brillo, sellos punteados) */
+@property --c{ syntax:'<color>'; inherits:true; initial-value:#7C3AED }
+.wc{ --c:#7C3AED; --fg:#FFFFFF; --chip:rgb(255 255 255 / .22); --chipfg:#FFFFFF; --line:rgb(255 255 255 / .6); --track:rgb(255 255 255 / .26);
+  position:relative; overflow:hidden; isolation:isolate; border-radius:14px; color:var(--fg); font-family:"Inter", system-ui, sans-serif; line-height:1.2;
+  background:linear-gradient(135deg, color-mix(in srgb, var(--c) 70%, #000) 0%, var(--c) 58%, color-mix(in srgb, var(--c) 78%, #fff) 100%);
+  box-shadow:inset 0 1px 0 rgb(255 255 255 / .3), inset 0 0 0 .5px rgb(0 0 0 / .1), 0 12px 24px -12px rgb(24 12 60 / .55), 0 2px 4px rgb(24 12 60 / .12);
+  transition:--c .9s ease }
+.wc::after{ content:""; position:absolute; inset:0; z-index:3; border-radius:inherit; pointer-events:none;
+  background:linear-gradient(125deg, rgb(255 255 255 / .2) 0%, rgb(255 255 255 / 0) 35%, rgb(255 255 255 / 0) 72%, rgb(255 255 255 / .08) 100%) }
+.wc-h{ display:flex; align-items:center; gap:9px; padding:12px 14px 0 }
+.wc-logo{ width:30px; height:30px; border-radius:9px; background:var(--chip); color:var(--chipfg); display:grid; place-items:center; flex:none }
+.wc-logo svg{ width:17px !important; height:17px !important }
+.wc-name{ flex:1; min-width:0; font-size:15px; font-weight:800; letter-spacing:-.015em; line-height:1.15; overflow-wrap:anywhere }
+.wc-name small{ display:block; margin-top:2px; font-size:8.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; opacity:.75 }
+.wc-val{ flex:none; text-align:right; line-height:1 }
+.wc-val small, .wc-flds small{ display:block; margin-bottom:4px; font-size:8px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; opacity:.78 }
+.wc-val b{ font-size:17px; font-weight:800; font-variant-numeric:tabular-nums }
+.wc-name > span, .wc-val b, .wc-big b, .wc-flds b{ display:inline-block }
+.wc-b{ padding:12px 14px 14px }
+.wc-stamps{ display:grid; grid-template-columns:repeat(5, 30px); justify-content:space-between; row-gap:8px }
+.wc-st{ position:relative; width:30px; height:30px; border-radius:50%; border:1.5px dashed var(--line); display:grid; place-items:center; color:var(--fg) }
+.wc-st svg{ width:15px !important; height:15px !important; opacity:0; transition:opacity .2s }
+.wc-st.gift svg{ opacity:.6 }
+.wc-st.on{ background:var(--fg); border-style:solid; border-color:var(--fg); color:var(--c); box-shadow:0 3px 8px rgb(0 0 0 / .18) }
+.wc-st.on svg{ opacity:1 }
+.wc-st.new{ animation:wc-stamp .62s cubic-bezier(.2,1.3,.4,1) both }
+.wc-st.new::after{ content:""; position:absolute; inset:-5px; border-radius:50%; border:2px solid var(--fg); animation:wc-ring .75s ease-out .18s both }
+.wc.done .wc-st{ animation:wc-hop .55s cubic-bezier(.3,.7,.4,1) calc(var(--k) * 55ms) both }
+.wc-cap{ margin-top:10px; font-size:11.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.wc.done .wc-cap{ font-weight:800 }
+.wc-big{ display:flex; align-items:flex-end; gap:6px }
+.wc-big b{ flex:none; font-size:34px; font-weight:800; letter-spacing:-.035em; line-height:1; font-variant-numeric:tabular-nums; white-space:nowrap }
+.wc-big span{ min-width:0; padding-bottom:3px; font-size:12.5px; font-weight:600; line-height:1.2; opacity:.88 }
+.wc-tier{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; font-size:11px; font-weight:600; white-space:nowrap }
+.wc-tier > span:last-child{ overflow:hidden; text-overflow:ellipsis; opacity:.92 }
+.wc-badge{ flex:none; display:inline-flex; align-items:center; gap:4px; height:21px; padding:0 9px 0 7px; border-radius:11px; background:var(--chip); color:var(--chipfg); font-size:10.5px; font-weight:700 }
+.wc-badge svg{ width:12px !important; height:12px !important }
+.wc-badge em{ display:inline-block; font-style:normal }
+.wc-badge.flip em{ animation:wc-flip .5s ease }
+.wc-badge.gold{ background:linear-gradient(135deg, #FFF1A8, #FFDA4A 45%, #F2B01E); color:#4A3200; animation:wc-gpulse 1s ease-out 3 }
+.wc-bar{ margin-top:10px; height:6px; border-radius:6px; background:var(--track); overflow:hidden }
+.wc-bar i{ display:block; height:100%; border-radius:inherit; background:var(--fg); transition:width 1.3s cubic-bezier(.3,.8,.3,1) }
+.wc-perf{ margin-top:12px; padding-top:8px; border-top:1.5px dashed var(--line); font-size:10.5px; font-weight:600; opacity:.92 }
+.wc-flds{ display:flex; justify-content:space-between; gap:10px; padding:2px 14px 0 }
+.wc-flds > span:last-child{ text-align:right }
+.wc-flds b{ font-size:11.5px; font-weight:600; white-space:nowrap }
+.wc > .wc-flds:nth-last-child(2){ padding-bottom:14px }
+.wc-qrw{ display:flex; flex-direction:column; align-items:center; margin-top:14px }
+.wc-qrb{ position:relative; width:132px; height:132px; padding:10px; border-radius:12px; background:#fff; box-shadow:0 8px 18px -6px rgb(0 0 0 / .35) }
+.wc-qr{ display:block; width:112px; height:112px }
+.wc-qr svg{ display:block; width:100%; height:100% }
+.wc-num{ margin-top:8px; min-height:21px; display:flex; align-items:center; font-size:9.5px; font-weight:600; letter-spacing:.16em; opacity:.92 }
+.wc-ready{ display:none; align-items:center; gap:5px; height:21px; padding:0 10px; border-radius:11px; background:#FFDA4A; color:#3D2C00; font-size:10.5px; font-weight:700; letter-spacing:0; animation:wc-pop .5s cubic-bezier(.3,1.6,.5,1) }
+.wc-ready svg{ width:12px !important; height:12px !important }
+.wc.done .wc-ready{ display:inline-flex }
+.wc.done .wc-num > span:first-child{ display:none }
+.wc-ft{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; font-size:9px; font-weight:500; opacity:.8 }
+.wc-ft svg{ width:13px !important; height:13px !important }
+.wc-sh{ position:absolute; top:0; bottom:0; left:0; width:45%; z-index:4; pointer-events:none; background:linear-gradient(90deg, rgb(255 255 255 / 0), rgb(255 255 255 / .55), rgb(255 255 255 / 0)); transform:translateX(-130%) skewX(-18deg) }
+.wc.done .wc-sh, .wc.shine .wc-sh{ animation:wc-sheen 1.1s ease-in-out .15s 2 }
+.wc-pop{ animation:wc-pop .5s cubic-bezier(.3,1.6,.5,1) }
+.wc-scan{ position:absolute; inset:-7px; opacity:0; transition:opacity .2s; pointer-events:none }
+.wc-scan i{ position:absolute; display:block; width:20px; height:20px; border:0 solid #22C55E }
+.wc-scan .c1{ left:0; top:0; border-width:3px 0 0 3px; border-top-left-radius:8px }
+.wc-scan .c2{ right:0; top:0; border-width:3px 3px 0 0; border-top-right-radius:8px }
+.wc-scan .c3{ left:0; bottom:0; border-width:0 0 3px 3px; border-bottom-left-radius:8px }
+.wc-scan .c4{ right:0; bottom:0; border-width:0 3px 3px 0; border-bottom-right-radius:8px }
+.wc-scan .lz{ left:10px; right:10px; top:10%; width:auto; height:3px; border:0; border-radius:3px; background:#22C55E; box-shadow:0 0 12px 3px rgb(34 197 94 / .65) }
+.wc-qrb.scanning .wc-scan{ opacity:1 }
+.wc-qrb.scanning .lz{ animation:wc-laser .62s ease-in-out infinite alternate }
+.wc-qrb.scanning .wc-scan i:not(.lz){ animation:wc-blink .62s ease-in-out infinite alternate }
+.wc-ok{ position:absolute; left:50%; top:50%; width:54px; height:54px; margin:-27px 0 0 -27px; border-radius:50%; background:#22C55E; color:#fff; display:grid; place-items:center; transform:scale(0); box-shadow:0 0 0 7px rgb(34 197 94 / .25), 0 8px 18px rgb(22 120 60 / .4) }
+.wc-ok svg{ width:28px !important; height:28px !important; stroke-width:2.6 }
+.wc-qrb.ok .wc-ok{ animation:wc-okpop .95s cubic-bezier(.2,1.4,.4,1) both }
+.wc.sm .wc-h{ padding:10px 10px 0; gap:7px }
+.wc.sm .wc-logo{ width:24px; height:24px; border-radius:7px }
+.wc.sm .wc-logo svg{ width:14px !important; height:14px !important }
+.wc.sm .wc-name{ font-size:12.5px }
+.wc.sm .wc-val b{ font-size:14px }
+.wc.sm .wc-b{ padding:8px 10px 10px }
+.wc.sm .wc-stamps{ grid-template-columns:repeat(5, 22px); row-gap:5px }
+.wc.sm .wc-st{ width:22px; height:22px }
+.wc.sm .wc-st svg{ width:11px !important; height:11px !important }
+@keyframes wc-stamp{ 0%{ transform:scale(2.4) rotate(-26deg); opacity:0 } 55%{ transform:scale(.88) rotate(4deg); opacity:1 } 78%{ transform:scale(1.06) rotate(0) } 100%{ transform:none; opacity:1 } }
+@keyframes wc-ring{ from{ transform:scale(.8); opacity:.95 } to{ transform:scale(1.9); opacity:0 } }
+@keyframes wc-hop{ 0%, 100%{ transform:none } 40%{ transform:translateY(-8px) scale(1.08) } }
+@keyframes wc-pop{ 0%{ transform:scale(1) } 40%{ transform:scale(1.32) } 100%{ transform:scale(1) } }
+@keyframes wc-okpop{ 0%{ transform:scale(0); opacity:1 } 30%{ transform:scale(1.15) } 45%, 78%{ transform:scale(1); opacity:1 } 100%{ transform:scale(.85); opacity:0 } }
+@keyframes wc-laser{ from{ top:10% } to{ top:86% } }
+@keyframes wc-blink{ to{ opacity:.5 } }
+@keyframes wc-sheen{ from{ transform:translateX(-130%) skewX(-18deg) } to{ transform:translateX(330%) skewX(-18deg) } }
+@keyframes wc-gpulse{ from{ box-shadow:0 0 0 0 rgb(255 218 74 / .85) } to{ box-shadow:0 0 0 12px rgb(255 218 74 / 0) } }
+@keyframes wc-flip{ from{ transform:rotateX(0) } to{ transform:rotateX(360deg) } }
+@keyframes wc-in{ from{ transform:translateY(42px) scale(.95); opacity:0 } 60%{ opacity:1 } to{ transform:none; opacity:1 } }
+
+/* Galería de tipos */
+.mk-gallery{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px }
+.mk-tile{ display:flex; flex-direction:column; gap:10px }
+.mk-gallery .wc{ flex:1; display:flex; flex-direction:column; transition:transform .35s cubic-bezier(.2,.85,.25,1.06), --c .9s ease }
+.mk-gallery .wc-b{ flex:1 }
+.mk-gallery .wc:hover{ transform:translateY(-4px) }
+.mk-gallery .wc:hover .wc-sh{ animation:wc-sheen 1s ease-in-out }
+.js .wc-gal:not(.go) .mk-tile{ opacity:0 }
+.wc-gal.go .mk-tile{ animation:wc-in .8s cubic-bezier(.2,.85,.25,1.06) calc(var(--i) * 90ms) both }
+.mk-acts{ display:flex; align-items:center; gap:6px }
+.mk-act{ display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 11px; border-radius:999px; background:#F3F2F7; font-size:12px; font-weight:600; color:var(--hb-ink) }
+.mk-act.icon{ width:30px; padding:0; justify-content:center; margin-left:auto }
+.mk-act i[data-lucide], .mk-act svg.lucide{ width:14px; height:14px }
+
+/* -- Demostración: la tarjeta en movimiento -- */
+.dm-wrap{ display:grid; grid-template-columns:minmax(0, 520px) minmax(0, 1fr); gap:28px; align-items:center; padding:24px 22px; border-radius:14px; border:1px solid var(--bp-line); overflow:hidden;
+  background:radial-gradient(120% 90% at 25% 20%, light-dark(#ECE6FD, #1E1A33) 0%, var(--bp-surface) 62%) }
+.dm{ position:relative; height:640px; display:flex; justify-content:center; align-items:flex-start; padding-top:14px; color-scheme:light }
+.dm.is-paused *, .dm.is-paused ::before, .dm.is-paused ::after{ animation-play-state:paused !important }
+.dm i[data-lucide], .dm svg.lucide{ flex:none }
+.dm-float{ animation:dm-float 7s ease-in-out infinite }
+.dm-shake.buzz{ animation:dm-buzz .45s linear }
+.dm-phone{ width:290px; padding:3px; border-radius:50px; background:linear-gradient(90deg, #161618 0%, #5B5B60 1.6%, #2E2E32 4.5%, #232326 50%, #2E2E32 95.5%, #5B5B60 98.4%, #161618 100%);
+  box-shadow:inset 0 0 0 .6px rgb(255 255 255 / .28), 0 26px 44px -26px rgb(20 14 50 / .45), 0 10px 18px -12px rgb(0 0 0 / .22) }
+.dm-bezel{ padding:9px; border-radius:47px; background:#000 }
+.dm-screen{ position:relative; width:266px; height:578px; border-radius:38px; overflow:hidden; isolation:isolate; background:#F3F4F6; color:#111; font-family:"Inter", system-ui, sans-serif }
+.dm-sb{ position:absolute; left:0; right:0; top:0; height:44px; padding:0 22px 0 30px; display:flex; align-items:center; justify-content:space-between; font-size:13.5px; font-weight:600; z-index:30 }
+.dm-sb > span:last-child{ display:flex; gap:4px; align-items:center }
+.dm-sb svg{ width:15px; height:15px }
+.dm-notch{ position:absolute; left:50%; top:10px; width:84px; height:25px; margin-left:-42px; border-radius:14px; background:#000; z-index:40 }
+.dm-head{ position:absolute; left:14px; right:14px; top:50px; display:flex; align-items:center; gap:10px; font-size:12px; transition:opacity .3s, transform .45s }
+.dm-head .lg{ width:34px; height:34px; border-radius:10px; background:#4B2A9A; color:#fff; display:grid; place-items:center; font-weight:800; flex:none }
+.dm-head b{ display:block; font-size:14px }
+.dm-head small{ font-size:11px; color:#6B7280 }
+.dm-card{ position:absolute; left:10px; top:0; width:246px; height:162px; z-index:5; transform:translate3d(0, 640px, 0); transform-origin:50% 0; will-change:transform;
+  transition-property:transform, height, --c; transition-duration:.75s, .6s, .9s; transition-timing-function:cubic-bezier(.2,.85,.25,1.06), cubic-bezier(.3,.8,.3,1), ease }
+.dm-more{ opacity:0; transform:translateY(10px); transition:opacity .2s, transform .3s }
+.dm-card.open .dm-more{ opacity:1; transform:none; transition:opacity .45s .3s, transform .55s .3s }
+.dm-snap *, .dm-snap *::before, .dm-snap *::after{ transition:none !important }
+.dm-hint{ position:absolute; left:14px; right:14px; top:272px; font-size:11.5px; color:#6B7280; text-align:center; transition:opacity .3s }
+.dm-add{ position:absolute; left:50%; bottom:24px; transform:translateX(-50%); display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 14px; border-radius:12px; background:#fff; color:#4B2A9A; font-size:11.5px; font-weight:600; white-space:nowrap; box-shadow:0 3px 10px rgb(20 14 50 / .12); transition:opacity .3s, transform .4s }
+.dm-add svg{ width:14px; height:14px }
+.dm-screen.open .dm-hint{ opacity:0 }
+.dm-screen.open .dm-add{ opacity:0; transform:translate(-50%, 12px) }
+.dm-bn{ position:absolute; left:8px; right:8px; top:48px; z-index:60; display:flex; gap:9px; align-items:flex-start; padding:10px 12px 11px 10px; border-radius:20px; background:rgb(246 246 250 / .92); backdrop-filter:blur(16px) saturate(1.8);
+  box-shadow:0 14px 30px -8px rgb(24 12 60 / .35), 0 0 0 .5px rgb(0 0 0 / .06); opacity:0; transform:translateY(-150px) scale(.94); transition:transform .6s cubic-bezier(.2,1.25,.35,1), opacity .35s; pointer-events:none }
+.dm-bn.show{ opacity:1; transform:none }
+.dm-bi{ width:32px; height:32px; border-radius:9px; background:#25D366; color:#fff; display:grid; place-items:center; flex:none }
+.dm-bi svg{ width:18px; height:18px }
+.dm-bt{ flex:1; min-width:0 }
+.dm-bh{ display:flex; justify-content:space-between; font-size:10px; letter-spacing:.04em; color:#6B6B73; margin-bottom:2px }
+.dm-bt b{ display:block; font-size:12px; color:#111; line-height:1.25 }
+.dm-bx{ display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; font-size:11px; line-height:1.32; color:#2C2C30; margin-top:1px }
+.dm-cf{ position:absolute; left:0; top:0; width:266px; height:578px; z-index:65; pointer-events:none }
+.dm-touch{ position:absolute; left:0; top:0; width:40px; height:40px; margin:-20px 0 0 -20px; z-index:80; opacity:0; pointer-events:none }
+.dm-touch.on{ opacity:1 }
+.dm-touch i{ display:block; width:100%; height:100%; border-radius:50%; background:rgb(40 24 90 / .2); border:2px solid rgb(255 255 255 / .95); box-shadow:0 5px 16px rgb(40 20 90 / .35); transition:transform .16s }
+.dm-touch.press i{ transform:scale(.76) }
+.dm-touch.tap::after{ content:""; position:absolute; inset:0; border-radius:50%; border:2px solid rgb(255 255 255 / .95); animation:dm-ripple .6s ease-out both }
+.dm-home{ position:absolute; left:50%; bottom:7px; width:96px; height:4px; margin-left:-48px; border-radius:3px; background:#111; z-index:90 }
+.dm-px{ position:absolute; left:0; top:0; z-index:9; padding:5px 10px; border-radius:14px; background:#fff; color:#4B2A9A; font:700 13px/1 "Inter", system-ui, sans-serif; white-space:nowrap; box-shadow:0 8px 18px -6px rgb(60 30 140 / .4); pointer-events:none; opacity:0 }
+.dm-px.y{ background:#FFDA4A; color:#3D2C00 }
+.dm-side{ display:flex; flex-direction:column; gap:14px; min-width:0 }
+.dm-ctrl{ display:flex; gap:8px; flex-wrap:wrap }
+.dm-btn{ display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; border-radius:9px; border:1px solid var(--bp-line); background:var(--bp-surface); color:var(--bp-ink); font:600 12.5px var(--bp-ui); cursor:pointer }
+.dm-btn svg{ width:14px; height:14px }
+.dm-btn .ic-play, .dm-btn.paused .ic-pause{ display:none }
+.dm-btn.paused .ic-play{ display:inline-block }
+.dm-steps{ list-style:none; display:grid; gap:3px; counter-reset:dm }
+.dm-steps li{ display:grid; grid-template-columns:24px 1fr; gap:10px; align-items:start; padding:7px 10px; border-radius:10px; color:var(--bp-ink-soft); font-size:13px; line-height:1.45; counter-increment:dm; transition:background .3s }
+.dm-steps li::before{ content:counter(dm); width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font:600 11px var(--bp-mono); background:var(--bp-surface-2); border:1px solid var(--bp-line); color:var(--bp-ink-dim); transition:background .3s, color .3s }
+.dm-steps li b{ display:block; color:var(--bp-ink); font-size:14px }
+.dm-steps li small{ display:block; margin-top:2px; font-family:var(--bp-mono); font-size:11px; color:var(--bp-ac) }
+.dm-steps li.on{ background:var(--bp-surface); box-shadow:0 0 0 1px var(--bp-line) }
+.dm-steps li.on::before{ background:var(--bp-ac); border-color:var(--bp-ac); color:#fff }
+@keyframes dm-float{ 0%, 100%{ transform:translateY(0) } 50%{ transform:translateY(-6px) } }
+@keyframes dm-buzz{ 0%, 100%{ transform:translateX(0) } 15%{ transform:translateX(-3px) rotate(-.7deg) } 30%{ transform:translateX(3px) rotate(.7deg) } 45%{ transform:translateX(-2px) } 60%{ transform:translateX(2px) } 75%{ transform:translateX(-1px) } }
+@keyframes dm-ripple{ from{ transform:scale(1); opacity:1 } to{ transform:scale(2.4); opacity:0 } }
+@media (max-width: 860px){ .dm-wrap{ grid-template-columns:1fr; padding:18px 10px } }
+@media (prefers-reduced-motion: reduce){
+  .dm-float, .wc *, .wc::after, .wc-gal.go .mk-tile{ animation:none !important }
+  .js .wc-gal:not(.go) .mk-tile{ opacity:1 }
+}
+
+/* Velos y modales */
+.mk-veil{ background:rgb(20 18 32 / .55); padding:28px; display:flex; justify-content:center; align-items:flex-start }
+.mk-veils{ display:flex; width:1200px }
+.mk-veils .mk-veil{ flex:1 }
+.mk-modal{ background:#fff; border-radius:18px; box-shadow:0 30px 60px -20px rgb(0 0 0 / .5); overflow:hidden; display:flex; flex-direction:column }
+.mk-modal-head{ display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--hb-line) }
+.mk-modal-ic{ width:36px; height:36px; border-radius:10px; background:var(--hb-pri-50); color:var(--hb-pri); display:grid; place-items:center }
+.mk-modal-title{ font-size:15px; font-weight:700 }
+.mk-modal-sub{ font-size:11.5px; color:var(--hb-dim) }
+.mk-modal-x{ margin-left:auto; color:var(--hb-dim) }
+.mk-modal-body{ padding:18px 20px; display:flex; flex-direction:column; gap:16px }
+.mk-modal-foot{ display:flex; justify-content:flex-end; align-items:center; gap:10px; padding:12px 20px; border-top:1px solid var(--hb-line); background:#FBFAFD }
+.mk-steps{ display:flex; gap:6px; align-items:center; font-size:11.5px; color:var(--hb-dim); margin-left:auto; margin-right:14px }
+.mk-steps span{ width:22px; height:4px; border-radius:2px; background:var(--hb-line) }
+.mk-steps span.on{ background:var(--hb-pri) }
+
+/* P3: elegir por objetivo */
+.mk-q{ font-size:13px; font-weight:700 }
+.mk-chips{ display:flex; flex-wrap:wrap; gap:8px }
+.mk-chip{ display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border-radius:999px; border:1px solid var(--hb-line); font-size:12.5px; font-weight:500; color:var(--hb-soft); background:#fff }
+.mk-chip.on{ border-color:var(--hb-pri); background:var(--hb-pri-50); color:var(--hb-pri); font-weight:600 }
+.mk-chip i[data-lucide], .mk-chip svg.lucide{ width:14px; height:14px }
+.mk-structs{ display:grid; grid-template-columns:repeat(4, 1fr); gap:10px }
+.mk-struct{ position:relative; border:1px solid var(--hb-line); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; background:#fff }
+.mk-struct.on{ border-color:var(--hb-pri); box-shadow:0 0 0 3px rgb(75 42 154 / .14) }
+.mk-struct.dim{ opacity:.5 }
+.mk-struct-ic{ width:34px; height:34px; border-radius:10px; display:grid; place-items:center; color:#fff }
+.mk-struct b{ font-size:13.5px }
+.mk-struct p{ font-size:11.5px; color:var(--hb-soft); margin:0 }
+.mk-cx{ display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--hb-dim) }
+.mk-cx span{ display:inline-flex; gap:3px }
+.mk-cx span i{ width:12px; height:4px; border-radius:2px; background:var(--hb-line); display:block }
+.mk-cx span i.on{ background:#F59E0B }
+.mk-badge{ position:absolute; top:10px; right:10px; padding:2px 8px; border-radius:999px; background:var(--hb-ok-50); color:var(--hb-ok); font-size:10px; font-weight:700 }
+.mk-detail{ display:grid; grid-template-columns:200px 1fr 1fr 1fr; gap:16px; padding:14px 16px; border-radius:14px; background:#F7F5FC }
+.mk-detail small{ display:block; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--hb-dim); font-weight:600; margin-bottom:3px }
+.mk-detail p{ margin:0; font-size:12.5px; color:var(--hb-ink) }
+
+/* P4: mensajes que salen solos */
+.mk-entry{ display:flex; align-items:center; gap:16px; padding:14px 16px; border-radius:14px; background:#F7F5FC }
+.mk-qr{ width:74px; height:74px; border-radius:10px; background:#fff; padding:6px; flex:none }
+.mk-qr svg{ width:100%; height:100%; display:block }
+.mk-entry-main{ flex:1; display:flex; flex-direction:column; gap:4px; min-width:0 }
+.mk-entry-title{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px }
+.mk-on{ padding:2px 9px; border-radius:999px; background:var(--hb-ok-50); color:var(--hb-ok); font-size:10.5px; font-weight:700 }
+.mk-off{ padding:2px 9px; border-radius:999px; background:#EEEDF2; color:var(--hb-soft); font-size:10.5px; font-weight:700 }
+.mk-todo{ padding:2px 9px; border-radius:999px; background:var(--hb-warn-50); color:var(--hb-warn); font-size:10.5px; font-weight:700 }
+.mk-entry-facts{ display:flex; flex-wrap:wrap; gap:4px 18px; font-size:12px; color:var(--hb-soft) }
+.mk-entry-facts span{ display:inline-flex; align-items:center; gap:5px }
+.mk-entry-facts i[data-lucide], .mk-entry-facts svg.lucide{ width:13px; height:13px }
+.mk-split{ display:grid; grid-template-columns:1fr 330px; gap:22px; align-items:start }
+.mk-list-h{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px }
+.mk-list-h b{ font-size:14px }
+.mk-list-h span{ font-size:12px; color:var(--hb-dim) }
+.mk-msgs{ display:flex; flex-direction:column; gap:6px }
+.mk-msg{ display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; border:1px solid transparent }
+.mk-msg:hover{ background:#FAF9FC }
+.mk-msg.on{ background:#fff; border-color:var(--hb-pri-100); box-shadow:0 6px 16px -10px rgb(75 42 154 / .45) }
+.mk-msg-ic{ width:34px; height:34px; border-radius:10px; background:var(--hb-pri-50); color:var(--hb-pri); display:grid; place-items:center; flex:none }
+.mk-msg-main{ flex:1; min-width:0 }
+.mk-msg-main b{ display:block; font-size:13px }
+.mk-msg-main span{ font-size:12px; color:var(--hb-dim) }
+.mk-msg-count{ font-size:12px; color:var(--hb-soft); width:94px; text-align:right }
+.mk-switch{ width:34px; height:20px; border-radius:999px; background:#D9D7E1; position:relative; flex:none }
+.mk-switch::after{ content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgb(0 0 0 / .2) }
+.mk-switch.on{ background:var(--hb-pri) }
+.mk-switch.on::after{ left:16px }
+.mk-fixed{ font-size:10.5px; color:var(--hb-dim); width:34px; text-align:center; line-height:1.1 }
+.mk-chev{ color:var(--hb-dim) }
+
+/* Teléfono */
+.mk-phone{ width:300px; border-radius:38px; background:#111; padding:10px; box-shadow:0 30px 50px -24px rgb(0 0 0 / .55) }
+.mk-phone-in{ border-radius:30px; overflow:hidden; background:#EFEAE2; display:flex; flex-direction:column }
+.mk-wa-head{ background:#008069; color:#fff; display:flex; align-items:center; gap:10px; padding:26px 12px 10px }
+.mk-wa-av{ width:32px; height:32px; border-radius:50%; background:#fff; color:#008069; display:grid; place-items:center; font-weight:800; font-size:13px }
+.mk-wa-head b{ display:block; font-size:13.5px }
+.mk-wa-head small{ font-size:11px; opacity:.85 }
+.mk-wa-chat{ padding:12px 10px 16px; display:flex; flex-direction:column; gap:8px; min-height:330px }
+.mk-wa-day{ align-self:center; background:#fff; border-radius:7px; padding:3px 9px; font-size:10.5px; color:#54656F; box-shadow:0 1px 1px rgb(0 0 0 / .08) }
+.mk-wa-bub{ background:#fff; border-radius:10px; border-top-left-radius:2px; padding:8px 10px 6px; font-size:12.5px; line-height:1.42; color:#111B21; box-shadow:0 1px 1px rgb(0 0 0 / .1); max-width:92% }
+.mk-wa-bub p{ margin:0 0 7px }
+.mk-wa-bub a{ color:#027EB5; text-decoration:none }
+.mk-wa-bub time{ display:block; text-align:right; font-size:10px; color:#667781 }
+.mk-wa-btn{ background:#fff; border-radius:10px; text-align:center; padding:8px; color:#027EB5; font-weight:600; font-size:12.5px; max-width:92%; box-shadow:0 1px 1px rgb(0 0 0 / .1); display:flex; align-items:center; justify-content:center; gap:6px }
+.mk-preview-cap{ font-size:12px; color:var(--hb-dim); text-align:center; margin-top:10px }
+.mk-preview-facts{ display:grid; gap:6px; margin-top:12px }
+.mk-preview-facts div{ display:flex; justify-content:space-between; gap:10px; font-size:12.5px; padding:8px 12px; border-radius:10px; background:#F7F5FC }
+.mk-preview-facts span{ color:var(--hb-soft) }
+
+/* P5: ficha y tarjeta pública */
+.mk-ficha{ display:grid; grid-template-columns:270px 1fr; gap:18px }
+.mk-progress{ display:flex; flex-direction:column; gap:7px; padding:12px 14px; border-radius:12px; background:#F7F5FC }
+.mk-progress-top{ display:flex; justify-content:space-between; gap:8px; font-size:12.5px }
+.mk-progress-top b{ font-weight:700 }
+.mk-progress-top span{ color:var(--hb-soft); white-space:nowrap }
+.mk-bar{ height:8px; border-radius:999px; background:#E6E3EE; overflow:hidden }
+.mk-bar i{ display:block; height:100%; border-radius:999px; background:var(--c, var(--hb-pri)); transition:width 1.3s cubic-bezier(.3,.8,.3,1) }
+.mk-progress small{ font-size:11.5px; color:var(--hb-dim) }
+.mk-tiles{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px }
+.mk-tiles div{ padding:9px 12px; border-radius:12px; background:#F7F5FC }
+.mk-tiles small{ display:block; font-size:11px; color:var(--hb-soft) }
+.mk-tiles b{ font-size:16px }
+.mk-owner{ display:flex; align-items:center; gap:10px }
+.mk-owner .av{ width:34px; height:34px; border-radius:50%; background:var(--hb-pri-50); color:var(--hb-pri); display:grid; place-items:center }
+.mk-owner b{ display:block; font-size:14px }
+.mk-owner span{ font-size:12px; color:var(--hb-dim) }
+.mk-moves{ display:flex; flex-direction:column }
+.mk-move{ display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--hb-line); font-size:12.5px }
+.mk-move:last-child{ border-bottom:0 }
+.mk-move .dot{ width:28px; height:28px; border-radius:50%; display:grid; place-items:center; background:var(--hb-pri-50); color:var(--hb-pri); flex:none }
+.mk-move .dot.gift{ background:#FEF3C7; color:#B45309 }
+.mk-move .dot i[data-lucide], .mk-move .dot svg.lucide{ width:14px; height:14px }
+.mk-move div{ flex:1 }
+.mk-move small{ display:block; color:var(--hb-dim); font-size:11px }
+.mk-move em{ font-style:normal; font-weight:700; color:var(--hb-ok) }
+.mk-pub{ background:#F3F4F6; display:flex; flex-direction:column; gap:12px; padding:30px 12px 18px; min-height:560px }
+.mk-pub-head{ display:flex; align-items:center; gap:10px; font-size:12px }
+.mk-pub-head .lg{ width:32px; height:32px; border-radius:10px; background:#E5E7EB; display:grid; place-items:center; font-weight:800; color:#475569 }
+.mk-pub-head b{ display:block; font-size:13px }
+.mk-pub-box{ background:#fff; border-radius:16px; padding:14px; display:flex; flex-direction:column; align-items:center; gap:8px }
+</style>
+<script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head text">
+  <p class="eyebrow">Lealtad · propuesta de diseño</p>
+  <h1>Lo que vale la pena tomar de <em>Rewardix</em></h1>
+  <p class="lede">Rewardix vende programas de lealtad a empresas grandes. De su página tomamos sus tarjetas y sus animaciones, tal cual se ven allá, y cuatro ideas: escoger el tipo de tarjeta por objetivo, el avance hacia el siguiente nivel y los mensajes que salen solos por WhatsApp.</p>
+  <div class="meta">
+    <span><b>Fecha</b> 18/11/2026</span>
+    <span><b>Estado</b> aprobada el 18/11/2026 · D1 a D4 y D6 construidas en local · producción pendiente</span>
+    <span><b>Referencia</b> rewardix.com (portada)</span>
+    <span><b>Pedido</b> «analiza este link y ayúdame a mejorar el diseño del apartado de lealtad»</span>
+    <span><b>Revisión</b> «me gusta más el diseño que tienen ellos en las tarjetas y las animaciones»</span>
+  </div>
+</header>
+
+<section class="text">
+  <h2><span class="num">01</span>Qué es Rewardix</h2>
+  <ul class="points">
+    <li><b>Agencia + plataforma.</b> Diseñan, operan y surten premios para programas de clientes, empleados y distribuidores. No es un punto de venta: se conecta a uno por API.</li>
+    <li><b>Su página es de venta.</b> Fondo morado, adornos flotantes y un formulario de contacto. Eso no va en una pantalla de trabajo.</li>
+    <li><b>Lo útil son sus maquetas:</b> las tarjetas animadas dentro del teléfono, el selector «¿Qué quieres lograr?» y el simulador de WhatsApp.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="num">02</span>Pieza por pieza</h2>
+  <div class="tscroll"><table>
+    <thead><tr><th>Pieza</th><th>Rewardix</th><th>Huubie hoy</th><th>Qué tomamos</th><th>Código</th></tr></thead>
+    <tbody>
+      <tr><td>Resumen</td><td>Tarjetas blancas con un solo acento de color.</td><td>6 cifras, cada una en un pastel distinto (lila, menta, durazno, rosa, azul, verde).</td><td class="yours">Un solo tono; el color queda para las tarjetas.</td><td class="code">P1</td></tr>
+      <tr><td>La tarjeta</td><td>Degradado en diagonal con un brillo encima. Logo en un cuadro, cifra arriba a la derecha («SELLOS 9/10»), sellos en círculos punteados que se llenan de blanco y el último con un regalo. Abierta: 3 campos, QR en un cuadro blanco y «Actualizado hace un momento».</td><td>Rectángulo liso de un solo color (así lo pide hoy <code>cardFace</code>), sellos chicos en una sola fila; en descuento y puntos el centro queda vacío.</td><td class="yours">Su diseño completo, con el color de cada tipo.</td><td class="code">P2</td></tr>
+      <tr><td>Animaciones</td><td>La tarjeta sube con un rebote, se abre, leen el QR (láser y palomita), cae el sello, brillo y confeti al completar, la insignia gira a dorado al subir de nivel, la notificación baja.</td><td>La tarjeta entra una vez (<code>loy-card-in</code>) y el beneficio da un salto al cambiar (<code>loy-pop</code>).</td><td class="yours">Todas, en los momentos en que pasan en Huubie.</td><td class="code">P6</td></tr>
+      <tr><td>Crear un programa</td><td>«¿Qué quieres lograr?» filtra 20 estructuras; cada una dice Objetivo, Ideal para, Mejor uso y Complejidad.</td><td>Formulario con un select «Beneficio» (Descuento, Puntos, Sellos).</td><td class="yours">Paso 1 por objetivo con 4 estructuras.</td><td class="code">P3</td></tr>
+      <tr><td>Mensajes</td><td>«Campañas que se envían solas»: 8 filas con icono, nombre y cuándo sale; al lado, un teléfono con el chat.</td><td>Pestaña «Programa»: 4 cajas grises apiladas (Registro solo, Cumpleaños, Te extrañamos, Niveles), cada una con su texto largo.</td><td class="yours">Lista de mensajes con interruptor y vista previa del WhatsApp.</td><td class="code">P4</td></tr>
+      <tr><td>Niveles</td><td>«Nivel Oro · Faltan 2,520 para Platino» con barra.</td><td>Ficha: nivel en texto (<code>detailLevel</code> pinta <code>l.title</code> y <code>l.text</code>). Página pública: «Te faltan 3 sellos» sin barra.</td><td class="yours">Barra de avance al premio y al siguiente nivel.</td><td class="code">P5</td></tr>
+      <tr><td>Wallet</td><td>Apple Wallet y Google Wallet; se actualiza solo.</td><td>Página web <code>tarjeta.php</code> + «Agregar a pantalla de inicio».</td><td class="mine">Fuera de esta propuesta (ver 06).</td><td class="code">—</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="text">
+  <h2><span class="num">03</span>Lo que no tomamos</h2>
+  <ul class="points">
+    <li><b>Los adornos de su portada</b> (estrellas, regalos flotantes, notificaciones de marcas alrededor del teléfono, ventana «¿Eres PyME?»): son publicidad. Las tarjetas y sus animaciones sí entran (P2 y P6).</li>
+    <li><b>20 estructuras</b> (coalición, concursos, instant win, metas de venta…): para una cafetería bastan 4.</li>
+    <li><b>Idioma, moneda y país</b>: todas las empresas de Huubie cobran en MXN.</li>
+    <li><b>Inicio de sesión con Google o Microsoft</b>: el cliente entra por enlace o QR, sin cuenta. Así se queda.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="num">04</span>Propuesta de mejora</h2>
+  <div class="note">
+    <p class="note-title">Seis cambios, todos de pantalla (JS + CSS). Ninguno pide migración.</p>
+    <ol>
+      <li><span class="tag">P1</span> <b>Resumen de un solo tono.</b> Las 6 cifras en blanco con el icono en el color de la marca. El ojo va a las tarjetas, que sí llevan color.</li>
+      <li><span class="tag">P2</span> <b>La tarjeta de Rewardix, con el color de cada tipo.</b> El degradado sale del color que ya tiene el tipo; no se guarda nada nuevo. Arriba el icono del tipo en un cuadro, el nombre y la cifra («SELLOS 7/10», «DESCUENTO 5 %»). Al centro, los sellos punteados o la cifra grande con su insignia de nivel. En la galería, abajo, 3 campos: Tarjetas · Ventas del mes · Premio o Nivel. Abierta (ficha y tarjeta del cliente): Titular · Premio · Vigencia, el QR y «Actualizado hace un momento». Los botones bajan de 4 a «Ver tarjetas», «Nueva» y un menú ⋯ con Editar y Desactivar.</li>
+      <li><span class="tag">P3</span> <b>«Nuevo tipo» empieza por el objetivo.</b> Paso 1: «¿Qué quieres lograr?» y 4 estructuras (Sellos, Puntos, Niveles, Descuento) con Objetivo, Ideal para, Mejor uso y un ejemplo. Paso 2: el formulario de hoy, con el beneficio ya elegido.</li>
+      <li><span class="tag">P4</span> <b>«Programa» como lista de mensajes.</b> Arriba, «Cómo entran los clientes» (el QR del registro en una franja). Abajo, cada mensaje en un renglón: cuándo sale, cuántos salieron en el mes y su interruptor. A la derecha, el teléfono con el texto real de la plantilla. «Configurar» abre la ventana de hoy.</li>
+      <li><span class="tag">P5</span> <b>Avance a la vista.</b> En la ficha y en la tarjeta pública: barra «Faltan 3 sellos para tu Café gratis» en las de sellos y «Faltan $1,240 para VIP» en las de nivel. La tarjeta pública suma los 3 campos del pase y «Actualizado hace un momento».</li>
+      <li><span class="tag">P6</span> <b>Las animaciones de Rewardix.</b> Entrada con rebote, palomita al leer la tarjeta, el sello que cae girando, la ola de sellos con brillo y confeti al completar el premio, y la insignia que gira a dorado al subir de nivel. Van en la tarjeta del cliente (<code>tarjeta.php</code>), en la ventana «Venta cobrada» de Vender y en la galería. Con «Reducir movimiento» activado en el teléfono, nada se mueve.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05</span>Así quedaría</h2>
+  <p class="foot-note" style="border:0;padding:0">Las maquetas usan los datos de la sucursal 4 del 17/11/2026; los niveles («Nivel 1», «VIP desde $3,000») y la clienta Mariana son de ejemplo.</p>
+
+  <!-- Lámina 1 -->
+  <div class="sheet">
+    <div class="sheet-title"><h3>Lámina 1 · La tarjeta en movimiento</h3><span class="codes">P2 · P6</span></div>
+    <p class="label is-new">Demostración en vivo · corre sola</p>
+    <div class="dm-wrap">
+      <div class="dm" id="demo">
+        <div class="dm-float"><div class="dm-shake"><div class="dm-phone"><div class="dm-bezel"><div class="dm-screen">
+          <div class="dm-sb"><span>9:41</span><span><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+          <span class="dm-notch"></span>
+          <div class="dm-head"><span class="lg">R</span><div><b>Reginas</b><small>Hola, Mariana. Esta es tu tarjeta.</small></div></div>
+
+          <!-- Sellos -->
+          <div class="wc dm-card" id="dmStamp" style="--c:#7C3AED">
+            <div class="wc-h"><span class="wc-logo"><i data-lucide="coffee"></i></span><div class="wc-name">Café Lover<small>Reginas</small></div><div class="wc-val"><small>Sellos</small><b data-k="val">8/10</b></div></div>
+            <div class="wc-b">
+              <div class="wc-stamps"><span class="wc-st" style="--k:0"><i data-lucide="coffee"></i></span><span class="wc-st" style="--k:1"><i data-lucide="coffee"></i></span><span class="wc-st" style="--k:2"><i data-lucide="coffee"></i></span><span class="wc-st" style="--k:3"><i data-lucide="coffee"></i></span><span class="wc-st" style="--k:4"><i data-lucide="coffee"></i></span><span class="wc-st" style="--k:5"><i data-lucide="coffee"></i></span><span class="wc-st" style="--k:6"><i data-lucide="coffee"></i></span><span class="wc-st" style="--k:7"><i data-lucide="coffee"></i></span><span class="wc-st" style="--k:8"><i data-lucide="coffee"></i></span><span class="wc-st gift" style="--k:9"><i data-lucide="gift"></i></span></div>
+              <div class="wc-cap" data-k="cap">Te faltan 2 sellos para tu Café gratis</div>
+            </div>
+            <div class="dm-more">
+              <div class="wc-flds"><span><small>Titular</small><b>Mariana R.</b></span><span><small>Premio</small><b>Café gratis</b></span><span><small>Vigencia</small><b>No caducan</b></span></div>
+              <div class="wc-qrw"><div class="wc-qrb"><span class="wc-qr" id="qrDm1"></span><div class="wc-scan"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i><i class="lz"></i></div><div class="wc-ok"><i data-lucide="check"></i></div></div><div class="wc-num"><span>CAFE-0001</span><span class="wc-ready"><i data-lucide="gift"></i>Listo para canjear</span></div></div>
+              <div class="wc-ft"><span>Actualizado hace un momento</span><i data-lucide="info"></i></div>
+            </div>
+            <i class="wc-sh"></i>
+          </div>
+
+          <!-- Nivel -->
+          <div class="wc dm-card" id="dmLevel" style="--c:#DB2777">
+            <div class="wc-h"><span class="wc-logo"><i data-lucide="crown"></i></span><div class="wc-name"><span data-k="name">Cliente Frecuente</span><small>Reginas</small></div><div class="wc-val"><small data-k="lab">Descuento</small><b data-k="val">5 %</b></div></div>
+            <div class="wc-b">
+              <div class="wc-big"><b data-k="big">5 %</b><span data-k="unit">de descuento</span></div>
+              <div class="wc-tier"><span class="wc-badge" data-k="badge"><i data-lucide="trophy"></i><em>Nivel 1</em></span><span data-k="need">Faltan $360 para VIP</span></div>
+              <div class="wc-bar"><i data-k="bar" style="width:88%"></i></div>
+            </div>
+            <div class="dm-more">
+              <div class="wc-flds"><span><small>Titular</small><b>Mariana R.</b></span><span><small>En el año</small><b data-k="spent">$2,640</b></span><span><small>Siguiente</small><b data-k="next">VIP · $3,000</b></span></div>
+              <div class="wc-qrw"><div class="wc-qrb"><span class="wc-qr" id="qrDm2"></span><div class="wc-scan"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i><i class="lz"></i></div><div class="wc-ok"><i data-lucide="check"></i></div></div><div class="wc-num"><span>FREC-0002</span></div></div>
+              <div class="wc-ft"><span>Actualizado hace un momento</span><i data-lucide="info"></i></div>
+            </div>
+            <i class="wc-sh"></i>
+          </div>
+
+          <p class="dm-hint">Toca tu tarjeta para ver tu QR</p>
+          <span class="dm-add"><i data-lucide="square-plus"></i>Agregar a la pantalla de inicio</span>
+          <div class="dm-bn"><span class="dm-bi"><i data-lucide="message-circle"></i></span><span class="dm-bt"><span class="dm-bh"><span>WHATSAPP</span><span>ahora</span></span><b>Reginas</b><span class="dm-bx" data-k="text"></span></span></div>
+          <canvas class="dm-cf"></canvas>
+          <div class="dm-touch"><i></i></div>
+          <span class="dm-home"></span>
+        </div></div></div></div></div>
+      </div>
+      <div class="dm-side">
+        <div class="dm-ctrl">
+          <button class="dm-btn" id="demoPlay" type="button"><i data-lucide="pause" class="ic-pause"></i><i data-lucide="play" class="ic-play"></i><span>Pausar</span></button>
+          <button class="dm-btn" id="demoAgain" type="button"><i data-lucide="rotate-ccw"></i>Desde el inicio</button>
+        </div>
+        <ol class="dm-steps" id="demoSteps">
+          <li><div><b>Entra la tarjeta</b>Sube desde abajo y rebota.<small>tarjeta.php al abrir · galería de tipos</small></div></li>
+          <li><div><b>Se abre como pase</b>Titular, premio, vigencia y su QR.<small>tarjeta.php · ficha</small></div></li>
+          <li><div><b>Leen el QR en caja</b>Esquinas verdes, láser, palomita y el teléfono vibra.<small>Vender, al leer la tarjeta</small></div></li>
+          <li><div><b>Cae el sello</b>Entra girando, deja un anillo y la cifra salta.<small>Vender «Venta cobrada» · tarjeta.php</small></div></li>
+          <li><div><b>Premio listo</b>Los sellos brincan en ola, cruza un brillo y cae confeti.<small>Vender «Venta cobrada» · tarjeta.php</small></div></li>
+          <li><div><b>Llega el WhatsApp</b>Baja desde arriba con el texto de la plantilla «premio», que ya existe.<small>aviso que Huubie ya manda</small></div></li>
+          <li><div><b>Sube de nivel</b>La barra se llena, la insignia gira a dorado y la tarjeta cambia de color y de beneficio.<small>Vender «Venta cobrada» · tarjeta.php · ficha</small></div></li>
+        </ol>
+      </div>
+    </div>
+    <ul class="points" style="margin-top:4px">
+      <li><b>Es una página, no Apple Wallet.</b> Lo que pasa en caja se ve cuando el cliente abre o recarga su tarjeta. Ahí corre la animación de lo nuevo desde su última visita: el teléfono recuerda cuántos sellos vio. Para que cambie sola con la página abierta, tendría que preguntar cada pocos segundos (D6).</li>
+      <li><b>En Vender la escena es la ventana «Venta cobrada».</b> Hoy dice en texto «+1 sello · lleva 8 de 10» y «Su tarjeta subió a VIP» (<code>ventas.js</code>, líneas 620 a 634). Ahí entra la tarjeta chica con el sello que cae, y confeti si completó el premio o subió de nivel.</li>
+      <li><b>El color sale del tipo</b> (<code>--loy-color</code>): el degradado se calcula. En colores claros la letra va oscura, como ya lo hace <code>inkOf</code>.</li>
+      <li><b>Lo de la demostración que no va al sistema:</b> el teléfono flotando, el dedo que toca y las etiquetas «+1 sello» que salen volando fuera del teléfono.</li>
+    </ul>
+  </div>
+
+  <!-- Lámina 2 -->
+  <div class="sheet" style="margin-top:34px">
+    <div class="sheet-title"><h3>Lámina 2 · Tipos de tarjeta</h3><span class="codes">P1 · P2 · P6</span></div>
+    <p class="label">Hoy</p>
+    <figure class="shot"><img src="recorrido/12-sellos-galeria.jpg" alt="Tipos de tarjeta hoy: seis cifras de colores y cuatro tarjetas lisas con texto gris y cuatro botones debajo" loading="lazy"></figure>
+    <p class="label is-new">Así quedaría con la propuesta</p>
+    <div class="stage"><div class="mk mk-screen">
+      <div class="mk-nav">
+        <div class="mk-logo">huu<span>bie.</span></div>
+        <div class="mk-company">Reginas</div>
+        <div class="mk-nav-right">
+          <div class="mk-branch"><span class="ic"><i data-lucide="store"></i></span><div><small>Sucursal</small><b>Reginas Cuarta</b></div><i data-lucide="chevron-down"></i></div>
+          <i data-lucide="moon"></i>
+          <div class="mk-user"><span class="mk-avatar">CR</span><div><b>Coffee Revisor</b><small>Dueño</small></div></div>
+        </div>
+      </div>
+      <div class="mk-shell">
+        <nav class="mk-rail"><a><i data-lucide="house"></i>Inicio</a><a class="on"><i data-lucide="gift"></i>Tarjetas</a></nav>
+        <div class="mk-page">
+          <div class="mk-head">
+            <div><h4 class="mk-h1">Tarjetas</h4><p class="mk-sub">Reginas · Reginas Cuarta</p></div>
+            <div class="mk-btns"><span class="mk-btn"><i data-lucide="tag"></i>Nuevo tipo</span><span class="mk-btn pri"><i data-lucide="plus"></i>Nueva tarjeta</span></div>
+          </div>
+          <p class="mk-note">Noviembre de 2026 · todas las sucursales de la empresa</p>
+          <div class="mk-kpis">
+            <div class="mk-kpi"><div class="mk-kpi-top"><span class="mk-kpi-ic"><i data-lucide="credit-card"></i></span>Tarjetas activas</div><div class="mk-kpi-val">3</div><div class="mk-kpi-hint">2 con cliente</div></div>
+            <div class="mk-kpi"><div class="mk-kpi-top"><span class="mk-kpi-ic"><i data-lucide="receipt"></i></span>Ventas con tarjeta</div><div class="mk-kpi-val">2</div><div class="mk-kpi-hint">Suman $64.60 en el mes</div></div>
+            <div class="mk-kpi"><div class="mk-kpi-top"><span class="mk-kpi-ic"><i data-lucide="badge-percent"></i></span>Descuento dado</div><div class="mk-kpi-val">$2.40</div><div class="mk-kpi-hint">Lo que ahorraron</div></div>
+            <div class="mk-kpi"><div class="mk-kpi-top"><span class="mk-kpi-ic"><i data-lucide="star"></i></span>Puntos abonados</div><div class="mk-kpi-val">$5.50</div><div class="mk-kpi-hint">Al monedero</div></div>
+            <div class="mk-kpi"><div class="mk-kpi-top"><span class="mk-kpi-ic"><i data-lucide="stamp"></i></span>Sellos dados</div><div class="mk-kpi-val">7</div><div class="mk-kpi-hint">Ningún premio canjeado</div></div>
+            <div class="mk-kpi"><div class="mk-kpi-top"><span class="mk-kpi-ic"><i data-lucide="wallet"></i></span>Saldo en monederos</div><div class="mk-kpi-val">$100.00</div><div class="mk-kpi-hint">Hoy, 1 cliente con saldo</div></div>
+          </div>
+          <div class="mk-card">
+            <div class="mk-tabs"><span class="mk-tab on"><i data-lucide="layers"></i>Tipos de tarjeta</span><span class="mk-tab"><i data-lucide="credit-card"></i>Tarjetas</span><span class="mk-tab"><i data-lucide="sparkles"></i>Programa</span></div>
+            <label class="mk-select">Estado<span>Activos <i data-lucide="chevron-down"></i></span></label>
+            <div class="mk-gallery wc-gal">
+              <!-- Sellos -->
+              <div class="mk-tile" style="--i:0">
+                <div class="wc" style="--c:#7C3AED">
+                  <div class="wc-h"><span class="wc-logo"><i data-lucide="coffee"></i></span><div class="wc-name">Café Lover<small>Reginas</small></div><div class="wc-val"><small>Sellos</small><b>10</b></div></div>
+                  <div class="wc-b">
+                    <div class="wc-stamps"><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st gift"><i data-lucide="gift"></i></span></div>
+                    <div class="wc-cap">1 sello por cada $100 · 10 = Café gratis</div>
+                  </div>
+                  <div class="wc-flds"><span><small>Tarjetas</small><b>1 activa</b></span><span><small>Ventas mes</small><b>—</b></span><span><small>Premio</small><b>hasta $45</b></span></div>
+                  <i class="wc-sh"></i>
+                </div>
+                <div class="mk-acts"><span class="mk-act"><i data-lucide="credit-card"></i>Ver tarjetas</span><span class="mk-act"><i data-lucide="plus"></i>Nueva</span><span class="mk-act icon"><i data-lucide="ellipsis"></i></span></div>
+              </div>
+              <!-- Descuento, nivel 1 -->
+              <div class="mk-tile" style="--i:1">
+                <div class="wc" style="--c:#DB2777">
+                  <div class="wc-h"><span class="wc-logo"><i data-lucide="crown"></i></span><div class="wc-name">Cliente Frecuente<small>Reginas</small></div><div class="wc-val"><small>Descuento</small><b>5 %</b></div></div>
+                  <div class="wc-b">
+                    <div class="wc-big"><b>5 %</b><span>de descuento</span></div>
+                    <div class="wc-tier"><span class="wc-badge"><i data-lucide="trophy"></i><em>Nivel 1</em></span><span>Desde $0 al año</span></div>
+                  </div>
+                  <div class="wc-flds"><span><small>Tarjetas</small><b>Ninguna</b></span><span><small>Ventas mes</small><b>—</b></span><span><small>Siguiente</small><b>VIP</b></span></div>
+                  <i class="wc-sh"></i>
+                </div>
+                <div class="mk-acts"><span class="mk-act"><i data-lucide="credit-card"></i>Ver tarjetas</span><span class="mk-act"><i data-lucide="plus"></i>Nueva</span><span class="mk-act icon"><i data-lucide="ellipsis"></i></span></div>
+              </div>
+              <!-- Descuento de empleado -->
+              <div class="mk-tile" style="--i:2">
+                <div class="wc" style="--c:#1E3A8A">
+                  <div class="wc-h"><span class="wc-logo"><i data-lucide="badge-percent"></i></span><div class="wc-name">Descuento de empleado<small>Reginas</small></div><div class="wc-val"><small>Descuento</small><b>20 %</b></div></div>
+                  <div class="wc-b">
+                    <div class="wc-big"><b>20 %</b><span>de descuento</span></div>
+                    <div class="wc-perf">Para el personal · no se junta con otro descuento</div>
+                  </div>
+                  <div class="wc-flds"><span><small>Tarjetas</small><b>1 activa</b></span><span><small>Ventas mes</small><b>1</b></span><span><small>Descontado</small><b>$9.60</b></span></div>
+                  <i class="wc-sh"></i>
+                </div>
+                <div class="mk-acts"><span class="mk-act"><i data-lucide="credit-card"></i>Ver tarjetas</span><span class="mk-act"><i data-lucide="plus"></i>Nueva</span><span class="mk-act icon"><i data-lucide="ellipsis"></i></span></div>
+              </div>
+              <!-- Puntos, nivel 2 -->
+              <div class="mk-tile" style="--i:3">
+                <div class="wc" style="--c:#1C1C1E">
+                  <div class="wc-h"><span class="wc-logo"><i data-lucide="crown"></i></span><div class="wc-name">VIP<small>Reginas</small></div><div class="wc-val"><small>Puntos</small><b>10 %</b></div></div>
+                  <div class="wc-b">
+                    <div class="wc-big"><b>10 %</b><span>en puntos al monedero</span></div>
+                    <div class="wc-tier"><span class="wc-badge gold"><i data-lucide="trophy"></i><em>Nivel 2</em></span><span>Desde $3,000 al año</span></div>
+                  </div>
+                  <div class="wc-flds"><span><small>Tarjetas</small><b>1 activa</b></span><span><small>Ventas mes</small><b>1 · $55</b></span><span><small>Puntos dados</small><b>$5.50</b></span></div>
+                  <i class="wc-sh"></i>
+                </div>
+                <div class="mk-acts"><span class="mk-act"><i data-lucide="credit-card"></i>Ver tarjetas</span><span class="mk-act"><i data-lucide="plus"></i>Nueva</span><span class="mk-act icon"><i data-lucide="ellipsis"></i></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="points" style="margin-top:4px">
+      <li><b>Al entrar a la pestaña</b> las tarjetas suben una tras otra; al pasar el mouse se levantan y les cruza el brillo.</li>
+      <li><b>La de nivel 2 lleva la insignia dorada</b>; la de nivel 1, la normal.</li>
+    </ul>
+  </div>
+
+  <!-- Lámina 3 -->
+  <div class="sheet" style="margin-top:34px">
+    <div class="sheet-title"><h3>Lámina 3 · Nuevo tipo, paso 1</h3><span class="codes">P3</span></div>
+    <p class="label">Hoy</p>
+    <figure class="shot is-narrow" style="max-width:560px"><img src="recorrido/13-sellos-tipo.jpg" alt="Formulario de tipo de tarjeta hoy: un select Beneficio y los campos de sellos" loading="lazy"></figure>
+    <p class="label is-new">Así quedaría con la propuesta</p>
+    <div class="stage"><div class="mk" style="width:1200px">
+      <div class="mk-veil">
+        <div class="mk-modal" style="width:900px">
+          <div class="mk-modal-head"><span class="mk-modal-ic"><i data-lucide="tag"></i></span><div><div class="mk-modal-title">Nuevo tipo de tarjeta</div><div class="mk-modal-sub">Sucursal Reginas Cuarta</div></div><span class="mk-modal-x"><i data-lucide="x"></i></span></div>
+          <div class="mk-modal-body">
+            <p class="mk-q">¿Qué quieres lograr?</p>
+            <div class="mk-chips">
+              <span class="mk-chip on"><i data-lucide="repeat"></i>Que vuelvan más seguido</span>
+              <span class="mk-chip"><i data-lucide="trending-up"></i>Que gasten más por visita</span>
+              <span class="mk-chip"><i data-lucide="crown"></i>Premiar a los que más compran</span>
+              <span class="mk-chip"><i data-lucide="users"></i>Un descuento fijo a un grupo</span>
+            </div>
+            <div class="mk-structs">
+              <div class="mk-struct on"><span class="mk-badge">Recomendado</span><span class="mk-struct-ic" style="background:#7C3AED"><i data-lucide="stamp"></i></span><b>Sellos</b><p>Un sello por cada compra o cada $X. Al juntar la meta, un premio.</p><div class="mk-cx">Complejidad <span><i class="on"></i><i></i><i></i></span> baja</div></div>
+              <div class="mk-struct"><span class="mk-struct-ic" style="background:#0891B2"><i data-lucide="star"></i></span><b>Puntos</b><p>Un % de lo que paga cae al monedero y lo gasta cuando quiera.</p><div class="mk-cx">Complejidad <span><i class="on"></i><i class="on"></i><i></i></span> media</div></div>
+              <div class="mk-struct dim"><span class="mk-struct-ic" style="background:#CA8A04"><i data-lucide="trophy"></i></span><b>Niveles</b><p>Tarjetas que suben según lo que gasta en 12 meses.</p><div class="mk-cx">Complejidad <span><i class="on"></i><i class="on"></i><i class="on"></i></span> alta</div></div>
+              <div class="mk-struct dim"><span class="mk-struct-ic" style="background:#DB2777"><i data-lucide="badge-percent"></i></span><b>Descuento</b><p>Un % menos en cada compra, sin juntar nada.</p><div class="mk-cx">Complejidad <span><i class="on"></i><i></i><i></i></span> baja</div></div>
+            </div>
+            <div class="mk-detail">
+              <div class="wc sm" style="--c:#7C3AED;align-self:start">
+                <div class="wc-h"><span class="wc-logo"><i data-lucide="coffee"></i></span><div class="wc-name">Café Lover</div><div class="wc-val"><small>Sellos</small><b>7/10</b></div></div>
+                <div class="wc-b"><div class="wc-stamps"><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st gift"><i data-lucide="gift"></i></span></div></div>
+                <i class="wc-sh"></i>
+              </div>
+              <div><small>Objetivo principal</small><p>Que el cliente regrese: cada visita lo acerca al premio.</p></div>
+              <div><small>Ideal para</small><p>Café, panadería, comida rápida: compras chicas y frecuentes.</p></div>
+              <div><small>Mejor uso</small><p>Premio claro y cercano. Ejemplo: 1 sello por cada $100 · 10 sellos = Café gratis.</p></div>
+            </div>
+          </div>
+          <div class="mk-modal-foot"><div class="mk-steps"><span class="on"></span><span></span>Paso 1 de 2</div><span class="mk-btn ghost">Cancelar</span><span class="mk-btn pri">Siguiente<i data-lucide="arrow-right"></i></span></div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="points" style="margin-top:4px">
+      <li><b>Cada objetivo prende sus estructuras:</b> «que vuelvan» → Sellos y Puntos; «que gasten más» → Puntos y Niveles; «premiar a los que más compran» → Niveles; «descuento a un grupo» → Descuento (empleados, convenios).</li>
+      <li><b>Paso 2</b> = el formulario de hoy (<code>formType</code>) con el beneficio ya puesto. «Niveles» abre el de descuento o puntos con el campo <code>level_min_spend</code> a la vista.</li>
+      <li><b>«Editar»</b> sigue entrando directo al paso 2.</li>
+    </ul>
+  </div>
+
+  <!-- Lámina 4 -->
+  <div class="sheet" style="margin-top:34px">
+    <div class="sheet-title"><h3>Lámina 4 · Programa como mensajes que salen solos</h3><span class="codes">P4</span></div>
+    <p class="label">Hoy</p>
+    <p class="mk-note" style="color:var(--bp-ink-soft);max-width:82ch">Sin captura en el recorrido. Hoy son cuatro cajas grises una debajo de otra (<code>.loy-prog</code>): Registro solo con su QR a la derecha, Cumpleaños, Te extrañamos y Niveles. Cada una lleva un párrafo, 4 cajitas de datos y sus botones.</p>
+    <p class="label is-new">Así quedaría con la propuesta</p>
+    <div class="stage"><div class="mk mk-screen">
+      <div class="mk-nav">
+        <div class="mk-logo">huu<span>bie.</span></div>
+        <div class="mk-company">Reginas</div>
+        <div class="mk-nav-right">
+          <div class="mk-branch"><span class="ic"><i data-lucide="store"></i></span><div><small>Sucursal</small><b>Reginas Cuarta</b></div><i data-lucide="chevron-down"></i></div>
+          <i data-lucide="moon"></i>
+          <div class="mk-user"><span class="mk-avatar">CR</span><div><b>Coffee Revisor</b><small>Dueño</small></div></div>
+        </div>
+      </div>
+      <div class="mk-shell">
+        <nav class="mk-rail"><a><i data-lucide="house"></i>Inicio</a><a class="on"><i data-lucide="gift"></i>Tarjetas</a></nav>
+        <div class="mk-page">
+          <div class="mk-card">
+            <div class="mk-tabs"><span class="mk-tab"><i data-lucide="layers"></i>Tipos de tarjeta</span><span class="mk-tab"><i data-lucide="credit-card"></i>Tarjetas</span><span class="mk-tab on"><i data-lucide="sparkles"></i>Programa</span></div>
+
+            <div class="mk-entry">
+              <span class="mk-qr" id="qrSignup"></span>
+              <div class="mk-entry-main">
+                <div class="mk-entry-title">Cómo entran los clientes · Registro solo <span class="mk-on">Encendido</span></div>
+                <div class="mk-entry-facts">
+                  <span><i data-lucide="credit-card"></i>Tarjeta de bienvenida: Café Lover</span>
+                  <span><i data-lucide="store"></i>QR de Reginas Cuarta</span>
+                  <span><i data-lucide="user-round-plus"></i>4 registros este mes</span>
+                </div>
+              </div>
+              <div class="mk-btns"><span class="mk-btn"><i data-lucide="printer"></i>Cartel</span><span class="mk-btn"><i data-lucide="copy"></i>Enlace</span><span class="mk-btn"><i data-lucide="settings-2"></i>Configurar</span></div>
+            </div>
+
+            <div class="mk-split">
+              <div>
+                <div class="mk-list-h"><b>Mensajes que salen solos por WhatsApp</b><span>Este mes · por el número de la empresa</span></div>
+                <div class="mk-msgs">
+                  <div class="mk-msg"><span class="mk-msg-ic"><i data-lucide="qr-code"></i></span><div class="mk-msg-main"><b>Tu tarjeta</b><span>Al registrarse o al darle su tarjeta en caja</span></div><span class="mk-msg-count">6 enviados</span><span class="mk-fixed">Siempre</span><i class="mk-chev" data-lucide="chevron-right"></i></div>
+                  <div class="mk-msg"><span class="mk-msg-ic"><i data-lucide="gift"></i></span><div class="mk-msg-main"><b>Premio listo</b><span>Al juntar los sellos de su premio</span></div><span class="mk-msg-count">1 enviado</span><span class="mk-fixed">Siempre</span><i class="mk-chev" data-lucide="chevron-right"></i></div>
+                  <div class="mk-msg on"><span class="mk-msg-ic"><i data-lucide="cake"></i></span><div class="mk-msg-main"><b>Cumpleaños</b><span>En su día · 2 sellos o $20 al monedero de regalo</span></div><span class="mk-msg-count">3 enviados</span><span class="mk-switch on"></span><i class="mk-chev" data-lucide="chevron-right"></i></div>
+                  <div class="mk-msg"><span class="mk-msg-ic"><i data-lucide="hand-heart"></i></span><div class="mk-msg-main"><b>Te extrañamos</b><span>Si lleva 30 días sin comprar · tope 20 al día</span></div><span class="mk-msg-count">Apagado</span><span class="mk-switch"></span><i class="mk-chev" data-lucide="chevron-right"></i></div>
+                  <div class="mk-msg"><span class="mk-msg-ic"><i data-lucide="trophy"></i></span><div class="mk-msg-main"><b>Nuevo nivel</b><span>Al subir al cobrar · revisión el día 1</span></div><span class="mk-msg-count">0 enviados</span><span class="mk-switch on"></span><i class="mk-chev" data-lucide="chevron-right"></i></div>
+                  <div class="mk-msg" style="opacity:.75"><span class="mk-msg-ic" style="background:#FEF3C7;color:#B45309"><i data-lucide="bell-ring"></i></span><div class="mk-msg-main"><b>Casi tu premio <span class="mk-todo">Por construir</span></b><span>Cuando le falta 1 sello · idea de Rewardix</span></div><span class="mk-msg-count">—</span><span class="mk-switch"></span><i class="mk-chev" data-lucide="chevron-right"></i></div>
+                </div>
+              </div>
+              <div>
+                <div class="mk-phone"><div class="mk-phone-in">
+                  <div class="mk-wa-head"><i data-lucide="arrow-left"></i><span class="mk-wa-av">R</span><div><b>Reginas</b><small>Cuenta de empresa</small></div></div>
+                  <div class="mk-wa-chat">
+                    <span class="mk-wa-day">HOY</span>
+                    <div class="mk-wa-bub">
+                      <p>¡Feliz cumpleaños, Mariana! En <b>Reginas</b> te deseamos un gran día.</p>
+                      <p>Para celebrarlo, te regalamos 2 sellos: ya llevas 9 de 10 para tu Café gratis.</p>
+                      <p>Tu tarjeta: <a>cs-huubie.com/…/tarjeta.php?t=…</a></p>
+                      <p style="color:#667781">Para no recibir mensajes de la tienda, responde BAJA.</p>
+                      <time>10:00</time>
+                    </div>
+                    <div class="mk-wa-btn"><i data-lucide="external-link"></i>Ver mi tarjeta</div>
+                  </div>
+                </div></div>
+                <p class="mk-preview-cap">Vista previa con la plantilla <code>huubie_cumpleanos</code></p>
+                <div class="mk-preview-facts">
+                  <div><span>Sale a las</span><b>10:00 (horario del agente)</b></div>
+                  <div><span>Solo a quien</span><b>aceptó mensajes</b></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <ul class="points" style="margin-top:4px">
+      <li><b>El texto del teléfono es el de la plantilla</b> (<code>waTemplateText</code> de <code>mdl-whatsapp-recordatorios.php</code>) con datos de ejemplo. El botón «Ver mi tarjeta» es una idea: hoy la plantilla manda el enlace en el texto.</li>
+      <li><b>«Siempre»</b> = sale cada vez que la empresa tiene WhatsApp; hoy no tiene interruptor propio. Los demás usan el que ya existe en <code>loyalty_setting</code>.</li>
+      <li><b>La flecha de cada renglón</b> abre la ventana de hoy (<code>formBirthday</code>, <code>formWinback</code>, <code>formLevels</code>) o la lista de quién lo recibe.</li>
+      <li><b>«Casi tu premio»</b> sí pide trabajo nuevo: el aviso, la plantilla en Meta y su bitácora. Va aparte (D5).</li>
+    </ul>
+  </div>
+
+  <!-- Lámina 5 -->
+  <div class="sheet" style="margin-top:34px">
+    <div class="sheet-title"><h3>Lámina 5 · Ficha de la tarjeta y tarjeta del cliente</h3><span class="codes">P2 · P5</span></div>
+    <p class="label">Hoy</p>
+    <div class="shots">
+      <figure class="shot" style="max-width:620px"><img src="recorrido/16-sellos-ficha.jpg" alt="Ficha de tarjeta hoy: la tarjeta a la izquierda y cinco cajas de cifras" loading="lazy"></figure>
+      <figure class="shot is-narrow" style="max-width:240px"><img src="recorrido/17-sellos-publica.jpg" alt="Tarjeta pública hoy: tarjeta, QR y la lista de sellos" loading="lazy"></figure>
+    </div>
+    <p class="label is-new">Así quedaría con la propuesta</p>
+    <div class="stage"><div class="mk mk-veils">
+      <!-- Velo 1: ficha -->
+      <div class="mk-veil">
+        <div class="mk-modal" style="width:780px">
+          <div class="mk-modal-head"><span class="mk-modal-ic"><i data-lucide="credit-card"></i></span><div><div class="mk-modal-title">Tarjeta CAFE-0001</div><div class="mk-modal-sub">Café Lover · 1 sello c/$100 · 10 = Café gratis</div></div><span class="mk-btn pri" style="margin-left:auto;height:30px"><i data-lucide="pencil"></i>Editar</span><span class="mk-modal-x" style="margin-left:6px"><i data-lucide="x"></i></span></div>
+          <div class="mk-modal-body">
+            <div class="mk-ficha">
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div class="wc" style="--c:#7C3AED">
+                  <div class="wc-h"><span class="wc-logo"><i data-lucide="coffee"></i></span><div class="wc-name">Café Lover<small>Reginas</small></div><div class="wc-val"><small>Sellos</small><b>7/10</b></div></div>
+                  <div class="wc-b">
+                    <div class="wc-stamps"><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st gift"><i data-lucide="gift"></i></span></div>
+                    <div class="wc-cap">Te faltan 3 sellos para tu Café gratis</div>
+                  </div>
+                  <div class="wc-flds"><span><small>Titular</small><b>Mariana R.</b></span><span><small>Premio</small><b>Café gratis</b></span><span><small>Número</small><b>CAFE-0001</b></span></div>
+                  <i class="wc-sh"></i>
+                </div>
+                <span class="mk-act" style="align-self:flex-start"><i data-lucide="qr-code"></i>Tarjeta digital</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div class="mk-owner"><span class="av"><i data-lucide="user-round"></i></span><div><b>Mariana Ramírez</b><span>(teléfono oculto) · cumple 14/07 · acepta mensajes</span></div></div>
+                <div class="mk-progress" style="--c:#7C3AED">
+                  <div class="mk-progress-top"><b>Faltan 3 sellos para Café gratis</b><span>7 de 10</span></div>
+                  <div class="mk-bar"><i data-fill style="width:70%"></i></div>
+                  <small>Unos $300 más en compras · los sellos no caducan.</small>
+                </div>
+                <div class="mk-tiles"><div><small>Compras</small><b>14</b></div><div><small>Total comprado</small><b>$1,760.00</b></div><div><small>Premios canjeados</small><b>1</b></div></div>
+                <div class="mk-progress" style="--c:#CA8A04;background:#FFFBEB">
+                  <div class="mk-progress-top"><b>En una tarjeta de nivel, la misma barra:</b><span>$1,760 de $3,000</span></div>
+                  <div class="mk-bar"><i data-fill style="width:58.7%"></i></div>
+                  <small>«Faltan $1,240 para VIP» · gasto de los últimos 12 meses. Solo en tipos de descuento o puntos con nivel.</small>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p style="font-weight:700;font-size:13px;margin-bottom:4px">Últimos movimientos</p>
+              <div class="mk-moves">
+                <div class="mk-move"><span class="dot"><i data-lucide="stamp"></i></span><div>Venta V1712 · Reginas Cuarta<small>17/11/2026 · 12:40</small></div><em>+2 sellos</em></div>
+                <div class="mk-move"><span class="dot gift"><i data-lucide="cake"></i></span><div>Regalo de cumpleaños<small>14/07/2026 · 10:00</small></div><em>+2 sellos</em></div>
+                <div class="mk-move"><span class="dot"><i data-lucide="gift"></i></span><div>Premio canjeado · Café gratis<small>02/07/2026 · 09:15</small></div><em style="color:#B45309">−10 sellos</em></div>
+              </div>
+            </div>
+          </div>
+          <div class="mk-modal-foot"><span class="mk-btn ghost">Cerrar</span></div>
+        </div>
+      </div>
+      <!-- Velo 2: teléfono del cliente -->
+      <div class="mk-veil" style="flex:0 0 380px;background:#E9EBEF">
+        <div class="mk-phone"><div class="mk-phone-in mk-pub">
+          <div class="mk-pub-head"><span class="lg">R</span><div><b>Reginas</b>Hola, Mariana. Esta es tu tarjeta.</div></div>
+          <div class="wc" style="--c:#7C3AED">
+            <div class="wc-h"><span class="wc-logo"><i data-lucide="coffee"></i></span><div class="wc-name">Café Lover<small>Reginas</small></div><div class="wc-val"><small>Sellos</small><b>7/10</b></div></div>
+            <div class="wc-b">
+              <div class="wc-stamps"><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st on"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st"><i data-lucide="coffee"></i></span><span class="wc-st gift"><i data-lucide="gift"></i></span></div>
+              <div class="wc-cap">Te faltan 3 sellos para tu Café gratis</div>
+            </div>
+            <div class="wc-flds"><span><small>Titular</small><b>Mariana R.</b></span><span><small>Premio</small><b>Café gratis</b></span><span><small>Vigencia</small><b>No caducan</b></span></div>
+            <div class="wc-qrw"><div class="wc-qrb"><span class="wc-qr" id="qrCard"></span></div><div class="wc-num"><span>CAFE-0001</span></div></div>
+            <div class="wc-ft"><span>Actualizado hace un momento</span><i data-lucide="info"></i></div>
+            <i class="wc-sh"></i>
+          </div>
+          <div class="mk-pub-box" style="align-items:stretch">
+            <div class="mk-progress" style="--c:#7C3AED;background:transparent;padding:0">
+              <div class="mk-progress-top"><b>Unos $300 más en compras</b><span>7 de 10</span></div>
+              <div class="mk-bar"><i data-fill style="width:70%"></i></div>
+              <small>Cuentan efectivo, tarjeta y transferencia; no el monedero ni el crédito.</small>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div></div>
+    <ul class="points" style="margin-top:4px">
+      <li><b>Sellos y niveles no se juntan</b> (regla de <code>plan-crecimiento.html</code>): la tarjeta de sellos lleva la barra del premio; la de descuento o puntos con nivel lleva la barra del siguiente nivel.</li>
+      <li><b>La barra de nivel necesita cifras en número.</b> Hoy <code>getCardDetail</code> manda el nivel ya en texto (<code>l.title</code>, <code>l.text</code>); hay que sumar gasto, mínimo del siguiente y su nombre. Es un cambio del ctrl, sin migración.</li>
+      <li><b>«Unos $300 más»</b> sale de multiplicar los sellos que faltan por <code>stamp_amount</code>.</li>
+      <li><b>«Actualizado hace un momento»</b> es la hora en que se abrió la página; la tarjeta pública ya lee el saldo al abrir.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06</span>Etapas</h2>
+  <div class="tscroll"><table>
+    <thead><tr><th>Etapa</th><th>Qué</th><th>Archivos</th><th>Base de datos</th></tr></thead>
+    <tbody>
+      <tr><td class="code">D1</td><td>P1 resumen de un tono + P2 la tarjeta nueva en todo el admin (galería, alta de tipo, alta de tarjeta, ficha) + entrada de la galería</td><td><code>tarjetas.js</code> (<code>renderSummary</code>, <code>tile</code>, <code>cardFace</code>, <code>paintFace</code>), <code>order.css</code> (<code>.loy-card*</code>, <code>.loy-stamp*</code>, <code>.loy-tile*</code>)</td><td class="yours">Nada</td></tr>
+      <tr><td class="code">D2</td><td>P3 paso 1 por objetivo en «Nuevo tipo»</td><td><code>tarjetas.js</code> (<code>addType</code> → ventana previa → <code>formType</code>)</td><td class="yours">Nada</td></tr>
+      <tr><td class="code">D3</td><td>P4 «Programa» como lista de mensajes con vista previa</td><td><code>tarjetas.js</code> (<code>renderProgram</code> y vecinos), <code>ctrl-tarjetas.php</code> (<code>getProgram</code> manda el texto de cada plantilla y los envíos del mes), <code>order.css</code></td><td class="yours">Nada (lee <code>loyalty_notice</code>)</td></tr>
+      <tr><td class="code">D4</td><td>P5 barras de avance + la tarjeta nueva en la página del cliente</td><td><code>tarjetas.js</code> (<code>detailLevel</code>), <code>ctrl-tarjetas.php</code> (<code>getCardDetail</code>), <code>tarjeta.php</code> (su CSS va dentro de la página)</td><td class="yours">Nada</td></tr>
+      <tr><td class="code">D6</td><td>P6 animaciones: en <code>tarjeta.php</code> (entrada, sellos nuevos desde la última visita, brillo y confeti con premio listo, subida de nivel) y en la ventana «Venta cobrada» de Vender (tarjeta chica con el sello que cae, confeti). Opcional: que la página del cliente se actualice sola mientras está abierta.</td><td><code>tarjeta.php</code>, <code>ventas.js</code> (ventana de cobro), <code>order.css</code>; lo opcional pide una consulta corta en <code>ctrl-tarjetas.php</code></td><td class="yours">Nada (la última visita se guarda en el teléfono del cliente)</td></tr>
+      <tr><td class="code">D5</td><td>«Casi tu premio» (mensaje nuevo)</td><td>Aviso en Vender, plantilla nueva en Meta, bitácora</td><td class="mine">Por definir</td></tr>
+      <tr><td class="code">—</td><td>Apple Wallet / Google Wallet</td><td>Generar y firmar el pase; avisar cambios a Apple y Google</td><td class="mine">Cuenta de Apple Developer (99 USD al año) y emisor de Google Wallet</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note warn"><b>Antes de construir:</b> D1 a D4 no tocan Vender ni el cobro. D6 solo cambia cómo se ve la ventana «Venta cobrada», no lo que cobra. D3 y D4 cambian lo que manda el ctrl: subir JS y ctrl juntos. D1 reemplaza la regla de hoy «rectángulo liso, sin filos ni marca de agua» (comentario de <code>cardFace</code>). Las maquetas son claras; cada etapa también se ajusta en modo oscuro (<code>body.dark-mode</code> de <code>order.css</code>).</p>
+</section>
+
+<section>
+  <h2><span class="num">07</span>Construido (18/11/2026, local)</h2>
+  <div class="tscroll"><table>
+    <thead><tr><th>Etapa</th><th>Qué quedó</th><th>Archivos</th></tr></thead>
+    <tbody>
+      <tr><td class="code">D1</td><td>Resumen de un tono; la tarjeta nueva (degradado, brillo, sellos punteados, campos) en galería, alta de tipo, alta de tarjeta y ficha; la galería entra en cascada, se levanta con brillo al pasar el ratón y trae el menú ⋯ (Editar tipo, Desactivar).</td><td><code>tarjetas.js</code>, <code>order.css</code>, <code>ctrl-tarjetas.php</code> (<code>typeTile</code>, <code>levelTile</code>), <code>mdl-lealtad.php</code> (<code>qCardTypeSales</code>)</td></tr>
+      <tr><td class="code">D2</td><td>«Nuevo tipo» paso 1: ¿Qué quieres lograr?, 4 estructuras con su tarjeta de ejemplo; «Niveles» abre el formulario con el gasto mínimo marcado.</td><td><code>tarjetas.js</code> (<code>pickStructure</code>), <code>order.css</code></td></tr>
+      <tr><td class="code">D3</td><td>«Programa»: franja del registro y lista de mensajes con interruptor (pregunta antes de encender), envíos del mes y teléfono con el texto real de cada plantilla.</td><td><code>tarjetas.js</code>, <code>order.css</code>, <code>ctrl-tarjetas.php</code> (<code>programMessages</code>), <code>mdl-lealtad-programa.php</code> (<code>qNoticeCounts</code>)</td></tr>
+      <tr><td class="code">D4</td><td>Barras de avance en la ficha (sellos y nivel) y la página del cliente como pase, con barra de nivel.</td><td><code>tarjetas.js</code>, <code>ctrl-tarjetas.php</code> (<code>detailLevel</code>), <code>tarjeta.php</code>, <code>mdl-lealtad.php</code> (<code>qDigitalCard</code>)</td></tr>
+      <tr><td class="code">D6</td><td>Página del cliente: entrada, sellos en cascada, sellos nuevos desde la última visita, confeti con premio recién completo, monedero que sube, nivel nuevo; se recarga sola al volver tras 30 s. Vender: tarjeta chica en «Venta cobrada» con el sello que cae y confeti al completar o subir de nivel.</td><td><code>tarjeta.php</code>, <code>ventas.js</code>, <code>ctrl-ventas.php</code> (<code>stampsInfo</code>), <code>mdl-lealtad.php</code> (<code>qSaleCard</code>), <code>mdl-lealtad-niveles.php</code> (<code>levelChange</code>), <code>order.css</code></td></tr>
+    </tbody>
+  </table></div>
+  <p class="note warn"><b>Para subir a producción:</b> sin migraciones. Suben juntos los 9 archivos de la tabla: los JS esperan los campos nuevos de los ctrl. D5 («Casi tu premio») y Apple/Google Wallet no se construyeron.</p>
+</section>
+
+<p class="foot-note text">Rewardix revisado el 18/11/2026 en su portada (secciones Estructuras de programas, Plataforma tecnológica, Lealtad en WhatsApp e Integración con Wallet). Las tarjetas y animaciones de aquí se escribieron de nuevo siguiendo cómo se ven las suyas: medidas, curvas y tiempos parecidos, código propio. Las marcas que enseña son de sus maquetas; aquí no se usa ninguna.</p>
+
+</div>
+
+<script src="../../../assets/plugins/lucide/lucide.min.js"></script>
+<script>
+// -- QR de adorno --
+// Un patrón fijo con los tres cuadros de esquina: solo para que la maqueta se lea como QR.
+function fakeQr(id) {
+    const n = 25, cell = 4, box = n * cell;
+    let seed = Array.from(id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) * 97 % 233280;
+    const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    const finder = (x, y) => `<rect x="${x}" y="${y}" width="28" height="28" fill="#111"/><rect x="${x + 4}" y="${y + 4}" width="20" height="20" fill="#fff"/><rect x="${x + 8}" y="${y + 8}" width="12" height="12" fill="#111"/>`;
+    let cells = '';
+    for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+            const inFinder = (r < 8 && c < 8) || (r < 8 && c > n - 9) || (r > n - 9 && c < 8);
+            if (!inFinder && rnd() > .52) cells += `<rect x="${c * cell}" y="${r * cell}" width="${cell}" height="${cell}" fill="#111"/>`;
+        }
+    }
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<svg viewBox="0 0 ${box} ${box}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${cells}${finder(0, 0)}${finder(box - 28, 0)}${finder(0, box - 28)}</svg>`;
+}
+
+['qrSignup', 'qrCard', 'qrDm1', 'qrDm2'].forEach(fakeQr);
+
+if (window.lucide) lucide.createIcons();
+
+// -- Entra al verse --
+// La galería sube una tarjeta tras otra y las barras se llenan cuando aparecen en pantalla.
+function whenSeen(el, fn) {
+    if (!('IntersectionObserver' in window)) return fn();
+
+    const io = new IntersectionObserver((entries) => {
+        if (!entries[0].isIntersecting) return;
+
+        io.disconnect();
+        fn();
+    }, { threshold: .25 });
+
+    io.observe(el);
+}
+
+document.querySelectorAll('.wc-gal').forEach((gallery) => whenSeen(gallery, () => gallery.classList.add('go')));
+
+document.querySelectorAll('[data-fill]').forEach((bar) => {
+    const width = bar.style.width;
+
+    bar.style.width = '0%';
+    whenSeen(bar, () => requestAnimationFrame(() => { bar.style.width = width; }));
+});
+
+// -- Demostración: la tarjeta en movimiento --
+// Corre en bucle: sellos (8 → 10, premio listo) y luego nivel (Cliente Frecuente → VIP).
+// Se detiene con «Pausar» y fuera de pantalla. Con «Reducir movimiento» queda quieta en el premio listo.
+(function () {
+    const root = document.getElementById('demo');
+
+    if (!root) return;
+
+    const q       = (sel, el = root) => el.querySelector(sel);
+    const screen  = q('.dm-screen');
+    const shake   = q('.dm-shake');
+    const banner  = q('.dm-bn');
+    const touch   = q('.dm-touch');
+    const canvas  = q('.dm-cf');
+    const steps   = Array.from(document.querySelectorAll('#demoSteps li'));
+    const play    = document.getElementById('demoPlay');
+    const again   = document.getElementById('demoAgain');
+    const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const CANCEL  = {};
+    const TOP = 96, CLOSED = 162, OPEN = 410, AWAY = 640;
+    const PAL  = ['#FFDA4A', '#7C3AED', '#C4B1FF', '#FFD1D6', '#FF4F7B', '#4B2A9A', '#4ADE80'];
+    const GOLD = ['#FFDA4A', '#F2B01E', '#FFF1A8', '#7C3AED', '#C4B1FF', '#FFFFFF'];
+    const pesos = (n) => '$' + Math.round(n).toLocaleString('en-US');
+
+    let paused = false, visible = false, run = null, noteSeq = 0, confettiRaf = 0;
+
+    const stopped = () => paused || !visible || document.hidden;
+
+    // Una espera que no corre mientras la demo está detenida; t.dead la corta (al reiniciar).
+    const wait = (ms, t) => new Promise((done, cut) => {
+        let left = ms, last = performance.now();
+        const tick = (now) => {
+            if (t.dead) return cut(CANCEL);
+            if (!stopped()) left -= now - last;
+            last = now;
+            left <= 0 ? done() : requestAnimationFrame(tick);
+        };
+
+        requestAnimationFrame(tick);
+    });
+
+    const fire   = (promise) => promise.catch(() => {});
+    const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+    const pop    = (el, text) => { if (text != null) el.textContent = text; replay(el, 'wc-pop'); };
+    const step   = (i) => steps.forEach((li, k) => li.classList.toggle('on', k === i));
+    const refresh = () => root.classList.toggle('is-paused', stopped());
+
+    // -- Las dos tarjetas --
+    const card = (id) => {
+        const el = document.getElementById(id);
+
+        return { el, k: (name) => el.querySelector(`[data-k="${name}"]`), qr: el.querySelector('.wc-qrb'), stamps: Array.from(el.querySelectorAll('.wc-st')) };
+    };
+    const S = card('dmStamp');
+    const L = card('dmLevel');
+
+    S.total = 10;
+
+    const caption = (have) => {
+        const left = S.total - have;
+
+        if (left <= 0) return '¡Tu Café gratis está listo!';
+
+        return left === 1 ? '¡Solo 1 sello para tu Café gratis!' : `Te faltan ${left} sellos para tu Café gratis`;
+    };
+
+    function resetStamp() {
+        S.have = 8;
+        S.el.classList.remove('open', 'done', 'shine');
+        S.stamps.forEach((st, i) => { st.classList.remove('new'); st.classList.toggle('on', i < S.have); });
+        S.k('val').textContent = `${S.have}/${S.total}`;
+        S.k('cap').textContent = caption(S.have);
+    }
+
+    function resetLevel() {
+        const badge = L.k('badge');
+
+        L.el.classList.remove('open', 'shine');
+        L.el.style.setProperty('--c', '#DB2777');
+        L.k('name').textContent  = 'Cliente Frecuente';
+        L.k('lab').textContent   = 'Descuento';
+        L.k('val').textContent   = '5 %';
+        L.k('big').textContent   = '5 %';
+        L.k('unit').textContent  = 'de descuento';
+        L.k('need').textContent  = 'Faltan $360 para VIP';
+        L.k('spent').textContent = '$2,640';
+        L.k('next').textContent  = 'VIP · $3,000';
+        L.k('bar').style.width   = '88%';
+        badge.classList.remove('gold', 'flip');
+        badge.querySelector('em').textContent = 'Nivel 1';
+    }
+
+    // -- Movimiento --
+    const place = (c, y, h) => { c.el.style.transform = `translate3d(0, ${y}px, 0)`; c.el.style.height = `${h}px`; };
+    const enter = (c) => place(c, TOP, CLOSED);
+    const leave = (c) => place(c, AWAY, CLOSED);
+    const open  = (c) => { c.el.classList.add('open'); screen.classList.add('open'); place(c, TOP, OPEN); };
+    const close = (c) => { c.el.classList.remove('open'); screen.classList.remove('open'); place(c, TOP, CLOSED); };
+
+    function reset() {
+        screen.classList.add('dm-snap');
+        screen.classList.remove('open');
+        banner.classList.remove('show');
+        touch.classList.remove('on', 'press', 'tap');
+        resetStamp();
+        resetLevel();
+        leave(S);
+        leave(L);
+        void screen.offsetWidth;
+        screen.classList.remove('dm-snap');
+    }
+
+    const moveTouch = (x, y, ms) => {
+        touch.style.transition = `opacity .25s ease, transform ${ms}ms cubic-bezier(.45,0,.2,1)`;
+        touch.style.transform  = `translate(${x}px, ${y}px)`;
+    };
+
+    async function tap(t, x, y) {
+        moveTouch(x + 12, y + 40, 0);
+        touch.classList.add('on');
+        await wait(60, t);
+        moveTouch(x, y, 420);
+        await wait(460, t);
+        touch.classList.remove('tap');
+        void touch.offsetWidth;
+        touch.classList.add('press', 'tap');
+        await wait(170, t);
+        touch.classList.remove('press');
+        await wait(120, t);
+        touch.classList.remove('on');
+    }
+
+    // En caja leen el QR: esquinas y láser, luego la palomita y el teléfono vibra.
+    async function scan(t, c) {
+        c.qr.classList.remove('ok');
+        c.qr.classList.add('scanning');
+
+        try { await wait(1300, t); } finally { c.qr.classList.remove('scanning'); }
+
+        c.qr.classList.add('ok');
+        replay(shake, 'buzz');
+        setTimeout(() => c.qr.classList.remove('ok'), 950);
+        await wait(450, t);
+    }
+
+    // -- Efectos --
+    function emit(words) {
+        if (!root.animate) return;
+
+        const width = root.clientWidth, cx = width / 2, cy = 250;
+
+        words.forEach((word, j) => {
+            const el    = document.createElement('span');
+            const side  = j % 2 ? 1 : -1;
+            const angle = ((side > 0 ? -38 : -142) + (Math.random() * 44 - 22)) * Math.PI / 180;
+            const far   = Math.min(width / 2 - 30, 190) + Math.random() * 30;
+            const x1    = cx + Math.cos(angle) * far, y1 = cy + Math.sin(angle) * far * .85;
+
+            el.className   = 'dm-px' + (j % 2 ? ' y' : '');
+            el.textContent = word;
+            root.appendChild(el);
+
+            el.animate([
+                { transform: `translate(${cx}px, ${cy}px) translate(-50%, -50%) scale(.4)`, opacity: 0 },
+                { transform: `translate(${cx + (x1 - cx) * .25}px, ${cy + (y1 - cy) * .25}px) translate(-50%, -50%) scale(1.05)`, opacity: 1, offset: .22 },
+                { transform: `translate(${x1}px, ${y1}px) translate(-50%, -50%) scale(.9)`, opacity: 0 }
+            ], { duration: 1700, delay: j * 110, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both' }).onfinish = () => el.remove();
+        });
+    }
+
+    function confetti(colors) {
+        const dpr = Math.min(2, window.devicePixelRatio || 1), W = 266, H = 578;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) return;
+
+        canvas.width  = W * dpr;
+        canvas.height = H * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const bits = Array.from({ length: 110 }, (v, i) => ({
+            x: W / 2 + (Math.random() - .5) * 70, y: 190,
+            vx: (Math.random() - .5) * 8.5, vy: -Math.random() * 7 - 3, g: .2 + Math.random() * .08,
+            r: Math.random() * 6, vr: (Math.random() - .5) * .35,
+            w: 4 + Math.random() * 4, h: 7 + Math.random() * 6, c: colors[i % colors.length], round: Math.random() < .3
+        }));
+        const t0 = performance.now();
+        const frame = (now) => {
+            const k = (now - t0) / 2600;
+
+            ctx.clearRect(0, 0, W, H);
+            bits.forEach((b) => {
+                b.vy += b.g; b.vx *= .99; b.x += b.vx; b.y += b.vy; b.r += b.vr;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, 1 - k * k);
+                ctx.translate(b.x, b.y);
+                ctx.rotate(b.r);
+                ctx.fillStyle = b.c;
+
+                if (b.round) { ctx.beginPath(); ctx.arc(0, 0, b.w / 2, 0, 7); ctx.fill(); }
+                else ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h * Math.abs(Math.cos(b.r * 2)) + 1);
+
+                ctx.restore();
+            });
+
+            if (k < 1) confettiRaf = requestAnimationFrame(frame);
+            else ctx.clearRect(0, 0, W, H);
+        };
+
+        cancelAnimationFrame(confettiRaf);
+        confettiRaf = requestAnimationFrame(frame);
+    }
+
+    // La notificación de WhatsApp baja desde arriba y se va sola.
+    async function notify(t, text, ms) {
+        const mine = ++noteSeq;
+
+        if (banner.classList.contains('show')) {
+            banner.classList.remove('show');
+            await wait(280, t);
+            if (mine !== noteSeq) return;
+        }
+
+        q('[data-k="text"]', banner).textContent = text;
+        banner.classList.add('show');
+
+        try { await wait(ms, t); } finally { if (mine === noteSeq) banner.classList.remove('show'); }
+    }
+
+    // Una cifra que sube hasta su valor y salta al llegar.
+    const count = (el, from, to, ms, t) => new Promise((done) => {
+        const t0 = performance.now();
+        const tick = (now) => {
+            if (t.dead) return done();
+
+            const k = Math.min(1, (now - t0) / ms), eased = 1 - Math.pow(1 - k, 3);
+
+            el.textContent = pesos(from + (to - from) * eased);
+
+            if (k < 1) return requestAnimationFrame(tick);
+
+            pop(el);
+            done();
+        };
+
+        requestAnimationFrame(tick);
+    });
+
+    function addStamp(c) {
+        c.stamps[c.have].classList.add('on', 'new');
+        c.have++;
+        pop(c.k('val'), `${c.have}/${c.total}`);
+        c.k('cap').textContent = caption(c.have);
+        emit(['+1 sello', '★']);
+    }
+
+    function levelUp(c) {
+        const badge = c.k('badge');
+
+        replay(badge, 'flip');
+        setTimeout(() => { badge.querySelector('em').textContent = 'VIP'; badge.classList.add('gold'); }, 230);
+
+        c.el.style.setProperty('--c', '#1C1C1E');
+        pop(c.k('name'), 'VIP');
+        c.k('lab').textContent  = 'Puntos';
+        pop(c.k('val'), '10 %');
+        pop(c.k('big'), '10 %');
+        c.k('unit').textContent = 'en puntos al monedero';
+        c.k('need').textContent = 'Tu nivel vale 12 meses';
+        pop(c.k('next'), 'Nivel más alto');
+        replay(c.el, 'shine');
+        confetti(GOLD);
+        emit(['¡VIP!', '★', '🏆']);
+    }
+
+    // -- Escenas --
+    async function stampScene(t) {
+        step(0); enter(S); await wait(1400, t);
+        step(1); await tap(t, 133, TOP + 60); open(S); await wait(1500, t);
+        step(2); await scan(t, S);
+        step(3); addStamp(S); await wait(1700, t);
+        step(2); await scan(t, S);
+        step(3); addStamp(S); await wait(700, t);
+        step(4); S.el.classList.add('done'); confetti(PAL); emit(['¡Gratis!', '★', '🎁']); await wait(1500, t);
+        step(5); fire(notify(t, 'Hola Mariana, ya juntaste tus 10 sellos en Reginas. Tu premio Café gratis te espera: pídelo en caja cuando quieras.', 3600)); await wait(4000, t);
+        await tap(t, 133, TOP + 22); close(S); await wait(800, t);
+        leave(S); await wait(600, t);
+    }
+
+    async function levelScene(t) {
+        step(0); enter(L); await wait(1400, t);
+        step(1); await tap(t, 133, TOP + 60); open(L); await wait(1400, t);
+        step(2); await scan(t, L);
+        step(6); emit(['+$420', '★']); L.k('bar').style.width = '100%';
+        await count(L.k('spent'), 2640, 3060, 1300, t);
+        L.k('need').textContent = '¡Llegaste a $3,000!'; await wait(400, t);
+        levelUp(L); await wait(1200, t);
+        fire(notify(t, 'Hola Mariana, tu tarjeta de Reginas ahora es nivel VIP. Ahora ganas 10 % de lo que pagas en puntos.', 3400)); await wait(3800, t);
+        await tap(t, 133, TOP + 22); close(L); await wait(800, t);
+        leave(L); await wait(900, t);
+    }
+
+    async function loop(t) {
+        for (;;) {
+            reset();
+            await wait(500, t);
+            await stampScene(t);
+            await levelScene(t);
+        }
+    }
+
+    function start() {
+        if (run) run.dead = true;
+
+        noteSeq++;
+        cancelAnimationFrame(confettiRaf);
+        canvas.getContext('2d') && canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+        const t = { dead: false };
+
+        run = t;
+        loop(t).catch((e) => { if (e !== CANCEL) console.error(e); });
+    }
+
+    // Movimiento reducido: la tarjeta queda abierta con el premio listo y el aviso a la vista.
+    if (reduced) {
+        reset();
+        S.have = S.total;
+        S.stamps.forEach((st) => st.classList.add('on'));
+        S.k('val').textContent = `${S.total}/${S.total}`;
+        S.k('cap').textContent = caption(S.total);
+        S.el.classList.add('done');
+        screen.classList.add('dm-snap');
+        open(S);
+        void screen.offsetWidth;
+        screen.classList.remove('dm-snap');
+        q('[data-k="text"]', banner).textContent = 'Hola Mariana, ya juntaste tus 10 sellos en Reginas. Tu premio Café gratis te espera: pídelo en caja cuando quieras.';
+        banner.classList.add('show');
+        play.hidden = again.hidden = true;
+        return;
+    }
+
+    play.addEventListener('click', () => {
+        paused = !paused;
+        play.classList.toggle('paused', paused);
+        play.querySelector('span').textContent = paused ? 'Seguir' : 'Pausar';
+        refresh();
+    });
+
+    again.addEventListener('click', () => {
+        if (paused) play.click();
+        start();
+    });
+
+    document.addEventListener('visibilitychange', refresh);
+
+    reset();
+
+    if (!('IntersectionObserver' in window)) {
+        visible = true;
+        return start();
+    }
+
+    new IntersectionObserver((entries) => {
+        visible = entries[0].isIntersecting;
+        refresh();
+        if (visible && !run) start();
+    }, { threshold: .2 }).observe(root);
+})();
+</script>
+</body>
+</html>

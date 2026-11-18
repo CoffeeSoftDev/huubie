@@ -956,7 +956,7 @@ class ctrl extends core {
         if ($password !== (string) ($_POST['password_confirmation'] ?? '')) {
             return ['status' => 422, 'message' => 'Las contraseñas no coinciden'];
         }
-        $error = $this->userError($user, 0) ?: $this->accessError($user);
+        $error = $this->userError($user, 0) ?: $this->accessError($user) ?: $this->ownerError($user, 0);
         if ($error) return $error;
         if (strlen($password) < 4) {
             return ['status' => 400, 'message' => 'La contraseña debe tener al menos 4 caracteres'];
@@ -1021,6 +1021,9 @@ class ctrl extends core {
         // Sin el campo en el POST (un cliente viejo) el dueño se queda como estaba.
         if ($user['is_owner'] === null) $user['is_owner'] = $current['is_owner'];
 
+        $error = $isRoot ? null : $this->ownerError($user, $id);
+        if ($error) return $error;
+
         return $this->transaction(function () use ($id, $user, $isRoot, $password, $current) {
             $this->qUpdateUser([
                 $user['name'],
@@ -1075,6 +1078,18 @@ class ctrl extends core {
             // (homeBranch en auth/ctrl/ctrl-auth.php). null = no llegó el campo.
             'is_owner'   => isset($_POST['is_owner']) ? ((int) $_POST['is_owner'] === 1 ? 1 : 0) : null
         ];
+    }
+
+    // Un solo dueño por empresa: para pasar la marca, primero se le quita al que la tiene.
+    private function ownerError($user, $id) {
+        if ((int) ($user['is_owner'] ?? 0) !== 1) return null;
+
+        $owner = $this->qCompanyOwner([$user['company_id'], $id]);
+        if (!$owner) return null;
+
+        $name = trim($owner['name'] . ' ' . $owner['last_name']);
+
+        return ['status' => 409, 'message' => "Esta empresa ya tiene dueño: {$name}. Quítale la marca de dueño antes de dársela a alguien más."];
     }
 
     private function userError($user, $id) {

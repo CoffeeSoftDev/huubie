@@ -58,6 +58,9 @@ body.dark-mode .pg-chip.is-off  { background: rgb(255 255 255 / .06); }
 .pg-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
 .pg-col  { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .pg-two  { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+/* Las dos columnas terminan parejas: la última tarjeta de cada una crece hasta el fondo. */
+.pg-grid.is-even { align-items: stretch; }
+.pg-grid.is-even > .pg-col > .pg-card:last-child { flex: 1 1 auto; }
 
 @media (max-width: 1023px) {
     .pg-grid { grid-template-columns: minmax(0, 1fr); }
@@ -111,6 +114,7 @@ body.dark-mode .pg-link { color: rgb(var(--brand-300, 232 166 143)) !important; 
     width: 40px; height: 40px; font-size: 14px;
 }
 .pg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pg-avatar.is-photo { background: transparent; }
 .pg-avatar.is-sm { width: 32px; height: 32px; font-size: 11.5px; }
 .pg-avatar.is-lg { width: 56px; height: 56px; font-size: 19px; }
 .pg-avatar.is-xl { width: 104px; height: 104px; font-size: 34px; }
@@ -233,6 +237,11 @@ body.dark-mode .pg-msg.is-err { color: #F87171; }
 .pg-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .pg-swatch { width: 28px; height: 28px; border-radius: 9999px; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); cursor: pointer; padding: 0; }
 .pg-swatch.is-on { box-shadow: 0 0 0 2px rgb(var(--accent-2-600, 192 90 64)); }
+/* El personalizado: arcoíris hasta que se elige uno; el <input type="color"> lo cubre invisible. */
+.pg-swatch.is-custom { position: relative; display: grid; place-items: center; overflow: hidden; color: #FFFFFF; background: conic-gradient(#F87171, #FBBF24, #34D399, #60A5FA, #A78BFA, #F472B6, #F87171); }
+.pg-swatch.is-custom svg { width: 14px; height: 14px; filter: drop-shadow(0 0 1px rgb(0 0 0 / .7)); pointer-events: none; }
+.pg-swatch.is-custom.has-color svg { filter: none; }
+.pg-swatch.is-custom input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
 
 /* Mientras llega la respuesta. */
 .pg-skel { height: 120px; border-radius: var(--radius-card, 20px); background: var(--surface); border: 1px solid var(--line); opacity: .6; animation: pg-pulse 1.2s ease-in-out infinite; }
@@ -416,6 +425,7 @@ body.dark-mode .pg a.pg-tab.is-active { color: #FFFFFF; }
 .pg-toolbar { align-items: flex-start; flex-wrap: wrap; gap: 14px; }
 .pg-toolbar .pg-small { margin-top: 3px !important; }
 .pg-toolbar-side { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pg-toolbar-side select.pg-input { width: auto; min-width: 200px; padding-top: 8px; padding-bottom: 8px; }
 
 .pg-chip.is-mini { padding: 3px 8px; font-size: 10.5px; vertical-align: 1px; }
 .pg-chip.is-bad { color: #B91C1C; background: #FDECEC; }
@@ -431,6 +441,7 @@ body.dark-mode .pg-chip.is-bad { color: #FCA5A5; background: rgb(239 68 68 / .16
 .pg-table tbody tr:hover { background: var(--tint); }
 .pg-table td:first-child { min-width: 220px; }
 .pg-table .pg-td-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pg-table .pg-td-center { text-align: center; }
 .pg-table .pg-td-actions { text-align: right; white-space: nowrap; }
 .pg-table .pg-td-actions > * { vertical-align: middle; margin-left: 6px; }
 .pg-table .pg-chips { gap: 4px; }
@@ -468,21 +479,32 @@ body.dark-mode .pg .pg-input, body.dark-mode .pg-modal .pg-input { background-co
 .pg-access-row svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-dim); }
 .pg-access-row .pg-input { padding-top: 8px; padding-bottom: 8px; }
 
-/* -- Permisos de un rol: módulo > sección > acciones -- */
-.pg-tree { display: flex; flex-direction: column; gap: 16px; }
+/* -- Permisos de un rol: tabla sección × acción --
+   Una fila por sección y una columna por acción; --tree-cols lo pone
+   configuracion.js. En el teléfono no caben las columnas: cada acción
+   vuelve a ser una pastilla con su nombre (ver el @media de abajo). */
+.pg-tree { --tree-col: 66px; display: flex; flex-direction: column; gap: 14px; }
 .pg-tree-mod { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-.pg-tree-title { display: flex; align-items: center; gap: 8px; padding: 11px 14px; font-size: 13px; font-weight: 700; color: var(--ink); background: var(--surface-hover, transparent); border-bottom: 1px solid var(--line); }
-.pg-tree-title svg { width: 16px; height: 16px; color: rgb(var(--brand-600, 192 90 64)); }
-.pg-tree-sec { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 10px 16px; align-items: start; padding: 12px 14px; border-top: 1px solid var(--line); }
-.pg-tree-title + .pg-tree-sec { border-top: 0; }
-.pg-tree-all, .pg-check { display: inline-flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; font-size: 13px; color: var(--ink); }
-.pg-tree-all { font-weight: 600; }
-.pg-tree-acts { display: flex; flex-wrap: wrap; gap: 6px; }
-.pg-check { padding: 5px 10px 5px 8px; border: 1px solid var(--line); border-radius: 9999px; color: var(--ink-dim); transition: border-color .15s ease, background-color .15s ease, color .15s ease; }
-.pg-check:has(input:checked) { color: rgb(var(--brand-600, 192 90 64)); background: var(--accent-soft-bg, transparent); border-color: var(--accent-line, currentColor); }
-.pg-tree input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: rgb(var(--primary-rgb, 41 37 36)); cursor: pointer; }
+.pg-tree-head, .pg-tree-sec { display: grid; grid-template-columns: minmax(0, 1fr) repeat(var(--tree-cols, 1), var(--tree-col)); align-items: center; padding: 0 6px 0 14px; }
+.pg-tree-head { min-height: 42px; background: var(--surface-hover, transparent); border-bottom: 1px solid var(--line); }
+.pg-tree-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 700; color: var(--ink); }
+.pg-tree-title svg { width: 16px; height: 16px; flex-shrink: 0; color: rgb(var(--brand-600, 192 90 64)); }
+.pg-tree-col { font-size: 11.5px; font-weight: 600; color: var(--ink-dim); text-align: center; }
+.pg-tree-sec { min-height: 44px; border-top: 1px solid var(--line); transition: background-color .15s ease; }
+.pg-tree-head + .pg-tree-sec { border-top: 0; }
+.pg-tree-sec:hover { background: rgb(var(--brand-600, 192 90 64) / .04); }
+.pg-tree-all { display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; padding: 10px 0; font-size: 13.5px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.pg-tree-all span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Sin ninguna acción marcada, la sección se lee apagada. */
+.pg-tree-sec:not(:has([data-perm]:checked)) .pg-tree-all { color: var(--ink-dim); font-weight: 500; }
+.pg-tree-cell { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; align-self: stretch; margin: 0; cursor: pointer; }
+/* La sección no tiene esa acción: una raya. */
+.pg-tree-cell.is-none { cursor: default; }
+.pg-tree-cell.is-none::before { content: ''; width: 10px; height: 2px; border-radius: 2px; background: var(--ink-dim); opacity: .35; }
+/* El nombre ya está en la cabecera: aquí solo lo lee el lector de pantalla. */
+.pg-tree-act { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pg-tree input[type="checkbox"] { width: 17px; height: 17px; margin: 0; flex-shrink: 0; accent-color: rgb(var(--primary-rgb, 41 37 36)); cursor: pointer; }
 .pg-tree input[type="checkbox"]:disabled, .pg-tree label:has(input:disabled) { cursor: default; }
-body.dark-mode .pg-check:has(input:checked) { color: var(--ink); }
 
 /* -- Modal --
    Cuelga del <body>, fuera de .pg: por eso repite lo básico de la página
@@ -507,6 +529,14 @@ body.dark-mode .pg-modal-foot { background: transparent; }
 .pg-modal .pg-input:hover:not(:disabled):not(:focus) { border-color: var(--accent-line); }
 .pg-modal .pg-input:focus { border-color: rgb(var(--accent-2-600, 192 90 64)); box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 192 90 64) / .18); }
 .pg-modal .pg-input::placeholder { color: var(--ink-dim); opacity: .75; }
+
+/* -- Contraseña con ojo (configuracion.js › cfgPassField) -- */
+.pg-pass { position: relative; }
+.pg-pass > .pg-input { padding-right: 44px; }
+.pg-pass-eye { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 9999px; background: transparent; color: var(--ink-dim); cursor: pointer; transition: color .15s ease; }
+.pg-pass-eye:hover { color: var(--ink); }
+.pg-pass-eye:focus-visible { outline: 2px solid rgb(var(--accent-2-600, 192 90 64)); outline-offset: 1px; }
+.pg-pass-eye svg { width: 17px; height: 17px; }
 @keyframes pg-fade { from { opacity: 0; } }
 @keyframes pg-pop { from { opacity: 0; transform: translateY(10px) scale(.98); } }
 
@@ -526,8 +556,16 @@ body.dark-mode .pg-toast { background: #0B1220; border: 1px solid var(--dk-line,
     .pg-modal-head, .pg-modal-body { padding-left: 16px; padding-right: 16px; }
     .pg-modal-foot { padding: 12px 16px 14px; }
     .pg-access-row { grid-template-columns: minmax(0, 1fr); }
-    .pg-tree-sec { grid-template-columns: minmax(0, 1fr); }
+    /* Permisos: sin columnas; cada acción, pastilla con su nombre. */
+    .pg-tree-head { grid-template-columns: minmax(0, 1fr); padding: 0 14px; }
+    .pg-tree-col, .pg-tree-cell.is-none { display: none; }
+    .pg-tree-sec { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 14px 12px; }
+    .pg-tree-all { flex: 0 0 100%; padding: 10px 0 4px; }
+    .pg-tree-cell { padding: 5px 10px 5px 8px; border: 1px solid var(--line); border-radius: 9999px; font-size: 13px; color: var(--ink-dim); }
+    .pg-tree-cell:has(input:checked) { color: var(--ink); border-color: var(--accent-line, var(--line)); background: var(--accent-soft-bg, transparent); }
+    .pg-tree-act { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
     .pg-toolbar-side { width: 100%; justify-content: space-between; }
+    .pg-toolbar-side select.pg-input { flex: 1 1 100%; }
     .pg a.pg-tab { padding: 9px 12px; }
 
     /* Las tablas se vuelven fichas: una por renglón, cada dato con su etiqueta. */

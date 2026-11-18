@@ -58,6 +58,7 @@ trait LoyaltyCards {
                 {$this->stampColumns('t')},
                 IFNULL(t.color, '')            AS color,
                 IFNULL(t.active, 1)            AS active,
+                t.level_min_spend,
                 (
                     SELECT COUNT(*)
                     FROM {$this->pos}card c
@@ -81,7 +82,8 @@ trait LoyaltyCards {
                 IFNULL(points_percent, 0)    AS points_percent,
                 {$this->stampColumns('card_type')},
                 IFNULL(color, '')            AS color,
-                IFNULL(active, 1)            AS active
+                IFNULL(active, 1)            AS active,
+                level_min_spend
             FROM {$this->pos}card_type
             WHERE id = ?
                 AND {$this->qSameCompany('branch_id')}
@@ -241,11 +243,12 @@ trait LoyaltyCards {
         ", [$branchId, $number]);
     }
 
-    // La misma, por id: es la que valida addSale.
+    // La misma, por id: es la que valida addSale. El color es para la tarjeta chica de «Venta cobrada».
     protected function qSaleCard($id, $branchId) {
         return $this->qRow("
             SELECT
-                {$this->cardColumns()}
+                {$this->cardColumns()},
+                IFNULL(t.color, '') AS color
             FROM {$this->pos}card c
             INNER JOIN {$this->pos}card_type t ON t.id  = c.card_type_id AND IFNULL(t.active, 1) = 1
             LEFT JOIN {$this->pos}customer cu  ON cu.id = c.customer_id
@@ -526,8 +529,10 @@ trait LoyaltyCards {
         return $this->qRows("
             SELECT
                 c.card_type_id,
-                COUNT(*)                 AS sales,
-                IFNULL(SUM(s.total), 0)  AS sold
+                COUNT(*)                                        AS sales,
+                IFNULL(SUM(s.total), 0)                         AS sold,
+                IFNULL(SUM({$this->qCardDiscountSql('s')}), 0)  AS discount,
+                IFNULL(SUM({$this->qSalePointsSql('s')}), 0)    AS points
             FROM {$this->pos}sale s
             INNER JOIN {$this->pos}card c ON c.id = s.card_id
             WHERE {$this->qSameCompany('s.branch_id')}
@@ -620,6 +625,8 @@ trait LoyaltyCards {
         return $this->qRow("
             SELECT
                 {$this->cardColumns()},
+                c.branch_id,
+                co.id                     AS company_id,
                 IFNULL(t.color, '')       AS color,
                 IFNULL(b.name, '')        AS branch,
                 IFNULL(b.logo, '')        AS branch_logo,

@@ -544,18 +544,22 @@ function attentionCard(d) {
 /*  Las mismas tarjetas del hub de quien no es dueño (hubCard). Un modulo
     contratado que todavia no tiene pagina no ocupa una tarjeta apagada: va
     abajo, en una linea de "Próximamente". Con la empresa sin pago al
-    corriente todos salen como tarjeta, con su candado. */
+    corriente todos salen como tarjeta, con su candado. Al final, Mi perfil y
+    Configuración del dueño (d.shortcuts), que ya no van en el rail. */
 function modulesCard(d) {
+    const own = d.shortcuts || [];
+
     if (!d.modules.length) {
         return `
             <div class="pg-card">
                 <div class="pg-card-head"><p class="pg-card-title">Tus módulos</p></div>
                 <div class="pg-empty"><i data-lucide="layout-grid"></i>${d.plan.name ? 'Tu rol todavía no tiene acceso a ningún módulo. Pídelo a tu administrador.' : 'Aquí aparecerán los módulos de tu plan.'}</div>
-            </div>`;
+            </div>
+            ${own.length ? `<div class="pg-hub-grid">${own.map(hubCard).join('')}</div>` : ''}`;
     }
 
     const soon  = d.modules.filter((m) => !m.locked && !m.route);
-    const cards = d.modules.filter((m) => m.locked || m.route);
+    const cards = d.modules.filter((m) => m.locked || m.route).concat(own);
 
     return `
         <section>

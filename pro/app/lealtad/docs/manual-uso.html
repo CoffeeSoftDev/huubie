@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Manual de Lealtad</title>
+<style>
+/* @piel plantilla-plano */
+:root{
+  color-scheme: light; /* manuales siempre en claro */
+  --bp-ground:    light-dark(#F1F3F6, #0C1116);
+  --bp-surface:   light-dark(#FFFFFF, #141B21);
+  --bp-surface-2: light-dark(#F5F7F9, #1B242B);
+  --bp-line:      light-dark(#DDE3E8, #2A353D);
+  --bp-line-soft: light-dark(#E9EDF1, #212A31);
+  --bp-ink:       light-dark(#0F1A21, #E4EAEE);
+  --bp-ink-soft:  light-dark(#4A5A64, #A8B7C0);
+  --bp-ink-dim:   light-dark(#6E7F8A, #7E8F99);
+  --bp-ac:        light-dark(#0B6E77, #4FB8C2);
+  --bp-ok:        light-dark(#047857, #6EE7B7);
+  --bp-write:     light-dark(#A15C08, #FCD34D);
+  --bp-ui:   "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{ background:var(--bp-ground); color:var(--bp-ink); font-family:var(--bp-ui); font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased }
+.wrap{ max-width:1080px; margin:0 auto; padding:0 16px 80px }
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:30px; display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,44px); line-height:1.08; letter-spacing:-.015em; max-width:24ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55; color:var(--bp-ink-soft); max-width:68ch }
+.meta{ display:flex; flex-wrap:wrap; gap:6px 26px; font-family:var(--bp-mono); font-size:11.5px; color:var(--bp-ink-dim) }
+.meta b{ color:var(--bp-ink-soft); font-weight:600 }
+section{ display:flex; flex-direction:column; gap:14px; margin-bottom:52px; scroll-margin-top:16px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:25px; line-height:1.2; display:flex; align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em; color:var(--bp-ac); flex:none }
+h3{ font-size:16px; font-weight:650; margin-top:10px }
+p{ max-width:78ch; color:var(--bp-ink-soft) }
+p b{ color:var(--bp-ink) }
+ul.points, ol.steps{ display:grid; gap:6px; max-width:82ch }
+ul.points{ list-style:none }
+ul.points li{ position:relative; padding-left:18px; color:var(--bp-ink-soft) }
+ul.points li::before{ content:""; position:absolute; left:2px; top:.62em; width:6px; height:6px; border-radius:2px; background:var(--bp-ac) }
+ol.steps{ padding-left:22px; color:var(--bp-ink-soft) }
+ol.steps li::marker{ font-family:var(--bp-mono); font-size:12px; color:var(--bp-ac) }
+ul.points b, ol.steps b{ color:var(--bp-ink); font-weight:600 }
+.ui{ font-weight:600; color:var(--bp-ink); white-space:nowrap }
+.ui::before{ content:"«" } .ui::after{ content:"»" }
+.path{ font-family:var(--bp-mono); font-size:.86em; color:var(--bp-ac); white-space:nowrap }
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface) }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:620px }
+th,td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft); vertical-align:top }
+thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--bp-ink-dim); font-weight:500; background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line); white-space:nowrap }
+tbody tr:last-child td{ border-bottom:0 }
+td:first-child{ font-weight:600; color:var(--bp-ink) }
+td{ color:var(--bp-ink-soft) }
+.note{ border:1px solid var(--bp-line); border-left:3px solid var(--bp-ac); border-radius:8px; background:var(--bp-surface); padding:14px 18px; color:var(--bp-ink-soft); max-width:900px }
+.note b{ color:var(--bp-ink) }
+.note.warn{ border-left-color:var(--bp-write) }
+.foot-note{ font-size:12.5px; color:var(--bp-ink-dim); border-top:1px solid var(--bp-line); padding-top:18px }
+
+/* -- Índice -- */
+.toc{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:8px; list-style:none; counter-reset:toc }
+.toc a{ display:flex; gap:10px; align-items:baseline; padding:10px 14px; border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface); color:var(--bp-ink); text-decoration:none; font-weight:600; font-size:14px }
+.toc a:hover{ border-color:var(--bp-ac) }
+.toc span{ font-family:var(--bp-mono); font-size:11px; color:var(--bp-ac); font-weight:500 }
+
+/* -- Capturas -- */
+figure{ display:flex; flex-direction:column; gap:8px; max-width:900px }
+figure .shot{ border:1px solid var(--bp-line); border-radius:12px; overflow:hidden; background:var(--bp-surface) }
+figure img{ display:block; width:100%; height:auto }
+figure.is-narrow{ max-width:360px }
+figcaption{ font-size:12.5px; color:var(--bp-ink-dim) }
+.shots{ display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start }
+.shots > figure{ flex:1 1 300px }
+.shots > figure.is-narrow{ flex:0 1 340px }
+
+@media (max-width: 640px){
+  .head{ padding-top:32px }
+  h2{ font-size:22px }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <p class="eyebrow">Huubie · Lealtad · Manual de uso</p>
+  <h1>Cómo usar <em>Lealtad</em></h1>
+  <p class="lede">Tarjetas que premian a quien vuelve: descuento, puntos al monedero, sellos con premio o niveles. Este manual explica cada pantalla, qué pasa al tocar cada botón y qué hacer cuando algo no sale.</p>
+  <p class="meta"><span><b>Para</b> dueño, encargado y cajeros</span><span><b>Fecha</b> 18/11/2026</span><span><b>Capturas</b> con datos de ejemplo</span></p>
+</header>
+
+<nav aria-label="Contenido">
+  <ul class="toc">
+    <li><a href="#que-es"><span>01</span>Qué es Lealtad</a></li>
+    <li><a href="#primeros-pasos"><span>02</span>Primeros pasos</a></li>
+    <li><a href="#tarjetas"><span>03</span>Tarjetas</a></li>
+    <li><a href="#programa"><span>04</span>Programa</a></li>
+    <li><a href="#caja"><span>05</span>En caja (Vender)</a></li>
+    <li><a href="#cliente"><span>06</span>Lo que ve el cliente</a></li>
+    <li><a href="#permisos"><span>07</span>Permisos</a></li>
+    <li><a href="#problemas"><span>08</span>Problemas comunes</a></li>
+  </ul>
+</nav>
+<div style="height:40px"></div>
+
+<!-- 01 -->
+<section id="que-es">
+  <h2><span class="num">01</span>Qué es Lealtad</h2>
+  <p>Lealtad tiene dos pantallas en el menú y una parte en caja. Las tarjetas valen en <b>todas las sucursales de la empresa</b>.</p>
+  <div class="tscroll"><table>
+    <thead><tr><th>Dónde</th><th>Para qué</th><th>Quién la usa</th></tr></thead>
+    <tbody>
+      <tr><td>Lealtad › Tarjetas</td><td>Crear los tipos de tarjeta, activarlos o desactivarlos, dar de alta plásticos y ver la ficha de cada tarjeta.</td><td>Dueño o encargado</td></tr>
+      <tr><td>Lealtad › Programa</td><td>Cómo se registran los clientes solos (QR del mostrador) y los mensajes de WhatsApp que salen solos.</td><td>Dueño o encargado</td></tr>
+      <tr><td>Ventas › Vender</td><td>Leer la tarjeta al cobrar: aplica el descuento, abona puntos, suma sellos y canjea premios.</td><td>Cajeros</td></tr>
+      <tr><td>Tarjeta digital</td><td>La página que abre el cliente en su teléfono: su QR, sus sellos y lo que le da su tarjeta.</td><td>El cliente</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Palabras que se usan</h3>
+  <div class="tscroll"><table>
+    <thead><tr><th>Palabra</th><th>Qué significa</th></tr></thead>
+    <tbody>
+      <tr><td>Tipo de tarjeta</td><td>La regla: qué da (descuento, puntos o sellos), su color y su nombre. Ej.: «Café Lover», «VIP».</td></tr>
+      <tr><td>Tarjeta</td><td>Una tarjeta concreta de un tipo, con su número (plástico o digital). Puede tener un cliente dueño.</td></tr>
+      <tr><td>Descuento</td><td>Un % menos en cada compra. Esa venta ya no admite otro descuento.</td></tr>
+      <tr><td>Puntos</td><td>Un % de lo que paga cae a su <b>monedero</b>. Lo gasta pagando con «Monedero».</td></tr>
+      <tr><td>Sellos</td><td>Un sello por cada $X pagados. Al juntar la meta, un premio. Los sellos no caducan.</td></tr>
+      <tr><td>Nivel</td><td>Un tipo con «gasto mínimo en 12 meses». La tarjeta sube sola al tipo que le toca según lo que gasta.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 02 -->
+<section id="primeros-pasos">
+  <h2><span class="num">02</span>Primeros pasos</h2>
+  <p>El orden para arrancar un programa desde cero:</p>
+  <ol class="steps">
+    <li><b>Crea un tipo de tarjeta.</b> Tarjetas › <span class="ui">Nuevo tipo</span>. Ver <a href="#crear-tipo">Crear un tipo</a>.</li>
+    <li><b>Enciende el registro con QR.</b> Programa › Cómo entran los clientes › <span class="ui">Configurar</span>: enciende el interruptor y elige la tarjeta de bienvenida.</li>
+    <li><b>Imprime el cartel</b> con <span class="ui">Cartel</span> y ponlo en el mostrador.</li>
+    <li><b>Conecta el WhatsApp de la tienda</b> en Ventas › WhatsApp. Sin él, Lealtad funciona, pero no sale ningún mensaje.</li>
+    <li><b>Enciende los mensajes</b> que quieras en Programa: Cumpleaños, Te extrañamos, Nuevo nivel.</li>
+    <li><b>En caja,</b> el cajero lee la tarjeta antes de cobrar. Ver <a href="#caja">En caja</a>.</li>
+  </ol>
+  <p class="note">Si usas plásticos: Tarjetas › <span class="ui">Nueva tarjeta</span> da de alta cada número. Las tarjetas digitales (registro con QR) se crean solas.</p>
+</section>
+
+<!-- 03 -->
+<section id="tarjetas">
+  <h2><span class="num">03</span>Tarjetas</h2>
+  <p>Un solo tablero: resumen arriba, tipos de tarjeta a la izquierda, niveles y mecánicas a la derecha, y la lista de tarjetas abajo.</p>
+  <figure>
+    <div class="shot"><img src="manual/m-01-tarjetas.jpg" alt="Tablero de Tarjetas: resumen, tipos de tarjeta, niveles y mecánicas" loading="lazy"></div>
+    <figcaption>Lealtad › Tarjetas. Arriba a la derecha, <span class="ui">Nuevo tipo</span> y <span class="ui">Nueva tarjeta</span>.</figcaption>
+  </figure>
+
+  <h3>Resumen</h3>
+  <p>Seis cifras del mes en curso, sumando todas las sucursales. Los números cuentan desde cero la primera vez que abres la página.</p>
+  <div class="tscroll"><table>
+    <thead><tr><th>Cifra</th><th>Qué cuenta</th></tr></thead>
+    <tbody>
+      <tr><td>Tarjetas activas</td><td>Las que hoy se pueden leer en caja, y cuántas tienen cliente.</td></tr>
+      <tr><td>Ventas con tarjeta</td><td>Ventas del mes con tarjeta y cuánto suman.</td></tr>
+      <tr><td>Descuento dado</td><td>Lo que ahorraron los clientes por su tarjeta en el mes.</td></tr>
+      <tr><td>Puntos abonados</td><td>Lo que cayó a los monederos en el mes.</td></tr>
+      <tr><td>Sellos dados</td><td>Sellos sumados en el mes y premios canjeados.</td></tr>
+      <tr><td>Saldo en monederos</td><td>Lo que hoy tienen los clientes por gastar.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Tipos de tarjeta</h3>
+  <ul class="points">
+    <li><b>Filtro</b> arriba: <span class="ui">Activos</span>, <span class="ui">Inactivos</span> o <span class="ui">Todos</span>, con cuántos hay de cada uno.</li>
+    <li>Cada tipo se ve como su tarjeta, de su color. Adentro: cuántas tarjetas tiene, sus ventas del mes y lo que dio (premio, descontado o puntos).</li>
+    <li><span class="ui">Ver tarjetas</span> (o un clic en la tarjeta): filtra la lista de abajo por ese tipo y la lleva a la vista.</li>
+    <li><span class="ui">Nueva</span>: da de alta una tarjeta de ese tipo.</li>
+    <li>Menú <b>⋯</b>: <span class="ui">Editar tipo</span> y <span class="ui">Desactivar</span>. Un tipo inactivo muestra <span class="ui">Activar</span>.</li>
+    <li>Los tipos <b>no se borran</b>: se desactivan. Así las ventas viejas conservan su historia.</li>
+  </ul>
+
+  <h3 id="crear-tipo">Crear un tipo (2 pasos)</h3>
+  <p><b>Paso 1, el objetivo.</b> Elige qué quieres lograr y el sistema marca la estructura recomendada. Puedes elegir otra.</p>
+  <div class="tscroll"><table>
+    <thead><tr><th>Estructura</th><th>Cómo funciona</th><th>Ideal para</th><th>Ejemplo</th></tr></thead>
+    <tbody>
+      <tr><td>Sellos</td><td>Un sello por cada $X. Al juntar la meta, un premio.</td><td>Café, panadería, comida rápida</td><td>1 sello por cada $100 · 10 sellos = Café gratis</td></tr>
+      <tr><td>Puntos</td><td>Un % de lo que paga cae a su monedero.</td><td>Tickets medianos y variados</td><td>5 %: una compra de $200 deja $10</td></tr>
+      <tr><td>Niveles</td><td>La tarjeta sube sola según lo que gasta en 12 meses.</td><td>Clientes fieles que gastan distinto</td><td>Frecuente 5 % desde $0 · VIP 10 % desde $3,000</td></tr>
+      <tr><td>Descuento</td><td>Un % menos en cada compra, sin juntar nada.</td><td>Empleados, convenios, socios</td><td>Descuento de empleado 20 %</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Paso 2, los datos.</b> Nombre, beneficio, color e icono. La tarjeta de la izquierda se dibuja mientras escribes.</p>
+  <div class="shots">
+    <figure>
+      <div class="shot"><img src="manual/m-04-nuevo-tipo.jpg" alt="Paso 1: objetivo y estructuras" loading="lazy"></div>
+      <figcaption>Paso 1: «¿Qué quieres lograr?» y las 4 estructuras.</figcaption>
+    </figure>
+    <figure>
+      <div class="shot"><img src="manual/m-05-tipo-formulario.jpg" alt="Paso 2: formulario del tipo con vista previa" loading="lazy"></div>
+      <figcaption>Paso 2: los datos, con la vista previa a la izquierda.</figcaption>
+    </figure>
+  </div>
+  <p class="note">Un tipo da <b>descuento o puntos, nunca los dos</b>. Para niveles: crea 2 o 3 tipos y pon a cada uno su «Gasto mínimo en 12 meses».</p>
+
+  <h3>Niveles y beneficios</h3>
+  <p>La escalera de niveles: cada escalón es un tipo con gasto mínimo, de menor a mayor. La barra de colores muestra cuántas tarjetas hay en cada nivel. Con menos de 2 niveles aparece <span class="ui">Crear un nivel</span>, que abre el paso 1 con «Premiar a los que más compran» ya elegido.</p>
+
+  <h3>Mecánicas</h3>
+  <p>Un interruptor por tipo. Apagarlo es lo mismo que <span class="ui">Desactivar</span>: pide confirmar y sus tarjetas dejan de leerse en Vender hasta que lo reactives. Las ventas ya cobradas no cambian.</p>
+  <figure>
+    <div class="shot"><img src="manual/m-03-mecanica-confirmar.jpg" alt="Confirmación al desactivar un tipo desde Mecánicas" loading="lazy"></div>
+    <figcaption>Al apagar un tipo. <span class="ui">Cancelar</span> no cambia nada.</figcaption>
+  </figure>
+
+  <h3>Lista de tarjetas y ficha</h3>
+  <ul class="points">
+    <li>La lista filtra por <b>Estado</b> (activas, inactivas, todas) y por <b>Tipo</b>, y busca por número, titular, tipo o cliente.</li>
+    <li>El ojo de cada renglón abre la <b>ficha</b>: el dibujo de la tarjeta, el cliente, su cumpleaños, sus sellos, su nivel, sus cifras y sus últimas compras.</li>
+    <li>En la ficha: <span class="ui">Editar</span> (los datos de la tarjeta), <span class="ui">Tarjeta digital</span> y <span class="ui">Cambiar</span> en el cumpleaños.</li>
+  </ul>
+  <figure>
+    <div class="shot"><img src="manual/m-06-ficha.jpg" alt="Ficha de una tarjeta con sellos, cliente y botones" loading="lazy"></div>
+    <figcaption>La ficha de una tarjeta de sellos.</figcaption>
+  </figure>
+
+  <h3>Tarjeta digital</h3>
+  <ul class="points">
+    <li>Muestra el QR y el enlace de la tarjeta para mandárselo al cliente.</li>
+    <li><span class="ui">Mandar desde el WhatsApp de la tienda</span> le llega como mensaje «Tu tarjeta».</li>
+    <li><span class="ui">Nuevo enlace</span>: el anterior deja de abrir. Úsalo si lo mandaste a otra persona por error.</li>
+  </ul>
+</section>
+
+<!-- 04 -->
+<section id="programa">
+  <h2><span class="num">04</span>Programa</h2>
+  <p>Cómo entran los clientes y los mensajes que salen solos. Lo que se configura aquí aplica a toda la empresa.</p>
+  <figure>
+    <div class="shot"><img src="manual/m-07-programa.jpg" alt="Tablero de Programa: registro con QR, cifras del mes, mensajes y teléfono" loading="lazy"></div>
+    <figcaption>Lealtad › Programa.</figcaption>
+  </figure>
+
+  <h3>Cómo entran los clientes</h3>
+  <p>El cliente escanea el QR del mostrador y llena su nombre, su WhatsApp y, si quiere, su cumpleaños. Marca si acepta mensajes. Recibe su tarjeta digital al momento.</p>
+  <div class="tscroll"><table>
+    <thead><tr><th>Botón</th><th>Qué hace</th></tr></thead>
+    <tbody>
+      <tr><td>Cartel</td><td>Imprime el cartel con el QR para el mostrador.</td></tr>
+      <tr><td>Copiar enlace / Abrir</td><td>El enlace del registro, para redes o para probarlo.</td></tr>
+      <tr><td>Nuevo enlace</td><td>Pide confirmar y crea un QR nuevo para esta sucursal. El cartel ya impreso deja de abrir: hay que imprimir el nuevo.</td></tr>
+      <tr><td>Configurar</td><td>Encender o apagar el registro y elegir la tarjeta de bienvenida. Apagado, el QR dice «Pide tu tarjeta en caja».</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Este mes</h3>
+  <p>Mensajes enviados, registros con el QR, clientes que volvieron después de «Te extrañamos» y tarjetas que subieron (o bajaron) de nivel.</p>
+
+  <h3>Mensajes que salen solos</h3>
+  <div class="tscroll"><table>
+    <thead><tr><th>Mensaje</th><th>Cuándo sale</th><th>Interruptor</th></tr></thead>
+    <tbody>
+      <tr><td>Tu tarjeta</td><td>Al registrarse con el QR o cuando se la mandas desde la ficha.</td><td>Siempre</td></tr>
+      <tr><td>Premio listo</td><td>Al cobrar la venta que completa sus sellos.</td><td>Siempre</td></tr>
+      <tr><td>Cumpleaños</td><td>En su día, una vez al año. Con regalo: sellos o dinero al monedero; las de descuento solo reciben la felicitación.</td><td>Sí</td></tr>
+      <tr><td>Te extrañamos</td><td>Si lleva X días sin comprar (de 7 a 365), con tope de envíos por día. Le recuerda sus sellos, su monedero o su descuento.</td><td>Sí</td></tr>
+      <tr><td>Nuevo nivel</td><td>Al subir al cobrar, o en la revisión de cada mes (sube y baja).</td><td>Sí</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="points">
+    <li><b>Encender pide confirmar</b> y explica a quién le va a llegar. Apagar es inmediato.</li>
+    <li>Un clic en el nombre del mensaje enseña a la derecha <b>«Así le llega»</b>: el texto real de la plantilla, en un teléfono.</li>
+    <li>Abajo, el detalle del mensaje elegido con sus botones: <span class="ui">Configurar</span>, <span class="ui">Ver la lista</span> / <span class="ui">Ver cumpleaños</span>, y para adelantar el envío <span class="ui">Felicitar a los de hoy</span>, <span class="ui">Mandar los de hoy</span> o <span class="ui">Revisar niveles</span>.</li>
+    <li><span class="ui">Revisar niveles</span> enseña quién sube y quién baja antes de aplicarlo; nada cambia hasta <span class="ui">Aplicar</span>.</li>
+  </ul>
+  <div class="shots">
+    <figure>
+      <div class="shot"><img src="manual/m-08-encender.jpg" alt="Confirmación al encender Te extrañamos" loading="lazy"></div>
+      <figcaption>Encender «Te extrañamos».</figcaption>
+    </figure>
+    <figure class="is-narrow">
+      <div class="shot"><img src="manual/m-09-telefono.jpg" alt="Vista previa del mensaje Premio listo en un teléfono" loading="lazy"></div>
+      <figcaption>«Así le llega»: Premio listo.</figcaption>
+    </figure>
+  </div>
+  <p class="note"><b>Horario.</b> Lo automático sale en el horario del WhatsApp de la tienda (Ventas › WhatsApp; sin horario guardado, de 10:00 a 19:00). Una tarea revisa cada hora. Los botones solo lo adelantan. Solo les llega a quienes aceptaron mensajes; quien responde BAJA deja de recibirlos.</p>
+</section>
+
+<!-- 05 -->
+<section id="caja">
+  <h2><span class="num">05</span>En caja (Vender)</h2>
+  <ol class="steps">
+    <li>En <span class="ui">Cliente, tarjeta y nota</span>, campo <b>Tarjeta de lealtad</b>: lee el QR o escribe el número y toca <span class="ui">Leer</span>.</li>
+    <li>La venta toma la tarjeta: aplica su descuento, o anota que abonará puntos o sellos.</li>
+    <li>Si ya completó sus sellos aparece <span class="ui">Canjear premio</span>. Canjearlo es el descuento de esa venta.</li>
+    <li>Al cobrar, la ventana <b>Venta cobrada</b> dice cuántos sellos sumó, si completó el premio o si subió de nivel. Con premio o nivel nuevo, sale confeti.</li>
+  </ol>
+  <figure class="is-narrow">
+    <div class="shot"><img src="manual/m-10-venta-premio.jpg" alt="Ventana Venta cobrada con el premio completado" loading="lazy"></div>
+    <figcaption>Venta cobrada: completó sus 10 sellos.</figcaption>
+  </figure>
+  <p class="note warn">Una tarjeta inactiva, o de un tipo inactivo, no se lee: Vender avisa «Tarjeta inactiva». Se reactiva en Tarjetas (ficha › Editar, o Mecánicas).</p>
+</section>
+
+<!-- 06 -->
+<section id="cliente">
+  <h2><span class="num">06</span>Lo que ve el cliente</h2>
+  <div class="shots">
+    <figure class="is-narrow">
+      <div class="shot"><img src="manual/m-11-tarjeta-cliente.jpg" alt="Tarjeta digital en el teléfono del cliente" loading="lazy"></div>
+      <figcaption>La tarjeta digital en su teléfono.</figcaption>
+    </figure>
+    <ul class="points" style="flex:1 1 300px">
+      <li>Su tarjeta con el QR y el número, para enseñarla en caja.</li>
+      <li>Sus sellos, cuántos le faltan y su premio; o su descuento, sus puntos y su nivel.</li>
+      <li><b>Lo que te da</b> en palabras, y sus últimas compras.</li>
+      <li>Si vuelve a la página después de comprar, se actualiza sola y anima lo nuevo (el sello que sumó, el nivel que subió).</li>
+      <li>Si el teléfono tiene activado «reducir movimiento», no hay animaciones.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 07 -->
+<section id="permisos">
+  <h2><span class="num">07</span>Permisos</h2>
+  <p>Se asignan por rol en Accesos › Roles y Permisos.</p>
+  <div class="tscroll"><table>
+    <thead><tr><th>Sección</th><th>Permiso</th><th>Qué deja hacer</th></tr></thead>
+    <tbody>
+      <tr><td>Tarjetas</td><td>Ver</td><td>Entrar al tablero y abrir fichas.</td></tr>
+      <tr><td>Tarjetas</td><td>Crear</td><td>Nuevo tipo, Nueva tarjeta.</td></tr>
+      <tr><td>Tarjetas</td><td>Editar</td><td>Editar tipos y tarjetas, Mecánicas, Activar / Desactivar.</td></tr>
+      <tr><td>Programa</td><td>Ver</td><td>Entrar, ver los mensajes y las listas. La ficha se abre solo para leer.</td></tr>
+      <tr><td>Programa</td><td>Editar</td><td>Interruptores, Configurar y los botones que adelantan envíos.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Al tocar Lealtad en el menú, entra a Tarjetas; si el rol solo tiene Programa, entra a Programa.</p>
+</section>
+
+<!-- 08 -->
+<section id="problemas">
+  <h2><span class="num">08</span>Problemas comunes</h2>
+  <div class="tscroll"><table>
+    <thead><tr><th>Lo que pasa</th><th>Por qué</th><th>Qué hacer</th></tr></thead>
+    <tbody>
+      <tr><td>Etiqueta «Sin WhatsApp» y no sale ningún mensaje</td><td>La empresa no tiene número de WhatsApp dado de alta.</td><td>Darlo de alta en Ventas › WhatsApp.</td></tr>
+      <tr><td>La tarjeta no se lee en caja</td><td>La tarjeta o su tipo están inactivos.</td><td>Ficha › Editar, o encender su tipo en Mecánicas.</td></tr>
+      <tr><td>Las tarjetas no cambian de nivel</td><td>Nuevo nivel está apagado, o hay menos de 2 tipos con gasto mínimo.</td><td>Crear un nivel en Tarjetas y encender «Nuevo nivel» en Programa.</td></tr>
+      <tr><td>A un cliente no le llegan mensajes</td><td>No aceptó mensajes al registrarse, respondió BAJA o es fuera de horario.</td><td>Revisar su ficha; esperar al horario de la tienda.</td></tr>
+      <tr><td>No se felicitó un cumpleaños</td><td>Falta la fecha, o ya se felicitó este año.</td><td>Ficha › Cumpleaños › Cambiar.</td></tr>
+      <tr><td>El QR del mostrador se compartió donde no debía</td><td>Cualquiera con el enlace se puede registrar.</td><td>Programa › Nuevo enlace e imprimir el cartel otra vez.</td></tr>
+      <tr><td>«Te extrañamos» rechaza los días</td><td>Solo acepta de 7 a 365 días.</td><td>Poner un número en ese rango.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<p class="foot-note">Capturas tomadas el 18/11/2026 de las pantallas reales con datos de ejemplo (sin clientes reales). Diseño y plan: <a href="propuesta-diseno.html">propuesta-diseno.html</a> · crecimiento: <a href="plan-crecimiento.html">plan-crecimiento.html</a>.</p>
+
+</div>
+</body>
+</html>

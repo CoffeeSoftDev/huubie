@@ -7,6 +7,9 @@
     nada; sin WHATSAPP_META_TOKEN el envio es simulado (no sale a la red).
       'tarjeta'  1 nombre · 2 tipo de tarjeta · 3 negocio · 4 enlace de la tarjeta
       'premio'   1 nombre · 2 sellos de la meta · 3 negocio · 4 premio · 5 enlace
+      'cumple'   1 nombre · 2 negocio · 3 el regalo · 4 enlace (mdl-lealtad-cumple.php)
+      'regreso'  1 nombre · 2 negocio · 3 su motivo para volver · 4 enlace (mdl-lealtad-regreso.php)
+      'nivel'    1 nombre · 2 negocio · 3 nivel nuevo · 4 lo que cambia · 5 enlace (mdl-lealtad-niveles.php)
     El texto aprobado vive en waTemplateText (mdl-whatsapp-recordatorios.php).
 
     Dos formas de usarlo:
@@ -50,13 +53,36 @@ trait LoyaltyWhatsApp {
         });
     }
 
+    /*  Cumpleaños: nombre, negocio, el regalo ya dicho («te regalamos 2 sellos en
+        tu tarjeta») y enlace. $noticeId: la fila de loyalty_notice que aparto el
+        regalo (ahi queda como salio, en lugar de una fila nueva). */
+    protected function loyaltySendBirthday($card, $phone, $gift, $noticeId) {
+        return $this->loyaltySend($card, $phone, 'cumple', function ($first, $business, $link) use ($gift) {
+            return [$first, $business, (string) $gift, $link];
+        }, (int) $noticeId);
+    }
+
+    // Te extrañamos: nombre, negocio, su motivo para volver (una oracion) y enlace. $noticeId: la fila apartada.
+    protected function loyaltySendWinback($card, $phone, $reason, $noticeId) {
+        return $this->loyaltySend($card, $phone, 'regreso', function ($first, $business, $link) use ($reason) {
+            return [$first, $business, (string) $reason, $link];
+        }, (int) $noticeId);
+    }
+
+    // Nivel: nombre, negocio, el nivel nuevo, lo que cambia (una oracion) y enlace. $noticeId: la fila apartada.
+    protected function loyaltySendLevel($card, $phone, $level, $change, $noticeId) {
+        return $this->loyaltySend($card, $phone, 'nivel', function ($first, $business, $link) use ($level, $change) {
+            return [$first, $business, (string) $level, (string) $change, $link];
+        }, (int) $noticeId);
+    }
+
     /*  Aparta el mensaje en el chat (se crea si falta) y lo manda. Quien escribio
         BAJA no lo recibe. Devuelve ['status' => sent|simulated|failed|skip, 'detail']. */
-    private function loyaltySend($card, $phone, $key, callable $values) {
+    private function loyaltySend($card, $phone, $key, callable $values, $noticeId = 0) {
         $companyId = (int) $this->companyId();
         $agent     = $this->qWaReminderAgent($companyId);
 
-        if (!$agent) return ['status' => 'skip', 'detail' => 'La empresa no tiene número de WhatsApp: se da de alta en Ventas › WhatsApp.'];
+        if (!$agent) return $this->loyaltyLog($card, $phone, $key, ['status' => 'skip', 'detail' => 'La empresa no tiene número de WhatsApp: se da de alta en Ventas › WhatsApp.'], $noticeId);
 
         $company  = $this->qCompany($companyId);
         $business = trim((string) ($company['name'] ?? ''));
@@ -86,11 +112,39 @@ trait LoyaltyWhatsApp {
             return ['chat' => $chat, 'message_id' => $this->waTemplateClaim($chat, $text, $userId, $stamp)];
         });
 
-        if (isset($claim['skip'])) return ['status' => 'skip', 'detail' => $claim['skip']];
+        if (isset($claim['skip'])) return $this->loyaltyLog($card, $phone, $key, ['status' => 'skip', 'detail' => $claim['skip']], $noticeId);
 
         $sent = $this->waTemplateDeliver($agent, $claim['chat'], $key, $params, $claim['message_id']);
 
-        return ['status' => $sent['status'], 'detail' => (string) $sent['detail']];
+        return $this->loyaltyLog($card, $phone, $key, ['status' => $sent['status'], 'detail' => (string) $sent['detail']], $noticeId);
+    }
+
+    /*  Deja el mensaje en la bitacora de lealtad (si la clase trae LoyaltyProgram):
+        fila nueva, o la que ya se aparto ($noticeId). Si la tarjeta se la mando el
+        personal y salio, el dueño cuenta como que acepta mensajes (plan-crecimiento).
+        Devuelve $result. */
+    private function loyaltyLog($card, $phone, $key, array $result, $noticeId = 0) {
+        if (!method_exists($this, 'qLogNotice')) return $result;
+
+        $kinds = ['tarjeta' => 'bienvenida', 'premio' => 'premio', 'cumple' => 'cumple', 'regreso' => 'regreso', 'nivel' => 'nivel'];
+        $owner = $card['owner_id'] ?? null;
+
+        if ($noticeId > 0) $this->qFinishNotice($noticeId, $result['status'], $result['detail']);
+        else               $this->qLogNotice((int) $this->companyId(), (int) $this->branchId(), $owner, (int) $card['id'], $phone, $kinds[$key] ?? $key, $result['status'], $result['detail'], $this->userId());
+
+        // Solo si salio al telefono del propio dueño (en la ventana se puede escribir otro).
+        $toOwner = $owner && $this->loyaltyPhone($card['customer_phone'] ?? '') === (string) $phone;
+
+        if ($key === 'tarjeta' && $toOwner && $this->loyaltyOptinOnSend() && in_array($result['status'], ['sent', 'simulated'], true)) {
+            try { $this->qMarkOptin((int) $owner); } catch (Throwable $e) { /* solo bitacora */ }
+        }
+
+        return $result;
+    }
+
+    // El registro solo lo pisa con false: ahi decide la casilla del cliente.
+    protected function loyaltyOptinOnSend() {
+        return true;
     }
 
     // -- Enlace de la tarjeta --
@@ -124,11 +178,15 @@ trait LoyaltyWhatsApp {
     /*  .../app/lealtad/tarjeta.php?t=... con el host por el que se entro. El ctrl
         vive en app/<modulo>/ctrl/: tres carpetas arriba esta app/. */
     protected function loyaltyHostLink($token) {
+        return $this->loyaltyHostUrl('tarjeta.php', $token);
+    }
+
+    protected function loyaltyHostUrl($page, $token) {
         $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
         $host  = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
         $app   = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/'), 3)), '/');
 
-        return ($https ? 'https' : 'http') . '://' . $host . $app . '/lealtad/tarjeta.php?t=' . rawurlencode($token);
+        return ($https ? 'https' : 'http') . '://' . $host . $app . '/lealtad/' . $page . '?t=' . rawurlencode($token);
     }
 
     /*  El enlace que va en un mensaje. Con WHATSAPP_PUBLIC_URL (la de pedir.php y
@@ -136,15 +194,31 @@ trait LoyaltyWhatsApp {
         afuera aunque aqui se haya entrado por localhost o una IP. Sin ella, el
         host por el que se entro. */
     protected function loyaltyPublicLink($token) {
+        return $this->loyaltyPublicUrl('tarjeta.php', $token);
+    }
+
+    // El de la pagina de registro (el QR del mostrador): el mismo armado.
+    protected function loyaltySignupUrl($token) {
+        return $this->loyaltyPublicUrl('registro.php', $token);
+    }
+
+    protected function loyaltyPublicUrl($page, $token) {
+        $base = $this->loyaltyPublicBase();
+
+        if ($base !== '') return $base . '/' . $page . '?t=' . rawurlencode($token);
+
+        return $page === 'tarjeta.php' ? $this->loyaltyHostLink($token) : $this->loyaltyHostUrl($page, $token);
+    }
+
+    /*  .../app/lealtad sacado de WHATSAPP_PUBLIC_URL (la de pedir.php y
+        portal.php: .../app/order). '' = no esta o no termina en /order. La tarea
+        de cada hora no corre sin ella: sin navegador no hay otro host. */
+    protected function loyaltyPublicBase() {
         $env = dirname(__DIR__, 3) . '/core/config/.env';
         $ini = is_readable($env) ? @parse_ini_file($env, false, INI_SCANNER_RAW) : false;
         $url = is_array($ini) ? rtrim(trim((string) ($ini['WHATSAPP_PUBLIC_URL'] ?? '')), '/') : '';
 
-        if (preg_match('~^https?://~i', $url) && preg_match('~/order$~', $url)) {
-            return preg_replace('~/order$~', '/lealtad', $url) . '/tarjeta.php?t=' . rawurlencode($token);
-        }
-
-        return $this->loyaltyHostLink($token);
+        return preg_match('~^https?://~i', $url) && preg_match('~/order$~', $url) ? (string) preg_replace('~/order$~', '/lealtad', $url) : '';
     }
 
     // -- Formato --
@@ -172,6 +246,8 @@ $loyaltyWaFiles = [
     __DIR__ . '/mdl-whatsapp-agente.php',
     __DIR__ . '/mdl-whatsapp-recordatorios.php',
     __DIR__ . '/mdl-lealtad.php',
+    __DIR__ . '/mdl-lealtad-programa.php',
+    __DIR__ . '/mdl-lealtad-niveles.php',
     dirname(__DIR__, 3) . '/core/helpers/_WhatsAppMeta.php'
 ];
 
@@ -183,10 +259,15 @@ if (class_exists('core') && !class_exists('LoyaltyNotifier') && !array_filter($l
         usuario) y su propia conexion: la venta ya se confirmo. */
     class LoyaltyNotifier extends core {
 
-        use LoyaltyCards, WhatsAppInbox, WhatsAppAgentFlow, WhatsAppReminders, LoyaltyWhatsApp;
+        use LoyaltyCards, WhatsAppInbox, WhatsAppAgentFlow, WhatsAppReminders, LoyaltyWhatsApp, LoyaltyProgram, LoyaltyLevels;
 
         public function rewardReady($card, $phone) {
             return $this->loyaltySendReward($card, $phone);
+        }
+
+        // Nivel: si con la venta la tarjeta paso el gasto de un nivel mas alto, sube (y avisa). null = no subio.
+        public function levelUp($cardId) {
+            return $this->loyaltyLevelUp((int) $cardId);
         }
     }
 }

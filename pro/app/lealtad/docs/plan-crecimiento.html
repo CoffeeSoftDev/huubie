@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Plan · Crecimiento de Lealtad</title>
+<style>
+/* @piel plantilla-plano */
+:root{
+  color-scheme: light dark;
+  --bp-ground:    light-dark(#F1F3F6, #0C1116);
+  --bp-surface:   light-dark(#FFFFFF, #141B21);
+  --bp-surface-2: light-dark(#F5F7F9, #1B242B);
+  --bp-line:      light-dark(#DDE3E8, #2A353D);
+  --bp-line-soft: light-dark(#E9EDF1, #212A31);
+  --bp-ink:       light-dark(#0F1A21, #E4EAEE);
+  --bp-ink-soft:  light-dark(#4A5A64, #A8B7C0);
+  --bp-ink-dim:   light-dark(#6E7F8A, #7E8F99);
+  --bp-ac:        light-dark(#0B6E77, #4FB8C2);
+  --bp-ok:        light-dark(#047857, #6EE7B7);
+  --bp-write:     light-dark(#A15C08, #FCD34D);
+  --bp-ui:   "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{ background:var(--bp-ground); color:var(--bp-ink); font-family:var(--bp-ui); font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased }
+.wrap{ max-width:1000px; margin:0 auto; padding:0 22px 80px }
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:30px; display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,44px); line-height:1.08; letter-spacing:-.015em; max-width:22ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55; color:var(--bp-ink-soft); max-width:64ch }
+.meta{ display:flex; flex-wrap:wrap; gap:6px 26px; font-family:var(--bp-mono); font-size:11.5px; color:var(--bp-ink-dim) }
+.meta b{ color:var(--bp-ink-soft); font-weight:600 }
+section{ display:flex; flex-direction:column; gap:14px; margin-bottom:52px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:25px; line-height:1.2; display:flex; align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em; color:var(--bp-ac); flex:none }
+h3{ font-size:15px; font-weight:650; margin-top:4px }
+ul.points{ list-style:none; display:grid; gap:6px; max-width:78ch }
+ul.points li{ position:relative; padding-left:18px; color:var(--bp-ink-soft) }
+ul.points li::before{ content:""; position:absolute; left:2px; top:.62em; width:6px; height:6px; border-radius:2px; background:var(--bp-ac) }
+ul.points b{ color:var(--bp-ink); font-weight:600 }
+code{ font-family:var(--bp-mono); font-size:.86em; background:var(--bp-surface-2); border:1px solid var(--bp-line-soft); border-radius:4px; padding:.08em .34em }
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface) }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:640px }
+th,td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft); vertical-align:top }
+thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--bp-ink-dim); font-weight:500; background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line); white-space:nowrap }
+tbody tr:last-child td{ border-bottom:0 }
+td.mine{ color:var(--bp-write); font-weight:600; white-space:nowrap }
+td.yours{ color:var(--bp-ok); font-weight:600; white-space:nowrap }
+.note{ border:1px solid var(--bp-line); border-left:3px solid var(--bp-ac); border-radius:8px; background:var(--bp-surface); padding:12px 16px; color:var(--bp-ink-soft); max-width:78ch }
+.note b{ color:var(--bp-ink) }
+.warn{ border-left-color:var(--bp-write) }
+.foot-note{ font-size:12.5px; color:var(--bp-ink-dim); border-top:1px solid var(--bp-line); padding-top:18px }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <p class="eyebrow">Lealtad · plan</p>
+  <h1>Que el programa <em>crezca solo</em></h1>
+  <p class="lede">Cuatro piezas que Loyallyst tiene y Huubie no: el cliente se registra solo, se le invita a volver, sube de nivel y se le felicita en su cumpleaños. Todo por WhatsApp, con lo que ya existe.</p>
+  <div class="meta">
+    <span><b>Fecha</b> 17/11/2026</span>
+    <span><b>Estado</b> plan; se construye por etapas</span>
+    <span><b>Pedido</b> «1 y 2, de nivel y cumpleaños»</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>Lo que decidiste</h2>
+  <div class="tscroll"><table>
+    <thead><tr><th>Pieza</th><th>Respuesta</th><th>Qué significa</th></tr></thead>
+    <tbody>
+      <tr><td>Registro solo</td><td class="yours">Nombre, WhatsApp y cumpleaños</td><td>Un QR por sucursal abre un formulario; el cliente recibe el tipo «de bienvenida» que eliges, con número automático, y su tarjeta digital (en pantalla y por WhatsApp). Si su WhatsApp ya es cliente, se liga a ese cliente. Acepta los mensajes con una casilla.</td></tr>
+      <tr><td>Recuperación</td><td class="yours">Automática, con lista</td><td>Cada día, en horario, «te extrañamos» a quien lleva N días sin comprar (N lo eliges). Una vez por cliente cada N días y con tope diario. En Lealtad ves la lista, mandas a mano o apagas lo automático.</td></tr>
+      <tr><td>Niveles</td><td class="yours">Gasto en 12 meses</td><td>Cada nivel es un tipo de tarjeta con un mínimo de gasto. Sube sola al pasar el mínimo; si en 12 meses gasta menos, baja en la revisión de cada mes.</td></tr>
+      <tr><td>Cumpleaños</td><td class="yours">Felicitación + sellos o puntos</td><td>Ese día le llega un WhatsApp y se le suman sellos (tarjeta de sellos) o puntos al monedero (tarjeta de puntos). No hay que canjear nada en caja.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>Reglas finas que decidí yo (corrígeme si no)</h2>
+  <div class="tscroll"><table>
+    <thead><tr><th>Regla</th><th>Propuesta</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr><td>Registro con un WhatsApp que ya tiene tarjeta</td><td class="mine">Se le reenvía por WhatsApp</td><td>La página nunca enseña la tarjeta de otro: quien escriba un número ajeno no ve nada. Solo el dueño de ese WhatsApp recibe su enlace.</td></tr>
+      <tr><td>Número de la tarjeta</td><td class="mine">8 dígitos al azar</td><td>Único en la empresa y difícil de adivinar; se lee igual con el lector.</td></tr>
+      <tr><td>Abuso del formulario</td><td class="mine">Tope por conexión y campo trampa</td><td>A lo más 5 registros por hora desde la misma conexión, y un campo oculto que solo llenan los robots (como el portal).</td></tr>
+      <tr><td>Quién recibe «te extrañamos» y «feliz cumpleaños»</td><td class="mine">Solo quien aceptó mensajes</td><td>Meta lo pide para mensajes que no son respuesta. Aceptan con la casilla del registro o cuando el personal le manda su tarjeta por WhatsApp. Nunca a quien escribió BAJA.</td></tr>
+      <tr><td>«Sin comprar»</td><td class="mine">Su última compra viva</td><td>Cualquier venta o pedido del cliente en la empresa, con o sin tarjeta.</td></tr>
+      <tr><td>Texto de «te extrañamos»</td><td class="mine">Con su motivo para volver</td><td>«Llevas 7 de 10 sellos para tu Café gratis», «Tienes $55.00 en tu monedero» o el % de su tarjeta.</td></tr>
+      <tr><td>Niveles</td><td class="mine">Solo tipos de descuento o de puntos</td><td>Un tipo de sellos no entra en la escalera: al cambiar de nivel sus sellos quedarían sin premio.</td></tr>
+      <tr><td>Cuándo sube y baja</td><td class="mine">Sube al cobrar; baja el día 1</td><td>Subir al momento premia; bajar solo en la revisión mensual evita que un día flojo lo castigue. Al cambiar, le llega un WhatsApp.</td></tr>
+      <tr><td>Cumpleaños del 29 de febrero</td><td class="mine">El 28 en años no bisiestos</td><td>Para que nadie se quede sin felicitación.</td></tr>
+      <tr><td>Tarjeta de descuento en su cumpleaños</td><td class="mine">Solo felicitación</td><td>No tiene sellos ni monedero donde sumar.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>Base de datos (una migración + su vuelta atrás)</h2>
+  <ul class="points">
+    <li><b><code>customer</code></b>: <code>birthday</code> (fecha) y <code>whatsapp_optin_at</code> (cuándo aceptó mensajes).</li>
+    <li><b><code>card_type</code></b>: <code>level_min_spend</code> (gasto mínimo en 12 meses para ese nivel; vacío = no es nivel).</li>
+    <li><b><code>loyalty_setting</code></b> (una por empresa): tipo de bienvenida, registro encendido, recuperación (encendida, días, tope), cumpleaños (encendido, sellos y puntos de regalo), niveles encendidos.</li>
+    <li><b><code>loyalty_signup</code></b>: el enlace de registro de cada sucursal (su token).</li>
+    <li><b><code>loyalty_notice</code></b>: cada mensaje de lealtad que salió (bienvenida, te extrañamos, cumpleaños, nivel): de ahí salen los límites «uno cada N días» y «uno por año».</li>
+    <li><b><code>card_level_log</code></b>: cada cambio de nivel (de qué tipo a cuál, con qué gasto).</li>
+    <li><code>card_stamp</code> suma el tipo de movimiento «regalo» (los sellos de cumpleaños); no cambia de forma.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="num">04</span>Etapas</h2>
+  <div class="tscroll"><table>
+    <thead><tr><th>Etapa</th><th>Qué se ve al terminar</th></tr></thead>
+    <tbody>
+      <tr><td><b>L0</b> Migración</td><td>Nada en pantalla</td></tr>
+      <tr><td><b>L1</b> Registro solo <b>· hecha en local 17/11/2026</b></td><td>Pestaña «Programa» en Lealtad: encender el registro, elegir el tipo de bienvenida, ver e imprimir el QR de la sucursal. Página pública <code>registro.php</code>: formulario, tarjeta al momento y WhatsApp con el enlace. El cumpleaños es opcional y se pide día y mes (se guarda con año 2000). El cartel se imprime desde el navegador, sin página propia</td></tr>
+      <tr><td><b>L2</b> Cumpleaños <b>· hecha en local 17/11/2026</b></td><td>Cumpleaños en la ficha (verlo y cambiarlo). Ajustes de regalo. El día del cumpleaños: WhatsApp + sellos o puntos. Caja «Cumpleaños» en Programa con la lista (7 días atrás, 30 adelante) y «Felicitar a los de hoy» mientras llega la tarea diaria. Sin permiso de mensajes no hay regalo: van juntos. Si el WhatsApp falla, el regalo se queda y la lista lo dice</td></tr>
+      <tr><td><b>L3</b> Recuperación <b>· hecha en local 17/11/2026</b></td><td>Lista de quién no ha vuelto (y por qué no le toca a alguno), «Mandar los de hoy», encender lo automático. Si nunca compró, cuenta desde el alta de su tarjeta. Con el tope del día, primero van los que dejaron de venir hace menos. La caja dice cuántos volvieron</td></tr>
+      <tr><td><b>L4</b> Niveles <b>· hecha en local 17/11/2026</b></td><td>En el tipo, «Nivel: gasto mínimo en 12 meses». La galería enseña la escalera; la ficha, su nivel y cuánto le falta. Sube al cobrar; revisión mensual. «Revisar niveles» enseña quién sube y quién baja antes de aplicar (100 por clic). Gasto = ventas con la tarjeta + las de su dueño sin ella. Dos niveles no pueden empezar en el mismo gasto</td></tr>
+      <tr><td><b>L5</b> Tarea diaria <b>· hecha en local 17/11/2026</b></td><td><code>lealtad/ctrl/cron-lealtad.php</code> (cada hora): cumpleaños, recuperación y revisión de niveles, solo en horario y con tope. Horario = el del WhatsApp de la tienda (sin horario: 10:00 a 19:00). Sin <code>WHATSAPP_PUBLIC_URL</code> no corre y la pantalla lo avisa. Niveles nunca revisados esperan al día 1</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note warn"><b>Plantillas nuevas para aprobar en Meta</b> (categoría Utilidad, como las otras): <code>huubie_cumpleanos</code>, <code>huubie_te_extranamos</code> y <code>huubie_nuevo_nivel</code>. Sin aprobar, en prod no sale ninguna; en local todo es simulado.</p>
+</section>
+
+<section>
+  <h2><span class="num">05</span>Para producción</h2>
+  <ul class="points">
+    <li>La migración de crecimiento después de las de Lealtad que ya esperan (15/11/2026, tarjeta digital y sellos).</li>
+    <li><code>WHATSAPP_PUBLIC_URL</code> en el <code>.env</code>: la tarea diaria corre sin navegador y la necesita para armar los enlaces.</li>
+    <li>Programar la tarea cada hora: <code>0 * * * * php /ruta/a/pro/app/lealtad/ctrl/cron-lealtad.php &gt;/dev/null 2&gt;&amp;1</code></li>
+  </ul>
+</section>
+
+<p class="foot-note">Plan del 17/11/2026. Si cambia una regla, se actualiza aquí y en la memoria del módulo.</p>
+</div>
+</body>
+</html>

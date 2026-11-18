@@ -322,6 +322,16 @@ class Orders extends Templates {
 
         $(`#tb${this.PROJECT_NAME} [data-cancelled]`).closest('tr').addClass('ord-row-cancel');
 
+        // Toda la celda de operaciones abre el menú «…», no solo el ícono.
+        $(`#tb${this.PROJECT_NAME} tbody button.icon-dot-3`).parent('td').addClass('ord-ops-cell cursor-pointer');
+
+        $(`#tb${this.PROJECT_NAME}`).on('click', 'td.ord-ops-cell', (e) => {
+            if ($(e.target).closest('button').length) return;
+
+            e.stopPropagation();
+            $(e.currentTarget).find('button.icon-dot-3').trigger('click');
+        });
+
         // Fechas, horas, folio y montos ordenan por el valor del ctrl, no por el texto ("28/oct/2026").
         $(`#tb${this.PROJECT_NAME} tbody [data-order]`).each((i, el) => $(el).closest('td').attr('data-order', el.dataset.order));
 

@@ -206,7 +206,10 @@ trait WhatsAppReminders {
           abrimos  1 nombre · 2 negocio
           tarjeta  1 nombre · 2 tipo de tarjeta · 3 negocio · 4 enlace de la tarjeta
           premio   1 nombre · 2 sellos de la meta · 3 negocio · 4 premio · 5 enlace de la tarjeta
-                   (las dos de Lealtad: mdl-lealtad-whatsapp.php) */
+          cumple   1 nombre · 2 negocio · 3 el regalo («te regalamos 2 sellos en tu tarjeta») · 4 enlace de la tarjeta
+          regreso  1 nombre · 2 negocio · 3 su motivo para volver (una oracion) · 4 enlace de la tarjeta
+          nivel    1 nombre · 2 negocio · 3 el nivel nuevo · 4 lo que cambia (una oracion) · 5 enlace de la tarjeta
+                   (las cinco de Lealtad: mdl-lealtad-whatsapp.php; 'cumple' y 'regreso' quiza Meta las pase a Marketing) */
     protected function waTemplateText($key) {
         $texts = [
             'saldo'   => "Hola {{1}}, te escribimos de *{{2}}*. Tienes un saldo pendiente de *{{3}}*.\n\n"
@@ -217,6 +220,16 @@ trait WhatsAppReminders {
                        . "Ábrela en tu teléfono y enséñala en caja para usarla: {{4}}\n\n"
                        . 'Para no recibir mensajes de la tienda, responde BAJA.',
             'premio'  => "Hola {{1}}, ya juntaste tus {{2}} sellos en *{{3}}*. Tu premio *{{4}}* te espera: pídelo en caja cuando quieras.\n\n"
+                       . "Tu tarjeta: {{5}}\n\n"
+                       . 'Para no recibir mensajes de la tienda, responde BAJA.',
+            'cumple'  => "¡Feliz cumpleaños, {{1}}! En *{{2}}* te deseamos un gran día.\n\n"
+                       . "Para celebrarlo, {{3}}.\n\n"
+                       . "Tu tarjeta: {{4}}\n\n"
+                       . 'Para no recibir mensajes de la tienda, responde BAJA.',
+            'regreso' => "Hola {{1}}, hace tiempo que no te vemos en *{{2}}*. {{3}}\n\n"
+                       . "Tu tarjeta: {{4}}\n\n"
+                       . 'Para no recibir mensajes de la tienda, responde BAJA.',
+            'nivel'   => "Hola {{1}}, tu tarjeta de *{{2}}* ahora es nivel *{{3}}*. {{4}}\n\n"
                        . "Tu tarjeta: {{5}}\n\n"
                        . 'Para no recibir mensajes de la tienda, responde BAJA.'
         ];

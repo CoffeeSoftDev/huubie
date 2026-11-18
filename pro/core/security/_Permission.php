@@ -6,6 +6,11 @@
     menos una accion concedida en ella (permissions_roles). root ve todas las
     encendidas: su acceso es total y no lleva filas.
 
+    El DUEÑO tambien entra a todo, en todas las sucursales, sin filas: asi lo
+    promete Configuración › Usuarios ("acceso total"), que al guardarlo no
+    manda ni conserva sus filas de users_braches. Solo Developer le queda
+    fuera.
+
     Se pregunta por el code de la seccion y no por su id: el id cambia de una
     base a otra, el code no.
 
@@ -38,19 +43,24 @@ class Permission extends CRUD {
         return !empty($_SESSION['is_root']);
     }
 
-    /*  root, o su rol lo concede. Espera tres placeholders: root, user_id y
-        branch_id.
+    // El dueño de la empresa de la sesion.
+    private static function isOwner() {
+        return Plan::companyId() > 0 && !empty($_SESSION['is_owner']);
+    }
+
+    /*  root, el dueño, o su rol lo concede. Espera cuatro placeholders: root,
+        dueño, user_id y branch_id.
 
         Developer es SOLO de root, diga lo que diga permissions_roles: es la
         administracion de la plataforma (empresas, planes, cobros, accesos de
         todos). Un rol de empresa -- ni el Dueño -- no entra aunque alguien le
         marque esos permisos por error en Accesos. */
     private static function canSee($alias) {
-        return "(? = 1 OR (COALESCE(m.code, '') <> 'developer' AND " . self::grantedTo($alias) . "))";
+        return "(? = 1 OR (COALESCE(m.code, '') <> 'developer' AND (? = 1 OR " . self::grantedTo($alias) . ")))";
     }
 
     private static function who($userId) {
-        return [self::isRoot() ? 1 : 0, $userId, (int) ($_SESSION['branch_id'] ?? 0)];
+        return [self::isRoot() ? 1 : 0, self::isOwner() ? 1 : 0, $userId, (int) ($_SESSION['branch_id'] ?? 0)];
     }
 
     static function section($code) {
@@ -253,7 +263,8 @@ class Permission extends CRUD {
     }
 
     // Los codes de las acciones concedidas en la seccion, en la sucursal activa.
-    // root trae todas las que la seccion tiene dadas de alta.
+    // root trae todas las que la seccion tiene dadas de alta; el dueño tambien,
+    // salvo en Developer.
     static function actions($sectionCode) {
         $userId = Session::user();
         if ($userId === null || $sectionCode === '') return [];
@@ -266,7 +277,9 @@ class Permission extends CRUD {
             INNER JOIN type_permissions tp ON tp.id = p.type_permission_id AND tp.is_active = 1
             WHERE s.code = ?
                 AND s.is_active = 1
-                AND (? = 1 OR EXISTS (
+                AND (? = 1
+                    OR (? = 1 AND COALESCE(m.code, '') <> 'developer')
+                    OR EXISTS (
                         SELECT 1
                         FROM users_braches ub
                         INNER JOIN roles r              ON r.id = ub.role_id AND r.is_active = 1
@@ -274,7 +287,7 @@ class Permission extends CRUD {
                         WHERE ub.user_id = ? AND ub.branch_id = ?
                             AND pr.permission_id = p.id
                     ))
-        ", [$sectionCode, self::isRoot() ? 1 : 0, $userId, (int) ($_SESSION['branch_id'] ?? 0)]);
+        ", [$sectionCode, self::isRoot() ? 1 : 0, self::isOwner() ? 1 : 0, $userId, (int) ($_SESSION['branch_id'] ?? 0)]);
 
         return is_array($sql) ? array_column($sql, 'code') : [];
     }

@@ -157,7 +157,7 @@ class ctrl extends core {
                 $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
             }
 
-            return $this->rowCells($o, $inTurn, $cancelled, $custom, false, false, false, $menu);
+            return $this->rowCells($o, $inTurn, $cancelled, $custom, false, false, '', $menu);
         }
 
         if (in_array('update', $actions, true) && $this->editBlock($o) === '') {
@@ -182,9 +182,14 @@ class ctrl extends core {
         }
 
         // Entregado por error: lo regresa Dueño o Supervisor (permiso cancel).
-        if (in_array('cancel', $actions, true) && $this->undeliverBlock($o) === '') {
+        $canUndeliver = in_array('cancel', $actions, true) && $this->undeliverBlock($o) === '';
+
+        if ($canUndeliver) {
             $menu[] = ['icon' => 'icon-undo', 'text' => 'Deshacer entrega', 'onclick' => "orderDetail.undeliver({$id})"];
         }
+
+        // Con saldo, el badge de Entregado ofrece «Cobrar y entregar» (como el detalle).
+        $canSettle = $canPay && in_array('update', $actions, true) && $this->settleFirst($o);
 
         if (in_array('print', $actions, true)) {
             $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
@@ -199,12 +204,14 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-trash', 'text' => 'Eliminar', 'onclick' => "orderForm.remove({$id})"];
         }
 
-        return $this->rowCells($o, $inTurn, $cancelled, $custom, $canPay, true, $canDeliver, $menu);
+        $delivery = $canDeliver ? 'deliver' : ($canSettle ? 'settle' : ($canUndeliver ? 'undeliver' : ''));
+
+        return $this->rowCells($o, $inTurn, $cancelled, $custom, $canPay, true, $delivery, $menu);
     }
 
     // Las celdas de la fila. $open = los importes abren la ventana de pagos.
-    // $canDeliver = el badge de Entregado es botón y entrega.
-    private function rowCells($o, $inTurn, $cancelled, $custom, $canPay, $open, $canDeliver, array $menu) {
+    // $delivery = lo que hace el badge de Entregado ('' = solo se ve; ver cellDelivered).
+    private function rowCells($o, $inTurn, $cancelled, $custom, $canPay, $open, $delivery, array $menu) {
         $id       = (int) $o['id'];
         $statusId = (int) $o['sale_status_id'];
 
@@ -219,7 +226,7 @@ class ctrl extends core {
             'Fecha de entrega' => $this->cellDeliveryDate($o['delivery_date'], $o['delivery_time']),
             'Hora'             => '<span class="text-gray-600 whitespace-nowrap"' . $this->sortKey($o['delivery_time']) . '>' . hour12($o['delivery_time']) . '</span>',
             'Estado'           => $this->statusPill($statusId, $o['status']),
-            'Entregado'        => $this->cellDelivered($id, $statusId, (int) $o['delivery_status'], $canDeliver),
+            'Entregado'        => $this->cellDelivered($id, $statusId, (int) $o['delivery_status'], $delivery),
             'Entrega'          => $this->cellMethod((int) $o['delivery_method']),
             'dropdown'         => $menu
         ];
@@ -334,9 +341,12 @@ class ctrl extends core {
 
     /*  Badge claro, como los de Estado (statusPill), con los colores de alpha:
         verde Entregado, rosa En produccion, rojo Sin entregar.
-        $canDeliver: el badge es botón y abre «Entregar pedido» (orderDetail.deliver).
+        $delivery: el badge es botón y cambia el estado con las ventanas de siempre:
+          deliver    «Entregar pedido» (orderDetail.deliver), sin saldo
+          settle     «Cobrar y entregar» (orderPay con deliver), con saldo
+          undeliver  «Deshacer entrega» (orderDetail.undeliver), ya entregado
         Una cotizacion o un pedido cancelado no se entregan. */
-    private function cellDelivered($id, $statusId, $deliveryStatus, $canDeliver) {
+    private function cellDelivered($id, $statusId, $deliveryStatus, $delivery) {
         if ($statusId === self::QUOTE || $statusId === self::CANCELLED) {
             return '<span class="ord-sub">No aplica</span>';
         }
@@ -351,9 +361,17 @@ class ctrl extends core {
 
         $badge = '<span class="ord-pill ' . $tone . '">' . $text . '</span>';
 
-        if (!$canDeliver) return $badge;
+        $actions = [
+            'deliver'   => ["orderDetail.deliver({$id})", 'Entregar pedido'],
+            'settle'    => ["orderPay.open({$id}, false, { deliver: true })", 'Cobrar y entregar'],
+            'undeliver' => ["orderDetail.undeliver({$id})", 'Deshacer entrega']
+        ];
 
-        return '<button type="button" class="ord-deliv-btn" onclick="orderDetail.deliver(' . (int) $id . ')" title="Entregar pedido">' . $badge . '</button>';
+        if (!isset($actions[$delivery])) return $badge;
+
+        list($click, $title) = $actions[$delivery];
+
+        return '<button type="button" class="ord-deliv-btn" onclick="' . $click . '" title="' . $title . '">' . $badge . '</button>';
     }
 
     private function cellMethod($method) {
@@ -610,7 +628,12 @@ class ctrl extends core {
 
             $subtotal = $this->linesTotal($lines);
 
-            return $this->transaction(function () use ($in, $lines, $subtotal) {
+            // status = 'pending': se eligio Pendiente sin anticipo («¿Cómo se guarda?»
+            // de la captura). Nace confirmado, con todo el saldo por cobrar. Sin
+            // importe no hay saldo: queda cotizacion.
+            $pending = $this->post('status') === 'pending' && $subtotal > 0.005;
+
+            return $this->transaction(function () use ($in, $lines, $subtotal, $pending) {
                 $turn = $this->qOpenTurn($this->branchId());
 
                 $this->must($this->qCreateOrder([
@@ -620,7 +643,7 @@ class ctrl extends core {
                         'subtotal', 'discount_amount', 'total', 'active'
                     ],
                     'data' => [
-                        $this->branchId(), $in['customer_id'], $this->userId() ?: null, $turn ? (int) $turn['id'] : null, 1, self::QUOTE,
+                        $this->branchId(), $in['customer_id'], $this->userId() ?: null, $turn ? (int) $turn['id'] : null, 1, $pending ? self::PENDING : self::QUOTE,
                         $in['delivery_method'], 0, $in['delivery_date'], $in['delivery_time'], $in['location'], $in['note'],
                         $subtotal, 0, $subtotal, 1
                     ]
@@ -635,10 +658,12 @@ class ctrl extends core {
                     $this->createLine($id, $line);
                 }
 
-                $this->log($id, 'event', 'Pedido creado',
-                    'Pedido creado como cotización — total ' . money($subtotal) . ', ' . $this->productsText(count($lines)));
+                $as = $pending ? 'pendiente' : 'cotización';
 
-                return $this->ok("Pedido P{$id} guardado como cotización.", ['id' => $id]);
+                $this->log($id, 'event', 'Pedido creado',
+                    "Pedido creado como {$as} — total " . money($subtotal) . ', ' . $this->productsText(count($lines)));
+
+                return $this->ok("Pedido P{$id} guardado como {$as}.", ['id' => $id]);
             });
         }, 'No se pudo guardar el pedido.');
 

@@ -57,6 +57,9 @@ if (is_file(__DIR__ . '/../mdl/mdl-lealtad-whatsapp.php')) require_once __DIR__ 
         reward_value, sin pasar del subtotal; nota «Premio …»), no se junta con
         otro y quita stamp_goal sellos. El saldo se revisa antes y otra vez con
         la tarjeta apartada (qLockCard): dos cajas no canjean el mismo premio.
+      - Niveles (Lealtad, plan-crecimiento.html): ya guardada la venta, si la
+        tarjeta alcanza el gasto de un nivel mas alto, sube y se le avisa
+        (LoyaltyNotifier::levelUp). Si eso falla, la venta queda igual.
       - Sin cliente = Público en general (customer_id NULL).
       - Se valida todo ANTES de la primera escritura: transaction() solo deshace
         si algo lanza una excepcion. */
@@ -407,6 +410,13 @@ class ctrl extends core {
             // Premio listo: el aviso va con la venta ya guardada; si no sale, solo se informa.
             if ((int) ($done['status'] ?? 0) === 200 && !empty($done['stamps'])) {
                 $done['stamps']['whatsapp'] = $this->rewardNotice($sale, $done['stamps']);
+            }
+
+            // Nivel (Lealtad › Programa › Niveles): con esta venta la tarjeta puede subir. La venta ya quedó.
+            if ((int) ($done['status'] ?? 0) === 200 && !empty($sale['card'])) {
+                $level = $this->levelNotice((int) $sale['card']['id']);
+
+                if ($level) $done['level'] = $level;
             }
 
             return $done;
@@ -933,6 +943,22 @@ class ctrl extends core {
         }
     }
 
+    /*  Si con esta venta la tarjeta ya alcanza un nivel más alto, sube y avisa
+        (LoyaltyNotifier). null = no cambió, Niveles apagado o no está en el servidor. */
+    private function levelNotice($cardId) {
+        $notifier = $this->loyaltyNotifier();
+
+        if (!$notifier || !method_exists($notifier, 'levelUp')) return null;
+
+        try {
+            return $notifier->levelUp($cardId);
+        } catch (Throwable $e) {
+            $this->writeToLog('[ NIVEL ] :: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
     // El que manda el aviso (mdl-lealtad-whatsapp.php). null si el WhatsApp no está en el servidor.
     protected function loyaltyNotifier() {
         return class_exists('LoyaltyNotifier') ? new LoyaltyNotifier() : null;
@@ -947,12 +973,17 @@ class ctrl extends core {
         $goal = (int) $card['stamp_goal'];
         $have = max($this->qCardStamps((int) $card['id']), 0);
 
+        // type, color, icon y prize: para dibujar la tarjeta chica en «Venta cobrada» (el sello que cae).
         return [
             'earned'  => (int) $sale['stamps'],
             'balance' => $have,
             'goal'    => $goal,
             'rewards' => intdiv($have, $goal),
-            'reward'  => $sale['reward'] ? ['name' => (string) $card['reward_name'], 'amount' => $sale['reward']['amount']] : null
+            'reward'  => $sale['reward'] ? ['name' => (string) $card['reward_name'], 'amount' => $sale['reward']['amount']] : null,
+            'type'    => (string) $card['type'],
+            'color'   => preg_match('/^#[0-9A-F]{6}$/i', (string) ($card['color'] ?? '')) ? strtoupper($card['color']) : '',
+            'icon'    => (string) $card['stamp_icon'],
+            'prize'   => (string) $card['reward_name']
         ];
     }
 

@@ -1054,6 +1054,8 @@ class mdl extends CRUD {
                 m.name  AS module_name,
                 m.icon  AS module_icon,
                 tp.name AS type_name,
+                tp.id   AS type_id,
+                tp.order AS type_order,
                 (pr.id IS NOT NULL) AS granted
             FROM {$this->bd}permissions p
             JOIN {$this->bd}type_permissions tp ON tp.id = p.type_permission_id AND tp.is_active = 1
@@ -1312,6 +1314,14 @@ class mdl extends CRUD {
         $query = "SELECT id FROM {$this->bd}users WHERE LOWER(email) = LOWER(?) AND id <> ? LIMIT 1";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r);
+    }
+
+    // El dueño (is_owner) que ya tiene la empresa, activo o no. null = no tiene.
+    function qCompanyOwner($array) {
+        // [company_id, id que se excluye (0 = ninguno)]
+        $query = "SELECT id, name, last_name FROM {$this->bd}users WHERE company_id = ? AND is_owner = 1 AND id <> ? ORDER BY id ASC LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
     function qUpdateUserPhoto($array) {

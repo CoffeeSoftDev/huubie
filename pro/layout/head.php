@@ -7,6 +7,8 @@
       $root    el camino de la pagina a pro/ ('../../' desde app/<pagina>/)
       $title   el titulo de la pestaña
       $active  (opcional) el item del rail que se marca: 'inicio' | 'perfil'
+      $noBranch (opcional) true: la barra no muestra el selector de sucursal
+               (paginas de toda la empresa, como Configuración)
     y cierra con layout/scripts.php.
 
     Sin Bootstrap a proposito: su .bg-white y su .border llevan !important y le
@@ -45,7 +47,7 @@ $asset = function ($file) use ($root) {
 <body>
     <div id="menu-sidebar"<?= empty($active) ? '' : ' data-active="' . htmlspecialchars($active) . '"' ?>></div>
     <main>
-        <div id="menu-navbar"></div>
+        <div id="menu-navbar"<?= empty($noBranch) ? '' : ' data-branch="off"' ?>></div>
 
         <div id="main__content">
             <section id="root" class="pg"></section>

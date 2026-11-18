@@ -3,11 +3,20 @@
 
       tarjeta.php?t=<token de 32 caracteres>   (card.token)
 
-    Muestra la tarjeta (lisa, del color de su tipo), un QR con el NUMERO para
-    que en caja la lean con el lector igual que el plastico, lo que da, el
-    monedero si la tarjeta tiene cliente dueño y sus ultimas compras. Todo lo
-    pinta PHP; el QR lo dibuja qrcode-generator en el navegador (sin JavaScript
-    queda el numero escrito, que tambien sirve).
+    Muestra la tarjeta como pase de Wallet (degradado del color de su tipo; ver
+    lealtad/docs/propuesta-diseno.html) con sus sellos o su beneficio, el nivel
+    y su barra si es de nivel, y un QR con el NUMERO para que en caja la lean con
+    el lector igual que el plastico; debajo, lo que da, el monedero si la tarjeta
+    tiene cliente dueño y sus ultimas compras. Todo lo pinta PHP; el QR lo dibuja
+    qrcode-generator en el navegador (sin JavaScript queda el numero escrito,
+    que tambien sirve).
+
+    Animaciones (sin JavaScript o con «reducir movimiento», la tarjeta sale
+    quieta y completa): entra subiendo, los sellos se llenan uno tras otro y el
+    telefono recuerda (localStorage, por numero de tarjeta) lo que vio la ultima
+    vez: los sellos nuevos caen girando, el monedero sube hasta su saldo, el
+    premio recien completado echa confeti y el nivel nuevo gira a dorado. Al
+    volver a la pestaña despues de 30 s, la pagina se recarga sola.
 
     Token con formato malo, que ya se cambio, tarjeta o tipo inactivos: la misma
     pagina 404, sin decir cual fue. Las etiquetas og llevan solo el nombre de la
@@ -16,10 +25,11 @@
 
 require_once __DIR__ . '/../order/mdl/mdl-order.php';
 require_once __DIR__ . '/../order/mdl/mdl-lealtad.php';
+require_once __DIR__ . '/../order/mdl/mdl-lealtad-niveles.php';
 
 class PublicCardPage extends mdl {
 
-    use LoyaltyCards;
+    use LoyaltyCards, LoyaltyLevels;
 
     const MOVES = 5;
 
@@ -39,7 +49,40 @@ class PublicCardPage extends mdl {
             'wallet' => $card['owner_id'] !== null ? $this->qCardWallet((int) $card['owner_id']) : null,
             'moves'  => $this->qCardMoves($id, self::MOVES),
             // Sellos: have (los de hoy, nunca menos de 0), goal, earned, rewards (canjeados) y saved.
-            'stamps' => $goal > 0 ? ['have' => max($this->qCardStamps($id), 0), 'goal' => $goal] + $this->qCardStampTotals($id) : null
+            'stamps' => $goal > 0 ? ['have' => max($this->qCardStamps($id), 0), 'goal' => $goal] + $this->qCardStampTotals($id) : null,
+            'level'  => $goal > 0 ? null : $this->cardLevel($card)
+        ];
+    }
+
+    /*  Su nivel, si su tipo esta en la escalera y Niveles esta encendido: el
+        nombre, su lugar, el gasto de 12 meses y el siguiente (null = el mas
+        alto). La barra va del minimo de su nivel al del siguiente. */
+    private function cardLevel($card) {
+        $setting = $this->qRow("SELECT levels_enabled FROM {$this->pos}loyalty_setting WHERE company_id = ? LIMIT 1", [(int) $card['company_id']]);
+
+        if (!$setting || (int) $setting['levels_enabled'] !== 1) return null;
+
+        $branchId = (int) $card['branch_id'];
+        $levels   = $this->qLevels($branchId);
+        $place    = $this->levelPlace($levels, (int) $card['card_type_id']);
+
+        if (!$place || count($levels) < 2) return null;
+
+        $row   = $this->qLevelCards($branchId, $this->levelSince(), (int) $card['id'])[0] ?? null;
+        $spend = $row ? (float) $row['spend'] : 0.0;
+        $above = $this->levelAbove($levels, (int) $card['card_type_id']);
+        $from  = (float) $levels[$place - 1]['level_min_spend'];
+        $goal  = $above ? (float) $above['level_min_spend'] : $spend;
+
+        return [
+            'name'  => (string) $levels[$place - 1]['name'],
+            'place' => $place,
+            'top'   => !$above,
+            'spend' => $spend,
+            'next'  => $above ? (string) $above['name'] : '',
+            'left'  => $above ? max(0, $goal - $spend) : 0,
+            'perk'  => $above ? $this->levelPerk($above) : '',
+            'pct'   => $above && $goal > $from ? max(0, min(1, ($spend - $from) / ($goal - $from))) : 1
         ];
     }
 }
@@ -48,6 +91,9 @@ class PublicCardPage extends mdl {
 
 $token = isset($_GET['t']) ? strtolower(trim((string) $_GET['t'])) : '';
 $d     = null;
+
+// Recién registrada desde registro.php: 'wa' = también salió por WhatsApp; '1' = solo en pantalla.
+$fresh = in_array($_GET['nueva'] ?? '', ['wa', '1'], true) ? (string) $_GET['nueva'] : '';
 
 try {
     $d = (new PublicCardPage())->load($token);
@@ -95,6 +141,21 @@ $initials = function ($name) {
     return $out !== '' ? $out : '?';
 };
 
+// Iconos de Lucide copiados aqui: la pagina solo carga Lucide si el sello trae el suyo.
+$icons = [
+    'card'   => '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+    'wallet' => '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+    'tag'    => '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+    'link'   => '<path d="M9 17H7A5 5 0 0 1 7 7"/><path d="M15 7h2a5 5 0 0 1 4 8"/><path d="M8 12h4"/><path d="m2 2 20 20"/>',
+    'gift'   => '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>',
+    'home'   => '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    'trophy' => '<path d="M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978"/><path d="M14 14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978"/><path d="M18 9h1.5a1 1 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6 9H4.5a1 1 0 0 1 0-5H6"/>',
+    'info'   => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    'crown'  => '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>'
+];
+
+$svg = fn ($name, $size = 16) => '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $icons[$name] . '</svg>';
+
 // El color de su tipo; sin color, el celeste claro de Lealtad › Tarjetas.
 $color = '#BAE6FD';
 $ink   = '#0F172A';
@@ -132,13 +193,44 @@ if ($d) {
     $icon     = $st && preg_match('/^[a-z0-9]+(-[a-z0-9]+)*$/', (string) $c['stamp_icon']) ? (string) $c['stamp_icon'] : '';
     $ready    = $goal > 0 ? intdiv($have, $goal) : 0;
     $onCardSt = $goal > 0 ? ($have >= $goal ? $goal : $have) : 0;
+    $left     = $goal > 0 ? max(0, $goal - $have) : 0;
     $reward   = trim((string) $c['reward_name']);
-    $stampRow = function ($count, $on, $class) use ($icon, $h) {
+    $level    = $d['level'];
+    $wallet   = $owner && $points > 0 ? (float) $d['wallet'] : null;
+
+    // Arriba a la derecha: la cifra de la tarjeta. Al centro: lo grande y la frase.
+    if ($goal > 0)         [$valLabel, $valText] = ['Sellos', $onCardSt . '/' . $goal];
+    elseif ($discount > 0) [$valLabel, $valText] = ['Descuento', $pct($discount)];
+    elseif ($points > 0)   [$valLabel, $valText] = ['Puntos', $pct($points)];
+    else                   [$valLabel, $valText] = ['', ''];
+
+    if ($goal > 0) {
+        $say = $ready > 0 ? '¡Premio listo: ' . $reward . '!' : ($left === 1 ? '¡Solo 1 sello para tu ' . $reward . '!' : 'Te faltan ' . $left . ' sellos para tu ' . $reward);
+    } elseif ($wallet !== null) {
+        $say = $pct($points) . ' de lo que pagas regresa a tu monedero.';
+    } elseif ($discount > 0) {
+        $say = 'En cada compra, al enseñar tu tarjeta.';
+    } else {
+        $say = '';
+    }
+
+    // Los 3 campos del pase.
+    $fields = [['Titular', $onCard !== '' ? $onCard : 'Al portador']];
+
+    if ($goal > 0)            array_push($fields, ['Premio', $reward], ['Vigencia', 'No caducan']);
+    elseif ($points > 0)      array_push($fields, ['Ganado', $money($t['points'])], ['Compras', (string) $sales]);
+    else                      array_push($fields, ['Ahorrado', $money($t['discount'])], ['Compras', (string) $sales]);
+
+    /*  Un sello por cada uno de la meta: punteado; el juntado, lleno con el icono
+        del tipo. El último es el premio (regalo). --k es su lugar: con él se
+        llenan uno tras otro al abrir. */
+    $stampRow = function ($count, $on) use ($icon, $h, $svg) {
         $out = '';
 
         for ($i = 0; $i < $count; $i++) {
-            $out .= '<span class="' . $class . ($i < $on ? ' is-on' : '') . ($icon !== '' ? ' has-icon' : '') . '">'
-                  . ($icon !== '' ? '<i data-lucide="' . $h($icon) . '"></i>' : '')
+            $gift = $i === $count - 1;
+            $out .= '<span class="st' . ($i < $on ? ' is-on' : '') . ($gift ? ' is-gift' : '') . '" style="--k:' . $i . '">'
+                  . ($gift ? $svg('gift', 16) : ($icon !== '' ? '<i data-lucide="' . $h($icon) . '"></i>' : ''))
                   . '</span>';
         }
 
@@ -149,17 +241,6 @@ if ($d) {
 } else {
     $title = 'Tarjeta no disponible';
 }
-
-$icons = [
-    'card'   => '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
-    'wallet' => '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
-    'tag'    => '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
-    'link'   => '<path d="M9 17H7A5 5 0 0 1 7 7"/><path d="M15 7h2a5 5 0 0 1 4 8"/><path d="M8 12h4"/><path d="m2 2 20 20"/>',
-    'gift'   => '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>',
-    'home'   => '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
-];
-
-$svg = fn ($name, $size = 16) => '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $icons[$name] . '</svg>';
 
 // Icono de la pestaña: la tarjeta sobre su color. Asi el navegador no pide /favicon.ico.
 $favicon = 'data:image/svg+xml,' . rawurlencode(
@@ -182,6 +263,7 @@ $qrVersion = @filemtime(__DIR__ . '/../../assets/plugins/qrcode/qrcode.js') ?: 1
     <meta name="theme-color" content="<?= $h($color) ?>">
     <title><?= $h($title) ?></title>
     <link rel="icon" type="image/svg+xml" href="<?= $h($favicon) ?>">
+    <script>document.documentElement.classList.add('js');</script>
 <?php if ($d): ?>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -256,51 +338,104 @@ $qrVersion = @filemtime(__DIR__ . '/../../assets/plugins/qrcode/qrcode.js') ?: 1
         .store b { display: block; font-size: 15px; line-height: 1.2; }
         .store small { display: block; font-size: 13px; color: var(--soft); }
 
-        /* -- La tarjeta: un rectangulo liso de un solo color, sin filos ni sombra -- */
-        .card {
+        /*  -- La tarjeta: un pase al estilo de Wallet. Degradado en diagonal del
+            color de su tipo con un brillo encima; letra blanca u oscura segun el
+            color (el mismo corte que inkOf de tarjetas.js). -- */
+        .pass {
+            --p-ink: <?= $ink ?>;
+            --p-chip: <?= $d && $light ? 'rgba(15, 23, 42, .08)' : 'rgba(255, 255, 255, .22)' ?>;
+            --p-line: <?= $d && $light ? 'rgba(15, 23, 42, .32)' : 'rgba(255, 255, 255, .6)' ?>;
             position: relative;
-            display: flex; flex-direction: column; justify-content: space-between;
-            aspect-ratio: 1.586;
-            padding: 18px 20px;
+            isolation: isolate;
+            overflow: hidden;
             border-radius: var(--radius);
+            color: var(--p-ink);
             background: var(--card);
-            color: <?= $ink ?>;
-            <?= $d && !$light ? 'text-shadow: 0 1px 1px rgba(0, 0, 0, .22);' : '' ?>
+            background: linear-gradient(135deg, color-mix(in srgb, var(--card) <?= $d && $light ? '88%' : '70%' ?>, #000) 0%, var(--card) 58%, color-mix(in srgb, var(--card) <?= $d && $light ? '70%' : '78%' ?>, #FFF) 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 0 0 .5px rgba(0, 0, 0, .1), 0 16px 30px -16px rgba(24, 12, 60, .55), 0 2px 4px rgba(24, 12, 60, .12);
+            <?= $d && !$light ? 'text-shadow: 0 1px 1px rgba(0, 0, 0, .16);' : '' ?>
         }
-        .card-top, .card-bottom { display: flex; justify-content: space-between; gap: 12px; }
-        .card-top { align-items: flex-start; }
-        .card-bottom { align-items: flex-end; }
-        .card-type { font-size: 18px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
-        .card-brand { flex-shrink: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; font-weight: 600; letter-spacing: .07em; line-height: 1.9; text-transform: uppercase; opacity: .85; }
-        .card-number { margin: 0; font: 600 20px/1.2 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: .12em; overflow-wrap: anywhere; }
-        .card-number.is-long { font-size: 15px; letter-spacing: .04em; }
-        .card-owner { min-width: 0; }
-        .card-label, .perk span { display: block; font-size: 10px; font-weight: 600; letter-spacing: .08em; line-height: 1.3; text-transform: uppercase; opacity: .85; }
-        .card-holder { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
-        .card-holder.is-empty { opacity: .6; }
-        .perks { display: flex; gap: 14px; flex-shrink: 0; }
-        .perk { text-align: right; }
-        .perk b { display: block; font-size: 24px; font-weight: 800; line-height: 1.05; white-space: nowrap; }
+        .pass::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; background: linear-gradient(125deg, rgba(255, 255, 255, .2) 0%, rgba(255, 255, 255, 0) 35%, rgba(255, 255, 255, 0) 72%, rgba(255, 255, 255, .08) 100%); }
+        .pass-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 0; }
+        .pass-logo { width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center; background: var(--p-chip); }
+        .pass-logo svg { width: 20px; height: 20px; }
+        .pass-name { flex: 1; min-width: 0; }
+        .pass-name b { display: block; font-size: 18px; font-weight: 800; letter-spacing: -.015em; line-height: 1.15; overflow-wrap: anywhere; }
+        .pass-name small { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .8; }
+        .pass-val { flex: none; text-align: right; line-height: 1; }
+        .pass-val b { display: inline-block; font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .lbl { display: block; margin-bottom: 5px; font-size: 9px; font-weight: 700; letter-spacing: .09em; line-height: 1; text-transform: uppercase; opacity: .8; }
+        .pass-body { display: grid; gap: 12px; padding: 16px 18px; }
+        .pass-big { display: flex; align-items: flex-end; gap: 8px; }
+        .pass-big b { flex: none; font-size: 40px; font-weight: 800; letter-spacing: -.035em; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .pass-big span { padding-bottom: 4px; font-size: 14px; font-weight: 600; line-height: 1.2; opacity: .9; }
+        .pass-say { margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.35; }
+        .pass-tier { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; font-weight: 600; }
+        .pass-tier > span:last-child { min-width: 0; opacity: .92; text-align: right; }
+        .badge { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px 0 8px; border-radius: 12px; background: var(--p-chip); font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .badge svg { width: 13px; height: 13px; }
+        .badge em { display: inline-block; font-style: normal; }
+        .badge.is-top { background: linear-gradient(135deg, #FFF1A8, #FFDA4A 45%, #F2B01E); color: #4A3200; text-shadow: none; }
+        .bar { height: 7px; overflow: hidden; border-radius: 7px; background: <?= $d && $light ? 'rgba(15, 23, 42, .12)' : 'rgba(255, 255, 255, .26)' ?>; }
+        .bar i { display: block; height: 100%; border-radius: inherit; background: var(--p-ink); transition: width 1.3s cubic-bezier(.3, .8, .3, 1); }
+        .pass-fields { display: flex; justify-content: space-between; gap: 12px; padding: 0 18px; }
+        .pass-fields > span { min-width: 0; }
+        .pass-fields > span:last-child { text-align: right; }
+        .pass-fields b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
+        /* El QR: siempre negro sobre blanco, aun en modo oscuro, para que el lector lo lea. */
+        .pass-qr { display: flex; flex-direction: column; align-items: center; padding: 18px 18px 0; }
+        .pass-qrbox { position: relative; width: 100%; max-width: 212px; padding: 10px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 8px 18px -6px rgba(0, 0, 0, .35); }
+        .qr-code { width: 100%; aspect-ratio: 1; display: grid; place-items: center; color: #0F172A; }
+        .qr-code svg { display: block; width: 100%; height: auto; }
+        .pass-num { margin: 10px 0 0; font: 700 13px/1.2 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: .18em; overflow-wrap: anywhere; text-align: center; }
+        .pass-ready { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; height: 26px; padding: 0 12px; border-radius: 13px; background: #FFDA4A; color: #3D2C00; font-size: 12px; font-weight: 700; text-shadow: none; }
+        .pass-ready svg { width: 14px; height: 14px; }
+        .pass-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 18px 14px; font-size: 11px; font-weight: 500; opacity: .8; }
+        .pass-foot svg { width: 14px; height: 14px; }
+        .pass-sheen { position: absolute; top: 0; bottom: 0; left: 0; z-index: 3; width: 45%; pointer-events: none; background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .5), rgba(255, 255, 255, 0)); transform: translateX(-130%) skewX(-18deg); }
+        .qr-hint { margin: -4px auto 0; max-width: 36ch; font-size: 12.5px; color: var(--soft); text-align: center; }
 
-        /* -- Sellos: lisos, sin bordes. En la tarjeta, del color de la letra; en la caja, del color de la tarjeta -- */
-        .card-stamps { display: grid; grid-template-columns: repeat(10, minmax(0, 20px)); gap: 5px; }
-        .st { display: inline-flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 1; border-radius: 99px; }
-        .st svg { width: 62%; height: 62%; stroke-width: 2.2; }
-        .card .st { background: var(--card-ink-real); opacity: .26; }
-        .card .st.is-on { opacity: 1; }
-        .card .st.has-icon { background: transparent; color: var(--card-ink-real); opacity: .5; }
-        .card .st.has-icon.is-on { background: var(--card-ink-real); color: var(--card); opacity: 1; }
-        .stamps { display: grid; grid-template-columns: repeat(5, minmax(0, 46px)); gap: 10px; margin-top: 14px; }
-        .stamps .st { background: var(--chip); color: var(--faint); }
-        .stamps .st.is-on { background: var(--card); color: var(--card-ink); }
+        /* -- Sellos: punteados; el juntado, lleno del color de la letra con el icono del color de la tarjeta. El ultimo es el premio. -- */
+        .pass-stamps { display: grid; grid-template-columns: repeat(5, minmax(0, 40px)); justify-content: space-between; row-gap: 10px; }
+        .pass-stamps.is-many { grid-template-columns: repeat(10, minmax(0, 28px)); column-gap: 2px; row-gap: 7px; }
+        .st { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1; border: 1.5px dashed var(--p-line); border-radius: 99px; color: var(--p-ink); }
+        .st svg { width: 50%; height: 50%; stroke-width: 2.2; opacity: 0; }
+        .st.is-gift svg { opacity: .65; }
+        .st.is-on { border-style: solid; border-color: var(--p-ink); background: var(--p-ink); color: var(--card); box-shadow: 0 3px 8px rgba(0, 0, 0, .18); }
+        .st.is-on svg { opacity: 1; }
         .ready { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--chip); font-weight: 700; color: var(--ok); }
 
-        /* -- El QR: siempre negro sobre blanco, aun en modo oscuro, para que el lector lo lea -- */
-        .qr { background: #FFFFFF; color: #0F172A; border-radius: var(--radius); padding: 22px 20px 18px; text-align: center; }
-        .qr-code { width: 100%; max-width: 236px; margin: 0 auto; aspect-ratio: 1; display: grid; place-items: center; }
-        .qr-code svg { display: block; width: 100%; height: auto; }
-        .qr-number { margin: 10px 0 0; font: 700 22px/1.2 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: .14em; overflow-wrap: anywhere; }
-        .qr-hint { margin: 6px auto 0; max-width: 32ch; font-size: 13px; color: #5B6577; }
+        /* -- Avance hacia el premio, en la caja de abajo -- */
+        .progress { margin-top: 14px; display: grid; gap: 7px; }
+        .progress-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+        .progress-top span { flex: none; color: var(--soft); }
+        .progress .track { height: 8px; overflow: hidden; border-radius: 99px; background: var(--chip); }
+        .progress .track i { display: block; height: 100%; border-radius: inherit; background: var(--card); transition: width 1.3s cubic-bezier(.3, .8, .3, 1); }
+
+        /* -- Movimiento (lo prende el script de abajo con .js en <html>) -- */
+        .js .pass { animation: pass-in .8s cubic-bezier(.2, .85, .25, 1.06) both; }
+        .js .st.is-on { animation: st-fill .45s calc(.35s + var(--k) * 60ms) cubic-bezier(.3, 1.4, .5, 1) both; }
+        .st.is-new { animation: st-drop .62s cubic-bezier(.2, 1.3, .4, 1) both !important; }
+        .st.is-new::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--p-ink); animation: st-ring .75s .18s ease-out both; }
+        .pass.is-done .st { animation: st-hop .55s calc(var(--k) * 55ms) cubic-bezier(.3, .7, .4, 1) both !important; }
+        .pass.is-shine .pass-sheen, .pass.is-done .pass-sheen { animation: sheen 1.1s .4s ease-in-out 2; }
+        .pop { animation: pop .5s cubic-bezier(.3, 1.6, .5, 1); }
+        .badge.flip em { animation: flip .5s ease; }
+        .badge.is-top.is-new { animation: gpulse 1s ease-out 3; }
+        .cf { position: fixed; inset: 0; z-index: 50; width: 100%; height: 100%; pointer-events: none; }
+        @keyframes pass-in { from { opacity: 0; transform: translateY(36px) scale(.96); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+        @keyframes st-fill { from { opacity: 0; transform: scale(.4); } }
+        @keyframes st-drop { 0% { opacity: 0; transform: scale(2.4) rotate(-26deg); } 55% { opacity: 1; transform: scale(.88) rotate(4deg); } 78% { transform: scale(1.06); } 100% { opacity: 1; transform: none; } }
+        @keyframes st-ring { from { opacity: .95; transform: scale(.8); } to { opacity: 0; transform: scale(1.9); } }
+        @keyframes st-hop { 0%, 100% { transform: none; } 40% { transform: translateY(-8px) scale(1.08); } }
+        @keyframes sheen { to { transform: translateX(330%) skewX(-18deg); } }
+        @keyframes pop { 40% { transform: scale(1.3); } }
+        @keyframes flip { to { transform: rotateX(360deg); } }
+        @keyframes gpulse { from { box-shadow: 0 0 0 0 rgba(255, 218, 74, .85); } to { box-shadow: 0 0 0 12px rgba(255, 218, 74, 0); } }
+        @media (prefers-reduced-motion: reduce) {
+            .js .pass, .js .st.is-on, .st.is-new, .st.is-new::after, .pass.is-done .st, .pass.is-shine .pass-sheen, .pass.is-done .pass-sheen, .pop, .badge.flip em, .badge.is-top.is-new { animation: none !important; }
+            .bar i, .progress .track i { transition: none; }
+        }
 
         /* -- Cajas -- */
         .box { background: var(--paper); border-radius: var(--radius); padding: 18px; }
@@ -328,6 +463,8 @@ $qrVersion = @filemtime(__DIR__ . '/../../assets/plugins/qrcode/qrcode.js') ?: 1
         .move .is-none { color: var(--faint); font-weight: 600; }
 
         .tip { display: flex; gap: 10px; align-items: flex-start; padding: 2px 4px; font-size: 13px; color: var(--soft); }
+        .fresh { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--paper); font-size: 14px; line-height: 1.45; }
+        .fresh b { color: var(--ok); }
         footer.by { text-align: center; padding: 8px 16px 28px; font-size: 12px; color: var(--faint); }
 
         /* -- Tarjeta no disponible -- */
@@ -365,50 +502,69 @@ $qrVersion = @filemtime(__DIR__ . '/../../assets/plugins/qrcode/qrcode.js') ?: 1
                 <small><?= $who !== '' ? 'Hola, ' . $h($who) . '. Esta es tu tarjeta.' : 'Esta es tu tarjeta.' ?></small>
             </div>
         </header>
+<?php if ($fresh !== ''): ?>
 
-        <section class="card" aria-label="Tarjeta <?= $h($c['type']) ?>">
-            <div class="card-top">
-                <span class="card-type"><?= $h($c['type']) ?></span>
-                <span class="card-brand"><?= $h($store) ?></span>
-            </div>
-            <p class="card-number<?= strlen($number) > 16 ? ' is-long' : '' ?>"><?= $h($number) ?></p>
-<?php if ($goal > 0): ?>
-            <div class="card-stamps" aria-hidden="true"><?= $stampRow(min($goal, 20), $onCardSt, 'st') ?></div>
+        <p class="fresh" role="status"><b>¡Listo, ya es tuya!</b> <?= $fresh === 'wa' ? 'También te la mandamos por WhatsApp: ahí la tienes siempre.' : 'Guarda esta página: agrégala a tu pantalla de inicio.' ?></p>
 <?php endif; ?>
-            <div class="card-bottom">
-                <div class="card-owner">
-                    <span class="card-label">Titular</span>
-                    <span class="card-holder<?= $onCard === '' ? ' is-empty' : '' ?>"><?= $onCard !== '' ? $h($onCard) : 'Al portador' ?></span>
-                </div>
-                <div class="perks">
-<?php if ($goal > 0): ?>
-                    <div class="perk"><b><?= $onCardSt ?>/<?= $goal ?></b><span>sellos</span></div>
-<?php endif; ?>
-<?php if ($discount > 0): ?>
-                    <div class="perk"><b><?= $h($pct($discount)) ?></b><span>descuento</span></div>
-<?php endif; ?>
-<?php if ($points > 0): ?>
-                    <div class="perk"><b><?= $h($pct($points)) ?></b><span>puntos</span></div>
-<?php endif; ?>
-                </div>
-            </div>
-        </section>
 
-        <section class="qr" aria-label="Código para leer en caja">
-            <div class="qr-code" id="qr" data-code="<?= $h($number) ?>"></div>
-            <p class="qr-number"><?= $h($number) ?></p>
-            <p class="qr-hint">Enséñalo en caja al pagar. Si el lector no lo lee, sube el brillo o di el número.</p>
+        <section class="pass<?= $ready > 0 ? ' is-ready' : '' ?>" aria-label="Tarjeta <?= $h($c['type']) ?>"
+                 data-num="<?= $h($number) ?>" data-stamps="<?= $goal > 0 ? $have : 0 ?>" data-goal="<?= $goal ?>"
+                 data-wallet="<?= $wallet !== null ? number_format($wallet, 2, '.', '') : '' ?>" data-level="<?= $level ? $h($level['name']) : '' ?>">
+            <div class="pass-head">
+                <span class="pass-logo" aria-hidden="true"><?= $goal > 0 ? ($icon !== '' ? '<i data-lucide="' . $h($icon) . '"></i>' : $svg('gift', 20)) : ($level ? $svg('crown', 20) : $svg($points > 0 && $discount <= 0 ? 'wallet' : 'tag', 20)) ?></span>
+                <div class="pass-name"><b><?= $h($c['type']) ?></b><small><?= $h($store) ?></small></div>
+<?php if ($valText !== ''): ?>
+                <div class="pass-val"><span class="lbl"><?= $h($valLabel) ?></span><b id="passVal"><?= $h($valText) ?></b></div>
+<?php endif; ?>
+            </div>
+            <div class="pass-body">
+<?php if ($goal > 0): ?>
+                <div class="pass-stamps<?= $goal > 10 ? ' is-many' : '' ?>" role="img" aria-label="Llevas <?= $onCardSt ?> de <?= $goal ?> sellos"><?= $stampRow(min($goal, 20), $onCardSt) ?></div>
+<?php elseif ($wallet !== null): ?>
+                <div class="pass-big"><b id="passWallet"><?= $h($money($wallet)) ?></b><span>en tu monedero</span></div>
+<?php elseif ($discount > 0 || $points > 0): ?>
+                <div class="pass-big"><b><?= $h($pct($discount > 0 ? $discount : $points)) ?></b><span><?= $discount > 0 ? 'de descuento' : 'en puntos al monedero' ?></span></div>
+<?php endif; ?>
+<?php if ($level): ?>
+                <div class="pass-tier">
+                    <span class="badge<?= $level['top'] ? ' is-top' : '' ?>"><?= $svg('trophy', 13) ?><em><?= $h($level['name']) ?></em></span>
+                    <span><?= $level['top'] ? 'Tu nivel más alto' : 'Faltan ' . $h($short($level['left'])) . ' para ' . $h($level['next']) ?></span>
+                </div>
+                <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= (int) round($level['pct'] * 100) ?>"><i data-fill="<?= round($level['pct'] * 100, 1) ?>" style="width:<?= round($level['pct'] * 100, 1) ?>%"></i></div>
+<?php endif; ?>
+<?php if ($say !== ''): ?>
+                <p class="pass-say"><?= $h($say) ?></p>
+<?php endif; ?>
+            </div>
+            <div class="pass-fields">
+<?php foreach ($fields as [$label, $value]): ?>
+                <span><span class="lbl"><?= $h($label) ?></span><b><?= $h($value) ?></b></span>
+<?php endforeach; ?>
+            </div>
+            <div class="pass-qr" aria-label="Código para leer en caja">
+                <div class="pass-qrbox"><div class="qr-code" id="qr" data-code="<?= $h($number) ?>"></div></div>
+                <p class="pass-num"><?= $h($number) ?></p>
+<?php if ($ready > 0): ?>
+                <span class="pass-ready"><?= $svg('gift', 14) ?>Listo para canjear<?= $ready > 1 ? ' · ' . $ready : '' ?></span>
+<?php endif; ?>
+            </div>
+            <div class="pass-foot"><span>Actualizado hace un momento</span><?= $svg('info', 14) ?></div>
+            <i class="pass-sheen" aria-hidden="true"></i>
         </section>
+        <p class="qr-hint">Enséñala en caja al pagar. Si el lector no lee el QR, sube el brillo o di el número.</p>
 
         <section class="box">
             <h2><i><?= $svg($goal > 0 ? 'gift' : ($points > 0 && $discount <= 0 ? 'wallet' : 'tag')) ?></i>Lo que te da</h2>
 <?php if ($goal > 0): ?>
             <p class="lead">1 sello por cada <?= $h($short($c['stamp_amount'])) ?> que pagas. Con <?= $goal ?> sellos: <?= $h($reward) ?>.</p>
-            <div class="stamps" role="img" aria-label="Llevas <?= $onCardSt ?> de <?= $goal ?> sellos"><?= $stampRow($goal, $onCardSt, 'st') ?></div>
+            <div class="progress">
+                <div class="progress-top"><b><?= $ready > 0 ? 'Premio listo' : 'Faltan ' . $left . ($left === 1 ? ' sello' : ' sellos') ?></b><span><?= $onCardSt ?> de <?= $goal ?></span></div>
+                <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="<?= $goal ?>" aria-valuenow="<?= $onCardSt ?>"><i data-fill="<?= round($onCardSt / $goal * 100, 1) ?>" style="width:<?= round($onCardSt / $goal * 100, 1) ?>%"></i></div>
+            </div>
 <?php if ($ready > 0): ?>
             <p class="ready">¡Tu premio está listo! Pídelo en caja: <?= $h($reward) ?> (vale hasta <?= $h($money($c['reward_value'])) ?>).<?= $ready > 1 ? ' Tienes ' . $ready . ' premios.' : '' ?></p>
 <?php else: ?>
-            <p class="note">Te faltan <b><?= $goal - $have ?></b> <?= $goal - $have === 1 ? 'sello' : 'sellos' ?> para tu <?= $h($reward) ?>. Cuentan los pagos en efectivo, tarjeta o transferencia; no el monedero ni el crédito.</p>
+            <p class="note">Unos <?= $h($short($left * (float) $c['stamp_amount'])) ?> más en compras. Cuentan los pagos en efectivo, tarjeta o transferencia; no el monedero ni el crédito. Los sellos no caducan.</p>
 <?php endif; ?>
 <?php endif; ?>
 <?php if ($discount > 0): ?>
@@ -417,11 +573,7 @@ $qrVersion = @filemtime(__DIR__ . '/../../assets/plugins/qrcode/qrcode.js') ?: 1
 <?php if ($points > 0): ?>
             <p class="lead"><?= $h($pct($points)) ?> de lo que pagas regresa a tu monedero.</p>
 <?php if ($owner): ?>
-            <div class="wallet">
-                <small>Tu monedero hoy</small>
-                <b><?= $h($money($d['wallet'])) ?></b>
-            </div>
-            <p class="note">Lo usas pagando con «Monedero» en caja. Lo que pagas con monedero no da puntos.</p>
+            <p class="note">Tu monedero hoy: <b><?= $h($money($d['wallet'])) ?></b>. Lo usas pagando con «Monedero» en caja; lo que pagas con monedero no da puntos.</p>
 <?php else: ?>
             <p class="note">Los puntos van al monedero del cliente de la compra: en caja da tu nombre o tu teléfono.</p>
 <?php endif; ?>
@@ -493,6 +645,147 @@ $qrVersion = @filemtime(__DIR__ . '/../../assets/plugins/qrcode/qrcode.js') ?: 1
             box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true });
             box.setAttribute('role', 'img');
             box.setAttribute('aria-label', 'Código QR de la tarjeta ' + (box.getAttribute('data-code') || ''));
+        })();
+
+        /*  Movimiento. El telefono recuerda lo que vio la ultima vez (localStorage,
+            por numero): sellos, monedero, nivel y si el premio ya estaba listo.
+            Con eso anima solo lo nuevo. Si localStorage falla, todo sale quieto
+            salvo la entrada. Con «reducir movimiento», nada se mueve. */
+        (function () {
+            var pass = document.querySelector('.pass');
+            if (!pass) return;
+
+            var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            var key    = 'huubie:tarjeta:' + (pass.getAttribute('data-num') || '');
+            var now    = {
+                stamps: Number(pass.getAttribute('data-stamps')) || 0,
+                wallet: pass.getAttribute('data-wallet') === '' ? null : Number(pass.getAttribute('data-wallet')),
+                level:  pass.getAttribute('data-level') || '',
+                ready:  pass.classList.contains('is-ready')
+            };
+            var seen = null;
+
+            try { seen = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { seen = null; }
+            try { localStorage.setItem(key, JSON.stringify(now)); } catch (e) { /* sin memoria: no pasa nada */ }
+
+            // Las barras se llenan desde cero al abrir.
+            var bars = document.querySelectorAll('[data-fill]');
+
+            if (!reduce) {
+                Array.prototype.forEach.call(bars, function (bar) { bar.style.width = '0%'; });
+                requestAnimationFrame(function () { requestAnimationFrame(function () {
+                    Array.prototype.forEach.call(bars, function (bar) { bar.style.width = bar.getAttribute('data-fill') + '%'; });
+                }); });
+            }
+
+            // Al volver a la pestaña despues de un rato, la pagina se recarga: asi se ve lo que paso en caja.
+            var away = 0;
+
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) { away = Date.now(); return; }
+                if (away && Date.now() - away > 30000) location.reload();
+            });
+
+            if (reduce) return;
+
+            var pop = function (el) { if (!el) return; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
+            var goal = Number(pass.getAttribute('data-goal')) || 0;
+
+            // Sellos nuevos desde la ultima visita: caen uno tras otro despues de la entrada.
+            if (seen && goal > 0 && now.stamps > seen.stamps) {
+                var stamps = pass.querySelectorAll('.st');
+                var from   = Math.max(0, Math.min(seen.stamps, goal));
+                var to     = Math.min(now.stamps, goal);
+
+                for (var i = from; i < to; i++) {
+                    (function (st, delay) {
+                        setTimeout(function () { st.classList.add('is-new'); }, delay);
+                    })(stamps[i], 900 + (i - from) * 260);
+                }
+
+                setTimeout(function () { pop(document.getElementById('passVal')); }, 900 + (to - from) * 260);
+            }
+
+            // Premio recien completado (o la primera vez que se ve listo): ola, brillo y confeti. Ya visto: solo el brillo.
+            if (now.ready && (!seen || !seen.ready)) {
+                setTimeout(function () { pass.classList.add('is-done'); confetti(['#FFDA4A', '#FFFFFF', getComputedStyle(pass).getPropertyValue('--card').trim() || '#7C3AED', '#FF4F7B', '#4ADE80']); }, seen && now.stamps > seen.stamps ? 1600 : 900);
+            } else if (now.ready) {
+                pass.classList.add('is-shine');
+            }
+
+            // Monedero que subio: cuenta hasta el saldo de hoy.
+            var walletEl = document.getElementById('passWallet');
+
+            if (seen && walletEl && seen.wallet !== null && now.wallet !== null && now.wallet > seen.wallet) {
+                var a = seen.wallet, b = now.wallet, t0 = 0;
+                var fmt = function (n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+
+                walletEl.textContent = fmt(a);
+                setTimeout(function () {
+                    requestAnimationFrame(function tick(t) {
+                        if (!t0) t0 = t;
+                        var k = Math.min(1, (t - t0) / 1300), e = 1 - Math.pow(1 - k, 3);
+                        walletEl.textContent = fmt(a + (b - a) * e);
+                        if (k < 1) requestAnimationFrame(tick); else pop(walletEl);
+                    });
+                }, 800);
+            }
+
+            // Nivel nuevo: la insignia gira, brilla y, si es el mas alto, pulsa dorada.
+            var badge = pass.querySelector('.badge');
+
+            if (seen && seen.level && now.level && seen.level !== now.level && badge) {
+                setTimeout(function () {
+                    badge.classList.add('flip', 'is-new');
+                    pass.classList.add('is-shine');
+                    if (badge.classList.contains('is-top')) confetti(['#FFDA4A', '#F2B01E', '#FFF1A8', '#FFFFFF']);
+                }, 900);
+            }
+
+            // Confeti sobre toda la pantalla, 2.6 s.
+            function confetti(colors) {
+                var canvas = document.createElement('canvas');
+                var ctx    = canvas.getContext && canvas.getContext('2d');
+                if (!ctx) return;
+
+                var dpr = Math.min(2, window.devicePixelRatio || 1), W = window.innerWidth, H = window.innerHeight;
+                var box = pass.getBoundingClientRect(), cx = box.left + box.width / 2, cy = Math.max(40, box.top + 120);
+
+                canvas.className = 'cf';
+                canvas.width     = W * dpr;
+                canvas.height    = H * dpr;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                document.body.appendChild(canvas);
+
+                var bits = [];
+
+                for (var n = 0; n < 140; n++) {
+                    bits.push({ x: cx + (Math.random() - .5) * 80, y: cy, vx: (Math.random() - .5) * 11, vy: -Math.random() * 9 - 3, g: .22 + Math.random() * .08,
+                                r: Math.random() * 6, vr: (Math.random() - .5) * .35, w: 5 + Math.random() * 5, h: 8 + Math.random() * 7, c: colors[n % colors.length], round: Math.random() < .3 });
+                }
+
+                var start = 0;
+
+                requestAnimationFrame(function frame(t) {
+                    if (!start) start = t;
+                    var k = (t - start) / 2600;
+
+                    ctx.clearRect(0, 0, W, H);
+                    bits.forEach(function (p) {
+                        p.vy += p.g; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+                        ctx.save();
+                        ctx.globalAlpha = Math.max(0, 1 - k * k);
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.r);
+                        ctx.fillStyle = p.c;
+                        if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, 7); ctx.fill(); }
+                        else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2)) + 1);
+                        ctx.restore();
+                    });
+
+                    if (k < 1) requestAnimationFrame(frame); else canvas.remove();
+                });
+            }
         })();
     </script>
 </body>

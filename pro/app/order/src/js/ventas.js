@@ -627,13 +627,20 @@ class Sale extends OrderForm {
             ? `<p class="text-[14px] text-emerald-700 mb-0">${s.reward ? `Premio canjeado: <b>${esc(s.reward.name)}</b> · ` : ''}${earned}lleva ${have}</p>${told}`
             : '';
 
+        // Nivel: con esta venta la tarjeta subió (Lealtad › Programa › Niveles).
+        const lv    = data.level;
+        const level = lv
+            ? `<p class="text-[14px] text-emerald-700 mb-0">Su tarjeta subió a <b>${esc(lv.to)}</b>${lv.whatsapp && ['sent', 'simulated'].includes(lv.whatsapp.status) ? ` · le avisamos por WhatsApp${lv.whatsapp.status === 'simulated' ? ' (simulado)' : ''}` : ''}.</p>`
+            : '';
+
         // V7: «Enviar por WhatsApp» es el botón del medio (deny de SweetAlert).
         const share = !!(data.share && data.share.link);
+        const moment = this.loyaltyMoment(s, lv);
 
         const asking = alert({
             icon:     'success',
             title:    data.message,
-            html:     `${change}<p class="text-[14px] mb-0">Cobrado <b>${money(t.charged)}</b></p>${credit}${points}${stamps}`,
+            html:     `${moment.html}${change}<p class="text-[14px] mb-0">Cobrado <b>${money(t.charged)}</b></p>${credit}${points}${stamps}${level}`,
             btn1:     this.canSell('print'),
             btn1Text: 'Imprimir ticket',
             btn2:     true,
@@ -641,6 +648,10 @@ class Sale extends OrderForm {
             btn3:     share,
             btn3Text: 'Enviar por WhatsApp'
         });
+
+        // La tarjeta chica ya está en la ventana: sus iconos y, si completó el premio o subió de nivel, el confeti.
+        if (moment.html && window.lucide) lucide.createIcons();
+        if (moment.party) this.loyaltyConfetti(moment.party);
 
         // El deny de SweetAlert sale rojo, como si borrara algo: se pinta verde.
         // alert() y compact.css solo le dan medida a confirm y cancel: se le copia aqui.
@@ -1088,6 +1099,115 @@ class Sale extends OrderForm {
             customer_id:      Number.isInteger(owner) && owner > 0 ? owner : null,
             customer:         String(raw.customer || '')
         };
+    }
+
+    /*  «Venta cobrada» con tarjeta de lealtad: la tarjeta chica arriba de la
+        ventana (las clases .loy-card de order.css). Sellos: los nuevos caen uno
+        tras otro; si con esta venta completó el premio, los sellos brincan, cruza
+        un brillo y cae confeti. Nivel: la tarjeta del nivel nuevo, con su
+        insignia que gira a dorado y confeti. Devuelve { html, party } (party:
+        los colores del confeti, o null). Con «reducir movimiento», quieta. */
+    loyaltyMoment(s, lv) {
+        const icon = (name) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(String(name || '')) ? name : '';
+        const face = (color, logo, type, value, body, say, cls = '') => {
+            const hex = /^#[0-9A-F]{6}$/i.test(color || '') ? color.toUpperCase() : '#BAE6FD';
+
+            return `<div class="loy-sale"><div class="loy-card is-sale${cls}" data-ink="${this.loyaltyInk(hex)}" style="--loy-color:${hex}">`
+                + `<div class="loy-card-head"><span class="loy-card-logo" aria-hidden="true"><i data-lucide="${logo}"></i></span>`
+                + `<div class="loy-card-name"><span class="loy-card-type">${esc(type)}</span></div>`
+                + (value ? `<div class="loy-card-value"><span class="loy-card-label">${esc(value[0])}</span><b>${esc(value[1])}</b></div>` : '')
+                + `</div><div class="loy-card-body">${body}<p class="loy-card-say">${esc(say)}</p></div>`
+                + '<i class="loy-card-sheen" aria-hidden="true"></i></div></div>';
+        };
+
+        if (lv && lv.direction !== 'baja') {
+            const badge = `<div class="loy-card-tier"><span class="loy-card-badge is-top is-flip"><i data-lucide="trophy"></i><em>${esc(lv.to)}</em></span><span>¡Subió de nivel!</span></div>`;
+
+            return { html: face(lv.color, 'crown', lv.to, null, badge, lv.perk ? `Beneficio nuevo: ${lv.perk}.` : `Su tarjeta ahora es ${lv.to}.`, ' is-shine'), party: ['#FFDA4A', '#F2B01E', '#FFF1A8', '#FFFFFF'] };
+        }
+
+        if (!s || !(s.earned > 0) || !s.goal) return { html: '', party: null };
+
+        const goal   = Math.min(20, s.goal);
+        const shown  = Math.min(goal, s.balance);
+        const before = Math.max(0, s.balance - s.earned);
+        const done   = s.balance >= s.goal && before < s.goal;
+        const mark   = icon(s.icon);
+        const stamps = Array.from({ length: goal }, (v, i) => {
+            const gift = i === goal - 1;
+            const fresh = i >= before && i < shown;
+
+            return `<span class="loy-stamp${i < shown ? ' is-on' : ''}${gift ? ' is-gift' : ''}${fresh ? ' is-new' : ''}" style="--k:${i};--n:${Math.max(0, i - before)}">`
+                + (gift ? '<i data-lucide="gift"></i>' : (mark ? `<i data-lucide="${mark}"></i>` : '')) + '</span>';
+        }).join('');
+
+        const left = Math.max(0, s.goal - s.balance);
+        const prize = s.prize || 'su premio';
+        const say  = s.balance >= s.goal ? `¡Premio listo: ${prize}!` : `+${s.earned} ${s.earned === 1 ? 'sello' : 'sellos'} · le faltan ${left} para ${prize}`;
+
+        return {
+            html:  face(s.color, mark || 'stamp', s.type || 'Tarjeta de sellos', ['Sellos', `${shown}/${s.goal}`], `<div class="loy-card-stamps${goal > 10 ? ' is-many' : ''}" aria-hidden="true">${stamps}</div>`, say, done ? ' is-done' : ''),
+            party: done ? ['#FFDA4A', '#FFFFFF', s.color || '#7C3AED', '#FF4F7B', '#4ADE80'] : null
+        };
+    }
+
+    // Letra oscura sobre colores claros y blanca sobre los fuertes (luminancia de WCAG, el corte 0.24 de tarjetas.js).
+    loyaltyInk(hex) {
+        const ch = (at) => {
+            const v = parseInt(hex.slice(at, at + 2), 16) / 255;
+
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        };
+
+        return 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5) > 0.24 ? 'dark' : 'light';
+    }
+
+    // Confeti sobre toda la pantalla, encima de la ventana, 2.6 s. Con «reducir movimiento», nada.
+    loyaltyConfetti(colors) {
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        const canvas = document.createElement('canvas');
+        const ctx    = canvas.getContext && canvas.getContext('2d');
+
+        if (!ctx) return;
+
+        const dpr  = Math.min(2, window.devicePixelRatio || 1), W = window.innerWidth, H = window.innerHeight;
+        const box  = document.querySelector('.loy-sale');
+        const rect = box ? box.getBoundingClientRect() : { left: W / 2, width: 0, top: H / 3 };
+        const cx   = rect.left + rect.width / 2, cy = rect.top + 60;
+        const bits = Array.from({ length: 150 }, (v, n) => ({
+            x: cx + (Math.random() - .5) * 90, y: cy, vx: (Math.random() - .5) * 12, vy: -Math.random() * 9 - 3, g: .22 + Math.random() * .08,
+            r: Math.random() * 6, vr: (Math.random() - .5) * .35, w: 5 + Math.random() * 5, h: 8 + Math.random() * 7, c: colors[n % colors.length], round: Math.random() < .3
+        }));
+
+        canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10050';
+        canvas.width  = W * dpr;
+        canvas.height = H * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        document.body.appendChild(canvas);
+
+        let start = 0;
+
+        // Arranca cuando ya cayeron los sellos nuevos.
+        setTimeout(() => requestAnimationFrame(function frame(t) {
+            if (!start) start = t;
+
+            const k = (t - start) / 2600;
+
+            ctx.clearRect(0, 0, W, H);
+            bits.forEach((p) => {
+                p.vy += p.g; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, 1 - k * k);
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.r);
+                ctx.fillStyle = p.c;
+                if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, 7); ctx.fill(); } else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2)) + 1);
+                ctx.restore();
+            });
+
+            if (k < 1) requestAnimationFrame(frame); else canvas.remove();
+        }), 900);
     }
 
     // «7 de 10 sellos»; si ya pasó la meta (premio sin canjear), «12 sellos juntados».

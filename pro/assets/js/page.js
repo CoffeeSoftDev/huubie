@@ -34,13 +34,33 @@ const Page = {
     },
 
     // person: { name, photo, color }. size: '' | 'sm' | 'lg' | 'xl'.
+    // Con foto no lleva fondo (is-photo): el color se asomaba como aro oscuro en la orilla.
     avatar(person, size) {
-        const color = /^#[0-9A-Fa-f]{6}$/.test(person.color || '') ? ` style="background:${person.color}"` : '';
-        const inner = person.photo
+        const photo = !!person.photo;
+        const color = !photo && /^#[0-9A-Fa-f]{6}$/.test(person.color || '') ? ` style="background:${person.color};color:${Page.ink(person.color)}"` : '';
+        const inner = photo
             ? `<img src="${Page.esc(person.photo)}" alt="">`
             : Page.esc(Page.initials(person.name));
 
-        return `<span class="pg-avatar ${size ? 'is-' + size : ''}"${color} title="${Page.esc(person.name)}">${inner}</span>`;
+        return `<span class="pg-avatar ${size ? 'is-' + size : ''}${photo ? ' is-photo' : ''}"${color} title="${Page.esc(person.name)}">${inner}</span>`;
+    },
+
+    // Letra que se lee sobre un fondo #RRGGBB: en los fuertes, blanca; en los
+    // claros (pastel), el mismo tono pero oscuro (azul pastel -> azul profundo).
+    ink(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        const r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+
+        if (r * .299 + g * .587 + b * .114 <= .63) return '#FFFFFF';
+
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+        const l   = (max + min) / 2;
+        const s   = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+
+        let h = 0;
+        if (d) h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+
+        return `hsl(${Math.round(h * 60)} ${Math.round(Math.min(s, .65) * 100)}% 30%)`;
     },
 
     money(amount, currency) {

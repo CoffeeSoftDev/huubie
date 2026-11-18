@@ -49,6 +49,7 @@ class OrderPay extends Templates {
         this.isOpen       = false;
         this.modal        = null;
         this.draft        = null;
+        this.asking       = false;
     }
 
     // -- Entrada --
@@ -1348,7 +1349,8 @@ class OrderPay extends Templates {
 
     // El botón, Enter o F2: revisa y pide la confirmación. Nada se guarda todavía.
     save() {
-        if (this.confirmCalc || this.delPay || this.busy) return;
+        // asking: la pregunta «¿Cómo se guarda?» está abierta (Enter o F2 no la repiten).
+        if (this.confirmCalc || this.delPay || this.busy || this.asking) return;
 
         // En el historial, F2 lleva a registrar.
         if (!document.getElementById('paPayForm')) {
@@ -1400,8 +1402,8 @@ class OrderPay extends Templates {
     /*  Pedido nuevo: se guarda aquí, al confirmar el cobro. true = ya existe (this.o.id).
         Si no se guardó, la captura sigue abierta con todo lo escrito. El token de la
         captura evita un pedido doble si se vuelve a confirmar. */
-    async saveDraft(draft) {
-        const made = await draft.save();
+    async saveDraft(draft, how = '') {
+        const made = await draft.save(how);
 
         if (made && made.status == 200 && made.id) {
             this.o.id    = Number(made.id);
@@ -1436,24 +1438,33 @@ class OrderPay extends Templates {
     }
 
     /*  Pedido nuevo sin importe: «¿Cómo se guarda?» (la pregunta es de la captura).
-        Cotización se guarda ya, sin dinero. Pendiente necesita anticipo: regresa
-        al importe. block = por qué no se cobra; entonces solo queda Cotización. */
+        Cotización se guarda sin dinero; Pendiente, sin anticipo y con todo el
+        saldo por cobrar. Las dos guardan y cierran la ventana y la captura.
+        Cerrada sin elegir, regresa al importe. block = por qué no se cobra;
+        entonces solo queda Cotización. */
     async askDraft(block) {
-        const draft = this.draft;
-        const how   = await draft.ask(block);
+        if (this.asking) return;
 
-        if (how !== 'quote') return this.focusField(this.active);
+        const draft = this.draft;
+
+        this.asking = true;
+
+        const how = await draft.ask(block);
+
+        this.asking = false;
+
+        if (how !== 'quote' && how !== 'pending') return this.focusField(this.active);
         if (this.busy || this.draft !== draft) return;
 
         this.setBusy(true);
 
-        if (!(await this.saveDraft(draft))) return;
+        if (!(await this.saveDraft(draft, how))) return;
 
         this.closeQuiet('modalOrderPay', this.modal.close);
         this.busy = false;
         this.afterChange();
 
-        alert({ icon: 'success', title: `${this.noun()} ${this.prefix()}${this.o.folio} guardado como cotización`, timer: 1600 });
+        alert({ icon: 'success', title: `${this.noun()} ${this.prefix()}${this.o.folio} guardado como ${how === 'pending' ? 'pendiente' : 'cotización'}`, timer: 1600 });
     }
 
     // «Sí, registrar»: el candado (busy) y el token impiden un segundo cobro con doble clic o doble Enter.

@@ -107,7 +107,7 @@ class ctrl extends mdl {
             // root conserva su rol; los demas toman el que tienen en esa sucursal.
             if (empty($_SESSION['is_root'])) {
                 $_SESSION['role_id'] = (int) $branch['role_id'];
-                $_SESSION['rol']     = $branch['rol'] ?? '';
+                $_SESSION['rol']     = ($branch['rol'] ?? '') ?: (!empty($_SESSION['is_owner']) ? 'Dueño' : '');
             }
 
             return ['status' => 200, 'message' => 'Sucursal cambiada.'];
@@ -254,6 +254,11 @@ class ctrl extends mdl {
 
             $extras[] = ['name' => 'Empresas', 'icon' => 'building-2', 'route' => self::ROUTE_COMPANIES];
         }
+
+        // El dueño entra a su perfil y a la configuracion desde las tarjetas del
+        // inicio (ctrl-home :: shortcuts) y desde el menu de la barra. root los
+        // conserva aqui.
+        if ($this->ownsCompany() && empty($_SESSION['is_root'])) return $extras;
 
         $extras[] = ['name' => 'Mi perfil', 'icon' => 'user-round', 'route' => self::ROUTE_PROFILE];
 

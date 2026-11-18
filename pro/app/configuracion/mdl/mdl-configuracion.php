@@ -45,6 +45,11 @@ class configMdl extends core {
         return $this->_CUD("UPDATE {$this->bd}companies SET logo = ? WHERE id = ?", $array);
     }
 
+    function updateUserPhoto($array) {
+        // [photo, user_id] — el ctrl ya reviso que el usuario sea de la empresa (companyUser)
+        return $this->_CUD("UPDATE {$this->bd}users SET photo = ?, updated_at = NOW() WHERE id = ?", $array);
+    }
+
     // Los topes del plan vigente (la ultima suscripcion). NULL = sin tope.
     function getPlanLimits($array) {
         // [company_id]
@@ -83,7 +88,9 @@ class configMdl extends core {
         return is_array($r) ? $r : [];
     }
 
-    // Toda la gente de la empresa, activa o no. Primero los dueños.
+    // Toda la gente de la empresa, activa o no. Primero los dueños; despues,
+    // del ultimo que se dio de alta hacia abajo (id: los de una misma carga
+    // comparten created_at).
     function listUsers($array) {
         // [company_id]
         $query = "
@@ -91,7 +98,7 @@ class configMdl extends core {
                    DATE_FORMAT(u.last_login_at, '%Y-%m-%d') AS last_login
             FROM {$this->bd}users u
             WHERE u.company_id = ?
-            ORDER BY (u.status = 'active') DESC, u.is_owner DESC, u.name ASC
+            ORDER BY u.is_owner DESC, u.created_at DESC, u.id DESC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
@@ -115,7 +122,8 @@ class configMdl extends core {
     /*  Los roles que la empresa puede dar: los del sistema (de todas las
         empresas, no se editan aqui) y los suyos, activos o no. root no: darlo
         en una sucursal es dar acceso a toda la plataforma. `users` cuenta solo
-        a la gente de ESTA empresa. */
+        a la gente de ESTA empresa. El Dueño (owner del sistema o dueno de la
+        empresa) va primero. */
     function listRoles($array) {
         // [company_id, company_id]
         $query = "
@@ -128,7 +136,7 @@ class configMdl extends core {
             FROM {$this->bd}roles r
             WHERE COALESCE(r.code, '') <> 'root'
               AND ((r.is_system = 1 AND r.is_active = 1) OR r.company_id = ?)
-            ORDER BY r.is_system ASC, r.is_active DESC, r.name ASC
+            ORDER BY (COALESCE(r.code, '') IN ('owner', 'dueno')) DESC, r.is_system ASC, r.is_active DESC, r.name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
