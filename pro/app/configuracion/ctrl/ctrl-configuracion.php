@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../../core/security/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/../mdl/mdl-configuracion.php';
+require_once __DIR__ . '/../../home/mdl/mdl-home-layout.php';
 require_once __DIR__ . '/../../../core/billing/_Billing.php';
 
 /*  CONFIGURACIÓN DE LA EMPRESA: lo que su dueño administra por su cuenta.
@@ -12,6 +13,7 @@ require_once __DIR__ . '/../../../core/billing/_Billing.php';
       Usuarios     su gente: a que sucursal entra cada quien y con que rol
       Roles        los roles propios de la empresa y lo que deja hacer cada uno
       Plan y pagos el plan y cambiarlo, pagar, la forma de pago y el historial
+      Mi inicio    que tarjetas ve el dueño en su inicio y donde (HomeLayout)
 
     Es del DUEÑO (o de root viendo la empresa como su dueño): no es una seccion
     con permisos por rol, asi que no pasa por Permission. La revision va al pie
@@ -27,11 +29,12 @@ class ctrl extends configMdl {
         'users', 'saveUser', 'saveUserPhoto', 'toggleUser',
         'roles', 'getRole', 'saveRole', 'toggleRole',
         'billing', 'checkout', 'portal', 'plans', 'changePlan',
+        'homeLayout', 'saveHomeLayout', 'resetHomeLayout',
     ];
 
     // Las que solo leen la sesion: se suelta antes para no formar en fila a la
     // barra y al rail.
-    const READ_ONLY = ['init', 'branches', 'users', 'roles', 'getRole', 'billing', 'checkout', 'portal', 'plans', 'changePlan'];
+    const READ_ONLY = ['init', 'branches', 'users', 'roles', 'getRole', 'billing', 'checkout', 'portal', 'plans', 'changePlan', 'homeLayout', 'saveHomeLayout', 'resetHomeLayout'];
 
     const LOGO_MAX   = 2097152;   // 2 MB
     const LOGO_TYPES = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'];
@@ -1016,6 +1019,94 @@ class ctrl extends configMdl {
         foreach ($wanted as $id) $prices[$id] = $kept[$id] ?? $catalog[$id];
 
         return ['prices' => $prices];
+    }
+
+    // ========================================================= Mi inicio
+
+    /*  Lo que necesita el editor del inicio:
+          widgets  todo el catalogo, cada tarjeta con su modulo (null = General)
+                   y si su empresa la tiene (on = 1: es General o de un modulo
+                   contratado). Las de modulos que no tiene van apagadas: se
+                   ven, pero no se pueden poner.
+          groups   como agruparlas: General, luego cada modulo contratado en el
+                   orden del menu, y al final los que no tiene.
+          layout   su inicio de hoy: [{code, zone}] en orden; custom = ya lo
+                   habia personalizado.
+        Es el inicio de quien esta en sesion en esta empresa (root dentro de
+        una empresa acomoda el suyo, no el del dueño). */
+    function homeLayout() {
+        $layout = new HomeLayout;
+
+        if (!$layout->ready()) {
+            return ['status' => 503, 'message' => 'Esta función todavía no está lista en tu servidor. Avísanos para activarla.'];
+        }
+
+        $usable = $layout->usable(false);
+        $mine   = $layout->forUser(Session::user(), $this->cid, $usable);
+
+        $widgets = [];
+        $groups  = ['general' => ['key' => 'general', 'name' => 'General', 'icon' => 'layout-grid', 'on' => 1]];
+
+        foreach (Plan::modules() as $m) {
+            $groups[$m['code']] = ['key' => (string) $m['code'], 'name' => (string) $m['name'], 'icon' => $m['icon'] ?: 'layout-grid', 'on' => 1];
+        }
+
+        foreach ($layout->catalog() as $w) {
+            $key = $w['module'] ? $w['module']['code'] : 'general';
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = ['key' => $key, 'name' => $w['module']['name'], 'icon' => $w['module']['icon'], 'on' => 0];
+            }
+
+            $widgets[] = [
+                'code'  => $w['code'],
+                'name'  => $w['name'],
+                'text'  => $w['text'],
+                'icon'  => $w['icon'],
+                'zone'  => $w['zone'],
+                'zones' => $w['zones'],
+                'group' => $key,
+                'on'    => isset($usable[$w['code']]) ? 1 : 0,
+            ];
+        }
+
+        // Sin tarjetas que mostrar, un grupo no se lista (un modulo sin tarjetas todavia).
+        $used   = array_flip(array_column($widgets, 'group'));
+        $groups = array_values(array_filter($groups, function ($g) use ($used) { return isset($used[$g['key']]); }));
+
+        return [
+            'status' => 200,
+            'data'   => [
+                'widgets' => $widgets,
+                'groups'  => $groups,
+                'layout'  => $mine['items'],
+                'custom'  => $mine['custom'] ? 1 : 0,
+                'max'     => HomeLayout::MAX,
+                'viewing' => !empty($_SESSION['is_root']) ? 1 : 0,
+            ]
+        ];
+    }
+
+    // `layout` viaja como JSON [{code, zone}] en el orden en que se ve.
+    function saveHomeLayout() {
+        $layout = new HomeLayout;
+        $items  = json_decode((string) ($_POST['layout'] ?? ''), true);
+
+        if (!is_array($items)) return ['status' => 400, 'message' => 'No recibimos tu inicio. Inténtalo de nuevo.'];
+
+        $error = $layout->save(Session::user(), $this->cid, array_values($items), $layout->usable(false));
+
+        return $error
+             ? ['status' => 400, 'message' => $error]
+             : ['status' => 200, 'message' => 'Listo: así se verá tu inicio.'];
+    }
+
+    function resetHomeLayout() {
+        $ok = (new HomeLayout)->reset(Session::user(), $this->cid);
+
+        return $ok
+             ? ['status' => 200, 'message' => 'Tu inicio volvió a como venía de fábrica.']
+             : ['status' => 500, 'message' => 'No pudimos restablecer tu inicio. Inténtalo de nuevo.'];
     }
 
     // ============================================================ Comunes

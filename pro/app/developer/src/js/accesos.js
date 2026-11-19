@@ -12,6 +12,8 @@ $(async () => {
     roles = new Roles(api, 'root');
     permissions = new Permissions(api, 'root');
     users = new Users(api, 'root');
+    // Las tarjetas del inicio tienen su propio ctrl (accesos-inicio.js).
+    homeCards = new HomeCards('ctrl/ctrl-inicio.php', 'root');
 
     app = new App(api, 'root');
     app.render();
@@ -69,7 +71,7 @@ class App extends Templates {
                     .append($('<i>', { 'data-lucide': 'shield', class: 'w-6 h-6' })),
                 $('<div>').append(
                     $('<h2>', { class: 'text-2xl font-semibold tracking-tight', text: 'Accesos' }),
-                    $('<p>', { class: 'text-sm text-gray-400', text: 'Tipos de permiso, módulos, roles con sus permisos y usuarios' })
+                    $('<p>', { class: 'text-sm text-gray-400', text: 'Tipos de permiso, módulos, roles con sus permisos, usuarios y las tarjetas del inicio' })
                 )
             )
         );
@@ -113,6 +115,14 @@ class App extends Templates {
                     lucideIcon: 'layout-grid',
                     class: 'flex-1 lg:min-h-0 flex flex-col',
                     onClick: () => { sections.render(); sections.lsSections(); }
+                },
+                {
+                    // Lo que cada módulo puede enseñar en el inicio del dueño.
+                    id: 'inicio',
+                    tab: 'Inicio',
+                    lucideIcon: 'layout-dashboard',
+                    class: 'flex-1 lg:min-h-0 flex flex-col',
+                    onClick: () => { homeCards.render(); homeCards.ls(); }
                 }
             ]
         });

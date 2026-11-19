@@ -28,6 +28,10 @@
     <!-- Alta y edición de usuarios: Accesos › Usuarios y el detalle de cada empresa en Facturación. -->
     <script src="src/js/user-form.js?v=<?= filemtime(__DIR__ . '/../src/js/user-form.js') ?>"></script>
     <?php endif; ?>
+    <?php if ($script === 'accesos'): ?>
+    <!-- Accesos › Inicio: las tarjetas que cada módulo ofrece para el inicio del dueño. -->
+    <script src="src/js/accesos-inicio.js?v=<?= filemtime(__DIR__ . '/../src/js/accesos-inicio.js') ?>"></script>
+    <?php endif; ?>
     <script src="src/js/<?= $script ?>.js?v=<?= filemtime(__DIR__ . '/../src/js/' . $script . '.js') ?>"></script>
 </body>
 

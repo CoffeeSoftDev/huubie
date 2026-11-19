@@ -689,3 +689,189 @@ body.dark-mode .pg-ico.is-warn { background: rgb(245 158 11 / .16); color: #FCD3
 
 .pg-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pg-nowrap { white-space: nowrap; }
+
+/* -- Botón chico (el «Personalizar» del saludo) -- */
+.pg-btn.is-sm { padding: 6px 14px; font-size: 13px; gap: 6px; }
+.pg-btn.is-sm svg { width: 14px; height: 14px; }
+
+/* Solo para el lector de pantalla (la tabla de una gráfica, los avisos del editor). */
+.pg-sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+
+/* ============================================================
+   TARJETAS DEL INICIO DEL DUEÑO (home.js › HOME_WIDGETS)
+   ============================================================
+   Cada tarjeta es una .pg-card; aquí va lo que algunas traen de propio. */
+
+/* El «Ver más» baja al pie cuando el encabezado ya lleva un chip. */
+.pg-w-foot { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pg-w-more { margin-top: 10px !important; text-align: center; }
+/* Título de un grupo dentro de una tarjeta (Hoy, Mañana...). */
+.pg-w-group { margin: 16px 0 6px !important; font-size: 11.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-dim); }
+.pg-card-head + .pg-w-group { margin-top: 0 !important; }
+
+/* Hora de una entrega. */
+.pg-time { flex-shrink: 0; min-width: 66px; padding: 5px 8px; border-radius: 9px; text-align: center; font-size: 12.5px; font-weight: 500; color: var(--ink); background: var(--tint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* -- Ranking (top productos, mejores clientes) -- */
+.pg-rank-n { flex-shrink: 0; width: 20px; text-align: center; font-size: 13px; font-weight: 600; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.pg-list > .pg-row:first-child .pg-rank-n { color: var(--ink); }
+.pg-rank-side { flex-shrink: 0; text-align: right; white-space: nowrap; }
+.pg-ranks .pg-row-text .pg-meter { margin-top: 6px; }
+
+/* Barrita de proporción: la pista es el mismo tono, apenas. */
+.pg-meter { display: block; height: 6px; border-radius: 9999px; overflow: hidden; background: rgb(var(--brand-600, 80 48 165) / .12); }
+.pg-meter > span { display: block; height: 100%; border-radius: inherit; background: rgb(var(--brand-600, 80 48 165)); }
+body.dark-mode .pg-meter { background: rgb(255 255 255 / .08); }
+body.dark-mode .pg-meter > span { background: rgb(var(--brand-400, 155 127 224)); }
+
+.pg-w-share { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.pg-w-share .pg-meter { margin-bottom: 8px; }
+
+/* -- Gráfica de columnas (ventas de los últimos 14 días) --
+   Una sola serie: columnas de 24px como mucho, esquinas de 4px arriba y
+   cuadradas en la base, rejilla de un pelo. Al pasar o enfocar, la columna
+   dice su día y su monto. */
+.pg-bars-sum { margin-bottom: 16px !important; }
+.pg-bars { --bars-h: 150px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; }
+.pg-bars-y { position: relative; height: var(--bars-h); min-width: 30px; font-size: 11.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.pg-bars-y span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
+.pg-bars-y span:nth-child(1) { top: 0; }
+.pg-bars-y span:nth-child(2) { top: 50%; }
+.pg-bars-y span:nth-child(3) { top: 100%; }
+.pg-bars-plot { position: relative; min-width: 0; }
+.pg-bars-grid { position: absolute; left: 0; right: 0; top: 0; height: var(--bars-h); pointer-events: none; }
+.pg-bars-grid span { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); }
+.pg-bars-grid span:nth-child(1) { top: 0; }
+.pg-bars-grid span:nth-child(2) { top: 50%; }
+.pg-bars-grid span:nth-child(3) { top: 100%; }
+.pg-bars-cols, .pg-bars-x { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); }
+.pg-bars-cols { position: relative; height: var(--bars-h); }
+.pg-bars-col { position: relative; display: flex; align-items: flex-end; justify-content: center; height: 100%; border-radius: 6px; outline: none; cursor: default; transition: background-color .12s ease; }
+.pg-bars-col:hover, .pg-bars-col:focus-visible { background: var(--tint); }
+.pg-bars-col:focus-visible { box-shadow: 0 0 0 2px rgb(var(--accent-2-600, 192 90 64) / .45); }
+.pg-bar { display: block; width: min(24px, 64%); border-radius: 4px 4px 0 0; background: rgb(var(--brand-600, 80 48 165)); }
+body.dark-mode .pg-bar { background: rgb(var(--brand-400, 155 127 224)); }
+.pg-bars-tip {
+    position: absolute; z-index: 5; top: -8px; left: 50%; transform: translate(-50%, -100%);
+    display: flex; flex-direction: column; gap: 1px; padding: 8px 11px; border-radius: 11px;
+    font-size: 12px; line-height: 1.35; white-space: nowrap; color: #FFFFFF; background: #1D1B31;
+    box-shadow: 0 12px 28px -12px rgb(29 27 49 / .6);
+    opacity: 0; pointer-events: none; transition: opacity .12s ease;
+}
+.pg-bars-tip b { font-size: 13.5px; font-weight: 600; }
+.pg-bars-tip span { color: rgb(255 255 255 / .75); }
+.pg-bars-tip span:first-letter { text-transform: uppercase; }
+.pg-bars-col.is-start .pg-bars-tip { left: 0; transform: translate(0, -100%); }
+.pg-bars-col.is-end .pg-bars-tip { left: auto; right: 0; transform: translate(0, -100%); }
+.pg-bars-col:hover .pg-bars-tip, .pg-bars-col:focus-visible .pg-bars-tip { opacity: 1; }
+body.dark-mode .pg-bars-tip { background: #0B1220; border: 1px solid var(--dk-line, #374151); }
+.pg-bars-x { margin-top: 7px; font-size: 11px; color: var(--ink-dim); text-align: center; font-variant-numeric: tabular-nums; }
+.pg-bars-x .is-today { color: var(--ink); font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { .pg-bars-col, .pg-bars-tip { transition: none; } }
+
+
+/* ============================================================
+   MI INICIO (Configuración › configuracion.js › hmRender)
+   ============================================================
+   A la izquierda el inicio en chiquito, con sus tres zonas; a la derecha
+   las tarjetas disponibles por módulo. Se arrastra con el puntero. */
+
+.pg-hm { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .pg-hm { grid-template-columns: minmax(0, 1fr); } }
+
+/* -- El inicio en chiquito -- */
+.pg-hm-screen { display: flex; flex-direction: column; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: rgb(var(--gray-100, 243 244 246) / .7); }
+body.dark-mode .pg-hm-screen { background: rgb(255 255 255 / .025); }
+.pg-hm-bar { display: flex; align-items: center; gap: 6px; }
+.pg-hm-bar > span { width: 9px; height: 9px; border-radius: 9999px; background: var(--line); }
+.pg-hm-bar p { margin-left: 6px !important; font-size: 12px; font-weight: 500; color: var(--ink-dim); }
+.pg-hm-fixed { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; font-size: 12.5px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); opacity: .75; }
+.pg-hm-fixed svg { width: 14px; height: 14px; color: var(--ink-dim); }
+.pg-hm-cols { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 640px) { .pg-hm-cols { grid-template-columns: minmax(0, 1fr); } }
+
+.pg-hm-zone { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.pg-hm-zone-label { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 12.5px; font-weight: 500; color: var(--ink); }
+.pg-hm-zone-label span { font-size: 12px; font-weight: 300; color: var(--ink-dim); }
+.pg-hm-list { display: flex; flex-direction: column; gap: 8px; min-height: 66px; padding: 8px; border: 1.5px dashed var(--line); border-radius: 14px; transition: border-color .15s ease, background-color .15s ease, opacity .15s ease; }
+.pg-hm-cols .pg-hm-list { min-height: 150px; }
+.pg-hm-empty { display: none; align-items: center; justify-content: center; flex: 1; min-height: 46px; margin: 0; font-size: 12.5px; color: var(--ink-dim); text-align: center; }
+.pg-hm-list:not(:has(> .pg-hm-tile, > .pg-hm-ph)) > .pg-hm-empty { display: flex; }
+/* Mientras se arrastra: a donde sí, a donde no. */
+.is-dragging .pg-hm-list { border-color: var(--accent-line); }
+.pg-hm-list.is-over { border-color: rgb(var(--accent-2-600, 192 90 64)) !important; background: rgb(var(--accent-2-600, 192 90 64) / .05); }
+.pg-hm-list.is-deny { opacity: .4; border-color: var(--line) !important; }
+.pg-hm-list.is-deny > .pg-hm-empty { display: flex; font-size: 0; }
+.pg-hm-list.is-deny > .pg-hm-empty::after { content: 'Esta tarjeta no cabe aquí'; font-size: 12.5px; }
+
+/* -- Tarjeta puesta -- */
+.pg-hm-tile { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 7px 6px 7px 3px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 2px rgb(16 24 40 / .05); cursor: grab; -webkit-user-select: none; user-select: none; transition: border-color .15s ease, opacity .15s ease; }
+.pg-hm-tile:hover { border-color: var(--accent-line); }
+body.dark-mode .pg-hm-tile { box-shadow: none; }
+.pg-hm-grip { flex-shrink: 0; display: grid; place-items: center; width: 26px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink-dim); cursor: grab; touch-action: none; }
+.pg-hm-grip:hover { color: var(--ink); background: var(--tint); }
+.pg-hm-grip:focus-visible { outline: 2px solid rgb(var(--accent-2-600, 192 90 64)); outline-offset: 1px; }
+.pg-hm-grip svg { width: 17px; height: 17px; }
+.pg-hm-ico { flex-shrink: 0; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--icon-box-bg, rgb(var(--brand-100, 247 227 220))); color: var(--icon-box-fg, rgb(var(--brand-600, 192 90 64))); }
+.pg-hm-ico svg { width: 16px; height: 16px; }
+.pg-hm-name { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13.5px; font-weight: 500; line-height: 1.3; color: var(--ink); }
+.pg-hm-mod { font-size: 11.5px; font-weight: 300; color: var(--ink-dim); }
+.pg-hm-x { flex-shrink: 0; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 9999px; background: transparent; color: var(--ink-dim); cursor: pointer; transition: color .15s ease, background-color .15s ease; }
+.pg-hm-x:hover { color: #DC2626; background: rgb(220 38 38 / .08); }
+.pg-hm-x:focus-visible { outline: 2px solid rgb(var(--accent-2-600, 192 90 64)); outline-offset: 1px; }
+.pg-hm-x svg { width: 15px; height: 15px; }
+.pg-hm-tile.is-new { animation: pg-hm-new .9s ease; }
+@keyframes pg-hm-new { 0%, 40% { border-color: rgb(var(--accent-2-600, 192 90 64)); box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 192 90 64) / .25); } }
+
+/* El lugar donde caería: la misma tarjeta apagada, o un hueco nuevo. */
+.pg-hm-tile.is-ph { opacity: .35; border-style: dashed; box-shadow: none; }
+.is-out .pg-hm-tile.is-ph, .is-lost .pg-hm-tile.is-ph { opacity: .12; }
+.pg-hm-ph { flex-shrink: 0; height: 48px; border-radius: 12px; border: 1.5px dashed rgb(var(--accent-2-600, 192 90 64)); background: rgb(var(--accent-2-600, 192 90 64) / .06); }
+/* La copia que sigue al puntero. */
+.pg-hm-tile.is-floating, .pg-hm-item.is-floating { position: fixed; left: 0; top: 0; z-index: 400; margin: 0; pointer-events: none; rotate: 1.5deg; opacity: .96; background: var(--surface); border: 1px solid var(--accent-line); box-shadow: 0 22px 44px -14px rgb(29 27 49 / .45); }
+.is-dragging, .is-dragging * { cursor: grabbing !important; }
+
+.pg-hm-help { display: flex; align-items: center; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; margin-top: 10px !important; font-size: 12.5px; }
+.pg-hm-help > span { display: inline-flex; align-items: center; gap: 6px; }
+.pg-hm-help svg { width: 14px; height: 14px; }
+
+/* -- Tarjetas disponibles -- */
+.pg-hm-palette { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 160px); overflow-y: auto; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); transition: border-color .15s ease, background-color .15s ease; }
+@media (max-width: 1100px) { .pg-hm-palette { position: static; max-height: none; overflow: visible; } }
+.pg-hm-out { display: none; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 12px; border: 1.5px dashed #DC2626; color: #B91C1C; font-size: 13px; font-weight: 500; }
+.pg-hm-out svg { width: 16px; height: 16px; }
+.is-dragging.from-board .pg-hm-out { display: flex; }
+.is-out .pg-hm-palette { border-color: #DC2626; background: rgb(220 38 38 / .04); }
+body.dark-mode .pg-hm-out { color: #FCA5A5; border-color: #F87171; }
+
+.pg-hm-group { display: flex; flex-direction: column; gap: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pg-hm-group-title { display: flex; align-items: center; gap: 7px; margin-bottom: 2px !important; font-size: 11.5px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-dim); }
+.pg-hm-group-title svg { width: 14px; height: 14px; }
+.pg-hm-lock { margin-left: auto; }
+.pg-hm-others { padding-top: 14px; border-top: 1px solid var(--line); }
+
+.pg-hm-item { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px; border-radius: 12px; border: 1px solid transparent; cursor: grab; -webkit-user-select: none; user-select: none; transition: background-color .15s ease, border-color .15s ease; }
+.pg-hm-item:hover { background: var(--tint); border-color: var(--line); }
+.pg-hm-item .pg-row-text { display: flex; flex-direction: column; }
+.pg-hm-item .pg-strong { font-size: 13.5px; }
+.pg-hm-text { font-size: 12.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pg-hm-item [data-handle] { touch-action: none; }
+.pg-hm-item.is-added, .pg-hm-item.is-locked { cursor: default; }
+.pg-hm-item.is-added .pg-hm-ico { opacity: .55; }
+.pg-hm-item.is-locked { opacity: .55; }
+.pg-hm-item.is-locked:hover { background: transparent; border-color: transparent; }
+.pg-hm-add { flex-shrink: 0; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 9999px; background: var(--surface); color: var(--ink); cursor: pointer; transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+.pg-hm-add svg { width: 15px; height: 15px; }
+.pg-hm-add:hover { background: rgb(var(--primary-rgb, 41 37 36)); border-color: transparent; color: #FFFFFF; }
+.pg-hm-add:focus-visible { outline: 2px solid rgb(var(--accent-2-600, 192 90 64)); outline-offset: 2px; }
+.pg-hm-add.is-on { border-color: transparent; background: var(--ok-soft-bg, #DCFCE7); color: var(--ok-soft-fg, #16A34A); }
+.pg-hm-add.is-on:hover { background: rgb(220 38 38 / .10); color: #DC2626; }
+.pg-hm-add-on, .pg-hm-add-off { display: grid; place-items: center; }
+.pg-hm-add-off, .pg-hm-add.is-on:hover .pg-hm-add-on { display: none; }
+.pg-hm-add.is-on:hover .pg-hm-add-off { display: grid; }
+
+@media (prefers-reduced-motion: reduce) {
+    .pg-hm-tile.is-new { animation: none; }
+    .pg-hm-tile.is-floating, .pg-hm-item.is-floating { rotate: none; }
+}

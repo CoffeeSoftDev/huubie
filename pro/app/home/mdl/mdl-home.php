@@ -246,6 +246,176 @@ class mdl extends CRUD {
         return is_array($sql) ? $sql : [];
     }
 
+    // [company_id, desde, hasta). Lo vendido por dia en toda la empresa (mismas reglas que listSalesByBranch).
+    function listSalesByDay($array) {
+        $query = "
+            SELECT DATE(s.created_at) AS day, COUNT(*) AS tickets, IFNULL(SUM(s.total), 0) AS sold
+            FROM " . self::POS . "sale s
+            " . self::IN_COMPANY . "s.branch_id
+            WHERE s.sale_status_id IN (2, 3)
+              AND IFNULL(s.active, 1) = 1
+              AND s.created_at >= ? AND s.created_at < ?
+            GROUP BY DATE(s.created_at)
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    /*  [company_id, desde, hasta). Los productos del catalogo que mas dinero
+        dejaron, con sus piezas. El importe es el de la linea: precio x
+        cantidad menos su descuento (ctrl-ventas). El nombre, el de hoy.
+
+        Quedan fuera los que no se repiten: un pastel a la medida es un
+        producto propio de un solo pedido (is_custom = 1, nombrado por su
+        cliente), igual que una linea sin producto. Y lo que el catalogo marca
+        como servicio no es producto.
+
+        Por importe y no por piezas: hay cargos que se capturan a $1 por la
+        cantidad del cobro («Envio a Domicilio» x 150) y por piezas saldrian
+        hasta arriba. */
+    function listTopProducts($array) {
+        $query = "
+            SELECT
+                MAX(p.name)                                                            AS name,
+                IFNULL(SUM(d.quantity), 0)                                             AS qty,
+                IFNULL(SUM(d.price * d.quantity - IFNULL(d.discount_amount, 0)), 0)    AS amount
+            FROM " . self::POS . "detail_sale d
+            INNER JOIN " . self::POS . "sale s ON s.id = d.sale_id
+            " . self::IN_COMPANY . "s.branch_id
+            INNER JOIN " . self::POS . "product p ON p.id = d.product_id
+            WHERE s.sale_status_id IN (2, 3)
+              AND IFNULL(s.active, 1) = 1
+              AND IFNULL(d.active, 1) = 1
+              AND IFNULL(p.is_custom, 0) = 0
+              AND IFNULL(p.kind, 'product') <> 'service'
+              AND s.created_at >= ? AND s.created_at < ?
+            GROUP BY p.id
+            ORDER BY amount DESC, qty DESC
+            LIMIT 10
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    // [company_id, desde, hasta). Quien mas compro, por lo vendido.
+    function listTopCustomers($array) {
+        $query = "
+            SELECT c.id, MAX(c.name) AS name, COUNT(*) AS orders, IFNULL(SUM(s.total), 0) AS total
+            FROM " . self::POS . "sale s
+            " . self::IN_COMPANY . "s.branch_id
+            INNER JOIN " . self::POS . "customer c ON c.id = s.customer_id
+            WHERE s.sale_status_id IN (2, 3)
+              AND IFNULL(s.active, 1) = 1
+              AND s.created_at >= ? AND s.created_at < ?
+            GROUP BY c.id
+            ORDER BY total DESC, orders DESC
+            LIMIT 5
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    /*  [company_id, desde, hasta] por fecha de ENTREGA. Los pedidos que faltan
+        por entregar (las mismas reglas que listDeliveriesByBranch), con lo que
+        llevan pagado. */
+    const PENDING_DELIVERY = "
+        s.sale_type_id = 1
+        AND s.sale_status_id IN (2, 3)
+        AND IFNULL(s.active, 1) = 1
+        AND IFNULL(s.delivery_status, 0) <> 1
+        AND s.delivery_date BETWEEN ? AND ?
+    ";
+
+    function listUpcomingDeliveries($array) {
+        $query = "
+            SELECT
+                s.folio,
+                s.delivery_date,
+                TIME_FORMAT(s.delivery_time, '%H:%i') AS delivery_time,
+                s.total,
+                b.name AS branch,
+                IFNULL(c.name, '') AS customer,
+                (SELECT IFNULL(SUM(p.amount), 0)
+                   FROM " . self::POS . "payment p
+                  WHERE p.sale_id = s.id AND IFNULL(p.active, 1) = 1 AND p.deleted_at IS NULL) AS paid
+            FROM " . self::POS . "sale s
+            " . self::IN_COMPANY . "s.branch_id
+            LEFT JOIN " . self::POS . "customer c ON c.id = s.customer_id
+            WHERE " . self::PENDING_DELIVERY . "
+            ORDER BY s.delivery_date ASC, s.delivery_time IS NULL, s.delivery_time ASC, s.id ASC
+            LIMIT 8
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    function countUpcomingDeliveries($array) {
+        $query = "
+            SELECT COUNT(*) AS total
+            FROM " . self::POS . "sale s
+            " . self::IN_COMPANY . "s.branch_id
+            WHERE " . self::PENDING_DELIVERY;
+
+        $sql = $this->_Read($query, $array);
+        return empty($sql) ? 0 : (int) $sql[0]['total'];
+    }
+
+    // [company_id, desde, hasta). Quien entro a trabajar en el periodo (employees.hire_date).
+    function listNewHiresByCompany($array) {
+        $query = "
+            SELECT
+                " . self::EMPLOYEE_NAME . " AS name,
+                u.photo,
+                u.color,
+                e.job_title,
+                b.name AS branch,
+                DAY(e.hire_date) AS day
+            FROM {$this->bd}employees e
+            LEFT JOIN {$this->bd}users u    ON u.id = e.user_id
+            LEFT JOIN {$this->bd}branches b ON b.id = e.branch_id
+            WHERE e.company_id = ?
+              AND e.hire_date >= ? AND e.hire_date < ?
+              AND (u.id IS NULL OR u.status = 'active')
+            ORDER BY e.hire_date ASC
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return is_array($sql) ? $sql : [];
+    }
+
+    // [desde, company_id]. Tarjetas de lealtad activas de la empresa y cuantas se dieron desde `desde`.
+    function getLoyaltyCards($array) {
+        $query = "
+            SELECT COUNT(*) AS cards, IFNULL(SUM(c.created_at >= ?), 0) AS new_cards
+            FROM " . self::POS . "card c
+            " . self::IN_COMPANY . "c.branch_id
+            WHERE IFNULL(c.active, 1) = 1
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return empty($sql) ? ['cards' => 0, 'new_cards' => 0] : $sql[0];
+    }
+
+    // [company_id, desde, hasta). Ventas vivas que se hicieron con tarjeta.
+    function getLoyaltySales($array) {
+        $query = "
+            SELECT COUNT(*) AS sales, IFNULL(SUM(s.total), 0) AS sold
+            FROM " . self::POS . "sale s
+            " . self::IN_COMPANY . "s.branch_id
+            WHERE s.card_id IS NOT NULL
+              AND s.sale_status_id IN (2, 3)
+              AND IFNULL(s.active, 1) = 1
+              AND s.created_at >= ? AND s.created_at < ?
+        ";
+
+        $sql = $this->_Read($query, $array);
+        return empty($sql) ? ['sales' => 0, 'sold' => 0] : $sql[0];
+    }
+
     // [company_id]. Lo ultimo que paso con los pedidos y ventas de la empresa.
     function listActivityByCompany($array) {
         $query = "

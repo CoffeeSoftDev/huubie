@@ -8,6 +8,7 @@
       Usuarios       su gente: a que sucursal entra cada quien y con que rol
       Roles          los roles propios y lo que deja hacer cada uno
       Plan y pagos   el plan, pagar, la forma de pago y el historial
+      Mi inicio      que tarjetas ve el dueño al entrar y donde, arrastrandolas
 
     Cada pestaña pide lo suyo al abrirse (ctrl-configuracion) y se vuelve a
     pedir despues de cada cambio: la lista en pantalla siempre es la del
@@ -19,7 +20,8 @@ const CFG_TABS = [
     { id: 'sucursales', icon: 'store',        label: 'Sucursales' },
     { id: 'usuarios',   icon: 'users',        label: 'Usuarios' },
     { id: 'roles',      icon: 'shield-check', label: 'Roles y permisos' },
-    { id: 'pagos',      icon: 'credit-card',  label: 'Plan y pagos' }
+    { id: 'pagos',      icon: 'credit-card',  label: 'Plan y pagos' },
+    { id: 'inicio',     icon: 'layout-dashboard', label: 'Mi inicio' }
 ];
 
 const CFG_PAGOS   = { paid: ['Pagado', 'is-ok'], pending: ['Pendiente', 'is-warn'], failed: ['Rechazado', 'is-bad'], refunded: ['Reembolsado', 'is-off'] };
@@ -30,7 +32,8 @@ const CFG_METODOS = { stripe: 'Tarjeta (Stripe)', manual: 'Registro manual', tra
 // Lo que contesto init (la empresa, los catalogos) y lo ultimo de cada pestaña.
 // userBranch: la sucursal del filtro de Usuarios ('' = todas); sobrevive al refrescar.
 // roleState: el estado del filtro de Roles ('' = todos, '1' activos, '0' inactivos).
-const cfg = { base: null, data: {}, userBranch: '', roleState: '' };
+// home: el editor de Mi inicio (cfgInicio); sobrevive al cambiar de pestaña.
+const cfg = { base: null, data: {}, userBranch: '', roleState: '', home: null };
 
 $(async () => {
     const root = document.getElementById('root');
@@ -81,7 +84,7 @@ function cfgRoute() {
         el.setAttribute('aria-selected', on ? 'true' : 'false');
     });
 
-    ({ empresa: cfgEmpresa, sucursales: cfgSucursales, usuarios: cfgUsuarios, roles: cfgRoles, pagos: cfgPagos })[tab]();
+    ({ empresa: cfgEmpresa, sucursales: cfgSucursales, usuarios: cfgUsuarios, roles: cfgRoles, pagos: cfgPagos, inicio: cfgInicio })[tab]();
 }
 
 function cfgPanel(html) {
@@ -1190,12 +1193,594 @@ async function cfgPlanForm() {
 
             if (saved.status === 200) {
                 cfgToast(saved.message, true);
-                // El plan cambia lo que muestran todas las pestañas (topes, modulos, permisos).
+                // El plan cambia lo que muestran todas las pestañas (topes, modulos,
+                // permisos, las tarjetas que se pueden poner en el inicio).
                 cfg.data = {};
+                cfg.home = null;
                 if (!saved.unchanged) cfgPagos();
             }
 
             return saved;
         }
     });
+}
+
+// =============================================================== Mi inicio
+
+/*  El dueño elige que tarjetas ve al entrar y las acomoda arrastrandolas
+    (ctrl-configuracion :: homeLayout). El tablero de la izquierda es su inicio
+    en chiquito, con las tres zonas de verdad (HM_ZONES); a la derecha, todas
+    las tarjetas agrupadas por modulo: las de lo que contrato se pueden poner,
+    las de otros modulos se ven con candado.
+
+    Nada se guarda hasta «Guardar». Mientras tanto el borrador vive en
+    cfg.home y sobrevive al cambiar de pestaña; al salir de la pagina con
+    cambios, el navegador pregunta.
+
+    Arrastrar va con Pointer Events (mouse, dedo y pluma) y no con el
+    drag-and-drop de HTML, que en el celular no funciona. Con el dedo se
+    arrastra desde el ⋮⋮ (o el icono, en la lista): el resto de la tarjeta deja
+    desplazar la pagina. Con el teclado, el ⋮⋮ se mueve con ↑ ↓ y Supr la
+    quita. */
+const HM_ZONES = [
+    { id: 'top',  label: 'Arriba',            hint: 'a todo lo ancho' },
+    { id: 'main', label: 'Columna principal', hint: 'la parte ancha' },
+    { id: 'side', label: 'Columna lateral',   hint: 'angosta; en el celular va debajo' }
+];
+
+async function cfgInicio() {
+    // Con cambios sin guardar, volver a la pestaña no los pierde.
+    if (cfg.home && hmDirty()) return hmRender();
+
+    const d = await cfgLoad('inicio', 'homeLayout');
+    if (!d) return;
+
+    const layout = hmFromList(d.layout);
+
+    cfg.home = {
+        data:    d,
+        widgets: Object.fromEntries(d.widgets.map((w) => [w.code, w])),
+        groups:  Object.fromEntries(d.groups.map((g) => [g.key, g])),
+        layout:  layout,
+        saved:   JSON.stringify(layout),
+        custom:  !!d.custom
+    };
+
+    hmRender();
+}
+
+// [{code, zone}] -> { top: [codes], main: [...], side: [...] }
+function hmFromList(list) {
+    const layout = { top: [], main: [], side: [] };
+    list.forEach((x) => { if (layout[x.zone]) layout[x.zone].push(x.code); });
+    return layout;
+}
+
+// El acomodo en el orden en que se ve: lo que se guarda.
+function hmList() {
+    const out = [];
+    HM_ZONES.forEach((z) => cfg.home.layout[z.id].forEach((code) => out.push({ code: code, zone: z.id })));
+    return out;
+}
+
+function hmDirty() {
+    return JSON.stringify(cfg.home.layout) !== cfg.home.saved;
+}
+
+function hmZoneOf(code) {
+    return HM_ZONES.map((z) => z.id).find((id) => cfg.home.layout[id].includes(code)) || null;
+}
+
+/*  Pinta el editor completo. o.focus: selector a enfocar despues (el ⋮⋮ de la
+    tarjeta que se movio con el teclado). o.say: lo que se anuncia al lector
+    de pantalla. o.flash: code de la tarjeta recien puesta, para resaltarla. */
+function hmRender(o) {
+    o = o || {};
+
+    const h     = cfg.home;
+    const count = hmList().length;
+    const dirty = hmDirty();
+    const added = new Set(hmList().map((x) => x.code));
+
+    const groups = Object.values(h.groups);
+    const mine   = groups.filter((g) => g.on);
+    const others = groups.filter((g) => !g.on);
+
+    const palette = mine.map((g) => hmGroup(g, added)).join('')
+        + (others.length ? `
+            <div class="pg-hm-others">
+                <p class="pg-strong pg-small">Con otros módulos</p>
+                <p class="pg-dim pg-small">Agrega el módulo a tu plan para poder ponerlas en tu inicio.</p>
+            </div>
+            ${others.map((g) => hmGroup(g, added)).join('')}
+            <a class="pg-link" href="#pagos"><span>Ver planes y módulos</span><i data-lucide="arrow-right"></i></a>` : '');
+
+    cfgPanel(`
+        <div class="pg-card" id="hmEditor">
+            <div class="pg-card-head pg-toolbar">
+                <div>
+                    <p class="pg-card-title">Tu pantalla de inicio</p>
+                    <p class="pg-dim pg-small">Elige qué quieres ver al entrar y acomódalo arrastrando las tarjetas. Cada módulo que tienes trae las suyas.</p>
+                </div>
+                <div class="pg-toolbar-side">
+                    ${dirty ? '<button type="button" class="pg-btn is-ghost" id="hmDiscard"><i data-lucide="undo-2"></i>Descartar cambios</button>' : ''}
+                    ${h.custom && !dirty ? '<button type="button" class="pg-btn is-ghost" id="hmReset"><i data-lucide="rotate-ccw"></i>Volver al de fábrica</button>' : ''}
+                    <button type="button" class="pg-btn is-primary" id="hmSave" ${dirty && count ? '' : 'disabled'}><i data-lucide="check"></i>Guardar</button>
+                </div>
+            </div>
+            ${h.data.viewing ? '<p class="pg-trial" style="margin-bottom:16px"><i data-lucide="info"></i><span>Estás acomodando <b>tu</b> inicio en esta empresa; el dueño acomoda el suyo desde su cuenta.</span></p>' : ''}
+            <div class="pg-hm">
+                <section class="pg-hm-board" aria-label="Así se verá tu inicio">
+                    <div class="pg-hm-screen">
+                        <div class="pg-hm-bar" aria-hidden="true"><span></span><span></span><span></span><p>Tu inicio</p></div>
+                        <div class="pg-hm-fixed"><i data-lucide="lock-keyhole"></i><span>Tu saludo y los avisos de tu plan</span><span class="pg-dim">· siempre van arriba</span></div>
+                        ${hmZone('top')}
+                        <div class="pg-hm-cols">${hmZone('main')}${hmZone('side')}</div>
+                    </div>
+                    <p class="pg-dim pg-small pg-hm-help">
+                        <span><i data-lucide="grip-vertical"></i>Arrastra desde aquí para mover · con el teclado, ↑ ↓ mueven y Supr quita</span>
+                        <span class="${count ? '' : 'pg-msg is-err'}">${count ? `${count} de ${h.data.max} tarjetas` : 'Deja al menos una tarjeta'}</span>
+                    </p>
+                </section>
+                <aside class="pg-hm-palette" data-palette aria-label="Tarjetas disponibles">
+                    <div>
+                        <p class="pg-card-title">Tarjetas disponibles</p>
+                        <p class="pg-dim pg-small">Arrástralas a tu inicio o pulsa <b>+</b>.</p>
+                    </div>
+                    <p class="pg-hm-out"><i data-lucide="trash-2"></i>Suéltala aquí para quitarla</p>
+                    ${palette}
+                </aside>
+            </div>
+            <p class="pg-sr" id="hmLive" aria-live="polite"></p>
+        </div>`);
+
+    const editor = document.getElementById('hmEditor');
+
+    editor.addEventListener('click', hmClick);
+    editor.addEventListener('keydown', hmKey);
+    hmDrag(editor);
+
+    if (o.flash) {
+        const tile = editor.querySelector(`.pg-hm-tile[data-code="${o.flash}"]`);
+        if (tile) {
+            tile.classList.add('is-new');
+            tile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }
+
+    if (o.focus) {
+        const el = editor.querySelector(o.focus);
+        if (el) el.focus();
+    }
+
+    if (o.say) hmSay(o.say);
+}
+
+function hmZone(id) {
+    const z = HM_ZONES.find((x) => x.id === id);
+
+    return `
+        <div class="pg-hm-zone is-${id}">
+            <p class="pg-hm-zone-label">${z.label}<span>${z.hint}</span></p>
+            <div class="pg-hm-list" data-list="${id}" aria-label="${Page.esc(z.label)}">
+                ${cfg.home.layout[id].map(hmTile).join('')}
+                <p class="pg-hm-empty">Suelta aquí una tarjeta</p>
+            </div>
+        </div>`;
+}
+
+// Una tarjeta puesta en el tablero.
+function hmTile(code) {
+    const w = cfg.home.widgets[code];
+    const g = cfg.home.groups[w.group];
+
+    return `
+        <div class="pg-hm-tile" data-drag data-code="${Page.esc(code)}">
+            <button type="button" class="pg-hm-grip" data-handle title="Arrastra para mover" aria-label="Mover ${Page.esc(w.name)}. Flechas arriba y abajo para moverla, Suprimir para quitarla."><i data-lucide="grip-vertical"></i></button>
+            <span class="pg-hm-ico"><i data-lucide="${Page.esc(w.icon)}"></i></span>
+            <span class="pg-hm-name"><span class="pg-ellipsis">${Page.esc(w.name)}</span><span class="pg-hm-mod pg-ellipsis">${Page.esc(g ? g.name : 'General')}</span></span>
+            <button type="button" class="pg-hm-x" data-remove="${Page.esc(code)}" title="Quitar de mi inicio" aria-label="Quitar ${Page.esc(w.name)} de mi inicio"><i data-lucide="x"></i></button>
+        </div>`;
+}
+
+// Un grupo de la lista: General o un modulo, con sus tarjetas.
+function hmGroup(g, added) {
+    const items = cfg.home.data.widgets.filter((w) => w.group === g.key);
+
+    return `
+        <div class="pg-hm-group ${g.on ? '' : 'is-locked'}">
+            <p class="pg-hm-group-title"><i data-lucide="${Page.esc(g.icon)}"></i><span>${Page.esc(g.name)}</span>${g.on ? '' : '<i data-lucide="lock" class="pg-hm-lock"></i>'}</p>
+            ${items.map((w) => hmItem(w, added.has(w.code))).join('')}
+        </div>`;
+}
+
+function hmItem(w, added) {
+    const text = `
+        <span class="pg-row-text">
+            <span class="pg-strong pg-ellipsis">${Page.esc(w.name)}</span>
+            <span class="pg-dim pg-hm-text">${Page.esc(w.text)}</span>
+        </span>`;
+
+    if (!w.on) {
+        return `
+            <div class="pg-hm-item is-locked" title="Disponible con el módulo ${Page.esc((cfg.home.groups[w.group] || {}).name || '')}">
+                <span class="pg-hm-ico"><i data-lucide="${Page.esc(w.icon)}"></i></span>
+                ${text}
+            </div>`;
+    }
+
+    if (added) {
+        return `
+            <div class="pg-hm-item is-added">
+                <span class="pg-hm-ico"><i data-lucide="${Page.esc(w.icon)}"></i></span>
+                ${text}
+                <button type="button" class="pg-hm-add is-on" data-remove="${Page.esc(w.code)}" title="Ya está en tu inicio · pulsa para quitarla" aria-label="Quitar ${Page.esc(w.name)} de mi inicio">
+                    <span class="pg-hm-add-on"><i data-lucide="check"></i></span><span class="pg-hm-add-off"><i data-lucide="x"></i></span>
+                </button>
+            </div>`;
+    }
+
+    return `
+        <div class="pg-hm-item" data-drag data-code="${Page.esc(w.code)}">
+            <span class="pg-hm-ico" data-handle><i data-lucide="${Page.esc(w.icon)}"></i></span>
+            ${text}
+            <button type="button" class="pg-hm-add" data-add="${Page.esc(w.code)}" title="Agregar a mi inicio" aria-label="Agregar ${Page.esc(w.name)} a mi inicio"><i data-lucide="plus"></i></button>
+        </div>`;
+}
+
+function hmSay(text) {
+    const live = document.getElementById('hmLive');
+    if (live) live.textContent = text;
+}
+
+function hmZoneLabel(id) {
+    return (HM_ZONES.find((z) => z.id === id) || {}).label || '';
+}
+
+// "Ventas de hoy: lugar 2 de 4 en Columna principal".
+function hmWhere(code) {
+    const zone = hmZoneOf(code);
+    const list = cfg.home.layout[zone];
+    return `${cfg.home.widgets[code].name}: lugar ${list.indexOf(code) + 1} de ${list.length} en ${hmZoneLabel(zone)}`;
+}
+
+// -- Cambios al acomodo --
+
+// La pone al final de su zona de siempre.
+function hmAdd(code) {
+    const w = cfg.home.widgets[code];
+    if (!w || !w.on || hmZoneOf(code)) return;
+
+    if (hmList().length >= cfg.home.data.max) return cfgToast(`Tu inicio admite hasta ${cfg.home.data.max} tarjetas. Quita alguna para agregar otra.`, false);
+
+    cfg.home.layout[w.zone].push(code);
+    hmRender({ flash: code, say: `Agregaste ${w.name} en ${hmZoneLabel(w.zone)}.` });
+}
+
+function hmRemove(code) {
+    const zone = hmZoneOf(code);
+    if (!zone) return;
+
+    const list = cfg.home.layout[zone];
+    const i    = list.indexOf(code);
+
+    list.splice(i, 1);
+
+    // Con el teclado, el foco pasa a la que quedo en su lugar (o a la de antes).
+    const next = list[i] || list[i - 1];
+
+    hmRender({
+        say:   `Quitaste ${cfg.home.widgets[code].name} de tu inicio.`,
+        focus: next ? `.pg-hm-tile[data-code="${next}"] [data-handle]` : null
+    });
+}
+
+// La lleva a `zone`, en la posicion `index` (contada sin ella).
+function hmMove(code, zone, index) {
+    const w = cfg.home.widgets[code];
+    if (!w || !w.zones.includes(zone)) return hmRender();
+
+    const from = hmZoneOf(code);
+    if (from) cfg.home.layout[from].splice(cfg.home.layout[from].indexOf(code), 1);
+    else if (hmList().length >= cfg.home.data.max) {
+        hmRender();
+        return cfgToast(`Tu inicio admite hasta ${cfg.home.data.max} tarjetas. Quita alguna para agregar otra.`, false);
+    }
+
+    cfg.home.layout[zone].splice(Math.max(0, Math.min(index, cfg.home.layout[zone].length)), 0, code);
+
+    hmRender({ flash: from ? null : code, say: hmWhere(code) });
+}
+
+/*  Con el teclado: un lugar arriba o abajo. En la orilla de su zona salta a
+    la siguiente que la acepte (Arriba -> Principal -> Lateral). */
+function hmStep(code, dir) {
+    const L    = cfg.home.layout;
+    const w    = cfg.home.widgets[code];
+    const zone = hmZoneOf(code);
+    const i    = L[zone].indexOf(code);
+    const keep = { focus: `.pg-hm-tile[data-code="${code}"] [data-handle]` };
+
+    if (L[zone][i + dir] !== undefined) {
+        L[zone][i]       = L[zone][i + dir];
+        L[zone][i + dir] = code;
+        return hmRender(Object.assign(keep, { say: hmWhere(code) }));
+    }
+
+    const ids = HM_ZONES.map((z) => z.id);
+
+    for (let k = ids.indexOf(zone) + dir; k >= 0 && k < ids.length; k += dir) {
+        if (!w.zones.includes(ids[k])) continue;
+
+        L[zone].splice(i, 1);
+        if (dir > 0) L[ids[k]].unshift(code);
+        else L[ids[k]].push(code);
+
+        return hmRender(Object.assign(keep, { say: hmWhere(code) }));
+    }
+
+    hmSay(dir < 0 ? `${w.name} ya está hasta arriba.` : `${w.name} ya está hasta abajo.`);
+}
+
+// -- Botones --
+
+async function hmClick(e) {
+    const add = e.target.closest('[data-add]');
+    if (add) return hmAdd(add.dataset.add);
+
+    const remove = e.target.closest('[data-remove]');
+    if (remove) return hmRemove(remove.dataset.remove);
+
+    if (e.target.closest('#hmSave'))    return hmSave(e.target.closest('#hmSave'));
+    if (e.target.closest('#hmDiscard')) return hmDiscard();
+    if (e.target.closest('#hmReset'))   return hmReset();
+}
+
+function hmKey(e) {
+    const grip = e.target.closest('.pg-hm-tile [data-handle]');
+    if (!grip) return;
+
+    const code = grip.closest('[data-code]').dataset.code;
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        hmStep(code, e.key === 'ArrowUp' ? -1 : 1);
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        hmRemove(code);
+    }
+}
+
+async function hmSave(btn) {
+    btn.disabled = true;
+
+    const res = await Page.post(CFG_API, { opc: 'saveHomeLayout', layout: JSON.stringify(hmList()) });
+
+    if (res.status !== 200) {
+        btn.disabled = false;
+        return cfgToast(res.message || 'No se pudo guardar tu inicio. Inténtalo de nuevo.', false);
+    }
+
+    cfg.home.saved  = JSON.stringify(cfg.home.layout);
+    cfg.home.custom = true;
+
+    hmRender();
+    cfgToast(res.message, true);
+}
+
+function hmDiscard() {
+    cfg.home.layout = JSON.parse(cfg.home.saved);
+    hmRender({ say: 'Descartaste tus cambios.' });
+}
+
+async function hmReset() {
+    if (!await cfgAsk('¿Volver al inicio de fábrica?', 'Tu inicio volverá a traer las tarjetas que trae Huubie, cada una en su lugar de siempre.', 'Sí, volver')) return;
+
+    const res = await Page.post(CFG_API, { opc: 'resetHomeLayout' });
+
+    cfgToast(res.message || 'No se pudo restablecer tu inicio.', res.status === 200);
+    if (res.status !== 200) return;
+
+    cfg.home = null;
+    delete cfg.data.inicio;
+    cfgInicio();
+}
+
+// Salir de la pagina con cambios sin guardar: que el navegador pregunte.
+window.addEventListener('beforeunload', (e) => {
+    if (cfg.home && hmDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+// -- Arrastrar --
+
+/*  Una tarjeta del tablero o de la lista se arrastra a una zona. Mientras se
+    arrastra, la sigue una copia (ghost) y el lugar donde caeria se marca: en
+    el tablero es la misma tarjeta, apagada; desde la lista, un hueco nuevo.
+    Las zonas donde esa tarjeta no cabe se apagan. Soltar una del tablero
+    sobre la lista la quita. Escape cancela. Al soltar, el cambio pasa al
+    acomodo (hmMove / hmRemove) y el editor se vuelve a pintar. */
+function hmDrag(editor) {
+    let s = null;
+
+    const lists = () => editor.querySelectorAll('[data-list]');
+
+    const start = () => {
+        const r = s.item.getBoundingClientRect();
+
+        s.dx = s.x - r.left;
+        s.dy = s.y - r.top;
+
+        s.ghost = s.item.cloneNode(true);
+        s.ghost.classList.add('is-floating');
+        s.ghost.removeAttribute('data-drag');
+        s.ghost.setAttribute('aria-hidden', 'true');
+        s.ghost.style.width = r.width + 'px';
+        editor.appendChild(s.ghost);
+
+        if (s.board) {
+            s.ph = s.item;
+            s.item.classList.add('is-ph');
+        } else {
+            s.ph = document.createElement('div');
+            s.ph.className = 'pg-hm-ph';
+        }
+
+        const zones = cfg.home.widgets[s.code].zones;
+        lists().forEach((l) => l.classList.toggle('is-deny', !zones.includes(l.dataset.list)));
+
+        editor.classList.add('is-dragging', s.board ? 'from-board' : 'from-palette');
+        s.scroller = hmScroller(editor);
+        s.on = true;
+        s.raf = requestAnimationFrame(tick);
+    };
+
+    // Mueve la copia y el hueco al lugar bajo el puntero.
+    const place = (x, y) => {
+        s.ghost.style.transform = `translate(${x - s.dx}px, ${y - s.dy}px)`;
+
+        const hit  = document.elementFromPoint(x, y);
+        const list = hit && hit.closest('[data-list]');
+        const out  = s.board && !!(hit && hit.closest('[data-palette]'));
+
+        s.valid = !!list && !list.classList.contains('is-deny');
+
+        editor.classList.toggle('is-out', out);
+        editor.classList.toggle('is-lost', s.board && !s.valid && !out);
+        lists().forEach((l) => l.classList.toggle('is-over', l === list && s.valid));
+
+        if (!s.valid) {
+            // Fuera de una zona: el hueco de una de la lista desaparece; la del
+            // tablero se queda apagada y, si se suelta aqui, vuelve a su lugar.
+            if (!s.board && s.ph.parentNode) s.ph.remove();
+            return;
+        }
+
+        const tiles  = Array.from(list.querySelectorAll(':scope > .pg-hm-tile')).filter((t) => t !== s.ph);
+        const before = tiles.find((t) => { const r = t.getBoundingClientRect(); return y < r.top + r.height / 2; })
+                    || list.querySelector(':scope > .pg-hm-empty');
+
+        if (s.ph.parentNode !== list || s.ph.nextElementSibling !== before) list.insertBefore(s.ph, before);
+    };
+
+    // Cerca de la orilla de arriba o de abajo, la pagina se desplaza sola.
+    const tick = () => {
+        if (!s || !s.on) return;
+
+        const sc   = s.scroller;
+        const root = sc === document.scrollingElement;
+        const top  = root ? 0 : sc.getBoundingClientRect().top;
+        const bot  = root ? window.innerHeight : sc.getBoundingClientRect().bottom;
+        const edge = 70;
+
+        let dy = 0;
+        if (s.cy < top + edge)      dy = -Math.ceil((top + edge - s.cy) / 5);
+        else if (s.cy > bot - edge) dy = Math.ceil((s.cy - (bot - edge)) / 5);
+
+        if (dy) {
+            sc.scrollTop += dy;
+            place(s.cx, s.cy);
+        }
+
+        s.raf = requestAnimationFrame(tick);
+    };
+
+    const finish = () => {
+        cancelAnimationFrame(s.raf);
+
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', cancel);
+        window.removeEventListener('keydown', esc, true);
+
+        if (s.ghost) s.ghost.remove();
+        if (!s.board && s.ph && s.ph.parentNode) s.ph.remove();
+        if (s.board) s.item.classList.remove('is-ph');
+
+        editor.classList.remove('is-dragging', 'from-board', 'from-palette', 'is-out', 'is-lost');
+        lists().forEach((l) => l.classList.remove('is-deny', 'is-over'));
+
+        s = null;
+    };
+
+    const move = (e) => {
+        if (!s || e.pointerId !== s.pointer) return;
+
+        s.cx = e.clientX;
+        s.cy = e.clientY;
+
+        // Un clic no es arrastre: hasta que se mueve unos pixeles.
+        if (!s.on) {
+            if (Math.hypot(e.clientX - s.x, e.clientY - s.y) < 6) return;
+            start();
+        }
+
+        e.preventDefault();
+        place(e.clientX, e.clientY);
+    };
+
+    const up = (e) => {
+        if (!s || e.pointerId !== s.pointer) return;
+
+        if (!s.on) return finish();
+
+        // Soltada fuera de una zona (y no sobre la lista para quitarla): no cambia nada.
+        if (!s.valid && !editor.classList.contains('is-out')) return cancel();
+
+        const code = s.code;
+        const out  = s.board && editor.classList.contains('is-out');
+        const list = s.ph.parentNode && s.ph.parentNode.matches('[data-list]') ? s.ph.parentNode : null;
+        const at   = list ? Array.from(list.children).filter((c) => c.matches('.pg-hm-tile, .pg-hm-ph')).indexOf(s.ph) : -1;
+
+        finish();
+
+        if (out) hmRemove(code);
+        else if (list) hmMove(code, list.dataset.list, at);
+        else hmRender();
+    };
+
+    const cancel = () => {
+        const was = s && s.on;
+        finish();
+        if (was) hmRender();
+    };
+
+    const esc = (e) => {
+        if (e.key !== 'Escape' || !s) return;
+        e.preventDefault();
+        e.stopPropagation();
+        cancel();
+    };
+
+    editor.addEventListener('pointerdown', (e) => {
+        if (s || e.button !== 0) return;
+
+        const item = e.target.closest('[data-drag]');
+        if (!item || !editor.contains(item)) return;
+
+        // Quitar y + son botones; el ⋮⋮ si arrastra.
+        if (e.target.closest('button:not([data-handle]), a')) return;
+
+        // Con el dedo o la pluma, solo desde el ⋮⋮ (o el icono, en la lista).
+        if (e.pointerType !== 'mouse' && !e.target.closest('[data-handle]')) return;
+
+        s = { item: item, code: item.dataset.code, board: !!item.closest('[data-list]'), pointer: e.pointerId, x: e.clientX, y: e.clientY, cx: e.clientX, cy: e.clientY, on: false };
+
+        window.addEventListener('pointermove', move, { passive: false });
+        window.addEventListener('pointerup', up);
+        window.addEventListener('pointercancel', cancel);
+        window.addEventListener('keydown', esc, true);
+    });
+}
+
+// Quien se desplaza: en estas paginas, #main__content (general.css), no la ventana.
+function hmScroller(el) {
+    for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+        const o = getComputedStyle(n).overflowY;
+        if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight) return n;
+    }
+
+    return document.scrollingElement || document.documentElement;
 }
