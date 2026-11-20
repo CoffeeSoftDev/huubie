@@ -439,8 +439,8 @@ class OrderDetail extends Templates {
             width: 'max-w-5xl',
             saveText: false,
             cancelText: 'Cerrar',
-            // El de otra sucursal dice dónde se cambia, también en el calendario.
-            info: !data.can ? '' : data.foreign ? (data.can.edit_reason || '') : !this.editable ? '' : !data.can.edit ? (data.can.edit_reason || '') : (data.can.money_reason || ''),
+            // El de otra sucursal dice de cuál es y si ahí se puede cambiar (reglas de alpha), también en el calendario.
+            info: !data.can ? '' : data.foreign ? (data.can.foreign_reason || '') : !this.editable ? '' : !data.can.edit ? (data.can.edit_reason || '') : (data.can.money_reason || ''),
             body: `
                 <div id="orderDetailsContainer" class="flex flex-col lg:flex-row gap-[16px] p-[20px] max-h-[70vh] overflow-y-auto">
                     <div class="lg:w-1/3 flex flex-col gap-[16px] min-w-0">
@@ -606,7 +606,48 @@ class OrderDetail extends Templates {
 
         if ((data.actions || []).includes('print')) side.push(btn('ord-act', 'printer', 'Imprimir', 'orderDetail.printData(orderDetail.last)'));
 
+        // El «Reenviar» de alpha: el aviso del pedido otra vez a WhatsApp › Avisos (Dueño o Supervisor).
+        if (can.notify) side.push(btn('ord-act ord-wa', 'message-circle', 'Enviar por WhatsApp', `orderDetail.resendNotice(${id})`, 'Enviar otra vez el aviso del pedido a los destinatarios de WhatsApp'));
+
         return { main, side };
+    }
+
+    /*  Manda otra vez el aviso del pedido, con sus datos de hoy, a los
+        destinatarios de WhatsApp › Avisos. Siempre por ctrl-pedidos: el detalle
+        también se abre desde el calendario. Cada envío tarda: el botón se apaga. */
+    async resendNotice(id) {
+        const sure = await alert({
+            icon:     'question',
+            title:    '¿Enviar el aviso por WhatsApp?',
+            text:     'Sale otra vez el aviso del pedido, con sus datos de hoy, a los destinatarios de WhatsApp › Avisos.',
+            btn1Text: 'Enviar',
+            btn2Text: 'Cancelar'
+        });
+
+        if (!sure || !sure.isConfirmed) return;
+
+        const button = $('#modalOrderDetails button.ord-wa');
+        const label  = button.html();
+
+        button.prop('disabled', true).html('<i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i>Enviando…');
+
+        if (window.lucide) lucide.createIcons();
+
+        const data = await useFetch({ url: 'ctrl/ctrl-pedidos.php', data: { opc: 'resendOrderNotice', id: id } });
+
+        button.prop('disabled', false).html(label);
+
+        if (window.lucide) lucide.createIcons();
+
+        const sent = data && data.status == 200 && data.sent && (Number(data.sent.sent) + Number(data.sent.simulated)) > 0;
+
+        alert({
+            icon:     sent ? 'success' : 'warning',
+            title:    sent ? 'Aviso enviado' : 'No se envió',
+            text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
+            btn1:     true,
+            btn1Text: 'Entendido'
+        });
     }
 
     // «Editar pedido»: cierra el detalle y abre la captura.

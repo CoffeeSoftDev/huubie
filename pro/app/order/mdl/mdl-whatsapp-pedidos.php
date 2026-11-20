@@ -44,7 +44,7 @@ trait WhatsAppAgentOrders {
     protected function qWaHandoffRecipients($companyId, $branchId) {
         return $this->qRows("
             SELECT id, IFNULL(name, '') AS name, phone
-            FROM {$this->pos}wa_recipient
+            FROM {$this->crm}wa_recipient
             WHERE company_id = ?
                 AND (branch_id IS NULL OR branch_id = ?)
                 AND active = 1
@@ -55,7 +55,7 @@ trait WhatsAppAgentOrders {
 
     protected function qWaSetHuman($chatId, $until, $note, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_chat
+            UPDATE {$this->crm}wa_chat
             SET mode = 'human', human_until = ?, handoff_note = ?, updated_at = ?
             WHERE id = ?
         ", [$until, $note, $now, $chatId]);
@@ -64,7 +64,7 @@ trait WhatsAppAgentOrders {
     // «Devolver al agente»: vuelve a proponer solo y se borra la nota.
     protected function qWaAgentBack($chatId, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_chat
+            UPDATE {$this->crm}wa_chat
             SET mode = 'agent', human_until = NULL, handoff_note = NULL, updated_at = ?
             WHERE id = ?
         ", [$now, $chatId]);
@@ -73,14 +73,14 @@ trait WhatsAppAgentOrders {
     // Solo si el chat todavia no tiene cliente: el que puso una persona no se pisa.
     protected function qWaSetChatCustomer($chatId, $customerId, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_chat
+            UPDATE {$this->crm}wa_chat
             SET customer_id = ?, updated_at = ?
             WHERE id = ? AND customer_id IS NULL
         ", [$customerId, $now, $chatId]);
     }
 
     protected function qWaSetProposalSale($id, $saleId) {
-        $this->qWaRun("UPDATE {$this->pos}wa_proposal SET sale_id = ? WHERE id = ?", [$saleId, $id]);
+        $this->qWaRun("UPDATE {$this->crm}wa_proposal SET sale_id = ? WHERE id = ?", [$saleId, $id]);
     }
 
     // La foto o el documento mas reciente que mando el cliente desde $since.
@@ -88,7 +88,7 @@ trait WhatsAppAgentOrders {
         return $this->qRow("
             SELECT id, type, IFNULL(media_id, '') AS media_id, IFNULL(media_type, '') AS media_type,
                    IFNULL(media_path, '') AS media_path, receipt_id
-            FROM {$this->pos}wa_message
+            FROM {$this->crm}wa_message
             WHERE chat_id = ? AND direction = 'in' AND type IN ('image', 'document') AND sent_at >= ?
             ORDER BY id DESC
             LIMIT 1
@@ -99,7 +99,7 @@ trait WhatsAppAgentOrders {
     protected function qWaLockMessage($id) {
         return $this->qRow("
             SELECT id, receipt_id
-            FROM {$this->pos}wa_message
+            FROM {$this->crm}wa_message
             WHERE id = ?
             LIMIT 1
             FOR UPDATE
@@ -108,7 +108,7 @@ trait WhatsAppAgentOrders {
 
     protected function qWaSetMessageReceipt($id, $receiptId) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_message
+            UPDATE {$this->crm}wa_message
             SET receipt_id = ?
             WHERE id = ? AND receipt_id IS NULL
         ", [$receiptId, $id]);
@@ -119,7 +119,7 @@ trait WhatsAppAgentOrders {
     protected function qWaAgentProductIds($companyId) {
         $ids = [];
 
-        foreach ($this->qRows("SELECT product_id FROM {$this->pos}wa_agent_product WHERE company_id = ? ORDER BY product_id", [$companyId]) as $row) {
+        foreach ($this->qRows("SELECT product_id FROM {$this->crm}wa_agent_product WHERE company_id = ? ORDER BY product_id", [$companyId]) as $row) {
             $ids[] = (int) $row['product_id'];
         }
 
@@ -130,12 +130,12 @@ trait WhatsAppAgentOrders {
         de la empresa que Pedidos sabe vender (activos, no personalizados, no
         paquetes): un id que no cumple se queda fuera sin avisar. */
     protected function qWaReplaceAgentProducts($companyId, array $ids, $now) {
-        $this->qWaRun("DELETE FROM {$this->pos}wa_agent_product WHERE company_id = ?", [$companyId]);
+        $this->qWaRun("DELETE FROM {$this->crm}wa_agent_product WHERE company_id = ?", [$companyId]);
 
         if (!$ids) return;
 
         $this->qWaRun("
-            INSERT INTO {$this->pos}wa_agent_product (company_id, product_id, created_at)
+            INSERT INTO {$this->crm}wa_agent_product (company_id, product_id, created_at)
             SELECT p.company_id, p.id, ?
             FROM {$this->pos}product p
             WHERE p.company_id = ?

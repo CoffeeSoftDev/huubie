@@ -21,7 +21,7 @@ trait LoyaltyProgram {
 
     // Los ajustes de la empresa; sin fila, los de fabrica (todo apagado).
     protected function qLoyaltySetting($companyId) {
-        $row  = $this->qRow("SELECT * FROM {$this->pos}loyalty_setting WHERE company_id = ? LIMIT 1", [$companyId]);
+        $row  = $this->qRow("SELECT * FROM {$this->crm}loyalty_setting WHERE company_id = ? LIMIT 1", [$companyId]);
         $base = [
             'signup_enabled'     => 0,
             'signup_type_id'     => null,
@@ -46,7 +46,7 @@ trait LoyaltyProgram {
     protected function qLoyaltyCompaniesOn() {
         return $this->qRows("
             SELECT company_id
-            FROM {$this->pos}loyalty_setting
+            FROM {$this->crm}loyalty_setting
             WHERE birthday_enabled = 1 OR winback_enabled = 1 OR levels_enabled = 1
             ORDER BY company_id
         ");
@@ -60,7 +60,7 @@ trait LoyaltyProgram {
         $set   = implode(', ', array_map(fn ($c) => "{$c} = VALUES({$c})", $cols));
 
         return $this->_CUD("
-            INSERT INTO {$this->pos}loyalty_setting (company_id, " . implode(', ', $cols) . ", updated_user_id, created_at, updated_at)
+            INSERT INTO {$this->crm}loyalty_setting (company_id, " . implode(', ', $cols) . ", updated_user_id, created_at, updated_at)
             VALUES (?, {$marks}, ?, NOW(), NOW())
             ON DUPLICATE KEY UPDATE {$set}, updated_user_id = VALUES(updated_user_id), updated_at = NOW()
         ", array_merge([$companyId], array_values($values), [$userId ?: null]));
@@ -69,24 +69,24 @@ trait LoyaltyProgram {
     // -- Enlace de registro --
 
     protected function qSignupLink($branchId) {
-        return $this->qRow("SELECT id, branch_id, token, created_at FROM {$this->pos}loyalty_signup WHERE branch_id = ? LIMIT 1", [$branchId]);
+        return $this->qRow("SELECT id, branch_id, token, created_at FROM {$this->crm}loyalty_signup WHERE branch_id = ? LIMIT 1", [$branchId]);
     }
 
     protected function qSignupTokenTaken($token) {
-        return $this->qCount("SELECT COUNT(*) FROM {$this->pos}loyalty_signup WHERE token = ?", [$token]) > 0;
+        return $this->qCount("SELECT COUNT(*) FROM {$this->crm}loyalty_signup WHERE token = ?", [$token]) > 0;
     }
 
     // La primera vez de la sucursal. Si dos lo piden a la vez, gana el primero.
     protected function qCreateSignupLink($branchId, $token) {
         return $this->_CUD("
-            INSERT INTO {$this->pos}loyalty_signup (branch_id, token, created_at) VALUES (?, ?, NOW())
+            INSERT INTO {$this->crm}loyalty_signup (branch_id, token, created_at) VALUES (?, ?, NOW())
             ON DUPLICATE KEY UPDATE id = id
         ", [$branchId, $token]);
     }
 
     // Token nuevo: el QR impreso antes deja de servir.
     protected function qRenewSignupLink($branchId, $token) {
-        return $this->_CUD("UPDATE {$this->pos}loyalty_signup SET token = ?, created_at = NOW() WHERE branch_id = ?", [$token, $branchId]);
+        return $this->_CUD("UPDATE {$this->crm}loyalty_signup SET token = ?, created_at = NOW() WHERE branch_id = ?", [$token, $branchId]);
     }
 
     // 32 caracteres hex que no use otro enlace de registro.
@@ -107,7 +107,7 @@ trait LoyaltyProgram {
             SELECT
                 IFNULL(SUM(l.result = 'nueva'), 0)     AS created,
                 IFNULL(SUM(l.result = 'reenviada'), 0) AS resent
-            FROM {$this->pos}loyalty_signup_log l
+            FROM {$this->crm}loyalty_signup_log l
             INNER JOIN {$this->bd}branches b ON b.id = l.branch_id
             WHERE b.company_id = ?
                 AND l.created_at >= ?
@@ -136,11 +136,11 @@ trait LoyaltyProgram {
                 IFNULL(t.points_percent, 0)   AS points_percent,
                 {$this->stampColumns('t')},
                 IF(t.id IS NULL, 0, IFNULL(t.active, 1)) AS type_active
-            FROM {$this->pos}loyalty_signup ls
+            FROM {$this->crm}loyalty_signup ls
             INNER JOIN {$this->bd}branches b       ON b.id = ls.branch_id AND IFNULL(b.is_active, 1) = 1
             INNER JOIN {$this->bd}companies co     ON co.id = b.company_id
-            LEFT JOIN {$this->pos}loyalty_setting st ON st.company_id = b.company_id
-            LEFT JOIN {$this->pos}card_type t      ON t.id = st.signup_type_id
+            LEFT JOIN {$this->crm}loyalty_setting st ON st.company_id = b.company_id
+            LEFT JOIN {$this->crm}card_type t      ON t.id = st.signup_type_id
                                                   AND t.branch_id IN (SELECT tb.id FROM {$this->bd}branches tb WHERE tb.company_id = b.company_id)
             LEFT JOIN {$this->pos}online_store os  ON os.branch_id = ls.branch_id
             WHERE ls.token = ?
@@ -155,7 +155,7 @@ trait LoyaltyProgram {
     protected function qSignupAttempts($ip, $since) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}loyalty_signup_log
+            FROM {$this->crm}loyalty_signup_log
             WHERE ip = ?
                 AND created_at >= ?
                 AND result IN ('nueva', 'reenviada')
@@ -166,7 +166,7 @@ trait LoyaltyProgram {
     protected function qSignupPhoneRecent($phone, $since) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}loyalty_signup_log
+            FROM {$this->crm}loyalty_signup_log
             WHERE phone = ?
                 AND created_at >= ?
                 AND result IN ('nueva', 'reenviada')
@@ -177,7 +177,7 @@ trait LoyaltyProgram {
         del mes comparan contra fechas de PHP, no contra NOW() de MySQL. */
     protected function qLogSignup($branchId, $ip, $phone, $customerId, $cardId, $result) {
         return $this->_CUD("
-            INSERT INTO {$this->pos}loyalty_signup_log (branch_id, ip, phone, customer_id, card_id, result, created_at)
+            INSERT INTO {$this->crm}loyalty_signup_log (branch_id, ip, phone, customer_id, card_id, result, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ", [$branchId, mb_substr((string) $ip, 0, 45), $phone !== '' ? $phone : null, $customerId ?: null, $cardId ?: null, $result, date('Y-m-d H:i:s')]);
     }
@@ -185,7 +185,7 @@ trait LoyaltyProgram {
     /*  Dentro de transaction(): aparta el enlace de la sucursal hasta el commit.
         Dos registros a la vez con el mismo telefono no crean dos clientes. */
     protected function qLockSignup($branchId) {
-        return $this->qRow("SELECT id FROM {$this->pos}loyalty_signup WHERE branch_id = ? LIMIT 1 FOR UPDATE", [$branchId]);
+        return $this->qRow("SELECT id FROM {$this->crm}loyalty_signup WHERE branch_id = ? LIMIT 1 FOR UPDATE", [$branchId]);
     }
 
     /*  El cliente activo de la empresa con ese telefono, por los ultimos 10
@@ -207,8 +207,8 @@ trait LoyaltyProgram {
         return $this->qRow("
             SELECT
                 {$this->cardColumns()}
-            FROM {$this->pos}card c
-            INNER JOIN {$this->pos}card_type t ON t.id  = c.card_type_id AND IFNULL(t.active, 1) = 1
+            FROM {$this->crm}card c
+            INNER JOIN {$this->crm}card_type t ON t.id  = c.card_type_id AND IFNULL(t.active, 1) = 1
             LEFT JOIN {$this->pos}customer cu  ON cu.id = c.customer_id
             WHERE c.customer_id = ?
                 AND {$this->qSameCompany('c.branch_id')}
@@ -248,7 +248,7 @@ trait LoyaltyProgram {
     protected function qLogNotice($companyId, $branchId, $customerId, $cardId, $phone, $kind, $status, $detail, $userId) {
         try {
             $this->_CUD("
-                INSERT INTO {$this->pos}loyalty_notice (company_id, branch_id, customer_id, card_id, phone, kind, status, detail, user_id, created_at)
+                INSERT INTO {$this->crm}loyalty_notice (company_id, branch_id, customer_id, card_id, phone, kind, status, detail, user_id, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ", [
                 $companyId, $branchId ?: null, $customerId ?: null, $cardId ?: null, (string) $phone, $kind, $status,
@@ -267,7 +267,7 @@ trait LoyaltyProgram {
 
         foreach ($this->qRows("
             SELECT kind, COUNT(*) AS sent
-            FROM {$this->pos}loyalty_notice
+            FROM {$this->crm}loyalty_notice
             WHERE company_id = ?
                 AND created_at >= ?
                 AND status IN ('sent', 'simulated')
@@ -288,7 +288,7 @@ trait LoyaltyProgram {
         (status 'pending'). Devuelve su id: el envio la cierra con qFinishNotice. */
     protected function qClaimNotice($companyId, $branchId, $customerId, $cardId, $phone, $kind, $detail, $userId) {
         $this->must($this->_CUD("
-            INSERT INTO {$this->pos}loyalty_notice (company_id, branch_id, customer_id, card_id, phone, kind, status, detail, user_id, created_at)
+            INSERT INTO {$this->crm}loyalty_notice (company_id, branch_id, customer_id, card_id, phone, kind, status, detail, user_id, created_at)
             VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
         ", [$companyId, $branchId ?: null, $customerId, $cardId, (string) $phone, $kind, mb_substr((string) $detail, 0, 255, 'UTF-8'), $userId ?: null, date('Y-m-d H:i:s')]), 'qClaimNotice');
 
@@ -301,7 +301,7 @@ trait LoyaltyProgram {
     // Como salio el mensaje de una fila apartada (el detalle se suma al regalo). Nunca truena: el regalo ya quedo.
     protected function qFinishNotice($id, $status, $detail) {
         try {
-            $this->_CUD("UPDATE {$this->pos}loyalty_notice SET status = ?, detail = LEFT(CONCAT_WS(' · ', detail, ?), 255) WHERE id = ?", [
+            $this->_CUD("UPDATE {$this->crm}loyalty_notice SET status = ?, detail = LEFT(CONCAT_WS(' · ', detail, ?), 255) WHERE id = ?", [
                 $status, $detail !== '' && $detail !== null ? mb_substr((string) $detail, 0, 255, 'UTF-8') : null, $id
             ]);
         } catch (Throwable $e) {

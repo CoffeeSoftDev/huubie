@@ -34,6 +34,12 @@ class ctrl extends mdl {
     const ROUTE_SETUP     = 'app/configurar/';
     const ROUTE_SETTINGS  = 'app/configuracion/';
 
+    /*  Secciones que viven dentro de otra pantalla: quien ve la de destino no
+        las ve repetidas en el rail. El permiso sigue intacto (sus ctrl lo usan).
+        pos-calendario es la vista Calendario de Pedidos (pedidos.php?vista=calendario);
+        quien solo tiene el calendario (Producción) lo sigue viendo. */
+    const MERGED = ['pos-calendario' => 'pos-pedidos'];
+
     function session() {
         $row = $this->getNavUser([Session::user()]);
 
@@ -168,6 +174,11 @@ class ctrl extends mdl {
         $bySub  = [];
 
         foreach (Permission::sections((int) $module['id']) as $section) {
+            $into = self::MERGED[$section['code']] ?? '';
+
+            // La misma regla que calendario.php: con 'show' en la de destino, se entra por ella.
+            if ($into !== '' && Permission::can($into, 'show')) continue;
+
             $item = [
                 'id'    => (int) $section['id'],
                 'name'  => $section['name'],

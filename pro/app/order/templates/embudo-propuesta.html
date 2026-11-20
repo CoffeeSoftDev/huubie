@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tablero de pedidos · maqueta</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/general.css">
+<link rel="stylesheet" href="../../../assets/css/colors.css">
+<!-- El CSS del rail viene de sidebar.js; data-rail="static" deja en paz los botones de la plantilla. -->
+<script src="../../../auth/src/js/sidebar.js"></script>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="../../../assets/js/tailwind-theme.js"></script>
+<link rel="stylesheet" href="../../../assets/css/compact.css">
+<link rel="stylesheet" href="../../../assets/css/themes.css">
+<link rel="stylesheet" href="../../../assets/css/soft.css">
+<link rel="stylesheet" href="../src/css/order.css">
+<link rel="stylesheet" href="css/turno-propuesta.css">
+<link rel="stylesheet" href="css/embudo-propuesta.css">
+</head>
+<body>
+
+<!-- Rail lateral (sidebar de pro): ya sin «Calendario», vive dentro de Pedidos -->
+<div id="menu-sidebar" data-rail="static">
+    <button type="button" class="menu-rail-item" title="Ventas"><i data-lucide="shopping-bag"></i><span class="menu-rail-label">Ventas</span></button>
+    <button type="button" class="menu-rail-item is-active" aria-current="page" title="Pedidos"><i data-lucide="clipboard-list"></i><span class="menu-rail-label">Pedidos</span></button>
+    <button type="button" class="menu-rail-item" title="Clientes"><i data-lucide="users"></i><span class="menu-rail-label">Clientes</span></button>
+    <button type="button" class="menu-rail-item" title="Tickets/Cierre"><i data-lucide="receipt"></i><span class="menu-rail-label">Tickets/Cierre</span></button>
+</div>
+
+<main>
+    <!-- Barra superior: la de pro (navbar.js), sin cambios -->
+    <div id="menu-navbar">
+        <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+            <div class="nav-left flex items-center gap-3">
+                <a class="nav-brand-logo" href="#" title="Ir al inicio" aria-label="Ir al inicio">
+                    <img class="nav-logo nav-logo-light" src="../../../assets/img/huubie_light.png" alt="Huubie">
+                </a>
+                <div class="nav-brand-text"><span class="nav-company">Reginas</span></div>
+            </div>
+
+            <div class="nav-right flex items-center gap-2">
+                <div class="nav-branch relative">
+                    <button type="button" class="branch-pill flex items-center gap-2.5" disabled>
+                        <span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span>
+                        <span class="branch-pill-text flex flex-col items-start leading-tight">
+                            <span class="branch-pill-label">Sucursal</span>
+                            <span class="branch-pill-name">Guadalupe</span>
+                        </span>
+                    </button>
+                </div>
+
+                <button type="button" class="nav-theme-toggle" title="Notificaciones"><i data-lucide="bell" class="w-[18px] h-[18px]"></i></button>
+
+                <button type="button" class="nav-user-pill flex items-center gap-2.5">
+                    <span class="nav-avatar" style="background:#5030A5"><i data-lucide="user"></i></span>
+                    <span class="hidden lg:flex flex-col items-start leading-tight">
+                        <span class="nav-user-name">Andrea M.</span>
+                        <span class="nav-user-rol">Dueña</span>
+                    </span>
+                    <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Franja de caja (caja-strip.js), sin cambios -->
+    <div id="cajaStrip">
+        <div class="caja-strip is-open">
+            <div class="caja-strip-main">
+                <span class="caja-strip-icon"><i data-lucide="wallet" class="w-4 h-4"></i></span>
+                <span class="caja-strip-title"><span class="ord-turn-dot"></span>Turno 1012 abierto</span>
+                <span class="caja-strip-text">Desde las 8:02 AM · abrió Andrea M.</span>
+            </div>
+            <div class="caja-strip-stats">
+                <span>Fondo<b>$500.00</b></span>
+                <span>Vendido<b>$4,860.00</b></span>
+                <span>Pedidos · Ventas<b>6 · 21</b></span>
+            </div>
+            <div class="caja-strip-actions">
+                <div class="flex gap-2">
+                    <button type="button" class="caja-tile is-open" disabled><span class="caja-tile-key">F2</span><i data-lucide="clock"></i><span class="caja-tile-text">Abrir turno</span></button>
+                    <button type="button" class="caja-tile is-close"><span class="caja-tile-key">F3</span><i data-lucide="alarm-clock-off"></i><span class="caja-tile-text">Cerrar turno</span></button>
+                    <button type="button" class="caja-tile is-day" disabled><i data-lucide="calendar-check"></i><span class="caja-tile-text">Cierre del día</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="main__content" class="cp-pagina-pro">
+        <div id="root">
+            <div class="flex flex-1 flex-col gap-[16px]">
+
+                <!-- Encabezado: el de Pedidos con su tercera pestaña -->
+                <div class="flex items-end justify-between gap-[12px] flex-wrap">
+                    <div class="min-w-0">
+                        <h1 class="cp-pagina-titulo">Pedidos</h1>
+                        <p class="cp-pagina-subtitulo">Reginas · Reginas Guadalupe</p>
+                    </div>
+                    <div id="viewsOrders" class="ord-views">
+                        <div id="viewTabsOrders" class="bg-gray-100 p-1 rounded-lg inline-flex gap-1 flex-nowrap" role="group" aria-label="Cambiar de vista">
+                            <button type="button" class="text-sm font-medium" data-act="tab" data-value="list" data-state="inactive"><i data-lucide="list"></i>Pedidos</button>
+                            <button type="button" class="text-sm font-medium" data-act="tab" data-value="calendar" data-state="inactive"><i data-lucide="calendar-days"></i>Calendario</button>
+                            <button type="button" class="text-sm font-medium" data-act="tab" data-value="board" data-state="active"><i data-lucide="square-kanban"></i>Tablero<span class="ef-new">Nuevo</span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- El tablero lo pinta js/embudo-propuesta.js -->
+                <div id="efView" class="flex flex-1 flex-col gap-[16px]"></div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div id="tpToast" class="tp-toast" role="status" hidden></div>
+
+<!-- Entregas de hoy: recuadro flotante, como el «Prueba tu embudo» de Vambe -->
+<div id="efToday" class="ef-today" role="status" aria-label="Entregas de hoy"></div>
+
+<!-- Nota de la propuesta -->
+<aside id="tpNote" class="tp-note ef-note" hidden>
+    <div class="tp-note-head"><b>Propuesta de mejora</b><button type="button" data-act="note" aria-label="Ocultar nota"><i data-lucide="x"></i></button></div>
+    <dl>
+        <dt>Cómo se usa</dt>
+        <dd>Como el pipeline de Vambe: una columna por estado con su color y «Pedidos (N)». Cada tarjeta dice su siguiente paso abajo a la derecha; al hacerlo, o al arrastrarla a la columna que sigue, se mueve. Punto ámbar: se entrega hoy; rojo: atrasado. El camión es envío a domicilio; la tienda, recoge.</dd>
+        <dt>Los estados</dt>
+        <dd>Los de hoy, con sus colores: Cotización · Pendiente · Pagado · Cancelado. La entrega y la elaboración no son estados: van como etiquetas, igual que en el calendario y la lista («Debe $X», «Sin entregar», «Entregado», «Elaborado»). A Cancelado se llega desde el detalle (motivo y contraseña).</dd>
+        <dt>Datos</dt>
+        <dd>De ejemplo. Prueba mover una tarjeta.</dd>
+    </dl>
+</aside>
+
+<!-- Tira de la maqueta -->
+<div class="tp-demo">
+    <div class="tp-demo-tag"><span>Maqueta</span><b>Tablero de pedidos</b></div>
+    <div class="tp-demo-right">
+        <button type="button" class="tp-demo-link" data-act="note"><i data-lucide="sticky-note"></i>Nota</button>
+    </div>
+</div>
+
+<script src="../../../assets/plugins/lucide/lucide.min.js"></script>
+<script src="js/embudo-propuesta.js"></script>
+</body>
+</html>

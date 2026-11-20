@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuesta · Colores del calendario en tema oscuro</title>
+<style>
+/* @piel plantilla-plano · siempre en claro, aunque el sistema esté oscuro */
+:root{
+  color-scheme: light;
+  --bp-ground:#F1F3F6; --bp-surface:#FFFFFF; --bp-surface-2:#F5F7F9;
+  --bp-line:#DDE3E8; --bp-line-soft:#E9EDF1;
+  --bp-ink:#0F1A21; --bp-ink-soft:#4A5A64; --bp-ink-dim:#6E7F8A;
+  --bp-ac:#0B6E77; --bp-write:#A15C08;
+  --bp-ui:"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif:Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono:ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{ background:var(--bp-ground); color:var(--bp-ink); font-family:var(--bp-ui);
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased }
+.wrap{ max-width:1120px; margin:0 auto; padding:0 22px 80px }
+
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:26px;
+  display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,42px); line-height:1.08;
+  letter-spacing:-.015em; max-width:24ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55; color:var(--bp-ink-soft); max-width:66ch }
+
+section{ display:flex; flex-direction:column; gap:14px; margin-bottom:56px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:26px; line-height:1.2; display:flex;
+  align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em; color:var(--bp-ac); flex:none }
+.intro{ color:var(--bp-ink-soft); max-width:74ch }
+code{ font-family:var(--bp-mono); font-size:.875em; background:var(--bp-surface-2);
+  border:1px solid var(--bp-line-soft); border-radius:4px; padding:.08em .34em }
+
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface) }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:640px }
+th,td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft); vertical-align:top }
+thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--bp-ink-dim); font-weight:500; background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line) }
+tbody tr:last-child td{ border-bottom:0 }
+td b{ font-weight:650 }
+
+/* Muestras: el color de fondo y el de la letra de cada estado */
+.swatches{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px }
+.sw{ border-radius:8px; padding:10px 12px; font-size:13px; font-weight:700; line-height:1.3;
+  display:flex; flex-direction:column; gap:2px; border:1px solid transparent }
+.sw small{ font-family:var(--bp-mono); font-size:10.5px; font-weight:500; opacity:.85 }
+.sw-dark{ background:#1F2A37; border-radius:10px; padding:10px }
+
+/* Capturas reales del calendario */
+.shots{ display:flex; flex-direction:column; gap:10px }
+.shot{ border:1px solid var(--bp-line); border-radius:10px; overflow:hidden; background:#111827 }
+.shot img{ display:block; width:100%; height:auto }
+.shot figcaption{ background:var(--bp-surface); border-top:1px solid var(--bp-line); padding:6px 12px;
+  font-size:12px; color:var(--bp-ink-dim); font-family:var(--bp-mono) }
+
+.pros{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+.pro, .con{ border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface);
+  padding:12px 14px; font-size:13.5px; color:var(--bp-ink-soft) }
+.pro b, .con b{ display:block; font-size:11px; font-family:var(--bp-mono); letter-spacing:.08em;
+  text-transform:uppercase; margin-bottom:4px }
+.pro b{ color:#047857 } .con b{ color:#B3261E }
+
+.note{ border-left:2px solid var(--bp-write); background:var(--bp-surface); border-radius:0 8px 8px 0;
+  padding:14px 18px; display:flex; flex-direction:column; gap:8px; font-size:13.5px; color:var(--bp-ink-soft) }
+.note b{ color:var(--bp-ink) }
+
+@media (max-width: 760px){
+  .swatches{ grid-template-columns:repeat(2,minmax(0,1fr)) }
+  .pros{ grid-template-columns:1fr }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <div class="eyebrow">Propuesta · Pedidos › Calendario · 19/11/2026</div>
+  <h1>Colores del calendario en <em>tema oscuro</em></h1>
+  <p class="lede">Tres maneras de pintar las tarjetas cuando la página está oscura. Las capturas son el calendario real con los mismos pedidos; solo cambia el color. En tema claro no cambia nada.</p>
+</header>
+
+<section>
+  <h2><span class="num">00</span>Las tres de un vistazo</h2>
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Propuesta</th><th>Mes</th><th>Semana y Día</th><th>El estado se reconoce por</th></tr></thead>
+      <tbody>
+        <tr><td><b>1 · Color vivo</b></td><td>Relleno de color medio, letra oscura</td><td>Franja de color, cuerpo gris claro</td><td>Todo el relleno</td></tr>
+        <tr><td><b>2 · Pastel con filo</b></td><td>Pastel muy suave con barra fuerte a la izquierda</td><td>Tarjeta pastel, franja más intensa</td><td>La barra y el tono</td></tr>
+        <tr><td><b>3 · Blanca con acento</b></td><td>Blanca con barra de color y la hora en color</td><td>Igual que en tema claro</td><td>La barra, la franja y la píldora</td></tr>
+        <tr><td>Hoy</td><td>Pastel claro</td><td>Tarjeta casi blanca teñida</td><td>Un tono muy lavado</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">01</span>Color vivo</h2>
+  <p class="intro">Los tonos medios de Huubie UI (info, warning, success y un rojo suave), con la letra en el tono más oscuro de cada color. Es la que más se distingue de lejos.</p>
+  <div class="sw-dark"><div class="swatches">
+    <div class="sw" style="background:#76A9FA;color:#172554">Cotización<small>#76A9FA · #172554</small></div>
+    <div class="sw" style="background:#FBBF24;color:#451A03">Pendiente<small>#FBBF24 · #451A03</small></div>
+    <div class="sw" style="background:#3FC189;color:#022C22">Pagado<small>#3FC189 · #022C22</small></div>
+    <div class="sw" style="background:#F98080;color:#4C0519">Cancelado<small>#F98080 · #4C0519</small></div>
+  </div></div>
+  <div class="shots">
+    <figure class="shot"><a href="img/colores-oscuro/p1-mes.png" target="_blank"><img src="img/colores-oscuro/p1-mes.png" alt="Mes con la propuesta 1"></a><figcaption>Mes</figcaption></figure>
+    <figure class="shot"><a href="img/colores-oscuro/p1-semana.png" target="_blank"><img src="img/colores-oscuro/p1-semana.png" alt="Semana con la propuesta 1"></a><figcaption>Semana</figcaption></figure>
+  </div>
+  <div class="pros">
+    <div class="pro"><b>A favor</b>Los cuatro estados se separan al instante, incluso con muchos pedidos en el mes.</div>
+    <div class="con"><b>En contra</b>Es la más cargada de color: con el mes lleno puede sentirse intensa.</div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>Pastel con filo</h2>
+  <p class="intro">Fondo pastel muy suave y una barra a la izquierda con el color fuerte del estado (el mismo del tema claro). En Semana la tarjeta entera va en pastel y la franja un tono más intenso.</p>
+  <div class="sw-dark"><div class="swatches">
+    <div class="sw" style="background:#E1EFFE;color:#233876;border-left:4px solid #1C64F2">Cotización<small>#E1EFFE · barra #1C64F2</small></div>
+    <div class="sw" style="background:#FEF3C7;color:#78350F;border-left:4px solid #B45309">Pendiente<small>#FEF3C7 · barra #B45309</small></div>
+    <div class="sw" style="background:#DEF7EC;color:#014737;border-left:4px solid #057A55">Pagado<small>#DEF7EC · barra #057A55</small></div>
+    <div class="sw" style="background:#FDE8E8;color:#771D1D;border-left:4px solid #EA0234">Cancelado<small>#FDE8E8 · barra #EA0234</small></div>
+  </div></div>
+  <div class="shots">
+    <figure class="shot"><a href="img/colores-oscuro/p2-mes.png" target="_blank"><img src="img/colores-oscuro/p2-mes.png" alt="Mes con la propuesta 2"></a><figcaption>Mes</figcaption></figure>
+    <figure class="shot"><a href="img/colores-oscuro/p2-semana.png" target="_blank"><img src="img/colores-oscuro/p2-semana.png" alt="Semana con la propuesta 2"></a><figcaption>Semana</figcaption></figure>
+  </div>
+  <div class="pros">
+    <div class="pro"><b>A favor</b>Clara y tranquila; la barra deja claro el estado aunque el pastel sea suave.</div>
+    <div class="con"><b>En contra</b>Los fondos se parecen entre sí: hay que fijarse en la barra.</div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>Blanca con acento</h2>
+  <p class="intro">La tarjeta va en blanco, como en tema claro. El color sale solo en la barra, la hora y la píldora del estado; en Semana, en la franja de arriba.</p>
+  <div class="sw-dark"><div class="swatches">
+    <div class="sw" style="background:#FFFFFF;color:#111827;border-left:4px solid #1C64F2"><span style="color:#1C64F2">9:30 AM</span>Cotización<small>barra #1C64F2</small></div>
+    <div class="sw" style="background:#FFFFFF;color:#111827;border-left:4px solid #B45309"><span style="color:#B45309">12:00 PM</span>Pendiente<small>barra #B45309</small></div>
+    <div class="sw" style="background:#FFFFFF;color:#111827;border-left:4px solid #057A55"><span style="color:#057A55">3:00 PM</span>Pagado<small>barra #057A55</small></div>
+    <div class="sw" style="background:#FFFFFF;color:#111827;border-left:4px solid #EA0234"><span style="color:#EA0234">6:30 PM</span>Cancelado<small>barra #EA0234</small></div>
+  </div></div>
+  <div class="shots">
+    <figure class="shot"><a href="img/colores-oscuro/p3-mes.png" target="_blank"><img src="img/colores-oscuro/p3-mes.png" alt="Mes con la propuesta 3"></a><figcaption>Mes</figcaption></figure>
+    <figure class="shot"><a href="img/colores-oscuro/p3-semana.png" target="_blank"><img src="img/colores-oscuro/p3-semana.png" alt="Semana con la propuesta 3"></a><figcaption>Semana</figcaption></figure>
+  </div>
+  <div class="pros">
+    <div class="pro"><b>A favor</b>La más limpia y la más fácil de leer; se ve igual que en tema claro.</div>
+    <div class="con"><b>En contra</b>En el Mes el estado se reconoce solo por la barra: de lejos cuesta más.</div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">··</span>Como está hoy</h2>
+  <p class="intro">Para comparar: pastel claro en el Mes y tarjeta casi blanca teñida en la Semana.</p>
+  <div class="shots">
+    <figure class="shot"><a href="img/colores-oscuro/actual-mes.png" target="_blank"><img src="img/colores-oscuro/actual-mes.png" alt="Mes como está hoy"></a><figcaption>Mes · hoy</figcaption></figure>
+    <figure class="shot"><a href="img/colores-oscuro/actual-semana.png" target="_blank"><img src="img/colores-oscuro/actual-semana.png" alt="Semana como está hoy"></a><figcaption>Semana · hoy</figcaption></figure>
+  </div>
+</section>
+
+<div class="note">
+  <b>Para decidir</b>
+  <span>Dime 1, 2 o 3, o qué tomar de cada una (por ejemplo, el Mes de la 1 con la Semana de la 3).</span>
+  <span>Al elegir solo se tocan <code>tone()</code> en order-calendar.js y el bloque «Calendario oscuro» de order.css. Sin migraciones.</span>
+</div>
+
+</div>
+</body>
+</html>

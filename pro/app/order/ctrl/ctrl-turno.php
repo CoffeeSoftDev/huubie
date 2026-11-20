@@ -51,13 +51,20 @@ class ctrl extends core {
                 $turn = $open ? $this->qGetTurn((int) $open['id'], $branchId) : $this->qLastTurn($branchId);
             }
 
+            // company y logo: el encabezado del ticket del corte (formato de alpha).
+            // shift: el modo Detallado de ese ticket (lo piden el módulo de cierre y el visor).
+            $shift = $turn && ($this->post('shift') === '1' || $this->post('detail') === '1');
+
             return [
-                'status' => 200,
-                'branch' => $this->scope()['branch'],
-                'user'   => isset($_SESSION['user']) ? trim((string) $_SESSION['user']) : '',
+                'status'  => 200,
+                'branch'  => $this->scope()['branch'],
+                'company' => $this->scope()['company'],
+                'logo'    => $this->companyLogo(),
+                'user'    => isset($_SESSION['user']) ? trim((string) $_SESSION['user']) : '',
                 'today'  => date('Y-m-d'),
                 'turn'   => $turn ? $this->turnView($turn) : null,
                 'detail' => $turn && $this->post('detail') === '1' ? $this->cutDetail([(int) $turn['id']]) : null,
+                'shift'  => $shift ? $this->shiftDetail($turn) : null,
                 'brief'  => $this->turnBrief(),
                 'day'    => $this->dayBrief(),
                 'can'    => $this->turnCan($turn, $open)
@@ -89,6 +96,26 @@ class ctrl extends core {
             $changed = count(array_filter($items, function ($t) { return $t['changed']; }));
 
             return ['status' => 200, 'items' => $items, 'count' => count($items), 'changed' => $changed, 'branch' => $this->scope()['branch']];
+        }, 'No se pudieron leer los turnos.');
+    }
+
+    // -- Turnos de un día (módulo «Cierre de turno», como alpha) --
+
+    // El selector de turnos del módulo. Lo usa la cajera: pide 'show' de Pedidos, no 'pos-tickets'.
+    public function lsDayTurns() {
+        $fail = $this->need('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $day = $this->postDate('date', date('Y-m-d'));
+
+            if ($day > date('Y-m-d')) $day = date('Y-m-d');
+
+            [$from, $to] = $this->dayRange($day);
+
+            $items = array_map([$this, 'turnItem'], $this->qTurnList($this->branchId(), $from, $to));
+
+            return ['status' => 200, 'date' => $day, 'today' => date('Y-m-d'), 'items' => $items, 'day' => $this->dayBrief()];
         }, 'No se pudieron leer los turnos.');
     }
 
@@ -131,6 +158,8 @@ class ctrl extends core {
         $counted  = $closed ? (float) $turn['counted_cash'] : null;
         $cut      = $closed ? $this->cutStatuses($id) : [];
         $changed  = $closed ? $this->turnDrift($turn, $stats, $cut) : null;
+        $prev     = $this->prevSales($turn);
+        $settled  = count(array_filter($prev, function ($s) { return $s['left'] <= 0; }));
 
         return [
             'id'            => $id,
@@ -156,8 +185,69 @@ class ctrl extends core {
             'sales_count'   => (int) $totals['sales_count'],
             'methods'       => $stats['methods'],
             'statuses'      => $changed ? $cut : $stats['statuses'],
-            'changed'       => $changed
+            'changed'       => $changed,
+            // Abonos a pedidos de otros turnos: cuántos, cuánto y cuántos quedaron liquidados (ticket de alpha).
+            'prev'          => [
+                'orders'  => count($prev),
+                'amount'  => round(array_sum(array_column($prev, 'paid')), 2),
+                'settled' => $settled,
+                'pending' => count($prev) - $settled
+            ]
         ];
+    }
+
+    // -- Ticket de alpha: modo Detallado --
+
+    /*  Lo que alpha detalla en su «Cierre x turno»: los pedidos del turno con lo
+        cobrado de cada uno en él, los abonos a pedidos de otros turnos (debía,
+        abonó, quedó) y lo que otra sucursal cobró de pedidos de este turno.
+        Es en vivo, como en alpha: la foto del corte Z solo guarda totales. */
+    private function shiftDetail($turn) {
+        $id = (int) $turn['id'];
+
+        $orders = array_map(function ($s) {
+            return [
+                'folio'    => $this->saleFolio($s['sale_type_id'], $s['folio'], $s['id']),
+                'customer' => trim((string) $s['customer']),
+                'order'    => (int) $s['sale_type_id'] === 1,
+                'total'    => round((float) $s['total'], 2),
+                'paid'     => round((float) $s['paid'], 2)
+            ];
+        }, $this->qShiftSales($id));
+
+        $cross = array_map(function ($p) {
+            return [
+                'folio'    => $this->saleFolio($p['sale_type_id'], $p['folio'], $p['id']),
+                'customer' => trim((string) $p['customer']),
+                'branch'   => trim((string) $p['branch']),
+                'amount'   => round((float) $p['amount'], 2)
+            ];
+        }, $this->qShiftCrossPayments($id, $this->branchId()));
+
+        return ['orders' => $orders, 'prev' => $this->prevSales($turn), 'cross' => $cross];
+    }
+
+    /*  Un renglón por pedido de otro turno abonado aquí (folio con su P o V). left = el saldo que le
+        quedó al cierre (o ahora, si sigue abierto); owed = lo que debía antes de
+        este abono. origin solo cuando el pedido es de otra sucursal. */
+    private function prevSales($turn) {
+        $until = $turn['status'] !== 'open' && !empty($turn['closed_at']) ? (string) $turn['closed_at'] : date('Y-m-d H:i:s');
+        $home  = $this->branchId();
+
+        return array_map(function ($s) use ($home) {
+            $paid = round((float) $s['paid'], 2);
+            $left = max(0, round((float) $s['total'] - (float) $s['paid_upto'], 2));
+
+            return [
+                'folio'    => $this->saleFolio($s['sale_type_id'], $s['folio'], $s['id']),
+                'customer' => trim((string) $s['customer']),
+                'origin'   => (int) $s['branch_id'] !== $home ? trim((string) $s['origin']) : '',
+                'total'    => round((float) $s['total'], 2),
+                'paid'     => $paid,
+                'owed'     => round($left + $paid, 2),
+                'left'     => $left
+            ];
+        }, $this->qShiftPrevSales((int) $turn['id'], $until));
     }
 
     // La foto por estado del corte Z. orders = null: turn_status no guarda cuántos.
@@ -338,14 +428,18 @@ class ctrl extends core {
         $again = $this->tokenResult($token);
         if ($again) return $again;
 
-        $counted = $this->amountOf($this->post('counted_cash'), null);
+        /*  Lo contado es opcional (como alpha, que no contaba la caja). Sin contar,
+            counted_cash guarda lo esperado y la diferencia queda en $0: la misma
+            regla con la que se migraron los turnos de alpha (foto-cortes-alpha). */
+        $blind   = trim((string) $this->post('counted_cash')) === '';
+        $counted = $blind ? 0 : $this->amountOf($this->post('counted_cash'), null);
 
         if ($id <= 0)                   return $this->fail(422, 'Falta el turno.');
-        if ($counted === null)          return $this->fail(422, 'Escribe cuánto efectivo contaste en caja (puede ser $0).');
+        if ($counted === null)          return $this->fail(422, 'El efectivo contado no es una cantidad válida.');
         if ($counted > self::MAX_CASH) return $this->fail(422, 'El efectivo contado no puede pasar de ' . money(self::MAX_CASH) . '.');
 
-        $answer = $this->attempt(function () use ($id, $counted) {
-            return $this->transaction(function () use ($id, $counted) {
+        $answer = $this->attempt(function () use ($id, $counted, $blind) {
+            return $this->transaction(function () use ($id, $counted, $blind) {
                 $turn = $this->qLockTurn($id, $this->branchId());
 
                 if (!$turn)                     return $this->fail(404, "El turno {$id} no existe en " . $this->scope()['branch'] . '.');
@@ -353,6 +447,7 @@ class ctrl extends core {
 
                 $stats      = $this->turnStats($id, (float) $turn['opening_cash']);
                 $totals     = $stats['totals'];
+                $counted    = $blind ? $stats['expected'] : $counted;
                 $difference = round($counted - $stats['expected'], 2);
 
                 $this->saveCutRows($id, $stats);
@@ -369,9 +464,12 @@ class ctrl extends core {
                     ]
                 ]), 'closeTurn');
 
-                return $this->ok('Turno ' . $turn['folio'] . ' cerrado. ' . $this->differenceText($difference), [
+                $text = $blind ? 'Se cerró sin contar la caja.' : $this->differenceText($difference);
+
+                return $this->ok('Turno ' . $turn['folio'] . ' cerrado. ' . $text, [
                     'id'         => $id,
-                    'difference' => $difference
+                    'difference' => $difference,
+                    'counted'    => !$blind
                 ]);
             });
         }, 'No se pudo cerrar el turno.');

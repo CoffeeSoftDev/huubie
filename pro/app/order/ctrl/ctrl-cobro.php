@@ -49,14 +49,22 @@ class ctrl extends core {
 
         $id = $this->postId();
 
+        // Pedido de otra sucursal: se abre en la suya. Cobrar o quitar pagos lo decide la regla de alpha.
+        $fail = $this->adoptOrderBranch($id, null);
+        if ($fail) return $fail;
+
         return $this->attempt(function () use ($id) {
             $order = $id > 0 ? $this->qGetOrder($id, $this->branchId()) : null;
 
             if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
 
+            $foreign = $this->branchId() !== $this->homeBranchId()
+                ? $this->foreignBlock('pay', $this->branchId(), $this->scope()['branch'])
+                : '';
+
             $total = round((float) $order['total'], 2);
             $paid  = round((float) $order['paid'], 2);
-            $stop  = $this->payStop($order);
+            $stop  = $foreign !== '' ? ['kind' => 'role', 'title' => 'Solo consulta', 'message' => $foreign, 'day' => false] : $this->payStop($order);
             $alive = (int) $order['sale_status_id'] !== self::CANCELLED;
             $given = (int) $order['delivery_status'] === 1;
 
@@ -83,7 +91,7 @@ class ctrl extends core {
                 'can_pay'       => $stop === null,
                 'pay_block'     => $stop,
                 // La misma regla que el detalle (orderCan): entregado o cancelado no suelta pagos.
-                'can_delete'    => $alive && !$given && $this->need('delete') === null,
+                'can_delete'    => $alive && !$given && $foreign === '' && $this->need('delete') === null,
                 'methods'       => $this->qPaymentMethods($this->branchId()),
                 'reasons'       => $this->qDiscountReasons($this->companyId()),
                 'can_authorize' => $this->need('cancel') === null,
@@ -124,8 +132,9 @@ class ctrl extends core {
     /*  Sucursales donde se puede cobrar el pedido (como alpha): cada una con su
         turno, lo que le impide cobrar (block) y sus formas de pago. Así la
         ventana cambia de sucursal sin volver a preguntar. */
+    // session = la de la sesión (homeBranchId), aunque el pedido sea de otra: ahí se abre turno.
     private function payBranches() {
-        $session = $this->branchId();
+        $session = $this->homeBranchId();
         $list    = [];
 
         foreach ($this->qCompanyBranches($this->companyId()) as $branch) {
@@ -208,6 +217,9 @@ class ctrl extends core {
         if ($again) return $again;
 
         if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
+
+        $fail = $this->adoptOrderBranch($id, 'pay');
+        if ($fail) return $fail;
 
         $payments = $this->paymentsInput();
         if (isset($payments['status'])) return $payments;
@@ -530,6 +542,9 @@ class ctrl extends core {
         if ($id <= 0 || $paymentId <= 0)  return $this->fail(422, 'Falta el pago.');
         if ($reason === '')               return $this->fail(422, 'Escribe por qué se quita el pago.');
         if ($this->tooLong($reason, 200)) return $this->fail(422, 'El motivo admite hasta 200 caracteres.');
+
+        $fail = $this->adoptOrderBranch($id, 'pay');
+        if ($fail) return $fail;
 
         return $this->attempt(function () use ($id, $paymentId, $reason) {
             return $this->transaction(function () use ($id, $paymentId, $reason) {

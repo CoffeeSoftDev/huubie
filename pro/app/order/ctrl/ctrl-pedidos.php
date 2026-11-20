@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../../core/security/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-order.php';
+require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
 
 /*  Pedidos › lista, detalle y captura (Etapas 1 y 2).
 
@@ -25,8 +26,12 @@ require_once __DIR__ . '/core-order.php';
         pastel, salen de la base: lo que mande el navegador no cuenta.
       - Una linea ya guardada conserva su producto y su precio.
       - Editar y cancelar validan DESPUES de bloquear el pedido (FOR UPDATE).
-      - Cada cambio deja su renglon en history_log con quien lo hizo. */
+      - Cada cambio deja su renglon en history_log con quien lo hizo.
+      - WhatsApp (como alpha): el pedido que se termina Pendiente sin anticipo
+        avisa al guardarse (con anticipo avisa ctrl-cobro). El detalle lo puede
+        mandar otra vez (resendOrderNotice), solo Dueño o Supervisor. */
 class ctrl extends core {
+    use WhatsAppNotices;
 
     const MAX_LINES  = 100;
     const MAX_PHOTOS = 10;
@@ -45,6 +50,7 @@ class ctrl extends core {
             'scope'    => ['company' => $scope['company'], 'branch' => $scope['branch'], 'logo' => $this->companyLogo()],
             'actions'  => $this->actions(),
             'tickets'  => Permission::actions(self::TICKETS),
+            'calendar' => Permission::actions('pos-calendario'),   // botón Pedidos | Calendario
             'statuses' => $scope['company_id'] > 0 ? $this->qStatuses($scope['company_id']) : [],
             'today'    => date('Y-m-d'),
             'turn'     => $this->turnBrief(),
@@ -113,6 +119,105 @@ class ctrl extends core {
         ];
     }
 
+    // -- Tablero --
+
+    /*  La vista Tablero de Pedidos: los pedidos que se ENTREGAN entre fi y ff,
+        una tarjeta por pedido. La pantalla los acomoda en una columna por
+        estado (sale_status). Cada tarjeta trae su siguiente paso (step) con los
+        mismos permisos y bloqueos que la fila de la lista (orderRow):
+          pay      «Cobrar anticipo» o «Cobrar saldo» (orderPay.open)
+          settle   «Cobrar y entregar»: con saldo y entrega de hoy o atrasada
+          deliver  «Entregar» (orderDetail.deliver), sin saldo
+        El de otra sucursal («Todas») trae paso solo si la regla de alpha deja (core::foreignBlock). */
+    public function lsBoard() {
+        $fail = $this->need('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $fi = $this->postDate('fi', date('Y-m-d', strtotime('monday this week')));
+            $ff = $this->postDate('ff', date('Y-m-d', strtotime('sunday this week')));
+
+            if ($fi > $ff) list($fi, $ff) = [$ff, $fi];
+
+            $branches = $this->readBranches(self::SECTION);
+            $actions  = $this->actions();
+            $cards    = [];
+
+            $filters = ['branches' => $branches, 'date_type' => 'delivery', 'fi' => $fi, 'ff' => $ff, 'status' => null, 'order_type' => '', 'search' => null];
+
+            foreach ($this->qBoardOrders($filters) as $order) {
+                $cards[] = $this->boardCard($order, $actions);
+            }
+
+            $today = $this->qBoardToday($branches, date('Y-m-d')) ?: [];
+
+            return [
+                'status' => 200,
+                'cards'  => $cards,
+                'fi'     => $fi,
+                'ff'     => $ff,
+                'today'  => ['date' => date('Y-m-d'), 'total' => (int) ($today['total'] ?? 0), 'done' => (int) ($today['done'] ?? 0)],
+                'all'    => count($branches) > 1
+            ];
+        }, 'No se pudo cargar el tablero.');
+    }
+
+    private function boardCard($o, array $actions) {
+        $id      = (int) $o['id'];
+        $total   = round((float) $o['total'], 2);
+        $paid    = round((float) $o['paid'], 2);
+        $time    = (string) $o['delivery_time'];
+        $foreign = (int) $o['branch_id'] !== $this->branchId();
+
+        return [
+            'id'        => $id,
+            'folio'     => 'P' . ($o['folio'] !== null && $o['folio'] !== '' ? $o['folio'] : $id),
+            'status'    => (int) $o['sale_status_id'],
+            'customer'  => $o['customer'] !== '' ? $o['customer'] : 'Sin cliente',
+            'phone'     => (string) $o['phone'],
+            'what'      => $this->boardWhat($o),
+            'date'      => (string) $o['delivery_date'],
+            'hour'      => $time !== '' ? substr($time, 0, 5) : '',
+            'home'      => (int) $o['delivery_method'] === 1,
+            'total'     => $total,
+            'paid'      => $paid,
+            'balance'   => round($total - $paid, 2),
+            'delivered' => (int) $o['delivery_status'] === 1,
+            'produced'  => !empty($o['produced_at']),
+            'reason'    => (string) $o['cancel_reason'],
+            'branch'    => (string) $o['branch'],
+            'foreign'   => $foreign,
+            'step'      => $this->boardStep($o, $actions)
+        ];
+    }
+
+    // El siguiente paso de la tarjeta, o '' si no hay o el rol no puede. Otra sucursal: reglas de alpha (orderMay).
+    private function boardStep($o, array $actions) {
+        $status  = (int) $o['sale_status_id'];
+        $canPay  = in_array('create', $actions, true) && $this->payBlock($o) === '' && $this->orderMay($o, 'pay');
+        $update  = in_array('update', $actions, true) && $this->orderMay($o, 'deliver');
+        $dueSoon = !empty($o['delivery_date']) && $o['delivery_date'] <= date('Y-m-d');
+
+        if ($status === self::PAID) return $update && $this->deliverBlock($o) === '' ? 'deliver' : '';
+
+        if ($status === self::PENDING && (float) $o['paid'] > 0 && $dueSoon && $canPay && $update && $this->settleFirst($o)) return 'settle';
+
+        return $canPay ? 'pay' : '';
+    }
+
+    // «Pastel de chocolate ×2 +1»: el primer producto, su cantidad y cuántas líneas más.
+    private function boardWhat($o) {
+        $name = trim((string) $o['first_item']);
+
+        if ($name === '') return 'Sin productos';
+
+        $qty   = (float) $o['first_qty'];
+        $more  = (int) $o['line_count'] - 1;
+        $text  = $name . ($qty > 1 ? ' ×' . rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') : '');
+
+        return $text . ($more > 0 ? " +{$more}" : '');
+    }
+
     /*  null = sin busqueda. Dos letras minimo, salvo que sea un folio.
           "P1557" / "P1557-04"  solo folio.
           "1557"                folio, nombre o telefono (el folio exacto sale primero).
@@ -140,8 +245,10 @@ class ctrl extends core {
     }
 
     /*  Una fila de la tabla. Las claves son los encabezados. La de otra
-        sucursal deja solo Ver e Imprimir y sus importes no abren la ventana
-        de pagos (cobrar escribe en la activa). */
+        sucursal (vista «todas») sigue las reglas de alpha (core::foreignBlock):
+        Dueño todo; Cajero editar y, con turno abierto allá, entregar;
+        Supervisor nada desde la fila (sus datos de entrega van en el detalle);
+        los demás Ver e Imprimir. Sus importes abren los pagos solo si puede cobrar. */
     private function orderRow($o, $turnId, array $actions) {
         $id        = (int) $o['id'];
         $statusId  = (int) $o['sale_status_id'];
@@ -149,68 +256,83 @@ class ctrl extends core {
         $custom    = (int) $o['is_custom'] === 1;
         $inTurn    = $turnId > 0 && (int) $o['turn_id'] === $turnId;
         $foreign   = (int) $o['branch_id'] !== $this->branchId();
+        $may       = fn ($act) => $this->orderMay($o, $act);
 
         $menu = [['icon' => 'icon-eye', 'text' => 'Ver', 'onclick' => "orderDetail.show({$id})"]];
 
-        if ($foreign) {
-            if (in_array('print', $actions, true)) {
-                $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
-            }
-
-            return $this->rowCells($o, $inTurn, $cancelled, $custom, false, false, '', $menu);
-        }
-
-        if (in_array('update', $actions, true) && $this->editBlock($o) === '') {
+        if (in_array('update', $actions, true) && $this->editBlock($o) === '' && $may('edit')) {
             $menu[] = ['icon' => 'icon-pencil', 'text' => 'Editar', 'onclick' => "orderForm.edit({$id})"];
         }
 
         // Con saldo se cobra; sin saldo, los pagos ya hechos se consultan en la misma ventana.
-        $canPay = in_array('create', $actions, true) && $this->payBlock($o) === '';
+        $canPay = in_array('create', $actions, true) && $this->payBlock($o) === '' && $may('pay');
 
         if ($canPay) {
             $menu[] = ['icon' => 'icon-money', 'text' => 'Cobrar', 'onclick' => "orderPay.open({$id})"];
-        } elseif (abs((float) $o['paid']) >= 0.005) {
+        } elseif (abs((float) $o['paid']) >= 0.005 && $may('pay')) {
             $menu[] = ['icon' => 'icon-money', 'text' => 'Pagos', 'onclick' => "orderPay.open({$id}, false, { tab: 'history' })"];
         }
 
         // Entregar, solo sin saldo. Con saldo se cobra primero desde «Cobrar».
-        // El badge de la columna Entregado abre la misma ventana.
-        $canDeliver = in_array('update', $actions, true) && $this->deliverBlock($o) === '';
+        // El menú del badge de la columna Entrega abre la misma ventana.
+        $canDeliver = in_array('update', $actions, true) && $this->deliverBlock($o) === '' && $may('deliver');
 
         if ($canDeliver) {
             $menu[] = ['icon' => 'icon-ok-circled', 'text' => 'Entregar', 'onclick' => "orderDetail.deliver({$id})"];
         }
 
         // Entregado por error: lo regresa Dueño o Supervisor (permiso cancel).
-        $canUndeliver = in_array('cancel', $actions, true) && $this->undeliverBlock($o) === '';
+        $canUndeliver = in_array('cancel', $actions, true) && $this->undeliverBlock($o) === '' && $may('deliver');
 
         if ($canUndeliver) {
             $menu[] = ['icon' => 'icon-undo', 'text' => 'Deshacer entrega', 'onclick' => "orderDetail.undeliver({$id})"];
         }
 
-        // Con saldo, el badge de Entregado ofrece «Cobrar y entregar» (como el detalle).
-        $canSettle = $canPay && in_array('update', $actions, true) && $this->settleFirst($o);
+        // Con saldo, el badge de Entrega ofrece «Cobrar y entregar» (como el detalle).
+        $canSettle = $canPay && in_array('update', $actions, true) && $this->settleFirst($o) && $may('deliver');
 
         if (in_array('print', $actions, true)) {
             $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
         }
 
-        if (in_array('cancel', $actions, true) && $this->cancelBlock($o) === '') {
+        if (in_array('cancel', $actions, true) && $this->cancelBlock($o) === '' && $may('cancel')) {
             $menu[] = ['icon' => 'icon-cancel', 'text' => 'Cancelar', 'onclick' => "orderForm.cancel({$id})"];
         }
 
-        // Eliminar: solo Dueño (permiso delete), con contraseña y sin abonos.
-        if (in_array('delete', $actions, true) && $this->deleteBlock($o) === '') {
+        // Eliminar: solo root (Developer), con contraseña y sin abonos.
+        if ($this->isRoot() && $this->deleteBlock($o) === '') {
             $menu[] = ['icon' => 'icon-trash', 'text' => 'Eliminar', 'onclick' => "orderForm.remove({$id})"];
         }
 
-        $delivery = $canDeliver ? 'deliver' : ($canSettle ? 'settle' : ($canUndeliver ? 'undeliver' : ''));
+        $to  = $canDeliver ? 'deliver' : ($canSettle ? 'settle' : ($canUndeliver ? 'undeliver' : ''));
+        $why = $to === '' ? $this->deliveryWhy($o, $actions, $canPay) : '';
 
-        return $this->rowCells($o, $inTurn, $cancelled, $custom, $canPay, true, $delivery, $menu);
+        // De otra sucursal: si la regla de alpha es lo que frena, se dice eso.
+        if ($to === '' && $foreign) {
+            $gate = (int) $o['delivery_status'] !== 1 && $this->settleFirst($o) && !$canPay ? 'pay' : 'deliver';
+            $why  = $this->foreignBlock($gate, (int) $o['branch_id'], $o['branch']) ?: $why;
+        }
+
+        return $this->rowCells($o, $inTurn, $cancelled, $custom, $canPay, !$foreign || $may('pay'), ['to' => $to, 'why' => $why], $menu);
+    }
+
+    // Por qué el estado de entrega no se puede cambiar. Sale en el menú del badge de Entrega.
+    private function deliveryWhy($o, array $actions, $canPay) {
+        if ((int) $o['delivery_status'] === 1) {
+            return in_array('cancel', $actions, true) ? $this->undeliverBlock($o) : 'Una entrega la deshace Dueño o Supervisor.';
+        }
+
+        if (!in_array('update', $actions, true)) return 'Tu rol no puede entregar pedidos.';
+
+        if ($this->settleFirst($o) && !$canPay) {
+            return in_array('create', $actions, true) ? $this->payBlock($o) : 'Tiene saldo y tu rol no puede cobrar pedidos.';
+        }
+
+        return $this->deliverBlock($o);
     }
 
     // Las celdas de la fila. $open = los importes abren la ventana de pagos.
-    // $delivery = lo que hace el badge de Entregado ('' = solo se ve; ver cellDelivered).
+    // $delivery = ['to', 'why'] del menú del badge de Entrega (ver cellDelivered).
     private function rowCells($o, $inTurn, $cancelled, $custom, $canPay, $open, $delivery, array $menu) {
         $id       = (int) $o['id'];
         $statusId = (int) $o['sale_status_id'];
@@ -225,9 +347,9 @@ class ctrl extends core {
             'Saldo'            => $this->cellBalance($id, (float) $o['total'] - (float) $o['paid'], $canPay, $open),
             'Fecha de entrega' => $this->cellDeliveryDate($o['delivery_date'], $o['delivery_time']),
             'Hora'             => '<span class="text-gray-600 whitespace-nowrap"' . $this->sortKey($o['delivery_time']) . '>' . hour12($o['delivery_time']) . '</span>',
-            'Estado'           => $this->statusPill($statusId, $o['status']),
-            'Entregado'        => $this->cellDelivered($id, $statusId, (int) $o['delivery_status'], $delivery),
-            'Entrega'          => $this->cellMethod((int) $o['delivery_method']),
+            'Pago'             => $this->statusPill($statusId, $o['status']),
+            'Entrega'          => $this->cellDelivered($id, $statusId, (int) $o['delivery_status'], $delivery),
+            'Tipo de entrega'  => $this->cellMethod((int) $o['delivery_method']),
             'dropdown'         => $menu
         ];
     }
@@ -339,12 +461,14 @@ class ctrl extends core {
         return '<span class="ord-pill ' . $tone . '">' . h($name !== '' ? $name : 'Sin estado') . '</span>';
     }
 
-    /*  Badge claro, como los de Estado (statusPill), con los colores de alpha:
+    /*  Badge claro, como los de Pago (statusPill), con los colores de alpha:
         verde Entregado, rosa En produccion, rojo Sin entregar.
-        $delivery: el badge es botón y cambia el estado con las ventanas de siempre:
+        Es botón: abre el menú de estados (orders.deliveryMenu, como alpha). El
+        otro estado usa la ventana de siempre, según $delivery['to']:
           deliver    «Entregar pedido» (orderDetail.deliver), sin saldo
           settle     «Cobrar y entregar» (orderPay con deliver), con saldo
           undeliver  «Deshacer entrega» (orderDetail.undeliver), ya entregado
+          ''         no se puede: el menú dice por qué ($delivery['why'])
         Una cotizacion o un pedido cancelado no se entregan. */
     private function cellDelivered($id, $statusId, $deliveryStatus, $delivery) {
         if ($statusId === self::QUOTE || $statusId === self::CANCELLED) {
@@ -359,19 +483,14 @@ class ctrl extends core {
 
         list($tone, $text) = isset($badges[$deliveryStatus]) ? $badges[$deliveryStatus] : $badges[0];
 
-        $badge = '<span class="ord-pill ' . $tone . '">' . $text . '</span>';
+        $badge = '<span class="ord-pill ' . $tone . '">' . $text . '<i data-lucide="chevron-down" class="w-3 h-3 opacity-70"></i></span>';
 
-        $actions = [
-            'deliver'   => ["orderDetail.deliver({$id})", 'Entregar pedido'],
-            'settle'    => ["orderPay.open({$id}, false, { deliver: true })", 'Cobrar y entregar'],
-            'undeliver' => ["orderDetail.undeliver({$id})", 'Deshacer entrega']
-        ];
-
-        if (!isset($actions[$delivery])) return $badge;
-
-        list($click, $title) = $actions[$delivery];
-
-        return '<button type="button" class="ord-deliv-btn" onclick="' . $click . '" title="' . $title . '">' . $badge . '</button>';
+        return '<button type="button" class="ord-deliv-btn" onclick="orders.deliveryMenu(this, event)"'
+             .   ' data-id="' . (int) $id . '" data-state="' . (int) $deliveryStatus . '"'
+             .   ' data-to="' . h($delivery['to']) . '" data-why="' . h($delivery['why']) . '"'
+             .   ' title="Cambiar el estado de entrega" aria-haspopup="menu">'
+             .   $badge
+             . '</button>';
     }
 
     private function cellMethod($method) {
@@ -391,6 +510,49 @@ class ctrl extends core {
         $id = $this->postId();
 
         return $this->attempt(fn () => $this->orderBundle($id), 'No se pudo abrir el pedido.');
+    }
+
+    // -- WhatsApp --
+
+    /*  «Enviar por WhatsApp» del detalle (el «Reenviar» de alpha): manda otra vez
+        el aviso del pedido, con sus datos de hoy, a los destinatarios de
+        WhatsApp › Avisos. Quién y cuándo lo decide core::noticeBlock. */
+    public function resendOrderNotice() {
+        $fail = $this->need('cancel', 'enviar avisos de WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id    = $this->postId();
+        $order = $id > 0 ? $this->qGetOrder($id, $this->branchId()) : null;
+
+        if (!$order) return $this->fail(404, "El pedido {$id} no existe en " . $this->scope()['branch'] . '.');
+
+        $block = $this->noticeBlock($order);
+        if ($block !== '') return $this->fail(409, $block);
+
+        // Cada envío tarda unos segundos: se suelta la sesión para no frenar a la cajera.
+        session_write_close();
+
+        $sent = $this->notifyOrder($id, true);
+
+        if (!$sent) return $this->fail(500, 'No se pudo enviar el aviso. Vuelve a intentar.');
+
+        return ['status' => 200, 'message' => $this->noticeText($sent), 'sent' => $sent];
+    }
+
+    // Lo que pasó con el envío, en una frase (waSend no lo dice).
+    private function noticeText(array $sent) {
+        $ok = (int) $sent['sent'] + (int) $sent['simulated'];
+
+        if ($sent['skipped'] === 'paused') return 'El aviso «Pedido nuevo» está pausado en WhatsApp › Avisos.';
+        if ($sent['skipped'] === 'nobody') return 'Nadie recibe el aviso «Pedido nuevo». Agrega destinatarios en WhatsApp › Avisos.';
+        if ($sent['skipped'] === 'error')  return 'No se pudo enviar el aviso. Vuelve a intentar.';
+
+        if ($ok === 0) return "No llegó a ningún destinatario ({$sent['failed']} con error).";
+
+        $text = "Aviso enviado a {$ok} destinatario" . ($ok === 1 ? '' : 's');
+        $text .= (int) $sent['simulated'] > 0 ? ' (simulado: falta el proveedor de WhatsApp)' : '';
+
+        return $text . ((int) $sent['failed'] > 0 ? "; {$sent['failed']} con error." : '.');
     }
 
     // -- Entrega --
@@ -414,9 +576,11 @@ class ctrl extends core {
 
     // -- Captura: opciones --
 
+    // order_id: editar un pedido de otra sucursal trae el catálogo y los clientes de la suya.
     public function formOptions() {
         $fail = $this->needCapture() ?: $this->needBranch();
         if (!$fail && $this->post('is_new') === '1') $fail = $this->needTurn();
+        if (!$fail && $this->post('is_new') !== '1') $fail = $this->adoptOrderBranch($this->postId('order_id'), 'edit');
         if ($fail) return $fail;
 
         return $this->attempt(function () {
@@ -497,8 +661,9 @@ class ctrl extends core {
     // -- Captura: cliente nuevo --
 
     // Un telefono que ya existe en la sucursal no duplica: se devuelve ese cliente.
+    // order_id: al editar un pedido de otra sucursal, el cliente nace en la suya.
     public function addCustomer() {
-        $fail = $this->needCapture() ?: $this->needBranch();
+        $fail = $this->needCapture() ?: $this->needBranch() ?: $this->adoptOrderBranch($this->postId('order_id'), 'edit');
         if ($fail) return $fail;
 
         $name  = trim((string) preg_replace('/\s+/u', ' ', $this->post('name')));
@@ -663,11 +828,18 @@ class ctrl extends core {
                 $this->log($id, 'event', 'Pedido creado',
                     "Pedido creado como {$as} — total " . money($subtotal) . ', ' . $this->productsText(count($lines)));
 
-                return $this->ok("Pedido P{$id} guardado como {$as}.", ['id' => $id]);
+                return $this->ok("Pedido P{$id} guardado como {$as}.", ['id' => $id, 'pending' => $pending]);
             });
         }, 'No se pudo guardar el pedido.');
 
         $this->rememberToken($token, $answer);
+
+        // Pendiente sin anticipo = pedido terminado: su aviso de WhatsApp (nunca tumba el guardado).
+        // La cotización avisa hasta su primer cobro (ctrl-cobro).
+        if (!empty($answer['pending'])) {
+            session_write_close();
+            $this->notifyOrder((int) $answer['id']);
+        }
 
         return $answer;
     }
@@ -678,6 +850,9 @@ class ctrl extends core {
 
         $id = $this->postId();
         if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
+
+        $fail = $this->adoptOrderBranch($id, 'edit');
+        if ($fail) return $fail;
 
         $token = $this->post('token');
         $again = $this->tokenResult($token);
@@ -776,6 +951,11 @@ class ctrl extends core {
         return $this->editDelivery($this->postId());
     }
 
+    /*  Cancelar no borra: el pedido queda en la lista como Cancelado. Lo
+        autoriza Dueño o Supervisor (permiso cancel) con su contraseña.
+        Un pagado también se cancela: sus pagos del turno abierto (los del día)
+        se desactivan y salen del corte; lo cobrado en turnos cerrados queda
+        como saldo a favor (cancelSplit). Todo queda en la bitácora. */
     public function cancelOrder() {
         $fail = $this->need('cancel') ?: $this->needBranch();
         if ($fail) return $fail;
@@ -787,7 +967,7 @@ class ctrl extends core {
         if ($reason === '')               return $this->fail(422, 'Escribe el motivo de la cancelación.');
         if ($this->tooLong($reason, 255)) return $this->fail(422, 'El motivo admite hasta 255 caracteres.');
 
-        $fail = $this->needKey('cancelar');
+        $fail = $this->adoptOrderBranch($id, 'cancel') ?: $this->needKey('cancelar');
         if ($fail) return $fail;
 
         return $this->attempt(function () use ($id, $reason) {
@@ -796,8 +976,14 @@ class ctrl extends core {
 
                 if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
 
-                $block = $this->cancelBlock($order);
+                // Todo se valida antes de escribir: transaction() confirma lo hecho aunque se devuelva un fail.
+                $isPaid   = (int) $order['sale_status_id'] === self::PAID;
+                $payments = $isPaid ? $this->qPayments($id) : [];
+
+                $block = $this->cancelBlock($order, $isPaid ? $payments : null);
                 if ($block !== '') return $this->fail(409, $block);
+
+                $split = $isPaid ? $this->cancelSplit($order, $payments) : ['undo' => [], 'undone' => 0, 'kept' => round((float) $order['paid'], 2)];
 
                 $this->must($this->qUpdateOrder([
                     'values' => ['sale_status_id', 'cancel_reason', 'cancelled_at = NOW()', 'cancel_user_id', 'updated_at = NOW()'],
@@ -805,12 +991,27 @@ class ctrl extends core {
                     'data'   => [self::CANCELLED, $reason, $this->userId() ?: null, $id]
                 ]), 'cancelOrder');
 
+                foreach ($split['undo'] as $payment) {
+                    $this->must($this->qUpdatePayment([
+                        'values' => ['active', 'deleted_at = NOW()', 'deleted_user_id', 'updated_at = NOW()'],
+                        'where'  => ['id'],
+                        'data'   => [0, $this->userId() ?: null, (int) $payment['id']]
+                    ]), 'cancelOrder payment');
+
+                    $this->log($id, 'deletion', 'Pago anulado', ($payment['method'] ?: 'Sin método') . ' ' . money($payment['amount'])
+                        . ' del turno ' . $payment['turn_folio'] . ' · por la cancelación del pedido. Sale del corte del turno.');
+                }
+
                 $cutNote = $this->cutNote($order);
+                $undone  = $split['undone'] > 0
+                    ? (count($split['undo']) === 1 ? 'Se anuló 1 pago' : 'Se anularon ' . count($split['undo']) . ' pagos') . ' del turno abierto por ' . money($split['undone']) . '.'
+                    : '';
 
-                $this->log($id, 'cancellation', 'Pedido cancelado', 'Motivo: ' . $reason . ($cutNote !== '' ? ' · ' . $cutNote : ''));
+                $this->log($id, 'cancellation', $isPaid ? 'Pedido pagado cancelado' : 'Pedido cancelado',
+                    'Motivo: ' . $reason . ($undone !== '' ? ' · ' . $undone : '') . ($cutNote !== '' ? ' · ' . $cutNote : ''));
 
-                $paid    = round((float) $order['paid'], 2);
-                $message = "Pedido P{$id} cancelado." . ($cutNote !== '' ? ' ' . $cutNote : '');
+                $paid    = $split['kept'];
+                $message = "Pedido P{$id} cancelado." . ($undone !== '' ? ' ' . $undone : '') . ($cutNote !== '' ? ' ' . $cutNote : '');
 
                 if ($paid > 0) {
                     $customerId = (int) $order['customer_id'];
@@ -822,21 +1023,24 @@ class ctrl extends core {
                     ]), 'cancelOrder wallet');
 
                     $name    = $this->qCustomerName($customerId) ?: 'el cliente';
-                    $wallet  = 'El anticipo de ' . money($paid) . ' queda como saldo a favor de ' . $name . '.';
-                    $message = "Pedido P{$id} cancelado. " . $wallet . ($cutNote !== '' ? ' ' . $cutNote : '');
+                    $wallet  = ($isPaid ? 'Lo cobrado en turnos cerrados (' . money($paid) . ')' : 'El anticipo de ' . money($paid))
+                             . ' queda como saldo a favor de ' . $name . '.';
+                    $message = "Pedido P{$id} cancelado." . ($undone !== '' ? ' ' . $undone : '') . ' ' . $wallet . ($cutNote !== '' ? ' ' . $cutNote : '');
 
                     $this->log($id, 'payment', 'Saldo a favor', $wallet);
                 }
 
-                return $this->ok($message, ['id' => $id, 'wallet' => $paid]);
+                return $this->ok($message, ['id' => $id, 'wallet' => $paid, 'undone' => $split['undone']]);
             });
         }, 'No se pudo cancelar el pedido.');
     }
 
-    /*  Como en alpha: solo el Dueño, con motivo y su contraseña. Es borrado lógico
+    /*  Solo root (Developer), con motivo y su contraseña. Es borrado lógico
         (active = 0): el pedido sale de las listas y la bitácora guarda quién y por qué. */
     public function deleteOrder() {
-        $fail = $this->need('delete') ?: $this->needBranch();
+        if (!$this->isRoot()) return ['status' => 403, 'message' => 'Solo root (Developer) puede eliminar pedidos.', 'row' => []];
+
+        $fail = $this->needBranch();
         if ($fail) return $fail;
 
         $id     = $this->postId();
@@ -846,7 +1050,7 @@ class ctrl extends core {
         if (mb_strlen($reason, 'UTF-8') < 5) return $this->fail(422, 'Escribe el motivo de la eliminación (mínimo 5 caracteres).');
         if ($this->tooLong($reason, 255))    return $this->fail(422, 'El motivo admite hasta 255 caracteres.');
 
-        $fail = $this->needKey('eliminar');
+        $fail = $this->adoptOrderBranch($id, 'delete') ?: $this->needKey('eliminar');
         if ($fail) return $fail;
 
         return $this->attempt(function () use ($id, $reason) {

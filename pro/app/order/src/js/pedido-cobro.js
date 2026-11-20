@@ -156,10 +156,10 @@ class OrderPay extends Templates {
         this.mcache       = null;
         this.draft        = (opts && opts.draft) || null;
 
-        // origin = la sucursal de la sesión: el pedido es de ella. cobro = la que recibe el dinero.
+        // origin = la sucursal del pedido (branch_id; de otra sucursal en la vista «todas»). cobro = la que recibe el dinero.
         const session = this.branches.find((b) => b.session);
 
-        this.origin = session ? session.id : (Number(data.branch_id) || (this.branches.length ? this.branches[0].id : 0));
+        this.origin = Number(data.branch_id) || (session ? session.id : (this.branches.length ? this.branches[0].id : 0));
         this.cobro  = this.origin;
 
         // Sin pestaña pedida: cobrar si se puede (o si se resuelve aquí); si no, los pagos que ya hay.
@@ -1511,13 +1511,14 @@ class OrderPay extends Templates {
         // Sin turno: en la sesión se ofrece abrirlo; en otra sucursal solo se avisa y se vuelve a abrir.
         if (data && data.status == 423) {
             const reopen = () => this.open(id, fromDetail, { deliver: deliver });
+            const home   = this.cobroBranch().session;
 
             this.closeQuiet('modalOrderPay', this.modal.close);
             this.busy = false;
 
             if (created) this.afterChange();
 
-            if (!cross) return orderTurn.locked(data, reopen);
+            if (home) return orderTurn.locked(data, reopen);
 
             await alert({ icon: 'warning', title: data.title || 'Sin turno abierto', text: data.message || '', btn1: true, btn1Text: 'Entendido' });
 

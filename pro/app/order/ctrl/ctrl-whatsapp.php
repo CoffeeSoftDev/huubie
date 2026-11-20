@@ -1136,7 +1136,7 @@ class ctrl extends core {
             if ($id <= 0 || !$this->qWaRecipient($id, $this->companyId())) return $this->fail(404, 'Ese destinatario ya no existe.');
 
             $this->must($this->_Delete([
-                'table' => $this->pos . 'wa_recipient',
+                'table' => $this->crm . 'wa_recipient',
                 'where' => ['id', 'company_id'],
                 'data'  => [$id, $this->companyId()]
             ]), 'deleteRecipient');

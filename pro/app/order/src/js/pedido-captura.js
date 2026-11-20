@@ -44,17 +44,37 @@ class OrderForm extends Templates {
         this.order = null;
         this.lines = [];
         this.open();
-        this.focusCustomer();
+
+        // Dos cuadros después: la primera vez Tailwind CDN aún no genera los anchos del ticket (md:w-[320px]…).
+        requestAnimationFrame(() => requestAnimationFrame(() => this.focusCustomer()));
     }
 
-    // Pedido nuevo: el buscador de clientes abre con el cursor listo para escribir.
-    // En pantalla chica el ticket va escondido tras «Ver pedido»: ahí no se abre.
+    /*  Pedido nuevo: el selector de clientes arranca CERRADO y enfocado, como un
+        campo de texto esperando que escriban (typeCustomer). En pantalla chica
+        el ticket va escondido tras «Ver pedido»: ahí no se enfoca. */
     focusCustomer() {
         const select = $('#of_customer_id');
+        const box    = select.next('.select2-container');
 
-        if (!select.data('select2') || !select.next('.select2-container').is(':visible')) return;
+        if (!select.data('select2') || !box.is(':visible')) return;
 
+        box.find('.select2-selection').trigger('focus');
+    }
+
+    /*  Con el selector enfocado, la primera letra o número abre la búsqueda con
+        esa tecla ya escrita (select2 solo abre con Enter, espacio o Alt+↓). La
+        lista se pega a <body> con la posición de ese momento: ya acomodada. */
+    typeCustomer(e) {
+        if (e.key.length !== 1 || e.key === ' ' || e.ctrlKey || e.metaKey || e.altKey) return;
+
+        const select = $('#of_customer_id');
+
+        if (select.prop('disabled') || !select.data('select2') || select.data('select2').isOpen()) return;
+
+        e.preventDefault();
         select.select2('open');
+
+        $('.select2-container--open .select2-search__field').val(e.key).trigger('input');
     }
 
     async edit(id) {
@@ -83,19 +103,20 @@ class OrderForm extends Templates {
             if (!go || !go.isConfirmed) return;
         }
 
-        if (!(await this.loadOptions(data.order.customer_id))) return;
+        if (!(await this.loadOptions(data.order.customer_id, false, data.order.id))) return;
 
         this.order = data.order;
         this.lines = (data.lines || []).map((line) => this.fromSaved(line));
         this.open();
     }
 
-    async loadOptions(customerId, isNew) {
+    // orderId: al editar, el ctrl trae el catálogo y los clientes de la sucursal del pedido (puede ser otra).
+    async loadOptions(customerId, isNew, orderId) {
         if (this.loading) return false;
 
         this.loading = true;
 
-        const data = await useFetch({ url: this._link, data: { opc: 'formOptions', customer_id: customerId || 0, is_new: isNew ? 1 : 0 } });
+        const data = await useFetch({ url: this._link, data: { opc: 'formOptions', customer_id: customerId || 0, is_new: isNew ? 1 : 0, order_id: orderId || 0 } });
 
         this.loading = false;
 
@@ -354,7 +375,8 @@ class OrderForm extends Templates {
             class:        'grid grid-cols-12 gap-x-[10px] gap-y-[2px]',
             showRequired: false,
             json: [
-                { opc: 'select', id: 'of_customer_id', lbl: 'Cliente', class: 'col-8', select2: true, selected: '— Elige o busca un cliente —', data: this.opts.customers || [], value: o ? o.customer_id : '' },
+                // placeholder: cerrado se lee como un campo de búsqueda («Buscar cliente…»), no como una lista.
+                { opc: 'select', id: 'of_customer_id', lbl: 'Cliente', class: 'col-8', select2: true, selected: '— Elige o busca un cliente —', placeholder: 'Buscar cliente…', data: this.opts.customers || [], value: o ? o.customer_id : '' },
                 { opc: 'button', id: 'btnOfCustomer', class: 'col-4', text: 'Nuevo', icon: 'icon-user-add', color_btn: 'outline', onClick: () => this.customer() },
                 { opc: 'input', id: 'of_delivery_date', lbl: 'Fecha de entrega', type: 'date', class: 'col-6', value: o ? String(o.delivery_date || '').slice(0, 10) : this.opts.today },
                 { opc: 'input', id: 'of_delivery_time', lbl: 'Hora', type: 'time', class: 'col-6', value: o ? String(o.delivery_time || '').slice(0, 5) : '' },
@@ -376,6 +398,7 @@ class OrderForm extends Templates {
 
         $('#of_delivery_method').on('change', () => this.toggleLocation());
         $('#of_customer_id').on('change', () => this.waitCustomer());
+        $('#of_customer_id').next('.select2-container').find('.select2-selection').on('keydown', (e) => this.typeCustomer(e));
         $('#formOrderTicket').on('change input', () => this.refreshSummary());
 
         this.toggleLocation();
@@ -1170,7 +1193,7 @@ class OrderForm extends Templates {
         this.saving = true;
 
         const button = $('#modalOrderCustomer .cs-modal-save').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: { opc: 'addCustomer', name: name, phone: phone } });
+        const data   = await useFetch({ url: this._link, data: { opc: 'addCustomer', name: name, phone: phone, order_id: this.order ? this.order.id : 0 } });
 
         this.saving = false;
         button.prop('disabled', false);
@@ -1238,15 +1261,18 @@ class OrderForm extends Templates {
             return;
         }
 
+        const isPaid = Number(o.sale_status_id) === 3;
+
         this.csModal({
             id:         'modalOrderCancel',
-            title:      `Cancelar pedido #P${o.folio || o.id}`,
+            title:      `Cancelar pedido${isPaid ? ' pagado' : ''} #P${o.folio || o.id}`,
             subtitle:   `${o.customer || 'Sin cliente'} · Total ${money(o.total)}`,
             lucideIcon: 'ban',
             width:      'max-w-lg',
             saveText:   'Cancelar pedido',
             cancelText: 'Volver',
-            info:       Number(o.paid) > 0
+            info:       isPaid ? this.paidCancelInfo(o, data.payments || [])
+                : Number(o.paid) > 0
                 ? `Lo abonado (${money(o.paid)}) queda como saldo a favor de ${o.customer || 'el cliente'}. No hay devolución.`
                 : 'El pedido queda en la lista como Cancelado.',
             json: [
@@ -1266,6 +1292,20 @@ class OrderForm extends Templates {
                 e.preventDefault();
                 $('#modalOrderCancel .cs-modal-save').trigger('click');
             });
+    }
+
+    /*  Pagado: la misma cuenta que cancelSplit (core-order). Los pagos de un
+        turno abierto se anulan y salen del corte; lo de turnos cerrados queda
+        a favor del cliente. Lo autoriza Dueño o Supervisor con su contraseña. */
+    paidCancelInfo(o, payments) {
+        const undone = ordRound(payments.filter((p) => p.turn_status === 'open').reduce((sum, p) => sum + Number(p.amount), 0));
+        const kept   = ordRound(Number(o.paid) - undone);
+        const parts  = ['Lo autoriza Dueño o Supervisor.'];
+
+        if (undone > 0) parts.push(`Los pagos del turno abierto (${money(undone)}) se anulan y salen del corte: devuélvelos al cliente.`);
+        if (kept > 0)   parts.push(`Lo cobrado en turnos cerrados (${money(kept)}) queda como saldo a favor de ${o.customer || 'el cliente'}.`);
+
+        return parts.join(' ');
     }
 
     // El ctrl revisa la contraseña. Si falla (data.key) la ventana sigue abierta y lo dice bajo el campo.
@@ -1306,7 +1346,7 @@ class OrderForm extends Templates {
         orderTurn.touch();
     }
 
-    // Eliminar: solo el Dueño, con motivo y su contraseña (igual que en alpha).
+    // Eliminar: solo root (Developer), con motivo y su contraseña.
     async remove(id) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 

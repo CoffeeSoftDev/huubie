@@ -41,7 +41,7 @@ trait WhatsAppReminders {
         return $this->qRow("
             SELECT id, company_id, phone_number_id, IFNULL(display_phone, '') AS display_phone,
                    enabled, hours, IFNULL(reminders, 0) AS reminders
-            FROM {$this->pos}wa_agent
+            FROM {$this->crm}wa_agent
             WHERE company_id = ?
             LIMIT 1
         ", [$companyId]);
@@ -49,7 +49,7 @@ trait WhatsAppReminders {
 
     protected function qWaSetReminders($companyId, $on, $userId, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_agent
+            UPDATE {$this->crm}wa_agent
             SET reminders = ?, updated_user_id = ?, updated_at = ?
             WHERE company_id = ?
         ", [$on ? 1 : 0, $userId ?: null, $now, $companyId]);
@@ -102,7 +102,7 @@ trait WhatsAppReminders {
 
         foreach ($this->qRows("
             SELECT id, phone, wa_id, opt_out, opt_out_at
-            FROM {$this->pos}wa_chat
+            FROM {$this->crm}wa_chat
             WHERE company_id = ? AND phone IN ({$this->qIn($phones)})
         ", array_merge([$companyId], array_values($phones))) as $row) {
             $map[(string) $row['phone']] = $row;
@@ -118,7 +118,7 @@ trait WhatsAppReminders {
 
         foreach ($this->qRows("
             SELECT phone, MAX(created_at) AS last
-            FROM {$this->pos}wa_reminder
+            FROM {$this->crm}wa_reminder
             WHERE company_id = ? AND status <> 'failed' AND phone IN ({$this->qIn($phones)})
             GROUP BY phone
         ", array_merge([$companyId], array_values($phones))) as $row) {
@@ -131,7 +131,7 @@ trait WhatsAppReminders {
     protected function qWaRemindersSince($companyId, $since) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}wa_reminder
+            FROM {$this->crm}wa_reminder
             WHERE company_id = ? AND status <> 'failed' AND created_at >= ?
         ", [$companyId, $since]);
     }
@@ -139,7 +139,7 @@ trait WhatsAppReminders {
     protected function qWaLastReminderOf($companyId, $phone) {
         $row = $this->qRow("
             SELECT MAX(created_at) AS last
-            FROM {$this->pos}wa_reminder
+            FROM {$this->crm}wa_reminder
             WHERE company_id = ? AND phone = ? AND status <> 'failed'
         ", [$companyId, $phone]);
 
@@ -152,7 +152,7 @@ trait WhatsAppReminders {
 
     protected function qWaFinishReminder($id, $status, $error) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_reminder
+            UPDATE {$this->crm}wa_reminder
             SET status = ?, error = ?
             WHERE id = ?
         ", [$status, $error !== '' ? mb_substr($error, 0, 255, 'UTF-8') : null, $id]);
@@ -162,14 +162,14 @@ trait WhatsAppReminders {
         existe (su wa_id lo pone Meta), y lo deja apartado hasta el commit. */
     protected function qWaReminderChat($companyId, $phone, $waId, $name, $now) {
         $this->qWaRun("
-            INSERT INTO {$this->pos}wa_chat (company_id, phone, wa_id, name, mode, opt_out, created_at, updated_at)
+            INSERT INTO {$this->crm}wa_chat (company_id, phone, wa_id, name, mode, opt_out, created_at, updated_at)
             VALUES (?, ?, ?, ?, 'agent', 0, ?, ?)
             ON DUPLICATE KEY UPDATE id = id
         ", [$companyId, $phone, $waId, $name, $now, $now]);
 
         return $this->qRow("
             SELECT id, company_id, phone, wa_id, name, branch_id, opt_out, opt_out_at, last_in_at
-            FROM {$this->pos}wa_chat
+            FROM {$this->crm}wa_chat
             WHERE company_id = ? AND phone = ?
             LIMIT 1
             FOR UPDATE
@@ -180,7 +180,7 @@ trait WhatsAppReminders {
     protected function qWaLastMessage($chatId) {
         $row = $this->qRow("
             SELECT direction, IFNULL(body, '') AS body
-            FROM {$this->pos}wa_message
+            FROM {$this->crm}wa_message
             WHERE chat_id = ?
             ORDER BY id DESC
             LIMIT 1
@@ -191,7 +191,7 @@ trait WhatsAppReminders {
 
     protected function qWaFinishTemplate($messageId, array $sent) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_message
+            UPDATE {$this->crm}wa_message
             SET status = ?, provider_id = ?, error = ?
             WHERE id = ?
         ", [$sent['status'], $sent['provider_id'], $sent['detail'] !== '' ? mb_substr($sent['detail'], 0, 255, 'UTF-8') : null, $messageId]);

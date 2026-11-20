@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuesta · Embudo de pedidos en Huubie PRO</title>
+<style>
+/* @piel plantilla-plano · siempre en claro, aunque el sistema esté oscuro */
+:root{
+  color-scheme: light;
+  --bp-ground:    light-dark(#F1F3F6, #0C1116);
+  --bp-surface:   light-dark(#FFFFFF, #141B21);
+  --bp-surface-2: light-dark(#F5F7F9, #1B242B);
+  --bp-line:      light-dark(#DDE3E8, #2A353D);
+  --bp-line-soft: light-dark(#E9EDF1, #212A31);
+  --bp-ink:       light-dark(#0F1A21, #E4EAEE);
+  --bp-ink-soft:  light-dark(#4A5A64, #A8B7C0);
+  --bp-ink-dim:   light-dark(#6E7F8A, #7E8F99);
+  --bp-ac:        light-dark(#0B6E77, #4FB8C2);
+  --bp-ac-soft:   light-dark(#E0EFF0, #12343A);
+  --bp-read:      light-dark(#1D4ED8, #93C5FD);
+  --bp-write:     light-dark(#A15C08, #FCD34D);
+  --bp-danger:    light-dark(#B3261E, #FCA5A5);
+  --bp-ok:        light-dark(#047857, #6EE7B7);
+  --bp-ui:   "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{
+  background:var(--bp-ground); color:var(--bp-ink);
+  font-family:var(--bp-ui); font-size:15px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{ max-width:1040px; margin:0 auto; padding:0 22px 80px }
+a{ color:var(--bp-read) }
+
+/* — Cajetín — */
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:26px;
+  display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,44px);
+  line-height:1.08; letter-spacing:-.015em; text-wrap:balance; max-width:22ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55;
+  color:var(--bp-ink-soft); max-width:64ch; text-wrap:pretty }
+.meta{ display:flex; flex-wrap:wrap; gap:6px 26px; font-family:var(--bp-mono);
+  font-size:11.5px; color:var(--bp-ink-dim) }
+.meta b{ color:var(--bp-ink-soft); font-weight:600 }
+
+/* — Cifras — */
+.tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;
+  margin-bottom:12px }
+.tile{ border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface);
+  padding:14px 16px }
+.tile b{ display:block; font-family:var(--bp-serif); font-size:26px; line-height:1;
+  color:var(--bp-ink); font-variant-numeric:tabular-nums }
+.tile small{ display:block; margin-top:5px; font-size:11.5px; color:var(--bp-ink-dim) }
+.tiles-src{ font-size:12px; color:var(--bp-ink-dim); margin-bottom:44px }
+
+/* — Secciones — */
+section{ display:flex; flex-direction:column; gap:16px; margin-bottom:56px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:25px; line-height:1.2;
+  letter-spacing:-.01em; text-wrap:balance; display:flex; align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em;
+  color:var(--bp-ac); flex:none; transform:translateY(-2px) }
+h3{ font-size:14.5px; font-weight:650; margin-top:6px }
+.intro{ color:var(--bp-ink-soft); max-width:70ch; text-wrap:pretty }
+.foot{ font-size:12.5px; color:var(--bp-ink-dim) }
+code,.mono{ font-family:var(--bp-mono); font-size:.875em }
+code{ background:var(--bp-surface-2); border:1px solid var(--bp-line-soft);
+  border-radius:4px; padding:.08em .34em }
+
+/* — Tablas: solo se desplazan dentro de su contenedor — */
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px;
+  background:var(--bp-surface) }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:620px }
+th,td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft);
+  vertical-align:top }
+thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--bp-ink-dim); font-weight:500;
+  background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line); white-space:nowrap }
+tbody tr:last-child td{ border-bottom:0 }
+td.r, th.r{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap }
+td b{ font-weight:650 }
+.chip{ display:inline-block; font-family:var(--bp-mono); font-size:9.5px;
+  letter-spacing:.05em; text-transform:uppercase; padding:2px 7px; border-radius:99px;
+  border:1px solid currentColor; margin-right:5px; white-space:nowrap }
+.chip.read{ color:var(--bp-read) } .chip.write{ color:var(--bp-write) }
+.chip.danger{ color:var(--bp-danger) } .chip.ok{ color:var(--bp-ok) }
+.chip.off{ color:var(--bp-ink-dim) } .chip.ask{ color:var(--bp-ac) }
+
+/* — Notas — */
+.note{ border-left:2px solid var(--bp-write); background:var(--bp-surface);
+  border-radius:0 8px 8px 0; padding:14px 18px; display:flex; flex-direction:column;
+  gap:9px; font-size:13.5px; color:var(--bp-ink-soft) }
+.note b{ color:var(--bp-ink) }
+.note.ac{ border-left-color:var(--bp-ac) }
+.check{ padding-left:20px; display:flex; flex-direction:column; gap:6px;
+  color:var(--bp-ink-soft); font-size:13.5px }
+
+/* — Flujo de etapas — */
+.flow{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px }
+.step{ position:relative; border:1px solid var(--bp-line); border-radius:10px;
+  background:var(--bp-surface); padding:12px 12px 13px; display:flex; flex-direction:column; gap:4px }
+.step i{ font-style:normal; font-family:var(--bp-mono); font-size:10.5px; color:var(--bp-ac);
+  letter-spacing:.08em }
+.step b{ font-size:14px; line-height:1.25 }
+.step span{ font-size:12px; color:var(--bp-ink-soft); line-height:1.45 }
+.step:not(:last-child)::after{ content:"›"; position:absolute; right:-8px; top:50%;
+  transform:translateY(-50%); width:12px; text-align:center; color:var(--bp-ink-dim);
+  font-size:15px; line-height:1; background:var(--bp-ground) }
+.exits{ display:flex; flex-wrap:wrap; gap:8px }
+.exit{ border:1px dashed var(--bp-line); border-radius:10px; padding:9px 12px;
+  font-size:12.5px; color:var(--bp-ink-soft); background:var(--bp-surface) }
+.exit b{ color:var(--bp-ink) }
+@media (max-width: 860px){
+  .flow{ grid-template-columns:repeat(2,minmax(0,1fr)) }
+  .step::after{ display:none }
+}
+
+/* — Embudo: una serie, un tono; valor rotulado al final de cada barra — */
+.funnel{ border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface);
+  padding:18px 18px 8px }
+.funnel-title{ font-size:13.5px; font-weight:650 }
+.funnel-sub{ font-size:12px; color:var(--bp-ink-dim); margin-bottom:12px }
+.frow{ position:relative; display:grid; grid-template-columns:190px minmax(0,1fr) 120px;
+  align-items:center; gap:12px; padding:6px 0; border-radius:6px }
+.frow:hover{ background:var(--bp-surface-2) }
+.flabel{ font-size:13px; color:var(--bp-ink); padding-left:6px }
+.ftrack{ height:22px; position:relative }
+.fbar{ height:100%; background:var(--bp-ac); border-radius:0 4px 4px 0; min-width:2px }
+.frow:hover .fbar{ filter:brightness(1.12) }
+.fval{ font-size:13px; text-align:right; font-variant-numeric:tabular-nums; padding-right:6px;
+  color:var(--bp-ink) }
+.fval small{ display:block; font-size:11px; color:var(--bp-ink-dim) }
+.ftip{ position:absolute; left:204px; top:-34px; z-index:2; pointer-events:none; opacity:0;
+  transition:opacity .12s; background:var(--bp-ink); color:var(--bp-surface); font-size:12px;
+  padding:6px 10px; border-radius:6px; white-space:nowrap }
+.frow:hover .ftip{ opacity:1 }
+.faxis{ display:grid; grid-template-columns:190px minmax(0,1fr) 120px; gap:12px;
+  border-top:1px solid var(--bp-line-soft); margin-top:6px; padding-top:6px;
+  font-family:var(--bp-mono); font-size:10.5px; color:var(--bp-ink-dim) }
+.faxis span:nth-child(2){ display:flex; justify-content:space-between }
+@media (max-width: 640px){
+  .frow, .faxis{ grid-template-columns:110px minmax(0,1fr) 84px; gap:8px }
+  .ftip{ left:6px; right:6px; white-space:normal }
+}
+
+/* — Maqueta del tablero — */
+.board{ display:grid; grid-template-columns:repeat(5,minmax(170px,1fr)); gap:10px;
+  overflow-x:auto; padding-bottom:4px }
+.col{ border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface-2);
+  padding:10px; display:flex; flex-direction:column; gap:8px; min-width:170px }
+.col-head{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px;
+  font-weight:650 }
+.col-head em{ font-style:normal; font-family:var(--bp-mono); font-size:11px; color:var(--bp-ink-dim) }
+.card{ border:1px solid var(--bp-line); border-radius:8px; background:var(--bp-surface);
+  padding:9px 10px; display:flex; flex-direction:column; gap:3px; font-size:12px }
+.card b{ font-size:12.5px }
+.card span{ color:var(--bp-ink-soft) }
+.card .chip{ align-self:flex-start; margin-top:3px }
+.mock-tag{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--bp-write) }
+
+/* — Pie — */
+.src-files{ border-top:1px solid var(--bp-line); padding-top:18px; display:flex;
+  flex-direction:column; gap:6px; font-size:12.5px; color:var(--bp-ink-dim) }
+.src-files b{ font-size:12.5px; color:var(--bp-ink-soft) }
+.src-files ul{ padding-left:18px; display:flex; flex-direction:column; gap:3px }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- Cajetín -->
+  <header class="head">
+    <p class="eyebrow">Huubie PRO · Pedidos TPV · Propuesta</p>
+    <h1>Embudo de pedidos: <em>de la cotización a la entrega</em></h1>
+    <p class="lede">
+      Hoy Pedidos se ve por fecha (la lista) y por día de entrega (el calendario). Falta verlo por
+      <b>etapa</b>: cuántos pedidos hay en cada paso, cuántos pasan al siguiente y dónde se atoran.
+      Esta propuesta arma ese embudo con lo que la base ya guarda y deja para después lo que pide columnas nuevas.
+    </p>
+    <div class="meta">
+      <span><b>Fecha</b> 18/11/2026</span>
+      <span><b>Módulo</b> pro/app/order · Pedidos TPV</span>
+      <span><b>Estado</b> propuesta, sin construir</span>
+      <span><b>Datos</b> foto de fayxzvov_pos LOCAL (no prod)</span>
+      <span><b>Maqueta</b> <a href="../templates/embudo-propuesta.html">templates/embudo-propuesta.html</a></span>
+    </div>
+  </header>
+
+  <div class="tiles">
+    <div class="tile"><b>516</b><small>pedidos capturados en 90 días</small></div>
+    <div class="tile"><b>84.3 %</b><small>llegaron a confirmarse (435)</small></div>
+    <div class="tile"><b>60 de 75</b><small>cotizaciones abiertas están en $0</small></div>
+    <div class="tile"><b>48</b><small>confirmados con fecha pasada sin marcar entregados</small></div>
+    <div class="tile"><b>4.9 días</b><small>de anticipación promedio (captura → entrega)</small></div>
+    <div class="tile"><b>3</b><small>entregados con saldo pendiente</small></div>
+  </div>
+  <p class="tiles-src">Consulta a la base local <code>fayxzvov_pos.sale</code> + <code>payment</code>, pedidos (<code>sale_type_id = 1</code>) capturados del 19/08/2026 al 18/11/2026, todas las sucursales. En prod las cifras serán otras.</p>
+
+  <!-- 01 -->
+  <section>
+    <h2><span class="num">01</span>Qué es un embudo de pedidos</h2>
+    <p class="intro">
+      Cada pedido pasa por los mismos pasos: se cotiza, se confirma con anticipo, se elabora, queda listo,
+      se entrega y se liquida. El embudo cuenta cuántos hay en cada paso y qué porcentaje pasa al siguiente.
+      Sirve para tres cosas que la lista y el calendario no dicen:
+    </p>
+    <ul class="check">
+      <li><b>Qué se está atorando:</b> cotizaciones sin respuesta, confirmados sin anticipo, listos que nadie recoge.</li>
+      <li><b>Qué hacer hoy:</b> a quién llamar, qué elaborar, qué saldo cobrar al entregar.</li>
+      <li><b>Cómo va el negocio:</b> qué tanto se convierten las cotizaciones y cuántas entregas salen a tiempo.</li>
+    </ul>
+  </section>
+
+  <!-- 02 -->
+  <section>
+    <h2><span class="num">02</span>Cómo lo hace el mercado</h2>
+    <p class="intro">Cinco referencias: dos de restaurante, una de tienda en línea, un ERP y el software especializado en pastelería.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Producto</th><th>Etapas que usa</th><th>Lo que tomamos</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Toast</b><br><span class="foot">Catering &amp; Events</span></td>
+            <td>Borrador → Estimado enviado → Aprobado → Anticipo o factura enviada → Pagado · Vencido. Su inicio enseña los pedidos de hoy y mañana, los prospectos nuevos y las facturas vencidas.</td>
+            <td>Separar «Cotizada» de «Confirmada». Una vista de <b>hoy y mañana</b>.</td>
+          </tr>
+          <tr>
+            <td><b>Square</b><br><span class="foot">Order Manager + KDS</span></td>
+            <td>Nuevo → En proceso → Listo → Completado. «Listo» lo marca la cocina al terminar el ticket.</td>
+            <td>«Lista» la marca Producción. En Pedidos ya existe: el palomeo del calendario.</td>
+          </tr>
+          <tr>
+            <td><b>Shopify</b><br><span class="foot">Recoger en tienda</span></td>
+            <td>Sin preparar → Listo para recoger → Recogido. Al pasar a «Listo» el cliente recibe el aviso solo.</td>
+            <td>Avisar al cliente cuando su pedido queda listo.</td>
+          </tr>
+          <tr>
+            <td><b>Odoo</b><br><span class="foot">Ventas</span></td>
+            <td>Cotización → Cotización enviada → Orden de venta → Entrega → Factura. Mide cuántas cotizaciones se ganan y cuántas entregas salen a tiempo.</td>
+            <td>Las dos métricas: conversión de cotizaciones y entregas a tiempo.</td>
+          </tr>
+          <tr>
+            <td><b>Pastelerías</b><br><span class="foot">DoughOps, SalesVu, Pospal</span></td>
+            <td>Solicitud → Cotización → Aprobación → Anticipo → Producción → Saldo → Entrega. Calendario de producción y saldo cobrado el día de la entrega.</td>
+            <td>Anticipo y saldo por separado; el saldo se cobra al entregar (ya es la regla de Pedidos, decisión 5).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>Un error que el mercado cita seguido</b>
+      <span>Marcar el pedido como pagado con el anticipo y entregarlo con saldo. Pedidos ya lo evita: el anticipo no lo deja «Pagado» y entregar con saldo pide «Cobrar y entregar». El embudo lo mantiene: «Entregada» y «Cerrada» son etapas distintas.</span>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section>
+    <h2><span class="num">03</span>Lo que Pedidos ya guarda</h2>
+    <p class="intro">El embudo sale casi completo de columnas que ya existen. Columna por columna:</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Dato</th><th>Dónde está</th><th>Para qué sirve en el embudo</th></tr></thead>
+        <tbody>
+          <tr><td><b>Estado</b></td><td><code>sale.sale_status_id</code> · 1 Cotización, 2 Pendiente, 3 Pagado, 4 Cancelado</td><td>Cotizada, confirmada o cancelada.</td></tr>
+          <tr><td><b>Anticipo y saldo</b></td><td>Suma de <code>payment.amount</code> contra <code>sale.total</code></td><td>Confirmada con o sin anticipo; Cerrada = saldo $0.</td></tr>
+          <tr><td><b>Elaborado</b></td><td><code>sale.produced_at</code>, <code>produced_user_id</code></td><td>Lista (el palomeo de Producción).</td></tr>
+          <tr><td><b>Entregado</b></td><td><code>sale.delivery_status = 1</code>; la hora, en <code>history_log</code> (acción <code>deliver</code>)</td><td>Entregada; entregas a tiempo.</td></tr>
+          <tr><td><b>Fecha de entrega</b></td><td><code>sale.delivery_date</code>, <code>delivery_time</code></td><td>En producción (hoy o mañana) y No recogida.</td></tr>
+          <tr><td><b>Cancelación</b></td><td><code>sale.cancelled_at</code>, <code>cancel_reason</code></td><td>Salida «Cancelada» con su motivo.</td></tr>
+          <tr><td><b>Captura</b></td><td><code>sale.created_at</code>, <code>user_id</code></td><td>Días de anticipación; conversión por vendedor.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>Huecos (no existen hoy)</b>
+      <ul class="check">
+        <li>Vigencia de la cotización: no hay fecha de vencimiento por cotización.</li>
+        <li>Motivo de pérdida de una cotización (distinto de cancelar un pedido confirmado).</li>
+        <li>Origen del pedido (mostrador, tienda en línea, WhatsApp): <code>sale</code> no tiene columna de origen. No revisé si la tienda en línea lo guarda en otra tabla.</li>
+        <li>Etapa «Solicitud» (alguien pregunta y todavía no hay precio).</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section>
+    <h2><span class="num">04</span>El embudo propuesto</h2>
+    <p class="intro">Seis etapas en orden y tres salidas. La etapa no se guarda: se calcula al leer con las columnas del punto 03, así que la fase 1 no toca la estructura de la base.</p>
+
+    <div class="flow">
+      <div class="step"><i>1</i><b>Cotizada</b><span>Estado 1 con importe. Las de $0 son borradores.</span></div>
+      <div class="step"><i>2</i><b>Confirmada</b><span>Estado 2 o 3 con anticipo cobrado.</span></div>
+      <div class="step"><i>3</i><b>En producción</b><span>Confirmada, sin palomear, entrega hoy o mañana.</span></div>
+      <div class="step"><i>4</i><b>Lista</b><span>Palomeada por Producción, sin entregar.</span></div>
+      <div class="step"><i>5</i><b>Entregada</b><span>Marcada entregada (con contraseña).</span></div>
+      <div class="step"><i>6</i><b>Cerrada</b><span>Entregada y con saldo $0.</span></div>
+    </div>
+    <div class="exits">
+      <div class="exit"><b>Cancelada</b> · estado 4, con motivo (ya existe)</div>
+      <div class="exit"><b>Vencida</b> · cotización sin confirmar a los N días o con su fecha de entrega pasada</div>
+      <div class="exit"><b>No recogida</b> · confirmada, fecha de entrega pasada + N días, sin entregar</div>
+    </div>
+
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Etapa</th><th>Regla con lo que existe</th><th>Quién la mueve</th><th>Qué pasa al entrar</th></tr></thead>
+        <tbody>
+          <tr><td><b>1 Cotizada</b></td><td><code>status = 1</code> y <code>total &gt; 0</code></td><td>Cajera o vendedor al guardar como cotización</td><td>Se comparte por WhatsApp (ya existe compartir ticket).</td></tr>
+          <tr><td><b>2 Confirmada</b></td><td><code>status IN (2,3)</code> y abonado &gt; 0. Sin abono: <span class="chip write">alerta</span> «confirmada sin anticipo»</td><td>El cobro del anticipo</td><td>Entra al calendario de Producción.</td></tr>
+          <tr><td><b>3 En producción</b></td><td>Confirmada, <code>produced_at IS NULL</code>, <code>delivery_date</code> hoy o mañana</td><td>La fecha (solo)</td><td>Sale en «Hoy y mañana» de Producción.</td></tr>
+          <tr><td><b>4 Lista</b></td><td><code>produced_at</code> con fecha y <code>delivery_status = 0</code></td><td>Producción al palomear</td><td>Aviso al cliente «tu pedido está listo» con su saldo.</td></tr>
+          <tr><td><b>5 Entregada</b></td><td><code>delivery_status = 1</code> y saldo &gt; 0</td><td>Quien entrega</td><td>Con saldo: «Cobrar y entregar» (ya existe).</td></tr>
+          <tr><td><b>6 Cerrada</b></td><td><code>delivery_status = 1</code> y saldo = 0</td><td>Automático</td><td>Cuenta para lealtad y reportes.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Cómo se ve con la foto local</h3>
+    <div class="funnel" role="img" aria-label="Embudo de 516 pedidos capturados en 90 días: 435 confirmados, 387 elaborados o entregados, 379 entregados y 376 cerrados.">
+      <p class="funnel-title">Pedidos capturados del 19/08/2026 al 18/11/2026</p>
+      <p class="funnel-sub">Cada barra es cuántos llegaron a esa etapa o más allá. El porcentaje es contra la barra de arriba.</p>
+
+      <div class="frow"><span class="flabel">Capturados</span><span class="ftrack"><span class="fbar" style="display:block;width:100%"></span></span><span class="fval">516<small>100 %</small></span><span class="ftip">516 pedidos capturados</span></div>
+      <div class="frow"><span class="flabel">Confirmados</span><span class="ftrack"><span class="fbar" style="display:block;width:84.3%"></span></span><span class="fval">435<small>84.3 %</small></span><span class="ftip">435 de 516 · 81 siguen en cotización o se cancelaron</span></div>
+      <div class="frow"><span class="flabel">Elaborados o entregados</span><span class="ftrack"><span class="fbar" style="display:block;width:75%"></span></span><span class="fval">387<small>89.0 %</small></span><span class="ftip">387 de 435 · 48 sin elaborar (41 con anticipo, 7 sin)</span></div>
+      <div class="frow"><span class="flabel">Entregados</span><span class="ftrack"><span class="fbar" style="display:block;width:73.4%"></span></span><span class="fval">379<small>97.9 %</small></span><span class="ftip">379 de 387 · 8 listos sin entregar</span></div>
+      <div class="frow"><span class="flabel">Cerrados (saldo $0)</span><span class="ftrack"><span class="fbar" style="display:block;width:72.9%"></span></span><span class="fval">376<small>99.2 %</small></span><span class="ftip">376 de 379 · 3 entregados con saldo</span></div>
+      <div class="faxis"><span></span><span><span>0</span><span>258</span><span>516</span></span><span></span></div>
+    </div>
+
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Etapa (foto local)</th><th class="r">Pedidos</th><th class="r">Importe</th><th>Lectura</th></tr></thead>
+        <tbody>
+          <tr><td>Cotización</td><td class="r">75</td><td class="r">$17,539.00</td><td>60 están en $0: borradores que no deberían contar.</td></tr>
+          <tr><td>Confirmado sin anticipo</td><td class="r">7</td><td class="r">$5,045.00</td><td>Alerta: se elabora sin dinero de por medio.</td></tr>
+          <tr><td>Con anticipo, por elaborar</td><td class="r">41</td><td class="r">$69,551.39</td><td>Incluye fechas pasadas: ver «No recogida».</td></tr>
+          <tr><td>Listo (elaborado)</td><td class="r">8</td><td class="r">$15,170.00</td><td>Esperan que el cliente pase.</td></tr>
+          <tr><td>Entregado con saldo</td><td class="r">3</td><td class="r">$4,220.00</td><td>En PRO entregar con saldo pide cobrar antes; no revisé de dónde salieron estos 3.</td></tr>
+          <tr><td>Entregado y liquidado</td><td class="r">376</td><td class="r">$347,969.00</td><td>Cerrados.</td></tr>
+          <tr><td>Cancelado</td><td class="r">6</td><td class="r">$2,010.00</td><td>1.2 % de lo capturado.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">Importe = <code>sale.total</code>. Misma consulta que las cifras de arriba.</p>
+  </section>
+
+  <!-- 05 -->
+  <section>
+    <h2><span class="num">05</span>Dónde se vería</h2>
+    <p class="intro">Tres lugares, de menos a más trabajo. Los dos primeros usan componentes que ya están en Pedidos.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Lugar</th><th>Qué se ve</th><th>Con qué se arma</th></tr></thead>
+        <tbody>
+          <tr><td><b>Lista de Pedidos</b></td><td>Filtro «Etapa» y píldoras con conteo arriba de la tabla, como la leyenda del calendario. Clic en una píldora filtra.</td><td><code>createfilterBar</code> + las píldoras <code>.ord-cal-legend</code></td></tr>
+          <tr><td><b>Reportes › Dashboard</b></td><td>El embudo del punto 04 para el periodo elegido, con su tabla gemela y la conversión por vendedor.</td><td>El Dashboard de E5 (Chart.js 4.4.0 ya cargado ahí)</td></tr>
+          <tr><td><b>Tablero por etapas</b></td><td>Una columna por etapa con tarjetas; «Hoy y mañana» arriba. Mover una tarjeta = la acción de esa etapa (cobrar anticipo, palomear, entregar).</td><td>Vista nueva. Es la decisión G: «lo dejamos para el final» (13/11/2026).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Maqueta del tablero <span class="mock-tag">· ejemplo, datos inventados</span></h3>
+    <div class="board" aria-label="Maqueta del tablero por etapas">
+      <div class="col">
+        <div class="col-head">Cotizada <em>15</em></div>
+        <div class="card"><b>P1702 · Pastel 3 leches</b><span>Entrega 22/11 · $850.00</span><span class="chip write">5 días sin respuesta</span></div>
+        <div class="card"><b>P1705 · Mesa de postres</b><span>Entrega 29/11 · $3,400.00</span></div>
+      </div>
+      <div class="col">
+        <div class="col-head">Confirmada <em>41</em></div>
+        <div class="card"><b>P1698 · Pastel personalizado</b><span>Entrega 21/11 · anticipo $500.00</span><span>Saldo $700.00</span></div>
+        <div class="card"><b>P1700 · Cupcakes ×24</b><span>Entrega 23/11</span><span class="chip write">sin anticipo</span></div>
+      </div>
+      <div class="col">
+        <div class="col-head">En producción <em>6</em></div>
+        <div class="card"><b>P1691 · Pastel chocolate</b><span>Hoy 4:00 PM · 20 personas</span></div>
+        <div class="card"><b>P1694 · Pay de queso</b><span>Mañana 10:00 AM</span></div>
+      </div>
+      <div class="col">
+        <div class="col-head">Lista <em>8</em></div>
+        <div class="card"><b>P1689 · Pastel fresas</b><span>Recoge hoy 6:00 PM</span><span>Saldo $350.00</span><span class="chip ok">avisado</span></div>
+      </div>
+      <div class="col">
+        <div class="col-head">Entregada hoy <em>12</em></div>
+        <div class="card"><b>P1686 · Rosca</b><span>Entregado 11:20 AM</span><span class="chip ok">cerrada</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section>
+    <h2><span class="num">06</span>Métricas</h2>
+    <p class="intro">Las que usan Odoo y Toast, adaptadas a una pastelería. Todas salen de la base actual salvo donde se indica.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Métrica</th><th>Cómo se calcula</th><th class="r">Foto local</th><th>Para qué</th></tr></thead>
+        <tbody>
+          <tr><td><b>Conversión de cotizaciones</b></td><td>Confirmadas ÷ capturadas con importe</td><td class="r">95.4 % (435 de 456)</td><td>Si baja, el precio o el seguimiento fallan.</td></tr>
+          <tr><td><b>Días de anticipación</b></td><td><code>delivery_date − created_at</code> de las confirmadas</td><td class="r">4.9 días</td><td>Planear producción y compras.</td></tr>
+          <tr><td><b>Confirmadas sin anticipo</b></td><td>Estado 2 con abonado $0</td><td class="r">7</td><td>Riesgo de elaborar y que no pasen.</td></tr>
+          <tr><td><b>No recogidas</b></td><td>Confirmadas, fecha pasada, sin entregar</td><td class="r">48</td><td>Limpiar la agenda o llamar al cliente.</td></tr>
+          <tr><td><b>Entregadas con saldo</b></td><td>Entregadas con saldo &gt; 0</td><td class="r">3</td><td>Dinero que se fue sin cobrar.</td></tr>
+          <tr><td><b>Cancelación</b></td><td>Canceladas ÷ capturadas</td><td class="r">1.2 % (6)</td><td>Motivos que se repiten.</td></tr>
+          <tr><td><b>Entregas a tiempo</b></td><td>Hora de <code>history_log</code> «deliver» contra fecha y hora pactadas</td><td class="r">no calculada</td><td>Cumplimiento con el cliente.</td></tr>
+          <tr><td><b>Saldo por cobrar (7 días)</b></td><td>Σ saldo de confirmadas con entrega en los próximos 7 días</td><td class="r">no calculada</td><td>Lo que entra a caja esta semana.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">El 95.4 % sale de 516 capturados − 60 cotizaciones en $0 = 456. No hay benchmark confiable de pastelerías; Odoo cita 20–40 % para ventas B2B, que no aplica aquí.</p>
+  </section>
+
+  <!-- 07 -->
+  <section>
+    <h2><span class="num">07</span>Fases</h2>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Fase</th><th>Qué incluye</th><th>¿Toca la base?</th></tr></thead>
+        <tbody>
+          <tr><td><b>F1 Etapa calculada</b></td><td>Etapa por pedido con un <code>CASE</code> en mdl-order; filtro y píldoras en la lista; embudo en el Dashboard.</td><td><span class="chip ok">no</span></td></tr>
+          <tr><td><b>F2 Alertas</b></td><td>Confirmadas sin anticipo, no recogidas y cotizaciones vencidas en la campana y en la franja de caja. N días fijos en código.</td><td><span class="chip ok">no</span></td></tr>
+          <tr><td><b>F3 Aviso «Lista»</b></td><td>Al palomear, WhatsApp al cliente con su saldo, con el módulo de avisos que ya existe.</td><td><span class="chip write">plantilla nueva en Meta</span></td></tr>
+          <tr><td><b>F4 Vigencia y motivo</b></td><td>Vencimiento por cotización y motivo de pérdida.</td><td><span class="chip danger">sí · 2 columnas en sale</span></td></tr>
+          <tr><td><b>F5 Tablero por etapas</b></td><td>La maqueta del punto 05 con sus acciones.</td><td><span class="chip ok">no</span> · decisión G: al final</td></tr>
+          <tr><td><b>F6 Solicitud</b></td><td>Prospecto antes de la cotización, desde WhatsApp o la tienda en línea.</td><td><span class="chip danger">sí · tabla o estado nuevo</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">F4 y F6 chocan con la decisión 6 del plan de Pedidos («no tocar estructura de BD»): necesitan tu visto bueno antes de diseñarlas.</p>
+  </section>
+
+  <!-- 08 -->
+  <section>
+    <h2><span class="num">08</span>Decisiones para ti</h2>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>#</th><th>Pregunta</th><th>Propuesta mía</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">D1</td><td>¿Anticipo mínimo para dar un pedido por confirmado?</td><td>50 % del total; menos = alerta, no bloqueo.</td></tr>
+          <tr><td class="mono">D2</td><td>¿Cuántos días vive una cotización?</td><td>7 días o hasta su fecha de entrega, lo que pase primero.</td></tr>
+          <tr><td class="mono">D3</td><td>¿Cuántos días de gracia antes de «No recogida»?</td><td>2 días después de la fecha de entrega.</td></tr>
+          <tr><td class="mono">D4</td><td>¿El aviso «tu pedido está listo» sale solo al palomear?</td><td>Sí, en simulado hasta que la plantilla esté aprobada.</td></tr>
+          <tr><td class="mono">D5</td><td>¿Qué se hace con los 48 confirmados con fecha pasada sin entregar (local)?</td><td>Revisar en prod antes de F2; si vienen de alpha, marcarlos con una migración.</td></tr>
+          <tr><td class="mono">D6</td><td>¿Las cotizaciones en $0 se esconden del embudo o se borran?</td><td>Esconderlas (no cuentan como cotizadas).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="src-files">
+    <b>Fuentes del punto 02</b>
+    <ul>
+      <li><a href="https://support.toasttab.com/en/article/Catering-and-Events-Deposits">Toast · Manage Deposits With Toast Catering &amp; Events</a></li>
+      <li><a href="https://support.toasttab.com/en/article/Manage-Catering-and-Events-on-Toast-POS">Toast · Manage Toast Catering &amp; Events on Your POS</a></li>
+      <li><a href="https://squareup.com/help/us/en/article/8154-accept-orders-with-square-online-and-square-for-restaurants">Square · Accept orders with Square Online and Square for Restaurants</a></li>
+      <li><a href="https://squareup.com/help/article/8171">Square · Square KDS (estado «Listo» desde Expo)</a></li>
+      <li><a href="https://help.shopify.com/en/manual/sell-in-person/shopify-pos/order-management/local-pickup-for-online-orders">Shopify · Pickup in store for online orders</a></li>
+      <li><a href="https://apps.odoo.com/apps/modules/18.0/sales_kpi_and_reporting_dashboard">Odoo Apps · Sales KPI and Reporting Dashboard</a></li>
+      <li><a href="https://hibou.io/docs/sales-30/creating-quotations-sales-orders-340/ver/15-0-28">Hibou · Odoo: Creating Quotations + Sales Orders</a></li>
+      <li><a href="https://doughops.pages.dev/features/custom-orders">DoughOps · Custom orders</a></li>
+      <li><a href="https://ea.salesvu.com/industries/bakeries/">SalesVu · Bakeries</a></li>
+      <li><a href="https://global.pospal.cn/bakery-pos">Pospal · Bakery POS</a></li>
+      <li><a href="https://www.tryperdiem.com/post/how-bakery-ordering-app-simplifies-custom-cake-orders">Perdiem · Bakery ordering app and custom cake orders</a></li>
+    </ul>
+    <span>Las páginas de proveedores describen sus propios productos; no probé ninguno.</span>
+  </footer>
+
+</div>
+</body>
+</html>

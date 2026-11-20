@@ -58,32 +58,32 @@ trait LoyaltyWinback {
                 ) AS last_sale,
                 (
                     SELECT IFNULL(SUM(cs.qty), 0)
-                    FROM {$this->pos}card_stamp cs
+                    FROM {$this->crm}card_stamp cs
                     WHERE cs.card_id = c.id AND cs.active = 1 AND cs.deleted_at IS NULL
                 ) AS stamps,
                 (
                     SELECT MAX(n.created_at)
-                    FROM {$this->pos}loyalty_notice n
+                    FROM {$this->crm}loyalty_notice n
                     WHERE n.customer_id = cu.id AND n.kind = 'regreso'
                 ) AS last_notice,
                 IFNULL((
                     SELECT wc.opt_out
-                    FROM {$this->pos}wa_chat wc
+                    FROM {$this->crm}wa_chat wc
                     WHERE wc.company_id = ? AND wc.phone = {$phone}
                     LIMIT 1
                 ), 0) AS opt_out
             FROM {$this->pos}customer cu
-            INNER JOIN {$this->pos}card c ON c.id = (
+            INNER JOIN {$this->crm}card c ON c.id = (
                 SELECT c2.id
-                FROM {$this->pos}card c2
-                INNER JOIN {$this->pos}card_type t2 ON t2.id = c2.card_type_id AND IFNULL(t2.active, 1) = 1
+                FROM {$this->crm}card c2
+                INNER JOIN {$this->crm}card_type t2 ON t2.id = c2.card_type_id AND IFNULL(t2.active, 1) = 1
                 WHERE c2.customer_id = cu.id
                     AND IFNULL(c2.active, 1) = 1
                     AND {$this->qSameCompany('c2.branch_id')}
                 ORDER BY c2.id DESC
                 LIMIT 1
             )
-            INNER JOIN {$this->pos}card_type t ON t.id = c.card_type_id
+            INNER JOIN {$this->crm}card_type t ON t.id = c.card_type_id
             WHERE {$this->qSameCompany('cu.branch_id')}
                 AND IFNULL(cu.active, 1) = 1
         ", [$companyId, $branchId, $branchId]);
@@ -93,7 +93,7 @@ trait LoyaltyWinback {
     protected function qWinbackSentSince($customerId, $since) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}loyalty_notice
+            FROM {$this->crm}loyalty_notice
             WHERE customer_id = ? AND kind = 'regreso' AND created_at >= ?
         ", [$customerId, $since]) > 0;
     }
@@ -102,7 +102,7 @@ trait LoyaltyWinback {
     protected function qWinbackCount($companyId, $since) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}loyalty_notice
+            FROM {$this->crm}loyalty_notice
             WHERE company_id = ? AND kind = 'regreso' AND created_at >= ?
         ", [$companyId, $since]);
     }
@@ -119,7 +119,7 @@ trait LoyaltyWinback {
                         AND {$this->qLiveSaleSql('s')}
                         AND s.created_at > n.created_at
                 )), 0) AS back
-            FROM {$this->pos}loyalty_notice n
+            FROM {$this->crm}loyalty_notice n
             WHERE n.company_id = ?
                 AND n.kind = 'regreso'
                 AND n.status IN ('sent', 'simulated')

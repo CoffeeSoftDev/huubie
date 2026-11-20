@@ -36,8 +36,10 @@ class core extends mdl {
     const KEY_TRIES = 5;
     const KEY_WAIT  = 300;
 
-    private $scopeCache = null;
-    private $viewCache  = [];
+    private $scopeCache   = null;
+    private $viewCache    = [];
+    private $foreignCache = [];
+    private $adopted      = null;   // adoptOrderBranch: ['home', 'branch_id', 'branch']
 
     // -- Empresa y sucursal --
 
@@ -121,32 +123,133 @@ class core extends mdl {
         return $id > 0 ? $this->qOrderBranch($id, $this->readBranches($section)) : null;
     }
 
-    /*  Pedido de otra sucursal (vista «todas»): solo se ve. Para cobrarlo,
-        editarlo o entregarlo se elige su sucursal en la barra. */
-    protected function foreignCan($order, $name) {
-        $why = "Es de {$name}: para hacer cambios, elige esa sucursal en la barra de arriba.";
+    // -- Pedido de otra sucursal (reglas de alpha) --
 
-        return [
-            'edit'            => false,
-            'edit_reason'     => $why,
-            'money'           => false,
-            'money_reason'    => $why,
-            'cut'             => $this->closedCut($order),
-            'cancel'          => false,
-            'cancel_reason'   => $why,
-            'pay'             => false,
-            'pay_reason'      => $why,
-            'deliver'         => false,
-            'deliver_reason'  => $why,
-            'settle'          => false,
-            'undeliver'       => false,
-            'delivery'        => false,
-            'delivery_reason' => $why,
-            'delivery_key'    => false,
-            'delete'          => false,
-            'delete_reason'   => $why,
-            'delete_payment'  => false
+    /*  Lo que alpha deja hacer con un pedido de OTRA sucursal
+        (alpha/pedidos › dropdownOrder y canWriteOrder), en los roles de pro:
+          Dueño y root (Administrador)      todo, como en la suya
+          Supervisor (permiso cancel)       solo editar los datos de entrega
+          Cajero (create, sin cancel)       editar el pedido siempre; entregar,
+                                            deshacer, cancelar y datos de entrega
+                                            si ESA sucursal tiene turno abierto
+          los demás                         ver e imprimir
+        Cobrar el pedido ajeno: solo Dueño y root (el menú de alpha no da
+        «Pagar» a nadie más). Cada acción sigue pidiendo además su permiso (need).
+        $act: edit | pay | cancel | deliver | delivery | delete. '' = puede. */
+    protected function foreignBlock($act, $branchId, $name) {
+        $branchId = (int) $branchId;
+
+        if (!isset($this->foreignCache[$branchId])) $this->foreignCache[$branchId] = $this->foreignRules($branchId, (string) $name);
+
+        return $this->foreignCache[$branchId][$act] ?? "Es de {$name}: solo puedes verlo e imprimirlo.";
+    }
+
+    // Las reglas de foreignBlock para una sucursal: se arman una vez por petición.
+    private function foreignRules($branchId, $name) {
+        $acts = ['edit', 'pay', 'cancel', 'deliver', 'delivery', 'delete'];
+
+        if ($this->isOwner()) return array_fill_keys($acts, '');
+
+        $actions = $this->actions();
+
+        if (in_array('cancel', $actions, true)) {
+            $rules = array_fill_keys($acts, "Es de {$name}: en otra sucursal, el Supervisor solo edita los datos de entrega.");
+            $rules['delivery'] = '';
+
+            return $rules;
+        }
+
+        $rules = array_fill_keys($acts, "Es de {$name}: solo puedes verlo e imprimirlo.");
+
+        if (in_array('create', $actions, true)) {
+            $turn = $this->qOpenTurn($branchId)
+                ? ''
+                : "Es de {$name} y esa sucursal no tiene turno abierto: ahí se abre el turno para cambiarlo.";
+
+            $rules['edit']     = '';
+            $rules['deliver']  = $turn;
+            $rules['delivery'] = $turn;
+            $rules['cancel']   = $turn;
+            $rules['pay']      = "Es de {$name}: cobrar un pedido de otra sucursal lo hace el Dueño.";
+        }
+
+        return $rules;
+    }
+
+    // true = el pedido es de la sucursal activa o la regla de alpha deja hacer $act ($o trae branch_id y branch).
+    protected function orderMay($o, $act) {
+        if ((int) $o['branch_id'] === $this->branchId()) return true;
+
+        return $this->foreignBlock($act, (int) $o['branch_id'], (string) ($o['branch'] ?? '')) === '';
+    }
+
+    /*  El detalle de un pedido de otra sucursal (vista «todas»): lo mismo que
+        uno propio (orderCan), menos lo que la regla de alpha no deja. */
+    protected function foreignCan($order, $place, $payments = null) {
+        $branchId = (int) $place['branch_id'];
+        $name     = (string) $place['branch'];
+        $can      = $this->orderCan($order, $payments);
+
+        // Llave de orderCan => acción de foreignBlock. «Cobrar y entregar» pide las dos.
+        $map = [
+            'edit' => 'edit', 'cancel' => 'cancel', 'pay' => 'pay', 'settle' => 'pay', 'delete_payment' => 'pay',
+            'deliver' => 'deliver', 'undeliver' => 'deliver', 'delivery' => 'delivery', 'delete' => 'delete'
         ];
+
+        foreach ($map as $key => $act) {
+            $why = $this->foreignBlock($act, $branchId, $name);
+
+            if (!$can[$key] || $why === '') continue;
+
+            $can[$key] = false;
+
+            if (array_key_exists($key . '_reason', $can)) $can[$key . '_reason'] = $why;
+        }
+
+        if ($can['settle'] && $this->foreignBlock('deliver', $branchId, $name) !== '') $can['settle'] = false;
+
+        $can['delivery_key'] = $can['delivery_key'] && $can['delivery'];
+
+        $any = $can['edit'] || $can['cancel'] || $can['pay'] || $can['settle'] || $can['deliver'] || $can['undeliver'] || $can['delivery'];
+
+        $can['foreign_reason'] = $any
+            ? "Es de {$name}: los cambios se guardan en esa sucursal."
+            : "Es de {$name}: solo puedes verlo e imprimirlo.";
+
+        return $can;
+    }
+
+    /*  Una petición sobre un pedido de OTRA sucursal (vista «todas»): si el rol
+        ve esa sucursal y la regla de alpha deja $act, trabaja en la sucursal del
+        pedido (su turno, su catálogo, su corte), como si se hubiera elegido en
+        la barra. La franja de caja sigue en la de la sesión (homeBranchId).
+        $act = null: solo lectura. null = sigue; si no, el 403 con el porqué. */
+    protected function adoptOrderBranch($id, $act) {
+        if ($id <= 0 || $this->branchId() === 0 || $this->adopted) return null;
+
+        if ($this->qOrderBranch($id, [$this->branchId()])) return null;
+
+        $others = array_keys($this->viewBranches(self::SECTION));
+        $place  = $others ? $this->qOrderBranch($id, $others) : null;
+
+        // No es de ninguna que vea: el endpoint contesta su 404 de siempre.
+        if (!$place) return null;
+
+        $why = $act === null ? '' : $this->foreignBlock($act, (int) $place['branch_id'], $place['branch']);
+
+        if ($why !== '') return ['status' => 403, 'message' => $why, 'row' => []];
+
+        $this->adopted = ['home' => $this->branchId(), 'branch_id' => (int) $place['branch_id'], 'branch' => (string) $place['branch']];
+
+        $this->scopeCache['branch_id'] = (int) $place['branch_id'];
+        $this->scopeCache['branch']    = (string) $place['branch'];
+
+        return null;
+    }
+
+    // La sucursal de la sesión, aunque la petición trabaje en la de un pedido ajeno (adoptOrderBranch).
+    protected function homeBranchId() {
+        return $this->adopted ? $this->adopted['home'] : $this->branchId();
     }
 
     // Matriz = la primera sucursal activa de la empresa: en BD no hay marca.
@@ -211,8 +314,9 @@ class core extends mdl {
 
     // El turno abierto para la franja de caja. old = abierto en otro dia.
     // Las cifras (fondo, vendido, conteos) solo van con el turno de hoy: el viejo solo pide cerrarse.
+    // Siempre de la sucursal de la sesión (homeBranchId): la franja no cambia por un pedido ajeno.
     protected function turnBrief() {
-        $turn = $this->branchId() > 0 ? $this->qOpenTurn($this->branchId()) : null;
+        $turn = $this->homeBranchId() > 0 ? $this->qOpenTurn($this->homeBranchId()) : null;
 
         if (!$turn) return null;
 
@@ -299,14 +403,16 @@ class core extends mdl {
     // El día para la cabecera: cerrado hoy, días anteriores sin cerrar y cuántos turnos
     // se abrieron hoy (con más de uno, la franja de Ventas enciende «Cierre del día»).
     protected function dayBrief() {
-        if ($this->branchId() === 0) return null;
+        $home = $this->homeBranchId();
+
+        if ($home === 0) return null;
 
         [$from, $to] = $this->dayRange(date('Y-m-d'));
 
         return [
-            'closed'  => $this->dayClosedToday(),
-            'pending' => array_column($this->pendingDays(), 'date'),
-            'turns'   => $this->qDayTurnCount($this->branchId(), $from, $to)
+            'closed'  => $this->dayClosedToday($home),
+            'pending' => array_column($this->pendingDays($home), 'date'),
+            'turns'   => $this->qDayTurnCount($home, $from, $to)
         ];
     }
 
@@ -367,6 +473,11 @@ class core extends mdl {
         return in_array($this->qRoleCode($this->userId(), (int) ($_SESSION['branch_id'] ?? 0)), ['owner', 'dueno'], true);
     }
 
+    // root = la cuenta de Developer (administra la plataforma). Es la única que elimina pedidos.
+    protected function isRoot() {
+        return !empty($_SESSION['is_root']);
+    }
+
     // -- Reglas de cobro --
 
     // '' = se puede cobrar. La entrega no bloquea: el saldo se cubre al entregar.
@@ -422,13 +533,22 @@ class core extends mdl {
 
     // -- Detalle del corte --
 
+    /*  El folio como sale en pantalla (lista de Pedidos e Historial): «P» los
+        pedidos, también los de la tienda en línea; «V» las ventas de mostrador
+        (sale_type 2 y 3). Sin folio guardado, el id. */
+    protected function saleFolio($typeId, $folio, $id = 0) {
+        $number = $folio !== null && $folio !== '' ? $folio : $id;
+
+        return (in_array((int) $typeId, [2, 3], true) ? 'V' : 'P') . $number;
+    }
+
     /*  El modo Detallado del visor de Cortes: cada pedido y cada cobro de esos
         turnos. Es en vivo: la foto del corte Z solo guarda totales. */
     protected function cutDetail(array $turnIds) {
         $sales = array_map(function ($s) {
             return [
                 'id'        => (int) $s['id'],
-                'folio'     => (string) $s['folio'],
+                'folio'     => $this->saleFolio($s['sale_type_id'], $s['folio'], $s['id']),
                 'customer'  => trim((string) $s['customer']),
                 'status_id' => (int) $s['sale_status_id'],
                 'status'    => (string) $s['status'],
@@ -441,7 +561,7 @@ class core extends mdl {
         $payments = array_map(function ($p) {
             return [
                 'id'       => (int) $p['id'],
-                'folio'    => (string) $p['folio'],
+                'folio'    => $this->saleFolio($p['sale_type_id'], $p['folio'], $p['sale_id']),
                 'customer' => trim((string) $p['customer']),
                 'method'   => (string) $p['method'],
                 'amount'   => round((float) $p['amount'], 2),
@@ -451,6 +571,18 @@ class core extends mdl {
         }, $this->qCutPayments($turnIds));
 
         return ['sales' => $sales, 'payments' => $payments];
+    }
+
+    /*  '' = el aviso de WhatsApp del pedido se puede mandar otra vez (el
+        «Reenviar» de alpha). Solo un pedido de verdad: la cotización aún no lo
+        es y el cancelado ya no. Quién (Dueño o Supervisor) lo revisa el ctrl. */
+    protected function noticeBlock($o) {
+        $status = (int) $o['sale_status_id'];
+
+        if ($status === self::QUOTE)     return 'Una cotización no avisa: el aviso sale cuando se vuelve pedido.';
+        if ($status === self::CANCELLED) return 'Un pedido cancelado no avisa.';
+
+        return '';
     }
 
     // -- Reglas de captura --
@@ -467,19 +599,41 @@ class core extends mdl {
         return '';
     }
 
-    // '' = se puede cancelar. Con abonos hace falta cliente: ahi queda el saldo a favor.
-    protected function cancelBlock($o) {
+    /*  '' = se puede cancelar. Lo que queda a favor pide cliente: ahí se guarda.
+        Un pagado lo cancela Dueño o Supervisor (permiso cancel, como todo
+        cancelar): lo cobrado en un turno abierto se anula (cancelSplit). Sin
+        $payments (la lista) no se sabe cuánto queda a favor: lo revisan el
+        detalle y cancelOrder antes de escribir. */
+    protected function cancelBlock($o, $payments = null) {
         $status = (int) $o['sale_status_id'];
 
         if ($status === self::CANCELLED) return 'El pedido ya está cancelado.';
-        if ($status === self::PAID)      return 'Un pedido pagado no se cancela.';
-        if ($status !== self::QUOTE && $status !== self::PENDING) return 'Este pedido no se puede cancelar en su estado actual.';
+        if (!in_array($status, [self::QUOTE, self::PENDING, self::PAID], true)) return 'Este pedido no se puede cancelar en su estado actual.';
         if ((int) $o['delivery_status'] === 1) return 'Un pedido entregado no se cancela.';
-        if ((float) $o['paid'] > 0 && (int) $o['customer_id'] <= 0) {
-            return 'Tiene abonos por ' . money($o['paid']) . ' y no tiene cliente: no hay a quién dejar el saldo a favor.';
+
+        if ($status === self::PAID && $payments === null) return '';
+
+        $kept = $status === self::PAID ? $this->cancelSplit($o, $payments)['kept'] : round((float) $o['paid'], 2);
+
+        if ($kept > 0 && (int) $o['customer_id'] <= 0) {
+            return 'Tiene ' . money($kept) . ' cobrados en turnos ya cerrados y no tiene cliente: no hay a quién dejar el saldo a favor.';
         }
 
         return '';
+    }
+
+    /*  Cancelar un PAGADO: los pagos de un turno que sigue abierto (los del día)
+        se desactivan y salen de su corte; lo cobrado en turnos ya cerrados
+        queda como saldo a favor, porque esos cortes no cambian.
+        undo = los pagos a desactivar · undone = su suma · kept = lo que queda a favor. */
+    protected function cancelSplit($o, array $payments) {
+        $undo = array_values(array_filter($payments, function ($p) {
+            return $p['turn_status'] === 'open';
+        }));
+
+        $undone = round(array_sum(array_map(function ($p) { return (float) $p['amount']; }, $undo)), 2);
+
+        return ['undo' => $undo, 'undone' => $undone, 'kept' => round((float) $o['paid'] - $undone, 2)];
     }
 
     // '' = se puede eliminar. Con abonos no: se cancela, para conservar el rastro del dinero.
@@ -583,7 +737,7 @@ class core extends mdl {
 
         if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
 
-        $fail = $this->needKey();
+        $fail = $this->adoptOrderBranch($id, 'deliver') ?: $this->needKey();
         if ($fail) return $fail;
 
         return $this->attempt(function () use ($id) {
@@ -632,6 +786,9 @@ class core extends mdl {
 
         if ($reason === '')               return $this->fail(422, 'Escribe por qué se deshace la entrega.');
         if ($this->tooLong($reason, 200)) return $this->fail(422, 'El motivo admite hasta 200 caracteres.');
+
+        $fail = $this->adoptOrderBranch($id, 'deliver');
+        if ($fail) return $fail;
 
         return $this->attempt(function () use ($id, $reason) {
             return $this->transaction(function () use ($id, $reason) {
@@ -692,6 +849,9 @@ class core extends mdl {
         if ($method === 1 && $location === '') return $this->fail(422, 'Escribe la dirección de envío.');
         if ($this->tooLong($location, 255))    return $this->fail(422, 'La dirección admite hasta 255 caracteres.');
         if ($this->tooLong($note, 2000))       return $this->fail(422, 'La nota admite hasta 2,000 caracteres.');
+
+        $fail = $this->adoptOrderBranch($id, 'delivery');
+        if ($fail) return $fail;
 
         $in = [
             'method'   => $method,
@@ -790,7 +950,7 @@ class core extends mdl {
         Cada ctrl valida antes su permiso de ver. A quien no ve Pedidos
         (Producción) le llega sin importes ni abonos: limited = true.
         Con all = 1 (vista «todas») también abre el de otra sucursal que el rol
-        deja ver en $section: foreign = true, solo lectura (foreignCan). */
+        deja ver en $section: foreign = true, con las reglas de alpha (foreignCan). */
     protected function orderBundle($id, $section = self::SECTION) {
         $branch  = $this->scope()['branch'];
         $order   = $id > 0 ? $this->qGetOrder($id, $this->branchId()) : null;
@@ -836,15 +996,17 @@ class core extends mdl {
         }
         unset($line);
 
+        $payments = $this->qPayments($id);
+
         $bundle = [
             'status'   => 200,
             'branch'   => $foreign ? $place['branch'] : $branch,
             'order'    => $order,
             'lines'    => $lines,
-            'payments' => $this->qPayments($id),
+            'payments' => $payments,
             'history'  => $this->qHistory($id),
             'actions'  => $this->actions(),
-            'can'      => $foreign ? $this->foreignCan($order, $place['branch']) : $this->orderCan($order),
+            'can'      => $foreign ? $this->foreignCan($order, $place, $payments) : $this->orderCan($order, $payments),
             'limited'  => false,
             'foreign'  => $foreign
         ];
@@ -920,18 +1082,18 @@ class core extends mdl {
         return $out;
     }
 
-    // Lo que se puede hacer con el pedido y, si no, por que.
-    protected function orderCan($order) {
+    // Lo que se puede hacer con el pedido y, si no, por que. $payments: sus pagos (qPayments), para cancelar un pagado.
+    protected function orderCan($order, $payments = null) {
         $update  = $this->need('update') === null;
         $edit    = $update ? $this->editBlock($order) : 'Tu rol no puede editar pedidos.';
-        $cancel  = $this->need('cancel') === null ? $this->cancelBlock($order) : 'Tu rol no puede cancelar pedidos.';
+        $cancel  = $this->need('cancel') === null ? $this->cancelBlock($order, $payments) : 'Tu rol no puede cancelar pedidos.';
         $pay     = $this->need('create') === null ? $this->payBlock($order) : 'Tu rol no puede cobrar pedidos.';
         $deliver = $update ? $this->deliverBlock($order) : 'Tu rol no puede entregar pedidos.';
         $money   = $this->moneyBlock($order);
         $alive   = (int) $order['sale_status_id'] !== self::CANCELLED;
         $given   = (int) $order['delivery_status'] === 1;
         $undo    = $this->need('cancel') === null && $this->undeliverBlock($order) === '';
-        $delete  = $this->need('delete') === null ? $this->deleteBlock($order) : 'Solo el Dueño puede eliminar pedidos.';
+        $delete  = $this->isRoot() ? $this->deleteBlock($order) : 'Solo root (Developer) puede eliminar pedidos.';
 
         // Datos de entrega: el pagado lo edita solo Dueño o Supervisor, con contraseña.
         $isPaid   = (int) $order['sale_status_id'] === self::PAID;
@@ -939,7 +1101,11 @@ class core extends mdl {
 
         if ($delivery === '' && $isPaid && $this->need('cancel') !== null) $delivery = 'La entrega de un pedido pagado la edita Dueño o Supervisor.';
 
+        $notice = $this->need('cancel') === null ? $this->noticeBlock($order) : 'Solo Dueño o Supervisor envían el aviso por WhatsApp.';
+
         return [
+            'notify'          => $notice === '',
+            'notify_reason'   => $notice,
             'edit'            => $edit === '',
             'edit_reason'     => $edit,
             'money'           => $money === '',

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuesta · Categorías al armar un pastel</title>
+<style>
+/* @piel plantilla-plano · siempre en claro, aunque el sistema esté oscuro */
+:root{
+  color-scheme: light;
+  --bp-ground:#F1F3F6; --bp-surface:#FFFFFF; --bp-surface-2:#F5F7F9;
+  --bp-line:#DDE3E8; --bp-line-soft:#E9EDF1;
+  --bp-ink:#0F1A21; --bp-ink-soft:#4A5A64; --bp-ink-dim:#6E7F8A;
+  --bp-ac:#0B6E77; --bp-write:#A15C08;
+  --bp-ui:"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif:Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono:ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{ background:var(--bp-ground); color:var(--bp-ink); font-family:var(--bp-ui);
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased }
+.wrap{ max-width:1120px; margin:0 auto; padding:0 22px 80px }
+
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:26px;
+  display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,42px); line-height:1.08;
+  letter-spacing:-.015em; max-width:24ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55; color:var(--bp-ink-soft); max-width:66ch }
+
+section{ display:flex; flex-direction:column; gap:14px; margin-bottom:56px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:26px; line-height:1.2; display:flex;
+  align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em; color:var(--bp-ac); flex:none }
+.intro{ color:var(--bp-ink-soft); max-width:74ch }
+code{ font-family:var(--bp-mono); font-size:.875em; background:var(--bp-surface-2);
+  border:1px solid var(--bp-line-soft); border-radius:4px; padding:.08em .34em }
+
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface) }
+table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:640px }
+th,td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft); vertical-align:top }
+thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--bp-ink-dim); font-weight:500; background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line) }
+tbody tr:last-child td{ border-bottom:0 }
+td b{ font-weight:650 }
+td.ok{ color:#047857; font-weight:600 } td.bad{ color:#B3261E; font-weight:600 }
+
+/* Capturas reales de la ventana «¡Arma tu pastel!» (1440×900) */
+.shot{ border:1px solid var(--bp-line); border-radius:10px; overflow:hidden; background:#7A7F8C }
+.shot img{ display:block; width:100%; height:auto }
+.shot figcaption{ background:var(--bp-surface); border-top:1px solid var(--bp-line); padding:6px 12px;
+  font-size:12px; color:var(--bp-ink-dim); font-family:var(--bp-mono) }
+.shot.is-strip{ background:var(--bp-surface) }
+
+.pros{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+.pro, .con{ border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface);
+  padding:12px 14px; font-size:13.5px; color:var(--bp-ink-soft) }
+.pro b, .con b{ display:block; font-size:11px; font-family:var(--bp-mono); letter-spacing:.08em;
+  text-transform:uppercase; margin-bottom:4px }
+.pro b{ color:#047857 } .con b{ color:#B3261E }
+.pro ul, .con ul{ padding-left:18px }
+
+.note{ border-left:2px solid var(--bp-write); background:var(--bp-surface); border-radius:0 8px 8px 0;
+  padding:14px 18px; display:flex; flex-direction:column; gap:8px; font-size:13.5px; color:var(--bp-ink-soft) }
+.note b{ color:var(--bp-ink) }
+.note ol, .note ul{ padding-left:20px; display:flex; flex-direction:column; gap:4px }
+
+@media (max-width: 760px){
+  .pros{ grid-template-columns:1fr }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <p class="eyebrow">Pedidos TPV · Personalizado · 20/11/2026</p>
+    <h1>Las 12 categorías del pastel, <em>a la vista</em></h1>
+    <p class="lede">Al armar un pastel, las categorías (Forma, Rellenos… Envío a domicilio) van en un solo renglón y 7 de 12 salen cortadas. Aquí van dos maneras de verlas completas, las dos con scroll porque no caben juntas.</p>
+  </header>
+
+  <section>
+    <h2><span class="num">01</span>Cómo se ve hoy</h2>
+    <p class="intro">Las 12 categorías de Reginas se reparten 954 px: cada una tiene unos 80 px. Siete nombres se cortan y tres quedan iguales: «Decoraci…», «Decoraci…», «Decoraci…». Además el nombre completo no salía al pasar el mouse (el <code>title</code> no se ponía); eso ya quedó corregido.</p>
+    <figure class="shot is-strip">
+      <img src="img/categorias-pastel/0-hoy-pasos.png" alt="Barra de pasos actual con los nombres cortados">
+      <figcaption>Hoy · 7 de 12 nombres cortados</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="img/categorias-pastel/0-hoy.png" alt="Ventana ¡Arma tu pastel! como está hoy">
+      <figcaption>Hoy · 1440×900 · pastel a medio armar, parado en «Decoraciones Flores»</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="img/categorias-pastel/0-hoy-1366.png" alt="La misma ventana en la pantalla de caja de 1366×768">
+      <figcaption>Hoy · 1366×768 (pantalla de caja)</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="note">
+      <b>Propuesta de mejora</b>
+      <ol>
+        <li><b>Nombre completo siempre</b>: ninguna categoría se corta; las tres «Decoraciones…» se distinguen.</li>
+        <li><b>Hecho a la vista</b>: la categoría que ya tiene algo elegido sale en verde con palomita.</li>
+        <li><b>El paso actual se centra solo</b> al usar «Anterior» y «Siguiente».</li>
+        <li><b>Scroll claro</b>: A con flechas a los lados; B con barra vertical.</li>
+        <li><b>Sin tocar la base ni el ctrl</b>: es solo el componente <code>pos-cake.js</code>.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span>Propuesta A · Carril con flechas</h2>
+    <p class="intro">Las categorías se quedan arriba, como hoy, pero cada una es una píldora con su nombre completo. El carril se recorre con las flechas, la rueda del mouse o arrastrando; las orillas se desvanecen para que se note que hay más.</p>
+    <figure class="shot is-strip">
+      <img src="img/categorias-pastel/a-carril-pasos.png" alt="Carril de categorías con flechas y nombres completos">
+      <figcaption>A · 0 nombres cortados · se ven ~6 de 12, el resto con las flechas</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="img/categorias-pastel/a-carril.png" alt="Ventana completa con la propuesta A">
+      <figcaption>A · 1440×900 · las opciones conservan sus 3 columnas</figcaption>
+    </figure>
+    <div class="pros">
+      <div class="pro"><b>A favor</b><ul><li>Las opciones siguen en 3 columnas: se ven ~19 a la vez.</li><li>Es el mismo lugar de hoy: no hay que aprender nada.</li><li>En celular funciona igual.</li></ul></div>
+      <div class="con"><b>En contra</b><ul><li>Solo se ven ~6 categorías a la vez; las demás, con flechas.</li><li>Lo elegido en cada categoría solo se ve en «Vista previa».</li></ul></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span>Propuesta B · Lista lateral con scroll</h2>
+    <p class="intro">Las categorías bajan a una lista a la izquierda de las opciones, con el nombre completo (hasta en dos renglones) y debajo lo que ya se eligió. La lista tiene su propio scroll. Arriba queda solo la barra de progreso.</p>
+    <figure class="shot">
+      <img src="img/categorias-pastel/b-lateral.png" alt="Ventana completa con la propuesta B">
+      <figcaption>B · 1440×900 · se ven ~7 de 12 categorías con lo elegido; las opciones pasan a 2 columnas</figcaption>
+    </figure>
+    <div class="pros">
+      <div class="pro"><b>A favor</b><ul><li>Nombre completo y lo elegido en cada categoría, en el mismo lugar.</li><li>La barra de progreso baja de 107 a 56 px.</li></ul></div>
+      <div class="con"><b>En contra</b><ul><li>Las opciones pasan de 3 a 2 columnas: se ven ~13 a la vez en vez de ~19.</li><li>Repite lo que ya dice «Vista previa».</li><li>En celular tendría que volver al carril.</li></ul></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span>Comparación</h2>
+    <p class="intro">Medido en la ventana real con el catálogo de Reginas (12 categorías), a 1440×900.</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th></th><th>Hoy</th><th>A · Carril</th><th>B · Lateral</th></tr></thead>
+        <tbody>
+          <tr><td>Nombres cortados</td><td class="bad">7 de 12</td><td class="ok">0</td><td class="ok">0</td></tr>
+          <tr><td>Categorías a la vista</td><td>12 (cortadas)</td><td>~6</td><td>~7</td></tr>
+          <tr><td>Lo elegido junto a la categoría</td><td>No</td><td>No (palomita)</td><td class="ok">Sí</td></tr>
+          <tr><td>Scroll</td><td>No hace falta</td><td>Horizontal, con flechas</td><td>Vertical (321 de 534 px)</td></tr>
+          <tr><td>Alto de la barra de arriba</td><td>107 px</td><td>94 px</td><td class="ok">56 px</td></tr>
+          <tr><td>Opciones a la vista</td><td>~19 (3 columnas)</td><td class="ok">~19 (3 columnas)</td><td>~13 (2 columnas)</td></tr>
+          <tr><td>Celular</td><td>Carril</td><td class="ok">Igual</td><td>Vuelve al carril</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>Recomendación: A.</b>
+      <span>Resuelve los nombres cortados sin quitarle espacio a las opciones, que es donde más se trabaja (Decoraciones Extras tiene 44). B lee mejor la lista, pero cuesta un tercio de las opciones a la vista.</span>
+      <span>Visto de paso: en «Vista previa», nombres largos se parten a media palabra («Decoracion / es Flores»). No entra en ninguna de las dos; se puede ver aparte.</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

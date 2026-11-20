@@ -10,8 +10,8 @@
     <script src="../../assets/plugins/daterangepicker/moment.min.js"></script>
     <script src="../../assets/plugins/daterangepicker/daterangepicker.js"></script>
     <script src="../../assets/plugins/lucide/lucide.min.js"></script>
-    <?php if ($script === 'calendario'): ?>
-    <!-- Calendario: FullCalendar 6.1.14, la misma version que alpha, con su idioma español. -->
+    <?php if ($script === 'calendario' || $script === 'pedidos'): ?>
+    <!-- Calendario (página sola y vista Calendario de Pedidos): FullCalendar 6.1.14, la misma version que alpha, con su idioma español. -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.14/locales/es.global.min.js"></script>
     <?php endif; ?>
@@ -51,6 +51,12 @@
 
     // WhatsApp: la bandeja, los recordatorios y las metricas del agente van antes de la pagina, que los instancia.
     if ($script === 'whatsapp') array_splice($files, -1, 0, ['whatsapp-bandeja', 'whatsapp-recordatorios', 'whatsapp-metricas']);
+
+    // El calendario (OrderCalendar) lo usan su página sola y la vista Calendario de Pedidos.
+    if ($script === 'calendario' || $script === 'pedidos') array_splice($files, -1, 0, ['components/order-calendar']);
+
+    // El tablero (OrderBoard) es la vista Tablero de Pedidos.
+    if ($script === 'pedidos') array_splice($files, -1, 0, ['components/order-board']);
 
     foreach ($files as $name):
         $src = $local($name);

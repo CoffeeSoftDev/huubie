@@ -47,7 +47,7 @@ trait WhatsAppAgentAI {
             SELECT id, company_id, phone_number_id, IFNULL(display_phone, '') AS display_phone,
                    enabled, hours, IFNULL(catalog_mode, 'store') AS catalog_mode, IFNULL(hourly_cap, 20) AS hourly_cap,
                    IFNULL(auto_topics, '') AS auto_topics, updated_at
-            FROM {$this->pos}wa_agent
+            FROM {$this->crm}wa_agent
             WHERE company_id = ?
             LIMIT 1
         ", [$companyId]);
@@ -59,7 +59,7 @@ trait WhatsAppAgentAI {
             SELECT c.id, c.company_id, c.phone, c.wa_id, IFNULL(c.name, '') AS name, c.customer_id,
                    IFNULL(c.mode, 'agent') AS mode, c.human_until, c.opt_out, c.last_in_at,
                    b.id AS branch_id, IFNULL(b.name, '') AS branch, IFNULL(b.ubication, '') AS address
-            FROM {$this->pos}wa_chat c
+            FROM {$this->crm}wa_chat c
             LEFT JOIN {$this->bd}branches b
                    ON b.id = c.branch_id AND b.company_id = c.company_id AND IFNULL(b.is_active, 1) = 1
             WHERE c.id = ? AND c.company_id = ?
@@ -70,7 +70,7 @@ trait WhatsAppAgentAI {
     protected function qWaLastIn($chatId) {
         return $this->qRow("
             SELECT id, type, IFNULL(body, '') AS body, sent_at
-            FROM {$this->pos}wa_message
+            FROM {$this->crm}wa_message
             WHERE chat_id = ? AND direction = 'in'
             ORDER BY id DESC
             LIMIT 1
@@ -81,7 +81,7 @@ trait WhatsAppAgentAI {
     protected function qWaAnswered($chatId, $messageId) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}wa_message
+            FROM {$this->crm}wa_message
             WHERE chat_id = ? AND direction = 'out' AND user_id IS NOT NULL AND id > ?
         ", [$chatId, $messageId]) > 0;
     }
@@ -90,7 +90,7 @@ trait WhatsAppAgentAI {
     protected function qWaProposalsFor($messageId, $staleBefore) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}wa_proposal
+            FROM {$this->crm}wa_proposal
             WHERE message_id = ?
                 AND NOT (status = 'working' AND created_at < ?)
         ", [$messageId, $staleBefore]);
@@ -99,7 +99,7 @@ trait WhatsAppAgentAI {
     protected function qWaProposalsLastHour($chatId, $since) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}wa_proposal
+            FROM {$this->crm}wa_proposal
             WHERE chat_id = ? AND requested_by IS NULL AND created_at >= ?
         ", [$chatId, $since]);
     }
@@ -111,7 +111,7 @@ trait WhatsAppAgentAI {
                    requested_by, elapsed_ms, IFNULL(error, '') AS error, created_at,
                    IFNULL(action, '') AS action, IFNULL(action_data, '') AS action_data, sale_id,
                    IFNULL(kind, 'customer') AS kind, IFNULL(topic, '') AS topic
-            FROM {$this->pos}wa_proposal
+            FROM {$this->crm}wa_proposal
             WHERE chat_id = ? AND status IN ('working', 'pending', 'failed')
             ORDER BY id DESC
             LIMIT 1
@@ -119,7 +119,7 @@ trait WhatsAppAgentAI {
     }
 
     protected function qWaProposalStatus($id) {
-        $row = $this->qRow("SELECT status FROM {$this->pos}wa_proposal WHERE id = ? LIMIT 1", [$id]);
+        $row = $this->qRow("SELECT status FROM {$this->crm}wa_proposal WHERE id = ? LIMIT 1", [$id]);
 
         return $row ? (string) $row['status'] : '';
     }
@@ -130,8 +130,8 @@ trait WhatsAppAgentAI {
 
         foreach ($this->qRows("
             SELECT p.chat_id, p.status
-            FROM {$this->pos}wa_proposal p
-            INNER JOIN {$this->pos}wa_chat c ON c.id = p.chat_id
+            FROM {$this->crm}wa_proposal p
+            INNER JOIN {$this->crm}wa_chat c ON c.id = p.chat_id
             WHERE c.company_id = ?
                 AND (p.status = 'pending' OR (p.status = 'working' AND p.created_at >= ?))
             ORDER BY p.id
@@ -147,8 +147,8 @@ trait WhatsAppAgentAI {
         return $this->qRow("
             SELECT p.id, p.chat_id, p.message_id, p.body, p.status,
                    IFNULL(p.action, '') AS action, IFNULL(p.action_data, '') AS action_data, p.sale_id
-            FROM {$this->pos}wa_proposal p
-            INNER JOIN {$this->pos}wa_chat c ON c.id = p.chat_id
+            FROM {$this->crm}wa_proposal p
+            INNER JOIN {$this->crm}wa_chat c ON c.id = p.chat_id
             WHERE p.id = ? AND c.company_id = ?
             LIMIT 1
             FOR UPDATE
@@ -162,7 +162,7 @@ trait WhatsAppAgentAI {
     // Las abiertas del chat pasan a 'discarded' (llego otra mas nueva o una persona contesto).
     protected function qWaRetireOpen($chatId, $userId, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_proposal
+            UPDATE {$this->crm}wa_proposal
             SET status = 'discarded', decided_by = ?, decided_at = ?
             WHERE chat_id = ? AND status IN ('working', 'pending', 'failed')
         ", [$userId, $now, $chatId]);
@@ -173,7 +173,7 @@ trait WhatsAppAgentAI {
         $topic: de que trato (F6, agentTopicOf). */
     protected function qWaFinishProposal($id, $status, $body, $tools, $elapsed, $error, $action = null, $actionData = null, $topic = null) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_proposal
+            UPDATE {$this->crm}wa_proposal
             SET status = ?, body = ?, tools_used = ?, elapsed_ms = ?, error = ?, action = ?, action_data = ?, topic = ?
             WHERE id = ? AND status = 'working'
         ", [$status, $body, $tools, $elapsed, $error !== '' ? mb_substr($error, 0, 255, 'UTF-8') : null, $action, $actionData, $topic, $id]);
@@ -181,14 +181,14 @@ trait WhatsAppAgentAI {
 
     protected function qWaDecideProposal($id, $status, $body, $userId, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_proposal
+            UPDATE {$this->crm}wa_proposal
             SET status = ?, body = ?, decided_by = ?, decided_at = ?
             WHERE id = ?
         ", [$status, $body, $userId, $now, $id]);
     }
 
     protected function qWaSetProposalMessage($id, $messageId) {
-        $this->qWaRun("UPDATE {$this->pos}wa_proposal SET sent_message_id = ? WHERE id = ?", [$messageId, $id]);
+        $this->qWaRun("UPDATE {$this->crm}wa_proposal SET sent_message_id = ? WHERE id = ?", [$messageId, $id]);
     }
 
     /*  Los chats que esperan propuesta automatica: con sucursal, ventana
@@ -200,34 +200,34 @@ trait WhatsAppAgentAI {
     protected function qWaPendingChats($companyId, $since, $staleBefore, $now) {
         return $this->qRows("
             SELECT c.id
-            FROM {$this->pos}wa_chat c
+            FROM {$this->crm}wa_chat c
             LEFT JOIN {$this->bd}branches b
                    ON b.id = c.branch_id AND b.company_id = c.company_id AND IFNULL(b.is_active, 1) = 1
             WHERE c.company_id = ?
                 AND (
                     b.id IS NOT NULL
                     OR EXISTS (
-                        SELECT 1 FROM {$this->pos}wa_recipient r
+                        SELECT 1 FROM {$this->crm}wa_recipient r
                         WHERE r.company_id = c.company_id AND r.phone = c.phone AND r.active = 1 AND IFNULL(r.can_ask, 0) = 1
                     )
                 )
                 AND c.last_in_at >= ?
                 AND NOT (IFNULL(c.mode, 'agent') = 'human' AND (c.human_until IS NULL OR c.human_until > ?))
-                AND EXISTS (SELECT 1 FROM {$this->pos}wa_message i0 WHERE i0.chat_id = c.id AND i0.direction = 'in')
+                AND EXISTS (SELECT 1 FROM {$this->crm}wa_message i0 WHERE i0.chat_id = c.id AND i0.direction = 'in')
                 AND NOT EXISTS (
-                    SELECT 1 FROM {$this->pos}wa_message k
-                    WHERE k.id = (SELECT MAX(i3.id) FROM {$this->pos}wa_message i3 WHERE i3.chat_id = c.id AND i3.direction = 'in')
+                    SELECT 1 FROM {$this->crm}wa_message k
+                    WHERE k.id = (SELECT MAX(i3.id) FROM {$this->crm}wa_message i3 WHERE i3.chat_id = c.id AND i3.direction = 'in')
                         AND UPPER(TRIM(TRAILING '.' FROM TRIM(IFNULL(k.body, '')))) IN ('BAJA', 'ALTA')
                 )
                 AND NOT EXISTS (
-                    SELECT 1 FROM {$this->pos}wa_message o
+                    SELECT 1 FROM {$this->crm}wa_message o
                     WHERE o.chat_id = c.id AND o.direction = 'out' AND o.user_id IS NOT NULL
-                        AND o.id > (SELECT MAX(i.id) FROM {$this->pos}wa_message i WHERE i.chat_id = c.id AND i.direction = 'in')
+                        AND o.id > (SELECT MAX(i.id) FROM {$this->crm}wa_message i WHERE i.chat_id = c.id AND i.direction = 'in')
                 )
                 AND NOT EXISTS (
-                    SELECT 1 FROM {$this->pos}wa_proposal p
+                    SELECT 1 FROM {$this->crm}wa_proposal p
                     WHERE p.chat_id = c.id
-                        AND p.message_id = (SELECT MAX(i2.id) FROM {$this->pos}wa_message i2 WHERE i2.chat_id = c.id AND i2.direction = 'in')
+                        AND p.message_id = (SELECT MAX(i2.id) FROM {$this->crm}wa_message i2 WHERE i2.chat_id = c.id AND i2.direction = 'in')
                         AND NOT (p.status = 'working' AND p.created_at < ?)
                 )
             ORDER BY c.last_in_at, c.id
@@ -236,7 +236,7 @@ trait WhatsAppAgentAI {
     }
 
     protected function qWaAgentsOn() {
-        return $this->qRows("SELECT company_id FROM {$this->pos}wa_agent WHERE enabled = 1 ORDER BY company_id");
+        return $this->qRows("SELECT company_id FROM {$this->crm}wa_agent WHERE enabled = 1 ORDER BY company_id");
     }
 
     // El catalogo propio del agente (catalog_mode = 'own'), de la sucursal y de la Matriz.
@@ -244,7 +244,7 @@ trait WhatsAppAgentAI {
         return $this->qRows("
             SELECT p.id, p.name, IFNULL(p.description, '') AS description, IFNULL(p.price, 0) AS price,
                    IFNULL(TRIM(c.name), '') AS category, p.branch_id
-            FROM {$this->pos}wa_agent_product ap
+            FROM {$this->crm}wa_agent_product ap
             INNER JOIN {$this->pos}product p ON p.id = ap.product_id AND p.company_id = ap.company_id
             LEFT JOIN {$this->pos}category c ON c.id = p.category_id AND IFNULL(c.active, 1) = 1
             WHERE ap.company_id = ?

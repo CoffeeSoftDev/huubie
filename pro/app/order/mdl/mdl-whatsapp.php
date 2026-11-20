@@ -4,10 +4,12 @@ require_once __DIR__ . '/../../../core/helpers/_WhatsApp.php';
 /*  Avisos de WhatsApp: pedido nuevo, cierre de turno y cierre del dia.
 
     Va aparte de mdl-order.php, que no se toca. Lo usan con `use WhatsAppNotices;`
-    ctrl-whatsapp (la pagina) y los tres ctrl que disparan un aviso:
-      ctrl-cobro   payOrder   el primer cobro de una cotizacion = pedido nuevo.
-      ctrl-turno   closeTurn  el corte Z.
-      ctrl-cierre  closeDay   el cierre del dia.
+    ctrl-whatsapp (la pagina) y los ctrl que disparan un aviso:
+      ctrl-cobro    payOrder           el primer cobro de una cotizacion = pedido nuevo.
+      ctrl-pedidos  addOrder           el pedido que se guarda Pendiente sin anticipo.
+      ctrl-pedidos  resendOrderNotice  «Enviar por WhatsApp» del detalle (lo manda otra vez).
+      ctrl-turno    closeTurn          el corte Z.
+      ctrl-cierre   closeDay           el cierre del dia.
 
     Reglas que no se ven en el codigo de un vistazo:
       - El envio es el de alpha (core/helpers/_WhatsApp.php); el proveedor y su
@@ -18,9 +20,9 @@ require_once __DIR__ . '/../../../core/helpers/_WhatsApp.php';
       - Destinatarios: los de la empresa con branch_id NULL (todas) o de la
         sucursal, activos y con el aviso marcado. can_ask (F6) no es un aviso:
         deja a ese numero preguntarle al agente del dueño (mdl-whatsapp-dueno.php).
-      - El aviso de un pedido sale una sola vez por referencia («Pedido P123»).
-        Los cierres salen cada vez: un turno reabierto y vuelto a cerrar avisa
-        otra vez con las cifras nuevas.
+      - El aviso de un pedido sale una sola vez por referencia («Pedido P123»),
+        salvo el reenvío a mano del detalle. Los cierres salen cada vez: un turno
+        reabierto y vuelto a cerrar avisa otra vez con las cifras nuevas.
       - Todo es protected: Permission::dispatch ejecuta cualquier metodo publico
         del ctrl que llegue en `opc`, y los de un trait cuentan como suyos. */
 trait WhatsAppNotices {
@@ -32,7 +34,7 @@ trait WhatsAppNotices {
         return [
             'order' => [
                 'name' => 'Pedido nuevo',
-                'when' => 'Sale con el primer cobro de una cotización (el anticipo que la vuelve pedido). Una sola vez por pedido.',
+                'when' => 'Sale cuando se termina el pedido: con el primer cobro (el anticipo que vuelve pedido a la cotización) o al guardarlo Pendiente sin anticipo. Una sola vez por pedido; desde el detalle se puede enviar otra vez.',
                 'vars' => [
                     'folio' => 'Folio (P123)', 'sucursal' => 'Sucursal', 'capturo' => 'Quién lo capturó',
                     'fecha_larga' => 'Día de entrega', 'hora' => 'Hora de entrega', 'entrega' => 'Recoge o a domicilio',
@@ -198,8 +200,9 @@ trait WhatsAppNotices {
 
     // -- Disparadores --
 
-    // Pedido nuevo: el primer cobro de una cotizacion. Sale una vez por pedido.
-    protected function notifyOrder($saleId) {
+    // Pedido terminado (primer cobro o Pendiente sin anticipo). Sale una vez por pedido;
+    // $resend = el «Enviar por WhatsApp» del detalle: sale otra vez con los datos de hoy.
+    protected function notifyOrder($saleId, $resend = false) {
         try {
             $order = $this->qGetOrder($saleId, $this->branchId());
             if (!$order) return null;
@@ -241,7 +244,7 @@ trait WhatsAppNotices {
                 'estatus'     => $this->waStatusText((int) $order['sale_status_id'])
             ];
 
-            return $this->waSend('order', $vars, 'Pedido P' . (int) $order['id'], true);
+            return $this->waSend('order', $vars, 'Pedido P' . (int) $order['id'], !$resend);
         } catch (Throwable $e) {
             $this->writeToLog('[ WHATSAPP notifyOrder ] :: ' . $e->getMessage());
             return null;
@@ -501,12 +504,12 @@ trait WhatsAppNotices {
         return $rows;
     }
 
-    // -- Consultas (fayxzvov_pos) --
+    // -- Consultas (fayxzvov_crm; clientes y ventas siguen en fayxzvov_pos) --
 
     protected function qWaNotice($companyId, $type) {
         return $this->qRow("
             SELECT id, type, body, active, updated_at
-            FROM {$this->pos}wa_notice
+            FROM {$this->crm}wa_notice
             WHERE company_id = ? AND type = ?
             LIMIT 1
         ", [$companyId, $type]);
@@ -518,7 +521,7 @@ trait WhatsAppNotices {
 
         return $this->qRows("
             SELECT id, name, phone
-            FROM {$this->pos}wa_recipient
+            FROM {$this->crm}wa_recipient
             WHERE company_id = ?
                 AND (branch_id IS NULL OR branch_id = ?)
                 AND active = 1
@@ -531,7 +534,7 @@ trait WhatsAppNotices {
         return $this->qRows("
             SELECT r.id, r.name, r.phone, r.branch_id, IFNULL(b.name, '') AS branch,
                    r.notify_order, r.notify_turn, r.notify_day, IFNULL(r.can_ask, 0) AS can_ask, r.active, r.updated_at
-            FROM {$this->pos}wa_recipient r
+            FROM {$this->crm}wa_recipient r
             LEFT JOIN {$this->bd}branches b ON b.id = r.branch_id
             WHERE r.company_id = ?
             ORDER BY r.active DESC, r.name, r.id
@@ -541,7 +544,7 @@ trait WhatsAppNotices {
     protected function qWaRecipient($id, $companyId) {
         return $this->qRow("
             SELECT id, name, phone, branch_id, notify_order, notify_turn, notify_day, IFNULL(can_ask, 0) AS can_ask, active
-            FROM {$this->pos}wa_recipient
+            FROM {$this->crm}wa_recipient
             WHERE id = ? AND company_id = ?
             LIMIT 1
         ", [$id, $companyId]);
@@ -551,7 +554,7 @@ trait WhatsAppNotices {
     protected function qWaSentRef($companyId, $type, $reference) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}wa_log
+            FROM {$this->crm}wa_log
             WHERE company_id = ? AND type = ? AND reference = ?
                 AND status IN ('sent', 'simulated')
         ", [$companyId, $type, $reference]);
@@ -566,8 +569,8 @@ trait WhatsAppNotices {
             SELECT l.id, l.type, l.reference, l.phone, l.provider, l.status, IFNULL(l.error, '') AS error, l.created_at,
                    IFNULL(r.name, '') AS recipient, IFNULL(b.name, '') AS branch,
                    CONCAT_WS(' ', u.name, u.last_name) AS user
-            FROM {$this->pos}wa_log l
-            LEFT JOIN {$this->pos}wa_recipient r ON r.id = l.recipient_id
+            FROM {$this->crm}wa_log l
+            LEFT JOIN {$this->crm}wa_recipient r ON r.id = l.recipient_id
             LEFT JOIN {$this->bd}branches b      ON b.id = l.branch_id
             LEFT JOIN {$this->bd}users u         ON u.id = l.user_id
             WHERE l.company_id = ?
@@ -581,8 +584,8 @@ trait WhatsAppNotices {
         return $this->qRow("
             SELECT l.id, l.type, l.reference, l.phone, l.provider, l.status, IFNULL(l.error, '') AS error,
                    IFNULL(l.body, '') AS body, l.created_at, IFNULL(r.name, '') AS recipient
-            FROM {$this->pos}wa_log l
-            LEFT JOIN {$this->pos}wa_recipient r ON r.id = l.recipient_id
+            FROM {$this->crm}wa_log l
+            LEFT JOIN {$this->crm}wa_recipient r ON r.id = l.recipient_id
             WHERE l.id = ? AND l.company_id = ?
             LIMIT 1
         ", [$id, $companyId]);

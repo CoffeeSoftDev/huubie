@@ -54,6 +54,7 @@ main {
     margin: 5px 0 0;
 }
 
+
 /* -- Tarjeta -- */
 .ord-card {
     background: #fff;
@@ -164,10 +165,10 @@ button.ord-money {
 button.ord-money:hover { background: rgb(var(--brand-600, 192 90 64) / .08); }
 button.ord-money:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 1px; }
 
-/* -- Columna Entregado --
-   El badge es un .ord-pill, como los de Estado. El que se puede entregar es
-   botón (abre «Entregar pedido»). El fondo va en el .ord-pill de dentro: el
-   preflight de Tailwind pisa el de un [type=button].
+/* -- Columna Entrega --
+   El badge es un .ord-pill, como los de Pago, con una flecha: es botón y abre
+   el menú de estados (Orders.deliveryMenu). El fondo va en el .ord-pill de
+   dentro: el preflight de Tailwind pisa el de un [type=button].
    No es .ord-deliver: ese es el botón verde «Entregar» del detalle. */
 button.ord-deliv-btn {
     display: inline-flex;
@@ -179,6 +180,33 @@ button.ord-deliv-btn {
 
 button.ord-deliv-btn:hover { opacity: .8; }
 button.ord-deliv-btn:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 1px; }
+
+/* Menú de estados de entrega: el actual con palomita y el otro con su ventana.
+   Lleva la clase ct3-dropdown-menu para cerrarse con el clic afuera de la tabla. */
+ul.ord-deliv-menu { padding: 4px 0; border-color: rgb(var(--gray-200, 231 229 228)); background: #FFFFFF; color: rgb(var(--gray-800, 41 37 36)); }
+.ord-deliv-head { padding: 6px 14px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgb(var(--gray-400, 168 162 158)); }
+.ord-deliv-opt { display: flex; align-items: flex-start; gap: 8px; padding: 8px 14px; font-size: 13px; line-height: 1.35; text-align: left; }
+.ord-deliv-opt small { display: block; margin-top: 2px; font-size: 11px; font-weight: 400; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-deliv-opt.is-current { font-weight: 600; }
+.ord-deliv-opt.is-off { color: rgb(var(--gray-400, 168 162 158)); cursor: not-allowed; }
+a.ord-deliv-opt { cursor: pointer; }
+a.ord-deliv-opt:hover { background: rgb(var(--brand-600, 192 90 64) / .08); color: rgb(var(--brand-700, 168 74 51)); }
+.ord-deliv-dot { width: 8px; height: 8px; margin-top: 5px; border-radius: 999px; flex-shrink: 0; }
+.ord-deliv-dot.is-done { background: #10B981; }
+.ord-deliv-dot.is-wait { background: #EF4444; }
+.ord-deliv-opt.is-off .ord-deliv-dot { opacity: .5; }
+
+body.dark-mode ul.ord-deliv-menu { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-deliv-opt small,
+body.dark-mode .ord-deliv-head,
+body.dark-mode .ord-deliv-opt.is-off { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode a.ord-deliv-opt:hover { background: var(--dk-row, #283341); color: var(--dk-text, #F3F4F6); }
+
+/* Leyenda del punto verde del folio, entre «Mostrar N» y el buscador. lsOrders
+   la enciende (is-on) solo si alguna fila trae el punto. */
+#searchOrders .ord-dt-legend { display: none; align-items: center; gap: 6px; min-height: 32px; font-size: 12px; color: rgb(var(--gray-500, 120 113 108)); }
+#searchOrders .ord-dt-legend.is-on { display: inline-flex; }
+body.dark-mode #searchOrders .ord-dt-legend { color: var(--dk-muted, #9CA3AF); }
 
 /* "Mostrar N registros" y el buscador en una sola fila, uno junto al otro.
    El buscador vive fuera de #tableOrders (se reescribe en cada busqueda) y
@@ -461,7 +489,23 @@ body.dark-mode #cajaStrip button#btnOrderBack:focus-visible { box-shadow: 0 0 0 
     animation: ordVtagPulse 1.6s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) { #formOrderTicket .ord-wait .select2-selection__rendered::before { animation: none; } }
+/* Enfocado y sin cliente: en lugar del punto, el cursor de texto parpadeando; el campo espera que escriban (typeCustomer). */
+#formOrderTicket .ord-wait .select2-container--focus .select2-selection__rendered::before {
+    width: 1.5px;
+    height: 16px;
+    margin-right: 6px;
+    border-radius: 0;
+    background: currentColor;
+    vertical-align: -3px;
+    animation: ordCaret 1.06s steps(1) infinite;
+}
+
+@keyframes ordCaret { 50% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+    #formOrderTicket .ord-wait .select2-selection__rendered::before,
+    #formOrderTicket .ord-wait .select2-container--focus .select2-selection__rendered::before { animation: none; }
+}
 
 /* Mientras se guarda no se puede tocar ni el catalogo ni el ticket. */
 #posOrderHost.is-saving #posOrderBody { pointer-events: none; opacity: 0.6; }
@@ -1602,6 +1646,137 @@ body.dark-mode button.ord-cut-print { background: var(--dk-input, #111827); bord
 body.dark-mode kbd.ord-key { background: var(--dk-row, #283341); border-color: var(--dk-line, #374151); color: var(--dk-muted, #9CA3AF); }
 body.dark-mode .cs-modal-save kbd.ord-key { border-color: rgb(255 255 255 / .35); background: rgb(255 255 255 / .2); color: #FFFFFF; }
 
+/* -- Confirmación de «Cerrar turno» (OrderTurn.saveClose) --
+   Va dentro del alert(): la diferencia en grande con el color de diffTone y,
+   abajo, esperado, contado y cobrado con el importe a la derecha. */
+.ord-close-diff { margin: 4px 0 12px; padding: 12px 16px; border: 1px solid; border-radius: 12px; text-align: center; }
+.ord-close-diff > span { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; opacity: .85; }
+.ord-close-diff > b { display: block; margin-top: 2px; font-size: 22px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.ord-close-diff.is-ok { color: #047857; border-color: #A7F3D0; background: #ECFDF5; }
+.ord-close-diff.is-over { color: #B45309; border-color: #FDE68A; background: #FFFBEB; }
+.ord-close-diff.is-short { color: #DC2626; border-color: #FECACA; background: #FEF2F2; }
+.ord-close-diff.is-blind { color: rgb(var(--gray-600, 87 83 78)); border-color: rgb(var(--gray-200, 231 229 228)); background: rgb(var(--gray-50, 250 250 249)); }
+.ord-close-diff.is-blind > b { font-size: 16px; }
+
+.ord-close-rows { padding: 2px 14px; border: 1px solid rgb(var(--gray-200, 231 229 228)); border-radius: 12px; text-align: left; }
+.ord-close-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; font-size: 14px; color: rgb(var(--gray-600, 87 83 78)); }
+.ord-close-row + .ord-close-row { border-top: 1px solid rgb(var(--gray-100, 245 245 244)); }
+.ord-close-row > b { font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ord-close-note { margin: 12px 0 0; font-size: 12.5px; line-height: 1.45; }
+
+body.dark-mode .ord-close-rows,
+body.dark-mode .ord-close-row + .ord-close-row { border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-close-row { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-close-row > b { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-close-diff.is-ok { color: #6EE7B7; background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); }
+body.dark-mode .ord-close-diff.is-over { color: #FCD34D; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
+body.dark-mode .ord-close-diff.is-short { color: #FCA5A5; background: rgba(220, 38, 38, 0.14); border-color: rgba(220, 38, 38, 0.4); }
+body.dark-mode .ord-close-diff.is-blind { color: var(--dk-text-soft, #D1D5DB); background: var(--dk-row, #283341); border-color: var(--dk-line, #374151); }
+
+/* -- Cierre de turno: módulo de alpha (OrderTurn.desk) --
+   Panel a la izquierda (sucursal, fecha, turno, contado y botones) y el
+   ticket a la derecha sobre el mismo fondo que el visor de Cortes, con
+   Resumido | Detallado arriba (como el #ticketModeBar de alpha).
+   compact.css pisa alto, relleno y letra de inputs y selects con !important. */
+.ord-desk { display: flex; gap: 16px; padding: 20px 24px 8px; }
+.ord-desk-side { display: flex; flex-direction: column; gap: 12px; width: 252px; flex-shrink: 0; }
+.ord-desk-side > div:empty { display: none; }   /* sin días pendientes o sin contado: no deja hueco doble */
+.ord-desk-view { display: flex; flex-direction: column; flex: 1; min-width: 0; border-radius: 12px; overflow: hidden; background: rgb(var(--gray-100, 245 245 244)); }
+.ord-desk-modes { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px 0; }
+.ord-desk-modes > span { font-size: 12px; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-desk-modes .ord-viewer-modes { width: 200px; flex-shrink: 0; }
+.ord-desk-modes button.ord-seg { height: 32px; font-size: 13px; }
+.ord-desk-view .ord-desk-paper { min-width: 0; max-height: 60vh; min-height: 360px; padding-top: 16px; background: transparent; }   /* gana a .ord-viewer-desk, que va más abajo */
+
+.ord-desk-field { margin: 0; }
+.ord-desk-field > span,
+.ord-desk-field > label { display: block; margin: 0 0 4px !important; font-size: 11px !important; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgb(var(--gray-500, 120 113 108)) !important; }
+.ord-desk-field > b { display: block; padding: 8px 12px; border: 1px solid rgb(var(--gray-300, 214 211 209)); border-radius: 8px; background: rgb(var(--gray-50, 250 250 249)); font-size: 14px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ord-desk-pick { position: relative; }
+.ord-desk-pick > i,
+.ord-desk-pick > svg { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); color: rgb(var(--gray-400, 168 162 158)); pointer-events: none; }
+
+.ord-desk-pick input,
+select.ord-desk-select {
+    width: 100%;
+    height: 38px !important;
+    padding: 0 12px !important;
+    border: 1px solid rgb(var(--gray-300, 214 211 209)) !important;
+    border-radius: 8px !important;
+    background-color: #FFFFFF;
+    color: rgb(var(--gray-800, 41 37 36));
+    font-size: 14px !important;
+    outline: none;
+    cursor: pointer;
+}
+
+.ord-desk-pick input { padding-right: 34px !important; }
+.ord-desk-pick input:focus,
+select.ord-desk-select:focus { border-color: rgb(var(--brand-600, 192 90 64)) !important; box-shadow: 0 0 0 3px rgb(var(--brand-600, 192 90 64) / .15); }
+
+.ord-desk-count { padding: 4px 10px; border: 1px solid rgb(var(--gray-200, 231 229 228)); border-radius: 10px; }
+.ord-desk-warn { margin: 0 0 8px; padding: 8px 10px; border: 1px solid #FDE68A; border-radius: 8px; background: #FFFBEB; color: #92400E; font-size: 12px; font-weight: 600; line-height: 1.4; }
+
+.ord-desk-alert { padding: 8px; border: 1px solid #FDE68A; border-radius: 10px; background: #FFFBEB; }
+.ord-desk-alert > p { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #B45309; }
+
+button.ord-desk-go { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; color: #92400E; font-size: 13px; font-weight: 600; }
+button.ord-desk-go + button.ord-desk-go { margin-top: 2px; }
+button.ord-desk-go:hover,
+button.ord-desk-go.is-active { background: rgba(245, 158, 11, 0.16); }
+
+.ord-desk-btns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+
+button.ord-desk-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+button.ord-desk-btn.is-close { background: rgb(var(--brand-600, 192 90 64)); }
+button.ord-desk-btn.is-close:hover { background: rgb(var(--brand-700, 168 74 51)); }
+button.ord-desk-btn.is-print { border-color: rgb(var(--gray-300, 214 211 209)); background: #FFFFFF; color: rgb(var(--gray-700, 68 64 60)); }
+button.ord-desk-btn.is-print:hover { border-color: rgb(var(--brand-600, 192 90 64)); color: rgb(var(--brand-700, 168 74 51)); }
+button.ord-desk-btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: auto; }
+button.ord-desk-btn:disabled:hover { filter: none; }
+button.ord-desk-btn.is-close:disabled:hover { background: rgb(var(--brand-600, 192 90 64)); }
+button.ord-desk-btn.is-print:disabled:hover { border-color: rgb(var(--gray-300, 214 211 209)); color: rgb(var(--gray-700, 68 64 60)); }
+
+@media (max-width: 767px) {
+    .ord-desk { flex-direction: column; padding: 16px; }
+    .ord-desk-side { width: auto; }
+    .ord-desk-btns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    button.ord-desk-btn { padding: 0 8px; font-size: 13px; }
+    .ord-desk-modes > span { display: none; }
+    .ord-desk-modes .ord-viewer-modes { width: 100%; }
+    .ord-desk-view .ord-desk-paper { max-height: none; min-height: 0; }
+}
+
+body.dark-mode .ord-desk-view { background: var(--dk-input, #111827); }
+body.dark-mode .ord-desk-modes > span { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-desk-field > b,
+body.dark-mode .ord-desk-pick input,
+body.dark-mode select.ord-desk-select { background-color: var(--dk-input, #111827); border-color: var(--dk-line, #374151) !important; color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-desk-field > span,
+body.dark-mode .ord-desk-field > label { color: var(--dk-muted, #9CA3AF) !important; }
+body.dark-mode .ord-desk-count { border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-desk-warn,
+body.dark-mode .ord-desk-alert { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #FCD34D; }
+body.dark-mode .ord-desk-alert > p,
+body.dark-mode button.ord-desk-go { color: #FCD34D; }
+body.dark-mode button.ord-desk-btn.is-print { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+
 /* -- Acciones del detalle, en el pie del modal: cobrar, entregar, elaborar, editar, imprimir --
    Izquierda, lo que corrige o imprime; derecha, «Cerrar» y el avance del pedido.
    El aviso (cs-modal-info) ocupa su propio renglón para no apretar los botones. */
@@ -1642,6 +1817,12 @@ button.ord-act { border: 1px solid rgb(var(--gray-300, 214 211 209)); background
 button.ord-undeliver:hover,
 button.ord-edit-delivery:hover,
 button.ord-act:hover { background: rgb(var(--gray-100, 245 245 244)); }
+
+/* Enviar por WhatsApp (detalle): el mismo molde, en verde como el «Reenviar» de alpha. */
+button.ord-act.ord-wa { border-color: #A7F3D0; background: #ECFDF5; color: #047857; }
+button.ord-act.ord-wa:hover { background: #D1FAE5; }
+button.ord-act.ord-wa:disabled { opacity: .6; cursor: wait; }
+body.dark-mode button.ord-act.ord-wa { border-color: rgb(16 185 129 / .35); background: rgb(16 185 129 / .12); color: #6EE7B7; }
 
 /* Cancelar venta (Historial, V2): el mismo molde, en rojo. */
 button.ord-sale-cancel { border: 1px solid #FECACA; background: #FEF2F2; color: #B91C1C; }
@@ -1705,8 +1886,10 @@ body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
     --fc-button-text-color: rgb(var(--gray-700, 68 64 60));
     --fc-button-hover-bg-color: rgb(var(--gray-100, 245 245 244));
     --fc-button-hover-border-color: rgb(var(--gray-300, 214 211 209));
-    --fc-button-active-bg-color: rgb(var(--brand-600, 192 90 64));
-    --fc-button-active-border-color: rgb(var(--brand-600, 192 90 64));
+    /* Vista elegida (Mes, Semana, Día) como el item abierto del rail (sidebar.js):
+       tinte suave del acento con la letra en el acento. En oscuro sigue sólido. */
+    --fc-button-active-bg-color: rgb(var(--brand-600, 80 48 165) / .10);
+    --fc-button-active-border-color: rgb(var(--brand-600, 80 48 165) / .12);
     transition: opacity .15s ease;
 }
 
@@ -1733,7 +1916,7 @@ body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
 .ord-cal.fc .fc-button-primary:hover { color: rgb(var(--gray-900, 28 25 23)); }
 .ord-cal.fc .fc-button-primary:disabled { opacity: .5; }
 .ord-cal.fc .fc-button-primary:not(:disabled).fc-button-active,
-.ord-cal.fc .fc-button-primary:not(:disabled):active { color: #FFFFFF; }
+.ord-cal.fc .fc-button-primary:not(:disabled):active { color: rgb(var(--brand-600, 80 48 165)); }
 
 .ord-cal .fc-col-header-cell-cushion {
     padding: 8px 4px;
@@ -1770,13 +1953,16 @@ body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
 .ord-cal .ord-cal-event.is-dim { opacity: .3; }
 .ord-cal .ord-cal-event.is-match .ord-cal-ev { box-shadow: inset 0 0 0 2px #FFFFFF, 0 0 0 2px rgb(var(--brand-600, 192 90 64)); }
 
-/* Color sólido del estado, igual en claro y en oscuro; todo el texto va en blanco. */
+/* Contraste bajo: casi blanca del color del estado (tone() del calendario), con
+   un filo suave y la letra en su tono. En página oscura va el color sólido de
+   Huubie: ver «Calendario oscuro». */
 .ord-cal-ev {
     position: relative;
     padding: 4px 24px 5px 8px;
     border-radius: 6px;
-    background: var(--ev, #78716C);
-    color: #FFFFFF;
+    background: var(--ev-pastel, #F9FAFB);
+    color: var(--ev-ink, #374151);
+    box-shadow: inset 0 0 0 1px var(--ev-stripe, #E5E7EB);
     font-size: 11.5px;
     line-height: 1.3;
     white-space: normal;
@@ -1788,6 +1974,8 @@ body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
 .ord-cal-card.is-produced { opacity: .6; }
 
 .ord-cal-ev-top { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; }
+/* «9:30a»: solo para la rejilla del celular (ver el @media de abajo); en escritorio repetía la hora. */
+.ord-cal-ev-short { display: none; }
 .ord-cal-folio { font-weight: 500; }
 .ord-cal-ev-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -1798,7 +1986,7 @@ body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
 .ord-cal-card-branch span { overflow: hidden; text-overflow: ellipsis; }
 .ord-cal-ev-branch svg,
 .ord-cal-card-branch svg { width: 11px; height: 11px; flex-shrink: 0; }
-.ord-cal-card-branch { margin-top: 2px; font-size: 11px; color: var(--ev, #78716C); }
+.ord-cal-card-branch { margin-top: 2px; font-size: 11px; color: var(--ev-ink, #1F2937); }
 .ord-cal-ev-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 1px; font-size: 10.5px; }
 .ord-cal-ev-meta svg { width: 12px; height: 12px; flex-shrink: 0; }
 
@@ -1815,11 +2003,13 @@ body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
 
 .ord-cal-tag.is-done   { background: #D1FAE5; color: #047857; }
 .ord-cal-tag.is-debt   { background: #FEE2E2; color: #B91C1C; }
-.ord-cal-tag.is-status { background: var(--ev, #78716C); color: #FFFFFF; }
+.ord-cal-tag.is-status { background: var(--ev-stripe, #E5E7EB); color: var(--ev-ink, #374151); }
 
-/* Sobre el color sólido la etiqueta es blanca, para que no se pierda. */
-.ord-cal-ev .ord-cal-tag.is-done { background: #FFFFFF; color: #047857; }
-.ord-cal-ev .ord-cal-tag.is-debt { background: #FFFFFF; color: #B91C1C; }
+/* Sobre el color de la tarjeta la etiqueta es blanca, para que no se pierda. */
+.ord-cal-ev .ord-cal-tag.is-done,
+.ord-cal-card .ord-cal-tag.is-done { background: #FFFFFF; color: #047857; }
+.ord-cal-ev .ord-cal-tag.is-debt,
+.ord-cal-card .ord-cal-tag.is-debt { background: #FFFFFF; color: #B91C1C; }
 
 /* Casilla «ya se elaboró»: boton para Produccion, marca fija para los demas. */
 .ord-cal-check {
@@ -1847,28 +2037,31 @@ button.ord-cal-check.is-on { border-color: #FFFFFF; background: #059669; color: 
 button.ord-cal-check.is-on:hover { background: #047857; color: #FFFFFF; }
 .ord-cal-check.is-static { cursor: default; }
 
-/* Leyenda: cada estado se apaga o se enciende. */
+/* Leyenda: cada estado se apaga o se enciende. Encendido va como el item
+   abierto del rail (sidebar.js): tinte suave del color del estado (--ev-ink de
+   tone()) con la letra en ese color. Apagado, blanco y tachado. */
 button.ord-cal-legend {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     min-height: 30px;
     padding: 0 6px 0 10px;
-    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border: 1px solid color-mix(in srgb, var(--ev-ink, #374151) 12%, transparent);
     border-radius: 999px;
-    background: #FFFFFF;
-    color: rgb(var(--gray-700, 68 64 60));
+    background: color-mix(in srgb, var(--ev-ink, #374151) 10%, transparent);
+    color: var(--ev-ink, #374151);
     font-size: 12.5px;
     font-weight: 600;
     white-space: nowrap;
 }
 
-button.ord-cal-legend:hover { border-color: var(--ev, rgb(var(--gray-400, 168 162 158))); }
-button.ord-cal-legend b { min-width: 22px; padding: 1px 6px; border-radius: 999px; background: rgb(var(--gray-100, 245 245 244)); color: rgb(var(--gray-600, 87 83 78)); font-size: 11px; text-align: center; }
-button.ord-cal-legend.is-off { color: rgb(var(--gray-400, 168 162 158)); text-decoration: line-through; }
-button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ev, rgb(var(--gray-500, 120 113 108))); }
+button.ord-cal-legend:hover { border-color: color-mix(in srgb, var(--ev-ink, #374151) 35%, transparent); }
+button.ord-cal-legend b { min-width: 22px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--ev-ink, #374151) 14%, transparent); color: var(--ev-ink, #374151); font-size: 11px; text-align: center; }
+button.ord-cal-legend.is-off { border-color: rgb(var(--gray-200, 231 229 228)); background: #FFFFFF; color: rgb(var(--gray-400, 168 162 158)); text-decoration: line-through; }
+button.ord-cal-legend.is-off b { background: rgb(var(--gray-100, 245 245 244)); color: rgb(var(--gray-500, 120 113 108)); }
+button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ev-ink, rgb(var(--gray-500, 120 113 108))); }
 
-.ord-cal-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ev, rgb(var(--gray-500, 120 113 108))); flex-shrink: 0; }
+.ord-cal-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ev-ink, rgb(var(--gray-500, 120 113 108))); flex-shrink: 0; }
 .ord-cal-total { font-size: 12.5px; color: rgb(var(--gray-500, 120 113 108)); text-align: right; }
 
 /* Filtros y píldoras en la misma fila: los filtros a la izquierda, las píldoras a la derecha.
@@ -1899,9 +2092,9 @@ button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow:
 .ord-cal-card {
     display: flex;
     flex-direction: column;
-    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border: 1px solid var(--ev-stripe, #D1D5DB);
     border-radius: 12px;
-    background: #FFFFFF;
+    background: var(--ev-pastel, #F3F4F6);
     overflow: hidden;
     cursor: pointer;
     transition: box-shadow .15s ease, transform .1s ease;
@@ -1920,14 +2113,14 @@ button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow:
     justify-content: center;
     height: 96px;
     flex-shrink: 0;
-    background: var(--ev, #78716C);
-    color: #FFFFFF;
+    background: color-mix(in srgb, var(--ev-stripe, #E5E7EB) 65%, #FFFFFF);
+    color: var(--ev-ink, #374151);
     overflow: hidden;
 }
 
 .ord-cal-photo > svg { width: 26px; height: 26px; }
-/* El pastel que sale cuando la foto no carga (orderImageError) llega en lila: aquí va en blanco. */
-.ord-cal-photo > div { color: #FFFFFF; }
+/* El pastel que sale cuando la foto no carga (orderImageError) llega en lila: aquí va en la tinta del estado. */
+.ord-cal-photo > div { color: var(--ev-ink, #1F2937); }
 .ord-cal-photo .ord-cal-check { top: 8px; right: 8px; width: 28px; height: 28px; }
 .ord-cal-photo .ord-cal-check svg { width: 16px; height: 16px; }
 
@@ -1942,12 +2135,12 @@ button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow:
     font-size: 12.5px;
     font-weight: 600;
     line-height: 1.3;
-    color: rgb(var(--gray-900, 28 25 23));
+    color: var(--ev-ink, #1F2937);
 }
-.ord-cal-card-sub { margin: 0; font-size: 11.5px; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-cal-card-sub { margin: 0; font-size: 11.5px; color: color-mix(in srgb, var(--ev-ink, #1F2937) 70%, #FFFFFF); }
 .ord-cal-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .ord-cal-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; }
-.ord-cal-card-foot b { font-size: 14px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); white-space: nowrap; }
+.ord-cal-card-foot b { font-size: 14px; font-weight: 700; color: var(--ev-ink, #1F2937); white-space: nowrap; }
 .ord-cal-card-foot .ord-cal-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 639px) {
@@ -1974,6 +2167,22 @@ button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow:
     .ord-cal .fc-daygrid-day-events .ord-cal-check { display: none; }
 }
 
+/* -- Calendario claro: letra --
+   Lexend pesa más que otras fuentes al mismo número (ver page.css): en claro
+   los pesos bajan un escalón y el texto va en gris; el color del estado queda
+   en el fondo, el filo, la hora y la píldora. El oscuro conserva su negrita. */
+body:not(.dark-mode) .ord-cal-ev { color: #4B5563; }
+body:not(.dark-mode) .ord-cal-ev-top { font-weight: 600; color: var(--ev-ink, #374151); }
+body:not(.dark-mode) .ord-cal-folio { font-weight: 400; color: #6B7280; }
+body:not(.dark-mode) .ord-cal-ev-name { font-weight: 500; color: #111827; }
+body:not(.dark-mode) .ord-cal-ev-branch,
+body:not(.dark-mode) .ord-cal-card-branch { font-weight: 400; color: #4B5563; }
+body:not(.dark-mode) .ord-cal-tag { font-weight: 500; }
+
+body:not(.dark-mode) .ord-cal-card-name { font-weight: 500; color: #111827; }
+body:not(.dark-mode) .ord-cal-card-sub { color: #6B7280; }
+body:not(.dark-mode) .ord-cal-card-foot b { font-weight: 600; color: var(--ev-ink, #374151); }
+
 /* -- Calendario oscuro -- */
 body.dark-mode .ord-cal {
     --fc-border-color: var(--dk-line, #374151);
@@ -1985,34 +2194,51 @@ body.dark-mode .ord-cal {
     --fc-button-text-color: var(--dk-text-soft, #D1D5DB);
     --fc-button-hover-bg-color: var(--dk-row, #283341);
     --fc-button-hover-border-color: var(--dk-line, #374151);
+    --fc-button-active-bg-color: rgb(var(--brand-600, 80 48 165));
+    --fc-button-active-border-color: rgb(var(--brand-600, 80 48 165));
 }
 
 body.dark-mode .ord-cal.fc .fc-toolbar-title { color: var(--dk-text, #F3F4F6); }
 body.dark-mode .ord-cal.fc .fc-button-primary:hover { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-cal.fc .fc-button-primary:not(:disabled).fc-button-active,
+body.dark-mode .ord-cal.fc .fc-button-primary:not(:disabled):active { color: #FFFFFF; }
 body.dark-mode .ord-cal .fc-col-header-cell-cushion,
 body.dark-mode .ord-cal .fc-daygrid-day-number { color: var(--dk-muted, #9CA3AF); }
 body.dark-mode .ord-cal .fc-day-today .fc-daygrid-day-number { color: #FFFFFF; }
 body.dark-mode .ord-cal .fc-popover { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
 body.dark-mode .ord-cal .fc-popover-header { background: var(--dk-row, #283341); color: var(--dk-text, #F3F4F6); }
 
-/* Lo que va sobre el color sólido (tarjeta del Mes, franja, casilla) no cambia en oscuro. */
-body.dark-mode .ord-cal-card-branch { color: color-mix(in srgb, var(--ev, #78716C) 55%, #FFFFFF); }
+/* Al revés que en claro: el color de Huubie (--ev-hb, el mismo del calendario
+   de alpha) sólido, con la letra en blanco. tone() pone las variables. */
+body.dark-mode .ord-cal-ev { background: var(--ev-hb, #6B7280); color: #FFFFFF; box-shadow: none; }
 
-body.dark-mode .ord-cal-card .ord-cal-tag.is-done { background: rgba(16, 185, 129, 0.16); color: #6EE7B7; }
-body.dark-mode .ord-cal-card .ord-cal-tag.is-debt { background: rgba(220, 38, 38, 0.18); color: #FCA5A5; }
+/* Semana y Día: tarjeta oscura con un poco del color y borde del mismo; la
+   franja de arriba y la píldora del estado en el color sólido. */
+body.dark-mode .ord-cal-card {
+    background: color-mix(in srgb, var(--ev-hb, #6B7280) 22%, var(--dk-card, #1F2A37));
+    border-color: color-mix(in srgb, var(--ev-hb, #6B7280) 50%, transparent);
+}
+
+body.dark-mode .ord-cal-photo,
+body.dark-mode .ord-cal-tag.is-status { background: var(--ev-hb, #6B7280); color: #FFFFFF; }
+body.dark-mode .ord-cal-photo > div { color: #FFFFFF; }
+body.dark-mode .ord-cal-card-name,
+body.dark-mode .ord-cal-card-branch,
+body.dark-mode .ord-cal-card-foot b { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-cal-card-sub { color: var(--dk-muted, #9CA3AF); }
+
+body.dark-mode .ord-cal-dot { background: var(--ev-hb, #6B7280); }
+body.dark-mode button.ord-cal-legend:hover { border-color: var(--ev-hb, #6B7280); }
+body.dark-mode button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ev-hb, #6B7280); }
 
 body.dark-mode button.ord-cal-legend { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
 body.dark-mode button.ord-cal-legend b { background: var(--dk-row, #283341); color: var(--dk-text-soft, #D1D5DB); }
 body.dark-mode button.ord-cal-legend.is-off,
 body.dark-mode .ord-cal-total,
 body.dark-mode .ord-cal-hint,
-body.dark-mode .ord-cal-empty,
-body.dark-mode .ord-cal-card-sub { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-cal-empty { color: var(--dk-muted, #9CA3AF); }
 
-body.dark-mode .ord-cal-hour-title,
-body.dark-mode .ord-cal-card-name,
-body.dark-mode .ord-cal-card-foot b { color: var(--dk-text, #F3F4F6); }
-body.dark-mode .ord-cal-card { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-cal-hour-title { color: var(--dk-text, #F3F4F6); }
 
 body.dark-mode button.ord-produce { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.14); color: #C4B5FD; }
 body.dark-mode button.ord-produce.is-on,
@@ -2195,6 +2421,8 @@ button.ord-vitem.is-active { border-color: rgb(var(--brand-600, 192 90 64) / .45
 .ord-ticket hr { margin: 8px 0; border: 0; border-top: 1px dashed #000000; opacity: 1; }
 .ord-ticket table { width: 100%; border-collapse: collapse; }
 .ord-ticket td { padding: 2px 0 !important; font-size: 12px !important; vertical-align: top; border: 0; }
+
+/* El ticket del corte de turno (formato de alpha) trae sus estilos: ORD_SHIFT_CSS en pedido-turno.js. */
 
 @media (max-width: 1023px) {
     .ord-viewer { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 0; }
@@ -2641,8 +2869,10 @@ body.dark-mode #saleTabList .sale-tab-x:hover { background: rgba(220, 38, 38, 0.
    Carril gris de 34 px con la pestaña activa en blanco, y «+ Ticket» del mismo
    alto con filo de marca para que se lea como acción y no como otra pestaña.
    tabLayout trae px-4 / py-2 / bg-white de Bootstrap con !important: se pisan
-   con #id + !important. A 320 px caben dos tickets sin scroll. */
-#saleTabsHost #saleTabList {
+   con #id + !important. A 320 px caben dos tickets sin scroll.
+   El botón Pedidos | Calendario (#viewTabsOrders) usa el mismo carril. */
+#saleTabsHost #saleTabList,
+#viewsOrders #viewTabsOrders {
     vertical-align: top;
     align-items: center;
     gap: 2px !important;
@@ -2652,7 +2882,8 @@ body.dark-mode #saleTabList .sale-tab-x:hover { background: rgba(220, 38, 38, 0.
     box-shadow: inset 0 0 0 1px rgb(var(--gray-200, 236 234 244));
 }
 
-#saleTabsHost #saleTabList > button {
+#saleTabsHost #saleTabList > button,
+#viewsOrders #viewTabsOrders > button {
     display: inline-flex;
     align-items: center;
     height: 28px;
@@ -2661,13 +2892,15 @@ body.dark-mode #saleTabList .sale-tab-x:hover { background: rgba(220, 38, 38, 0.
     color: rgb(var(--gray-500, 117 114 138)) !important;
 }
 
-#saleTabsHost #saleTabList > button[data-state="active"] {
+#saleTabsHost #saleTabList > button[data-state="active"],
+#viewsOrders #viewTabsOrders > button[data-state="active"] {
     background: var(--surface, #FFFFFF) !important;
     color: rgb(var(--gray-900, 29 27 49)) !important;
     box-shadow: 0 1px 2px rgb(29 27 49 / .08), 0 0 0 1px rgb(var(--gray-200, 236 234 244));
 }
 
-#saleTabsHost #saleTabList > button[data-state="inactive"]:hover { background: rgb(var(--gray-200, 236 234 244)) !important; }
+#saleTabsHost #saleTabList > button[data-state="inactive"]:hover,
+#viewsOrders #viewTabsOrders > button[data-state="inactive"]:hover { background: rgb(var(--gray-200, 236 234 244)) !important; }
 #saleTabsHost #saleTabList .sale-tab-count { font-variant-numeric: tabular-nums; }
 #saleTabsHost #saleTabList > button[data-state="active"] .sale-tab-count { background: rgb(var(--brand-600, 192 90 64) / .1); color: rgb(var(--brand-600, 192 90 64)); }
 
@@ -2685,13 +2918,174 @@ body.dark-mode #saleTabList .sale-tab-x:hover { background: rgba(220, 38, 38, 0.
 
 #saleTabsHost button#btnSaleTabAdd:hover { border-color: rgb(var(--brand-600, 192 90 64) / .6) !important; background: rgb(var(--brand-600, 192 90 64) / .06) !important; }
 
-body.dark-mode #saleTabsHost #saleTabList { background: var(--dk-sunken, #1a2332) !important; box-shadow: inset 0 0 0 1px var(--dk-line, #374151); }
-body.dark-mode #saleTabsHost #saleTabList > button { color: var(--dk-muted, #9CA3AF) !important; }
-body.dark-mode #saleTabsHost #saleTabList > button[data-state="active"] { background: var(--dk-card, #1F2A37) !important; color: var(--dk-text, #f5f5f5) !important; box-shadow: 0 0 0 1px var(--dk-line, #374151); }
-body.dark-mode #saleTabsHost #saleTabList > button[data-state="inactive"]:hover { background: rgb(255 255 255 / .05) !important; }
+body.dark-mode #saleTabsHost #saleTabList,
+body.dark-mode #viewsOrders #viewTabsOrders { background: var(--dk-sunken, #1a2332) !important; box-shadow: inset 0 0 0 1px var(--dk-line, #374151); }
+body.dark-mode #saleTabsHost #saleTabList > button,
+body.dark-mode #viewsOrders #viewTabsOrders > button { color: var(--dk-muted, #9CA3AF) !important; }
+body.dark-mode #saleTabsHost #saleTabList > button[data-state="active"],
+body.dark-mode #viewsOrders #viewTabsOrders > button[data-state="active"] { background: var(--dk-card, #1F2A37) !important; color: var(--dk-text, #f5f5f5) !important; box-shadow: 0 0 0 1px var(--dk-line, #374151); }
+body.dark-mode #saleTabsHost #saleTabList > button[data-state="inactive"]:hover,
+body.dark-mode #viewsOrders #viewTabsOrders > button[data-state="inactive"]:hover { background: rgb(255 255 255 / .05) !important; }
 body.dark-mode #saleTabsHost #saleTabList > button[data-state="active"] .sale-tab-count { background: rgb(var(--brand-600, 192 90 64) / .22); color: rgb(var(--brand-200, 243 199 186)); }
 body.dark-mode #saleTabsHost button#btnSaleTabAdd { border-color: rgb(var(--brand-600, 192 90 64) / .45) !important; background: transparent !important; color: rgb(var(--brand-400, 217 130 106)) !important; }
 body.dark-mode #saleTabsHost button#btnSaleTabAdd:hover { background: rgb(var(--brand-600, 192 90 64) / .16) !important; }
+
+/* -- Pedidos | Calendario --
+   El tabLayout de CoffeeSoft a la derecha del encabezado (pedidos.js › viewButtons)
+   con el carril de las pestañas de tickets (arriba). Va después de ellas para
+   ganarles: relleno parejo (no lleva la ×) y el ícono gris o de la marca según
+   data-state, no según las clases que mueve el componente.
+   En celular el carril toma el ancho y los dos botones miden lo mismo. */
+.ord-views:empty { display: none; }
+
+#viewsOrders #viewTabsOrders > button { justify-content: center; padding: 0 12px !important; }
+#viewsOrders #viewTabsOrders > button svg { width: 15px; height: 15px; margin-right: 6px !important; color: currentColor !important; }
+#viewsOrders #viewTabsOrders > button[data-state="active"] svg { color: rgb(var(--brand-600, 192 90 64)) !important; }
+body.dark-mode #viewsOrders #viewTabsOrders > button[data-state="active"] svg { color: rgb(var(--brand-300, 232 166 143)) !important; }
+
+@media (max-width: 640px) {
+    .ord-views { width: 100%; }
+    #viewsOrders #viewTabsOrders { display: flex; width: 100%; }
+    #viewsOrders #viewTabsOrders > button { flex: 1; }
+}
+
+/* -- Tablero de Pedidos (components/order-board.js) --
+   Una columna por estado (Cotización, Pendiente, Pagado, Cancelado) con los
+   colores de la lista y del calendario en tono suave: cada columna trae --c,
+   --soft (encabezado), --body (fondo) e --ink-s (texto). Forma de columnas y
+   tarjetas: el pipeline de Vambe. Maqueta aprobada: templates/embudo-propuesta.html. */
+.ord-board-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
+.ord-board-filters { flex: 1 1 480px; max-width: 600px; min-width: 0; }
+.ord-board-hint { display: flex; align-items: center; gap: 4px; margin: 0 0 8px auto; font-size: 12px; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-board-hint svg { width: 14px; height: 14px; }
+
+.ord-board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; transition: opacity .15s ease; scrollbar-width: thin; scrollbar-color: #C7CCD9 transparent; }
+.ord-board.is-loading { opacity: .55; }
+.ord-board::-webkit-scrollbar { height: 8px; }
+.ord-board::-webkit-scrollbar-thumb { background: #C7CCD9; border-radius: 999px; }
+
+.ord-board-col { display: flex; flex-direction: column; flex: 1 0 264px; min-height: 520px; border-radius: 12px; background: var(--body); border: 1px solid color-mix(in srgb, var(--c) 10%, #FFFFFF); overflow: hidden; transition: box-shadow .15s ease, opacity .15s ease; }
+
+.ord-board-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--soft); }
+.ord-board-head-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: rgb(255 255 255 / .75); color: var(--ink-s); }
+.ord-board-head-icon svg { width: 16px; height: 16px; }
+.ord-board-head-text { flex: 1; min-width: 0; }
+.ord-board-head-name { margin: 0; font-size: 13.5px; font-weight: 700; line-height: 1.2; color: var(--ink-s); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ord-board-head-count { display: flex; align-items: center; gap: 4px; margin: 1px 0 0; font-size: 11.5px; color: color-mix(in srgb, var(--ink-s) 70%, #6B7280); }
+.ord-board-head-count b { display: inline-block; font-weight: 700; }
+.ord-board-head-count b.is-bump { animation: ordBoardBump .45s ease; }
+.ord-board-info { display: inline-flex; cursor: help; }
+.ord-board-info svg { width: 12px; height: 12px; }
+
+.ord-board-body { display: flex; flex-direction: column; gap: 8px; flex: 1; padding: 10px; }
+.ord-board-empty { margin: 8px 0 0; font-size: 12px; text-align: center; color: rgb(var(--gray-400, 168 162 158)); }
+
+/* Tarjeta chica: nombre, folio y producto, etiquetas, hora y el siguiente paso. */
+.ord-board-card { position: relative; display: flex; flex-direction: column; gap: 5px; padding: 9px 11px 8px; border-radius: 9px; background: #FFFFFF; border: 1px solid #E6E8EF; box-shadow: 0 1px 2px rgba(17, 24, 39, .04); cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
+.ord-board-card:hover { border-color: color-mix(in srgb, var(--c) 40%, #FFFFFF); box-shadow: 0 4px 12px rgba(17, 24, 39, .07); }
+.ord-board-card:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
+.ord-board-card[draggable="true"] { cursor: grab; }
+.ord-board-card.is-dragging { opacity: .4; }
+
+.ord-board-grip { position: absolute; top: 8px; right: 6px; display: flex; color: #C4C8D4; }
+.ord-board-grip svg { width: 14px; height: 14px; }
+.ord-board-card:hover .ord-board-grip { color: rgb(var(--gray-500, 120 113 108)); }
+
+.ord-board-name { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0; padding-right: 16px; font-size: 13px; font-weight: 600; color: #1F2937; }
+.ord-board-kind { display: flex; flex-shrink: 0; color: var(--ink-s); }
+.ord-board-kind svg { width: 14px; height: 14px; }
+.ord-board-who { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ord-board-dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 999px; }
+.ord-board-dot.is-late { background: #EF4444; }
+.ord-board-dot.is-today { background: #F59E0B; }
+
+.ord-board-text { margin: 0; font-size: 12px; color: #4B5563; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ord-board-folio { font-size: 11px; font-weight: 600; color: #6B7280; }
+
+.ord-board-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.ord-board-tag { display: inline-flex; align-items: center; gap: 3px; max-width: 100%; padding: 1px 7px; border-radius: 999px; border: 1px solid #E6E8EF; background: #F8F9FB; color: #4B5563; font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.ord-board-tag svg { width: 11px; height: 11px; flex-shrink: 0; }
+/* Las de hoy: «Debe» y «Entregado» del calendario, «Sin entregar» de la lista. */
+.ord-board-tag.is-debt { border-color: #FECACA; background: #FEE2E2; color: #B91C1C; }
+.ord-board-tag.is-done { border-color: #A7F3D0; background: #D1FAE5; color: #047857; }
+.ord-board-tag.is-out  { border-color: #FECACA; background: #FEF2F2; color: #B91C1C; }
+.ord-board-tag.is-made { background: #FFFFFF; color: #374151; }
+.ord-board-tag.is-made svg { color: #047857; }
+
+.ord-board-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 22px; }
+.ord-board-when { min-width: 0; font-size: 11px; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ord-board-when.is-today { color: #B45309; font-weight: 600; }
+.ord-board-when.is-late { color: #DC2626; font-weight: 600; }
+
+button.ord-board-go { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; height: 22px; padding: 0 4px 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-s); font-size: 11.5px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: background-color .15s ease; }
+button.ord-board-go svg { width: 14px; height: 14px; }
+button.ord-board-go:hover { background: var(--soft); }
+
+button.ord-board-more { align-self: center; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-s); font-size: 12px; font-weight: 600; cursor: pointer; }
+button.ord-board-more:hover { background: var(--soft); }
+
+/* Cancelado: se ve, pero apagado (como el renglón cancelado de la lista). */
+.ord-board-col.is-off .ord-board-card { background: #FCFCFD; }
+.ord-board-col.is-off .ord-board-who,
+.ord-board-col.is-off .ord-board-text { color: #9CA3AF; }
+
+/* Arrastrar: la columna que sigue se marca; las demás se apagan. */
+.ord-board-drop { display: none; align-items: center; justify-content: center; gap: 6px; height: 44px; border: 1.5px dashed var(--c); border-radius: 9px; background: rgb(255 255 255 / .6); color: var(--ink-s); font-size: 12px; font-weight: 600; }
+.ord-board-drop svg { width: 15px; height: 15px; }
+.ord-board.is-dragging .ord-board-col:not(.is-target) { opacity: .5; }
+.ord-board.is-dragging .ord-board-col.is-target .ord-board-drop { display: flex; }
+.ord-board-col.is-over { box-shadow: 0 0 0 2px var(--c); }
+
+/* Entregas de hoy: recuadro flotante (como el «Prueba tu embudo» de Vambe). Se va con la vista. */
+.ord-board-today { position: fixed; right: 24px; bottom: 24px; z-index: 40; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: #1E2A5A; color: #FFFFFF; box-shadow: 0 12px 28px rgba(15, 23, 42, .28); }
+.ord-board-today.hidden { display: none; }
+.ord-board-today p { margin: 0; font-size: 12px; font-weight: 700; color: #FFFFFF; }
+.ord-board-today-icon { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; background: rgb(255 255 255 / .14); }
+.ord-board-today-icon svg { width: 16px; height: 16px; }
+.ord-board-today-row { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: 11.5px; }
+.ord-board-today-row b { font-variant-numeric: tabular-nums; }
+.ord-board-today-bar { width: 70px; height: 6px; border-radius: 999px; background: rgb(255 255 255 / .2); overflow: hidden; }
+.ord-board-today-bar span { display: block; height: 100%; border-radius: 999px; background: #FFFFFF; transition: width .4s ease; }
+
+/* Llega a su nueva columna con un halo corto. */
+.ord-board-card.is-arriving { animation: ordBoardArrive .9s ease both; }
+@keyframes ordBoardArrive { 0% { opacity: 0; } 30% { opacity: 1; border-color: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 30%, transparent); } 100% { box-shadow: 0 1px 2px rgba(17, 24, 39, .04); } }
+@keyframes ordBoardBump { 50% { transform: scale(1.3); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .ord-board-card.is-arriving, .ord-board-head-count b.is-bump { animation: none; }
+}
+
+@media (max-width: 640px) {
+    .ord-board-hint { display: none; }
+    .ord-board { scroll-snap-type: x mandatory; }
+    .ord-board-col { flex: 0 0 86%; min-height: 420px; scroll-snap-align: start; }
+    .ord-board-meta { flex-wrap: wrap; }
+    .ord-board-today { left: 12px; right: 12px; bottom: 12px; }
+}
+
+/* Oscuro: el mismo tono del estado sobre la tarjeta oscura. */
+body.dark-mode .ord-board-col { background: color-mix(in srgb, var(--c) 7%, var(--dk-card, #1F2A37)); border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-board-head { background: color-mix(in srgb, var(--c) 22%, var(--dk-card, #1F2A37)); }
+body.dark-mode .ord-board-head-name { color: #FFFFFF; }
+body.dark-mode .ord-board-head-count { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-board-head-icon { background: rgb(255 255 255 / .1); color: #FFFFFF; }
+body.dark-mode .ord-board-card { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-board-col.is-off .ord-board-card { background: var(--dk-card, #1F2A37); }
+body.dark-mode .ord-board-name { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-board-text { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-board-folio,
+body.dark-mode .ord-board-when { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-board-kind,
+body.dark-mode button.ord-board-go,
+body.dark-mode button.ord-board-more { color: color-mix(in srgb, var(--c) 55%, #FFFFFF); }
+body.dark-mode button.ord-board-go:hover,
+body.dark-mode button.ord-board-more:hover { background: rgb(255 255 255 / .06); }
+body.dark-mode .ord-board-tag { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-board-tag.is-debt,
+body.dark-mode .ord-board-tag.is-out { background: rgba(220, 38, 38, 0.16); border-color: rgba(220, 38, 38, 0.35); color: #FCA5A5; }
+body.dark-mode .ord-board-tag.is-done { background: rgba(16, 185, 129, 0.16); border-color: rgba(16, 185, 129, 0.35); color: #6EE7B7; }
+body.dark-mode .ord-board-hint { color: var(--dk-muted, #9CA3AF); }
 
 /* -- Ventas · partidas --
    Miniatura del producto de 44 px (el componente la trae de 34): la partida
