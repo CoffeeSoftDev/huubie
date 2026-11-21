@@ -5,7 +5,9 @@
     scripts.php. $rootHtml (opcional) se pinta dentro de #root tal cual: lo usa
     index.php para el aviso de "sin secciones". $railRoute (opcional): la
     seccion del menu de una pagina que no es seccion (pedido.php cuelga de la
-    lista); el rail la lee de data-route (auth/src/js/sidebar.js). */
+    lista); el rail la lee de data-route (auth/src/js/sidebar.js). $noBranch
+    (opcional): la barra no lleva selector de sucursal porque la pagina trae
+    el suyo (cortes.php); navbar.js lo lee de data-branch="off". */
 $asset = function ($file) {
     return '../../' . $file . '?v=' . filemtime(__DIR__ . '/../../../' . $file);
 };
@@ -63,7 +65,7 @@ $asset = function ($file) {
 <body>
     <div id="menu-sidebar"<?= isset($railRoute) ? ' data-route="' . htmlspecialchars($railRoute) . '"' : '' ?>></div>
     <main>
-        <div id="menu-navbar"></div>
+        <div id="menu-navbar"<?= empty($noBranch) ? '' : ' data-branch="off"' ?>></div>
 
         <!-- Franja de caja (components/caja-strip.js): fija, fuera del área que hace scroll.
              Vacía no ocupa lugar; Inicio y Dashboard no la pintan. -->

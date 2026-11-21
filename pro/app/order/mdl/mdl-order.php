@@ -528,6 +528,7 @@ class mdl extends CRUD {
                 d.quantity,
                 d.discount_amount,
                 d.product_id,
+                d.created_at,
                 IFNULL(p.is_custom, 0)   AS is_custom,
                 IFNULL(p.image, '')      AS image,
                 IFNULL(p.portion_qty, 0) AS portion_qty,
@@ -590,6 +591,7 @@ class mdl extends CRUD {
                 p.description,
                 p.turn_id,
                 COALESCE(p.paid_at, p.created_at) AS paid_at,
+                IFNULL(p.payment_method_id, 0) AS method_id,
                 IFNULL(pmt.name, '')  AS method,
                 IFNULL(pmt.code, '')  AS method_code,
                 IFNULL(pmt.is_cash, 0) AS is_cash,
@@ -1138,6 +1140,7 @@ class mdl extends CRUD {
     // -- Cortes: listas --
 
     // Turnos abiertos en [$from, $to) con su foto y lo vendido en vivo (para ver si cambió).
+    // tickets: pedidos y ventas del turno que suman a lo vendido (Pendiente o Pagado).
     public function qTurnList($branchId, $from, $to) {
         return $this->qRows("
             SELECT
@@ -1158,6 +1161,11 @@ class mdl extends CRUD {
                   WHERE s.turn_id = t.id
                     AND s.sale_status_id IN (2, 3)
                     AND IFNULL(s.active, 1) = 1) AS sold,
+                (SELECT COUNT(*)
+                   FROM {$this->pos}sale s
+                  WHERE s.turn_id = t.id
+                    AND s.sale_status_id IN (2, 3)
+                    AND IFNULL(s.active, 1) = 1) AS tickets,
                 (SELECT COUNT(*)
                    FROM {$this->pos}daily_closure d
                   WHERE d.branch_id = t.branch_id
@@ -1267,13 +1275,15 @@ class mdl extends CRUD {
         ", [$companyId]);
     }
 
-    // Un pago vivo del pedido, con el estado del turno en que entro.
+    // Un pago vivo del pedido, con el estado del turno en que entro y la sucursal que lo cobro.
     public function qGetPayment($paymentId, $saleId) {
         return $this->qRow("
             SELECT
                 p.id,
                 p.amount,
                 p.turn_id,
+                IFNULL(p.payment_method_id, 0) AS payment_method_id,
+                IFNULL(p.branch_id, 0)         AS branch_id,
                 IFNULL(pm.name, 'Sin método') AS method,
                 IFNULL(t.status, '')          AS turn_status,
                 IFNULL(t.folio, '')           AS turn_folio

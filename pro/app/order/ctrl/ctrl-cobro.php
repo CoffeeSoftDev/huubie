@@ -20,8 +20,13 @@ require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
         El total nuevo no puede quedar por debajo de lo ya abonado.
         Si el pedido es de un turno o dia cerrado, el descuento lo autoriza Dueño
         o Supervisor (moneyBlock): mueve lo vendido de ese corte.
+      - Quitar el descuento (como alpha): quien edita pedidos, en una cotizacion o
+        un pendiente; el total vuelve al subtotal. Un pendiente de un corte
+        cerrado lo autoriza Dueño o Supervisor (core::undiscountBlock).
       - Quitar un pago = borrado logico (active 0 + deleted_at) con motivo y solo
         con permiso delete. Un pago de un turno cerrado no se quita: se reabre antes.
+      - Cambiar la forma de un pago (como alpha): Dueño o Supervisor (permiso
+        cancel), solo con el turno de ese pago abierto. El importe no cambia.
       - La ventana de pagos (payOptions) abre aunque no se pueda cobrar: trae los
         pagos del pedido y dice en can_pay / pay_block por que no (rol, pedido o
         turno). Quien decide de verdad son payOrder y deletePayment.
@@ -602,6 +607,117 @@ class ctrl extends core {
                 return $this->ok('Pago quitado. ' . $this->leftText($left), ['id' => $id, 'balance' => $left, 'sale_status' => $status]);
             });
         }, 'No se pudo quitar el pago.');
+    }
+
+    // -- Cambiar la forma de un pago --
+
+    /*  alpha › editPaymentMethod: Dueño o Supervisor (permiso cancel) y solo
+        mientras el turno que recibió el pago siga abierto (su corte aún no se
+        guarda). La forma nueva es de la sucursal que cobró. Lo recibido queda
+        igual al importe: el cambio solo existe en efectivo y al cobrar. */
+    public function changePaymentMethod() {
+        $fail = $this->need('cancel', 'cambiar la forma de un pago') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id        = $this->postId();
+        $paymentId = $this->postId('payment_id');
+        $methodId  = $this->postId('method_id');
+
+        if ($id <= 0 || $paymentId <= 0) return $this->fail(422, 'Falta el pago.');
+        if ($methodId <= 0)              return $this->fail(422, 'Elige la forma de pago.');
+
+        $fail = $this->adoptOrderBranch($id, 'pay');
+        if ($fail) return $fail;
+
+        return $this->attempt(function () use ($id, $paymentId, $methodId) {
+            return $this->transaction(function () use ($id, $paymentId, $methodId) {
+                $order = $this->qLockOrder($id, $this->branchId());
+
+                if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
+
+                if ((int) $order['sale_status_id'] === self::CANCELLED) {
+                    return $this->fail(409, 'El pedido está cancelado: sus pagos ya no cambian.');
+                }
+
+                $payment = $this->qGetPayment($paymentId, $id);
+
+                if (!$payment) return $this->fail(404, 'Ese pago ya no existe o ya se quitó.');
+
+                if ($payment['turn_status'] === 'closed') {
+                    return $this->fail(409, 'Ese pago es del turno ' . $payment['turn_folio'] . ', que ya cerró: su forma de pago ya no cambia.');
+                }
+
+                if ((int) $payment['payment_method_id'] === $methodId) {
+                    return $this->ok('El pago ya estaba en esa forma de pago.', ['id' => $id, 'unchanged' => true]);
+                }
+
+                $branchId = (int) $payment['branch_id'] > 0 ? (int) $payment['branch_id'] : $this->branchId();
+                $method   = null;
+
+                foreach ($this->qPaymentMethods($branchId) as $row) {
+                    if ((int) $row['id'] === $methodId) $method = $row;
+                }
+
+                if (!$method) return $this->fail(422, 'Esa forma de pago no está disponible en la sucursal que cobró.');
+
+                $this->must($this->qUpdatePayment([
+                    'values' => ['payment_method_id', 'tendered_amount', 'change_amount', 'updated_at = NOW()'],
+                    'where'  => ['id'],
+                    'data'   => [$methodId, round((float) $payment['amount'], 2), 0, $paymentId]
+                ]), 'changePaymentMethod');
+
+                $this->log($id, 'payment', 'Forma de pago cambiada',
+                    'Pago de ' . money($payment['amount']) . ': ' . $payment['method'] . ' » ' . $method['name'] . '.');
+
+                return $this->ok('Forma de pago cambiada: ' . $payment['method'] . ' » ' . $method['name'] . '.', ['id' => $id]);
+            });
+        }, 'No se pudo cambiar la forma de pago.');
+    }
+
+    // -- Quitar el descuento --
+
+    /*  alpha › deleteDiscount: quien edita pedidos (en otra sucursal, con su
+        turno abierto), en una cotización o un pendiente. El total vuelve al
+        subtotal y el estado lo pone el dinero (statusFor). Un pendiente de un
+        corte cerrado lo autoriza Dueño o Supervisor (core::undiscountBlock). */
+    public function removeDiscount() {
+        $fail = $this->need('update', 'quitar descuentos') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $id = $this->postId();
+        if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
+
+        $fail = $this->adoptOrderBranch($id, 'discount');
+        if ($fail) return $fail;
+
+        return $this->attempt(function () use ($id) {
+            return $this->transaction(function () use ($id) {
+                $order = $this->qLockOrder($id, $this->branchId());
+
+                if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
+
+                $block = $this->undiscountBlock($order);
+                if ($block !== '') return $this->fail(409, $block);
+
+                $amount = round((float) $order['discount_amount'], 2);
+                $total  = round((float) $order['subtotal'], 2);
+                $paid   = round((float) $order['paid'], 2);
+                $status = $this->statusFor($total, $paid);
+
+                $this->must($this->qUpdateOrder([
+                    'values' => ['discount_amount', 'discount_percent', 'discount_reason_id', 'discount_note', 'discount_user_id', 'total', 'sale_status_id', 'updated_at = NOW()'],
+                    'where'  => ['id'],
+                    'data'   => [0, 0, null, null, null, $total, $status, $id]
+                ]), 'removeDiscount');
+
+                $cutNote = (int) $order['sale_status_id'] === self::PENDING ? $this->cutNote($order) : '';
+
+                $this->log($id, 'discount', 'Descuento quitado', 'Se quitó el descuento de ' . money($amount) . '. Total: ' . money($total) . '. '
+                    . $this->leftText(round($total - $paid, 2)) . ($cutNote !== '' ? ' ' . $cutNote : ''));
+
+                return $this->ok("Descuento quitado en P{$id}. Total: " . money($total) . '.', ['id' => $id, 'total' => $total, 'sale_status' => $status]);
+            });
+        }, 'No se pudo quitar el descuento.');
     }
 }
 

@@ -12,7 +12,9 @@
     del turno cuando el día ya se cerró o falta cerrar uno anterior.
 
     Quién puede lo decide el ctrl en data.can: cerrar = create; reabrir = solo
-    root (can.root). Las preguntas van con el alertBox (orderTurn.ask). */
+    root (can.root). Las preguntas van con el alertBox (orderTurn.ask).
+    Un día sin cerrar llega sin Corte Z a quien no es Dueño (data.hidden, como
+    alpha): la hoja dice por qué y no se imprime hasta cerrarlo. */
 
 /*  El Corte Z de alpha (pdfBaseCss): monocromo tipo POS, negro sobre blanco y
     bandas grises. Va en un iframe (paintReport) y en la hoja de impresión:
@@ -275,7 +277,7 @@ class OrderClosure extends Templates {
         const c     = data.closure;
         const state = this.state(data);
         const why   = this.reason(data);
-        const print = orders.can('print') && (data.closed || data.turns.length > 0);
+        const print = orders.can('print') && (data.closed || data.turns.length > 0) && !data.hidden;
 
         this.deskData = data;
 
@@ -290,7 +292,7 @@ class OrderClosure extends Templates {
 
         $('#modalOrderClosure button[data-day="print"]')
             .prop('disabled', !print)
-            .attr('title', print ? '' : !orders.can('print') ? 'Tu rol no puede imprimir cortes.' : 'No hubo operación este día.');
+            .attr('title', print ? '' : !orders.can('print') ? 'Tu rol no puede imprimir cortes.' : data.hidden ? 'El Corte Z se imprime al cerrar el día.' : 'No hubo operación este día.');
 
         this.deskPaper();
 
@@ -345,6 +347,8 @@ class OrderClosure extends Templates {
     deskPaper() {
         const data = this.deskData;
         const has  = data && (data.closed || data.turns.length > 0);
+
+        if (has && data.hidden) return $('#dc_paper').html(`<div class="ord-viewer-empty"><i data-lucide="eye-off" class="w-7 h-7"></i><p>${esc(data.hidden_reason)}</p></div>`);
 
         if (has) return this.paintReport($('#dc_paper'), data);
 

@@ -15,13 +15,18 @@ require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
 
     Captura:
       - Un pedido nuevo nace como Cotizacion y exige el turno de HOY abierto.
+        Editar tambien lo exige, como alpha (core::needEditTurn).
         Capturar no mueve dinero: el estado lo cambia el cobro (ctrl-cobro).
+      - La cajera en un pendiente de un corte cerrado (como alpha): agrega
+        productos, pero los de dias anteriores quedan fijos (fixedBlock).
       - Cancelar con abonos deja lo pagado como saldo a favor del cliente
         (customer.wallet): no hay devolucion. Cancelar pide la contraseña de
-        quien opera (core::needKey), antes de tocar la base.
+        quien opera (core::needKey), antes de tocar la base. Dueño y
+        Supervisor cancelan cualquier pedido; la cajera, solo cotizaciones.
       - «Editar entrega» cambia solo fecha, hora, tipo, direccion y nota
         (core::editDelivery). Sirve tambien en un pagado: ahi lo autoriza Dueño
-        o Supervisor con su contraseña.
+        o Supervisor con su contraseña. «Editar» un pagado (editPaidOrder) cambia
+        lo mismo, pero lo hace quien edita pedidos, con su contraseña.
       - Nombre y precio de un producto del catalogo, y precio de cada opcion del
         pastel, salen de la base: lo que mande el navegador no cuenta.
       - Una linea ya guardada conserva su producto y su precio.
@@ -44,8 +49,7 @@ class ctrl extends core {
 
     public function init() {
         $scope = $this->scope();
-
-        return [
+        $init  = [
             'status'   => 200,
             'scope'    => ['company' => $scope['company'], 'branch' => $scope['branch'], 'logo' => $this->companyLogo()],
             'actions'  => $this->actions(),
@@ -58,6 +62,21 @@ class ctrl extends core {
             'turns'    => $scope['company_id'] > 0 ? $this->branchTurns() : (object) [],   // selector de sucursal de la barra
             'all'      => $this->allOffer(self::SECTION)
         ];
+
+        // Tickets/Cierre (visor = 1) trae su selector de sucursal, como alpha/order-visor:
+        // las sucursales donde el rol ve pos-tickets (Dueño y root, todas) y la activa.
+        if ($this->post('visor') === '1') {
+            $list = $this->viewBranches(self::TICKETS);
+
+            if ($scope['branch_id'] > 0 && !isset($list[$scope['branch_id']])) $list[$scope['branch_id']] = $scope['branch'];
+
+            $init['visor'] = [
+                'branch_id' => $scope['branch_id'],
+                'branches'  => array_map(function ($id, $name) { return ['id' => $id, 'valor' => $name]; }, array_keys($list), $list)
+            ];
+        }
+
+        return $init;
     }
 
     // -- Lista --
@@ -248,7 +267,7 @@ class ctrl extends core {
 
     /*  Una fila de la tabla. Las claves son los encabezados. La de otra
         sucursal (vista «todas») sigue las reglas de alpha (core::foreignBlock):
-        Dueño todo; Cajero editar y, con turno abierto allá, entregar;
+        Dueño todo; Cajero editar y cobrar y, con turno abierto allá, entregar;
         Supervisor nada desde la fila (sus datos de entrega van en el detalle);
         los demás Ver e Imprimir. Sus importes abren los pagos solo si puede cobrar. */
     private function orderRow($o, $turnId, array $actions) {
@@ -264,6 +283,9 @@ class ctrl extends core {
 
         if (in_array('update', $actions, true) && $this->editBlock($o) === '' && $may('edit')) {
             $menu[] = ['icon' => 'icon-pencil', 'text' => 'Editar', 'onclick' => "orderForm.edit({$id})"];
+        } elseif (in_array('update', $actions, true) && $statusId === self::PAID && $this->deliveryBlock($o) === '' && $may('edit')) {
+            // Pagado (como alpha): pide la contraseña y solo cambia los datos de entrega.
+            $menu[] = ['icon' => 'icon-lock', 'text' => 'Editar', 'onclick' => "orderDetail.editPaid({$id})"];
         }
 
         // Con saldo se cobra; sin saldo, los pagos ya hechos se consultan en la misma ventana.
@@ -283,8 +305,8 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-ok-circled', 'text' => 'Entregar', 'onclick' => "orderDetail.deliver({$id})"];
         }
 
-        // Entregado por error: lo regresa Dueño o Supervisor (permiso cancel).
-        $canUndeliver = in_array('cancel', $actions, true) && $this->undeliverBlock($o) === '' && $may('deliver');
+        // Entregado por error: lo regresa quien entrega, como alpha.
+        $canUndeliver = in_array('update', $actions, true) && $this->undeliverBlock($o) === '' && $may('deliver');
 
         if ($canUndeliver) {
             $menu[] = ['icon' => 'icon-undo', 'text' => 'Deshacer entrega', 'onclick' => "orderDetail.undeliver({$id})"];
@@ -297,7 +319,15 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
         }
 
-        if (in_array('cancel', $actions, true) && $this->cancelBlock($o) === '' && $may('cancel')) {
+        // Como alpha (Eliminar descuento): cotización o pendiente. El corte cerrado lo revisa ctrl-cobro.
+        $discounted = (float) $o['discount_amount'] > 0.005 && in_array($statusId, [self::QUOTE, self::PENDING], true);
+
+        if (in_array('update', $actions, true) && $discounted && $may('discount')) {
+            $menu[] = ['icon' => 'icon-percent', 'text' => 'Quitar descuento', 'onclick' => "orderDetail.removeDiscount({$id})"];
+        }
+
+        // Dueño o Supervisor cualquier pedido; la cajera, solo cotizaciones (core::cancelRole).
+        if ($this->cancelRole($o, $actions) === '' && $this->cancelBlock($o) === '' && $may('cancel')) {
             $menu[] = ['icon' => 'icon-cancel', 'text' => 'Cancelar', 'onclick' => "orderForm.cancel({$id})"];
         }
 
@@ -321,7 +351,7 @@ class ctrl extends core {
     // Por qué el estado de entrega no se puede cambiar. Sale en el menú del badge de Entrega.
     private function deliveryWhy($o, array $actions, $canPay) {
         if ((int) $o['delivery_status'] === 1) {
-            return in_array('cancel', $actions, true) ? $this->undeliverBlock($o) : 'Una entrega la deshace Dueño o Supervisor.';
+            return in_array('update', $actions, true) ? $this->undeliverBlock($o) : 'Tu rol no puede cambiar la entrega.';
         }
 
         if (!in_array('update', $actions, true)) return 'Tu rol no puede entregar pedidos.';
@@ -586,10 +616,13 @@ class ctrl extends core {
     // -- Captura: opciones --
 
     // order_id: editar un pedido de otra sucursal trae el catálogo y los clientes de la suya.
+    // Crear y editar piden el turno de hoy abierto, como alpha (editar: core::needEditTurn).
     public function formOptions() {
+        $orderId = $this->postId('order_id');
+
         $fail = $this->needCapture() ?: $this->needBranch();
         if (!$fail && $this->post('is_new') === '1') $fail = $this->needTurn();
-        if (!$fail && $this->post('is_new') !== '1') $fail = $this->adoptOrderBranch($this->postId('order_id'), 'edit');
+        if (!$fail && $this->post('is_new') !== '1') $fail = $this->adoptOrderBranch($orderId, 'edit') ?: ($orderId > 0 ? $this->needEditTurn() : null);
         if ($fail) return $fail;
 
         return $this->attempt(function () {
@@ -861,7 +894,7 @@ class ctrl extends core {
         $id = $this->postId();
         if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
 
-        $fail = $this->adoptOrderBranch($id, 'edit');
+        $fail = $this->adoptOrderBranch($id, 'edit') ?: $this->needEditTurn();
         if ($fail) return $fail;
 
         $token = $this->post('token');
@@ -896,9 +929,11 @@ class ctrl extends core {
                 }
 
                 // Antes de escribir: transaction() confirma lo hecho aunque se devuelva un fail.
+                // La cajera en un pendiente de corte cerrado (como alpha): lo de días anteriores queda fijo.
+                $fixed = $this->lockOld($order) ? $this->fixedBlock($current, $lines) : '';
+                if ($fixed !== '') return $this->fail(403, $fixed);
+
                 $retotal = round((float) $order['total'], 2) !== $total;
-                $money   = $retotal ? $this->moneyBlock($order) : '';
-                if ($money !== '') return $this->fail(409, $money);
 
                 $changes = $this->headerChanges($order, $in);
                 $kept    = [];
@@ -961,13 +996,21 @@ class ctrl extends core {
         return $this->editDelivery($this->postId());
     }
 
+    /*  «Editar» un pedido pagado (alpha › editOrderPaid): quien edita pedidos,
+        con su contraseña y el turno de hoy abierto. Solo cambian fecha, hora,
+        tipo de entrega, dirección y nota; productos, cliente y pagos quedan. */
+    public function editPaidOrder() {
+        return $this->editDelivery($this->postId(), true);
+    }
+
     /*  Cancelar no borra: el pedido queda en la lista como Cancelado. Lo
-        autoriza Dueño o Supervisor (permiso cancel) con su contraseña.
+        autoriza Dueño o Supervisor (permiso cancel) con su contraseña; la
+        cajera (permiso update) cancela cotizaciones, como alpha (core::cancelRole).
         Un pagado también se cancela: sus pagos del turno abierto (los del día)
         se desactivan y salen del corte; lo cobrado en turnos cerrados queda
         como saldo a favor (cancelSplit). Todo queda en la bitácora. */
     public function cancelOrder() {
-        $fail = $this->need('cancel') ?: $this->needBranch();
+        $fail = ($this->need('cancel') === null || $this->need('update') === null ? null : $this->need('cancel')) ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id     = $this->postId();
@@ -977,7 +1020,15 @@ class ctrl extends core {
         if ($reason === '')               return $this->fail(422, 'Escribe el motivo de la cancelación.');
         if ($this->tooLong($reason, 255)) return $this->fail(422, 'El motivo admite hasta 255 caracteres.');
 
-        $fail = $this->adoptOrderBranch($id, 'cancel') ?: $this->needKey('cancelar');
+        $fail = $this->adoptOrderBranch($id, 'cancel');
+        if ($fail) return $fail;
+
+        // El rol se revisa antes de la contraseña: un intento que no podía pasar no gasta intentos.
+        $peek = $this->qGetOrder($id, $this->branchId());
+        $role = $peek ? $this->cancelRole($peek) : '';
+        if ($role !== '') return $this->fail(403, $role);
+
+        $fail = $this->needKey('cancelar');
         if ($fail) return $fail;
 
         return $this->attempt(function () use ($id, $reason) {
@@ -987,6 +1038,9 @@ class ctrl extends core {
                 if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
 
                 // Todo se valida antes de escribir: transaction() confirma lo hecho aunque se devuelva un fail.
+                $role = $this->cancelRole($order);
+                if ($role !== '') return $this->fail(403, $role);
+
                 $isPaid   = (int) $order['sale_status_id'] === self::PAID;
                 $payments = $isPaid ? $this->qPayments($id) : [];
 
@@ -1396,6 +1450,32 @@ class ctrl extends core {
 
     private function productsText($count) {
         return $count === 1 ? '1 producto' : "{$count} productos";
+    }
+
+    /*  La cajera en un pendiente de un corte cerrado (core::lockOld), como
+        alpha: las líneas agregadas antes de hoy no se quitan ni cambian de
+        cantidad o precio; las de hoy y las nuevas, sí. '' = puede guardar. */
+    private function fixedBlock(array $current, array $lines) {
+        $today = date('Y-m-d');
+        $sent  = [];
+
+        foreach ($lines as $line) {
+            if ($line['id'] > 0) $sent[$line['id']] = $line;
+        }
+
+        foreach ($current['lines'] as $lineId => $old) {
+            if (substr((string) $old['created_at'], 0, 10) >= $today) continue;
+
+            if (!isset($sent[$lineId])) return "«{$old['name']}» es de un día anterior: quitarlo lo autoriza Dueño o Supervisor.";
+
+            $now  = $sent[$lineId];
+            $same = $now['quantity'] === (int) round((float) $old['quantity'])
+                 && round($now['price'], 2) === round((float) $old['price'], 2);
+
+            if (!$same) return "«{$old['name']}» es de un día anterior: su cantidad y su precio quedan fijos. Cambiarlos lo autoriza Dueño o Supervisor.";
+        }
+
+        return '';
     }
 
     // -- Captura: escritura de lineas --

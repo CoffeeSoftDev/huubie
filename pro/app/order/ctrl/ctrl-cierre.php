@@ -32,7 +32,10 @@ class ctrl extends core {
     /*  Sin fecha: hoy. Un día cerrado se lee de su foto; uno abierto, en vivo.
         detail = 1 (visor de Cortes, pide pos-tickets) y full = 1 (módulo de
         cierre de Pedidos, pide 'show') traen cada folio y cada cobro del día.
-        report = 1 trae el Corte Z de alpha (dayReport) en lugar de esa lista. */
+        report = 1 trae el Corte Z de alpha (dayReport) en lugar de esa lista.
+        Como alpha (getCierre › preview), el Corte Z y el detalle de un día SIN
+        cerrar solo los ve el Dueño (y root): los demás, al cerrarse (hidden).
+        Las cifras del resumen sí viajan: las pide la pregunta de «Cerrar día». */
     public function getDay() {
         $fail = ($this->post('detail') === '1' ? $this->needTickets() : $this->need('show')) ?: $this->needBranch();
         if ($fail) return $fail;
@@ -51,6 +54,7 @@ class ctrl extends core {
             $closure = $this->qDayClosure($branchId, $from, $to);
             $turns   = $this->dayTurns($branchId, $from, $to);
             $pending = $this->pendingDays();
+            $hidden  = !$closure && !$this->isOwner();
 
             // company y logo: el encabezado del ticket (el mismo formato del corte de turno).
             return [
@@ -64,8 +68,10 @@ class ctrl extends core {
                 'closure'  => $closure ? $this->closureInfo($closure) : null,
                 'summary'  => $closure ? $this->closureStats($closure) : $this->dayStats($branchId, $from, $to),
                 'turns'    => $turns,
-                'detail'   => $full ? $this->cutDetail(array_column($turns, 'id')) : null,
-                'report'   => $report ? $this->dayReport($branchId, $to, $turns) : null,
+                'detail'   => $full && !$hidden ? $this->cutDetail(array_column($turns, 'id')) : null,
+                'report'   => $report && !$hidden ? $this->dayReport($branchId, $to, $turns) : null,
+                'hidden'   => $hidden,
+                'hidden_reason' => $hidden ? 'El Corte Z de un día sin cerrar solo lo ve el Dueño. Se verá al cerrar el día.' : '',
                 'reopens'  => array_map([$this, 'closureInfo'], $this->qDayReopens($branchId, $from, $to)),
                 'pending'  => $pending,
                 'warnings' => $closure ? [] : $this->dayWarnings($day, $turns),
@@ -260,13 +266,15 @@ class ctrl extends core {
     /*  Un día cerrado muestra lo vendido de su cierre (la foto); uno sin cerrar, lo vivo.
         difference: lo que sobró o faltó en caja, sumando sus turnos cerrados. */
     private function dayItem($date, array $turns, $closure) {
-        $live   = 0;
-        $diff   = 0;
-        $open   = 0;
-        $counts = 0;
+        $live    = 0;
+        $diff    = 0;
+        $open    = 0;
+        $counts  = 0;
+        $tickets = 0;
 
         foreach ($turns as $t) {
-            $live += (float) $t['sold'];
+            $live    += (float) $t['sold'];
+            $tickets += (int) $t['tickets'];
 
             if ($t['status'] === 'open') {
                 $open++;
@@ -291,6 +299,7 @@ class ctrl extends core {
             'live'       => $live,
             'changed'    => $info && $turns && abs($live - $info['total']) >= 0.005,
             'turns'      => count($turns) ?: ($info ? $info['turns'] : 0),
+            'tickets'    => $tickets,
             'open_turns' => $open,
             'difference' => $counts ? round($diff, 2) : null
         ];

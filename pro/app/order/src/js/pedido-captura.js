@@ -32,6 +32,7 @@ class OrderForm extends Templates {
         this.toastTimer   = null;   // aviso negro del cambio de sucursal (branchToast)
         this.dataReady    = false;  // Pedidos: «Datos del pedido» ya capturados (toList); abre la lista y el catálogo
         this.twoTabs      = false;  // Pedidos: el ticket va en pestañas Datos | Lista (ticket); Ventas no
+        this.lockOld      = false;  // la cajera en un pendiente de corte cerrado: lo de días anteriores queda fijo (como alpha)
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') this.s2Open = !!document.querySelector('.select2-container--open');
@@ -55,6 +56,7 @@ class OrderForm extends Templates {
 
         this.order     = null;
         this.lines     = [];
+        this.lockOld   = false;
         this.dataReady = false;
         this.open();
         this.applyDraft();
@@ -273,24 +275,36 @@ class OrderForm extends Templates {
 
     /*  Lo que se revisa antes de editar: que se pueda y, si el pedido ya está en
         un corte, el aviso. ask = false sin el aviso: pedido.php lo abre ya
-        avisado desde la lista (y al recargar no se repite). null = no se edita. */
+        avisado desde la lista (y al recargar no se repite). null = no se edita.
+        Lo primero, como alpha (requireOpenShift): el turno de hoy (edit_turn).
+        Un pagado (como alpha) no abre la captura: abre editPaid, con contraseña. */
     async editable(id, ask = true) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
         const data = await orderDetail.fetchOrder(id);
         if (!data) return null;
 
+        if (data.edit_turn) {
+            this.turnLock(data.edit_turn, id);
+            return null;
+        }
+
+        if (data.can && !data.can.edit && data.can.edit_paid) {
+            orderDetail.editPaid(id);
+            return null;
+        }
+
         if (!data.can || !data.can.edit) {
             alert({ icon: 'info', title: 'No se puede editar', text: (data.can && data.can.edit_reason) || '', btn1: true, btn1Text: 'Entendido' });
             return null;
         }
 
-        // Pedido de un corte cerrado: la cajera edita, pero el ctrl rechaza si el total se mueve.
-        if (ask && data.can.money === false) {
+        // Pendiente de un corte cerrado (como alpha): la cajera agrega productos; lo de días anteriores queda fijo.
+        if (ask && data.can.lock_old) {
             const go = await alert({
                 icon:     'info',
                 title:    'Este pedido ya está en un corte',
-                text:     `${data.can.money_reason} Puedes cambiar lo que no mueva el total: fecha, hora y notas.`,
+                text:     data.can.lock_reason,
                 btn1:     true,
                 btn1Text: 'Editar',
                 btn2:     true,
@@ -303,6 +317,13 @@ class OrderForm extends Templates {
         return data;
     }
 
+    // Sin turno de hoy no se edita. 423: ofrece abrirlo y vuelve a «Editar». 409 (pedido de otra sucursal): solo avisa.
+    turnLock(lock, id) {
+        if (Number(lock.status) === 423) return orderTurn.locked(lock, () => this.edit(id));
+
+        alert({ icon: 'warning', title: lock.title || 'Sin turno abierto', text: lock.message || '', btn1: true, btn1Text: 'Entendido' });
+    }
+
     async edit(id, ask = true) {
         const data = await this.editable(id, ask);
         if (!data) return;
@@ -310,6 +331,7 @@ class OrderForm extends Templates {
         if (!(await this.loadOptions(data.order.customer_id, false, data.order.id))) return;
 
         this.order     = data.order;
+        this.lockOld   = !!data.can.lock_old;
         this.lines     = (data.lines || []).map((line) => this.fromSaved(line));
         this.dataReady = true;
         this.open();
@@ -329,7 +351,7 @@ class OrderForm extends Templates {
         if (!data || data.status != 200) {
             this.failed = data;
 
-            if (!quiet) this.warnFail(data, 'No se pudo abrir la captura', isNew ? () => this.add() : null);
+            if (!quiet) this.warnFail(data, 'No se pudo abrir la captura', isNew ? () => this.add() : (orderId ? () => this.edit(orderId, false) : null));
 
             return false;
         }
@@ -350,6 +372,7 @@ class OrderForm extends Templates {
         });
     }
 
+    // fixed: agregada antes de hoy en un pendiente de corte cerrado (lockOld); no se cambia ni se quita.
     fromSaved(line) {
         const base = {
             id:         Number(line.id),
@@ -357,7 +380,8 @@ class OrderForm extends Templates {
             price:      Number(line.price),
             quantity:   Number(line.quantity) || 1,
             details:    line.details || '',
-            dedication: line.dedication || ''
+            dedication: line.dedication || '',
+            fixed:      this.lockOld && String(line.created_at || '').slice(0, 10) < String(this.opts.today || '')
         };
 
         if (Number(line.is_custom) === 1) {
@@ -774,6 +798,11 @@ class OrderForm extends Templates {
             onDelete: (index) => this.removeLine(index)
         });
 
+        // Lo de días anteriores (lockOld): sin −/+, editar ni quitar.
+        this.lines.forEach((line, i) => {
+            if (line.fixed) $(`#posOrderLines .pos-tkl-item[data-index="${i}"]`).find('button.pos-tkl-step, button.pos-tkl-act').prop('disabled', true);
+        });
+
         this.flash = -1;
         this.renderTotals();
     }
@@ -795,6 +824,7 @@ class OrderForm extends Templates {
 
         if (line.dedication) sub.push({ tone: 'dedication', text: `«${line.dedication}»` });
         if (line.details) sub.push({ tone: 'note', text: line.details });
+        if (line.fixed) sub.push({ tone: 'note', icon: 'lock', text: 'De un día anterior: queda fijo' });
 
         return {
             name:     line.name,
@@ -889,6 +919,7 @@ class OrderForm extends Templates {
         const line = this.lines[index];
 
         if (this.saving || !line) return;
+        if (line.fixed) return this.fixedWarn();
         if (quantity < 1 || quantity > 9999) return this.warn('La cantidad va de 1 a 9,999.');
 
         line.quantity = quantity;
@@ -901,6 +932,7 @@ class OrderForm extends Templates {
     editLine(index) {
         const line = this.lines[index];
         if (!line) return;
+        if (line.fixed) return this.fixedWarn();
 
         if (line.type === 'custom') return this.cakeForm(index);
         if (line.type === 'free') return this.free(index);
@@ -910,9 +942,15 @@ class OrderForm extends Templates {
 
     removeLine(index) {
         if (this.saving) return;
+        if (this.lines[index] && this.lines[index].fixed) return this.fixedWarn();
 
         this.lines.splice(index, 1);
         this.renderLines();
+    }
+
+    // Como alpha: lo agregado en días anteriores no se toca desde la captura de la cajera.
+    fixedWarn() {
+        alert({ icon: 'info', title: 'Producto de un día anterior', text: 'Queda fijo: cambiarlo o quitarlo lo autoriza Dueño o Supervisor.', btn1: true, btn1Text: 'Entendido' });
     }
 
     putLine(index, line) {

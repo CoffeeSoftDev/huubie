@@ -5,8 +5,7 @@
     La captura es OrderForm (pedido-captura.js). Cuando se cierra (al guardar
     o con «Volver a pedidos») la página regresa sola a la lista en cuanto
     termina lo que siga: el aviso de guardado, la ventana de pagos, el turno o
-    la impresión del ticket. Mientras, se ve «Regresando a la lista» con el
-    botón para irse ya.
+    la impresión del ticket. Mientras, la página queda vacía, sin aviso.
 
     OrderPage hace de `orders` para el turno, el cobro y la franja: can(),
     paintTurn(), lsOrders(), y fetchInit() y repaint() para el cambio de
@@ -124,9 +123,9 @@ class OrderPage extends Templates {
         history.replaceState(null, '', this.url('pedido.php', order ? order.id : 0));
     }
 
-    // OrderForm.close() avisa: guardó o salió sin guardar. Se regresa a la lista al quedar libre.
+    // OrderForm.close() avisa: guardó o salió sin guardar. Se regresa a la lista al quedar libre, sin aviso.
     formClosed() {
-        this.card('leaving');
+        $('#cardOrderPage').empty();
         this.leaveWhenIdle();
     }
 
@@ -171,13 +170,12 @@ class OrderPage extends Templates {
     // -- Aviso de la página --
 
     /*  wait: abriendo · failed: no se abrió (con «Intentar otra vez») ·
-        blocked: sin permiso o sin datos · leaving: regresando a la lista. */
+        blocked: sin permiso o sin datos. */
     card(mode, message = '') {
         const views = {
             wait:    { icon: 'loader-circle', title: 'Abriendo la captura…', text: '' },
             failed:  { icon: 'circle-alert', title: 'No se abrió la captura', text: 'Revisa el aviso: si falta el turno, ábrelo y vuelve a intentar.' },
-            blocked: { icon: 'lock', title: message, text: 'Si crees que es un error, pide acceso a quien administra Huubie.' },
-            leaving: { icon: 'arrow-left', title: 'Regresando a la lista de pedidos…', text: 'En cuanto termine lo que está abierto.' }
+            blocked: { icon: 'lock', title: message, text: 'Si crees que es un error, pide acceso a quien administra Huubie.' }
         };
 
         const v = views[mode] || views.wait;
@@ -210,7 +208,7 @@ class OrderPage extends Templates {
         }
 
         if (mode !== 'wait') {
-            actions.push({ opc: 'button', id: 'btnOrderPageList', class: 'col-auto', text: mode === 'leaving' ? 'Ir ahora' : 'Ir a la lista', color_btn: 'outline', onClick: () => this.leave() });
+            actions.push({ opc: 'button', id: 'btnOrderPageList', class: 'col-auto', text: 'Ir a la lista', color_btn: 'outline', onClick: () => this.leave() });
         }
 
         if (actions.length) {

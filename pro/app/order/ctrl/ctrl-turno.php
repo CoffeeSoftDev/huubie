@@ -137,6 +137,7 @@ class ctrl extends core {
             'opening_cash' => round((float) $t['opening_cash'], 2),
             'sold'         => $closed ? $cut : $live,
             'live'         => $live,
+            'tickets'      => (int) $t['tickets'],
             'changed'      => $closed && abs($live - $cut) >= 0.005,
             'difference'   => $closed ? round((float) $t['counted_cash'] - (float) $t['expected_cash'], 2) : null,
             'reopened'     => !empty($t['reopened_at']),

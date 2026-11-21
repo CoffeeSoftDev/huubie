@@ -1780,6 +1780,83 @@ class OrderPay extends Templates {
         alert({ icon: 'success', title: data.message, timer: 1800 });
     }
 
+    // -- Cambiar la forma de un pago (desde el detalle) --
+
+    /*  alpha › editPaymentMethod: Dueño o Supervisor, mientras el turno de ese
+        pago siga abierto. Las formas son las de la sucursal que lo cobró
+        (payOptions › branches); el importe no cambia. */
+    async changeMethod(orderId, paymentId) {
+        const d    = typeof orderDetail !== 'undefined' ? orderDetail.last : null;
+        const same = !!(d && d.order && Number(d.order.id) === Number(orderId));
+        const p    = same ? (d.payments || []).find((x) => Number(x.id) === Number(paymentId)) : null;
+
+        if (!p) return;
+
+        const data = await useFetch({ url: this._link, data: { opc: 'payOptions', id: orderId } });
+
+        if (!data || data.status != 200) return this.fail(data, 'No se abrió el cambio de forma de pago');
+
+        const branch  = (data.branches || []).find((b) => Number(b.id) === Number(p.branch_id));
+        const methods = ((branch && branch.methods) || data.methods || []).map((m) => ({ id: Number(m.id), valor: m.name }));
+
+        if (!methods.length) return this.warn('La sucursal que cobró este pago no tiene formas de pago activas.');
+
+        $('#modalOrderDetails .cs-modal-x').trigger('click');
+
+        const back = () => orderDetail.show(orderId);
+
+        this.csModal({
+            id:         'modalOrderPayMethod',
+            title:      'Cambiar forma de pago',
+            subtitle:   `${this.noun()} #${this.prefix()}${d.order.folio || orderId} · ${p.method || 'Sin método'} ${money(p.amount)}`,
+            lucideIcon: 'arrow-left-right',
+            width:      'max-w-lg',
+            saveText:   'Guardar',
+            cancelText: 'Volver',
+            info:       'El importe no cambia. Solo se puede mientras el turno de ese pago siga abierto.',
+            json: [
+                { id: 'pm_method', lbl: 'Forma de pago', tipo: 'select', empty: false, class: 'w-full', value: Number(p.method_id) || methods[0].id, data: methods }
+            ],
+            onSave: (values, close) => this.saveMethod(orderId, paymentId, close, back)
+        });
+
+        this.onDismiss('modalOrderPayMethod', back);
+    }
+
+    async saveMethod(orderId, paymentId, close, back) {
+        if (this.saving) return;
+
+        const methodId = Number($('#pm_method').val()) || 0;
+
+        if (!methodId) return this.warn('Elige la forma de pago.');
+
+        this.saving = true;
+
+        const button = $('#modalOrderPayMethod .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({ url: this._link, data: { opc: 'changePaymentMethod', id: orderId, payment_id: paymentId, method_id: methodId } });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (!data || data.status != 200) {
+            alert({
+                icon:     data && [403, 404, 409, 422].includes(Number(data.status)) ? 'warning' : 'error',
+                title:    'No se cambió la forma de pago',
+                text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
+                btn1:     true,
+                btn1Text: 'Entendido'
+            });
+            return;
+        }
+
+        this.closeQuiet('modalOrderPayMethod', close);
+        this.afterChange();
+
+        back();
+
+        alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 1800 });
+    }
+
     // -- Eventos --
 
     bind() {
