@@ -1,9 +1,13 @@
-/*  Pedidos › lista, calendario y tablero en la misma pantalla. Los botones de
-    la derecha del encabezado (Calendario | Pedidos | Tablero) cambian de vista
-    sin salir de la página; la vista se recuerda y ?vista=calendario o
-    ?vista=tablero abre directo en ella.
+/*  Pedidos › lista (lista-pedidos.php): lista, calendario y tablero en la
+    misma pantalla. Los botones de la derecha del encabezado (Calendario |
+    Pedidos | Tablero) cambian de vista sin salir de la página; la vista se
+    recuerda y ?vista=calendario o ?vista=tablero abre directo en ella.
     El calendario es OrderCalendar (components/order-calendar.js) con su ctrl;
-    el tablero es OrderBoard (components/order-board.js) con ctrl-pedidos. */
+    el tablero es OrderBoard (components/order-board.js) con ctrl-pedidos.
+
+    La captura (TPV) es otra página: pedido.php (nuevo) y pedido.php?id=<id>
+    (editar). «Nuevo pedido» y «Editar» llevan ahí (OrderLink); al guardar,
+    pedido.js regresa a esta lista. */
 
 let api = 'ctrl/ctrl-pedidos.php';
 let orders, orderDetail, orderForm, orderTurn, orderPay, orderClosure;
@@ -15,7 +19,7 @@ $(async () => {
     dataInit = (await useFetch({ url: api, data: { opc: 'init' } })) || {};
 
     orderDetail = new OrderDetail(api, 'root');
-    orderForm   = new OrderForm(api, 'root');
+    orderForm   = new OrderLink(api, 'root');
     orderTurn   = new OrderTurn('ctrl/ctrl-turno.php', 'root');
     orderPay     = new OrderPay('ctrl/ctrl-cobro.php', 'root');
     orderClosure = new OrderClosure('ctrl/ctrl-cierre.php', 'root');
@@ -24,6 +28,9 @@ $(async () => {
     // «Todas las sucursales» de la barra (navbar.offerAll): la comparte con el Calendario.
     orders.all      = !!(dataInit.all && window.navbar && typeof navbar.offerAll === 'function' && navbar.offerAll('order', dataInit.all));
     orderDetail.all = orders.all;
+
+    // El selector de sucursal de la barra dice cuál tiene turno (navbar.showTurns).
+    if (dataInit.turns && window.navbar && typeof navbar.showTurns === 'function') navbar.showTurns(dataInit.turns);
 
     orders.init();
 });
@@ -211,6 +218,27 @@ class Orders extends Templates {
             },
             onSelect: () => this.onPeriodChange()
         });
+
+        // apply.daterangepicker llega con el periodo ya escrito en el campo (onSelect llega antes).
+        $('#ord_calendar').on('apply.daterangepicker', () => this.fitPeriod());
+    }
+
+    /*  «DD/MM/AAAA - DD/MM/AAAA» no cabe junto al ícono cuando la barra va en
+        col-2 angosta (1280 a 1439 px): ahí el periodo se ve con año de dos cifras.
+        Solo cambia lo que se lee; las fechas que viajan salen del picker. */
+    fitPeriod() {
+        const input  = $('#ord_calendar');
+        const picker = input.data('daterangepicker');
+
+        if (!picker || !input.is(':visible')) return;
+
+        picker.locale.format = 'DD/MM/YYYY';
+        picker.updateElement();
+
+        if (input[0].scrollWidth <= input[0].clientWidth) return;
+
+        picker.locale.format = 'DD/MM/YY';
+        picker.updateElement();
     }
 
     // Sobre la tabla, en el extremo derecho; "Mostrar N registros" queda a la izquierda.
@@ -268,7 +296,7 @@ class Orders extends Templates {
                 class: 'w-full',
                 container: [
                     { type: 'h1', class: 'cp-pagina-titulo', text: 'Pedidos' },
-                    { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, this.all ? 'Todas las sucursales' : scope.branch].filter(Boolean).join(' · ') || 'Pedidos y cotizaciones de la sucursal' }
+                    { type: 'p', class: 'cp-pagina-subtitulo', html: this.subtitle(scope) }
                 ]
             }
         });
@@ -279,6 +307,18 @@ class Orders extends Templates {
         this.paintTurn();
 
         orderTurn.paintStrip(true);
+    }
+
+    // Empresa · sucursal. La sucursal va en negritas y con el color de la marca (order.css › .ord-head-branch).
+    subtitle(scope) {
+        const branch = this.all ? 'Todas las sucursales' : scope.branch;
+
+        if (!scope.company && !branch) return 'Pedidos y cotizaciones de la sucursal';
+
+        return [
+            scope.company ? esc(scope.company) : '',
+            branch ? `<b class="ord-head-branch">${esc(branch)}</b>` : ''
+        ].filter(Boolean).join(' · ');
     }
 
     // El encabezado ya no lleva botones: «Nuevo pedido» vive en la barra de filtros
@@ -358,9 +398,11 @@ class Orders extends Templates {
         }
     }
 
-    /*  Enseña una vista y esconde las otras. El detalle del pedido se pide al ctrl
-        de la vista: en el calendario lo sirve ctrl-calendario sin «Editar»
-        (palomeo y entrega como en su página); en la lista y el tablero, ctrl-pedidos. */
+    /*  Enseña una vista y esconde las otras. El detalle del pedido es el mismo
+        en las tres vistas (mismos botones: Editar, Ya se elaboró, Entregar...).
+        Solo cambia quién lo lee: en el calendario ctrl-calendario (alcanza los
+        pedidos de las sucursales que el rol ve en el calendario); en la lista y
+        el tablero, ctrl-pedidos. */
     showView(view) {
         this.view = this.views().includes(view) ? view : 'list';
 
@@ -382,13 +424,16 @@ class Orders extends Templates {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
         orderDetail._link    = calendar ? ORD_CALENDAR_API : api;
-        orderDetail.editable = !calendar;
+        orderDetail.editable = true;
 
         this.saveView();
 
         if (calendar) return this.showCalendar();
         if (this.view === 'board') return this.showBoard();
 
+        // Escondido el campo no se puede medir: el periodo se acomoda al enseñar la lista, dos cuadros
+        // después (Tailwind CDN arma los anchos de la rejilla) y con la letra Lexend ya cargada.
+        requestAnimationFrame(() => requestAnimationFrame(() => document.fonts.ready.then(() => this.fitPeriod())));
         this.lsOrders();
     }
 
@@ -694,5 +739,37 @@ class Orders extends Templates {
         if (data.mode === 'search') return { emptyMessage: 'Ningún pedido coincide con la búsqueda', emptyIcon: 'icon-search' };
 
         return { emptyMessage: 'No hay pedidos en este periodo', emptyIcon: 'icon-calendar-1' };
+    }
+}
+
+// -- OrderLink --
+
+/*  En la lista, «Nuevo pedido» y «Editar» (fila, detalle, tablero, calendario
+    y la ventana de pagos) llevan a pedido.php. Editar revisa aquí que se pueda
+    y avisa si el pedido ya está en un corte: si no se edita, no se cambia de
+    página. Cancelar y eliminar siguen siendo de OrderForm, aquí en la lista. */
+class OrderLink extends OrderForm {
+
+    add() {
+        $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        location.href = this.formUrl(0);
+    }
+
+    async edit(id) {
+        if (await this.editable(id)) location.href = this.formUrl(id);
+    }
+
+    // pedido.php conserva ?from=ventas: la franja sigue ofreciendo el regreso a Ventas.
+    formUrl(id) {
+        const params = new URLSearchParams();
+        const from   = new URLSearchParams(location.search).get('from');
+
+        if (id) params.set('id', String(id));
+        if (from) params.set('from', from);
+
+        const query = params.toString();
+
+        return 'pedido.php' + (query ? `?${query}` : '');
     }
 }

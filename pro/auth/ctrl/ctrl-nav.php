@@ -36,7 +36,7 @@ class ctrl extends mdl {
 
     /*  Secciones que viven dentro de otra pantalla: quien ve la de destino no
         las ve repetidas en el rail. El permiso sigue intacto (sus ctrl lo usan).
-        pos-calendario es la vista Calendario de Pedidos (pedidos.php?vista=calendario);
+        pos-calendario es la vista Calendario de Pedidos (lista-pedidos.php?vista=calendario);
         quien solo tiene el calendario (Producción) lo sigue viendo. */
     const MERGED = ['pos-calendario' => 'pos-pedidos'];
 

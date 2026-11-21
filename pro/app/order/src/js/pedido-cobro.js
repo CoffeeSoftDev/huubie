@@ -30,8 +30,8 @@
     guardado y la captura sigue abierta.
 
     Lo que manda es el ctrl: aquí se arma el cobro y se avisa antes de mandar.
-    SalePayments (historial.js) hereda de aquí; SalePay (ventas.js) también,
-    pero con su propia forma (SalePayBase). */
+    SalePayments (historial.js) y SalePay (ventas.js, cobrar una venta) heredan
+    de aquí: la misma ventana, con sus ganchos (dueOf, autoCap, infoHtml…). */
 
 // -- Cobro --
 
@@ -362,11 +362,21 @@ class OrderPay extends Templates {
 
     // -- Cuentas --
 
+    // Lo que se cobra en esta ventana: el saldo del pedido. Ventas le suma la propina.
+    dueOf(total) {
+        return Math.max(0, ordRound(total - this.o.paid));
+    }
+
+    // Tope de la fila que cubre lo que falta (Ventas: el saldo del monedero).
+    autoCap(m) {
+        return Infinity;
+    }
+
     calc() {
         const o       = this.o;
         const d       = this.discountCalc();
         const total   = ordRound(o.total - d.amount);
-        const balance = Math.max(0, ordRound(total - o.paid));
+        const balance = this.dueOf(total);
 
         let bad = null;
 
@@ -387,7 +397,7 @@ class OrderPay extends Templates {
         const fixed = ordRound(rows.reduce((s, r) => s + r.amount, 0));
         const auto  = rows.find((r) => r.m.id === this.auto);
 
-        if (auto) auto.amount = Math.max(0, ordRound(balance - fixed));
+        if (auto) auto.amount = Math.min(this.autoCap(auto.m), Math.max(0, ordRound(balance - fixed)));
 
         /*  Efectivo: lo escrito en su fila es «hasta cuánto». Se aplica lo que
             cabe en el saldo después de los demás métodos y lo que sobra es
@@ -755,18 +765,24 @@ class OrderPay extends Templates {
             +       `<div class="pa-rows" id="paRows" role="group" aria-label="Formas de pago">${this.rowsHtml()}</div>`
             +       this.padHtml()
             +     '</fieldset>'
-            +     '<div class="pa-col pa-col-info">'
-            +       this.branchesHtml(lock)
-            +       `<fieldset class="pa-set${cls}"${off}>`
-            +         '<div class="pa-field">'
-            +           this.label('Observación', 'Opcional')
-            +           '<textarea id="paNote" class="pa-input pa-textarea" rows="2" maxlength="200" placeholder="Ej. paga la mamá de la festejada" aria-label="Observación"></textarea>'
-            +         '</div>'
-            +         this.discArea()
-            +       '</fieldset>'
-            +     '</div>'
+            +     `<div class="pa-col pa-col-info">${this.infoHtml(lock)}</div>`
             +   '</div>'
             + '</div>';
+    }
+
+    // La columna derecha: de dónde es, quién cobra, la observación y el descuento. Ventas la cambia.
+    infoHtml(lock) {
+        const off = lock ? ' disabled' : '';
+        const cls = lock ? ' is-locked' : '';
+
+        return this.branchesHtml(lock)
+            + `<fieldset class="pa-set${cls}"${off}>`
+            +   '<div class="pa-field">'
+            +     this.label('Observación', 'Opcional')
+            +     '<textarea id="paNote" class="pa-input pa-textarea" rows="2" maxlength="200" placeholder="Ej. paga la mamá de la festejada" aria-label="Observación"></textarea>'
+            +   '</div>'
+            +   this.discArea()
+            + '</fieldset>';
     }
 
     // Lo que dice el aviso si se pulsa el botón apagado.

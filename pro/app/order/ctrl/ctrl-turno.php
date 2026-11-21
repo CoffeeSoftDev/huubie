@@ -207,11 +207,14 @@ class ctrl extends core {
 
         $orders = array_map(function ($s) {
             return [
-                'folio'    => $this->saleFolio($s['sale_type_id'], $s['folio'], $s['id']),
-                'customer' => trim((string) $s['customer']),
-                'order'    => (int) $s['sale_type_id'] === 1,
-                'total'    => round((float) $s['total'], 2),
-                'paid'     => round((float) $s['paid'], 2)
+                'folio'     => $this->saleFolio($s['sale_type_id'], $s['folio'], $s['id']),
+                'customer'  => trim((string) $s['customer']),
+                'order'     => (int) $s['sale_type_id'] === 1,
+                'status_id' => (int) $s['sale_status_id'],
+                'subtotal'  => round((float) $s['subtotal'], 2),
+                'discount'  => round(abs((float) $s['discount']), 2),
+                'total'     => round((float) $s['total'], 2),
+                'paid'      => round((float) $s['paid'], 2)
             ];
         }, $this->qShiftSales($id));
 

@@ -4,6 +4,7 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-order.php';
 require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
+require_once __DIR__ . '/../mdl/mdl-cierre-z.php';
 
 /*  Pedidos › cierre del día: ver, cerrar y reabrir.
 
@@ -21,23 +22,29 @@ require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
       - Solo se reabre el último día cerrado y si no hay turnos en días posteriores.
       - total_shifts es un CONTEO de turnos (así lo dejó alpha); turns_count también.
 
-    Permisos: cerrar = create (la cajera). Reabrir = cancel (Dueño, Supervisor). */
+    Permisos: cerrar = create (la cajera). Reabrir = solo root (core::isRoot). */
 class ctrl extends core {
     use WhatsAppNotices;
+    use DayReport;
 
     // -- Lectura --
 
-    // Sin fecha: hoy. Un día cerrado se lee de su foto; uno abierto, en vivo.
+    /*  Sin fecha: hoy. Un día cerrado se lee de su foto; uno abierto, en vivo.
+        detail = 1 (visor de Cortes, pide pos-tickets) y full = 1 (módulo de
+        cierre de Pedidos, pide 'show') traen cada folio y cada cobro del día.
+        report = 1 trae el Corte Z de alpha (dayReport) en lugar de esa lista. */
     public function getDay() {
         $fail = ($this->post('detail') === '1' ? $this->needTickets() : $this->need('show')) ?: $this->needBranch();
         if ($fail) return $fail;
 
-        $today = date('Y-m-d');
-        $day   = $this->postDate('date', $today);
+        $today  = date('Y-m-d');
+        $day    = $this->postDate('date', $today);
+        $report = $this->post('report') === '1';
+        $full   = !$report && ($this->post('detail') === '1' || $this->post('full') === '1');
 
         if ($day > $today) return $this->fail(422, 'No se puede ver el cierre de un día que no ha llegado.');
 
-        return $this->attempt(function () use ($day, $today) {
+        return $this->attempt(function () use ($day, $today, $full, $report) {
             $branchId    = $this->branchId();
             [$from, $to] = $this->dayRange($day);
 
@@ -45,16 +52,20 @@ class ctrl extends core {
             $turns   = $this->dayTurns($branchId, $from, $to);
             $pending = $this->pendingDays();
 
+            // company y logo: el encabezado del ticket (el mismo formato del corte de turno).
             return [
                 'status'   => 200,
                 'branch'   => $this->scope()['branch'],
+                'company'  => $this->scope()['company'],
+                'logo'     => $this->companyLogo(),
                 'today'    => $today,
                 'date'     => $day,
                 'closed'   => (bool) $closure,
                 'closure'  => $closure ? $this->closureInfo($closure) : null,
                 'summary'  => $closure ? $this->closureStats($closure) : $this->dayStats($branchId, $from, $to),
                 'turns'    => $turns,
-                'detail'   => $this->post('detail') === '1' ? $this->cutDetail(array_column($turns, 'id')) : null,
+                'detail'   => $full ? $this->cutDetail(array_column($turns, 'id')) : null,
+                'report'   => $report ? $this->dayReport($branchId, $to, $turns) : null,
                 'reopens'  => array_map([$this, 'closureInfo'], $this->qDayReopens($branchId, $from, $to)),
                 'pending'  => $pending,
                 'warnings' => $closure ? [] : $this->dayWarnings($day, $turns),
@@ -90,6 +101,123 @@ class ctrl extends core {
                 'difference'    => $closed ? round((float) $t['counted_cash'] - (float) $t['expected_cash'], 2) : null
             ];
         }, $this->qDayTurns($branchId, $from, $to));
+    }
+
+    // -- Corte Z (el reporte de alpha) --
+
+    /*  Lo que pinta OrderClosure.dayReport: los turnos del día con lo cobrado
+        por método, cada pedido y venta, los abonos a pedidos de otro día, lo
+        cobrado en otra sucursal y el fondo inicial. $until = inicio del día
+        siguiente: el Quedó es lo que se debía al terminar el día. */
+    private function dayReport($branchId, $until, array $turns) {
+        $ids    = array_map('intval', array_column($turns, 'id'));
+        $report = ['turns' => [], 'methods' => [], 'sales' => [], 'prev' => [], 'cross' => [], 'opening' => 0];
+
+        if (!$ids) return $report;
+
+        $byTurn  = [];
+        $methods = [];
+
+        foreach ($this->qZMethods($ids) as $m) {
+            $id     = (int) $m['id'];
+            $amount = round((float) $m['amount'], 2);
+            $count  = (int) $m['payments'];
+            $prev   = $m['source'] === 'abono';
+
+            if (!isset($methods[$id])) {
+                $methods[$id] = ['id' => $id, 'name' => $m['name'], 'is_cash' => (int) $m['is_cash'] === 1, 'amount' => 0, 'payments' => 0, 'sale_amount' => 0, 'prev_amount' => 0];
+            }
+
+            $methods[$id]['amount']   += $amount;
+            $methods[$id]['payments'] += $count;
+            $methods[$id][$prev ? 'prev_amount' : 'sale_amount'] += $amount;
+
+            $byTurn[(int) $m['turn_id']][$id] = round(($byTurn[(int) $m['turn_id']][$id] ?? 0) + $amount, 2);
+        }
+
+        foreach ($methods as &$method) {
+            foreach (['amount', 'sale_amount', 'prev_amount'] as $key) $method[$key] = round($method[$key], 2);
+        }
+        unset($method);
+
+        $report['methods'] = array_values($methods);
+
+        foreach ($turns as $t) {
+            $collected = $byTurn[$t['id']] ?? [];
+
+            $report['turns'][] = [
+                'id'           => $t['id'],
+                'folio'        => $t['folio'],
+                'closed'       => $t['closed'],
+                'opened_at'    => $t['opened_at'],
+                'closed_at'    => $t['closed_at'],
+                'opened_by'    => $t['opened_by'],
+                'opening_cash' => $t['opening_cash'],
+                'by_method'    => (object) $collected,
+                'collected'    => round(array_sum($collected), 2)
+            ];
+
+            $report['opening'] += $t['opening_cash'];
+        }
+
+        $report['opening'] = round($report['opening'], 2);
+
+        foreach ($this->qZSales($ids, $until) as $s) {
+            $type = (int) $s['sale_type_id'];
+            $due  = (float) $s['total'] + (float) $s['tip'];
+
+            $report['sales'][] = [
+                'id'        => (int) $s['id'],
+                'folio'     => $this->saleFolio($type, $s['folio'], $s['id']),
+                'kind'      => in_array($type, [2, 3], true) ? 'counter' : ($type === 4 ? 'online' : 'order'),
+                'turn_id'   => (int) $s['turn_id'],
+                'status_id' => (int) $s['sale_status_id'],
+                'status'    => (string) $s['status'],
+                'at'        => $s['created_at'],
+                'customer'  => trim((string) $s['customer']),
+                'subtotal'  => round((float) $s['subtotal'], 2),
+                'discount'  => round(abs((float) $s['discount']), 2),
+                'total'     => round((float) $s['total'], 2),
+                'tip'       => round((float) $s['tip'], 2),
+                'paid'      => round((float) $s['paid'], 2),
+                'left'      => max(round($due - (float) $s['paid_upto'], 2), 0),
+                'methods'   => (string) $s['methods']
+            ];
+        }
+
+        foreach ($this->qZPrev($ids, $until) as $p) {
+            $paid = round((float) $p['paid'], 2);
+            $left = max(round((float) $p['total'] + (float) $p['tip'] - (float) $p['paid_upto'], 2), 0);
+
+            $report['prev'][] = [
+                'turn_id'    => (int) $p['turn_id'],
+                'id'         => (int) $p['id'],
+                'folio'      => $this->saleFolio($p['sale_type_id'], $p['folio'], $p['id']),
+                'order_date' => $p['order_date'],
+                'origin'     => (int) $p['branch_id'] !== $branchId ? trim((string) $p['origin']) : '',
+                'customer'   => trim((string) $p['customer']),
+                'total'      => round((float) $p['total'], 2),
+                'paid'       => $paid,
+                'owed'       => round($left + $paid, 2),
+                'left'       => $left,
+                'at'         => $p['paid_at'],
+                'methods'    => (string) $p['methods']
+            ];
+        }
+
+        foreach ($this->qZCross($ids, $branchId, $until) as $x) {
+            $report['cross'][] = [
+                'id'       => (int) $x['id'],
+                'folio'    => $this->saleFolio($x['sale_type_id'], $x['folio'], $x['id']),
+                'customer' => trim((string) $x['customer']),
+                'branch'   => trim((string) $x['branch']),
+                'total'    => round((float) $x['total'], 2),
+                'amount'   => round((float) $x['amount'], 2),
+                'left'     => max(round((float) $x['total'] - (float) $x['paid_upto'], 2), 0)
+            ];
+        }
+
+        return $report;
     }
 
     // -- Lista de días (visor de Cortes) --
@@ -284,25 +412,27 @@ class ctrl extends core {
         return $warnings;
     }
 
+    // root: la pantalla le enseña «Reabrir día» (apagado con su motivo si no se puede); a nadie más.
     private function dayCan($day, $closure, $turns, $pending) {
         $create = $this->need('create') === null;
-        $boss   = $this->need('cancel') === null;
+        $root   = $this->isRoot();
 
         $close  = $create ? $this->closeBlock($day, $closure, $turns, $pending) : 'Tu rol no puede cerrar el día.';
-        $reopen = $boss ? $this->dayReopenBlock($closure, $day) : 'Tu rol no puede reabrir el día.';
+        $reopen = $root ? $this->dayReopenBlock($closure, $day) : 'Solo root puede reabrir el día.';
 
         return [
             'close'         => $close === '',
             'close_reason'  => $close,
             'reopen'        => $reopen === '',
-            'reopen_reason' => $reopen
+            'reopen_reason' => $reopen,
+            'root'          => $root
         ];
     }
 
     // '' = se puede cerrar. $turns trae 'folio' y 'closed' o 'status'.
     private function closeBlock($day, $closure, $turns, $pending) {
         if ($closure) return 'El día ya está cerrado.';
-        if (!$turns)  return 'No hubo turnos este día: no hay nada que cerrar.';
+        if (!$turns)  return 'No hay un turno cerrado este día: no hay nada que cerrar.';
 
         $open = [];
 
@@ -444,8 +574,11 @@ class ctrl extends core {
 
     // -- Reabrir --
 
+    // Solo root: un día cerrado ya no lo reabre Dueño ni Supervisor.
     public function reopenDay() {
-        $fail = $this->need('cancel', 'reabrir el día') ?: $this->needBranch();
+        if (!$this->isRoot()) return $this->fail(403, 'Solo root puede reabrir el día.');
+
+        $fail = $this->needBranch();
         if ($fail) return $fail;
 
         $day    = $this->postDate('date', '');

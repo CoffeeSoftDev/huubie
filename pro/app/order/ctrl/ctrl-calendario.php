@@ -23,7 +23,7 @@ require_once __DIR__ . '/core-order.php';
         ni los renglones de cobro de la bitacora (core::withoutMoney). */
 class ctrl extends core {
 
-    const CALENDAR  = 'pos-calendario';
+    // CALENDAR ('pos-calendario') y producer() viven en core: el detalle de Pedidos también palomea.
     const RANGE_MAX = 62;
 
     // -- Arranque --
@@ -213,13 +213,6 @@ class ctrl extends core {
         if (Permission::can(self::CALENDAR, $action)) return null;
 
         return ['status' => 403, 'message' => "Tu rol no tiene permiso para {$text} en esta sucursal.", 'row' => [], 'events' => []];
-    }
-
-    // Palomea «ya se elaboró»: Producción ('update' del calendario) y el Dueño.
-    private function producer() {
-        if (Permission::can(self::CALENDAR, 'update')) return true;
-
-        return Permission::can(self::CALENDAR, 'show') && $this->isOwner();
     }
 
     // fi/ff del POST, en orden y con tope: un mes en pantalla trae 6 semanas.

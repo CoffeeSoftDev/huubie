@@ -4,6 +4,8 @@
     fecha ni entrega: «Cobrar» guarda la venta ya pagada en un solo paso.
     La propina va aparte del total. Hasta 5 tickets en espera viven en este
     navegador, por usuario y sucursal; al cobrar, el ticket queda vacio.
+    Lo que se vende hoy se cierra hoy: cada ticket lleva su día (tk.day) y uno
+    de otro día no vuelve al abrir Ventas (restoreTickets lo descarta).
 
     Credito y monedero (V3) salen del cliente elegido: opts.customers trae su
     saldo de monedero (wallet) y su credito disponible (credit). El monedero es
@@ -16,9 +18,9 @@
     Con dueño, la venta queda a nombre de ese cliente. Al cobrar se vuelve a
     leer por si la desactivaron o le cambiaron el tipo.
 
-    El cobro (SalePay) sigue con tarjetas de método y «Agregar otro método».
-    OrderPay pasó a la ventana horizontal de pagos; SalePayBase conserva su
-    forma vieja (recibido, billetes y descuento op_*) para la venta.
+    El cobro (SalePay) es la misma ventana de pagos de Pedidos (OrderPay):
+    una fila por forma de pago como Soft, con la propina, el monedero, el
+    resto a crédito y la tarjeta de la venta.
 
     Manda el ctrl (ctrl-ventas.php): aqui solo se arma la venta y se avisa
     antes de mandar. `orders` apunta a esta pantalla porque el turno y el
@@ -34,6 +36,9 @@ $(async () => {
     orderClosure = new OrderClosure('ctrl/ctrl-cierre.php', 'root');
     sale         = new Sale(api, 'root');
     orders       = sale;
+
+    // El selector de sucursal de la barra dice cuál tiene turno (navbar.showTurns).
+    if (dataInit.turns && window.navbar && typeof navbar.showTurns === 'function') navbar.showTurns(dataInit.turns);
 
     sale.init();
 });
@@ -105,9 +110,11 @@ class Sale extends OrderForm {
     }
 
     // El catálogo es el de OrderForm (mismo diseño en Pedidos); aquí solo cambian las acciones.
+    // posCatalog rehace #posOrderCatalogMain: el aviso de turno se vuelve a montar (paintLocks).
     catalog() {
         super.catalog();
         this.paintFull();
+        this.paintLocks();
     }
 
     // Ventas no tiene «Pastel personalizado».
@@ -196,12 +203,12 @@ class Sale extends OrderForm {
         });
 
         this.paintTabs();
+        this.paintLocks();
     }
 
     ticketForm() {
         const tk    = this.currentTicket();
         const card  = tk.card;
-        const owned = !!(card && card.customer_id);
         const json  = [
             {
                 opc:      'select',
@@ -279,8 +286,8 @@ class Sale extends OrderForm {
                 this.readCard();
             });
 
-        // Con tarjeta de un cliente, la venta es suya: no se cambia el cliente mientras esté puesta.
-        $('#of_customer_id, #btnOfCustomer').prop('disabled', owned);
+        // Buscar cliente y «Nuevo»: apagados sin turno o con tarjeta con dueño (paintLocks).
+        this.paintLocks();
 
         $('#formOrderTicket').on('change input', () => {
             this.refreshSummary();
@@ -330,7 +337,7 @@ class Sale extends OrderForm {
             id:         'posOrderLines',
             class:      'sale-lines',
             json:       this.lines.map((line, i) => this.lineView(line, i)),
-            empty:      { title: 'Venta vacía', text: 'Toca un producto o búscalo con Ctrl K.' },
+            empty:      this.emptyLines(),
             typing:     true,
             stepDelete: false,
             onUpdate:   (index, quantity) => this.setQuantity(index, quantity),
@@ -370,6 +377,8 @@ class Sale extends OrderForm {
     renderTotals() {
         const count    = this.lines.length;
         const pieces   = this.lines.reduce((sum, line) => sum + line.quantity, 0);
+        const gross    = this.round2(this.lines.reduce((sum, line) => sum + this.unitPrice(line) * line.quantity, 0));
+        const lineOffs = this.round2(this.lines.reduce((sum, line) => sum + this.lineOff(line), 0));
         const subtotal = this.saleTotal();
         const card     = this.currentTicket().card;
         const off      = card && count ? this.cardOff(subtotal, card) : 0;
@@ -377,11 +386,15 @@ class Sale extends OrderForm {
         const caption  = count === 0 ? 'Sin productos' : `${count} ${count === 1 ? 'partida' : 'partidas'} · ${pieces} ${pieces === 1 ? 'pieza' : 'piezas'}`;
         const json     = [];
 
-        // posTicketTotals escribe text y value como texto: no van con esc().
-        if (off > 0) {
-            json.push({ text: 'Subtotal', value: money(subtotal), tone: 'muted' });
-            json.push({ text: `Tarjeta ${card.type} · ${card.discount_percent} %`, value: '−' + money(off), tone: 'discount' });
-        }
+        /*  Siempre la cuenta completa: subtotal (precio × cantidad, antes de
+            descuentos), cada descuento que haya (por producto y de la tarjeta)
+            o «Descuento $0.00», y abajo el total.
+            posTicketTotals escribe text y value como texto: no van con esc(). */
+        json.push({ text: 'Subtotal', value: money(gross), tone: 'muted' });
+
+        if (lineOffs > 0) json.push({ text: 'Descuento por producto', value: '−' + money(lineOffs), tone: 'discount' });
+        if (off > 0)      json.push({ text: `Tarjeta ${card.type} · ${card.discount_percent} %`, value: '−' + money(off), tone: 'discount' });
+        if (lineOffs <= 0 && off <= 0) json.push({ text: 'Descuento', value: money(0), tone: 'muted' });
 
         const actions = [
             {
@@ -440,15 +453,98 @@ class Sale extends OrderForm {
         if (!this.pay) return;
 
         if (!$('#posOrderHost').length) this.open();
+
+        this.paintLocks();
+    }
+
+    /*  Sin turno de hoy, como en Pedidos: en lugar del catálogo el aviso (turnGate) y
+        en el ticket no entra cliente ni ticket nuevo. Apagados con su porqué (ordLock):
+        «+ Ticket», buscar cliente, «Nuevo» y leer tarjeta (una tarjeta con dueño
+        también pone cliente). Una tarjeta ya puesta se puede quitar. Los tickets que
+        ya están se siguen viendo; su lista vacía dice que falta el turno.
+        Con tarjeta con dueño el cliente tampoco cambia. */
+    paintLocks() {
+        const ready = this.hasTurn();
+        const tk    = this.currentTicket();
+        const card  = !!(tk && tk.card);
+        const owned = card && !!tk.card.customer_id;
+        const why   = 'Abre un turno de caja para usarlo.';
+
+        ordLock('btnSaleTabAdd', !ready, why);
+        ordLock('btnOfCustomer', !ready || owned, ready ? '' : why);
+        ordLock('btnOfCard', !ready && !card, why);
+
+        $('#of_customer_id').prop('disabled', !ready || owned);
+        $('#of_card').prop('disabled', !ready || card);
+        $('#posOrderTkForm').toggleClass('sale-noturn', !ready);
+
+        $('#posOrderLines .pos-tkl-empty-text').text(this.emptyLines().text);
+
+        this.turnGate(ready);
+    }
+
+    // La lista vacía: sin turno no se invita a tocar productos.
+    emptyLines() {
+        return this.hasTurn()
+            ? { title: 'Venta vacía', text: 'Toca un producto o búscalo con Ctrl K.' }
+            : { title: 'Venta vacía', text: 'Abre un turno de caja para agregar productos.' };
+    }
+
+    /*  El aviso en el lugar del catálogo (.ord-gate, el mismo de la espera de
+        Pedidos): solo el estado del turno, sin botón; el turno se abre o se
+        cierra en la franja de caja. Con turno de hoy se quita y vuelve el catálogo. */
+    turnGate(ready) {
+        let box = $('#saleTurnGate');
+
+        $('#posOrderCatalogList').toggle(ready);
+
+        if (ready) return box.remove();
+        if (!$('#posOrderCatalogMain').length) return;
+
+        const gate = this.gateInfo();
+
+        if (!box.length) box = $('<div>', { id: 'saleTurnGate', class: 'ord-gate' }).appendTo('#posOrderCatalogMain');
+
+        box.html(`
+            <span class="ord-gate-icon"><i data-lucide="${gate.icon}"></i></span>
+            <p class="ord-gate-title">${esc(gate.title)}</p>
+            <p class="ord-gate-text">${esc(gate.text)}</p>`);
+
+        if (window.lucide) lucide.createIcons({ root: box[0] });
+    }
+
+    // Qué dice el aviso, en el orden de la franja: turno de otro día, día cerrado, día pendiente o sin turno.
+    gateInfo() {
+        const turn    = dataInit.turn;
+        const day     = dataInit.day || {};
+        const pending = orderTurn.blockedDay();
+        const can     = this.can('create');
+
+        if (turn) {
+            return { icon: 'history', title: `Turno ${turn.folio} de otro día`, text: can ? 'Ciérralo y abre el de hoy para vender.' : 'Lo cierra quien cobra, en caja.' };
+        }
+
+        if (day.closed) {
+            return { icon: 'calendar-x', title: 'Día cerrado', text: 'El día de hoy ya se cerró. Hoy no se abre otro turno.' };
+        }
+
+        if (pending) {
+            return { icon: 'calendar-clock', title: `Falta cerrar el ${ordDate(pending).slice(0, 5)}`, text: can ? 'Cierra ese día y luego abre el turno de hoy.' : 'El cierre lo hace quien cobra.' };
+        }
+
+        return { icon: 'lock', title: 'Sin turno abierto', text: can ? 'Abre un turno de caja para vender en mostrador.' : 'El turno se abre en caja. Pídeselo a quien cobra.' };
     }
 
     // El botón de pantalla completa dice en qué estado está (ícono y título).
+    // En pantalla completa también se esconden la barra de arriba y el rail (order.css › body.sale-full).
     paintFull() {
         const button = $('#btnSaleFull');
+        const on     = !!document.fullscreenElement;
+
+        $('body').toggleClass('sale-full', on);
 
         if (!button.length) return;
 
-        const on    = !!document.fullscreenElement;
         const label = on ? 'Salir de pantalla completa' : 'Pantalla completa';
 
         button.attr({ title: label, 'aria-label': label });
@@ -779,6 +875,7 @@ class Sale extends OrderForm {
         tk.customer_id = '';
         tk.note        = '';
         tk.card        = null;
+        tk.day         = this.today();
 
         this.lines = [];
         this.flash = -1;
@@ -789,8 +886,11 @@ class Sale extends OrderForm {
 
     // -- Descuento por producto --
 
-    // Mismas reglas que el descuento de la venta: motivo, tope del motivo y su permiso,
-    // pero sobre el importe de la partida. Se vuelve a revisar en el servidor (lineDiscount).
+    /*  Mismas reglas que el descuento de la venta: motivo, tope del motivo y su permiso,
+        pero sobre el importe de la partida. Se vuelve a revisar en el servidor (lineDiscount).
+        Para aplicarlo sin adivinar: el tope del motivo a la vista, % o $ en dos botones,
+        porcentajes rápidos hasta el tope y cuánto queda mientras se escribe
+        (paintLineDiscount). Con un solo motivo ya va elegido; Enter aplica. */
     discountLine(index) {
         const line    = this.lines[index];
         const reasons = this.opts.reasons || [];
@@ -805,6 +905,11 @@ class Sale extends OrderForm {
         const d     = line.discount || null;
         const lock  = this.opts.can_authorize ? '' : ' · requiere Dueño o Supervisor';
         const gross = this.round2(this.unitPrice(line) * line.quantity);
+        const only  = reasons.length === 1 ? reasons[0].id : '';
+        const label = (text) => `<span class="block text-xs font-semibold text-gray-500 mb-1.5">${text}</span>`;
+        const seg   = (mode, text, name) => `<button type="button" class="ord-seg" data-mode="${mode}" title="${name}" aria-label="${name}">${text}</button>`;
+
+        this.ldMode = d ? d.mode : 'percent';
 
         this.subModal({
             id:         'modalSaleLineDiscount',
@@ -821,26 +926,111 @@ class Sale extends OrderForm {
                     tipo:     'select',
                     required: true,
                     empty:    '— Elige el motivo —',
-                    value:    d ? d.reason_id : '',
+                    value:    d ? d.reason_id : only,
                     class:    'w-full',
                     data:     reasons.map((r) => ({
                         id:    r.id,
                         valor: `${r.name} (hasta ${Number(r.max_percent)} %)${Number(r.requires_authorization) === 1 ? lock : ''}`
                     }))
                 },
-                {
-                    id:    'ld_mode',
-                    lbl:   'En',
-                    tipo:  'select',
-                    empty: false,
-                    value: d ? d.mode : 'percent',
-                    class: 'w-1/2',
-                    data:  [{ id: 'percent', valor: '% del importe' }, { id: 'amount', valor: '$ pesos' }]
-                },
-                { id: 'ld_value', lbl: 'Descuento', tipo: 'number', required: true, min: 0, step: '0.01', ph: '0', value: d ? d.value : '', class: 'w-1/2' }
+                { id: 'ld_cap', tipo: 'html', class: 'w-full', html: '' },
+                { id: 'ld_kind', tipo: 'html', class: 'w-1/2', html: `${label('Descontar en')}<div class="ld-seg">${seg('percent', '%', 'Porcentaje')}${seg('amount', '$', 'Pesos')}</div>` },
+                { id: 'ld_value', lbl: 'Porcentaje', tipo: 'number', required: true, min: 0, step: '0.01', ph: '0', value: d ? d.value : '', class: 'w-1/2' },
+                { id: 'ld_quick', tipo: 'html', class: 'w-full', html: '' },
+                { id: 'ld_preview', tipo: 'html', class: 'w-full', html: '' }
             ],
             onSave: (values, close) => this.saveLineDiscount(index, values, close)
         });
+
+        const modal = $('#modalSaleLineDiscount');
+
+        modal.on('click', 'button.ord-seg', (e) => {
+            this.ldMode = String($(e.currentTarget).data('mode')) === 'amount' ? 'amount' : 'percent';
+            this.paintLineDiscount(index);
+            $('#ld_value').trigger('focus').trigger('select');
+        });
+
+        modal.on('click', 'button.ord-goal', (e) => {
+            this.ldMode = 'percent';
+            $('#ld_value').val(String($(e.currentTarget).data('pct')));
+            this.paintLineDiscount(index);
+        });
+
+        modal.on('input change', '#ld_reason_id, #ld_value', () => this.paintLineDiscount(index));
+
+        modal.on('keydown', '#ld_value', (e) => {
+            if (e.key !== 'Enter') return;
+
+            e.preventDefault();
+            modal.find('.cs-modal-save').trigger('click');
+        });
+
+        this.paintLineDiscount(index);
+
+        $(d || only ? '#ld_value' : '#ld_reason_id').trigger('focus');
+    }
+
+    // Repinta el tope del motivo, % o $, los porcentajes rápidos y la cuenta: importe, descuento y lo que queda.
+    paintLineDiscount(index) {
+        const line  = this.lines[index];
+        const modal = $('#modalSaleLineDiscount');
+
+        if (!line || !modal.length) return;
+
+        const reason  = (this.opts.reasons || []).find((r) => String(r.id) === String($('#ld_reason_id').val()));
+        const percent = this.ldMode !== 'amount';
+        const gross   = this.round2(this.unitPrice(line) * line.quantity);
+        const raw     = String($('#ld_value').val() || '').trim();
+        const value   = raw === '' ? null : this.amount(raw);
+        const max     = reason ? Number(reason.max_percent) : 0;
+        const locked  = !!reason && Number(reason.requires_authorization) === 1 && !this.opts.can_authorize;
+
+        // Tope del motivo en % y en pesos de esta partida.
+        const cap = reason
+            ? `Este motivo permite hasta <b>${max} %</b> · ${money(this.round2(gross * max / 100))} en este producto${locked ? '. Lo autoriza un Dueño o Supervisor.' : '.'}`
+            : '';
+
+        $('#ld_cap').toggle(!!reason).html(reason ? `<p class="ld-cap${locked ? ' is-lock' : ''}"><i data-lucide="${locked ? 'lock' : 'shield-check'}"></i><span>${cap}</span></p>` : '');
+
+        modal.find('button.ord-seg').each((i, el) => {
+            const on = $(el).data('mode') === this.ldMode;
+
+            $(el).toggleClass('is-active', on).attr('aria-pressed', String(on));
+        });
+
+        $('label[for="ld_value"]').html(`${percent ? 'Porcentaje' : 'Pesos'} <span class="text-red-500">*</span>`);
+        $('#ld_value').attr({ max: percent ? 100 : gross, inputmode: 'decimal', placeholder: percent ? 'Ej. 10' : 'Ej. 50.00' });
+
+        // Porcentajes rápidos hasta el tope del motivo; sin motivo, los comunes.
+        const steps = [5, 10, 15, 20, 25, 50, 100].filter((p) => !reason || p <= max);
+
+        if (reason && max > 0 && !steps.includes(max)) steps.push(max);
+
+        const chips = steps.map((p) => `<button type="button" class="ord-goal${percent && value === p ? ' is-active' : ''}" data-pct="${p}">${p} %${reason && p === max ? ' · máx.' : ''}</button>`).join('');
+
+        $('#ld_quick').toggle(steps.length > 0).html(steps.length ? `<span class="block text-xs font-semibold text-gray-500 mb-1.5">Rápido</span><div class="ld-quick">${chips}</div>` : '');
+
+        const discount = reason && value !== null && value > 0 ? { reason_id: Number(reason.id), reason: reason.name, mode: this.ldMode, value: value } : null;
+        const error    = discount ? this.lineDiscountFail(line, discount) : '';
+        const off      = discount && !error ? this.lineOff({ ...line, discount: discount }) : 0;
+
+        let note = { tone: '', text: '' };
+
+        if (!reason)                         note.text = 'Elige el motivo del descuento.';
+        else if (raw === '')                 note.text = percent ? 'Escribe el porcentaje o toca uno de los rápidos.' : 'Escribe cuántos pesos se descuentan.';
+        else if (value === null || value <= 0) note = { tone: 'is-bad', text: 'El descuento tiene que ser mayor a 0, con hasta 2 decimales.' };
+        else if (error)                      note = { tone: 'is-bad', text: error };
+        else                                 note = { tone: 'is-ok', text: percent ? `El ${value} % son ${money(off)} menos.` : `${money(off)} es el ${gross > 0 ? this.round2(off / gross * 100) : 0} % del importe.` };
+
+        $('#ld_preview').html(`
+            <div class="ld-sum">
+                <div class="ld-row"><span>Importe</span><b>${money(gross)}</b></div>
+                <div class="ld-row is-off"><span>Descuento</span><b>${off > 0 ? '−' + money(off) : '—'}</b></div>
+                <div class="ld-row is-net"><span>Queda en</span><b>${money(this.round2(gross - off))}</b></div>
+                ${note.text ? `<p class="ld-note ${note.tone}">${esc(note.text)}</p>` : ''}
+            </div>`);
+
+        if (window.lucide) lucide.createIcons({ root: modal[0] });
     }
 
     saveLineDiscount(index, values, close) {
@@ -854,7 +1044,7 @@ class Sale extends OrderForm {
         if (raw === '') return this.warn('Escribe el descuento.');
         if (value === null || value <= 0) return this.warn('El descuento tiene que ser mayor a 0, con hasta 2 decimales.');
 
-        const discount = { reason_id: Number(reason.id), reason: reason.name, mode: values.ld_mode === 'amount' ? 'amount' : 'percent', value: value };
+        const discount = { reason_id: Number(reason.id), reason: reason.name, mode: this.ldMode === 'amount' ? 'amount' : 'percent', value: value };
         const error    = this.lineDiscountFail(line, discount);
 
         if (error) return this.warn(error);
@@ -1330,8 +1520,26 @@ class Sale extends OrderForm {
             lines:       [],
             customer_id: '',
             note:        '',
-            card:        null
+            card:        null,
+            day:         this.today()
         };
+    }
+
+    // El día del servidor (AAAA-MM-DD): el de los tickets en espera.
+    today() {
+        return String(dataInit.today || '');
+    }
+
+    /*  Los tickets en espera cambiaron fuera de la pantalla (orderTurn.dropAccounts
+        al cerrar el turno o el día): se vuelven a leer y se repinta el ticket. */
+    reloadTickets() {
+        if (!this.pay) return;
+
+        this.restoreTickets();
+        this.paintTabs();
+        this.ticket();
+        this.ticketForm();
+        this.renderLines();
     }
 
     ticketKey() {
@@ -1371,17 +1579,28 @@ class Sale extends OrderForm {
         const products  = new Map((this.opts.products || []).map((p) => [Number(p.id), p]));
         const customers = new Set((this.opts.customers || []).map((c) => String(c.id)));
         const seen      = new Set();
+        const today     = this.today();
 
         let dropped = 0;
+        let stale   = 0;
 
         this.tickets = (saved && Array.isArray(saved.tickets) ? saved.tickets : [])
             .filter((t) => {
-                const n  = Number(t && t.n);
-                const ok = Number.isInteger(n) && n >= 1 && n <= this.maxTickets && !seen.has(n);
+                const n   = Number(t && t.n);
+                const day = String((t && t.day) || '');
+                const ok  = Number.isInteger(n) && n >= 1 && n <= this.maxTickets && !seen.has(n);
 
-                if (ok) seen.add(n);
+                if (!ok) return false;
 
-                return ok;
+                // Lo que no se cobró en su día no pasa al siguiente. Sin día (guardado antes) se queda.
+                if (day && today && day < today) {
+                    if (Array.isArray(t.lines) && t.lines.length) stale++;
+                    return false;
+                }
+
+                seen.add(n);
+
+                return true;
             })
             .map((t) => {
                 const lines = [];
@@ -1445,7 +1664,8 @@ class Sale extends OrderForm {
                     lines:       lines.slice(0, 100),
                     customer_id: keep && owner ? owner : (customers.has(customer) ? customer : ''),
                     note:        String(t.note || '').slice(0, 255),
-                    card:        keep
+                    card:        keep,
+                    day:         String(t.day || '') || today
                 };
             })
             .sort((a, b) => a.n - b.n);
@@ -1457,11 +1677,16 @@ class Sale extends OrderForm {
         this.active = this.tickets.some((t) => t.n === active) ? active : this.tickets[0].n;
         this.lines  = this.currentTicket().lines.map((line) => ({ ...line }));
 
-        if (dropped) {
+        const notes = [];
+
+        if (stale) notes.push(`${stale === 1 ? 'Un ticket de otro día se descartó' : `${stale} tickets de otro día se descartaron`}: lo que no se cobró en su día no pasa al siguiente.`);
+        if (dropped) notes.push(`${dropped} ${dropped === 1 ? 'producto ya no está en el catálogo y se quitó' : 'productos ya no están en el catálogo y se quitaron'}. Los precios se tomaron del catálogo actual.`);
+
+        if (notes.length) {
             alert({
                 icon:     'info',
                 title:    'Tickets en espera actualizados',
-                text:     `${dropped} ${dropped === 1 ? 'producto ya no está en el catálogo y se quitó' : 'productos ya no están en el catálogo y se quitaron'}. Los precios se tomaron del catálogo actual.`,
+                text:     notes.join(' '),
                 btn1:     true,
                 btn1Text: 'Entendido'
             });
@@ -1495,7 +1720,7 @@ class Sale extends OrderForm {
     turnReady(what) {
         const turn = dataInit.turn;
 
-        if (turn && !turn.old) return true;
+        if (this.hasTurn()) return true;
 
         orderTurn.locked({
             title:   turn ? 'Turno de otro día' : 'Sin turno abierto',
@@ -1505,6 +1730,13 @@ class Sale extends OrderForm {
         });
 
         return false;
+    }
+
+    // Turno abierto de hoy en esta sucursal (uno de otro día no cuenta).
+    hasTurn() {
+        const turn = dataInit.turn;
+
+        return !!(turn && !turn.old);
     }
 
     can(action) {
@@ -1520,176 +1752,21 @@ class Sale extends OrderForm {
     }
 }
 
-// -- SalePayBase --
-
-/*  La forma vieja del cobro: recibido, billetes y el descuento con campos
-    op_*. OrderPay pasó a la ventana horizontal; la venta la sigue usando. */
-class SalePayBase extends OrderPay {
-
-    bind() {
-        const modal = $('#modalOrderPay');
-
-        modal.on('input', '#op_received', () => this.paint());
-
-        modal.on('click', 'button.ord-bill', (e) => {
-            $('#op_received').val(Number($(e.currentTarget).data('amount')).toFixed(2));
-            this.paint();
-        });
-
-        modal.on('click', 'button.ord-disc-toggle', () => {
-            this.discOpen = !this.discOpen;
-
-            if (!this.discOpen) $('#op_reason, #op_disc_value, #op_disc_note').val('');
-
-            this.paint();
-
-            if (this.discOpen) $('#op_reason').trigger('focus');
-        });
-
-        modal.on('click', 'button.ord-seg', (e) => {
-            this.discMode = String($(e.currentTarget).data('mode'));
-            this.paint();
-        });
-
-        modal.on('input change', '#op_reason, #op_disc_value', () => this.paint());
-
-        modal.on('keydown', 'input', (e) => {
-            if (e.key !== 'Enter') return;
-
-            e.preventDefault();
-            modal.find('.cs-modal-save').trigger('click');
-        });
-    }
-
-    discountFields() {
-        const o = this.o;
-
-        if (o.discount_amount > 0) {
-            const why  = o.discount_reason ? ` (${esc(o.discount_reason)})` : '';
-            const note = `<p class="text-[12.5px] text-gray-500 mb-0">Este pedido ya tiene un descuento de <b>${money(o.discount_amount)}</b>${why}. Solo se aplica uno.</p>`;
-
-            return [{ id: 'op_disc_bar', tipo: 'html', class: 'w-full', html: note }];
-        }
-
-        if (!this.reasons.length) return [];
-
-        // Corte cerrado: el descuento movería su vendido; lo autoriza Dueño o Supervisor.
-        if (this.discBlock) {
-            const note = `<p class="text-[12.5px] text-amber-700 mb-0"><i data-lucide="lock" class="w-3.5 h-3.5 inline -mt-0.5"></i> ${esc(this.discBlock)}</p>`;
-
-            return [{ id: 'op_disc_bar', tipo: 'html', class: 'w-full', html: note }];
-        }
-
-        const lock = this.canAuthorize ? '' : ' · requiere Dueño o Supervisor';
-        const data = this.reasons.map((r) => ({
-            id:    r.id,
-            valor: `${r.name} (hasta ${Number(r.max_percent)} %)${Number(r.requires_authorization) === 1 ? lock : ''}`
-        }));
-
-        const segs = '<div class="flex">'
-            + '<button type="button" class="ord-seg" data-mode="percent">%</button>'
-            + '<button type="button" class="ord-seg" data-mode="amount">$</button>'
-            + '</div>';
-
-        return [
-            {
-                id:    'op_disc_bar',
-                tipo:  'html',
-                class: 'w-full',
-                html:  '<button type="button" class="ord-disc-toggle"><i data-lucide="percent" class="w-4 h-4"></i><span>Aplicar descuento</span></button>'
-            },
-            { id: 'op_reason', lbl: 'Motivo', tipo: 'select', data: data, empty: '— Elige el motivo —', class: 'w-full sm:w-1/2 op-disc hidden' },
-            { id: 'op_disc_value', lbl: 'Descuento', tipo: 'number', min: 0, step: '0.01', ph: '0', class: 'w-[60%] sm:w-1/4 op-disc hidden' },
-            { id: 'op_disc_mode', tipo: 'html', class: 'w-[40%] sm:w-1/4 op-disc hidden', html: '<p class="block text-xs font-semibold text-gray-500 mb-1.5">En</p>' + segs },
-            { id: 'op_disc_note', lbl: 'Nota del descuento (opcional)', tipo: 'text', maxlength: 255, ph: 'Ej. Cliente frecuente', class: 'w-full op-disc hidden' },
-            { id: 'op_disc_hint', tipo: 'html', class: 'w-full op-disc hidden', html: '<div id="op_disc_msg" class="text-[12.5px]"></div>' }
-        ];
-    }
-
-    discountCalc() {
-        const off = { amount: 0, error: '' };
-
-        if (!this.discOpen) return off;
-
-        const o      = this.o;
-        const raw    = String($('#op_disc_value').val() || '').trim();
-        const reason = this.reasons.find((r) => String(r.id) === String($('#op_reason').val()));
-        const value  = ordAmount(raw);
-        const fail   = (error) => ({ amount: 0, error: error });
-
-        if (raw === '' && !reason) return off;
-        if (!reason)               return fail('Elige el motivo del descuento.');
-        if (raw === '')            return fail('Escribe el descuento.');
-        if (value === null || value <= 0)              return fail('El descuento tiene que ser mayor a 0.');
-        if (this.discMode === 'percent' && value > 100) return fail('El descuento no puede pasar de 100 %.');
-
-        const amount = this.discMode === 'percent' ? ordRound(o.subtotal * value / 100) : value;
-        const max    = Number(reason.max_percent);
-        const cap    = ordRound(o.subtotal * max / 100);
-
-        if (amount <= 0)                                  return fail('El descuento tiene que ser mayor a $0.');
-        if (amount > cap + 0.005)                         return fail(`«${reason.name}» permite hasta ${max} % (${money(cap)}).`);
-        if (amount > o.total + 0.005)                     return fail('El descuento no puede ser mayor que el total.');
-        if (ordRound(o.total - amount) + 0.005 < o.paid)  return fail(`Con ese descuento el total queda debajo de lo ya abonado (${money(o.paid)}).`);
-
-        if (Number(reason.requires_authorization) === 1 && !this.canAuthorize) {
-            return fail(`«${reason.name}» lo autoriza un Dueño o Supervisor.`);
-        }
-
-        return {
-            amount:  amount,
-            error:   '',
-            reason:  reason,
-            value:   value,
-            percent: o.subtotal > 0 ? ordRound(amount / o.subtotal * 100) : 0
-        };
-    }
-
-    paintDiscount(c) {
-        const d = c.d;
-
-        $('#modalOrderPay .op-disc').toggleClass('hidden', !this.discOpen);
-        $('#modalOrderPay button.ord-disc-toggle').toggleClass('is-active', this.discOpen);
-        $('#modalOrderPay button.ord-disc-toggle span').text(this.discOpen ? 'Quitar descuento' : 'Aplicar descuento');
-
-        $('#modalOrderPay button.ord-seg').each((i, el) => {
-            $(el).toggleClass('is-active', $(el).data('mode') === this.discMode);
-        });
-
-        let msg = '<span class="text-gray-400">Elige el motivo y escribe el descuento.</span>';
-
-        if (d.error)        msg = `<span class="text-rose-600">${esc(d.error)}</span>`;
-        else if (d.amount)  msg = `<span class="text-emerald-700">Descuento de <b>${money(d.amount)}</b> (${d.percent} % del subtotal). El total queda en ${money(c.total)}.</span>`;
-
-        $('#op_disc_msg').html(msg);
-    }
-
-    // Exacto y los 3 billetes redondos siguientes a lo que falta.
-    bills(remaining) {
-        if (remaining <= 0) return '';
-
-        const next = [];
-
-        [50, 100, 200, 500, 1000].forEach((step) => {
-            const value = Math.ceil(remaining / step) * step;
-
-            if (value > remaining && !next.includes(value)) next.push(value);
-        });
-
-        const list = next.sort((a, b) => a - b).slice(0, 3);
-
-        return `<button type="button" class="ord-bill" data-amount="${remaining}">Exacto</button>`
-             + list.map((v) => `<button type="button" class="ord-bill" data-amount="${v}">$${v.toLocaleString('es-MX')}</button>`).join('');
-    }
-
-    methodOf(id) {
-        return this.methods.find((m) => m.id === Number(id)) || null;
-    }
-}
-
 // -- SalePay --
 
-class SalePay extends SalePayBase {
+/*  Cobrar la venta con la ventana de pagos de Pedidos (OrderPay, pedido-cobro.js):
+    la misma tabla de formas de pago como Soft, el teclado táctil, el descuento
+    con motivo y la confirmación antes de mandar. La venta suma lo suyo:
+      - Propina: aparte del total (Sin propina, 10 %, 15 % u Otra); se cobra
+        junto con él (dueOf).
+      - Monedero: una forma de pago más, solo si el cliente tiene saldo. La
+        fila que cubre lo que falta no pasa de ese saldo (autoCap).
+      - «Resto a crédito»: lo que falte va a la cuenta del cliente (si tiene
+        crédito disponible) y la venta queda pendiente.
+      - Tarjeta de lealtad: si su tipo descuenta, ese es el descuento; con los
+        sellos completos, «Canjear premio».
+    Al confirmar se manda addSale (no payOrder): la venta se crea ya cobrada. */
+class SalePay extends OrderPay {
 
     // -- Initial --
 
@@ -1697,251 +1774,292 @@ class SalePay extends SalePayBase {
         super(link, div_modulo);
         this.PROJECT_NAME = 'SalePay';
         this.tipMode      = 'none';
+        this.tipNow       = { amount: 0, error: '' };
+        this.onCredit     = false;
+        this.redeem       = false;
+        this.card         = null;
+        this.account      = null;
     }
 
+    // Arma lo que OrderPay.start espera de payOptions con lo que ya tiene la pantalla: no se pide nada al ctrl.
     openSale(options = {}) {
-        if (this.loading || this.saving) return;
+        if (this.loading || this.saving || this.isOpen) return;
 
         const subtotal = sale.saleTotal();
-        const name     = sale.customerName();
         const purse    = sale.opts.wallet_method;
+        const turn     = dataInit.turn;
+        const branchId = Number(dataInit.branch_id) || 0;
 
-        this.o = {
-            id:              0,
-            folio:           '',
-            customer:        name,
-            subtotal:        subtotal,
-            discount_amount: 0,
-            discount_reason: null,
-            total:           subtotal,
-            paid:            0
-        };
-
-        // Lo que OrderPay espera de un pedido: aquí siempre se cobra y no hay pagos previos.
-        this.canPay       = true;
-        this.payments     = [];
-        this.thenDeliver  = false;
-        this.fromDetail   = false;
-        this.methods      = (sale.opts.methods || []).map((m) => ({ id: Number(m.id), name: m.name, code: m.code, cash: Number(m.is_cash) === 1 }));
-        this.account      = sale.customerAccount();
-        this.card         = sale.currentTicket().card || null;
-        this.redeem       = false;
-        this.onCredit     = false;
+        this.account  = sale.customerAccount();
+        this.card     = sale.currentTicket().card || null;
+        this.tipMode  = 'none';
+        this.tipNow   = { amount: 0, error: '' };
+        this.onCredit = false;
+        this.redeem   = false;
 
         // El monedero se ofrece solo si el cliente trae saldo.
-        if (purse && this.account && this.account.wallet > 0.005) {
-            this.methods.push({ id: Number(purse.id), name: purse.name, code: purse.code, cash: false, wallet: true });
-        }
+        const methods = (sale.opts.methods || []).slice();
 
-        this.reasons      = sale.opts.reasons || [];
-        this.canAuthorize = !!sale.opts.can_authorize;
-        this.discBlock    = '';
-        this.token        = ordToken();
-        this.mode         = 'all';
-        this.lines        = [];
-        this.discOpen     = !this.cardDiscounts() && !!options.discount && this.reasons.length > 0;
-        this.discMode     = 'percent';
-        this.tipMode      = 'none';
-        this.method       = (this.methods.find((m) => m.cash) || this.methods[0]).id;
+        if (purse && this.account && this.account.wallet > 0.005) methods.push(purse);
 
-        this.csModal({
-            id:         'modalOrderPay',
-            title:      'Cobrar venta',
-            subtitle:   `Ticket ${sale.active} · ${name}`,
-            lucideIcon: 'banknote',
-            width:      'max-w-2xl',
-            saveText:   'Cobrar',
-            cancelText: 'Volver',
-            json:       this.fields(),
-            onSave:     (values, close) => this.save(close)
-        });
+        this.start({
+            order:         { id: 0, folio: '', customer: sale.customerName(), subtotal: subtotal, discount_amount: 0, discount_reason: '', total: subtotal, paid: 0 },
+            payments:      [],
+            can_pay:       true,
+            reasons:       sale.opts.reasons || [],
+            can_authorize: !!sale.opts.can_authorize,
+            branch_id:     branchId,
+            branches:      [{
+                id:      branchId,
+                name:    sale.opts.branch || 'Esta sucursal',
+                session: true,
+                turn:    turn ? { folio: turn.folio, opened_at: turn.opened_at, opened_by: turn.opened_by, old: !!turn.old } : null,
+                block:   null,
+                methods: methods
+            }]
+        }, false, {});
 
-        this.bind();
-        this.paint();
-
-        $(this.discOpen ? '#op_reason' : '#op_received').trigger('focus');
+        if (options.discount && this.canDiscount() && this.reasons.length) this.toggleDisc();
     }
 
-    // -- Interface --
+    // -- Textos --
 
-    fields() {
-        const label = (text) => `<p class="block text-xs font-semibold text-gray-500 mb-1.5">${text}</p>`;
-        const tips  = [['none', 'Sin propina'], ['10', '10 %'], ['15', '15 %'], ['other', 'Otra']]
-            .map(([mode, text]) => `<button type="button" class="ord-tip" data-tip="${mode}">${text}</button>`)
-            .join('');
+    noun()         { return 'Venta'; }
+    theNoun()      { return 'la venta'; }
+    prefix()       { return 'V'; }
+    noClient()     { return 'Público en general'; }
+    paidLabel()    { return 'Venta pagada completamente'; }
+    paidShort()    { return 'Venta pagada.'; }
+    keyOnSettled() { return false; }
+    fillsBalance() { return true; }
+    originLabel()  { return 'Origen de la venta'; }
 
-        return [
-            { id: 'op_head', tipo: 'html', class: 'w-full', html: this.head() },
-            ...this.discountFields(),
-            { id: 'op_tip', tipo: 'html', class: 'w-full sm:w-1/2', html: label('Propina') + `<div id="op_tip_chips" class="flex flex-wrap gap-[8px]">${tips}</div>` },
-            { id: 'op_tip_amount', lbl: 'Propina ($)', tipo: 'number', min: 0, step: '0.01', ph: '0.00', class: 'w-full sm:w-1/2 op-tip-other hidden' },
-            { id: 'op_methods', tipo: 'html', class: 'w-full', html: label('Método de pago') + '<div id="op_method_chips" class="ord-method-grid"></div>' },
-            { id: 'op_received', lbl: 'Recibe en efectivo', tipo: 'number', min: 0, step: '0.01', class: 'w-full sm:w-1/2' },
-            { id: 'op_bills', tipo: 'html', class: 'w-full sm:w-1/2 op-bills', html: label('Billetes') + '<div id="op_bill_chips" class="flex flex-wrap gap-[8px]"></div>' },
-            {
-                id:    'op_lines_box',
-                tipo:  'html',
-                class: 'w-full',
-                html:  '<div id="op_lines"></div><button type="button" class="ord-split"><i data-lucide="plus" class="w-4 h-4"></i>Agregar otro método</button>'
-            },
-            {
-                id:    'op_credit_box',
-                tipo:  'html',
-                class: 'w-full op-credit hidden',
-                html:  `
-                    <div class="flex flex-wrap items-center gap-[8px]">
-                        <button type="button" class="ord-credit" aria-pressed="false"><i data-lucide="calendar-clock" class="w-4 h-4"></i><span>Resto a crédito</span></button>
-                        <span id="op_credit_hint" class="text-[12px] text-gray-500"></span>
-                    </div>`
-            },
-            { id: 'op_totals', tipo: 'html', class: 'w-full', html: '<div id="op_sum"></div>' }
-        ];
+    // Con una tarjeta que descuenta, ese es el descuento de la venta: no se ofrece otro.
+    canDiscount()  { return !(this.card && this.card.discount_percent > 0); }
+
+    // -- Cuentas --
+
+    // Lo que se cobra: la venta (con su descuento) más la propina.
+    dueOf(total) {
+        this.tipNow = this.tipCalc(total);
+
+        return ordRound(total + this.tipNow.amount);
     }
 
-    head() {
-        const tile = (label, value, strong) => `
-            <div class="ord-tile rounded-xl border-[1px] border-gray-200 bg-gray-50 px-[14px] py-[10px]">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">${label}</p>
-                <p class="text-[18px] font-bold mb-0 ${strong ? 'text-blue-700' : 'text-gray-800'}">${value}</p>
-            </div>`;
-
-        return `
-            <div class="grid grid-cols-3 gap-[8px]">
-                ${tile('Venta', '<span id="op_total"></span>')}
-                ${tile('Propina', '<span id="op_tip_value"></span>')}
-                ${tile('A cobrar', '<span id="op_balance"></span>', true)}
-            </div>`;
+    // Si el monedero cubre lo que falta, no pasa de su saldo.
+    autoCap(m) {
+        return m.wallet && this.account ? this.account.wallet : Infinity;
     }
 
-    // SalePayBase trae la forma vieja (recibido, billetes, descuento); aquí se suman
-    // las tarjetas de método y «Agregar otro método».
-    bind() {
-        super.bind();
+    /*  Las cuentas de OrderPay más las de la venta. short = lo que falta por
+        cubrir; con «Resto a crédito» eso es lo que va a la cuenta del cliente. */
+    calc() {
+        const c       = super.calc();
+        const free    = this.account ? this.account.credit : 0;
+        const inPurse = ordRound(c.payments.reduce((sum, p) => sum + ((this.methodOf(p.method_id) || {}).wallet ? p.amount : 0), 0));
 
-        const modal = $('#modalOrderPay');
+        c.tip        = this.tipNow.amount;
+        c.tipError   = this.tipNow.error;
+        c.short      = Math.max(0, ordRound(c.balance - c.applied));
+        c.credit     = this.onCredit ? c.short : 0;
+        c.walletOver = !!this.account && inPurse > this.account.wallet + 0.005;
+        c.creditOver = c.credit > 0.005 && c.credit > free + 0.005;
 
-        modal.on('click', 'button.ord-method', (e) => {
-            this.method = Number($(e.currentTarget).data('id'));
-            $('#op_received').val('');
-            this.paint();
-            $('#op_received').trigger('focus');
-        });
-
-        modal.on('click', 'button.ord-split', () => this.split());
-
-        modal.on('click', 'button.ord-line-del', (e) => {
-            this.lines.splice(Number($(e.currentTarget).data('index')), 1);
-            this.paint();
-        });
-
-        modal.on('click', 'button.ord-tip', (e) => {
-            this.tipMode = String($(e.currentTarget).data('tip'));
-
-            if (this.tipMode !== 'other') $('#op_tip_amount').val('');
-
-            this.paint();
-
-            if (this.tipMode === 'other') $('#op_tip_amount').trigger('focus');
-        });
-
-        modal.on('input', '#op_tip_amount', () => this.paint());
-
-        modal.on('click', 'button.ord-credit:not(.ord-reward)', () => {
-            this.onCredit = !this.onCredit;
-            this.paint();
-            $('#op_received').trigger('focus');
-        });
-
-        // Canjear el premio de sellos: es el descuento de la venta, así que cierra el descuento manual.
-        modal.on('click', 'button.ord-reward', () => {
-            this.redeem = !this.redeem;
-
-            if (this.redeem && this.discOpen) {
-                this.discOpen = false;
-                $('#op_reason, #op_disc_value, #op_disc_note').val('');
-            }
-
-            this.paint();
-        });
+        return c;
     }
 
-    // Propio, sin super.paint(): el de OrderPay pinta sus filas por forma de pago, que aquí no existen.
-    paint() {
-        const c    = this.calc();
-        const m    = c.method;
+    // Lo que frena el cobro, en orden. '' = se puede cobrar.
+    problem(c) {
         const free = this.account ? this.account.credit : 0;
 
-        this.paintHead(c.total);
+        if (c.tipError)            return c.tipError;
+        if (c.d.error)             return c.d.error;
+        if (c.bad)                 return `El monto de ${c.bad.name} no es válido.`;
+        if (c.badRec)              return 'El monto recibido en efectivo no es válido.';
+        if (c.over > 0.005)        return `Los pagos pasan de lo que se cobra por ${money(c.over)}. Se cobran ${money(c.balance)}: no se cobra de más.`;
+        if (c.walletOver)          return `El monedero de ${this.o.customer} solo tiene ${money(this.account.wallet)}.`;
+        if (c.payments.length > 6) return 'Un cobro admite hasta 6 métodos de pago.';
+        if (c.missing > 0.005)     return `Faltan ${money(c.missing)} por recibir en efectivo.`;
+        if (c.creditOver)          return `El crédito disponible de ${this.o.customer} es ${money(free)} y faltan ${money(c.credit)}. Cobra hoy la diferencia.`;
 
-        $('#op_balance').text(money(c.balance));
-        $('#op_tip_value').text(money(c.tip));
-        $('#modalOrderPay .op-tip-other').toggleClass('hidden', this.tipMode !== 'other');
-
-        $('#modalOrderPay button.ord-tip').each((i, el) => {
-            $(el).toggleClass('is-active', String($(el).data('tip')) === this.tipMode);
-        });
-
-        $('#op_method_chips').html(this.methodChips());
-        $('label[for="op_received"]').text(m && m.cash ? 'Recibe en efectivo' : `Monto con ${m ? m.name : ''}`);
-
-        if (m && m.wallet) {
-            $('#op_received').attr('placeholder', c.cap > 0 ? `Hasta ${money(Math.min(c.cap, c.remaining))}` : 'Sin saldo');
-        } else if (this.onCredit && c.remaining > 0) {
-            $('#op_received').attr('placeholder', 'Lo que paga hoy');
-        } else {
-            $('#op_received').attr('placeholder', c.remaining > 0 ? `Exacto: ${money(c.remaining)}` : '0.00');
+        if (!this.onCredit && c.short > 0.005) {
+            return `Faltan ${money(c.short)} por cobrar. ${free > 0.005 ? 'Escríbelos en otra forma de pago o usa «Resto a crédito».' : 'Escríbelos en otra forma de pago.'}`;
         }
 
-        $('#modalOrderPay .op-bills').toggleClass('hidden', !(m && m.cash) || c.remaining <= 0);
-        $('#op_bill_chips').html(this.bills(c.remaining));
-        $('#op_lines').html(this.linesHtml());
-        $('#modalOrderPay button.ord-split').toggleClass('hidden', this.methods.length < 2 || this.lines.length >= 5);
-
-        // «Resto a crédito» sale solo si el cliente tiene crédito disponible.
-        $('#modalOrderPay .op-credit').toggleClass('hidden', free <= 0.005);
-        $('#modalOrderPay button.ord-credit').toggleClass('is-active', this.onCredit).attr('aria-pressed', String(this.onCredit));
-        $('#op_credit_hint').text(`Disponible ${money(free)}`);
-
-        $('#op_sum').html(this.summary(c));
-        $('#modalOrderPay .cs-modal-save').text(this.saveLabel(c));
-
-        this.paintDiscount(c);
-
-        if (window.lucide) lucide.createIcons();
+        return '';
     }
 
-    /*  Con tarjeta se avisa lo que hace. Si su tipo descuenta, ese es el descuento y no se ofrece otro.
-        Con sellos: cuántos lleva y, si ya completó la meta, «Canjear premio» (con el estilo de «Resto a crédito»). */
-    discountFields() {
-        if (!this.card) return super.discountFields();
+    // «Cobrar $X en {forma}»; con crédito, lo que se cobra hoy y el resto a la cuenta. Devuelve [texto, ícono].
+    saveLabel(c) {
+        if (c.credit > 0.005) {
+            return c.applied > 0
+                ? [`Cobrar ${money(c.applied)} · resto a crédito`, 'calendar-clock']
+                : [`Vender a crédito · ${money(c.credit)}`, 'calendar-clock'];
+        }
 
-        const card  = this.card;
+        if (c.bad || c.over > 0.005 || c.applied <= 0) return ['Cobrar', 'check'];
+        if (c.payments.length > 1) return [`Cobrar ${money(c.applied)} en ${c.payments.length} formas`, 'layers'];
+
+        const m = this.methodOf(c.payments[0].method_id);
+
+        return m ? [`Cobrar ${money(c.applied)} en ${m.name}`, m.icon] : [`Cobrar ${money(c.applied)}`, 'check'];
+    }
+
+    // Lo que va a pasar, en una sola línea del pie.
+    paintResult(c) {
+        const res = document.getElementById('paRes');
+
+        if (!res) return;
+
+        const free = this.account ? this.account.credit : 0;
+        const tail = 'Queda pagada';
+
+        let st;   // [clase, etiqueta, monto, nota]
+
+        if (c.tipError)                                     st = ['is-bad', 'Corrige', '', 'La propina no es válida'];
+        else if (c.d.error)                                 st = ['is-bad', 'Corrige', '', 'El descuento no es válido'];
+        else if (c.bad)                                     st = ['is-bad', 'Corrige', '', `El monto de ${c.bad.name} no es válido`];
+        else if (c.badRec)                                  st = ['is-bad', 'Corrige', '', 'Lo recibido en efectivo no es válido'];
+        else if (c.over > 0.005)                            st = ['is-bad', 'Sobran', money(c.over), 'No se cobra de más: baja algún monto'];
+        else if (c.walletOver)                              st = ['is-bad', 'Monedero insuficiente', '', `Tiene ${money(this.account.wallet)}`];
+        else if (c.creditOver)                              st = ['is-bad', 'Crédito insuficiente', '', `Disponible ${money(free)}`];
+        else if (c.missing > 0.005)                         st = ['is-bad', 'Faltan', money(c.missing), 'El efectivo recibido no alcanza'];
+        else if (c.credit > 0.005)                          st = ['is-info', 'A crédito', money(c.credit), 'Queda pendiente: se paga con abonos'];
+        else if (c.short > 0.005)                           st = ['is-bad', 'Faltan', money(c.short), free > 0.005 ? 'Agrega otra forma o usa «Resto a crédito»' : 'Agrega otra forma de pago'];
+        else if (c.change > 0.005)                          st = ['is-ok', 'Cambio', money(c.change), tail];
+        else if (c.payments.length === 1 && c.cashPaid > 0) st = ['is-ok', 'Efectivo exacto', '', tail];
+        else if (c.applied > 0)                             st = ['is-ok', 'Cobra', money(c.applied), tail];
+        else                                                st = ['is-ok', 'Sin cobro', '', 'La venta queda en $0'];
+
+        res.className = `pa-res${st[0] ? ` ${st[0]}` : ''}`;
+        res.innerHTML = `<span>${esc(st[1])}</span>${st[2] ? `<b>${st[2]}</b>` : ''}<small>· ${esc(st[3])}</small>`;
+    }
+
+    // El Monedero es una forma más; su pista es el saldo del cliente.
+    payMethods() {
+        const list  = super.payMethods();
+        const purse = sale.opts.wallet_method;
+
+        list.forEach((m) => {
+            if (!purse || m.wallet || m.id !== Number(purse.id)) return;
+
+            m.wallet = true;
+            m.hint   = this.methodHint(m);
+        });
+
+        return list;
+    }
+
+    methodHint(m) {
+        return m && m.wallet && this.account ? `Saldo ${money(this.account.wallet)}` : super.methodHint(m);
+    }
+
+    // -- Piezas de la ventana --
+
+    // Sin pestañas: una venta nueva no tiene historial de pagos.
+    headHtml() {
+        return '<div class="pa-head">'
+            +   '<div class="pa-head-top">'
+            +     `<div class="pa-head-ico">${this.ico('banknote')}</div>`
+            +     '<div class="pa-head-text"><h2 id="paTitle">Cobrar venta</h2>'
+            +       '<p class="pa-head-meta">'
+            +         `<span>${this.ico('receipt-text')}<b>Ticket ${Number(sale.active)}</b></span>`
+            +         `<span class="is-client">${this.ico('user')}<em>${esc(this.o.customer || this.noClient())}</em></span>`
+            +       '</p>'
+            +     '</div>'
+            +     `<button type="button" class="pa-x" data-act="close" aria-label="Cerrar">${this.ico('x')}</button>`
+            +   '</div>'
+            + '</div>';
+    }
+
+    // Los tres recuadros de Pedidos; el del medio es la propina (una venta nueva no trae pagos).
+    summaryHtml() {
+        return '<div class="pa-sum">'
+            +   `<div class="pa-stat is-total"><span>${this.ico('wallet')}Total</span><b id="paSumTotal"></b><small id="paSumTotalNote"></small></div>`
+            +   `<div class="pa-stat is-paid"><span>${this.ico('coins')}Propina</span><b id="paSumPaid"></b></div>`
+            +   `<div class="pa-stat is-due" id="paSumDueBox"><span>${this.ico('clock')}Restante</span><b id="paSumDue"></b><small id="paSumDueNote"></small></div>`
+            + '</div>';
+    }
+
+    paintSummary(v) {
+        super.paintSummary(v);
+
+        $('#paSumPaid').text(money(this.tipNow.amount));
+    }
+
+    // Una sola sucursal: la de la sesión, con su turno.
+    branchesHtml(lock) {
+        const b    = this.cobroBranch();
+        const t    = b.turn;
+        const line = t && !t.old ? `<span class="pa-dot pa-turn-open"></span>Turno ${esc(t.folio)} abierto` : this.turnLine(b);
+
+        return '<div class="pa-field">'
+            +   this.label('Sucursal que cobra')
+            +   `<div class="pa-branch is-cobro" title="${esc(this.turnTitle(b))}">`
+            +     `<span class="pa-branch-ico">${this.ico('landmark')}</span>`
+            +     `<span class="pa-branch-text"><b>${esc(b.name)}</b><small>${line}</small></span>`
+            +   '</div>'
+            +   this.alertHtml(lock)
+            + '</div>';
+    }
+
+    // A la derecha: quién cobra, la tarjeta, la propina, el crédito y el descuento.
+    infoHtml(lock) {
+        const off = lock ? ' disabled' : '';
+        const cls = lock ? ' is-locked' : '';
+
+        return this.branchesHtml(lock)
+            + `<fieldset class="pa-set${cls}"${off}>`
+            +   this.cardHtml()
+            +   this.tipHtml()
+            +   this.creditHtml()
+            +   `<div class="pa-disc-wrap" id="paDiscWrap">${this.discArea()}</div>`
+            + '</fieldset>';
+    }
+
+    // Lo que hace la tarjeta de lealtad y, con los sellos completos, «Canjear premio».
+    cardHtml() {
+        const card = this.card;
+
+        if (!card) return '';
+
         const parts = [];
 
         if (card.discount_percent > 0) parts.push(`${card.discount_percent} % de descuento`);
-        if (card.points_percent > 0) parts.push(this.account ? `${card.points_percent} % de lo pagado va al monedero` : 'sin cliente no suma puntos');
-        if (card.stamp_goal > 0) parts.push(`lleva ${sale.stampsText(card)} y suma 1 por cada ${money(card.stamp_amount)} pagados`);
+        if (card.points_percent > 0)   parts.push(this.account ? `${card.points_percent} % de lo pagado va al monedero` : 'sin cliente no suma puntos');
+        if (card.stamp_goal > 0)       parts.push(`lleva ${sale.stampsText(card)} y suma 1 por cada ${money(card.stamp_amount)} pagados`);
 
-        const fields = [{
-            id:    'op_card_bar',
-            tipo:  'html',
-            class: 'w-full',
-            html:  `<p class="sale-card-note"><i data-lucide="credit-card" class="w-4 h-4"></i><span>Tarjeta <b>${esc(card.type)}</b> · ${esc(card.number)}${parts.length ? ': ' + parts.join(' y ') : ''}.</span></p>`
-        }];
+        const note = `<p class="pa-note-line">${this.ico('credit-card')}<span>Tarjeta <b>${esc(card.type)}</b> · ${esc(card.number)}${parts.length ? ': ' + parts.join(' y ') : ''}.</span></p>`;
 
-        if (card.stamp_goal > 0 && card.rewards > 0) {
-            fields.push({
-                id:    'op_reward',
-                tipo:  'html',
-                class: 'w-full',
-                html:  `<button type="button" class="ord-credit ord-reward" aria-pressed="false"><i data-lucide="gift" class="w-4 h-4"></i><span>Canjear premio: <b>${esc(card.reward_name)}</b> (hasta ${money(card.reward_value)})</span></button>`
-            });
-        }
+        if (!(card.stamp_goal > 0 && card.rewards > 0)) return note;
 
-        return this.cardDiscounts() ? fields : [...fields, ...super.discountFields()];
+        return note
+            + `<button type="button" class="pa-extra-btn${this.redeem ? ' is-on' : ''}" id="paReward" data-act="reward" aria-pressed="${this.redeem}">${this.ico('gift')}<span>Canjear premio: <b>${esc(card.reward_name)}</b> (hasta ${money(card.reward_value)})</span></button>`;
     }
 
-    // Mismo redondeo que el servidor (cardDiscount y rewardDiscount en ctrl-ventas.php).
+    tipHtml() {
+        // pa-tip y no pa-seg-btn: OrderPay.paintDiscount repinta todos los pa-seg-btn con el modo del descuento.
+        const chip = (mode, text) => `<button type="button" class="pa-tip${this.tipMode === mode ? ' is-active' : ''}" data-act="tip" data-value="${mode}" aria-pressed="${this.tipMode === mode}">${text}</button>`;
+
+        return '<div class="pa-field">'
+            +   this.label('Propina', 'Va aparte del total')
+            +   `<div class="pa-seg pa-tips">${chip('none', 'Sin propina')}${chip('10', '10 %')}${chip('15', '15 %')}${chip('other', 'Otra')}</div>`
+            +   `<div class="pa-amt pa-tip-amt" id="paTipRow"${this.tipMode === 'other' ? '' : ' hidden'}><span>$</span><input id="paTip" type="text" inputmode="${this.inputMode()}" autocomplete="off" placeholder="0.00" data-field="tip" aria-label="Propina"></div>`
+            + '</div>';
+    }
+
+    // Solo si el cliente tiene crédito disponible.
+    creditHtml() {
+        const free = this.account ? this.account.credit : 0;
+
+        if (free <= 0.005) return '';
+
+        return `<button type="button" class="pa-extra-btn${this.onCredit ? ' is-on' : ''}" id="paCredit" data-act="credit" aria-pressed="${this.onCredit}" title="Crédito disponible: ${money(free)}">${this.ico('calendar-clock')}<span>Resto a crédito (${money(free)})</span></button>`;
+    }
+
+    // -- Descuento de la tarjeta --
+
+    // Mismo redondeo que el servidor (cardDiscount y rewardDiscount en ctrl-ventas.php). Sin tarjeta, el de OrderPay.
     discountCalc() {
         if (!this.cardDiscounts()) return super.discountCalc();
 
@@ -1973,176 +2091,51 @@ class SalePay extends SalePayBase {
         return !!(this.card && (this.card.discount_percent > 0 || this.redeem));
     }
 
-    // Con el premio puesto, el descuento manual se esconde.
-    paintDiscount(c) {
-        $('#modalOrderPay button.ord-reward').toggleClass('is-active', this.redeem).attr('aria-pressed', String(this.redeem));
-        $('#op_disc_bar').toggleClass('hidden', this.redeem);
+    // -- Confirmar y guardar --
 
-        super.paintDiscount(c);
+    // La confirmación de Pedidos con lo de la venta: cuánto se cobra, en qué, el cambio, la propina y el crédito.
+    confirmHtml(c) {
+        const b    = this.cobroBranch();
+        const turn = b.turn && b.turn.folio != null ? `Turno ${esc(b.turn.folio)}` : '';
+        const all  = c.credit > 0.005 && c.applied <= 0;
+        const name = (id) => { const m = this.methodOf(id); return m ? esc(m.name) : 'Pago'; };
+        const row  = (dt, dd, rowCls = '', ddCls = '') => `<div${rowCls ? ` class="${rowCls}"` : ''}><dt>${dt}</dt><dd${ddCls ? ` class="${ddCls}"` : ''}>${dd}</dd></div>`;
+        const why  = c.d.reason ? esc(c.d.reason.name) : (this.redeem ? 'premio de la tarjeta' : 'tarjeta');
+
+        let how = '';
+
+        if (c.payments.length === 1)    how = row('Forma de pago', name(c.payments[0].method_id));
+        else if (c.payments.length > 1) how = c.payments.map((p) => row(name(p.method_id), money(p.amount))).join('');
+
+        return '<div class="pa-confirm" id="paConfirm" role="alertdialog" aria-modal="true" aria-labelledby="paConfirmTitle">'
+            +   '<div class="pa-confirm-card">'
+            +     `<div class="pa-confirm-head"><div class="pa-head-ico">${this.ico(all ? 'calendar-clock' : 'banknote')}</div><h3 id="paConfirmTitle">${all ? '¿Vender a crédito?' : '¿Cobrar venta?'}</h3><p>Ticket ${Number(sale.active)} · ${esc(this.o.customer || this.noClient())}</p></div>`
+            +     '<dl class="pa-confirm-rows">'
+            +       row('Se cobra', money(c.applied), 'is-big')
+            +       how
+            +       (c.change > 0.005 ? row('Recibe', `${money(c.cashGiven)} · cambio ${money(c.change)}`) : '')
+            +       (c.d.amount > 0 ? row('Descuento', `−${money(c.d.amount)} · ${why}`) : '')
+            +       (c.tip > 0.005 ? row('Propina', money(c.tip)) : '')
+            +       (c.credit > 0.005 ? row('A crédito', money(c.credit)) : '')
+            +       row('Sucursal que cobra', `${esc(b.name)}${turn ? ` · ${turn}` : ''}`, '', 'is-brand')
+            +     '</dl>'
+            +     '<div class="pa-confirm-foot">'
+            +       '<button type="button" class="pa-btn" data-act="confirm-no">Cancelar</button>'
+            +       `<button type="button" class="pa-btn is-primary" id="paConfirmYes" data-act="confirm-yes"><span data-label>${all ? 'Sí, vender' : 'Sí, cobrar'}</span></button>`
+            +     '</div>'
+            +   '</div>'
+            + '</div>';
     }
 
-    // OrderPay llena aquí sus mosaicos de Total, Pagado y Restante: los de la venta son otros.
-    paintHead(total) {
-        $('#op_total').text(money(total));
-    }
+    // «Sí, cobrar»: addSale crea la venta ya cobrada. El candado (busy) y el token impiden un segundo cobro.
+    async commit() {
+        if (this.busy || !this.confirmCalc) return;
 
-    saveLabel(c) {
-        if (c.credit > 0.005) {
-            return c.applied > 0 ? `Cobrar ${money(c.applied)} · resto a crédito` : `Vender a crédito · ${money(c.credit)}`;
-        }
-
-        return c.applied > 0 ? `Cobrar · ${money(c.applied)}` : 'Cobrar';
-    }
-
-    methodHint(m) {
-        return m && m.wallet ? `Saldo ${money(this.account.wallet)}` : super.methodHint(m);
-    }
-
-    summary(c) {
-        const row   = (label, value) => `<div class="flex items-center justify-between text-[13px] text-gray-600"><span>${label}</span><span class="font-semibold text-gray-800">${value}</span></div>`;
-        const name  = c.method ? c.method.name : '';
-        const over  = c.applied > c.target + 0.005;
-        const free  = this.account ? this.account.credit : 0;
-        const lacks = c.credit > 0.005 ? 0 : c.missing;
-        const used  = c.payments.map((p) => this.methodOf(p.method_id)).filter(Boolean);
-        const names = esc(used.map((m) => m.name).join(' + '));
-        const cash  = used.some((m) => m.cash);
-
-        let state = '';
-
-        if (c.tipError) {
-            state = '<p class="ord-sum-big text-rose-600">Propina no válida</p>';
-        } else if (c.badTyped) {
-            state = '<p class="ord-sum-big text-rose-600">Monto recibido no válido</p>';
-        } else if (over) {
-            state = `<p class="ord-sum-big text-rose-600">Sobran ${money(c.applied - c.target)}</p><p class="text-[12px] text-rose-600 mb-0">Con ${esc(name)} no se cobra de más: baja el monto.</p>`;
-        } else if (c.walletOver) {
-            state = `<p class="ord-sum-big text-rose-600">Monedero insuficiente</p><p class="text-[12px] text-rose-600 mb-0">El monedero tiene ${money(this.account.wallet)}.</p>`;
-        } else if (c.creditOver) {
-            state = `<p class="ord-sum-big text-rose-600">Crédito insuficiente</p><p class="text-[12px] text-rose-600 mb-0">Disponible ${money(free)}: cobra hoy al menos ${money(c.credit - free)}.</p>`;
-        } else if (c.credit > 0.005) {
-            state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-amber-700 mb-0">A crédito</p><p class="ord-sum-big text-amber-600">${money(c.credit)}</p>`;
-        } else if (lacks > 0.005) {
-            state = `<p class="ord-sum-big text-rose-600">Faltan ${money(lacks)}</p><p class="text-[12px] text-gray-500 mb-0">${free > 0.005 ? 'Agrega otro método o usa «Resto a crédito».' : 'Agrega otro método de pago.'}</p>`;
-        } else if (c.change > 0.005) {
-            state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-emerald-700 mb-0">Cambio</p><p class="ord-sum-big text-emerald-600">${money(c.change)}</p>`;
-        } else if (used.length === 1 && cash) {
-            // «Sin cambio» solo tiene sentido con efectivo; con monedero, tarjeta o transferencia se dice con qué se cobra.
-            state = '<p class="ord-sum-big text-emerald-600">Exacto, sin cambio</p>';
-        } else if (c.applied > 0) {
-            state = `<p class="text-[12px] font-semibold uppercase tracking-wide text-emerald-700 mb-0">Cobra con ${names}</p><p class="ord-sum-big text-emerald-600">${money(c.applied)}</p>`;
-        }
-
-        const clean = !c.badTyped && !c.tipError && !over && !c.walletOver && !c.creditOver;
-
-        let end = '';
-
-        if (clean && c.credit > 0.005) end = '<div class="text-[12.5px] text-amber-700 font-semibold mt-1">Queda pendiente: se paga con abonos</div>';
-        else if (clean && lacks <= 0.005) end = '<div class="text-[12.5px] text-emerald-700 font-semibold mt-1">Queda pagada</div>';
-
-        return `
-            <div class="ord-sum rounded-xl border-[1px] border-gray-200 bg-gray-50 px-[14px] py-[12px] flex flex-col sm:flex-row gap-[12px] sm:items-center">
-                <div class="flex-1 flex flex-col gap-[4px]">
-                    ${row('A cobrar', money(c.target))}
-                    ${row('Recibido', money(c.tendered))}
-                    ${c.credit > 0.005 ? row('A crédito', money(c.credit)) : ''}
-                    ${end}
-                </div>
-                <div class="sm:text-right sm:min-w-[200px]">${state}</div>
-            </div>`;
-    }
-
-    methodChips() {
-        const used = this.lines.map((l) => l.method_id);
-
-        return this.methods.map((m) => `
-            <button type="button" class="ord-method is-card${m.id === this.method ? ' is-active' : ''}" data-id="${m.id}" aria-pressed="${m.id === this.method}">
-                <span class="ord-method-ico"><i data-lucide="${this.methodIcon(m)}" class="w-5 h-5"></i></span>
-                <span class="min-w-0"><span class="ord-method-name">${esc(m.name)}</span><span class="ord-method-hint">${this.methodHint(m)}</span></span>
-                ${used.includes(m.id) ? '<i data-lucide="check" class="w-4 h-4 ord-method-check"></i>' : ''}
-            </button>`).join('');
-    }
-
-    // Los pagos ya sumados con «Agregar otro método»; cada uno se puede quitar.
-    linesHtml() {
-        if (!this.lines.length) return '';
-
-        const rows = this.lines.map((l, i) => {
-            const m     = this.methodOf(l.method_id);
-            const extra = m && m.cash && l.tendered > l.amount ? ` · recibe ${money(l.tendered)}` : '';
-
-            return `
-                <div class="ord-line flex items-center justify-between gap-[8px] rounded-lg border-[1px] border-gray-200 px-[12px] py-[8px] text-[13px]">
-                    <span class="flex items-center gap-[8px] min-w-0">
-                        <i data-lucide="${this.methodIcon(m)}" class="w-4 h-4 text-gray-400 shrink-0"></i>
-                        <span class="truncate">${esc(m ? m.name : '')}${extra}</span>
-                    </span>
-                    <span class="flex items-center gap-[8px] shrink-0">
-                        <b>${money(l.amount)}</b>
-                        <button type="button" class="ord-line-del" data-index="${i}" aria-label="Quitar este pago"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </span>
-                </div>`;
-        }).join('');
-
-        return `<p class="block text-xs font-semibold text-gray-500 mb-1.5">Pagos agregados</p><div class="flex flex-col gap-[6px] mb-[8px]">${rows}</div>`;
-    }
-
-    // Suma el monto escrito como un pago y pasa al siguiente método sin usar.
-    // El monedero no da más de lo que tiene: se revisa antes de sumarlo.
-    split() {
-        const c = this.calc();
-        const m = c.method;
-
-        if (!m)                return;
-        if (c.badTyped)        return this.warn('El monto recibido no es válido.');
-        if (c.typed === null)  return this.warn(`Escribe cuánto se paga con ${m.name} antes de agregar otro método.`);
-        if (c.remaining <= 0)  return this.warn('La venta ya está cubierta.');
-        if (m.wallet && c.typed > c.cap + 0.005) return this.warn(`El monedero solo tiene ${money(c.cap)} disponibles.`);
-        if (!m.cash && c.typed > c.remaining + 0.005) return this.warn(`Con ${m.name} solo faltan ${money(c.remaining)}: no se cobra de más.`);
-
-        const amount = ordRound(m.cash ? Math.min(c.typed, c.remaining) : c.typed);
-        const prev   = this.lines.find((l) => l.method_id === m.id);
-
-        if (prev) {
-            prev.amount   = ordRound(prev.amount + amount);
-            prev.tendered = ordRound(prev.tendered + (m.cash ? c.typed : amount));
-        } else {
-            this.lines.push({ method_id: m.id, amount: amount, tendered: m.cash ? c.typed : amount });
-        }
-
-        const used = this.lines.map((l) => l.method_id);
-        const next = this.methods.find((x) => !used.includes(x.id));
-
-        if (next) this.method = next.id;
-
-        $('#op_received').val('');
-        this.paint();
-        $('#op_received').trigger('focus');
-    }
-
-    // -- CRUD --
-
-    async save(close) {
-        if (this.saving) return;
-
-        const c = this.calc();
-
-        if (c.tipError) return this.warn(c.tipError);
-        if (c.d.error) return this.warn(c.d.error);
-        if (c.badTyped) return this.warn('El monto recibido no es válido.');
-        if (c.payments.length > 6) return this.warn('Un cobro admite hasta 6 métodos de pago.');
-        if (c.applied > c.target + 0.005) return this.warn(`Los pagos suman ${money(c.applied)} y la venta es de ${money(c.target)}. Baja el monto con tarjeta o transferencia.`);
-        if (c.walletOver) return this.warn(`El monedero de ${this.o.customer} solo tiene ${money(this.account.wallet)}.`);
-
-        const free = this.account ? this.account.credit : 0;
-
-        if (c.creditOver) return this.warn(`El crédito disponible de ${this.o.customer} es ${money(free)} y faltan ${money(c.credit)}. Cobra hoy la diferencia.`);
-
-        if (c.credit <= 0.005 && c.missing > 0.005) {
-            return this.warn(`Faltan ${money(c.missing)} por recibir. ${free > 0.005 ? 'Agrega otro método de pago o usa «Resto a crédito».' : 'Agrega otro método de pago.'}`);
-        }
-
+        const c        = this.confirmCalc;
         const customer = String($('#of_customer_id').val() || '');
+
+        this.setBusy(true);
+        $('#paConfirmYes').prop('disabled', true).find('[data-label]').text('Cobrando…');
 
         // El descuento de la tarjeta lo calcula el servidor con card_id: solo se manda el manual.
         const discount = c.d.amount > 0 && !c.d.card
@@ -2150,39 +2143,40 @@ class SalePay extends SalePayBase {
                 reason_id: c.d.reason.id,
                 percent:   this.discMode === 'percent' ? c.d.value : '',
                 amount:    this.discMode === 'amount' ? c.d.value : '',
-                note:      String($('#op_disc_note').val() || '').trim()
+                note:      ''
             })
             : '';
 
-        const payload = {
-            opc:         'addSale',
-            token:       this.token,
-            customer_id: customer === '0' ? '' : customer,
-            note:        String($('#of_note').val() || '').trim(),
-            tip:         c.tip > 0 ? c.tip.toFixed(2) : '',
-            lines:       JSON.stringify(sale.payload()),
-            payments:    c.payments.length ? JSON.stringify(c.payments) : '',
-            discount:    discount,
-            credit:      c.credit > 0.005 ? '1' : '',
-            card_id:     this.card ? this.card.id : '',
-            redeem:      this.card && this.redeem ? '1' : ''
-        };
+        const data = await useFetch({
+            url:  this._link,
+            data: {
+                opc:         'addSale',
+                token:       this.token,
+                customer_id: customer === '0' ? '' : customer,
+                note:        String($('#of_note').val() || '').trim(),
+                tip:         c.tip > 0 ? c.tip.toFixed(2) : '',
+                lines:       JSON.stringify(sale.payload()),
+                payments:    c.payments.length ? JSON.stringify(c.payments) : '',
+                discount:    discount,
+                credit:      c.credit > 0.005 ? '1' : '',
+                card_id:     this.card ? this.card.id : '',
+                redeem:      this.card && this.redeem ? '1' : ''
+            }
+        });
 
-        this.saving = true;
-
-        const button = $('#modalOrderPay .cs-modal-save').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: payload });
-
-        this.saving = false;
-        button.prop('disabled', false);
-
+        // Sin turno: la ventana se cierra y se ofrece abrirlo; la venta sigue en el ticket.
         if (data && data.status == 423) {
-            this.closeQuiet('modalOrderPay', close);
+            this.closeQuiet('modalOrderPay', this.modal.close);
+            this.busy = false;
             orderTurn.locked(data);
             return;
         }
 
         if (!data || data.status != 200) {
+            this.setBusy(false);
+            this.confirmCalc = null;
+            $('#paConfirm').remove();
+
             alert({
                 icon:     data && data.status && data.status < 500 ? 'warning' : 'error',
                 title:    'No se registró la venta',
@@ -2193,102 +2187,101 @@ class SalePay extends SalePayBase {
             return;
         }
 
-        this.closeQuiet('modalOrderPay', close);
+        this.closeQuiet('modalOrderPay', this.modal.close);
+        this.busy = false;
 
         orderTurn.touch();
 
         sale.afterSale(data);
     }
 
-    // -- Complements --
+    // -- Eventos --
 
-    calc() {
-        const o         = this.o;
-        const d         = this.discountCalc();
-        const total     = ordRound(o.total - d.amount);
-        const tip       = this.tipCalc(total);
-        const balance   = ordRound(total + tip.amount);
-        const target    = balance;
-        const committed = ordRound(this.lines.reduce((s, l) => s + l.amount, 0));
-        const remaining = Math.max(0, ordRound(target - committed));
-        const method    = this.methodOf(this.method);
-        const raw       = String($('#op_received').val() || '').trim();
-        const typed     = raw === '' ? null : ordAmount(raw);
-        const badTyped  = raw !== '' && typed === null;
-        const account   = this.account;
-        const isWallet  = (id) => !!(this.methodOf(id) || {}).wallet;
-        const walletSum = (list) => ordRound(list.filter((l) => isWallet(l.method_id)).reduce((s, l) => s + l.amount, 0));
+    act(name, el) {
+        if (name === 'tip')    return this.pickTip(el.dataset.value);
+        if (name === 'credit') return this.toggleCredit();
+        if (name === 'reward') return this.toggleReward();
 
-        // Lo que le queda al monedero después de los pagos ya agregados. null = el método no es el monedero.
-        const cap = method && method.wallet ? Math.max(0, ordRound(account.wallet - walletSum(this.lines))) : null;
+        super.act(name, el);
+    }
 
-        let current = null;
+    // Otra: sale el campo del monto (el teclado también escribe ahí).
+    pickTip(mode) {
+        const input = document.getElementById('paTip');
 
-        if (!badTyped && method) {
-            if (typed === null) {
-                // Sin escribir nada se cobra lo que falta. Con «Resto a crédito» no: lo que falte va a la cuenta.
-                const amount = cap === null ? remaining : Math.min(remaining, cap);
+        this.tipMode = ['10', '15', 'other'].includes(mode) ? mode : 'none';
 
-                if (amount > 0 && !this.onCredit) current = { method_id: method.id, amount: amount, tendered: amount };
-            } else if (method.cash) {
-                const amount = Math.min(typed, remaining);
+        if (this.tipMode !== 'other' && input) input.value = '';
 
-                if (amount > 0) current = { method_id: method.id, amount: ordRound(amount), tendered: typed };
-            } else if (typed > 0) {
-                current = { method_id: method.id, amount: typed, tendered: typed };
-            }
-        }
-
-        const merged = new Map();
-
-        this.lines.concat(current ? [current] : []).forEach((l) => {
-            const prev = merged.get(l.method_id);
-
-            merged.set(l.method_id, prev
-                ? { method_id: l.method_id, amount: ordRound(prev.amount + l.amount), tendered: ordRound(prev.tendered + l.tendered) }
-                : { method_id: l.method_id, amount: l.amount, tendered: l.tendered });
+        $('#paTipRow').prop('hidden', this.tipMode !== 'other');
+        $('#modalOrderPay button.pa-tip').each((i, b) => {
+            b.classList.toggle('is-active', b.dataset.value === this.tipMode);
+            b.setAttribute('aria-pressed', String(b.dataset.value === this.tipMode));
         });
 
-        const payments   = Array.from(merged.values()).filter((l) => l.amount > 0);
-        const applied    = ordRound(payments.reduce((s, l) => s + l.amount, 0));
-        const tendered   = ordRound(payments.reduce((s, l) => s + l.tendered, 0));
-        const change     = ordRound(tendered - applied);
-        const missing    = Math.max(0, ordRound(target - applied));
-        const walletPaid = walletSum(payments);
-        const credit     = this.onCredit ? missing : 0;
+        this.paintCalc();
 
-        return {
-            d:          d,
-            total:      total,
-            tip:        tip.amount,
-            tipError:   tip.error,
-            balance:    balance,
-            target:     target,
-            remaining:  remaining,
-            method:     method,
-            typed:      typed,
-            badTyped:   badTyped,
-            payments:   payments,
-            applied:    applied,
-            tendered:   tendered,
-            change:     change,
-            missing:    missing,
-            cap:        cap,
-            walletOver: !!account && walletPaid > account.wallet + 0.005,
-            credit:     credit,
-            creditOver: credit > 0.005 && (!account || credit > account.credit + 0.005)
-        };
+        if (this.tipMode === 'other') return this.focusField('tip');
+        if (this.active === 'tip') this.active = this.homeId();
+
+        this.focusField(this.active);
+    }
+
+    // Con «Resto a crédito» ninguna fila cubre lo que falta: se escribe lo que paga hoy y el resto va a la cuenta.
+    toggleCredit() {
+        const old = this.fieldInput(this.auto);
+
+        this.onCredit = !this.onCredit;
+
+        if (this.onCredit) {
+            if (old) old.value = '';
+            this.auto = 0;
+        } else {
+            this.auto = Number(this.homeId()) || 0;
+        }
+
+        $('#paCredit').toggleClass('is-on', this.onCredit).attr('aria-pressed', String(this.onCredit));
+
+        this.paintCalc();
+        this.focusField(this.homeId());
+    }
+
+    // Canjear el premio de sellos: es el descuento de la venta, así que cierra y esconde el manual.
+    toggleReward() {
+        this.redeem = !this.redeem;
+
+        if (this.redeem && this.discOpen) this.toggleDisc();
+
+        $('#paReward').toggleClass('is-on', this.redeem).attr('aria-pressed', String(this.redeem));
+        $('#paDiscWrap').prop('hidden', this.redeem);
+
+        this.paintCalc();
+    }
+
+    // -- Complements --
+
+    // El campo de la propina entra al teclado y al orden de «Siguiente».
+    fieldInput(f) {
+        return f === 'tip' ? document.getElementById('paTip') : super.fieldInput(f);
+    }
+
+    visibleFields() {
+        const list = super.visibleFields();
+
+        if (this.tipMode === 'other') list.push('tip');
+
+        return list;
     }
 
     tipCalc(total) {
         if (this.tipMode === 'none') return { amount: 0, error: '' };
 
         if (this.tipMode === 'other') {
-            const raw = String($('#op_tip_amount').val() || '').trim();
+            const raw = String($('#paTip').val() || '').trim();
 
             if (raw === '') return { amount: 0, error: '' };
 
-            const value = ordAmount(raw);
+            const value = this.num(raw);
 
             return value === null ? { amount: 0, error: 'Escribe una propina válida.' } : { amount: value, error: '' };
         }

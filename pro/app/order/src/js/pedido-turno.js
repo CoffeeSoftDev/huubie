@@ -45,6 +45,7 @@ const ORD_SHIFT_CSS = `
     .sh-tag { margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
     .sh-tag.sh-closed { background: #DCFCE7; color: #166534; }
     .sh-tag.sh-live { background: #DBEAFE; color: #1E40AF; }
+    .sh-tag.sh-wait { background: #FEF3C7; color: #92400E; }
     .sh-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
     .sh-row > :last-child { text-align: right; white-space: nowrap; }
     .sh-b { font-weight: 600; }
@@ -57,6 +58,9 @@ const ORD_SHIFT_CSS = `
     .sh-cols.sh-th { margin-bottom: 2px; font-size: 9px; color: #9CA3AF; }
     .sh-cols.sh-th > :first-child { font-weight: 400; }
     .sh-sub { margin-bottom: 4px; font-size: 10px; color: #6B7280; }
+    .sh-net { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+    .sh-net s { font-size: 10px; font-weight: 400; color: #9CA3AF; }
+    .sh-desc { margin: -2px 0 4px; font-size: 10px; font-weight: 700; color: #111827; }
     .sh-green { color: #15803D; }
     .sh-sum { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #D1D5DB; font-weight: 600; }
     .sh-prev { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #E5E7EB; }
@@ -148,6 +152,152 @@ class OrderTurn extends Templates {
         return day.pending && day.pending.length ? day.pending[0] : '';
     }
 
+    /*  «Cierre del día» se enciende igual en todas las pantallas (franja de Ventas
+        y Pedidos, Cortes, Historial): sin turno abierto y con al menos un turno
+        cerrado, hoy o en el día pendiente. Sin un turno cerrado no hay día que cerrar. */
+    dayReady() {
+        const day = dataInit.day || {};
+
+        if (dataInit.turn) return false;
+
+        return Number(day.closed_turns || 0) > 0 || this.blockedDay() !== '';
+    }
+
+    // Por qué «Cierre del día» está apagado; '' si se puede abrir.
+    dayWhy() {
+        if (this.dayReady()) return '';
+        if (dataInit.turn) return 'Cierra el turno antes de cerrar el día.';
+
+        return 'Sin un turno cerrado no se puede cerrar el día.';
+    }
+
+    // -- Cuentas abiertas --
+
+    /*  Lo que sigue abierto en esta caja antes de cerrar turno o día:
+        accounts = los tickets en espera de Ventas con productos (viven en este
+        navegador, por usuario y sucursal: pro:ventas:espera:v1:<user>:<sucursal>).
+        Cada uno dice de qué llave viene y si es de quien cierra (mine): los de
+        otro usuario no se ven en su Ventas.
+        order = el pedido en captura con cambios sin guardar (pedido.php). */
+    openWork() {
+        const branch   = String((dataInit.day && dataInit.day.branch_id) || dataInit.branch_id || '');
+        const me       = String((dataInit.day && dataInit.day.user_id) || (dataInit.user && dataInit.user.id) || '');
+        const today    = String(dataInit.today || '');
+        const accounts = [];
+
+        // En Ventas el ticket a la vista se guarda primero: sus productos aún no están en el navegador.
+        if (typeof sale !== 'undefined' && sale && typeof sale.persistTickets === 'function') sale.persistTickets();
+
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = String(localStorage.key(i) || '');
+
+                if (!key.startsWith('pro:ventas:espera:v1:') || (branch && !key.endsWith(`:${branch}`))) continue;
+
+                const saved = JSON.parse(localStorage.getItem(key) || 'null');
+                const mine  = me !== '' && key === `pro:ventas:espera:v1:${me}:${branch}`;
+
+                ((saved && saved.tickets) || []).forEach((t) => {
+                    if (!t || !Array.isArray(t.lines) || !t.lines.length) return;
+
+                    // stale: de otro día (ventas.js › tk.day); Ventas ya no lo vuelve a abrir.
+                    const stale = !!(t.day && today && String(t.day) < today);
+                    const whose = stale ? ' de otro día' : (mine ? '' : ' de otro usuario');
+
+                    accounts.push({ key: key, n: Number(t.n), mine: mine, stale: stale, label: `Ticket ${Number(t.n)}${whose}` });
+                });
+            }
+        } catch (e) {
+            // Sin acceso al almacenamiento del navegador no hay tickets en espera que revisar.
+        }
+
+        const form  = typeof orderForm !== 'undefined' ? orderForm : null;
+        const order = !!(form && typeof form.snapshot === 'function' && $('#posOrderHost').length && form.snapshot() !== form.initial);
+
+        return { accounts: accounts, order: order };
+    }
+
+    /*  true = el cierre (what: 'el turno' | 'el día') no sigue. Lo que se vende
+        hoy se cierra hoy: ningún ticket en espera pasa al día siguiente.
+          - Turno o día de otro día (past): ahí ya no se cobra (Ventas pide el
+            turno de HOY), así que sus tickets se descartan al cerrar.
+          - Hoy, con tickets propios o un pedido sin guardar: frena; se cobran o
+            se vacían en Ventas.
+          - Hoy, solo con tickets de otro día o de otro usuario de este navegador
+            (no salen en su Ventas): se pueden descartar para cerrar.
+        Descartar pide confirmar; no hubo cobro, solo se pierden los productos. */
+    async busyWarn(what, past = false) {
+        const w = this.openWork();
+
+        if (!w.accounts.length && !w.order) return false;
+
+        const items = [];
+
+        if (w.accounts.length) {
+            items.push(`<li><b>Ventas:</b> ${w.accounts.length === 1 ? 'una cuenta abierta' : `${w.accounts.length} cuentas abiertas`} (${esc(w.accounts.map((a) => a.label).join(', '))}).</li>`);
+        }
+
+        if (w.order) items.push('<li><b>Pedidos:</b> un pedido en captura sin guardar.</li>');
+
+        const list   = `<ul class="ord-open-work">${items.join('')}</ul>`;
+        const others = w.accounts.length > 0 && w.accounts.every((a) => !a.mine || a.stale) && !w.order;
+
+        if (past || others) {
+            const why = past || w.accounts.every((a) => a.stale)
+                ? 'Son de un día que ya pasó: no se cobraron y no pasan al día siguiente.'
+                : 'No salen en tu Ventas (son de otro día o de otro usuario que entró en este navegador).';
+
+            const answer = await alert({
+                icon:     'warning',
+                title:    'Hay cuentas abiertas',
+                html:     list
+                        + `<p class="ord-open-note">${why} Al cerrar ${what} se descartan sus productos (no se cobró nada).</p>`,
+                btn1:     true,
+                btn1Text: `Descartar y cerrar ${what.replace(/^el /, '')}`,
+                btn2:     true,
+                btn2Text: 'Revisar'
+            });
+
+            if (!(answer && answer.isConfirmed)) return true;
+
+            this.dropAccounts(w.accounts);
+
+            return false;
+        }
+
+        await alert({
+            icon:     'warning',
+            title:    'Hay cuentas abiertas',
+            html:     list
+                    + `<p class="ord-open-note">Cóbralas o vacíalas en Ventas antes de cerrar ${what}.</p>`,
+            btn1:     true,
+            btn1Text: 'Entendido'
+        });
+
+        return true;
+    }
+
+    // Quita del navegador los tickets en espera descartados. En Ventas, la pantalla los vuelve a leer.
+    dropAccounts(accounts) {
+        const byKey = {};
+
+        accounts.forEach((a) => { (byKey[a.key] = byKey[a.key] || []).push(a.n); });
+
+        try {
+            Object.entries(byKey).forEach(([key, ns]) => {
+                const saved   = JSON.parse(localStorage.getItem(key) || 'null');
+                const tickets = ((saved && saved.tickets) || []).filter((t) => t && !ns.includes(Number(t.n)));
+
+                if (tickets.length) localStorage.setItem(key, JSON.stringify({ ...saved, tickets: tickets }));
+                else localStorage.removeItem(key);
+            });
+        } catch (e) {
+            // Sin acceso al almacenamiento del navegador no hay nada que quitar.
+        }
+
+        if (typeof sale !== 'undefined' && sale && typeof sale.reloadTickets === 'function') sale.reloadTickets();
+    }
+
     async fetchTurn(id) {
         if (this.loading) return null;
 
@@ -178,6 +328,9 @@ class OrderTurn extends Templates {
         dataInit.turn = brief || null;
 
         if (day !== undefined) dataInit.day = day || null;
+
+        // El punto de la sucursal activa en la barra (solo donde la página lo pidió con showTurns).
+        if (window.navbar && typeof navbar.setTurn === 'function') navbar.setTurn(brief ? (brief.old ? 'old' : 'open') : '');
 
         this.paintStrip();
 
@@ -264,20 +417,21 @@ class OrderTurn extends Templates {
 
         if (cash === null) return this.warn('El fondo inicial no es una cantidad válida.');
 
-        const fund = cash > 0 ? `con un fondo inicial de <strong>${money(cash)}</strong>` : '<strong>sin fondo inicial</strong>';
-
-        // La sucursal va aparte y resaltada (.ord-turn-branch): es lo que se revisa antes de confirmar.
-        const answer = await alert({
-            icon:     'question',
-            title:    '¿Aperturar turno?',
-            html:     '<p>Se abrirá un nuevo turno de caja en</p>'
-                    + `<div class="ord-turn-branch"><i class="icon-home"></i>${esc(branch)}</div>`
-                    + `<p>${fund}.</p>`,
-            btn1Text: 'Sí, aperturar',
-            btn2Text: 'Cancelar'
+        // La sucursal va en su propia tarjeta (.ord-ask-place): es lo que se revisa antes de confirmar.
+        const answer = await this.ask({
+            id:          'ordAskOpenTurn',
+            icon:        'clock',
+            tone:        'emerald',
+            title:       '¿Aperturar turno?',
+            detailHtml:  '<span class="ord-ask"><span class="ord-ask-lead">Se abrirá un nuevo turno de caja en</span><span class="ord-ask-card">'
+                       + `<span class="ord-ask-place"><span class="ord-ask-ico"><i data-lucide="store" class="w-5 h-5"></i></span><span class="ord-ask-name"><small>Sucursal</small><b>${esc(branch)}</b></span></span>`
+                       + `<span class="ord-ask-row"><span>Fondo inicial</span><b${cash > 0 ? '' : ' class="is-none"'}>${cash > 0 ? money(cash) : 'Sin fondo'}</b></span>`
+                       + '</span></span>',
+            okLabel:     'Sí, aperturar',
+            cancelLabel: 'Cancelar'
         });
 
-        if (!answer || !answer.isConfirmed) return;
+        if (!answer.ok) return;
 
         const data = await this.send('#modalOrderTurnOpen', { opc: 'openTurn', opening_cash: cash, token: this.token }, 'No se abrió el turno');
         if (!data) return;
@@ -871,6 +1025,10 @@ class OrderTurn extends Templates {
     async saveClose(t) {
         if (this.saving) return;
 
+        // Cuentas de Ventas o un pedido abiertos: primero se cierran (busyWarn avisa).
+        // De un turno de otro día ya no se cobran: se descartan al cerrarlo.
+        if (await this.busyWarn('el turno', !!t.old)) return;
+
         const raw     = String($('#tc_counted').val() || '').trim();
         const counted = raw === '' ? null : ordAmount(raw);
 
@@ -1128,15 +1286,17 @@ class OrderTurn extends Templates {
         const cross  = shift.cross || [];
         let html     = '';
 
-        // 1. Pedidos y ventas del turno: total y lo que se cobró de cada uno en este turno.
+        // 1. Pedidos y ventas del turno: total (neto, con su descuento) y lo que se cobró de cada uno en este turno.
         if (orders.length) {
             html += `
                 <div class="sh-title">PEDIDOS DEL TURNO</div>
                 <div class="sh-cols sh-th"><span>FOLIO</span><span>TOTAL</span><span>ABONO</span></div>
                 ${orders.map((o) => `
-                    <div class="sh-cols"><b>${esc(o.folio)}</b><span>${money(o.total)}</span><span class="sh-green">${dash(o.paid)}</span></div>
-                    <div class="sh-sub">${esc(o.customer || (o.order ? 'Sin cliente' : 'Mostrador'))}</div>`).join('')}
+                    <div class="sh-cols"><b>${esc(o.folio)}</b><span>${this.netAmount(o)}</span><span class="sh-green">${dash(o.paid)}</span></div>
+                    <div class="sh-sub">${esc(o.customer || (o.order ? 'Sin cliente' : 'Mostrador'))}</div>
+                    ${this.discountNote(o)}`).join('')}
                 ${row('TOTAL PEDIDOS', money(sum(orders, 'total')), 'sh-sum')}
+                ${this.discountTotal(orders, row)}
                 ${row('COBRADO EN TURNO', money(sum(orders, 'paid')), 'sh-green')}
                 <hr>`;
         }
@@ -1173,6 +1333,31 @@ class OrderTurn extends Templates {
         }
 
         return html;
+    }
+
+    /*  Descuentos del Detallado, como el Corte Z de alpha (pedidos-cierre ›
+        filaPedido): el folio con descuento lleva su importe original tachado
+        encima del neto y, bajo el cliente, «Descuento: -$X». Al final de la
+        lista, cuántos llevaron descuento y cuánto sumaron, sin cotizaciones ni
+        cancelados (la misma regla que «Descuentos» del cierre del día). El total
+        del folio ya es el neto (sale.total = subtotal - descuento). Lo usa
+        también el cierre del día. */
+    netAmount(o) {
+        return Number(o.discount) >= 0.005
+            ? `<span class="sh-net"><s>${money(o.subtotal)}</s>${money(o.total)}</span>`
+            : money(o.total);
+    }
+
+    discountNote(o) {
+        return Number(o.discount) >= 0.005 ? `<div class="sh-desc">Descuento: -${money(o.discount)}</div>` : '';
+    }
+
+    discountTotal(list, row, cls) {
+        const off = list.filter((o) => Number(o.discount) >= 0.005 && ![1, 4].includes(Number(o.status_id)));
+
+        if (!off.length) return '';
+
+        return row(`DESCUENTOS (${off.length}):`, '-' + money(off.reduce((total, o) => total + Number(o.discount), 0)), cls);
     }
 
     // Cada pedido y cada cobro, uno por renglón. other = el texto para un abono de fuera.
@@ -1225,6 +1410,64 @@ class OrderTurn extends Templates {
         if (conflict) this.refresh();
 
         return null;
+    }
+
+    /*  Pregunta con el alertBox del framework, como promesa: { ok, value }.
+        value = lo escrito si lleva campo (input). tone: emerald | amber | blue,
+        el halo del ícono. El tema sigue a la página. Esc cancela sin llegar a la
+        ventana de abajo (createCoffeeModalForm y csModal también lo escuchan).
+        Sin campo, el foco va a «Sí»: Enter confirma. Lo usa también el cierre del día. */
+    ask(opts) {
+        const id    = opts.id || 'ordAsk';
+        const dark  = $('body').hasClass('dark-mode');
+        const tones = {
+            emerald: dark ? ['bg-emerald-500/15', 'text-emerald-400'] : ['bg-emerald-50', 'text-emerald-600'],
+            amber:   dark ? ['bg-amber-500/15', 'text-amber-400'] : ['bg-amber-50', 'text-amber-600'],
+            blue:    dark ? ['bg-blue-500/15', 'text-blue-400'] : ['bg-blue-50', 'text-blue-600']
+        };
+        const tone  = tones[opts.tone] || tones.blue;
+        const open  = $('#' + id);
+
+        // Ya está abierta (doble Enter): la segunda no se encima ni deja a la primera sin respuesta.
+        if (open.length && !open.find('.tf-ab-out').length) return Promise.resolve({ ok: false, value: '' });
+
+        open.remove();
+
+        return new Promise((resolve) => {
+            let done = false;
+
+            const finish = (ok, value) => {
+                if (done) return;
+
+                done = true;
+                document.removeEventListener('keydown', onKey, true);
+                resolve({ ok, value: value || '' });
+            };
+
+            const onKey = (e) => {
+                if (e.key !== 'Escape') return;
+
+                e.preventDefault();
+                e.stopPropagation();
+                $('#' + id).find('[data-ab-cancel]').trigger('click');
+            };
+
+            this.alertBox({
+                ...opts,
+                id:        id,
+                type:      'confirm',
+                theme:     dark ? 'dark' : 'light',
+                iconBg:    tone[0],
+                iconColor: tone[1],
+                dual:      true,
+                onOk:      (value) => finish(true, value),
+                onCancel:  () => finish(false)
+            });
+
+            document.addEventListener('keydown', onKey, true);
+
+            if (!opts.input) setTimeout(() => $('#' + id).find('[data-ab-ok]').trigger('focus'), 60);
+        });
     }
 
     enterSaves(modal, input) {

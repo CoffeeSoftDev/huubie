@@ -244,7 +244,11 @@ function hubEvents() {
 
         if (e.key === 'Enter') {
             const first = cards.find((card) => !card.hidden && card.tagName === 'A');
-            if (first) window.location.href = first.href;
+
+            if (first) {
+                opening(first);
+                window.location.href = first.href;
+            }
         }
     });
 
@@ -256,6 +260,39 @@ function hubEvents() {
         }
     });
 }
+
+// -- Abrir una tarjeta --
+
+/*  La pagina de un modulo tarda en armarse y asomaba por partes (barra, rail
+    y modulo pintandose a destiempo). Al abrir una tarjeta sale al instante el
+    aviso «Abriendo» de tailwind-theme.js, con el fondo de la pagina, y viaja a
+    la carga nueva: ahi se quita cuando el modulo ya se pinto. */
+function opening(card) {
+    const loader = window.InventoryPalette && InventoryPalette.loader;
+    const name   = card.querySelector('.pg-hub-name');
+
+    if (!loader) return;
+
+    loader.show(name ? name.textContent : '', false, 'Abriendo', true);
+    loader.carry(name ? name.textContent : '', 'Abriendo', true);
+
+    // Si la carga se detuvo (Esc del navegador), el inicio no se queda tapado.
+    setTimeout(() => loader.hide(), 10000);
+}
+
+// Clic normal en una tarjeta que abre. Con Ctrl, Shift, rueda u otra pestaña, nada: esta pagina se queda.
+document.addEventListener('click', (e) => {
+    const card = e.target.closest('a.pg-hub-card');
+
+    if (!card || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || card.target === '_blank') return;
+
+    opening(card);
+});
+
+// Atras del navegador puede devolver esta pagina tal como quedo (bfcache): sin el aviso.
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted && window.InventoryPalette) InventoryPalette.loader.hide();
+});
 
 async function payNow(btn) {
     btn.disabled = true;

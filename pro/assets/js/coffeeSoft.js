@@ -37,7 +37,9 @@ const CF_CSS = {
     btnWarning: 'tw-btn w-full rounded-lg bg-[#F69F00] px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-[#F69F00]/80 active:bg-[#F69F00]/80 focus:outline-none focus:ring-2 focus:ring-[#F69F00] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     // En oscuro, el outline de alpha/ (btn-outline-primary): sin relleno, borde
     // y texto del acento; al pasar el mouse se rellena.
-    btnOutline: 'tw-btn w-full rounded-lg border border-blue-600 bg-white dark:bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white active:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    // bg-[#fff] y no bg-white: el .bg-white de Bootstrap lleva !important y le
+    // ganaba al hover:bg-blue-600 (fondo blanco con el texto blanco encima).
+    btnOutline: 'tw-btn w-full rounded-lg border border-blue-600 bg-[#fff] dark:bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white active:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     // Secundario = acento del tema (terracota, neutro o violeta): va por la escala
     // blue-*, que tailwind-theme.js remapea. En oscuro, el secundario del tema
     // (`second-*`), como el btn-secondary morado de alpha/ en Huubie.

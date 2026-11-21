@@ -11,7 +11,7 @@
 
     Vive en dos lugares:
       - calendario.php (calendario.js): página sola, para quien solo ve el calendario.
-      - pedidos.php (pedidos.js): la vista «Calendario» del botón de la derecha,
+      - lista-pedidos.php (lista-pedidos.js): la vista «Calendario» del botón de la derecha,
         con embedded = true (sin franja de caja: ya la pintó Pedidos).
     info = el init de ctrl-calendario (acciones, producer, estados, hoy). */
 
@@ -750,12 +750,14 @@ class OrderCalendar extends Templates {
         pastel, stripe e ink = página clara, en contraste bajo: tarjeta casi
         blanca del color (tono 50), filo, franja y píldora en tono 200 y la
         letra en tono 700.
+        Pendiente va con el color de su píldora de la leyenda (la tinta al 10 %
+        y su filo al ~20 %): el amarillo 50 no se parecía al naranja de la píldora.
         hb = página oscura: el color de cada estado en Huubie, el mismo del
         calendario de alpha (ctrl-calendario), sólido con la letra en blanco. */
     tone(status) {
         const tones = {
             1: { ev: '#1C64F2', pastel: '#EBF5FF', stripe: '#C3DDFD', ink: '#1A56DB', hb: '#6E95C0' },
-            2: { ev: '#B45309', pastel: '#FFFBEB', stripe: '#FDE68A', ink: '#B45309', hb: '#FE6F00' },
+            2: { ev: '#B45309', pastel: '#F8EEE6', stripe: '#EFDBCB', ink: '#B45309', hb: '#FE6F00' },
             3: { ev: '#057A55', pastel: '#F3FAF7', stripe: '#BCF0DA', ink: '#046C4E', hb: '#0E9E6E' },
             4: { ev: '#EA0234', pastel: '#FDF2F2', stripe: '#FBD5D5', ink: '#C81E1E', hb: '#E60001' }
         };

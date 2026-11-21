@@ -1,5 +1,5 @@
 /*  Pedidos › Calendario como página sola: la usa quien ve el calendario pero
-    no Pedidos (Producción). Quien también ve Pedidos llega a pedidos.php con
+    no Pedidos (Producción). Quien también ve Pedidos llega a lista-pedidos.php con
     la vista Calendario (calendario.php lo redirige).
 
     La clase vive en components/order-calendar.js: la comparten esta página y

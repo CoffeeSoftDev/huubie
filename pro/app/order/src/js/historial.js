@@ -265,6 +265,9 @@ class SaleHistory extends Templates {
                 }
             ]
         });
+
+        // Sin un turno cerrado no se cierra el día: la regla de todas las pantallas (orderTurn.dayReady).
+        ordLock('btnDayHistory', !orderTurn.dayReady(), orderTurn.dayWhy());
     }
 
     blocked(message) {

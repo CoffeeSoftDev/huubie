@@ -55,6 +55,7 @@ class ctrl extends core {
             'today'    => date('Y-m-d'),
             'turn'     => $this->turnBrief(),
             'day'      => $this->dayBrief(),
+            'turns'    => $scope['company_id'] > 0 ? $this->branchTurns() : (object) [],   // selector de sucursal de la barra
             'all'      => $this->allOffer(self::SECTION)
         ];
     }
@@ -176,6 +177,7 @@ class ctrl extends core {
             'customer'  => $o['customer'] !== '' ? $o['customer'] : 'Sin cliente',
             'phone'     => (string) $o['phone'],
             'what'      => $this->boardWhat($o),
+            'photo'     => (string) $o['photo'],
             'date'      => (string) $o['delivery_date'],
             'hour'      => $time !== '' ? substr($time, 0, 5) : '',
             'home'      => (int) $o['delivery_method'] === 1,
@@ -509,7 +511,14 @@ class ctrl extends core {
 
         $id = $this->postId();
 
-        return $this->attempt(fn () => $this->orderBundle($id), 'No se pudo abrir el pedido.');
+        // producer: el mismo «Ya se elaboró» que el detalle del calendario (ctrl-calendario › getOrder).
+        return $this->attempt(function () use ($id) {
+            $bundle = $this->orderBundle($id);
+
+            if ($bundle['status'] === 200) $bundle['producer'] = !$bundle['foreign'] && $this->producer();
+
+            return $bundle;
+        }, 'No se pudo abrir el pedido.');
     }
 
     // -- WhatsApp --
@@ -647,6 +656,7 @@ class ctrl extends core {
                 'products'   => $products,
                 'categories' => $categories,
                 'groups'     => array_values($groups),
+                'turns'      => $this->post('is_new') === '1' ? $this->branchTurns() : (object) [],
                 'actions'    => $this->actions()
             ];
         }, 'No se pudieron cargar las opciones del pedido.');
@@ -1103,7 +1113,7 @@ class ctrl extends core {
 
         if ($dateChanged && $date < date('Y-m-d')) return $this->fail(422, 'La fecha de entrega no puede ser anterior a hoy.');
 
-        if ($method === 1 && $location === '')    return $this->fail(422, 'Escribe la dirección de envío.');
+        // Con envío a domicilio la dirección y la nota son opcionales.
         if ($this->tooLong($location, 255))       return $this->fail(422, 'La dirección admite hasta 255 caracteres.');
         if ($this->tooLong($note, 2000))          return $this->fail(422, 'La nota admite hasta 2,000 caracteres.');
 

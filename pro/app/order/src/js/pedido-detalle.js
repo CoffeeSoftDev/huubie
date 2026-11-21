@@ -75,6 +75,12 @@ function ordRound(n) {
     return Math.round(Number(n || 0) * 100) / 100;
 }
 
+// Botón de coffeeForm apagado con su porqué. El botón apagado no recibe el mouse:
+// el title va en su caja (order.css › .ord-locked). why vacío = encendido.
+function ordLock(id, off, why) {
+    $(`#${id}`).prop('disabled', !!off).parent().toggleClass('ord-locked', !!off).attr('title', off && why ? why : null);
+}
+
 // Hoja de ~80 mm en un iframe oculto: no abre ventana ni cambia de pagina.
 function ordPrint(title, body) {
     const css = `
@@ -116,12 +122,17 @@ function ordPrintDoc(title, css, body) {
     const images = Promise.all(Array.from(doc.images).map((img) => img.decode().catch(() => { })));
     const limit  = new Promise((resolve) => setTimeout(resolve, 2000));
 
+    // pending: hay una impresión en camino. pedido.js no regresa a la lista hasta que salga.
+    ordPrintDoc.pending = true;
+
     Promise.race([images, limit]).then(() => setTimeout(() => {
         // Otra impresión ya quitó este iframe.
-        if (!frame.contentWindow) return;
+        if (frame.contentWindow) {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        }
 
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
+        ordPrintDoc.pending = false;
     }, 250));
 }
 
@@ -159,6 +170,8 @@ const ORD_TICKET_CSS = `
     .tk-logo.is-img { overflow: hidden; }
     .tk-logo.is-none { display: flex; align-items: center; justify-content: center; background: #7c3aed; }
     .tk-logo.is-img span, .tk-logo.is-none img { display: none; }
+    .tk-order .tk-logo { width: 64px; height: 64px; }   /* ticket de pedido: logo más chico que el de venta */
+    .tk-order .tk-logo span { font-size: 24px; }
     .tk-company, .tk-branch, .tk-tag, .tk-reason, .tk-stamp, .tk-notes div, .tk-small { font-size: 9px; line-height: 12px; }
     .tk-company { margin-bottom: 3px; font-weight: 600; text-transform: uppercase; }
     .tk-branch { text-transform: uppercase; }
@@ -197,8 +210,14 @@ const ORD_TICKET_CSS = `
 /*  t = el ticket como lo arma el ctrl (ticketData en ctrl-ventas.php, ticketOf
     en ctrl-historial.php). La empresa y su logo salen de dataInit.scope.
     opts.draft   = número del ticket en espera: sale como PRE-CUENTA, sin folio.
-    opts.reprint = true desde el Historial: dice «Reimpreso». */
+    opts.reprint = true desde el Historial: dice «Reimpreso».
+    ordTicketHtml arma la hoja (el visor de Tickets/Cierre la muestra tal cual);
+    ordPrintTicket la manda a la impresora. */
 function ordPrintTicket(t, opts = {}) {
+    ordPrintDoc(opts.draft ? 'Pre-cuenta' : `Venta V${t.folio}`, ORD_TICKET_CSS, ordTicketHtml(t, opts));
+}
+
+function ordTicketHtml(t, opts = {}) {
     const scope   = (typeof dataInit !== 'undefined' && dataInit && dataInit.scope) || {};
     const company = scope.company || '';
     const draft   = opts.draft || 0;
@@ -316,7 +335,7 @@ function ordPrintTicket(t, opts = {}) {
             </div>
         </div>`;
 
-    ordPrintDoc(draft ? 'Pre-cuenta' : `Venta V${t.folio}`, ORD_TICKET_CSS, body);
+    return body;
 }
 
 // -- Tablas --
@@ -576,9 +595,10 @@ class OrderDetail extends Templates {
         const main = [];
         const side = [];
 
+        // icon: nombre Lucide, o el <i> ya armado (el logo de WhatsApp es de fontello: Lucide no trae marcas).
         const btn = (cls, icon, text, click, title) => `
             <button type="button" class="${cls}"${title ? ` title="${title}"` : ''} onclick="${click}">
-                <i data-lucide="${icon}" class="w-4 h-4"></i>${text}
+                ${icon.charAt(0) === '<' ? icon : `<i data-lucide="${icon}" class="w-4 h-4"></i>`}${text}
             </button>`;
 
         // En el orden en que avanza el pedido: lo último que se hace queda en la orilla derecha.
@@ -607,7 +627,7 @@ class OrderDetail extends Templates {
         if ((data.actions || []).includes('print')) side.push(btn('ord-act', 'printer', 'Imprimir', 'orderDetail.printData(orderDetail.last)'));
 
         // El «Reenviar» de alpha: el aviso del pedido otra vez a WhatsApp › Avisos (Dueño o Supervisor).
-        if (can.notify) side.push(btn('ord-act ord-wa', 'message-circle', 'Enviar por WhatsApp', `orderDetail.resendNotice(${id})`, 'Enviar otra vez el aviso del pedido a los destinatarios de WhatsApp'));
+        if (can.notify) side.push(btn('ord-act ord-wa', '<i class="icon-whatsapp ord-wa-ico" aria-hidden="true"></i>', 'Enviar por WhatsApp', `orderDetail.resendNotice(${id})`, 'Enviar otra vez el aviso del pedido a los destinatarios de WhatsApp'));
 
         return { main, side };
     }
@@ -1337,9 +1357,9 @@ class OrderDetail extends Templates {
         back();
     }
 
-    // Palomeo desde el detalle (Produccion en el calendario). Lo mismo que la casilla de la tarjeta.
+    // Palomeo desde el detalle (Pedidos o calendario). Lo mismo que la casilla de la tarjeta: siempre por ctrl-calendario.
     async produce(id, want) {
-        const data = await useFetch({ url: this._link, data: { opc: 'toggleProduced', id: id, produced: want ? 1 : 0 } });
+        const data = await useFetch({ url: 'ctrl/ctrl-calendario.php', data: { opc: 'toggleProduced', id: id, produced: want ? 1 : 0 } });
 
         if (!data || data.status != 200) {
             alert({ icon: 'info', title: 'No se cambió la marca', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
@@ -1404,7 +1424,7 @@ class OrderDetail extends Templates {
                 id: 'ed_method', lbl: 'Tipo de entrega', tipo: 'select', empty: false, class: 'w-full', value: Number(o.delivery_method) === 1 ? 1 : 0,
                 data: [{ id: 0, valor: 'Recoge en tienda' }, { id: 1, valor: 'Envío a domicilio' }]
             },
-            { id: 'ed_location', lbl: 'Dirección de envío', tipo: 'text', required: true, maxlength: 255, class: 'w-full', icon: 'map-pin', value: o.location || '', ph: 'Calle, número y colonia' },
+            { id: 'ed_location', lbl: 'Dirección de envío', tipo: 'text', required: false, maxlength: 255, class: 'w-full', icon: 'map-pin', value: o.location || '', ph: 'Calle, número y colonia' },
             { id: 'ed_note', lbl: 'Nota', tipo: 'textarea', maxlength: 2000, rows: 3, class: 'w-full', value: o.note || '', ph: 'Ej. Entregar en recepción' }
         );
 
@@ -1472,8 +1492,7 @@ class OrderDetail extends Templates {
         if (!date)                                 return warn('Elige la fecha de entrega.');
         if (date !== ctx.date && date < ctx.today) return warn('La fecha de entrega no puede ser anterior a hoy.');
         if (!time)                                 return warn('Elige la hora de entrega.');
-        if (method === 1 && !location)             return warn('Escribe la dirección de envío.');
-        if (ctx.keyed && !key)                     return wrong('Escribe tu contraseña para editar la entrega.');
+        if (ctx.keyed && !key)                   return wrong('Escribe tu contraseña para editar la entrega.');
 
         this.savingDelivery = true;
 
@@ -1603,7 +1622,7 @@ class OrderDetail extends Templates {
         }).join('');
 
         return `
-        <div class="tk">
+        <div class="tk tk-order">
             <div class="tk-head">
                 ${logo}
                 ${company ? `<div class="tk-company">${esc(company)}</div>` : ''}

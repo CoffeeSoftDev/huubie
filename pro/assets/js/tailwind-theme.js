@@ -303,6 +303,9 @@
         'html.dark .inv-theme-loader__card,body.dark-mode .inv-theme-loader__card{background:var(--dk-card,#1F2A37);border-color:var(--dk-line,#374151);box-shadow:0 16px 40px rgba(0,0,0,.45);}' +
         'html.dark .inv-theme-loader__text strong,body.dark-mode .inv-theme-loader__text strong{color:var(--dk-text,#F9FAFB);}' +
         'html.dark .inv-theme-loader__text small,body.dark-mode .inv-theme-loader__text small{color:var(--dk-muted,#9CA3AF);}' +
+        // is-solid: tapa todo con el fondo de la página (abrir un módulo): no se ve armarse por partes.
+        '.inv-theme-loader.is-solid{background:var(--bg,#F7F7FC);-webkit-backdrop-filter:none;backdrop-filter:none;}' +
+        'html.dark .inv-theme-loader.is-solid,body.dark-mode .inv-theme-loader.is-solid{background:var(--dk-bg,#111928);}' +
         '@media (prefers-reduced-motion:reduce){.inv-theme-loader__ring{animation-duration:2s;}.inv-theme-loader__text strong::after{animation:none;content:"…";}}';
 
     function loaderCss() {
@@ -329,7 +332,8 @@
     // `instant`: aparece ya visible, sin el fundido de entrada (la carga nueva
     // tras la recarga, que debe verse igual que la página que se fue).
     // `title`: el texto grande; sin él, "Aplicando tema".
-    function showLoader(label, instant, title) {
+    // `solid`: fondo de la página en lugar del velo (is-solid).
+    function showLoader(label, instant, title, solid) {
         loaderCss();
 
         whenBody(function () {
@@ -344,6 +348,7 @@
             loaderEl.querySelector('strong').textContent = title || LOADER_TITLE;
             loaderEl.querySelector('small').textContent = label || '';
             loaderEl.classList.toggle('is-instant', !!instant);
+            loaderEl.classList.toggle('is-solid', !!solid);
             document.body.appendChild(loaderEl);
 
             // Lee el layout para fijar opacity:0 antes de encender la
@@ -363,10 +368,25 @@
     }
 
     // Deja dicho a la próxima carga que siga mostrando el aviso.
-    function carryLoader(label, title) {
+    function carryLoader(label, title, solid) {
         try {
-            sessionStorage.setItem(LOADER_KEY, JSON.stringify({ label: label || '', title: title || '' }));
+            sessionStorage.setItem(LOADER_KEY, JSON.stringify({ label: label || '', title: title || '', solid: !!solid }));
         } catch (e) { /* sin sessionStorage: la carga nueva entra sin aviso */ }
+    }
+
+    // El módulo ya se pintó: #root tiene contenido (lo pone el JS de la página
+    // tras su init). Páginas sin #root, o que ya lo traen del servidor: de una vez.
+    function whenPainted(fn) {
+        var root = document.getElementById('root');
+
+        if (!root || root.children.length) return fn();
+
+        new MutationObserver(function (list, observer) {
+            if (!root.children.length) return;
+
+            observer.disconnect();
+            requestAnimationFrame(function () { requestAnimationFrame(fn); });
+        }).observe(root, { childList: true });
     }
 
     // Pinta un modo y lo deja guardado para la siguiente carga.
@@ -416,9 +436,14 @@
             try { aviso = JSON.parse(pending); } catch (e) { aviso = null; }
             if (!aviso || typeof aviso !== 'object') aviso = { label: pending };
 
-            showLoader(aviso.label, true, aviso.title);
+            showLoader(aviso.label, true, aviso.title, aviso.solid);
 
-            window.addEventListener('load', function () { setTimeout(hideLoader, 250); }, { once: true });
+            // Al abrir un módulo (solid) se espera también a que pinte su contenido:
+            // su init llega después de load y se veía armarse por partes.
+            window.addEventListener('load', function () {
+                if (aviso.solid) whenPainted(function () { setTimeout(hideLoader, 200); });
+                else setTimeout(hideLoader, 250);
+            }, { once: true });
             setTimeout(hideLoader, 5000);
         }
     } catch (e) { /* sin sessionStorage */ }

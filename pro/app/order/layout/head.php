@@ -3,7 +3,9 @@
     hojas de pro) con la hoja propia del modulo al final. La pagina lo incluye
     despues de Permission::page(), con $title y $script definidos, y cierra con
     scripts.php. $rootHtml (opcional) se pinta dentro de #root tal cual: lo usa
-    index.php para el aviso de "sin secciones". */
+    index.php para el aviso de "sin secciones". $railRoute (opcional): la
+    seccion del menu de una pagina que no es seccion (pedido.php cuelga de la
+    lista); el rail la lee de data-route (auth/src/js/sidebar.js). */
 $asset = function ($file) {
     return '../../' . $file . '?v=' . filemtime(__DIR__ . '/../../../' . $file);
 };
@@ -59,7 +61,7 @@ $asset = function ($file) {
 </head>
 
 <body>
-    <div id="menu-sidebar"></div>
+    <div id="menu-sidebar"<?= isset($railRoute) ? ' data-route="' . htmlspecialchars($railRoute) . '"' : '' ?>></div>
     <main>
         <div id="menu-navbar"></div>
 

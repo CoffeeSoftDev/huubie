@@ -14,7 +14,7 @@
     o la entrega se guardan: esas ventanas llaman orders.lsOrders() y el
     tablero se vuelve a pedir. A Cancelado se llega desde el detalle.
 
-    Vive en pedidos.php como la vista «Tablero» (pedidos.js › showBoard). */
+    Vive en lista-pedidos.php como la vista «Tablero» (lista-pedidos.js › showBoard). */
 
 // -- OrderBoard --
 
@@ -128,7 +128,7 @@ class OrderBoard extends Templates {
             coffeesoft: true,
             data: [
                 { opc: 'input-calendar', id: 'calendar', lbl: 'Entrega', required: false, readonly: true, class: 'col-12 col-sm-6' },
-                { opc: 'input', id: 'q', lbl: 'Buscar', type: 'search', placeholder: 'Folio, cliente o teléfono', required: false, class: 'col-12 col-sm-6' }
+                { opc: 'input', id: 'q', lbl: 'Buscar', type: 'search', placeholder: 'Folio, cliente, teléfono o producto', required: false, class: 'col-12 col-sm-6' }
             ]
         });
 
@@ -222,7 +222,7 @@ class OrderBoard extends Templates {
             ? `<button type="button" class="ord-board-more" data-more="${s.id}">Ver ${more} más</button>`
             : this.open[s.id] && list.length > this.limit ? `<button type="button" class="ord-board-more" data-more="${s.id}">Ver menos</button>` : '';
 
-        const empty = list.length ? '' : `<p class="ord-board-empty">${this.term ? 'Nada coincide con la búsqueda.' : 'Sin pedidos en este periodo.'}</p>`;
+        const empty = list.length ? '' : `<p class="ord-board-empty">${this.term ? `Nada coincide ${this.periodText()}.` : 'Sin pedidos en este periodo.'}</p>`;
 
         return `
             <div class="ord-board-col${s.id === 4 ? ' is-off' : ''}" data-col="${s.id}" style="--c:${s.c};--soft:${s.soft};--body:${s.body};--ink-s:${s.ink}">
@@ -252,15 +252,25 @@ class OrderBoard extends Templates {
             ? `<button type="button" class="ord-board-go" data-step="${step.key}" data-id="${c.id}">${step.label}<i data-lucide="chevron-right"></i></button>`
             : '';
 
+        // La foto del pastel (la de referencia o la del producto, como el calendario); sin foto, el pastel en el tono del estado.
+        const photo = c.photo
+            ? `<span class="ord-board-photo">${orderImg(c.photo, 'w-full h-full object-cover', c.what)}</span>`
+            : '<span class="ord-board-photo is-empty"><i data-lucide="cake"></i></span>';
+
         return `
             <article class="ord-board-card${fresh ? ' is-arriving' : ''}" data-id="${c.id}" data-status="${c.status}"${drag ? ' draggable="true"' : ''} tabindex="0" aria-label="${esc(`Pedido ${c.folio} de ${c.customer}`)}">
                 ${drag ? '<span class="ord-board-grip" aria-hidden="true"><i data-lucide="grip-vertical"></i></span>' : ''}
-                <p class="ord-board-name">
-                    <span class="ord-board-kind" title="${c.home ? 'Envío a domicilio' : 'Recoge en tienda'}"><i data-lucide="${c.home ? 'truck' : 'store'}"></i></span>
-                    <span class="ord-board-who">${esc(c.customer)}</span>${dot}
-                </p>
-                <p class="ord-board-text"><span class="ord-board-folio">#${esc(c.folio)}</span> ${esc(c.what)}</p>
-                <div class="ord-board-tags">${this.tagsHtml(c)}</div>
+                <div class="ord-board-top">
+                    ${photo}
+                    <div class="ord-board-main">
+                        <p class="ord-board-name">
+                            <span class="ord-board-kind" title="${c.home ? 'Envío a domicilio' : 'Recoge en tienda'}"><i data-lucide="${c.home ? 'truck' : 'store'}"></i></span>
+                            <span class="ord-board-who">${esc(c.customer)}</span>${dot}
+                        </p>
+                        <p class="ord-board-text"><span class="ord-board-folio">#${esc(c.folio)}</span> ${esc(c.what)}</p>
+                        <div class="ord-board-tags">${this.tagsHtml(c)}</div>
+                    </div>
+                </div>
                 <div class="ord-board-meta">
                     <span class="ord-board-when${due ? ` is-${due}` : ''}">${this.whenText(c, due)}</span>
                     ${go}
@@ -330,7 +340,7 @@ class OrderBoard extends Templates {
 
         const pct = Math.round(t.done / t.total * 100);
 
-        box.removeClass('hidden').html(`
+        box.removeClass('hidden').attr({ role: 'button', tabindex: 0, title: 'Ver las entregas de hoy' }).html(`
             <span class="ord-board-today-icon"><i data-lucide="truck"></i></span>
             <div>
                 <p>Entregas de hoy</p>
@@ -365,6 +375,32 @@ class OrderBoard extends Templates {
             .on('dragover.ordBoard', '.ord-board-col', (e) => this.onDragOver(e))
             .on('drop.ordBoard', '.ord-board-col', (e) => this.onDrop(e))
             .on('dragend.ordBoard', () => this.cleanDrag());
+
+        $(`#today${this.PROJECT_NAME}`)
+            .off('.ordBoard')
+            .on('click.ordBoard', () => this.showToday())
+            .on('keydown.ordBoard', (e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+
+                e.preventDefault();
+                this.showToday();
+            });
+    }
+
+    // El recuadro «Entregas de hoy» lleva el periodo a Hoy y quita la búsqueda.
+    showToday() {
+        const dp     = $('#brd_calendar').data('daterangepicker');
+        const [a, b] = this.rangeDates('today');
+
+        if (!dp) return;
+
+        dp.setStartDate(a);
+        dp.setEndDate(b);
+
+        this.term = '';
+        $('#brd_q').val('');
+
+        this.onRangeChange();
     }
 
     // Abre la ventana de siempre. La tarjeta se mueve cuando esa ventana guarda.
@@ -452,6 +488,14 @@ class OrderBoard extends Templates {
         const row = (dataInit.statuses || []).find((s) => Number(s.id) === Number(id));
 
         return row ? row.valor : ({ 1: 'Cotización', 2: 'Pendiente', 3: 'Pagado', 4: 'Cancelado' }[id] || 'Sin estado');
+    }
+
+    // La búsqueda solo mira lo que cargó «Entrega»: «del 16/11 al 22/11» o «el 20/11».
+    periodText() {
+        const { fi, ff } = this.range;
+        const a          = ordDate(fi).slice(0, 5);
+
+        return fi === ff ? `el ${a}` : `del ${a} al ${ordDate(ff).slice(0, 5)}`;
     }
 
     todayDate() {

@@ -23,6 +23,9 @@ require_once __DIR__ . '/../../../core/helpers/_WhatsApp.php';
       - El aviso de un pedido sale una sola vez por referencia («Pedido P123»),
         salvo el reenvío a mano del detalle. Los cierres salen cada vez: un turno
         reabierto y vuelto a cerrar avisa otra vez con las cifras nuevas.
+      - El del pedido lleva sus fotos, como alpha (waOrderPhotos): la primera
+        arriba del mensaje y las demás detrás, cada una «Pedido P123 · foto 2 de 3»
+        en el historial.
       - Todo es protected: Permission::dispatch ejecuta cualquier metodo publico
         del ctrl que llegue en `opc`, y los de un trait cuentan como suyos. */
 trait WhatsAppNotices {
@@ -35,6 +38,7 @@ trait WhatsAppNotices {
             'order' => [
                 'name' => 'Pedido nuevo',
                 'when' => 'Sale cuando se termina el pedido: con el primer cobro (el anticipo que vuelve pedido a la cotización) o al guardarlo Pendiente sin anticipo. Una sola vez por pedido; desde el detalle se puede enviar otra vez.',
+                'note' => 'Lleva las fotos del pedido: la primera va arriba del mensaje (la del pastel personalizado o, si no hay, la del catálogo del producto) y las demás llegan detrás.',
                 'vars' => [
                     'folio' => 'Folio (P123)', 'sucursal' => 'Sucursal', 'capturo' => 'Quién lo capturó',
                     'fecha_larga' => 'Día de entrega', 'hora' => 'Hora de entrega', 'entrega' => 'Recoge o a domicilio',
@@ -136,8 +140,12 @@ trait WhatsAppNotices {
 
     /*  Llena la plantilla y la manda a cada destinatario; cada intento queda en
         wa_log. Nunca lanza: devuelve cuantos salieron y, si no salio nada, por que
-        (skipped: repeated | paused | nobody | error). */
-    protected function waSend($type, array $vars, $reference, $once = false) {
+        (skipped: repeated | paused | nobody | error).
+        $photos (el aviso() de alpha): [file, name, caption, reference] por foto.
+        La primera va arriba del mensaje y el texto es su pie; si falla, el aviso
+        sale como texto solo. Las demas llegan detras, una por mensaje, cada una
+        con su renglon en el historial. El conteo es el del aviso, no el de fotos. */
+    protected function waSend($type, array $vars, $reference, $once = false, array $photos = []) {
         $result = ['sent' => 0, 'failed' => 0, 'simulated' => 0, 'skipped' => ''];
 
         try {
@@ -154,25 +162,58 @@ trait WhatsAppNotices {
             $recipients = $this->qWaRecipients($companyId, $branchId, $type);
             if (!$recipients) return array_merge($result, ['skipped' => 'nobody']);
 
-            $text = WhatsApp::fill($notice['body'], $vars);
-            $wa   = new WhatsApp();
+            $text   = WhatsApp::fill($notice['body'], $vars);
+            $wa     = new WhatsApp();
+            $photos = $photos ? $wa->photos($photos) : [];
 
-            foreach ($recipients as $recipient) {
-                $sent = $wa->send($recipient['phone'], $text);
-
-                $result[$sent['status']] = ($result[$sent['status']] ?? 0) + 1;
-
+            $log = function ($recipient, $ref, $sent, $body) use ($branchId, $type) {
                 $this->waLog([
                     'branch_id'    => $branchId ?: null,
                     'type'         => $type,
-                    'reference'    => $reference,
+                    'reference'    => $ref,
                     'recipient_id' => (int) $recipient['id'],
                     'phone'        => (string) $recipient['phone'],
                     'provider'     => $sent['provider'],
                     'status'       => $sent['status'],
                     'error'        => $sent['detail'] !== '' ? $sent['detail'] : null,
-                    'body'         => $text
+                    'body'         => $body
                 ]);
+            };
+
+            foreach ($recipients as $recipient) {
+                $sent = null;
+                $rest = '';
+
+                if ($photos) {
+                    [$caption, $rest] = WhatsApp::caption($text);
+
+                    $sent = $wa->send($recipient['phone'], $caption, $photos[0]);
+
+                    if (!$sent['ok']) {
+                        $log($recipient, $photos[0]['reference'], $sent, $photos[0]['caption']);
+                        $sent = null;
+                        $rest = '';
+                    }
+                }
+
+                if (!$sent) $sent = $wa->send($recipient['phone'], $text);
+
+                $result[$sent['status']] = ($result[$sent['status']] ?? 0) + 1;
+
+                $log($recipient, $reference, $sent, $text);
+
+                // Si el aviso no salio, las fotos llegarian sueltas y sin contexto.
+                if (!$sent['ok']) continue;
+
+                // Lo que no cupo en el pie de la foto.
+                if ($rest !== '') {
+                    $more = $wa->send($recipient['phone'], $rest);
+                    if (!$more['ok']) $log($recipient, $reference . ' · continuación', $more, $rest);
+                }
+
+                foreach (array_slice($photos, 1) as $photo) {
+                    $log($recipient, $photo['reference'], $wa->send($recipient['phone'], $photo['caption'], $photo), $photo['caption']);
+                }
             }
         } catch (Throwable $e) {
             $this->writeToLog('[ WHATSAPP ] :: ' . $type . ' ' . $reference . ' :: ' . $e->getMessage());
@@ -244,11 +285,71 @@ trait WhatsAppNotices {
                 'estatus'     => $this->waStatusText((int) $order['sale_status_id'])
             ];
 
-            return $this->waSend('order', $vars, 'Pedido P' . (int) $order['id'], !$resend);
+            $photos = $this->waOrderPhotos($lines, $vars['folio']);
+
+            return $this->waSend('order', $vars, 'Pedido P' . (int) $order['id'], !$resend, $photos);
         } catch (Throwable $e) {
             $this->writeToLog('[ WHATSAPP notifyOrder ] :: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /*  Las fotos del aviso del pedido, como alpha (orderNoticePhotos +
+        orderNoticeImages): primero las subidas al pedido (la primera va arriba
+        del mensaje) y despues la del catalogo de cada producto que no trae foto
+        propia; el personalizado no tiene foto de catalogo. Una de catalogo
+        repetida sale una vez. La que ya no esta en este servidor no se manda
+        (las de alpha_files viven en otro): solo queda en whatsapp.log. */
+    private function waOrderPhotos(array $lines, $folio) {
+        $images  = $this->groupBy($this->qLineImages(array_map(function ($line) { return (int) $line['id']; }, $lines)), 'detail_sale_id');
+        $root    = rtrim(str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? '')), '/');
+        $found   = [];
+        $catalog = [];
+        $missing = [];
+
+        $add = function ($path, $cake, &$list) use ($root, &$missing) {
+            $path = trim((string) $path);
+
+            if ($path === '' || preg_match('#^https?://#i', $path)) return;
+
+            $file = $root . '/' . ltrim($path, '/');
+
+            if (!is_file($file)) {
+                $missing[] = $path;
+                return;
+            }
+
+            $list[] = ['path' => $path, 'file' => $file, 'name' => basename($path), 'cake' => $cake];
+        };
+
+        foreach ($lines as $line) {
+            $cake = $this->waOneLine($line['name'] !== '' ? $line['name'] : $line['product_name']);
+            $own  = $images[(int) $line['id']] ?? [];
+
+            foreach ($own as $image) $add($image['path'], $cake, $found);
+
+            if ((int) $line['is_custom'] === 1 || $own) continue;
+            if (in_array(trim((string) $line['image']), array_column($catalog, 'path'), true)) continue;
+
+            $add($line['image'], $cake, $catalog);
+        }
+
+        if ($missing) (new WhatsApp())->writeToLog('[ WHATSAPP fotos ' . $folio . ' ] :: no están en el servidor: ' . implode(', ', array_unique($missing)));
+
+        $photos = array_merge($found, $catalog);
+        $total  = count($photos);
+
+        // El pie dice qué foto es y de qué pedido; el pastel, solo si hay fotos de más de uno.
+        $several = count(array_unique(array_column($photos, 'cake'))) > 1;
+
+        foreach ($photos as $index => $photo) {
+            $count = ($index + 1) . " de {$total}";
+
+            $photos[$index]['caption']   = "📷 Foto {$count} · Pedido {$folio}" . ($several && $photo['cake'] !== '' ? " · «{$photo['cake']}»" : '');
+            $photos[$index]['reference'] = "Pedido {$folio} · foto {$count}";
+        }
+
+        return $photos;
     }
 
     // Corte Z. Se lee el turno ya cerrado: cifras congeladas y quien cerro.

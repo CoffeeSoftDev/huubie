@@ -50,6 +50,11 @@
     data-active="inicio|perfil|configuracion" cuando no es ni un modulo ni una
     seccion.
 
+    Una pagina que cuelga de una seccion sin ser ella (la captura
+    app/order/pedido.php, de la lista de pedidos) la declara con
+    data-route="app/order/lista-pedidos.php": el rail es el de ese modulo y
+    marca esa seccion.
+
     data-rail="static": la pagina trae sus propios botones .menu-rail-item
     (la plantilla del POS). El script solo pone el CSS y no toca el markup. */
 (function () {
@@ -92,8 +97,14 @@
         return i >= 0 ? p.slice(0, i + '/pro'.length) : '/pro';
     }
 
-    // Ruta de la pagina relativa a pro/ (ej. "app/developer/accesos.php").
+    // Ruta de la pagina relativa a pro/ (ej. "app/developer/accesos.php"),
+    // o la que declara con data-route (ver arriba).
     function paginaActual() {
+        var host  = document.getElementById('menu-sidebar');
+        var ruta  = host ? String(host.getAttribute('data-route') || '').replace(/^\/+/, '') : '';
+
+        if (ruta) return ruta;
+
         var p = window.location.pathname;
         var i = p.indexOf('/pro/');
         return i >= 0 ? p.slice(i + '/pro/'.length) : '';

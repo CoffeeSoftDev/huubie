@@ -22,6 +22,9 @@ class core extends mdl {
     // El visor de Cortes (menú «Tickets/Cierre») tiene su propia sección.
     const TICKETS = 'pos-tickets';
 
+    // El calendario (Producción): palomea «ya se elaboró» con su 'update'.
+    const CALENDAR = 'pos-calendario';
+
     // Estados de sale_status (plantillas de Huubie, iguales en todas las bases).
     const QUOTE     = 1;
     const PENDING   = 2;
@@ -341,6 +344,20 @@ class core extends mdl {
         return $brief;
     }
 
+    /*  Qué sucursal de la empresa tiene turno: { branch_id: 'open' | 'old' }.
+        open = abierto hoy; old = sigue abierto desde otro día (needTurn no deja
+        capturar hasta cerrarlo). Sin llave = sin turno. Lo pintan el selector de
+        sucursal de la barra (init de Pedidos y Ventas) y el de la captura (formOptions). */
+    protected function branchTurns() {
+        $turns = [];
+
+        foreach ($this->qOpenTurnsByCompany($this->companyId()) as $row) {
+            $turns[(int) $row['branch_id']] = substr((string) $row['opened_at'], 0, 10) === date('Y-m-d') ? 'open' : 'old';
+        }
+
+        return (object) $turns;
+    }
+
     // -- Día de caja --
 
     // [inicio del día, inicio del siguiente) para comparar fechas con hora.
@@ -388,7 +405,7 @@ class core extends mdl {
     // '' = hoy se puede abrir turno. Si no, la frase que lo impide.
     protected function dayBlock($branchId = null, $where = 'esta sucursal') {
         if ($this->dayClosedToday($branchId)) {
-            return "El día de hoy ya se cerró en {$where}. Reábrelo desde «Cierre del día» para volver a operar.";
+            return "El día de hoy ya se cerró en {$where}. Para volver a operar, root lo reabre desde «Cierre del día».";
         }
 
         $pending = $this->pendingDays($branchId);
@@ -400,8 +417,9 @@ class core extends mdl {
         return '';
     }
 
-    // El día para la cabecera: cerrado hoy, días anteriores sin cerrar y cuántos turnos
-    // se abrieron hoy (con más de uno, la franja de Ventas enciende «Cierre del día»).
+    // El día para la cabecera: cerrado hoy, días anteriores sin cerrar, cuántos turnos
+    // se abrieron hoy y cuántos ya se cerraron. Sin un turno cerrado (ni día pendiente),
+    // «Cierre del día» sale apagado en todas las pantallas (orderTurn.dayReady).
     protected function dayBrief() {
         $home = $this->homeBranchId();
 
@@ -409,10 +427,15 @@ class core extends mdl {
 
         [$from, $to] = $this->dayRange(date('Y-m-d'));
 
+        // branch_id y user_id: con ellos la pantalla busca los tickets en espera de Ventas
+        // y sabe cuáles son de quien cierra (orderTurn.openWork).
         return [
-            'closed'  => $this->dayClosedToday($home),
-            'pending' => array_column($this->pendingDays($home), 'date'),
-            'turns'   => $this->qDayTurnCount($home, $from, $to)
+            'branch_id'    => $home,
+            'user_id'      => $this->userId(),
+            'closed'       => $this->dayClosedToday($home),
+            'pending'      => array_column($this->pendingDays($home), 'date'),
+            'turns'        => $this->qDayTurnCount($home, $from, $to),
+            'closed_turns' => $this->qDayClosedTurnCount($home, $from, $to)
         ];
     }
 
@@ -473,9 +496,17 @@ class core extends mdl {
         return in_array($this->qRoleCode($this->userId(), (int) ($_SESSION['branch_id'] ?? 0)), ['owner', 'dueno'], true);
     }
 
-    // root = la cuenta de Developer (administra la plataforma). Es la única que elimina pedidos.
+    // root = la cuenta de Developer (administra la plataforma). Es la única que elimina pedidos y reabre días.
     protected function isRoot() {
         return !empty($_SESSION['is_root']);
+    }
+
+    /*  Palomea «ya se elaboró»: Producción ('update' del calendario) y el Dueño.
+        Lo mandan el detalle de Pedidos y el del calendario: el visor es uno solo. */
+    protected function producer() {
+        if (Permission::can(self::CALENDAR, 'update')) return true;
+
+        return Permission::can(self::CALENDAR, 'show') && $this->isOwner();
     }
 
     // -- Reglas de cobro --
@@ -553,6 +584,8 @@ class core extends mdl {
                 'status_id' => (int) $s['sale_status_id'],
                 'status'    => (string) $s['status'],
                 'order'     => (int) $s['sale_type_id'] === 1,
+                'subtotal'  => round((float) $s['subtotal'], 2),
+                'discount'  => round(abs((float) $s['discount']), 2),
                 'total'     => round((float) $s['total'], 2),
                 'at'        => $s['created_at']
             ];
@@ -846,7 +879,7 @@ class core extends mdl {
 
         if ($date === null)                    return $this->fail(422, 'Elige la fecha de entrega.');
         if ($time === null)                    return $this->fail(422, 'Elige la hora de entrega.');
-        if ($method === 1 && $location === '') return $this->fail(422, 'Escribe la dirección de envío.');
+        // Con envío a domicilio la dirección es opcional, igual que en la captura.
         if ($this->tooLong($location, 255))    return $this->fail(422, 'La dirección admite hasta 255 caracteres.');
         if ($this->tooLong($note, 2000))       return $this->fail(422, 'La nota admite hasta 2,000 caracteres.');
 

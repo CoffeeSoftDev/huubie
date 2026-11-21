@@ -23,6 +23,15 @@ class OrderForm extends Templates {
         this.scrollTop    = 0;
         this.optionIndex  = {};
         this.s2Open       = false;
+        this.timeBox      = null;   // reloj de la hora (posTime)
+        this.branchNow    = '';     // sucursal de la sesión en el selector de la captura
+        this.draft        = null;   // lo que trae la captura al cambiar de sucursal (changeBranch)
+        this.failed       = null;   // la respuesta de formOptions que no abrió (loadOptions quiet)
+        this.ticketFirst  = true;   // Pedidos y Ventas: primero la card del ticket y después el catálogo
+        this.chipArrows   = true;   // Pedidos y Ventas: categorías del catálogo en carril con flechas
+        this.toastTimer   = null;   // aviso negro del cambio de sucursal (branchToast)
+        this.dataReady    = false;  // Pedidos: «Datos del pedido» ya capturados (toList); abre la lista y el catálogo
+        this.twoTabs      = false;  // Pedidos: el ticket va en pestañas Datos | Lista (ticket); Ventas no
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') this.s2Open = !!document.querySelector('.select2-container--open');
@@ -36,22 +45,203 @@ class OrderForm extends Templates {
         });
     }
 
+    /*  Pedido nuevo: el POS abre en la pestaña «Datos del pedido», con la lista
+        bajo candado y el catálogo en espera (gate) hasta «Continuar con la
+        captura». El cliente arranca enfocado, esperando que escriban (typeCustomer). */
     async add() {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
         if (!(await this.loadOptions(0, true))) return;
 
-        this.order = null;
-        this.lines = [];
+        this.order     = null;
+        this.lines     = [];
+        this.dataReady = false;
         this.open();
+        this.applyDraft();
 
-        // Dos cuadros después: la primera vez Tailwind CDN aún no genera los anchos del ticket (md:w-[320px]…).
+        // Dos cuadros después: Tailwind CDN aún arma los anchos del ticket.
         requestAnimationFrame(() => requestAnimationFrame(() => this.focusCustomer()));
     }
 
-    /*  Pedido nuevo: el selector de clientes arranca CERRADO y enfocado, como un
-        campo de texto esperando que escriban (typeCustomer). En pantalla chica
-        el ticket va escondido tras «Ver pedido»: ahí no se enfoca. */
+    // -- Cambiar de sucursal --
+
+    /*  Pedido nuevo: las sucursales a las que se puede cambiar, las mismas del
+        selector de la barra (ctrl-nav › branches). null = editando o una sola.
+        turns dice cuál tiene turno abierto (formOptions › turns): lo pinta branchSelect. */
+    branchOptions() {
+        const list    = (window.navbar && navbar.data && navbar.data.branches) || [];
+        const current = list.find((b) => b.selected);
+
+        if (this.order || list.length < 2 || !current) return null;
+
+        return {
+            current: String(current.id),
+            turns:   (this.opts && this.opts.turns) || {},
+            list:    list.map((b) => ({ id: String(b.id), valor: b.name }))
+        };
+    }
+
+    /*  El selector de sucursal con select2: el nombre a la izquierda y el turno en
+        una píldora a la derecha, en la lista y en lo elegido. Verde = turno
+        abierto, terracota = turno de otro día (como la franja), gris = sin turno.
+        Sin buscador: son pocas. */
+    branchSelect(branches) {
+        const looks = { open: ['is-open', 'Turno abierto'], old: ['is-old', 'Turno de otro día'] };
+
+        const item = (o) => {
+            if (!o.id) return o.text;
+
+            const look = looks[branches.turns[o.id]] || ['is-none', 'Sin turno'];
+
+            return $(`<span class="ord-branch-opt"><span class="ord-branch-name">${esc(o.text)}</span><span class="ord-branch-turn ${look[0]}"><i></i>${look[1]}</span></span>`);
+        };
+
+        $('#of_branch').select2({
+            theme:                   'bootstrap-5',
+            width:                   '100%',
+            minimumResultsForSearch: Infinity,
+            templateResult:          item,
+            templateSelection:       item
+        });
+    }
+
+    /*  Igual que elegirla en la barra: la sesión cambia (ctrl-nav › switchBranch),
+        pero sin recargar la página: se pide el init y las opciones de la otra
+        sucursal, la pantalla de atrás se rehace (orders.repaint) y la captura se
+        vuelve a montar con cliente, entrega y nota. Un aviso chico dice el cambio.
+        Los productos no viajan: cada sucursal tiene su catálogo y sus precios.
+        Si la otra sucursal no deja capturar (sin turno), queda la lista y lo
+        traído se guarda para el siguiente «Nuevo pedido». */
+    async changeBranch() {
+        const select = $('#of_branch');
+        const id     = String(select.val() || '');
+        const branch = (navbar.data.branches || []).find((b) => String(b.id) === id);
+        const name   = branch ? branch.name : select.find('option:selected').text().trim();
+        const back   = () => select.prop('disabled', false).val(this.branchNow).trigger('change.select2');
+
+        if (!id || id === this.branchNow || this.saving) return back();
+
+        if (this.lines.length) {
+            const answer = await this.swalQuestion({
+                opts: {
+                    title:             `¿Cambiar a ${name}?`,
+                    text:              'Los productos se quitan: cada sucursal tiene su catálogo. Cliente, fecha, hora, entrega y nota se quedan.',
+                    confirmButtonText: 'Cambiar de sucursal',
+                    cancelButtonText:  'Seguir aquí'
+                },
+                extends: true
+            });
+
+            if (!answer || !answer.isConfirmed) return back();
+        }
+
+        select.prop('disabled', true);
+
+        const res = await navbar.post({ opc: 'switchBranch', id: id });
+
+        if (!res || res.status !== 200) {
+            back();
+            alert({ icon: 'error', title: 'No se cambió la sucursal', text: (res && res.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        // Elegir una sucursal apaga «Todas», como en la barra.
+        navbar.clearAll();
+        this.markBranch(id);
+
+        this.draft = this.draftValues();
+
+        const [ready, init] = await Promise.all([this.loadOptions(0, true, 0, true), orders.fetchInit()]);
+
+        // Lo de atrás ya es de la otra sucursal. repaint() borra la captura: se monta de nuevo en el mismo tick.
+        orders.repaint(init);
+
+        if (!ready) {
+            this.close();
+            this.warnFail(this.failed, 'No se pudo abrir la captura', () => this.add());
+            return;
+        }
+
+        this.order = null;
+        this.lines = [];
+        this.open();
+        this.applyDraft();
+
+        // La sucursal se elige en «Datos del pedido»: ahí se queda.
+        this.ticketBox.section(true);
+        this.branchToast(name);
+    }
+
+    // La barra marca la sucursal nueva sin recargar (su selectBranch sí recarga).
+    markBranch(id) {
+        (navbar.data.branches || []).forEach((b) => { b.selected = String(b.id) === String(id); });
+
+        if (navbar.all) navbar.all.on = false;
+
+        navbar.renderBranch();
+        navbar.icons();
+    }
+
+    /*  El aviso negro de Configuración (Rosy, page.css › .pg-toast): abajo al
+        centro, dice el cambio y se va solo. No tapa la captura ni pide clic.
+        Su copia en Pedidos es .ord-toast (order.css). */
+    branchToast(name) {
+        const box = $('#ordToast').length
+            ? $('#ordToast')
+            : $('<div>', { id: 'ordToast', class: 'ord-toast', role: 'status', 'aria-live': 'polite' }).appendTo('body');
+
+        box.html(`<i data-lucide="circle-check"></i><span>Cambiaste a <b>${esc(name)}</b></span>`);
+
+        if (window.lucide) lucide.createIcons({ root: box[0] });
+
+        // Reinicia la entrada aunque ya hubiera uno en pantalla.
+        box.removeClass('is-on');
+        void box[0].offsetWidth;
+        box.addClass('is-on');
+
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => box.removeClass('is-on'), 2600);
+    }
+
+    draftValues() {
+        const values = this.ticketValues();
+
+        return {
+            customer:     values.of_customer_id,
+            customerText: values.of_customer_id ? $('#of_customer_id option:selected').text().trim() : '',
+            date:         values.of_delivery_date,
+            time:         values.of_delivery_time,
+            method:       values.of_delivery_method,
+            location:     values.of_location,
+            note:         values.of_note
+        };
+    }
+
+    applyDraft() {
+        const d = this.draft;
+
+        this.draft = null;
+
+        if (!d) return;
+
+        if (d.customer) this.pickCustomer({ id: d.customer, valor: d.customerText || 'Cliente' });
+
+        if (d.date && d.date >= this.opts.today) $('#of_delivery_date').val(d.date);
+
+        if (d.time && this.timeBox) this.timeBox.set(d.time);
+        else if (d.time) $('#of_delivery_time').val(d.time);
+
+        $('#of_delivery_method').val(d.method === '1' ? '1' : '0');
+        $('#of_location').val(d.location || '');
+        $('#of_note').val(d.note || '');
+
+        this.toggleLocation();
+        this.waitCustomer();
+        this.refreshSummary();
+    }
+
+    /*  El selector de clientes arranca CERRADO y enfocado, como un campo de texto
+        esperando que escriban (typeCustomer). Escondido no se enfoca. */
     focusCustomer() {
         const select = $('#of_customer_id');
         const box    = select.next('.select2-container');
@@ -74,22 +264,29 @@ class OrderForm extends Templates {
         e.preventDefault();
         select.select2('open');
 
-        $('.select2-container--open .select2-search__field').val(e.key).trigger('input');
+        // select2 enfoca su buscador hasta el siguiente ciclo: se enfoca ya, o la segunda tecla se pierde.
+        const field = $('.select2-container--open .select2-search__field');
+
+        field.val(e.key).trigger('focus').trigger('input');
+        field[0].setSelectionRange(1, 1);
     }
 
-    async edit(id) {
+    /*  Lo que se revisa antes de editar: que se pueda y, si el pedido ya está en
+        un corte, el aviso. ask = false sin el aviso: pedido.php lo abre ya
+        avisado desde la lista (y al recargar no se repite). null = no se edita. */
+    async editable(id, ask = true) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
         const data = await orderDetail.fetchOrder(id);
-        if (!data) return;
+        if (!data) return null;
 
         if (!data.can || !data.can.edit) {
             alert({ icon: 'info', title: 'No se puede editar', text: (data.can && data.can.edit_reason) || '', btn1: true, btn1Text: 'Entendido' });
-            return;
+            return null;
         }
 
         // Pedido de un corte cerrado: la cajera edita, pero el ctrl rechaza si el total se mueve.
-        if (data.can.money === false) {
+        if (ask && data.can.money === false) {
             const go = await alert({
                 icon:     'info',
                 title:    'Este pedido ya está en un corte',
@@ -100,18 +297,27 @@ class OrderForm extends Templates {
                 btn2Text: 'Ahora no'
             });
 
-            if (!go || !go.isConfirmed) return;
+            if (!go || !go.isConfirmed) return null;
         }
+
+        return data;
+    }
+
+    async edit(id, ask = true) {
+        const data = await this.editable(id, ask);
+        if (!data) return;
 
         if (!(await this.loadOptions(data.order.customer_id, false, data.order.id))) return;
 
-        this.order = data.order;
-        this.lines = (data.lines || []).map((line) => this.fromSaved(line));
+        this.order     = data.order;
+        this.lines     = (data.lines || []).map((line) => this.fromSaved(line));
+        this.dataReady = true;
         this.open();
     }
 
     // orderId: al editar, el ctrl trae el catálogo y los clientes de la sucursal del pedido (puede ser otra).
-    async loadOptions(customerId, isNew, orderId) {
+    // quiet: sin aviso; la respuesta queda en this.failed para que quien llama avise después (changeBranch).
+    async loadOptions(customerId, isNew, orderId, quiet) {
         if (this.loading) return false;
 
         this.loading = true;
@@ -121,7 +327,10 @@ class OrderForm extends Templates {
         this.loading = false;
 
         if (!data || data.status != 200) {
-            this.warnFail(data, 'No se pudo abrir la captura', isNew ? () => this.add() : null);
+            this.failed = data;
+
+            if (!quiet) this.warnFail(data, 'No se pudo abrir la captura', isNew ? () => this.add() : null);
+
             return false;
         }
 
@@ -207,6 +416,8 @@ class OrderForm extends Templates {
         $('#main__content').scrollTop(0);
 
         this.initial = this.snapshot();
+
+        this.notify('formOpened');
     }
 
     close() {
@@ -222,11 +433,23 @@ class OrderForm extends Templates {
         this.cake      = null;
         this.cakeBox   = null;
         this.ticketBox = null;
+
+        this.notify('formClosed');
+    }
+
+    // La página se entera de que la captura abrió o cerró: pedido.js le da su dirección
+    // (?id=) y al cerrar regresa a la lista (OrderPage). Ventas no tiene esos métodos.
+    notify(event) {
+        if (typeof orders !== 'undefined' && orders && orders !== this && typeof orders[event] === 'function') orders[event](this.order);
     }
 
     // Sin encabezado, igual que Ventas: catálogo y ticket arrancan arriba y miden lo mismo.
+    // La card del ticket va primero (izquierda) y el catálogo después, en Pedidos y en Ventas.
     // «Volver a pedidos» vive en la franja de caja (backButton).
     layout() {
+        const catalog = { id: 'posOrderCatalog', class: 'flex-1 min-w-0 min-h-0 flex flex-col' };
+        const ticket  = { id: 'posOrderTicket', class: 'md:w-[320px] lg:w-[360px] xl:w-[390px] shrink-0 min-h-0 flex flex-col' };
+
         this.createLayout({
             parent: 'posOrderHost',
             design: false,
@@ -238,10 +461,7 @@ class OrderForm extends Templates {
                         type:  'div',
                         id:    'posOrderBody',
                         class: 'flex-1 min-h-0 flex gap-[12px]',
-                        children: [
-                            { id: 'posOrderCatalog', class: 'flex-1 min-w-0 min-h-0 flex flex-col' },
-                            { id: 'posOrderTicket', class: 'md:w-[320px] lg:w-[360px] xl:w-[390px] shrink-0 min-h-0 flex flex-col' }
-                        ]
+                        children: this.ticketFirst ? [ticket, catalog] : [catalog, ticket]
                     }
                 ]
             }
@@ -317,6 +537,7 @@ class OrderForm extends Templates {
             class:      'flex-1 min-h-0 flex flex-col sale-cat',
             json:       json,
             categories: categories,
+            arrows:     this.chipArrows,
             actions:    this.catalogActions(),
             onAdd:      (item) => this.addProduct(item.id)
         });
@@ -339,71 +560,134 @@ class OrderForm extends Templates {
             subtitle: `Sucursal ${this.opts.branch}`,
             tag:      o ? 'Editando' : '',
             icon:     'receipt-text',
-            // Dos pasos, uno abierto a la vez (como el panel «Datos del pedido» de la plantilla
-            // pos-order.html): primero los datos; con «Continuar» se pliegan y abre la lista.
-            section:  { title: 'Datos del pedido', icon: 'calendar-days', open: !o },
-            lines:    { title: 'Lista del pedido', icon: 'shopping-cart', accordion: true },
-            launcher: { parent: 'posOrderLauncher', text: 'Ver pedido' }
+            // Dos pestañas: primero los datos; «Continuar con la captura» abre la lista
+            // (con el total y el cobro) y el catálogo. Sin datos, la lista va con candado.
+            tabs:      true,
+            beforeTab: (key) => key !== 'lines' || this.dataOk(),
+            section:   { title: 'Datos del pedido', icon: 'calendar-days', open: !this.dataReady },
+            lines:     { title: 'Lista del pedido', icon: 'shopping-cart', locked: !this.dataReady, lockText: 'Primero captura los datos del pedido' },
+            launcher:  { parent: 'posOrderLauncher', text: 'Ver pedido' }
         });
 
         // Ventas arma su propio ticket y no lo usa.
-        this.accordion = true;
+        this.twoTabs = true;
     }
 
     // -- Pasos del ticket --
 
-    // «Continuar»: si falta un dato lo dice y los datos siguen abiertos; si está todo, abre la lista.
+    // «Continuar con la captura»: con los datos completos se abren la lista y el catálogo.
     toList() {
+        if (!this.dataOk()) return;
+
+        this.dataReady = true;
+        this.gate();
+        this.ticketBox.tab('lines');
+
+        $('#posOrderCatalogListSearch').trigger('focus');
+    }
+
+    // Lo primero que falta en los datos lo dice y se queda en ellos.
+    dataOk() {
         const error = this.dataError(this.ticketValues());
 
-        if (error) return this.warn(error);
+        if (error) this.warn(error);
 
-        this.ticketBox.section(false);
+        return !error;
     }
 
-    // Al agregar o cambiar un producto se ve la lista, aunque los datos estuvieran abiertos.
+    /*  Sin «Datos del pedido» capturados: la lista con candado y, en lugar del
+        catálogo, un aviso de que primero van los datos. catalog() rehace
+        #posOrderCatalogMain: por eso el aviso se vuelve a montar aquí. */
+    gate() {
+        const ready = this.dataReady;
+        let box     = $('#posOrderGate');
+
+        if (!box.length) {
+            box = $('<div>', { id: 'posOrderGate', class: 'ord-gate' }).html(`
+                <span class="ord-gate-icon"><i data-lucide="clipboard-list"></i></span>
+                <p class="ord-gate-title">Primero, los datos del pedido</p>
+                <p class="ord-gate-text">Completa cliente, fecha y hora en «Datos del pedido» y pulsa «Continuar con la captura» para agregar productos.</p>`);
+
+            $('#posOrderCatalogMain').append(box);
+
+            if (window.lucide) lucide.createIcons({ root: box[0] });
+        }
+
+        box.toggle(!ready);
+        $('#posOrderCatalogList').toggle(ready);
+
+        this.ticketBox.lock(!ready);
+    }
+
+    // Al agregar o cambiar un producto se ve la lista, aunque los datos estuvieran a la vista.
     showList() {
-        if (this.accordion && this.ticketBox) this.ticketBox.section(false);
+        if (this.twoTabs && this.ticketBox) this.ticketBox.section(false);
     }
 
+    /*  La pestaña «Datos del pedido»: los campos sin encabezado (la pestaña ya
+        dice qué es), «Continuar con la captura» y la nota abajo. */
     ticketForm() {
-        const o = this.order;
+        const o        = this.order;
+        const branches = this.branchOptions();
+
+        $('#posOrderTkForm').html(`
+            <div class="ord-who">
+                <div id="posOrderTkData"></div>
+            </div>
+            <div class="ord-who-note"><i data-lucide="info"></i><span>Ya capturados, puedes volver a esta pestaña para cambiarlos.</span></div>`);
 
         this.coffeeForm({
-            parent:       'posOrderTkForm',
-            id:           'formOrderTicket',
-            class:        'grid grid-cols-12 gap-x-[10px] gap-y-[2px]',
-            showRequired: false,
+            parent: 'posOrderTkData',
+            id:     'formOrderTicket',
+            class:  'grid grid-cols-12 gap-x-[10px]',
             json: [
-                // placeholder: cerrado se lee como un campo de búsqueda («Buscar cliente…»), no como una lista.
-                { opc: 'select', id: 'of_customer_id', lbl: 'Cliente', class: 'col-8', select2: true, selected: '— Elige o busca un cliente —', placeholder: 'Buscar cliente…', data: this.opts.customers || [], value: o ? o.customer_id : '' },
+                ...(branches ? [{ opc: 'select', id: 'of_branch', lbl: 'Sucursal', class: 'col-12', data: branches.list, value: branches.current }] : []),
+                { opc: 'select', id: 'of_customer_id', lbl: 'Cliente', class: 'col-8', select2: true, selected: '— Elige o busca un cliente —', data: this.opts.customers || [], value: o ? o.customer_id : '' },
                 { opc: 'button', id: 'btnOfCustomer', class: 'col-4', text: 'Nuevo', icon: 'icon-user-add', color_btn: 'outline', onClick: () => this.customer() },
                 { opc: 'input', id: 'of_delivery_date', lbl: 'Fecha de entrega', type: 'date', class: 'col-6', value: o ? String(o.delivery_date || '').slice(0, 10) : this.opts.today },
                 { opc: 'input', id: 'of_delivery_time', lbl: 'Hora', type: 'time', class: 'col-6', value: o ? String(o.delivery_time || '').slice(0, 5) : '' },
                 { opc: 'select', id: 'of_delivery_method', lbl: 'Entrega', class: 'col-12', data: [{ id: '0', valor: 'Recoge en sucursal' }, { id: '1', valor: 'Envío a domicilio' }], value: o ? String(Number(o.delivery_method) === 1 ? 1 : 0) : '0' },
                 { opc: 'input', id: 'of_location', lbl: 'Dirección de envío', class: 'col-12', required: false, placeholder: 'Calle, número, colonia y referencias', value: o ? o.location || '' : '' },
                 { opc: 'textarea', id: 'of_note', lbl: 'Nota del pedido', class: 'col-12', rows: 2, required: false, placeholder: 'Indicaciones para producción o entrega', value: o ? o.note || '' : '' },
-                { opc: 'button', id: 'btnOfNext', class: 'col-12', text: 'Continuar a la lista', color_btn: 'primary', onClick: () => this.toList() }
+                { opc: 'button', id: 'btnOfNext', class: 'col-12', text: 'Continuar con la captura', color_btn: 'primary', onClick: () => this.toList() }
             ]
         });
 
         // El botón no lleva etiqueta: sin el renglón vacío que le pone coffeeForm.
-        $('#btnOfNext').addClass('w-full').prev('label').remove();
+        $('#btnOfNext').addClass('w-full').html('Continuar con la captura <i data-lucide="arrow-right"></i>').prev('label').remove();
         $('#btnOfNext').parent().addClass('mt-2');
 
         if (!o) $('#of_delivery_date').attr('min', this.opts.today);
 
+        /*  Cerrado se lee como un campo de búsqueda: la opción «0» que pone
+            coffeeForm pasa a placeholder de select2 (gris) y sale de la lista.
+            El valor sigue siendo «0» = sin cliente. */
+        $('#of_customer_id').select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: { id: '0', text: 'Buscar por nombre o teléfono…' } });
+
         $('#of_location').attr('maxlength', 255);
         $('#of_note').attr('maxlength', 2000);
 
+        // La hora con el reloj de ruedas (components/pos-time.js); #of_delivery_time sigue guardando HH:MM.
+        this.timeBox = this.posTime({ input: 'of_delivery_time', title: 'Hora de entrega' });
+
+        if (branches) {
+            this.branchNow = branches.current;
+            this.branchSelect(branches);
+            $('#of_branch').on('change', () => this.changeBranch());
+        }
+
         $('#of_delivery_method').on('change', () => this.toggleLocation());
         $('#of_customer_id').on('change', () => this.waitCustomer());
+        $('#of_customer_id').on('select2:select', () => $('#of_delivery_date').trigger('focus'));
         $('#of_customer_id').next('.select2-container').find('.select2-selection').on('keydown', (e) => this.typeCustomer(e));
         $('#formOrderTicket').on('change input', () => this.refreshSummary());
+
+        if (window.lucide) lucide.createIcons({ root: $('#posOrderTkForm')[0] });
 
         this.toggleLocation();
         this.waitCustomer();
         this.refreshSummary();
+        this.gate();
     }
 
     // Sin cliente, el selector parpadea (un punto chico, order.css › .ord-wait) hasta que se elige uno.
@@ -948,8 +1232,8 @@ class OrderForm extends Templates {
         if (!values.of_customer_id) return 'Elige el cliente.';
         if (!values.of_delivery_date) return 'Elige la fecha de entrega.';
         if (!values.of_delivery_time) return 'Elige la hora de entrega.';
-        if (values.of_delivery_method === '1' && !String(values.of_location || '').trim()) return 'Escribe la dirección de envío.';
 
+        // Con envío a domicilio la dirección y la nota son opcionales.
         return '';
     }
 

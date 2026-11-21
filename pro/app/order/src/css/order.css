@@ -54,6 +54,10 @@ main {
     margin: 5px 0 0;
 }
 
+/* La sucursal del subtítulo (pedidos.js › subtitle): en negritas y con el color de la marca del tema. */
+.cp-pagina-subtitulo .ord-head-branch { font-weight: 700; color: rgb(var(--brand-600, 192 90 64)); }
+body.dark-mode .cp-pagina-subtitulo .ord-head-branch { color: rgb(var(--brand-400, 214 128 104)); }
+
 
 /* -- Tarjeta -- */
 .ord-card {
@@ -68,6 +72,13 @@ main {
    .ord-period solo marca los filtros que la busqueda ignora (se atenuan).
    «Nuevo pedido» va al final de la barra (pedidos.js › filterBar): su texto no se parte. */
 #ord_btnNewOrder { white-space: nowrap; }
+
+/* «Buscar por fecha de captura»: el .px-3 de Bootstrap (!important) le quitaba al campo
+   el pr-10 que guarda lugar al calendario, y el periodo se metía bajo el ícono (el grupo
+   se veía partido). Se reserva el hueco del ícono, que va sin fondo propio (en oscuro
+   no hace parche). Si aun así el periodo no cabe, pedidos.js › fitPeriod lo pasa a año corto. */
+#ord_calendar { padding-left: 12px !important; padding-right: 32px !important; font-size: 13px !important; }
+#ord_calendar + div { padding-left: 0 !important; padding-right: 10px !important; background: transparent !important; }
 
 /* -- Tablas del módulo --
    Llevan el color de las de Catálogo (design 'flowbite': ORD_TABLE, en
@@ -354,24 +365,84 @@ body:not(.dark-mode) .swal2-cancel:hover {
     background-color: #F5F5F4 !important;
 }
 
-/* -- Sucursal en «¿Aperturar turno?» (OrderTurn.saveOpen) --
-   Va aparte, en grande y con el acento: antes de confirmar se revisa en qué
-   sucursal se abre el turno. Los tokens --accent-* ya traen su tono oscuro. */
-.ord-turn-branch {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin: 10px 0;
-    padding: 6px 16px;
-    border-radius: 999px;
-    border: 1px solid var(--accent-line);
-    background: var(--accent-soft-bg);
-    color: var(--accent-soft-fg);
-    font-size: 17px;
-    font-weight: 700;
+/* -- Medida estándar de los avisos --
+   Todos los avisos del módulo miden lo mismo: 360 px de ancho y al menos 368 px
+   de alto (el alto de «Abrir turno», el más alto de los chicos). Así «¿Aperturar
+   turno?» tapa justo a «Abrir turno» y «Sin turno abierto» mide igual.
+   Aplica a alert() de SweetAlert (salvo un ancho propio, un toast o un aviso de
+   éxito: esos se quedan como estaban), al alertBox del framework
+   (.tf-alert-card, salvo el de éxito) y al modal compacto (.cf-card de
+   createCoffeeModalForm). Lo que no cabe crece hacia abajo. `body` sube la
+   especificidad: Tailwind CDN y SweetAlert inyectan su CSS después de esta hoja. */
+body .swal2-popup:not(.swal2-toast):not(.swal2-icon-success):not([style*="width"]) {
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    min-height: 368px;
+    align-content: center;
 }
 
-.ord-turn-branch i::before { margin: 0; }
+body .tf-alert-card:not(:has(.tf-ab-icon-success)) {
+    display: flex;
+    flex-direction: column;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    min-height: 368px;
+}
+
+/* El ícono, el título y el detalle se centran en lo que sobra; el campo y los botones van abajo. */
+body .tf-alert-card:not(:has(.tf-ab-icon-success)) > :first-child {
+    flex: 1 0 auto;
+    justify-content: center;
+}
+
+body .cf-overlay .cf-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 368px;
+}
+
+/* Los campos ocupan lo que sobra: los botones y la nota quedan al pie, como en el alertBox. */
+body .cf-overlay .cf-card > .space-y-3 {
+    flex: 1 0 auto;
+}
+
+/* -- «Hay cuentas abiertas» (OrderTurn.busyWarn): lo que falta cerrar antes del turno o el día -- */
+.ord-open-work { margin: 0 0 8px; padding: 0; list-style: none; text-align: left; }
+.ord-open-work li { padding: 7px 10px; border: 1px solid rgb(var(--gray-200, 231 229 228)); border-radius: 8px; font-size: 12.5px; line-height: 1.45; }
+.ord-open-work li + li { margin-top: 6px; }
+.ord-open-note { margin: 0; font-size: 12.5px; }
+body.dark-mode .ord-open-work li { border-color: var(--dk-line, #374151); }
+
+/* -- Preguntas con alertBox (OrderTurn.ask): «¿Aperturar turno?» y el cierre del día --
+   El alertBox mete el detalle en un <p>: todo va en <span> con display propio.
+   Tarjeta con la sucursal arriba (ícono en el acento) y renglones de dato abajo. */
+.ord-ask { display: block; width: 100%; margin-top: 2px; text-align: left; }
+.ord-ask-lead { display: block; margin-bottom: 10px; text-align: center; }
+.ord-ask-card { display: block; border: 1px solid rgb(var(--gray-200, 231 229 228)); border-radius: 12px; overflow: hidden; background: #FFFFFF; }
+.ord-ask-place { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px dashed rgb(var(--gray-200, 231 229 228)); }
+.ord-ask-ico { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px; background: rgb(var(--brand-600, 192 90 64) / .10); color: rgb(var(--brand-600, 192 90 64)); }
+.ord-ask-name { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.ord-ask-name small { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-ask-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); }
+.ord-ask-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 12px; font-size: 12px; }
+.ord-ask-row + .ord-ask-row { border-top: 1px solid rgb(var(--gray-100, 245 245 244)); }
+.ord-ask-row > span { color: rgb(var(--gray-500, 120 113 108)); }
+.ord-ask-row > b { font-size: 13px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); white-space: nowrap; }
+.ord-ask-row > b.is-none { font-weight: 500; color: rgb(var(--gray-400, 168 162 158)); }
+.ord-ask-warn { display: block; margin-top: 10px; padding: 8px 10px; border: 1px solid #FDE68A; border-radius: 8px; background: #FFFBEB; color: #92400E; font-size: 11.5px; line-height: 1.45; }
+.ord-ask-foot { display: block; margin-top: 10px; font-size: 11px; text-align: center; color: rgb(var(--gray-500, 120 113 108)); }
+
+body.dark-mode .ord-ask-card { border-color: var(--dk-line, #374151); background: rgb(255 255 255 / .03); }
+body.dark-mode .ord-ask-place { border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-ask-ico { background: rgb(var(--brand-400, 216 130 104) / .16); color: rgb(var(--brand-400, 216 130 104)); }
+body.dark-mode .ord-ask-name small,
+body.dark-mode .ord-ask-row > span,
+body.dark-mode .ord-ask-foot { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-ask-name b,
+body.dark-mode .ord-ask-row > b { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-ask-row + .ord-ask-row { border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-ask-row > b.is-none { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-ask-warn { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #FCD34D; }
 
 /* -- Detalle: galeria y vista previa -- */
 .ord-thumbs {
@@ -455,9 +526,10 @@ body.dark-mode #cajaStrip button#btnOrderBack:active { background-color: #2D3B4E
 body.dark-mode #cajaStrip button#btnOrderBack:focus-visible { box-shadow: 0 0 0 3px rgba(255, 255, 255, .16); }
 
 /* -- Captura tipo POS: datos del pedido dentro del ticket --
-   El ticket es angosto: etiquetas chicas y menos aire entre campos. */
-#formOrderTicket > div { margin-top: 6px !important; }
-#formOrderTicket label { font-size: 11px; margin-bottom: 2px; }
+   Ventas (.sale-pos): el ticket es angosto, etiquetas chicas y menos aire entre
+   campos. Pedidos lleva el diseño de la pestaña «Datos del pedido» (.ord-who). */
+.sale-pos #formOrderTicket > div { margin-top: 6px !important; }
+.sale-pos #formOrderTicket label { font-size: 11px; margin-bottom: 2px; }
 #formOrderTicket textarea { resize: vertical; min-height: 54px; }
 #btnOfCustomer { white-space: nowrap; width: 100%; }
 
@@ -473,8 +545,14 @@ body.dark-mode #cajaStrip button#btnOrderBack:focus-visible { box-shadow: 0 0 0 
     border-radius: 7px;
 }
 
-#formOrderTicket input[type="date"],
-#formOrderTicket input[type="time"] { height: 34px !important; }
+/* Pedidos: el selector a la altura del botón «Nuevo». */
+.ord-who #formOrderTicket .select2-container--bootstrap-5 .select2-selection--single { height: 38px; min-height: 38px !important; }
+
+.sale-pos #formOrderTicket input[type="date"],
+.sale-pos #formOrderTicket input[type="time"] { height: 34px !important; }
+
+/* La hora es el campo del reloj de ruedas (components/pos-time.js): mismo alto que la fecha. */
+.sale-pos #formOrderTicket .pos-tm { height: 34px; }
 
 /* Sin cliente: un punto chico y lento dentro del selector, esperando que se elija uno (waitCustomer). */
 #formOrderTicket .ord-wait .select2-selection__rendered::before {
@@ -505,6 +583,65 @@ body.dark-mode #cajaStrip button#btnOrderBack:focus-visible { box-shadow: 0 0 0 
 @media (prefers-reduced-motion: reduce) {
     #formOrderTicket .ord-wait .select2-selection__rendered::before,
     #formOrderTicket .ord-wait .select2-container--focus .select2-selection__rendered::before { animation: none; }
+}
+
+/* -- Captura: sucursal con su turno (OrderForm.branchSelect) --
+   El nombre a la izquierda y el turno en píldora a la derecha, en la lista y en
+   lo elegido. Verde = abierto; terracota = de otro día (el de la franja); gris = sin turno. */
+.ord-branch-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; }
+.ord-branch-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ord-branch-turn { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 18px; white-space: nowrap; }
+.ord-branch-turn > i { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+.ord-branch-turn.is-open { color: #047857; background: #ECFDF5; }
+.ord-branch-turn.is-old  { color: #A84A33; background: #FBEEE9; }
+.ord-branch-turn.is-none { color: #78716C; background: #F5F5F4; }
+#formOrderTicket .select2-selection__rendered:has(.ord-branch-opt) { flex: 1; min-width: 0; }
+
+body.dark-mode .ord-branch-turn.is-open { color: #6EE7B7; background: rgba(16, 185, 129, .14); }
+body.dark-mode .ord-branch-turn.is-old  { color: #EE937A; background: rgba(192, 90, 64, .20); }
+body.dark-mode .ord-branch-turn.is-none { color: #A8A29E; background: rgba(255, 255, 255, .08); }
+
+/* -- Captura: pestaña «Datos del pedido» (OrderForm.ticketForm) --
+   Los campos sin encabezado (la pestaña ya dice qué es), el cliente con
+   «Nuevo», «Continuar con la captura» a todo lo ancho y la nota abajo sobre gris. */
+.ord-who { padding: 12px 16px 16px; }
+.ord-who #btnOfCustomer { height: 38px; padding: 0 12px !important; }   /* el px-4 de Bootstrap no dejaba caber «Nuevo» */
+.ord-who #btnOfNext { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; }
+.ord-who #btnOfNext svg { width: 16px; height: 16px; }
+.ord-who-note { display: flex; align-items: flex-start; gap: 8px; padding: 10px 16px 12px; border-top: 1px solid rgb(var(--gray-200, 231 229 228)); background: rgb(var(--gray-50, 250 250 249)); font-size: 12px; line-height: 1.45; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-who-note svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+
+body.dark-mode .ord-who-note { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-who-note { background: rgb(255 255 255 / .03); border-color: rgb(255 255 255 / .10); }
+
+/* -- Captura: catálogo en espera (OrderForm.gate) --
+   Sin los datos del pedido, en lugar del catálogo va este aviso. */
+.ord-gate { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 32px 24px; border: 1px dashed rgb(var(--gray-300, 214 211 209)); border-radius: 14px; background: #FFFFFF; text-align: center; }
+.ord-gate-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 6px; border-radius: 12px; background: rgb(var(--brand-600, 192 90 64) / .10); color: rgb(var(--brand-600, 192 90 64)); }
+.ord-gate-icon svg { width: 24px; height: 24px; }
+.ord-gate-title { margin: 0; font-size: 16px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); }
+.ord-gate-text { margin: 0; max-width: 380px; font-size: 13px; line-height: 1.5; color: rgb(var(--gray-500, 120 113 108)); }
+
+body.dark-mode .ord-gate { border-color: var(--dk-line, #374151); background: var(--dk-card, #1F2A37); }
+body.dark-mode .ord-gate-title { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-gate-text { color: var(--dk-muted, #9CA3AF); }
+
+/* -- Aviso negro (OrderForm.branchToast) --
+   Copia del de Configuración (page.css › .pg-toast, de Rosy): abajo al centro,
+   entra subiendo y se va solo. Pedidos no carga page.css. */
+.ord-toast { position: fixed; left: 50%; bottom: 28px; z-index: 300; display: flex; align-items: center; gap: 10px; max-width: min(92vw, 460px); padding: 12px 18px; border-radius: 14px; font-family: "Lexend", system-ui, sans-serif; font-size: 14px; font-weight: 500; line-height: 1.35; color: #FFFFFF; background: #1D1B31; box-shadow: 0 18px 40px -16px rgb(29 27 49 / .65); opacity: 0; pointer-events: none; transform: translate(-50%, 12px); transition: opacity .2s ease, transform .2s ease; }
+.ord-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+.ord-toast svg { width: 18px; height: 18px; flex-shrink: 0; color: #4ADE80; }
+.ord-toast b { font-weight: 700; }
+body.dark-mode .ord-toast { background: #0B1220; border: 1px solid var(--dk-line, #374151); }
+
+/* Celular: la barra del rail va al pie; el aviso, encima de ella (como en page.css). */
+@media (max-width: 640px) {
+    .ord-toast { bottom: 76px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ord-toast { transition: none; }
 }
 
 /* Mientras se guarda no se puede tocar ni el catalogo ni el ticket. */
@@ -559,12 +696,17 @@ body.dark-mode #cajaStrip button#btnOrderBack:focus-visible { box-shadow: 0 0 0 
 
 .caja-strip.is-none   { --caja-ink: #57534E; --caja-bg: #FFFFFF; --caja-line: #E7E5E4; --caja-ring: rgba(87, 83, 78, .12); }
 .caja-strip.is-open   { --caja-ink: #047857; --caja-bg: #FFFFFF; --caja-line: #E7E5E4; --caja-ring: rgba(16, 185, 129, .16); }
-.caja-strip.is-old    { --caja-ink: #B45309; --caja-bg: #FFFBEB; --caja-line: #FDE68A; --caja-ring: rgba(245, 158, 11, .18); }
+.caja-strip.is-old    { --caja-ink: #A84A33; --caja-bg: #FFFFFF; --caja-line: #E7E5E4; --caja-ring: rgba(192, 90, 64, .12); --caja-edge: #C05A40; }
 .caja-strip.is-closed { --caja-ink: #2A55A3; --caja-bg: #EAF0FA; --caja-line: #C7D6F0; --caja-ring: rgba(42, 85, 163, .14); }
+
+/* Turno de otro día o día sin cerrar = «neutra con acento»: fondo blanco como el
+   turno abierto; el punto, el ícono y un filo terracota a la izquierda avisan
+   sin teñir toda la franja. */
+.caja-strip.is-old { box-shadow: inset 3px 0 0 var(--caja-edge); }
 
 body.dark-mode .caja-strip.is-none   { --caja-ink: #D6D3D1; --caja-bg: #141D2B; --caja-line: rgba(255, 255, 255, .18); --caja-ring: rgba(255, 255, 255, .12); }
 body.dark-mode .caja-strip.is-open   { --caja-ink: #6EE7B7; --caja-bg: #141D2B; --caja-line: rgba(255, 255, 255, .18); --caja-ring: rgba(16, 185, 129, .18); }
-body.dark-mode .caja-strip.is-old    { --caja-ink: #FCD34D; --caja-bg: rgba(245, 158, 11, .12); --caja-line: rgba(245, 158, 11, .35); --caja-ring: rgba(245, 158, 11, .18); }
+body.dark-mode .caja-strip.is-old    { --caja-ink: #EE937A; --caja-bg: #141D2B; --caja-line: rgba(255, 255, 255, .18); --caja-ring: rgba(192, 90, 64, .22); --caja-edge: #D9765C; }
 body.dark-mode .caja-strip.is-closed { --caja-ink: #93B4E8; --caja-bg: rgba(42, 85, 163, .18); --caja-line: rgba(42, 85, 163, .45); --caja-ring: rgba(42, 85, 163, .22); }
 
 /* El estado cede el ancho: su texto se corta con «…» antes que bajar los botones de fila. */
@@ -684,6 +826,16 @@ body.dark-mode #cajaStrip button.caja-tile:disabled svg { color: #6B7280; }
 .cs-modal-foot button.cs-modal-save,
 .cs-modal-foot button.cs-modal-cancel { white-space: nowrap; flex-shrink: 0; }
 
+/* -- Botón apagado con su porqué (ordLock, pedido-detalle.js) --
+   «Cierre del día» sin turno cerrado; en Ventas sin turno, «+ Ticket» y «Nuevo» cliente.
+   El botón no recibe el mouse (sin hover que lo encienda); su caja lleva el title. */
+.ord-locked { cursor: not-allowed; }
+.ord-locked > button:disabled { opacity: .45; pointer-events: none; }
+
+/* Ventas sin turno: buscar cliente y la tarjeta se ven apagados como sus botones (paintLocks). */
+#posOrderTkForm.sale-noturn .select2-container--disabled .select2-selection,
+#posOrderTkForm.sale-noturn #of_card:disabled { opacity: .45; cursor: not-allowed; }
+
 /* -- Turno y cobro: botones dentro de los modales --
    Todos con button.X: el preflight de Tailwind ([type=button]) pisa los fondos
    que vengan solo de clase. */
@@ -691,9 +843,7 @@ button.ord-goal,
 button.ord-tip,
 button.ord-method,
 button.ord-bill,
-button.ord-disc-toggle,
-button.ord-day-nav,
-button.ord-day-turn {
+button.ord-disc-toggle {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -712,44 +862,7 @@ button.ord-goal:hover,
 button.ord-tip:hover,
 button.ord-method:hover,
 button.ord-bill:hover,
-button.ord-disc-toggle:hover,
-button.ord-day-nav:hover,
-button.ord-day-turn:hover { border-color: rgb(var(--brand-600, 192 90 64)); color: rgb(var(--brand-700, 168 74 51)); }
-
-/* Cierre del día: navegación entre días y «Ver corte» en la fila del turno. */
-button.ord-day-nav:disabled { opacity: .45; cursor: not-allowed; border-color: rgb(var(--gray-300, 214 211 209)); color: rgb(var(--gray-700, 68 64 60)); }
-button.ord-day-nav.is-warn { border-color: #FDE68A; background: #FFFBEB; color: #B45309; }
-button.ord-day-turn { min-height: 28px; padding: 0 10px; font-size: 12px; }
-
-/* Calendario del cierre: se ve como un botón más de la barra. compact.css pisa alto y fuente de los inputs. */
-label.ord-day-pick {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 34px;
-    margin: 0;
-    padding: 0 10px;
-    border: 1px solid rgb(var(--gray-300, 214 211 209));
-    border-radius: 8px;
-    background: #FFFFFF;
-    color: rgb(var(--gray-700, 68 64 60));
-    cursor: pointer;
-}
-label.ord-day-pick:hover { border-color: rgb(var(--brand-600, 192 90 64)); color: rgb(var(--brand-700, 168 74 51)); }
-label.ord-day-pick input {
-    width: 88px !important;
-    height: 32px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: inherit !important;
-    font-size: 13px !important;
-    font-weight: 500;
-    cursor: pointer;
-    outline: none;
-}
-body.dark-mode label.ord-day-pick { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+button.ord-disc-toggle:hover { border-color: rgb(var(--brand-600, 192 90 64)); color: rgb(var(--brand-700, 168 74 51)); }
 
 button.ord-goal.is-active,
 button.ord-tip.is-active,
@@ -1194,7 +1307,7 @@ button.ord-pay-go:hover { background: rgb(var(--brand-700, 168 74 51)); }
     #modalOrderCake .pos-ck-prog-text { font-size: 11px; }
     #modalOrderCake .pos-ck-badge { height: 22px; font-size: 11px; }
     #modalOrderCake .pos-ck-bar { height: 6px; }
-    #modalOrderCake button.pos-ck-step { gap: 2px; padding: 4px 4px 3px; font-size: 11px; }
+    #modalOrderCake button.pos-ck-step { gap: 5px; padding: 2px 10px 2px 3px; font-size: 11.5px; }
     #modalOrderCake .pos-ck-num { width: 18px; height: 18px; font-size: 10px; }
 
     #modalOrderCake .pos-ck-main { gap: 8px; }
@@ -1212,7 +1325,7 @@ button.ord-pay-go:hover { background: rgb(var(--brand-700, 168 74 51)); }
     #modalOrderCake .pos-ck-qty { height: 26px; }
 
     #modalOrderCake input.pos-ck-in { height: 32px !important; font-size: 12.5px !important; }
-    #modalOrderCake textarea.pos-ck-in { min-height: 44px; padding: 6px 10px; font-size: 12.5px !important; }
+    #modalOrderCake textarea.pos-ck-in { min-height: 80px; padding: 6px 10px; font-size: 12.5px !important; }   /* Observaciones: 4 renglones */
     #modalOrderCake .pos-ck-field > label.pos-ck-lbl { margin: 0 0 3px !important; font-size: 11.5px !important; }
     #modalOrderCake .pos-ck-money > span { height: 32px; }
 
@@ -1253,7 +1366,7 @@ button.ord-pay-go:hover { background: rgb(var(--brand-700, 168 74 51)); }
     #modalOrderCake .pos-ck-prog-main { flex-direction: row; align-items: baseline; gap: 8px; }
     #modalOrderCake .pos-ck-badge { height: 20px; }
     #modalOrderCake .pos-ck-bar { height: 5px; }
-    #modalOrderCake button.pos-ck-step { gap: 1px; padding: 3px 4px 2px; }
+    #modalOrderCake button.pos-ck-step { gap: 5px; padding: 1px 10px 1px 3px; }
     #modalOrderCake .pos-ck-num { width: 16px; height: 16px; font-size: 9.5px; }
 
     #modalOrderCake .pos-ck-main { gap: 6px; }
@@ -1270,7 +1383,7 @@ button.ord-pay-go:hover { background: rgb(var(--brand-700, 168 74 51)); }
     #modalOrderCake .pos-ck-qty { height: 24px; }
 
     #modalOrderCake input.pos-ck-in { height: 30px !important; }
-    #modalOrderCake textarea.pos-ck-in { padding: 4px 10px; }
+    #modalOrderCake textarea.pos-ck-in { min-height: 60px; padding: 4px 10px; }   /* Observaciones: 3 renglones */
     #modalOrderCake .pos-ck-field > label.pos-ck-lbl { margin: 0 0 2px !important; }
     #modalOrderCake .pos-ck-money > span { height: 30px; }
 
@@ -1296,15 +1409,11 @@ body.dark-mode .ord-turn-chip.is-old  { color: #FCD34D; background: rgba(245, 15
 body.dark-mode .ord-turn-chip.is-none { color: var(--dk-muted, #9CA3AF); background: var(--dk-row, #283341); border-color: var(--dk-line, #374151); }
 body.dark-mode .ord-turn-chip.is-closed { color: #93B4E8; background: rgba(42, 85, 163, 0.18); border-color: rgba(42, 85, 163, 0.45); }
 
-body.dark-mode button.ord-day-nav.is-warn { color: #FCD34D; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
-
 body.dark-mode button.ord-goal,
 body.dark-mode button.ord-tip,
 body.dark-mode button.ord-method,
 body.dark-mode button.ord-bill,
 body.dark-mode button.ord-disc-toggle,
-body.dark-mode button.ord-day-nav:not(.is-warn),
-body.dark-mode button.ord-day-turn,
 body.dark-mode button.ord-seg { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
 
 body.dark-mode button.ord-goal.is-active,
@@ -1688,6 +1797,15 @@ body.dark-mode .ord-close-diff.is-blind { color: var(--dk-text-soft, #D1D5DB); b
 .ord-desk-modes button.ord-seg { height: 32px; font-size: 13px; }
 .ord-desk-view .ord-desk-paper { min-width: 0; max-height: 60vh; min-height: 360px; padding-top: 16px; background: transparent; }   /* gana a .ord-viewer-desk, que va más abajo */
 
+/* El papel toma el alto que deja la pantalla (290 px = encabezado, pie y márgenes del modal),
+   no un 60 % fijo, y con 16 px abajo en vez de 32: el Resumido (~600 px) cabe desde 900 px de
+   alto sin barra de scroll. La barra solo sale si el ticket de verdad no cabe (el Detallado). */
+.ord-desk-view .ord-desk-paper { max-height: max(360px, calc(100vh - 290px)); padding-bottom: 16px; }
+
+/* Cierre del día (Corte Z con zoom): alto fijo. Si siguiera al papel, la ventana se
+   recentraría con cada clic de zoom y el botón se movería debajo del cursor. */
+#modalOrderClosure .ord-desk-view .ord-desk-paper { flex: none; height: max(360px, calc(100vh - 290px)); }   /* flex: 1 de .ord-viewer-desk ignoraría el alto */
+
 .ord-desk-field { margin: 0; }
 .ord-desk-field > span,
 .ord-desk-field > label { display: block; margin: 0 0 4px !important; font-size: 11px !important; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgb(var(--gray-500, 120 113 108)) !important; }
@@ -1753,6 +1871,27 @@ button.ord-desk-btn:disabled:hover { filter: none; }
 button.ord-desk-btn.is-close:disabled:hover { background: rgb(var(--brand-600, 192 90 64)); }
 button.ord-desk-btn.is-print:disabled:hover { border-color: rgb(var(--gray-300, 214 211 209)); color: rgb(var(--gray-700, 68 64 60)); }
 
+/* En claro, tono claro como Mes / Semana / Día del calendario (--fc-button-active-*):
+   Cerrar turno y la vista elegida (Resumido | Detallado) van con el tinte del acento
+   y la letra en el acento; Imprimir, blanco como un botón de vista sin elegir.
+   En oscuro siguen sólidos, igual que el calendario. */
+body:not(.dark-mode) button.ord-desk-btn.is-close,
+body:not(.dark-mode) button.ord-desk-btn.is-close:disabled:hover {
+    border-color: rgb(var(--brand-600, 192 90 64) / .12);
+    background: rgb(var(--brand-600, 192 90 64) / .10);
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
+body:not(.dark-mode) button.ord-desk-btn.is-close:hover { background: rgb(var(--brand-600, 192 90 64) / .16); }
+body:not(.dark-mode) button.ord-desk-btn.is-print:hover { border-color: rgb(var(--gray-300, 214 211 209)); background: rgb(var(--gray-100, 245 245 244)); color: rgb(var(--gray-900, 28 25 23)); }
+body:not(.dark-mode) button.ord-desk-btn.is-print:disabled:hover { background: #FFFFFF; color: rgb(var(--gray-700, 68 64 60)); }
+
+body:not(.dark-mode) .ord-desk-modes button.ord-seg.is-active {
+    border-color: rgb(var(--brand-600, 192 90 64) / .12);
+    background: rgb(var(--brand-600, 192 90 64) / .10);
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
 @media (max-width: 767px) {
     .ord-desk { flex-direction: column; padding: 16px; }
     .ord-desk-side { width: auto; }
@@ -1760,7 +1899,8 @@ button.ord-desk-btn.is-print:disabled:hover { border-color: rgb(var(--gray-300, 
     button.ord-desk-btn { padding: 0 8px; font-size: 13px; }
     .ord-desk-modes > span { display: none; }
     .ord-desk-modes .ord-viewer-modes { width: 100%; }
-    .ord-desk-view .ord-desk-paper { max-height: none; min-height: 0; }
+    .ord-desk-view .ord-desk-paper,
+    #modalOrderClosure .ord-desk-view .ord-desk-paper { flex: 1; max-height: none; min-height: 0; height: auto; }
 }
 
 body.dark-mode .ord-desk-view { background: var(--dk-input, #111827); }
@@ -1776,6 +1916,41 @@ body.dark-mode .ord-desk-alert { background: rgba(245, 158, 11, 0.12); border-co
 body.dark-mode .ord-desk-alert > p,
 body.dark-mode button.ord-desk-go { color: #FCD34D; }
 body.dark-mode button.ord-desk-btn.is-print { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+
+/* -- Cierre del día: el mismo módulo, sin turnos (OrderClosure.desk) --
+   Como el «Cierre del Día» de alpha: el sello del día junto a «Fecha» y quién
+   cerró debajo; «Cerrar día» o «Reabrir día» (solo root) separados abajo. */
+.ord-desk-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.ord-desk-head > label { margin: 0 !important; font-size: 11px !important; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgb(var(--gray-500, 120 113 108)) !important; }
+.ord-desk-badge { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; line-height: 1.4; }
+.ord-desk-badge.is-closed { background: #DCFCE7; color: #166534; }
+.ord-desk-badge.is-live { background: #DBEAFE; color: #1E40AF; }
+.ord-desk-badge.is-wait { background: #FEF3C7; color: #92400E; }
+.ord-desk-pick.is-closed input { border-color: rgb(22 163 74 / .5) !important; }
+.ord-desk-by { margin: 4px 0 0; font-size: 11px; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-desk-by b { font-weight: 600; color: rgb(var(--gray-700, 68 64 60)); }
+.ord-desk-by:empty { display: none; }
+.ord-desk-alert > span { display: block; margin: -2px 0 6px; font-size: 11px; line-height: 1.35; color: #92400E; }
+.ord-desk-day { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid rgb(var(--gray-200, 231 229 228)); }
+.ord-desk-day > p { margin: 0; font-size: 11px; text-align: center; color: rgb(var(--gray-500, 120 113 108)); }
+
+button.ord-desk-btn.is-reopen { background: #D97706; }
+button.ord-desk-btn.is-reopen:hover { background: #B45309; }
+button.ord-desk-btn.is-reopen:disabled:hover { background: #D97706; }
+
+body:not(.dark-mode) button.ord-desk-btn.is-reopen,
+body:not(.dark-mode) button.ord-desk-btn.is-reopen:disabled:hover { border-color: #FDE68A; background: #FFFBEB; color: #B45309; }
+body:not(.dark-mode) button.ord-desk-btn.is-reopen:hover { background: #FEF3C7; }
+
+body.dark-mode .ord-desk-head > label,
+body.dark-mode .ord-desk-by,
+body.dark-mode .ord-desk-day > p { color: var(--dk-muted, #9CA3AF) !important; }
+body.dark-mode .ord-desk-by b { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-desk-badge.is-closed { background: rgba(16, 185, 129, 0.16); color: #6EE7B7; }
+body.dark-mode .ord-desk-badge.is-live { background: rgba(59, 130, 246, 0.16); color: #93C5FD; }
+body.dark-mode .ord-desk-badge.is-wait { background: rgba(245, 158, 11, 0.16); color: #FCD34D; }
+body.dark-mode .ord-desk-alert > span { color: #FCD34D; }
+body.dark-mode .ord-desk-day { border-color: var(--dk-line, #374151); }
 
 /* -- Acciones del detalle, en el pie del modal: cobrar, entregar, elaborar, editar, imprimir --
    Izquierda, lo que corrige o imprime; derecha, «Cerrar» y el avance del pedido.
@@ -1823,6 +1998,10 @@ button.ord-act.ord-wa { border-color: #A7F3D0; background: #ECFDF5; color: #0478
 button.ord-act.ord-wa:hover { background: #D1FAE5; }
 button.ord-act.ord-wa:disabled { opacity: .6; cursor: wait; }
 body.dark-mode button.ord-act.ord-wa { border-color: rgb(16 185 129 / .35); background: rgb(16 185 129 / .12); color: #6EE7B7; }
+
+/* El logo de WhatsApp (fontello icon-whatsapp) en su verde, del alto de los íconos Lucide de al lado. */
+button.ord-act.ord-wa .ord-wa-ico { font-size: 16px; line-height: 1; color: #25D366; }
+button.ord-act.ord-wa .ord-wa-ico::before { width: auto; margin: 0; }
 
 /* Cancelar venta (Historial, V2): el mismo molde, en rojo. */
 button.ord-sale-cancel { border: 1px solid #FECACA; background: #FEF2F2; color: #B91C1C; }
@@ -2379,6 +2558,27 @@ button.ord-vitem.is-active { border-color: rgb(var(--brand-600, 192 90 64) / .45
 .ord-viewer-modes:empty { display: none; }
 .ord-viewer-modes button.ord-seg { height: 36px; font-size: 13px; }
 
+/* Ver corte / Imprimir (coffeeForm) a la par de Resumido | Detallado. coffeeForm deja
+   arriba de cada botón un renglón vacío y mt-1 (para alinearlo con los campos de un
+   formulario): en la barra lo bajaba 12 px. Mismo alto (36) y letra (13): compact.css
+   fuerza .text-sm con !important. El radio, el de todo botón (--radius-ctl de soft.css). */
+#formBarCuts > div { margin-top: 0 !important; }
+#formBarCuts > div > label[aria-hidden="true"] { display: none; }
+
+#formBarCuts button.tw-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    font-size: 13px !important;
+    white-space: nowrap;
+}
+
+.ord-viewer-modes button.ord-seg:first-child { border-radius: var(--radius-ctl, 10px) 0 0 var(--radius-ctl, 10px); }
+.ord-viewer-modes button.ord-seg:last-child  { border-radius: 0 var(--radius-ctl, 10px) var(--radius-ctl, 10px) 0; }
+
 .ord-viewer-desk {
     flex: 1;
     min-height: 0;
@@ -2479,6 +2679,177 @@ body.dark-mode .ord-ticket p { color: #000000; }
 body.dark-mode .ord-ticket .s { color: #333333; }
 body.dark-mode article.ord-ticket table tbody td { background-color: transparent !important; color: #000000 !important; }
 body.dark-mode article.ord-ticket table tbody tr.x td { color: #666666 !important; }
+
+/* -- Cortes: vista Tickets (como alpha/order-visor) --
+   El ticket va en un iframe con su propio CSS (ORD_TICKET_CSS); al lado, sus
+   pagos y su bitácora. Bajo 720 px van uno sobre otro. */
+.ord-vitem-amount.is-off { text-decoration: line-through; color: rgb(var(--gray-400, 168 162 158)); font-weight: 600; }
+
+.ord-tk-desk { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 16px; width: 100%; }
+
+/* Tarjeta redondeada como el ticket de alpha/order-visor (bg-white rounded-lg shadow),
+   con el radio de las tarjetas de pagos y bitácora de al lado. */
+.ord-tk-paper {
+    flex-shrink: 0;
+    width: 320px;
+    max-width: 100%;
+    overflow: hidden;
+    line-height: 0;
+    background: #FFFFFF;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 8px 24px rgba(0, 0, 0, .08);
+}
+
+.ord-tk-frame { display: block; width: 100%; height: 480px; border: 0; background: #FFFFFF; }
+
+/* Ticket abierto desde el Corte Z: «Volver al corte Z» arriba, alineado con el ticket. */
+.ord-tk-view { width: 100%; }
+.ord-tk-back { width: 100%; max-width: 676px; margin: 0 auto 12px; }
+
+button.ord-tk-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid rgb(var(--gray-300, 214 211 209));
+    border-radius: var(--radius-ctl, 10px);
+    background: #FFFFFF;
+    color: rgb(var(--gray-700, 68 64 60));
+    font-size: 13px;
+    font-weight: 600;
+}
+
+button.ord-tk-back-btn:hover { border-color: rgb(var(--brand-600, 192 90 64)); color: rgb(var(--brand-700, 168 74 51)); }
+
+/* -- Cierre del día: Corte Z (OrderClosure.paintReport) --
+   La hoja de alpha (pdfBaseCss › .pdf-document) en un iframe con ORD_DAY_CSS
+   (pedido-cierre.js). La hoja, su sombra y el zoom viven DENTRO del iframe
+   (ORD_DAY_SCREEN_CSS); aquí el iframe es transparente y deja ver el fondo.
+   Arriba a la derecha el zoom de alpha (reportToolbar). El alto lo pone el contenido. */
+.ord-z-view { width: 100%; max-width: 1128px; }   /* 1100 de hoja + 14 px por lado para la sombra */
+
+/* Al hacer zoom aparece o se va la barra de scroll: con el hueco reservado, la hoja y el zoom no brincan de lado. */
+.ord-viewer-desk:has(> .ord-z-view) { scrollbar-gutter: stable; }
+
+.ord-z-tools {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: flex-end;
+    gap: 2px;
+    width: max-content;
+    margin: 0 14px 8px auto;
+    padding: 3px;
+    border: 1px solid rgb(var(--gray-200, 231 229 228));
+    border-radius: var(--radius-ctl, 10px);
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+
+button.ord-z-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 26px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: rgb(var(--gray-500, 120 113 108));
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    transition: background-color .15s, color .15s;
+}
+
+button.ord-z-btn svg { width: 15px; height: 15px; }
+button.ord-z-btn:hover:not(:disabled) { background: rgb(var(--gray-100, 245 245 244)); color: rgb(var(--gray-900, 28 25 23)); }
+button.ord-z-btn:disabled { opacity: .4; cursor: not-allowed; }
+button.ord-z-btn.ord-z-pct { min-width: 46px; color: rgb(var(--gray-700, 68 64 60)); }
+
+.ord-z-paper { width: 100%; line-height: 0; }
+
+.ord-z-frame { display: block; width: 100%; height: 600px; border: 0; background: transparent; color-scheme: light; }
+
+body.dark-mode .ord-z-tools { border-color: var(--dk-line, #374151); background: var(--dk-card, #1F2A37); box-shadow: none; }
+body.dark-mode button.ord-z-btn { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode button.ord-z-btn.ord-z-pct { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode button.ord-z-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .06); color: #FFFFFF; }
+body.dark-mode button.ord-tk-back-btn { border-color: var(--dk-line, #374151); background: var(--dk-card, #1F2A37); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode button.ord-tk-back-btn:hover { border-color: rgb(var(--brand-600, 192 90 64)); color: #FFFFFF; }
+
+.ord-tk-side { display: flex; flex-direction: column; gap: 16px; width: 340px; max-width: 100%; }
+
+.ord-tk-card { overflow: hidden; border: 1px solid rgb(var(--gray-200, 231 229 228)); border-radius: 12px; background: #FFFFFF; }
+
+.ord-tk-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgb(var(--gray-200, 231 229 228));
+    font-size: 13px;
+    font-weight: 700;
+    color: rgb(var(--gray-900, 28 25 23));
+}
+
+.ord-tk-head i, .ord-tk-head svg { color: rgb(var(--brand-600, 192 90 64)); }
+.ord-tk-head small { margin-left: auto; font-size: 11.5px; font-weight: 500; color: rgb(var(--gray-500, 120 113 108)); }
+
+.ord-tk-list { margin: 0; padding: 0; list-style: none; }
+
+.ord-tk-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 14px; border-bottom: 1px solid rgb(var(--gray-100, 245 245 244)); font-size: 12.5px; }
+.ord-tk-row:last-child { border-bottom: 0; }
+
+.ord-tk-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font-weight: 600; color: rgb(var(--gray-800, 41 37 36)); }
+.ord-tk-text { margin: 1px 0 0; font-size: 12px; color: rgb(var(--gray-600, 87 83 78)); overflow-wrap: anywhere; }
+.ord-tk-meta { margin: 1px 0 0; font-size: 11.5px; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-tk-amount { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; color: rgb(var(--gray-900, 28 25 23)); white-space: nowrap; }
+
+.ord-tk-badge { padding: 0 6px; border: 1px solid #FDE68A; border-radius: 999px; background: #FFFBEB; color: #B45309; font-size: 10.5px; font-weight: 600; line-height: 16px; }
+
+.ord-tk-empty { margin: 0; padding: 16px 14px; text-align: center; font-size: 12.5px; color: rgb(var(--gray-400, 168 162 158)); }
+
+.ord-tk-sum { display: flex; flex-direction: column; gap: 3px; padding: 10px 14px; border-top: 1px solid rgb(var(--gray-200, 231 229 228)); background: rgb(var(--gray-50, 250 250 249)); }
+.ord-tk-sum-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: rgb(var(--gray-600, 87 83 78)); }
+.ord-tk-sum-row span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; color: rgb(var(--gray-800, 41 37 36)); white-space: nowrap; }
+.ord-tk-sum-row.is-total span:last-child { font-size: 13.5px; font-weight: 700; color: rgb(var(--gray-900, 28 25 23)); }
+.ord-tk-sum-row.is-discount span:last-child { color: #B45309; }
+.ord-tk-sum-row.is-paid span:last-child { color: #047857; }
+.ord-tk-sum-row.is-due span:last-child { font-weight: 700; color: #DC2626; }
+.ord-tk-sum-row.is-favor span:last-child { font-weight: 700; color: #0369A1; }
+.ord-tk-sum-row.is-zero span:last-child { color: rgb(var(--gray-400, 168 162 158)); }
+.ord-tk-sum-row.is-muted span:last-child { font-weight: 500; color: rgb(var(--gray-500, 120 113 108)); }
+
+@media (max-width: 720px) {
+    .ord-tk-side { width: 100%; }
+}
+
+body.dark-mode .ord-tk-paper { box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+body.dark-mode .ord-tk-card { border-color: var(--dk-line, #374151); background: var(--dk-card, #1F2A37); }
+body.dark-mode .ord-tk-head { border-color: var(--dk-line, #374151); color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-tk-row { border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-tk-name,
+body.dark-mode .ord-tk-sum-row span:last-child { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-tk-amount,
+body.dark-mode .ord-tk-sum-row.is-total span:last-child { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ord-tk-text { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-tk-head small,
+body.dark-mode .ord-tk-meta,
+body.dark-mode .ord-tk-empty,
+body.dark-mode .ord-tk-sum-row,
+body.dark-mode .ord-tk-sum-row.is-zero span:last-child,
+body.dark-mode .ord-tk-sum-row.is-muted span:last-child { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-tk-sum { border-color: var(--dk-line, #374151); background: var(--dk-input, #111827); }
+body.dark-mode .ord-tk-sum-row.is-discount span:last-child { color: #FCD34D; }
+body.dark-mode .ord-tk-sum-row.is-paid span:last-child { color: #6EE7B7; }
+body.dark-mode .ord-tk-sum-row.is-due span:last-child { color: #FCA5A5; }
+body.dark-mode .ord-tk-sum-row.is-favor span:last-child { color: #7DD3FC; }
+body.dark-mode .ord-tk-badge { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.12); color: #FCD34D; }
+body.dark-mode .ord-vitem-amount.is-off { color: var(--dk-muted, #9CA3AF); }
 
 /* -- Dashboard (Etapa 5) --
    Un mes contra otro: aviso, 6 KPIs, gráficas con su tabla gemela y ranking.
@@ -2865,6 +3236,14 @@ body.dark-mode #saleTabList .sale-tab-x:hover { background: rgba(220, 38, 38, 0.
     scrollbar-color: var(--po-line-hi) transparent;
 }
 
+/* Cuadrícula de 8 cards por fila (Pedidos y Ventas), con el ticket al lado (768 px o más).
+   Cada card mide 1/8 del catálogo menos los 7 huecos de 10 px (71: 1 px de holgura por
+   el redondeo), pero nunca menos de 112 px: con el catálogo angosto caben menos por
+   fila y el precio no se encima con «+». */
+@media (min-width: 768px) {
+    .sale-cat .pos-cat-grid { grid-template-columns: repeat(auto-fill, minmax(max(112px, calc((100% - 71px) / 8)), 1fr)); }
+}
+
 /* -- Ventas · barra de tickets --
    Carril gris de 34 px con la pestaña activa en blanco, y «+ Ticket» del mismo
    alto con filo de marca para que se lea como acción y no como otra pestaña.
@@ -2977,11 +3356,21 @@ body.dark-mode #viewsOrders #viewTabsOrders > button[data-state="active"] svg { 
 .ord-board-info { display: inline-flex; cursor: help; }
 .ord-board-info svg { width: 12px; height: 12px; }
 
-.ord-board-body { display: flex; flex-direction: column; gap: 8px; flex: 1; padding: 10px; }
+.ord-board-body { display: flex; flex-direction: column; gap: 6px; flex: 1; padding: 8px; }
 .ord-board-empty { margin: 8px 0 0; font-size: 12px; text-align: center; color: rgb(var(--gray-400, 168 162 158)); }
 
-/* Tarjeta chica: nombre, folio y producto, etiquetas, hora y el siguiente paso. */
-.ord-board-card { position: relative; display: flex; flex-direction: column; gap: 5px; padding: 9px 11px 8px; border-radius: 9px; background: #FFFFFF; border: 1px solid #E6E8EF; box-shadow: 0 1px 2px rgba(17, 24, 39, .04); cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
+/* Tarjeta chica: la foto del pastel a la izquierda; a su lado nombre, folio y
+   producto y etiquetas; abajo la hora y el siguiente paso. */
+.ord-board-card { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 7px 9px 6px; border-radius: 9px; background: #FFFFFF; border: 1px solid #E6E8EF; box-shadow: 0 1px 2px rgba(17, 24, 39, .04); cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
+.ord-board-top { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.ord-board-main { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+
+/* Sin foto, o si no carga (orderImageError), el pastel en el tono del estado. La imagen no se
+   arrastra sola: así se arrastra la tarjeta. */
+.ord-board-photo { display: flex; align-items: center; justify-content: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 8px; overflow: hidden; background: var(--soft); color: var(--ink-s); }
+.ord-board-photo img { pointer-events: none; }
+.ord-board-photo > svg { width: 22px; height: 22px; }
+.ord-board-photo > div { color: var(--ink-s); }
 .ord-board-card:hover { border-color: color-mix(in srgb, var(--c) 40%, #FFFFFF); box-shadow: 0 4px 12px rgba(17, 24, 39, .07); }
 .ord-board-card:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
 .ord-board-card[draggable="true"] { cursor: grab; }
@@ -2991,7 +3380,7 @@ body.dark-mode #viewsOrders #viewTabsOrders > button[data-state="active"] svg { 
 .ord-board-grip svg { width: 14px; height: 14px; }
 .ord-board-card:hover .ord-board-grip { color: rgb(var(--gray-500, 120 113 108)); }
 
-.ord-board-name { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0; padding-right: 16px; font-size: 13px; font-weight: 600; color: #1F2937; }
+.ord-board-name { display: flex; align-items: center; gap: 5px; min-width: 0; margin: 0; padding-right: 14px; font-size: 12.5px; font-weight: 600; line-height: 1.3; color: #1F2937; }
 .ord-board-kind { display: flex; flex-shrink: 0; color: var(--ink-s); }
 .ord-board-kind svg { width: 14px; height: 14px; }
 .ord-board-who { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2999,11 +3388,11 @@ body.dark-mode #viewsOrders #viewTabsOrders > button[data-state="active"] svg { 
 .ord-board-dot.is-late { background: #EF4444; }
 .ord-board-dot.is-today { background: #F59E0B; }
 
-.ord-board-text { margin: 0; font-size: 12px; color: #4B5563; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ord-board-folio { font-size: 11px; font-weight: 600; color: #6B7280; }
+.ord-board-text { margin: 0; font-size: 11.5px; line-height: 1.3; color: #4B5563; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ord-board-folio { font-size: 10.5px; font-weight: 600; color: #6B7280; }
 
 .ord-board-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.ord-board-tag { display: inline-flex; align-items: center; gap: 3px; max-width: 100%; padding: 1px 7px; border-radius: 999px; border: 1px solid #E6E8EF; background: #F8F9FB; color: #4B5563; font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.ord-board-tag { display: inline-flex; align-items: center; gap: 3px; max-width: 100%; padding: 0 6px; border-radius: 999px; border: 1px solid #E6E8EF; background: #F8F9FB; color: #4B5563; font-size: 10px; font-weight: 600; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .ord-board-tag svg { width: 11px; height: 11px; flex-shrink: 0; }
 /* Las de hoy: «Debe» y «Entregado» del calendario, «Sin entregar» de la lista. */
 .ord-board-tag.is-debt { border-color: #FECACA; background: #FEE2E2; color: #B91C1C; }
@@ -3012,12 +3401,12 @@ body.dark-mode #viewsOrders #viewTabsOrders > button[data-state="active"] svg { 
 .ord-board-tag.is-made { background: #FFFFFF; color: #374151; }
 .ord-board-tag.is-made svg { color: #047857; }
 
-.ord-board-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 22px; }
+.ord-board-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 20px; }
 .ord-board-when { min-width: 0; font-size: 11px; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ord-board-when.is-today { color: #B45309; font-weight: 600; }
 .ord-board-when.is-late { color: #DC2626; font-weight: 600; }
 
-button.ord-board-go { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; height: 22px; padding: 0 4px 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-s); font-size: 11.5px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: background-color .15s ease; }
+button.ord-board-go { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; height: 20px; padding: 0 4px 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-s); font-size: 11px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: background-color .15s ease; }
 button.ord-board-go svg { width: 14px; height: 14px; }
 button.ord-board-go:hover { background: var(--soft); }
 
@@ -3039,6 +3428,9 @@ button.ord-board-more:hover { background: var(--soft); }
 /* Entregas de hoy: recuadro flotante (como el «Prueba tu embudo» de Vambe). Se va con la vista. */
 .ord-board-today { position: fixed; right: 24px; bottom: 24px; z-index: 40; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: #1E2A5A; color: #FFFFFF; box-shadow: 0 12px 28px rgba(15, 23, 42, .28); }
 .ord-board-today.hidden { display: none; }
+.ord-board-today { cursor: pointer; transition: background-color .15s ease; }
+.ord-board-today:hover { background: #26346E; }
+.ord-board-today:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
 .ord-board-today p { margin: 0; font-size: 12px; font-weight: 700; color: #FFFFFF; }
 .ord-board-today-icon { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; background: rgb(255 255 255 / .14); }
 .ord-board-today-icon svg { width: 16px; height: 16px; }
@@ -3071,6 +3463,8 @@ body.dark-mode .ord-board-head-name { color: #FFFFFF; }
 body.dark-mode .ord-board-head-count { color: var(--dk-muted, #9CA3AF); }
 body.dark-mode .ord-board-head-icon { background: rgb(255 255 255 / .1); color: #FFFFFF; }
 body.dark-mode .ord-board-card { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); }
+body.dark-mode .ord-board-photo { background: color-mix(in srgb, var(--c) 22%, var(--dk-card, #1F2A37)); color: color-mix(in srgb, var(--c) 55%, #FFFFFF); }
+body.dark-mode .ord-board-photo > div { color: inherit; }
 body.dark-mode .ord-board-col.is-off .ord-board-card { background: var(--dk-card, #1F2A37); }
 body.dark-mode .ord-board-name { color: var(--dk-text, #F3F4F6); }
 body.dark-mode .ord-board-text { color: var(--dk-text-soft, #D1D5DB); }
@@ -3126,6 +3520,47 @@ body.dark-mode .pos-tkl.sale-lines input.pos-tkl-num:focus { background-color: t
    el nombre queda en el title que pone paintFull(). */
 .sale-cat button.pos-cat-action#btnSaleFull { flex: 0 0 44px; justify-content: center; width: 44px; padding: 0; }
 .sale-cat button.pos-cat-action#btnSaleFull span { display: none; }
+
+/* En pantalla completa la venta toma toda la pantalla: sin la barra de arriba ni el
+   rail, y sin el hueco que el <body> les deja (general.css). La franja de caja se queda. */
+body.sale-full { padding-top: 0 !important; padding-left: 0 !important; }
+body.sale-full #menu-navbar,
+body.sale-full #menu-sidebar { display: none !important; }
+
+/* -- Ventas · descuento del producto (ventas.js › discountLine) --
+   El tope del motivo bajo el select, % | $ en botones (ord-seg) junto al campo,
+   porcentajes rápidos (ord-goal) y la cuenta: importe, descuento y lo que queda. */
+#modalSaleLineDiscount .ld-seg { display: flex; }
+#modalSaleLineDiscount .ld-seg button.ord-seg { white-space: nowrap; font-size: 15px; }
+#modalSaleLineDiscount .ld-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+#modalSaleLineDiscount button.ord-goal { min-height: 30px; padding: 0 10px; font-size: 12.5px; }
+
+.ld-cap { display: flex; align-items: flex-start; gap: 6px; margin: -4px 0 0; font-size: 12px; line-height: 1.4; color: rgb(var(--gray-500, 120 113 108)); }
+.ld-cap svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; color: #059669; }
+.ld-cap.is-lock svg { color: #B45309; }
+.ld-cap b { font-weight: 600; color: rgb(var(--gray-800, 41 37 36)); }
+
+.ld-sum { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid rgb(var(--gray-200, 231 229 228)); border-radius: 10px; background: rgb(var(--gray-50, 250 250 249)); }
+.ld-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 13px; color: rgb(var(--gray-600, 87 83 78)); }
+.ld-row b { font-weight: 600; font-variant-numeric: tabular-nums; color: rgb(var(--gray-800, 41 37 36)); }
+.ld-row.is-off b { color: #B45309; }
+.ld-row.is-net { margin-top: 2px; padding-top: 6px; border-top: 1px dashed rgb(var(--gray-300, 214 211 209)); font-weight: 600; color: rgb(var(--gray-800, 41 37 36)); }
+.ld-row.is-net b { font-size: 16px; font-weight: 700; }
+.ld-note { margin: 4px 0 0; font-size: 12px; line-height: 1.4; color: rgb(var(--gray-500, 120 113 108)); }
+.ld-note.is-ok { color: #047857; }
+.ld-note.is-bad { color: #B91C1C; }
+
+body.dark-mode .ld-cap,
+body.dark-mode .ld-note { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ld-cap b,
+body.dark-mode .ld-row b,
+body.dark-mode .ld-row.is-net { color: var(--dk-text, #F3F4F6); }
+body.dark-mode .ld-sum { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); }
+body.dark-mode .ld-row { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ld-row.is-off b { color: #FBBF24; }
+body.dark-mode .ld-row.is-net { border-top-color: var(--dk-line, #374151); }
+body.dark-mode .ld-note.is-ok { color: #6EE7B7; }
+body.dark-mode .ld-note.is-bad { color: #FCA5A5; }
 
 /* -- Ventas · tema oscuro como alpha/pedidos --
    Solo dentro de #posOrderHost.sale-pos (la clase la pone Sale.layout()), así

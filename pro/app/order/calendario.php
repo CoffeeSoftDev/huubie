@@ -6,7 +6,7 @@ Permission::page('pos-calendario', '../../');
 
 // Pedidos y Calendario son una sola pantalla: quien también ve Pedidos entra a la vista Calendario de ahí.
 if (Permission::can('pos-pedidos', 'show')) {
-    header('Location: pedidos.php?vista=calendario');
+    header('Location: lista-pedidos.php?vista=calendario');
     exit;
 }
 

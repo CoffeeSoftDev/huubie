@@ -44,6 +44,22 @@ function posCatalogCSS() {
         + 'body.dark-mode button.pos-cat-chip.is-on svg{color:#111827}'
         + 'body.dark-mode button.pos-cat-chip.is-on small{background:rgba(0,0,0,.1);color:#111827}'
         + '.pos-cat-chips.is-dim button.pos-cat-chip{opacity:.5}'
+        // Carril con flechas (opción arrows), como el de categorías del pastel (pos-cake): una sola
+        // fila, flechas y orillas que se desvanecen solo del lado donde quedan categorías por ver.
+        + '.pos-cat-rail{position:relative;flex-shrink:0}'
+        + '.pos-cat-rail.has-prev{--pos-cat-fl:40px}'
+        + '.pos-cat-rail.has-next{--pos-cat-fr:40px}'
+        + '.pos-cat-rail .pos-cat-chips{flex-wrap:nowrap;max-height:none;padding:2px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;'
+        + '-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--pos-cat-fl,0px),#000 calc(100% - var(--pos-cat-fr,0px)),transparent 100%);'
+        + 'mask-image:linear-gradient(90deg,transparent 0,#000 var(--pos-cat-fl,0px),#000 calc(100% - var(--pos-cat-fr,0px)),transparent 100%)}'
+        + '.pos-cat-rail .pos-cat-chips::-webkit-scrollbar{display:none}'
+        + 'button.pos-cat-arrow{position:absolute;top:50%;z-index:2;display:none;align-items:center;justify-content:center;width:28px;height:28px;margin:-14px 0 0;padding:0;border:1px solid var(--po-line-hi);border-radius:999px;background:var(--po-surface);color:var(--po-ink-2);box-shadow:0 1px 3px rgb(0 0 0 / .12);cursor:pointer;transition:border-color .15s,color .15s}'
+        + 'button.pos-cat-arrow.is-prev{left:0}'
+        + 'button.pos-cat-arrow.is-next{right:0}'
+        + '.pos-cat-rail.has-prev button.pos-cat-arrow.is-prev,.pos-cat-rail.has-next button.pos-cat-arrow.is-next{display:inline-flex}'
+        + 'button.pos-cat-arrow:hover{border-color:var(--po-brand);color:var(--po-brand-ink)}'
+        + 'button.pos-cat-arrow:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}'
+        + 'button.pos-cat-arrow svg{width:16px;height:16px}'
 
         + '.pos-cat-scroll{flex:1 1 0%;min-height:0;padding:2px 4px 4px 2px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}'
         + '.pos-cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}'
@@ -101,6 +117,7 @@ Templates.prototype.posCatalog = function (options) {
         json:       [],
         categories: [],
         actions:    [],
+        arrows:     false,   // categorías en un carril con flechas (Pedidos); sin él, la fila de siempre
         search:     { placeholder: 'Buscar producto, SKU o código de barras' },
         empty:      { title: 'Sin productos', text: 'Prueba otra búsqueda o categoría.' },
         blank:      { title: 'Sin catálogo', text: 'Usa una línea libre o un pastel personalizado.' },
@@ -199,6 +216,10 @@ Templates.prototype.posCatalog = function (options) {
     const card = (data) => {
         const el   = $('<button>', { type: 'button', class: 'pos-cat-card', 'aria-label': `Agregar ${data.name}` });
         const top  = $('<span>', { class: 'pos-cat-top' }).append(icon(data.icon || 'package'));
+
+        // El nombre se corta con «…» en la card: al pasar el mouse se lee completo.
+        // Con .attr(): `title` en las props de jQuery lo toma $.fn.title (popover).
+        el.attr('title', data.name);
         const body = $('<span>', { class: 'pos-cat-body' });
         const foot = $('<span>', { class: 'pos-cat-foot' });
 
@@ -237,6 +258,42 @@ Templates.prototype.posCatalog = function (options) {
         el.on('click', () => setCategory(data.id));
 
         return el;
+    };
+
+    /*  Carril de categorías con flechas, como el del pastel (pos-cake): las
+        flechas y las orillas desvanecidas salen solo del lado donde quedan
+        categorías por ver; cada flecha avanza 70 % del ancho y la rueda del
+        mouse recorre el carril de lado. */
+    const rail = (list) => {
+        const box    = $('<div>', { class: 'pos-cat-rail' });
+        const toPrev = $('<button>', { type: 'button', class: 'pos-cat-arrow is-prev', tabindex: -1, 'aria-label': 'Ver categorías anteriores' }).append(icon('chevron-left'));
+        const toNext = $('<button>', { type: 'button', class: 'pos-cat-arrow is-next', tabindex: -1, 'aria-label': 'Ver más categorías' }).append(icon('chevron-right'));
+        const el     = list[0];
+
+        const edges = () => {
+            const rest = el.scrollWidth - el.clientWidth;
+
+            box.toggleClass('has-prev', el.scrollLeft > 1).toggleClass('has-next', el.scrollLeft < rest - 1);
+        };
+
+        list.on('scroll', edges);
+
+        list.on('wheel', (e) => {
+            const ev = e.originalEvent;
+
+            if (el.scrollWidth <= el.clientWidth || Math.abs(ev.deltaY) <= Math.abs(ev.deltaX)) return;
+
+            e.preventDefault();
+            el.scrollLeft += ev.deltaY;
+        });
+
+        toPrev.on('click', () => el.scrollBy({ left: -el.clientWidth * 0.7, behavior: 'smooth' }));
+        toNext.on('click', () => el.scrollBy({ left: el.clientWidth * 0.7, behavior: 'smooth' }));
+
+        // Al montarse o cambiar de ancho (ventana, primer acomodo de Tailwind CDN) se recalculan las orillas.
+        if (window.ResizeObserver) new ResizeObserver(edges).observe(el);
+
+        return box.append(toPrev, list, toNext);
     };
 
     opts.json.forEach((data) => {
@@ -280,7 +337,7 @@ Templates.prototype.posCatalog = function (options) {
     scroll.append(grid, empty);
     root.append(bar);
 
-    if (opts.categories.length > 1) root.append(chips);
+    if (opts.categories.length > 1) root.append(opts.arrows ? rail(chips) : chips);
 
     root.append(scroll);
 

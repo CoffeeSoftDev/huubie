@@ -1,12 +1,17 @@
-/*  POS › Tickets/Cierre (sección pos-tickets): visor de turnos y de cierres del día.
+/*  POS › Tickets/Cierre (sección pos-tickets): visor de turnos, de cierres
+    del día y de tickets (como alpha/order-visor).
 
-    A la izquierda la lista del periodo; a la derecha el papel del corte tal
-    como se imprime (orderTurn.cutTicket / orderClosure.dayTicket), en modo
-    Resumido o Detallado (cada pedido y cada cobro). Los modales de
-    pedido-turno.js y pedido-cierre.js le piden a la página global `orders`
-    tres cosas: can(), paintTurn() y lsOrders(); aquí las da Cuts. Los datos
-    los sirven ctrl-turno y ctrl-cierre: la lista y el papel con permiso de
-    pos-tickets; reimprimir, reabrir y recalcular con el de pos-pedidos. */
+    A la izquierda la lista del periodo; a la derecha el papel tal como se
+    imprime. Turnos: el corte (orderTurn.cutTicket) en modo Resumido o
+    Detallado. Cierres del día: el Corte Z de alpha en hoja carta
+    (orderClosure.paintReport); un clic en un pedido abre su ticket con
+    «Volver al corte Z». Tickets: pedidos (P) y ventas de mostrador (V) por fecha de
+    captura; el papel es el ticket (OrderDetail.ticketHtml / ordTicketHtml)
+    con sus pagos y su bitácora al lado. Los modales de pedido-turno.js y
+    pedido-cierre.js le piden a la página global `orders` tres cosas: can(),
+    paintTurn() y lsOrders(); aquí las da Cuts. Los datos los sirven
+    ctrl-turno, ctrl-cierre y ctrl-tickets: la lista y el papel con permiso
+    de pos-tickets; reimprimir, reabrir y recalcular con el de pos-pedidos. */
 
 let api = 'ctrl/ctrl-pedidos.php';
 let orders, orderTurn, orderClosure;
@@ -34,9 +39,16 @@ class Cuts extends Templates {
         this.modeKey        = 'pro:cortes:mode:v1';
         this.ranges         = { week: 'Semana actual', month: 'Mes actual', lastMonth: 'Mes anterior', last30: 'Últimos 30 días' };
         this.views          = {
-            turns: { url: 'ctrl/ctrl-turno.php', opc: 'lsTurns', one: 'turno', many: 'turnos' },
-            days:  { url: 'ctrl/ctrl-cierre.php', opc: 'lsDays', one: 'día', many: 'días' }
+            turns:   { url: 'ctrl/ctrl-turno.php', opc: 'lsTurns', one: 'turno', many: 'turnos' },
+            days:    { url: 'ctrl/ctrl-cierre.php', opc: 'lsDays', one: 'día', many: 'días' },
+            tickets: { url: 'ctrl/ctrl-tickets.php', opc: 'lsTickets', one: 'ticket', many: 'tickets' }
         };
+        this.kinds          = { order: 'Pedido', counter: 'Mostrador', online: 'Tienda en línea' };
+        this.titles         = { order: 'Pedido', counter: 'Venta', online: 'Pedido en línea' };
+        // Tono de cada estado (sale_status): Cotización, Pendiente, Pagado, Cancelado.
+        this.statusTones    = { 1: 'closed', 2: 'pending', 3: 'ok', 4: 'short' };
+        // Solo sus ayudantes de ticket y de bitácora: el visor no abre el modal del pedido.
+        this.kit            = new OrderDetail('ctrl/ctrl-tickets.php', 'root');
         this.weekdays       = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
         this.months         = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         this.view           = 'turns';
@@ -44,14 +56,17 @@ class Cuts extends Templates {
         this.items          = [];
         this.selected       = null;
         this.current        = null;
+        this.over           = null;   // el ticket abierto desde el Corte Z (vista Cierres del día)
         this.mode           = this.savedMode();
         this.request        = 0;
         this.previewRequest = 0;
     }
 
     get filters() {
+        const view = String($('#cut_view').val() || '');
+
         return {
-            view: $('#cut_view').val() === 'days' ? 'days' : 'turns',
+            view: this.views[view] ? view : 'turns',
             ...getDataRangePicker('cut_calendar')
         };
     }
@@ -119,7 +134,7 @@ class Cuts extends Templates {
                     lbl:      'Ver',
                     required: false,
                     class:    'col-12 col-sm-5 col-lg-3 col-xl-2',
-                    data:     [{ id: 'turns', valor: 'Turnos de caja' }, { id: 'days', valor: 'Cierres del día' }],
+                    data:     [{ id: 'turns', valor: 'Turnos de caja' }, { id: 'days', valor: 'Cierres del día' }, { id: 'tickets', valor: 'Tickets' }],
                     value:    saved.view,
                     onchange: 'orders.onFilterChange()'
                 },
@@ -137,7 +152,7 @@ class Cuts extends Templates {
                     type:        'search',
                     lbl:         'Buscar',
                     required:    false,
-                    placeholder: 'Folio, persona o fecha',
+                    placeholder: 'Folio, cliente, persona o fecha',
                     class:       'col-12 col-lg-5 col-xl-4'
                 }
             ]
@@ -198,20 +213,19 @@ class Cuts extends Templates {
                 class: 'w-full',
                 container: [
                     { type: 'h1', class: 'cp-pagina-titulo', text: 'Tickets/Cierre' },
-                    { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, scope.branch].filter(Boolean).join(' · ') || 'Turnos de caja y cierres del día' }
+                    { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, scope.branch].filter(Boolean).join(' · ') || 'Turnos de caja, cierres del día y tickets' }
                 ]
             }
         });
 
         if (dataInit.status != 200 || !this.can('show')) return;
 
+        // Sin la franja de caja (abrir y cerrar turno): es un visor, como alpha/order-visor.
+        // El turno se abre y se cierra en Ventas y en Pedidos.
         this.paintTurn();
-
-        orderTurn.paintStrip(true);
     }
 
-    // «Cierre del día» del encabezado. El turno lo muestra la franja de caja (caja-strip.js).
-    // orderTurn.sync() lo repinta: el botón abre el día pendiente si lo hay.
+    // «Cierre del día» del encabezado. orderTurn.sync() lo repinta: el botón abre el día pendiente si lo hay.
     paintTurn() {
         if (!$(`#headerActions${this.PROJECT_NAME}`).length) return;
 
@@ -239,6 +253,10 @@ class Cuts extends Templates {
                 { opc: 'button', id: 'btnDayCuts', class: 'col-auto', text: 'Cierre del día', icon: 'icon-calendar-check-o', color_btn: 'outline', onClick: () => orderClosure.open(pending) }
             ]
         });
+
+        // Sin un turno cerrado no se cierra el día: la regla de todas las pantallas (orderTurn.dayReady).
+        // Los días ya cerrados se siguen viendo desde la lista de Cortes.
+        ordLock('btnDayCuts', !orderTurn.dayReady(), orderTurn.dayWhy());
     }
 
     blocked(message) {
@@ -344,6 +362,20 @@ class Cuts extends Templates {
 
     // La llave de cada renglón (id del turno o fecha del día) y el texto en que busca el filtro.
     prepare(item) {
+        // Ticket: por día de captura. Muestra su total; suma al grupo solo lo vendido (sold).
+        if (this.view === 'tickets') {
+            const day = String(item.created_at).slice(0, 10);
+
+            return {
+                ...item,
+                key:    String(item.id),
+                day:    day,
+                amount: item.total,
+                struck: Number(item.status_id) === 4,
+                search: this.plain([item.folio, item.customer, item.seller, item.status, item.turn, this.kinds[item.kind], ordDate(day), this.weekday(day)].join(' '))
+            };
+        }
+
         const turns = this.view === 'turns';
         const day   = String(turns ? item.opened_at : item.date).slice(0, 10);
         const words = turns
@@ -396,18 +428,18 @@ class Cuts extends Templates {
         list.html(this.groups(items).map((group) => `
             <div class="ord-vgroup">
                 <p class="ord-vgroup-title"><span>${esc(group.title)}</span><span>${money(group.total)}</span></p>
-                ${group.items.map((item) => this.view === 'turns' ? this.turnItem(item) : this.dayItem(item)).join('')}
+                ${group.items.map((item) => this.view === 'turns' ? this.turnItem(item) : this.view === 'days' ? this.dayItem(item) : this.ticketItem(item)).join('')}
             </div>`).join(''));
 
         this.mark();
     }
 
-    // Turnos agrupados por día; días agrupados por mes. Cada grupo con lo vendido.
+    // Turnos y tickets agrupados por día; días agrupados por mes. Cada grupo con lo vendido.
     groups(items) {
         const groups = [];
 
         items.forEach((item) => {
-            const key  = this.view === 'turns' ? item.day : item.day.slice(0, 7);
+            const key  = this.view === 'days' ? item.day.slice(0, 7) : item.day;
             let group  = groups[groups.length - 1];
 
             if (!group || group.key !== key) {
@@ -455,14 +487,30 @@ class Cuts extends Templates {
         return this.itemShell(d, `${this.weekday(d.date)} ${ordDate(d.date)}`, sub, tags);
     }
 
+    // Folio, hora de captura y cliente; el estado, de qué es y lo que falta cobrar.
+    ticketItem(t) {
+        const status  = Number(t.status_id);
+        const who     = t.customer || (t.kind === 'counter' ? 'Público en general' : 'Sin cliente');
+        const balance = status === 2 && Number(t.balance) > 0.005 ? this.tag('pending', `Saldo ${money(t.balance)}`) : '';
+        const tags    = [
+            this.tag(this.statusTones[status] || 'muted', t.status),
+            this.tag('muted', this.kinds[t.kind] || 'Pedido'),
+            balance
+        ];
+
+        return this.itemShell(t, esc(t.folio), [this.hour(t.created_at), esc(who)].filter(Boolean).join(' · '), tags);
+    }
+
+    // amount: lo que se pinta a la derecha (sin él, lo vendido). struck: tachado (cancelado).
     itemShell(item, title, sub, tags) {
-        const shown = tags.filter(Boolean);
+        const shown  = tags.filter(Boolean);
+        const amount = item.amount !== undefined ? item.amount : item.sold;
 
         return `
             <button type="button" class="ord-vitem" data-key="${esc(item.key)}">
                 <span class="ord-vitem-row">
                     <span class="ord-vitem-title">${title}</span>
-                    <span class="ord-vitem-amount">${money(item.sold)}</span>
+                    <span class="ord-vitem-amount${item.struck ? ' is-off' : ''}">${money(amount)}</span>
                 </span>
                 <span class="ord-vitem-row">
                     <span class="ord-vitem-sub">${sub}</span>
@@ -521,21 +569,26 @@ class Cuts extends Templates {
         const request = ++this.previewRequest;
         const view    = this.view;
         const turns   = view === 'turns';
+        const query   = {
+            turns:   { url: 'ctrl/ctrl-turno.php', data: { opc: 'getTurn', id: key, detail: 1 } },
+            days:    { url: 'ctrl/ctrl-cierre.php', data: { opc: 'getDay', date: key, detail: 1, report: 1 } },
+            tickets: { url: 'ctrl/ctrl-tickets.php', data: { opc: 'getTicket', id: key } }
+        };
+
+        this.over = null;
 
         $(`#paper${this.PROJECT_NAME}`).addClass('is-loading');
 
-        const data = await useFetch(turns
-            ? { url: 'ctrl/ctrl-turno.php', data: { opc: 'getTurn', id: key, detail: 1 } }
-            : { url: 'ctrl/ctrl-cierre.php', data: { opc: 'getDay', date: key, detail: 1 } });
+        const data = await useFetch(query[view]);
 
         if (request !== this.previewRequest || view !== this.view) return;
 
         $(`#paper${this.PROJECT_NAME}`).removeClass('is-loading');
 
-        if (!data || data.status != 200 || (turns && !data.turn)) {
+        if (!data || data.status != 200 || (turns && !data.turn) || (view === 'tickets' && !data.order)) {
             this.current = null;
             this.paintBar();
-            this.paintPaper((data && data.message) || 'No se pudo leer el corte. Vuelve a intentar.');
+            this.paintPaper((data && data.message) || `No se pudo leer ${view === 'tickets' ? 'el ticket' : 'el corte'}. Vuelve a intentar.`);
             return;
         }
 
@@ -545,10 +598,11 @@ class Cuts extends Templates {
     }
 
     paintBar() {
-        const data  = this.current;
-        const turns = this.view === 'turns';
-        let title   = 'Vista previa';
-        let sub     = turns ? 'Elige un turno de la lista.' : 'Elige un día de la lista.';
+        const data    = this.current;
+        const turns   = this.view === 'turns';
+        const tickets = this.view === 'tickets';
+        let title     = 'Vista previa';
+        let sub       = turns ? 'Elige un turno de la lista.' : tickets ? 'Elige un ticket de la lista.' : 'Elige un día de la lista.';
 
         if (data && turns) {
             const t = data.turn;
@@ -557,9 +611,17 @@ class Cuts extends Templates {
             sub   = t.closed ? [`Cerró ${t.closed_by || 'el'}`.trim(), ordDate(t.closed_at, true)].join(t.closed_by ? ' · ' : ' ') : `Sigue abierto desde ${ordDate(t.opened_at, true)}`;
         }
 
-        if (data && !turns) {
+        if (data && this.view === 'days') {
             title = `Cierre del día · ${ordDate(data.date)}`;
             sub   = data.closure ? [`Cierre ${data.closure.folio}`, data.closure.closed_by, ordDate(data.closure.closed_at, true)].filter(Boolean).join(' · ') : 'Sin cerrar: cifras en vivo.';
+        }
+
+        if (data && tickets) {
+            const o   = data.order;
+            const who = String(o.created_by || '').trim();
+
+            title = `${this.titles[data.kind] || 'Pedido'} ${data.folio}`;
+            sub   = [o.status, ordDate(o.created_at, true), who ? `${data.kind === 'counter' ? 'Atendió' : 'Capturó'} ${who}` : '', o.turn_folio ? `Turno ${o.turn_folio}` : 'Sin turno'].filter(Boolean).join(' · ');
         }
 
         const modes = ['summary', 'detail'].map((mode) => {
@@ -587,7 +649,7 @@ class Cuts extends Templates {
                         type:  'div',
                         class: 'ord-viewer-tools',
                         children: [
-                            { type: 'div', class: 'ord-viewer-modes', html: data ? modes : '' },
+                            { type: 'div', class: 'ord-viewer-modes', html: data && turns ? modes : '' },
                             { type: 'div', id: `barActions${this.PROJECT_NAME}`, class: 'flex' }
                         ]
                     }
@@ -597,9 +659,13 @@ class Cuts extends Templates {
 
         if (!data) return;
 
-        const json = [{ opc: 'button', id: 'btnOpenCut', class: 'col-auto', text: turns ? 'Ver corte' : 'Ver cierre', icon: 'icon-eye', color_btn: 'outline', onClick: () => this.openCurrent() }];
+        // El ticket no tiene modos ni modal propio: solo se imprime, con 'print' de pos-tickets.
+        const json  = tickets ? [] : [{ opc: 'button', id: 'btnOpenCut', class: 'col-auto', text: turns ? 'Ver corte' : 'Ver cierre', icon: 'icon-eye', color_btn: 'outline', onClick: () => this.openCurrent() }];
+        const print = tickets ? this.canTickets('print') : this.can('print');
 
-        if (this.can('print')) json.push({ opc: 'button', id: 'btnPrintCut', class: 'col-auto', text: 'Imprimir', icon: 'icon-print', color_btn: 'primary', onClick: () => this.printCurrent() });
+        if (print) json.push({ opc: 'button', id: 'btnPrintCut', class: 'col-auto', text: 'Imprimir', icon: 'icon-print', color_btn: 'primary', onClick: () => this.printCurrent() });
+
+        if (!json.length) return;
 
         this.coffeeForm({
             parent:       `barActions${this.PROJECT_NAME}`,
@@ -615,16 +681,180 @@ class Cuts extends Templates {
         const paper = $(`#paper${this.PROJECT_NAME}`);
 
         if (message || !this.current) {
-            paper.html(`<div class="ord-viewer-empty"><i class="icon-doc-text"></i><p>${esc(message || 'Sin corte que mostrar.')}</p></div>`);
+            paper.html(`<div class="ord-viewer-empty"><i class="icon-doc-text"></i><p>${esc(message || (this.view === 'tickets' ? 'Sin ticket que mostrar.' : 'Sin corte que mostrar.'))}</p></div>`);
             return;
         }
 
-        const detail = this.mode === 'detail' ? this.current.detail : null;
-        const ticket = this.view === 'turns'
-            ? orderTurn.cutTicket(this.current, detail)
-            : orderClosure.dayTicket(this.current, detail);
+        if (this.view === 'tickets') return this.paintTicket(paper, this.current);
 
-        paper.html(`<article class="ord-ticket" aria-label="Vista previa del corte">${ticket}</article>`);
+        // Cierres del día: el Corte Z de alpha, no un ticket. Un clic en un pedido abre su ticket aquí mismo.
+        if (this.view === 'days') {
+            if (this.over) return this.paintTicket(paper, this.over, true);
+
+            return orderClosure.paintReport(paper, this.current, (id) => this.openOver(id));
+        }
+
+        const detail = this.mode === 'detail' ? this.current.detail : null;
+
+        paper.html(`<article class="ord-ticket" aria-label="Vista previa del corte">${orderTurn.cutTicket(this.current, detail)}</article>`);
+    }
+
+    // Clic en un pedido del Corte Z: su ticket en el mismo papel, con «Volver al corte Z» (como alpha/order-visor).
+    async openOver(id) {
+        const key  = this.selected;
+        const data = await useFetch({ url: 'ctrl/ctrl-tickets.php', data: { opc: 'getTicket', id } });
+
+        if (this.view !== 'days' || this.selected !== key) return;
+
+        if (!data || data.status != 200 || !data.order) {
+            alert({ icon: 'error', title: 'No se abrió el ticket', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        this.over = data;
+        this.paintPaper();
+
+        $(`#paper${this.PROJECT_NAME}`).scrollTop(0);
+    }
+
+    // -- Ticket (vista Tickets) --
+
+    /*  El ticket tal como sale impreso y, al lado, sus pagos y su bitácora
+        (como alpha/order-visor). Va en un iframe con ORD_TICKET_CSS: esa hoja
+        trae reglas de html y body que pisarían la página. back: viene del
+        Corte Z y lleva «Volver al corte Z». */
+    paintTicket(paper, data, back) {
+        paper.html(`
+            <div class="ord-tk-view">
+                ${back ? '<div class="ord-tk-back"><button type="button" class="ord-tk-back-btn"><i data-lucide="arrow-left" class="w-4 h-4"></i>Volver al corte Z</button></div>' : ''}
+                <div class="ord-tk-desk">
+                    <article class="ord-tk-paper" aria-label="Vista previa del ticket">
+                        <iframe id="frameTicketCuts" class="ord-tk-frame" title="Ticket ${esc(data.folio)}"></iframe>
+                    </article>
+                    <div class="ord-tk-side">
+                        ${this.ticketPayments(data)}
+                        ${this.ticketHistory(data.history || [])}
+                    </div>
+                </div>
+            </div>`);
+
+        if (back) {
+            paper.find('button.ord-tk-back-btn').on('click', () => {
+                this.over = null;
+                this.paintPaper();
+            });
+        }
+
+        const frame = document.getElementById('frameTicketCuts');
+        const fit   = () => {
+            const doc = frame.contentDocument;
+
+            if (doc && doc.documentElement) frame.style.height = `${doc.documentElement.scrollHeight}px`;
+        };
+
+        frame.addEventListener('load', () => {
+            fit();
+
+            // El logo puede llegar después del load del documento.
+            Array.from(frame.contentDocument.images).forEach((img) => img.addEventListener('load', fit));
+        });
+
+        // .tk con 16 px de aire: la tarjeta redondeada de alpha (p-4 rounded-lg). La impresión no cambia.
+        frame.srcdoc = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><style>${ORD_TICKET_CSS} html, body { overflow: hidden; } .tk { padding: 16px; }</style></head><body>${this.ticketHtml(data)}</body></html>`;
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Venta de mostrador: el ticket de venta (como al reimprimir en el Historial). Pedido: el de pedido.
+    ticketHtml(data) {
+        return data.kind === 'counter' ? ordTicketHtml(data.ticket || {}, { reprint: true }) : this.kit.ticketHtml(data);
+    }
+
+    // «Historial de pagos»: cada cobro con su método, cuándo, en qué turno y quién; abajo las cuentas.
+    ticketPayments(data) {
+        const o        = data.order;
+        const payments = data.payments || [];
+        const total    = Number(o.total || 0);
+        const tip      = Number(o.tip_amount || 0);
+        const paid     = Number(o.paid || 0);
+        const discount = Number(o.discount_amount || 0);
+        const alive    = Number(o.sale_status_id) !== 4;
+        const balance  = alive ? ordRound(total + tip - paid) : 0;
+        const credit   = data.ticket && Number(data.ticket.credit) > 0.005 ? Number(data.ticket.credit) : 0;
+
+        const rows = payments.map((p) => {
+            const [icon, tone] = this.kit.paymentIcon(p);
+            const by     = String(p.received_by || '').trim();
+            const cross  = p.branch && p.branch !== data.branch ? `<span class="ord-tk-badge" title="Cobrado en otra sucursal">${esc(p.branch)}</span>` : '';
+            const meta   = [ordDate(p.paid_at, true), p.turn_folio ? `Turno ${esc(p.turn_folio)}` : 'Sin turno', by ? esc(by) : ''].filter(Boolean).join(' · ');
+            const change = Number(p.change_amount) > 0 ? `<p class="ord-tk-meta">Recibió ${money(p.tendered_amount)} · cambio ${money(p.change_amount)}</p>` : '';
+
+            return `
+                <li class="ord-tk-row">
+                    <i data-lucide="${icon}" class="w-4 h-4 ${tone} shrink-0 mt-0.5"></i>
+                    <div class="min-w-0 flex-1">
+                        <p class="ord-tk-name">${esc(p.method || 'Sin método')}${cross}</p>
+                        <p class="ord-tk-meta">${meta}</p>
+                        ${change}
+                    </div>
+                    <span class="ord-tk-amount">${money(p.amount)}</span>
+                </li>`;
+        }).join('');
+
+        const line = (label, value, cls = '') => `<div class="ord-tk-sum-row ${cls}"><span>${label}</span><span>${value}</span></div>`;
+
+        const rest = !alive          ? line('Cancelado', 'No suma en lo vendido', 'is-muted')
+                   : credit          ? line('A crédito', money(credit), 'is-due')
+                   : balance > 0.005 ? line('Saldo', money(balance), 'is-due')
+                   : balance < -0.005 ? line('Saldo a favor', money(Math.abs(balance)), 'is-favor')
+                   : line('Saldo', money(0), 'is-zero');
+
+        return `
+            <section class="ord-tk-card">
+                <header class="ord-tk-head">
+                    <i data-lucide="wallet" class="w-4 h-4"></i>
+                    <span>Historial de pagos</span>
+                    <small>${payments.length} ${payments.length === 1 ? 'pago' : 'pagos'}</small>
+                </header>
+                ${payments.length ? `<ul class="ord-tk-list">${rows}</ul>` : '<p class="ord-tk-empty">Sin pagos registrados.</p>'}
+                <div class="ord-tk-sum">
+                    ${discount > 0 ? line('Subtotal', money(o.subtotal)) : ''}
+                    ${discount > 0 ? line('Descuento', `−${money(discount)}`, 'is-discount') : ''}
+                    ${line('Total', money(total), 'is-total')}
+                    ${tip > 0 ? line('Propina', money(tip)) : ''}
+                    ${line('Cobrado', money(paid), 'is-paid')}
+                    ${rest}
+                </div>
+            </section>`;
+    }
+
+    // «Bitácora» (Historial de actividad en order-visor), lo más nuevo arriba. Los íconos, los del detalle del pedido.
+    ticketHistory(history) {
+        const rows = history.map((h) => {
+            const title        = h.title || h.action || 'Movimiento';
+            const [icon, tone] = this.kit.historyIcon(h.type, title);
+            const who          = String(h.user_name || '').trim();
+
+            return `
+                <li class="ord-tk-row">
+                    <i data-lucide="${icon}" class="w-4 h-4 ${tone} shrink-0 mt-0.5"></i>
+                    <div class="min-w-0 flex-1">
+                        <p class="ord-tk-name">${esc(title)}</p>
+                        ${h.detail ? `<p class="ord-tk-text">${esc(h.detail)}</p>` : ''}
+                        <p class="ord-tk-meta">${ordDate(h.created_at, true)} · ${who ? esc(who) : 'Sin registro'}</p>
+                    </div>
+                </li>`;
+        }).join('');
+
+        return `
+            <section class="ord-tk-card">
+                <header class="ord-tk-head">
+                    <i data-lucide="history" class="w-4 h-4"></i>
+                    <span>Bitácora</span>
+                    <small>${history.length} ${history.length === 1 ? 'movimiento' : 'movimientos'}</small>
+                </header>
+                ${history.length ? `<ul class="ord-tk-list">${rows}</ul>` : '<p class="ord-tk-empty">Sin movimientos registrados.</p>'}
+            </section>`;
     }
 
     paintEmpty(message) {
@@ -647,11 +877,12 @@ class Cuts extends Templates {
             $(el).toggleClass('is-active', active).attr('aria-pressed', String(active));
         });
 
-        if (this.current) this.paintPaper();
+        // Solo el corte del turno tiene Resumido | Detallado.
+        if (this.current && this.view === 'turns') this.paintPaper();
     }
 
     openCurrent() {
-        if (!this.current) return;
+        if (!this.current || this.view === 'tickets') return;
 
         if (this.view === 'turns') orderTurn.open(this.current.turn.id);
         else orderClosure.open(this.current.date);
@@ -660,10 +891,19 @@ class Cuts extends Templates {
     printCurrent() {
         if (!this.current) return;
 
-        const detail = this.mode === 'detail' ? this.current.detail : null;
+        // Lo que está en el papel: el ticket (de la lista o abierto desde el Corte Z) o el corte.
+        const ticket = this.view === 'tickets' ? this.current : this.view === 'days' ? this.over : null;
 
-        if (this.view === 'turns') orderTurn.printCut(this.current, detail);
-        else orderClosure.printDay(this.current, detail);
+        if (ticket) {
+            if (!this.canTickets('print')) return;
+
+            ordPrintDoc(`${this.titles[ticket.kind] || 'Pedido'} ${ticket.folio}`, ORD_TICKET_CSS, this.ticketHtml(ticket));
+            return;
+        }
+
+        if (this.view === 'days') return orderClosure.printDay(this.current);
+
+        orderTurn.printCut(this.current, this.mode === 'detail' ? this.current.detail : null);
     }
 
     // -- Complements --
@@ -679,6 +919,11 @@ class Cuts extends Templates {
 
     can(action) {
         return (dataInit.actions || []).includes(action);
+    }
+
+    // Las acciones de la página (pos-tickets). can() sigue en pos-pedidos para los modales de turno y cierre.
+    canTickets(action) {
+        return (dataInit.tickets || []).includes(action);
     }
 
     hour(value) {
@@ -712,7 +957,7 @@ class Cuts extends Templates {
             const fi  = moment(raw.fi, 'YYYY-MM-DD', true);
             const ff  = moment(raw.ff, 'YYYY-MM-DD', true);
 
-            if (raw.view === 'days') saved.view = 'days';
+            if (this.views[raw.view]) saved.view = raw.view;
 
             if (Object.keys(this.ranges).includes(raw.range)) saved.dates = this.rangeDates(raw.range);
             else if (raw.range === 'custom' && fi.isValid() && ff.isValid() && !ff.isBefore(fi)) saved.dates = [fi, ff];
@@ -770,6 +1015,18 @@ class Cuts extends Templates {
             const drift   = changed ? ` ${changed} ${changed === 1 ? 'turno cambió' : 'turnos cambiaron'} después de su corte: ábrelo para ver qué y recalcularlo.` : '';
 
             return { title, subtitle: `Por fecha de apertura, ${period}${drift}` };
+        }
+
+        if (filters.view === 'tickets') {
+            const kinds = data.kinds || {};
+            const parts = [
+                kinds.order ? `${kinds.order} ${kinds.order === 1 ? 'pedido' : 'pedidos'}` : '',
+                kinds.online ? `${kinds.online} de la tienda en línea` : '',
+                kinds.counter ? `${kinds.counter} de mostrador` : ''
+            ].filter(Boolean).join(', ');
+            const more  = data.more ? ` Se ven los ${count} más recientes: acorta el periodo para ver el resto.` : '';
+
+            return { title, subtitle: `Por fecha de captura, ${period}${parts ? ` ${esc(parts)}.` : ''} El total es lo vendido: sin cotizaciones ni cancelados.${more}` };
         }
 
         const pending = Number(data.pending || 0);
