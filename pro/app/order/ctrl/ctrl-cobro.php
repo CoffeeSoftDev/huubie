@@ -67,8 +67,9 @@ class ctrl extends core {
                 ? $this->foreignBlock('pay', $this->branchId(), $this->scope()['branch'])
                 : '';
 
-            $total = round((float) $order['total'], 2);
-            $paid  = round((float) $order['paid'], 2);
+            $total    = round((float) $order['total'], 2);
+            $paid     = round((float) $order['paid'], 2);
+            $branches = $this->payBranches();
             $stop  = $foreign !== '' ? ['kind' => 'role', 'title' => 'Solo consulta', 'message' => $foreign, 'day' => false] : $this->payStop($order);
             $alive = (int) $order['sale_status_id'] !== self::CANCELLED;
             $given = (int) $order['delivery_status'] === 1;
@@ -103,7 +104,8 @@ class ctrl extends core {
                 'disc_block'    => $this->moneyBlock($order),
                 'turn'          => $this->turnBrief(),
                 'branch_id'     => $this->branchId(),
-                'branches'      => $this->payBranches()
+                'branches'      => $branches,
+                'pick_branch'   => count($branches) > 1   // false = solo la de origen: no está asignado a otra
             ];
         }, 'No se pudieron abrir los pagos.');
     }
@@ -115,7 +117,8 @@ class ctrl extends core {
         if ($fail) return $fail;
 
         return $this->attempt(function () {
-            $stop = $this->turnStop();
+            $stop     = $this->turnStop();
+            $branches = $this->payBranches();
 
             return [
                 'status'        => 200,
@@ -129,14 +132,17 @@ class ctrl extends core {
                 'disc_block'    => '',
                 'turn'          => $this->turnBrief(),
                 'branch_id'     => $this->branchId(),
-                'branches'      => $this->payBranches()
+                'branches'      => $branches,
+                'pick_branch'   => count($branches) > 1
             ];
         }, 'No se pudieron abrir los pagos.');
     }
 
     /*  Sucursales donde se puede cobrar el pedido (como alpha): cada una con su
         turno, lo que le impide cobrar (block) y sus formas de pago. Así la
-        ventana cambia de sucursal sin volver a preguntar. */
+        ventana cambia de sucursal sin volver a preguntar. Solo van la del
+        pedido (la de origen) y aquellas donde el usuario está asignado
+        (canPickBranch): en las demás no puede cobrar. */
     // session = la de la sesión (homeBranchId), aunque el pedido sea de otra: ahí se abre turno.
     private function payBranches() {
         $session = $this->homeBranchId();
@@ -144,6 +150,9 @@ class ctrl extends core {
 
         foreach ($this->qCompanyBranches($this->companyId()) as $branch) {
             $id   = (int) $branch['id'];
+
+            if ($id !== $this->branchId() && !$this->canPickBranch($id)) continue;
+
             $turn = $this->qOpenTurn($id);
             $stop = $this->needTurn($id, $branch['name']);
 
@@ -166,6 +175,14 @@ class ctrl extends core {
         return $list;
     }
 
+    /*  Cobrar en otra sucursal (cobro cruzado) solo donde el usuario está
+        asignado: su rol ahí entra a Pedidos (viewBranches). Dueño y root, en
+        todas. Sin ninguna otra, la ventana deja fija la de origen y payBranch
+        no acepta otra. */
+    private function canPickBranch($id) {
+        return isset($this->viewBranches(self::SECTION)[(int) $id]);
+    }
+
     // La sucursal que cobra: la que eligió la pantalla si es de la empresa y está activa.
     private function payBranch() {
         $id = $this->intOf($this->post('pay_branch'));
@@ -178,6 +195,10 @@ class ctrl extends core {
 
         if (!$branch || (int) $branch['company_id'] !== $this->companyId()) {
             return $this->fail(422, 'La sucursal que cobra ya no está disponible.');
+        }
+
+        if (!$this->canPickBranch($id)) {
+            return $this->fail(403, "No estás asignado a {$branch['name']}: cobra en " . $this->scope()['branch'] . ' (la del pedido) o en una sucursal donde tengas acceso.');
         }
 
         return ['id' => $id, 'name' => $branch['name'], 'cross' => true];

@@ -92,6 +92,25 @@ const ORD_DAY_SCREEN_CSS = `
     body { padding: 2px 14px 18px; }
     .z-doc { max-width: 1100px; margin: 0 auto; border-radius: 2px; box-shadow: 0 2px 12px rgba(0, 0, 0, .35); }`;
 
+/*  La ventana de impresión (printDay), con lo que alpha le pone en printDaily:
+    pdfPrintCss SIN @media print (también en pantalla: fondo blanco, relleno de
+    12 px y tablas ajustadas). El papel es carta HORIZONTAL con 8 mm de margen
+    (alpha imprime vertical); en pantalla, la hoja de 1056 px (11 in) con sombra. */
+const ORD_DAY_WINDOW_CSS = `
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    html, body { background: #FFFFFF; }
+    .z-doc { padding: 12px; }
+    .z-wrap { overflow: visible; }
+    table.z-table { table-layout: fixed; }
+    table.z-table td, table.z-table th { white-space: normal !important; overflow-wrap: break-word; word-break: break-word; }
+    .z-cards { page-break-inside: avoid; }
+    tr.z-shift, tr.z-div { page-break-after: avoid; }
+    @page { size: letter landscape; margin: 8mm; }
+    @media screen {
+        body { padding: 24px 0; }
+        .z-doc { width: 1056px; max-width: 1056px; margin: 0 auto; box-shadow: 0 0 14px rgba(0, 0, 0, .45); }
+    }`;
+
 // -- Cierre del día --
 
 class OrderClosure extends Templates {
@@ -153,13 +172,13 @@ class OrderClosure extends Templates {
         this.deskClosed = false;
         this.token      = ordToken();
 
-        // Más ancha que antes: el Corte Z es una hoja carta, no un ticket.
+        // Del tamaño del «Cierre del Día» de alpha (940 px, 82vw): las medidas van en order.css › #modalOrderClosure.
         this.csModal({
             id:         'modalOrderClosure',
             title:      'Cierre del día',
             subtitle:   data.branch || '',
             lucideIcon: 'calendar-check',
-            width:      'max-w-6xl',
+            width:      'max-w-[940px]',
             saveText:   false,
             cancelText: 'Volver',
             body:       this.deskBody(data)
@@ -477,9 +496,26 @@ class OrderClosure extends Templates {
 
     // -- Impresion --
 
-    // El Corte Z en hoja carta vertical, como alpha (printDaily).
+    /*  Como alpha (pedidos-cierre.js › printDaily), pero en carta horizontal:
+        una ventana de 1140 × 900 con el Corte Z en hoja de 1056 px (11 in, con
+        sombra) y, a los 600 ms, el diálogo de impresión ya en horizontal
+        (@page de ORD_DAY_WINDOW_CSS). En la ventana van las reglas de papel de
+        alpha (pdfPrintCss): relleno de 12 px y tablas ajustadas. */
     printDay(data) {
-        ordPrintDoc(`Corte Z ${ordDate(data.date)}`, ORD_DAY_CSS + ' @page { size: letter portrait; margin: 8mm; }', this.dayReport(data));
+        const win = window.open('', '', 'height=900,width=1140');
+
+        if (!win) return alert({ icon: 'warning', title: 'No se abrió la impresión', text: 'El navegador bloqueó la ventana. Permite las ventanas emergentes de Huubie y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+
+        win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'
+            + `<title>Corte Z ${esc(ordDate(data.date))}</title>`
+            + `<style>${ORD_DAY_CSS}${ORD_DAY_WINDOW_CSS}</style></head>`
+            + `<body>${this.dayReport(data)}</body></html>`);
+        win.document.close();
+
+        setTimeout(() => {
+            win.focus();
+            win.print();
+        }, 600);
     }
 
     // -- Corte Z (pantalla) --

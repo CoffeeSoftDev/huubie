@@ -294,8 +294,9 @@ class OrderForm extends Templates {
             return null;
         }
 
+        // El porqué va con quién sí puede resaltado (ordWhoCan).
         if (!data.can || !data.can.edit) {
-            alert({ icon: 'info', title: 'No se puede editar', text: (data.can && data.can.edit_reason) || '', btn1: true, btn1Text: 'Entendido' });
+            alert({ icon: 'info', title: 'No se puede editar', html: ordWhoCan((data.can && data.can.edit_reason) || ''), btn1: true, btn1Text: 'Entendido' });
             return null;
         }
 
@@ -304,7 +305,7 @@ class OrderForm extends Templates {
             const go = await alert({
                 icon:     'info',
                 title:    'Este pedido ya está en un corte',
-                text:     data.can.lock_reason,
+                html:     ordWhoCan(data.can.lock_reason),
                 btn1:     true,
                 btn1Text: 'Editar',
                 btn2:     true,

@@ -153,6 +153,7 @@ class OrderPay extends Templates {
         this.fromDetail   = fromDetail;
         this.token        = ordToken();
         this.branches     = this.readBranches(data);
+        this.pickOk       = data.pick_branch !== false;   // false = no está asignado a otra sucursal: cobra en la del pedido, sin elegir otra
         this.mcache       = null;
         this.draft        = (opts && opts.draft) || null;
 
@@ -581,13 +582,16 @@ class OrderPay extends Templates {
         return `<div class="pa-label"><span>${text}</span>${aside ? `<small>${aside}</small>` : ''}</div>`;
     }
 
-    // Las dos tarjetas de alpha: de dónde es el pedido y qué sucursal cobra.
+    /*  Las dos tarjetas de alpha: de dónde es el pedido y qué sucursal cobra.
+        La lista trae solo las sucursales donde el usuario está asignado (y la
+        de origen). Sin pickOk (no está asignado a otra) queda fija en la de origen. */
     branchesHtml(lock) {
         const origin = this.originBranch();
         const cobro  = this.cobroBranch();
         const off    = lock === 'paid' || lock === 'block';
-        const fixed  = off || this.branches.length < 2;
+        const fixed  = off || this.branches.length < 2 || !this.pickOk;
         const opts   = this.branches.map((b) => `<option value="${b.id}"${b.id === this.cobro ? ' selected' : ''}>${esc(b.name)}${b.session ? ' · tu sesión' : ''}</option>`).join('');
+        const title  = this.pickOk ? this.turnTitle(cobro) : `${this.turnTitle(cobro)} · Solo cobras en las sucursales donde estás asignado`;
 
         return '<div class="pa-field">'
             +   this.label(this.originLabel())
@@ -597,8 +601,8 @@ class OrderPay extends Templates {
             +   '</div>'
             + '</div>'
             + '<div class="pa-field">'
-            +   this.label('Sucursal que cobrará')
-            +   `<div class="pa-branch is-cobro${this.isCross() ? ' is-cross' : ''}${off ? ' is-off' : ''}" title="${esc(this.turnTitle(cobro))}">`
+            +   this.label('Sucursal que cobrará', this.pickOk ? '' : 'La de origen')
+            +   `<div class="pa-branch is-cobro${this.isCross() ? ' is-cross' : ''}${off ? ' is-off' : ''}" title="${esc(title)}">`
             +     `<span class="pa-branch-ico">${this.ico('landmark')}</span>`
             +     `<span class="pa-branch-text"><b>${esc(cobro.name)}</b><small>${this.turnLine(cobro)}</small></span>`
             +     (fixed ? '' : `<span class="pa-branch-chev">${this.ico('chevron-down')}</span>`)
@@ -616,7 +620,7 @@ class OrderPay extends Templates {
         const cobro = this.cobroBranch();
         const home  = this.sessionBranch();
         const go    = (act, icon, text) => `<button type="button" class="pa-alert-go" data-act="${act}">${this.ico(icon)}${esc(text)}</button>`;
-        const here  = home && home.id !== this.cobro && this.usable(home) ? go('cobro-here', 'landmark', `Cobrar en ${home.name}`) : '';
+        const here  = this.pickOk && home && home.id !== this.cobro && this.usable(home) ? go('cobro-here', 'landmark', `Cobrar en ${home.name}`) : '';
 
         let title = '';
         let text  = '';
@@ -1350,7 +1354,7 @@ class OrderPay extends Templates {
 
     // Otra sucursal que cobra: otro turno y otro catálogo de formas de pago. La observación se queda.
     pickBranch(id) {
-        if (!this.branchOf(id) || Number(id) === this.cobro) return;
+        if (!this.pickOk || !this.branchOf(id) || Number(id) === this.cobro) return;
 
         const note = $('#paNote').val() || '';
 
@@ -1602,7 +1606,7 @@ class OrderPay extends Templates {
 
         if (answer && answer.isConfirmed) await orderDetail.print(this.o.id);
 
-        // La entrega pide la contraseña: esa ventana es la confirmación.
+        // La ventana de la entrega es la confirmación (sin contraseña).
         if (handOver) return orderDetail.deliver(this.o.id, { fromDetail: this.fromDetail });
 
         this.back();

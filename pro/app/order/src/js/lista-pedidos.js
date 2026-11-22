@@ -14,6 +14,7 @@ let orders, orderDetail, orderForm, orderTurn, orderPay, orderClosure;
 let dataInit = {};
 
 const ORD_CALENDAR_API = 'ctrl/ctrl-calendario.php';
+const ORD_CLIENTS_API  = 'ctrl/ctrl-clientes.php';   // «Editar cliente» del menú de la fila
 
 $(async () => {
     dataInit = (await useFetch({ url: api, data: { opc: 'init' } })) || {};
@@ -54,6 +55,7 @@ class Orders extends Templates {
         this.view         = 'list';  // list | calendar | board
         this.calendar     = null;    // OrderCalendar, se arma la primera vez que se abre
         this.board        = null;    // OrderBoard, igual
+        this.savingCustomer = false; // «Editar cliente» en curso
     }
 
     get filters() {
@@ -579,8 +581,8 @@ class Orders extends Templates {
     // -- Columna Entrega --
 
     /*  El badge de Entrega abre un menú con los dos estados, como alpha: el
-        actual marcado y el otro con su ventana de siempre (entregar con
-        contraseña, cobrar y entregar, o deshacer con motivo). El ctrl manda en
+        actual marcado y el otro con su ventana de siempre (entregar,
+        cobrar y entregar, o deshacer con motivo). El ctrl manda en
         data-to qué ventana toca y, si no se puede, en data-why el porqué.
         Usa la clase de los menús de la tabla: se cierra con el mismo clic afuera. */
     deliveryMenu(btn, e) {
@@ -647,6 +649,76 @@ class Orders extends Templates {
                 run();
             }
         }));
+    }
+
+    // -- Cliente --
+
+    /*  «Editar cliente» del menú de la fila: nombre, teléfono y correo, con
+        las reglas de Clientes (ctrl-clientes › editCustomer: 10 dígitos, sin
+        repetir teléfono). El crédito no viaja: se sigue dando en Clientes. */
+    async editCustomer(customerId) {
+        $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        if (this.savingCustomer) return;
+
+        const data = await useFetch({ url: ORD_CLIENTS_API, data: { opc: 'getCustomer', id: customerId } });
+
+        if (!data || data.status != 200 || !data.row) {
+            return alert({ icon: 'info', title: 'No se abrió el cliente', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+        }
+
+        const c = data.row;
+
+        this.csModal({
+            id:         'modalOrderCustomerEdit',
+            title:      'Editar cliente',
+            subtitle:   c.since ? `Cliente desde ${c.since}` : '',
+            lucideIcon: 'pencil',
+            width:      'max-w-md',
+            saveText:   'Guardar cambios',
+            cancelText: 'Cancelar',
+            info:       'El cambio sale en todos los pedidos del cliente.',
+            json: [
+                { id: 'oce_name', lbl: 'Nombre', required: true, maxlength: 120, value: c.name || '', class: 'w-full' },
+                { id: 'oce_phone', lbl: 'Teléfono', required: true, maxlength: 16, ph: '10 dígitos', value: c.phone || '', class: 'w-full' },
+                { id: 'oce_email', lbl: 'Correo', maxlength: 120, ph: 'Opcional', value: c.email || '', class: 'w-full' }
+            ],
+            onSave: (values, close) => this.saveCustomer(c.id, values, close)
+        });
+
+        $('#oce_phone')
+            .attr({ inputmode: 'numeric', autocomplete: 'off' })
+            .on('input', (e) => { e.target.value = e.target.value.replace(/[^\d\s-]/g, ''); });
+
+        $('#oce_email').attr({ inputmode: 'email', autocomplete: 'off' });
+    }
+
+    async saveCustomer(id, values, close) {
+        if (this.savingCustomer) return;
+
+        const name  = String(values.oce_name || '').trim().replace(/\s+/g, ' ');
+        const phone = String(values.oce_phone || '').replace(/\D/g, '');
+        const email = String(values.oce_email || '').trim();
+        const warn  = (text) => alert({ icon: 'warning', title: 'Revisa el cliente', text: text, btn1: true, btn1Text: 'Entendido' });
+
+        if (!name)               return warn('Escribe el nombre del cliente.');
+        if (phone.length !== 10) return warn('El teléfono debe tener 10 dígitos.');
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return warn('El correo no tiene un formato válido.');
+
+        this.savingCustomer = true;
+
+        const button = $('#modalOrderCustomerEdit .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({ url: ORD_CLIENTS_API, data: { opc: 'editCustomer', id: id, name: name, phone: phone, email: email } });
+
+        this.savingCustomer = false;
+        button.prop('disabled', false);
+
+        // Teléfono repetido o dato inválido: la ventana sigue abierta con lo escrito.
+        if (!data || data.status != 200) return warn((data && data.message) || 'No se guardó el cliente. Vuelve a intentar.');
+
+        close();
+        alert({ icon: 'success', title: data.message, timer: 1400 });
+        this.lsOrders();
     }
 
     // -- Complements --
@@ -747,13 +819,27 @@ class Orders extends Templates {
 /*  En la lista, «Nuevo pedido» y «Editar» (fila, detalle, tablero, calendario
     y la ventana de pagos) llevan a pedido.php. Editar revisa aquí que se pueda
     y avisa si el pedido ya está en un corte: si no se edita, no se cambia de
-    página. Cancelar y eliminar siguen siendo de OrderForm, aquí en la lista. */
+    página. Cancelar y eliminar siguen siendo de OrderForm, aquí en la lista.
+    «Nuevo pedido» también: sin turno, el aviso sale sobre la lista y no se
+    cambia de página; con «Abrir turno», al quedar abierto sigue a la captura. */
 class OrderLink extends OrderForm {
 
-    add() {
+    async add() {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
-        location.href = this.formUrl(0);
+        if (this.checking) return;
+
+        this.checking = true;
+
+        const data = await useFetch({ url: this._link, data: { opc: 'getNewOrderTurn' } });
+
+        this.checking = false;
+
+        const go = () => { location.href = this.formUrl(0); };
+
+        if (data && data.status == 200) return go();
+
+        this.warnFail(data, 'No se pudo abrir la captura', go);
     }
 
     async edit(id) {

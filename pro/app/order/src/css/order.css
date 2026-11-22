@@ -365,6 +365,32 @@ body:not(.dark-mode) .swal2-cancel:hover {
     background-color: #F5F5F4 !important;
 }
 
+/* -- Pedido actualizado: lo que cambió (OrderDetail.deliveryChangesHtml) --
+   Una tarjeta con un renglón por campo: el nombre arriba; abajo lo de antes
+   (gris, tachado) y lo nuevo (verde). Lo largo (la nota) baja de renglón. */
+.ord-chg { margin: 2px 0 0; text-align: left; }
+.ord-chg-count { margin: 0 0 10px !important; font-size: 13px; text-align: center; }
+.ord-chg-list { margin: 0 !important; padding: 0 !important; list-style: none; overflow: hidden; border: 1px solid #E7E5E4; border-radius: 12px; background: #FAFAF9; }
+.ord-chg-row { display: flex; flex-direction: column; gap: 5px; padding: 10px 14px; }
+.ord-chg-row + .ord-chg-row { border-top: 1px solid #E7E5E4; }
+.ord-chg-field { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #A8A29E; }
+.ord-chg-vals { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.ord-chg-old,
+.ord-chg-new { max-width: 100%; padding: 2px 8px; border-radius: 6px; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.ord-chg-old { background: #F5F5F4; color: #A8A29E; text-decoration: line-through; }
+.ord-chg-new { background: #ECFDF5; color: #047857; font-weight: 600; }
+.ord-chg-arrow { font-size: 13px; color: #A8A29E; }
+body.dark-mode .ord-chg-list { border-color: var(--dk-line, #374151); background: rgb(255 255 255 / .03); }
+body.dark-mode .ord-chg-row + .ord-chg-row { border-top-color: var(--dk-line, #374151); }
+body.dark-mode .ord-chg-field,
+body.dark-mode .ord-chg-arrow { color: #9CA3AF; }
+body.dark-mode .ord-chg-old { background: rgb(255 255 255 / .06); color: #9CA3AF; }
+body.dark-mode .ord-chg-new { background: rgb(16 185 129 / .14); color: #6EE7B7; }
+
+/* Quién sí puede, resaltado dentro del aviso (ordWhoCan, pedido-detalle.js). */
+.ord-who-can { padding: 1px 6px; border-radius: 6px; background: rgb(var(--brand-600, 192 90 64) / .10); color: rgb(var(--brand-700, 160 72 51)); font-weight: 700; white-space: nowrap; }
+body.dark-mode .ord-who-can { background: rgb(var(--brand-600, 192 90 64) / .22); color: rgb(var(--brand-200, 243 199 186)); }
+
 /* -- Medida estándar de los avisos --
    Todos los avisos del módulo miden lo mismo: 360 px de ancho y al menos 368 px
    de alto (el alto de «Abrir turno», el más alto de los chicos). Así «¿Aperturar
@@ -553,6 +579,9 @@ body.dark-mode #cajaStrip button#btnOrderBack:focus-visible { box-shadow: 0 0 0 
 
 /* La hora es el campo del reloj de ruedas (components/pos-time.js): mismo alto que la fecha. */
 .sale-pos #formOrderTicket .pos-tm { height: 34px; }
+
+/* Editar entrega / editar pagado (OrderDetail.editDelivery): el reloj al alto de la fecha de al lado (34 px medidos). */
+#modalOrderDelivery .pos-tm { height: 34px; }
 
 /* Sin cliente: un punto chico y lento dentro del selector, esperando que se elija uno (waitCustomer). */
 #formOrderTicket .ord-wait .select2-selection__rendered::before {
@@ -1805,9 +1834,22 @@ body.dark-mode .ord-close-diff.is-blind { color: var(--dk-text-soft, #D1D5DB); b
    alto sin barra de scroll. La barra solo sale si el ticket de verdad no cabe (el Detallado). */
 .ord-desk-view .ord-desk-paper { max-height: max(360px, calc(100vh - 290px)); padding-bottom: 16px; }
 
-/* Cierre del día (Corte Z con zoom): alto fijo. Si siguiera al papel, la ventana se
-   recentraría con cada clic de zoom y el botón se movería debajo del cursor. */
-#modalOrderClosure .ord-desk-view .ord-desk-paper { flex: none; height: max(360px, calc(100vh - 290px)); }   /* flex: 1 de .ord-viewer-desk ignoraría el alto */
+/* Cierre del día: las medidas del «Cierre del Día» de alpha (app.js › printDailyClose),
+   tomadas de su modal en pantalla: 940 px (82vw), cuerpo con 16 px, lateral de 220 px,
+   16 px entre columnas y la vista previa de 62vh (mínimo 380) con 24 px de relleno, que
+   deja la hoja en 622 px. Sin pie: alpha solo se cierra con la ×.
+   El alto es fijo: si siguiera al papel, la ventana se recentraría con cada clic de
+   zoom y el botón se movería debajo del cursor. */
+#modalOrderClosure .cs-modal-panel { width: 82vw; max-width: 940px; }
+#modalOrderClosure .cs-modal-foot { display: none; }
+#modalOrderClosure .ord-desk { gap: 16px; padding: 16px 17px; }   /* 17: el borde de 1 px del modal de alpha */
+#modalOrderClosure .ord-desk-side { width: 220px; }
+#modalOrderClosure .ord-desk-view { height: 62vh; min-height: 380px; }
+#modalOrderClosure .ord-desk-modes { padding: 24px 24px 0; }
+#modalOrderClosure .ord-desk-view .ord-desk-paper { flex: 1; height: auto; max-height: none; min-height: 0; padding: 16px 10px 24px; }   /* 10 + los 14 del iframe = los 24 de alpha */
+
+/* Alpha oculta las barras de scroll (index.php): sin el hueco de la barra, la hoja mide lo mismo. */
+#modalOrderClosure .ord-viewer-desk:has(> .ord-z-view) { scrollbar-width: none; scrollbar-gutter: auto; }
 
 .ord-desk-field { margin: 0; }
 .ord-desk-field > span,
@@ -1904,6 +1946,9 @@ body:not(.dark-mode) .ord-desk-modes button.ord-seg.is-active {
     .ord-desk-modes .ord-viewer-modes { width: 100%; }
     .ord-desk-view .ord-desk-paper,
     #modalOrderClosure .ord-desk-view .ord-desk-paper { flex: 1; max-height: none; min-height: 0; height: auto; }
+    #modalOrderClosure .cs-modal-panel { width: 98vw; }   /* alpha en celular */
+    #modalOrderClosure .ord-desk-side { width: auto; }
+    #modalOrderClosure .ord-desk-view { height: auto; }
 }
 
 body.dark-mode .ord-desk-view { background: var(--dk-input, #111827); }

@@ -9,8 +9,11 @@
     Produccion (el ctrl manda limited = true) lo ve sin dinero: ni resumen de
     pago, ni precios, ni importes. El ctrl ya no manda esas cifras.
 
-    Entregar pide la contraseña de quien opera: deliver() abre la ventana y
-    saveDeliver() la manda al ctrl, que es quien la revisa.
+    Entregar solo confirma, sin contraseña: deliver() abre la ventana y
+    saveDeliver() marca el pedido en el ctrl.
+
+    Bitácora y «Capturó / Produjo» salen solo con su permiso (data.see, hoy
+    Dueño y Supervisor): sin él, el ctrl ni siquiera los manda.
 
     «Editar entrega» (como alpha) va al pie de Informacion y sale tambien en
     el calendario: editDelivery() cambia solo fecha, hora, tipo, direccion y
@@ -81,6 +84,11 @@ function ordRound(n) {
 // el title va en su caja (order.css › .ord-locked). why vacío = encendido.
 function ordLock(id, off, why) {
     $(`#${id}`).prop('disabled', !!off).parent().toggleClass('ord-locked', !!off).attr('title', off && why ? why : null);
+}
+
+// El porqué de un aviso de «no se puede editar», con quién sí puede resaltado (order.css › .ord-who-can). Devuelve HTML.
+function ordWhoCan(text) {
+    return esc(text).replace(/Dueño o Supervisor|Dueño|Supervisor/g, (who) => `<b class="ord-who-can">${who}</b>`);
 }
 
 // Hoja de ~80 mm en un iframe oculto: no abre ventana ni cambia de pagina.
@@ -469,7 +477,7 @@ class OrderDetail extends Templates {
                     <div class="lg:w-1/3 flex flex-col gap-[16px] min-w-0">
                         ${this.infoOrder(data)}
                         ${this.limited ? '' : this.infoSales(data)}
-                        ${this.historyCard(data.history || [])}
+                        ${data.see && data.see.history ? this.historyCard(data.history || []) : ''}
                     </div>
                     <div class="lg:w-2/3 min-w-0">
                         ${this.listProducts(data.lines || [])}
@@ -551,12 +559,15 @@ class OrderDetail extends Templates {
         const ship    = Number(o.delivery_method) === 1;
         const contact = [o.phone, o.email].filter(Boolean).map(esc).join(' · ');
 
+        // Capturó y Produjo: solo con su permiso (data.see.staff; hoy Dueño y Supervisor, como alpha).
+        const staff = !!(data.see && data.see.staff);
+
         const rows = [
             this.infoRow('file-text', 'Folio', `P${esc(o.folio || o.id)}`),
             this.infoRow('user', 'Cliente', esc(o.customer || 'Sin cliente'), contact),
             this.infoRow('clock', 'Creado', ordDate(o.created_at, true)),
-            this.infoRow('user-pen', 'Capturó', o.created_by ? esc(o.created_by) : none),
-            this.infoRow('cake', 'Produjo', o.produced_by ? esc(o.produced_by) : none, o.produced_at ? ordDate(o.produced_at, true) : ''),
+            staff ? this.infoRow('user-pen', 'Capturó', o.created_by ? esc(o.created_by) : none) : '',
+            staff ? this.infoRow('cake', 'Produjo', o.produced_by ? esc(o.produced_by) : none, o.produced_at ? ordDate(o.produced_at, true) : '') : '',
             this.infoRow('calendar', 'Entrega', o.delivery_date ? ordDate(o.delivery_date) : '<span class="font-normal text-gray-400">Sin fecha</span>', ordHour(o.delivery_time))
         ];
 
@@ -628,6 +639,14 @@ class OrderDetail extends Templates {
         if (can.delivery) {
             side.push(btn('ord-edit-delivery', can.delivery_key ? 'lock' : 'pencil', 'Editar entrega', `orderDetail.editDelivery(${id}, { fromDetail: true })`,
                 can.delivery_key ? 'Editar datos de entrega (pide tu contraseña)' : 'Editar datos de entrega'));
+        } else if ([1, 2].includes(Number(o.sale_status_id))) {
+            /*  Cotización o pendiente que el rol no puede tocar (la Cajera no
+                tiene el permiso «Editar entrega»): el botón se ve apagado con su
+                porqué. El apagado no recibe el mouse: el title va en su caja
+                (order.css › .ord-locked). */
+            side.push(`<span class="ord-locked" title="${esc(can.delivery_reason || 'Tu rol no puede editar la entrega.')}">
+                <button type="button" class="ord-edit-delivery" disabled><i data-lucide="lock" class="w-4 h-4"></i>Editar entrega</button>
+            </span>`);
         }
 
         if (can.undeliver) side.push(btn('ord-undeliver', 'undo-2', 'Deshacer entrega', `orderDetail.undeliver(${id}, { fromDetail: true })`));
@@ -1218,11 +1237,11 @@ class OrderDetail extends Templates {
 
     // -- Entrega y elaboracion --
 
-    /*  Entregar pide la contraseña de quien opera: esta ventana es la
-        confirmacion (badge o menu de la tabla, detalle o al terminar «Cobrar y
-        entregar»). Es createCoffeeModalForm, el modal compacto de Huubie
-        (coffee-modal-form.js). Si vino del detalle, lo cierra antes y lo vuelve
-        a abrir al terminar o al volver (onCancel). */
+    /*  Entregar solo confirma, sin contraseña: la ventana dice qué pedido
+        queda entregado (badge o menu de la tabla, detalle o al terminar
+        «Cobrar y entregar»). Es createCoffeeModalForm, el modal compacto de
+        Huubie (coffee-modal-form.js). Si vino del detalle, lo cierra antes y
+        lo vuelve a abrir al terminar o al volver (onCancel). */
     deliver(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
@@ -1233,7 +1252,6 @@ class OrderDetail extends Templates {
 
         if (fromDetail) $('#modalOrderDetails .cs-modal-x').trigger('click');
 
-        // Sin required: saveDeliver dice qué falta bajo el campo (#modalOrderDeliver-help).
         this.createCoffeeModalForm({
             id:          'modalOrderDeliver',
             title:       'Entregar pedido',
@@ -1244,55 +1262,35 @@ class OrderDetail extends Templates {
             footerNote:  'Queda como entregado y ya no se edita.',
             json: [
                 { opc: 'display', id: 'folio', lbl: 'Pedido', icon: '<i data-lucide="receipt" class="w-4 h-4"></i>', value: `#P${id}` },
-                { opc: 'text', type: 'password', id: 'key', lbl: 'Tu contraseña', autofocus: true },
-                { opc: 'html', html: '<p id="modalOrderDeliver-help" class="text-[11px] text-gray-400 mb-0">La misma con la que entras a Huubie.</p>' }
+                { opc: 'html', html: '<p class="text-[12px] text-gray-500 mb-0">Marca que el pedido ya se entregó al cliente.</p>' }
             ],
-            onConfirm: (values, modal) => { this.saveDeliver(id, values, modal, back); },
+            onConfirm: (values, modal) => { this.saveDeliver(id, modal, back); },
             onCancel:  back
         });
 
-        // one-time-code: el navegador no la rellena sola (si no, la clave no pediria nada).
-        $('#modalOrderDeliver-key')
-            .attr({ autocomplete: 'one-time-code', spellcheck: 'false' })
-            .on('keydown', (e) => {
-                if (e.key !== 'Enter') return;
-
-                e.preventDefault();
-                $('#modalOrderDeliver .cf-confirm').trigger('click');
-            });
+        // Sin campo que escribir: Enter confirma desde el botón.
+        $('#modalOrderDeliver .cf-confirm').trigger('focus');
     }
 
-    // El ctrl revisa la contraseña. Si falla (data.key) la ventana sigue abierta y lo dice bajo el campo.
-    async saveDeliver(id, values, modal, back) {
+    async saveDeliver(id, modal, back) {
         if (this.delivering) return;
-
-        const field = $('#modalOrderDeliver-key');
-        const key   = String(values.key || '');
-        const wrong = (text) => {
-            $('#modalOrderDeliver-help').removeClass('text-gray-400').addClass('text-red-600 font-semibold').text(text);
-            field.val('').trigger('focus');
-        };
-
-        if (!key) return wrong('Escribe tu contraseña para entregar.');
 
         this.delivering = true;
 
         const button = $('#modalOrderDeliver .cf-confirm').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id, key: key } });
+        const data   = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id } });
 
         this.delivering = false;
         button.prop('disabled', false);
 
-        if (!data)    return wrong('No hubo respuesta. Revisa la conexión y vuelve a intentar.');
-        if (data.key) return wrong(data.message || 'Contraseña incorrecta.');
-
         // modal.close() no dispara onCancel: el detalle se reabre abajo, con back().
         modal.close();
 
-        if (data.status != 200) {
-            const soft = [403, 404, 409].includes(Number(data.status));
+        if (!data || data.status != 200) {
+            const soft = !!data && [403, 404, 409].includes(Number(data.status));
+            const text = data ? (data.message || 'Vuelve a intentar.') : 'No hubo respuesta. Revisa la conexión y vuelve a intentar.';
 
-            await alert({ icon: soft ? 'info' : 'error', title: 'No se entregó', text: data.message || 'Vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+            await alert({ icon: soft ? 'info' : 'error', title: 'No se entregó', text: text, btn1: true, btn1Text: 'Entendido' });
 
             return back();
         }
@@ -1414,7 +1412,7 @@ class OrderDetail extends Templates {
             alert({
                 icon:     'info',
                 title:    paid ? 'No se puede editar' : 'No se puede editar la entrega',
-                text:     (paid ? can.edit_paid_reason : can.delivery_reason) || 'Este pedido ya no se edita.',
+                html:     ordWhoCan((paid ? can.edit_paid_reason : can.delivery_reason) || 'Este pedido ya no se edita.'),
                 btn1:     true,
                 btn1Text: 'Entendido'
             });
@@ -1483,8 +1481,10 @@ class OrderDetail extends Templates {
 
         orderPay.onDismiss('modalOrderDelivery', back);
 
-        // csModal no tiene campo de hora ni de contraseña: se pintan de texto y aqui se cambian.
-        $('#ed_time').attr('type', 'time');
+        /*  csModal no tiene campo de hora ni de contraseña: se pintan de texto y
+            aqui se cambian. La hora lleva el reloj de ruedas de la captura
+            (components/pos-time.js); #ed_time sigue guardando HH:MM. */
+        this.posTime({ input: 'ed_time', title: 'Hora de entrega' });
 
         // La direccion solo va con envio.
         const place = () => $('#ed_location').closest('.px-2').toggleClass('hidden', $('#ed_method').val() !== '1');
@@ -1583,22 +1583,25 @@ class OrderDetail extends Templates {
         back();
     }
 
-    // Un renglon por cambio: campo, antes tachado y despues resaltado.
+    /*  Un renglon por cambio dentro de una tarjeta (order.css › .ord-chg): el
+        campo arriba; abajo, lo de antes en gris tachado y lo nuevo en verde. */
     deliveryChangesHtml(changes) {
         if (!changes.length) return '<p class="text-[14px] mb-0">No cambió ningún dato de entrega.</p>';
 
         const cut  = (t) => { const s = String(t == null ? '' : t); return s.length > 120 ? s.slice(0, 117) + '…' : s; };
         const rows = changes.map((c) => `
-            <li class="py-1.5 break-words">
-                <span class="block text-[11px] font-semibold uppercase tracking-wide opacity-60">${esc(c.field)}</span>
-                <span class="line-through opacity-60">${esc(cut(c.before))}</span>
-                <span class="mx-1 opacity-60">→</span>
-                <span class="font-semibold">${esc(cut(c.after))}</span>
+            <li class="ord-chg-row">
+                <span class="ord-chg-field">${esc(c.field)}</span>
+                <span class="ord-chg-vals">
+                    <span class="ord-chg-old">${esc(cut(c.before))}</span>
+                    <span class="ord-chg-arrow" aria-label="cambió a">→</span>
+                    <span class="ord-chg-new">${esc(cut(c.after))}</span>
+                </span>
             </li>`).join('');
 
         const count = changes.length === 1 ? 'Se guardó 1 cambio' : `Se guardaron ${changes.length} cambios`;
 
-        return `<p class="text-[13px] mb-1">${count}:</p><ul class="text-left text-[13px] mb-0 pl-0 list-none">${rows}</ul>`;
+        return `<div class="ord-chg"><p class="ord-chg-count">${count}</p><ul class="ord-chg-list">${rows}</ul></div>`;
     }
 
     // -- Descuento --

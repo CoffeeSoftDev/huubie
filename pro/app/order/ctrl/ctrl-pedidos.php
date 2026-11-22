@@ -24,7 +24,8 @@ require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
         quien opera (core::needKey), antes de tocar la base. Dueño y
         Supervisor cancelan cualquier pedido; la cajera, solo cotizaciones.
       - «Editar entrega» cambia solo fecha, hora, tipo, direccion y nota
-        (core::editDelivery). Sirve tambien en un pagado: ahi lo autoriza Dueño
+        (core::editDelivery) y pide su permiso, «Editar entrega» (hoy Dueño y
+        Supervisor). Sirve tambien en un pagado: ahi lo autoriza Dueño
         o Supervisor con su contraseña. «Editar» un pagado (editPaidOrder) cambia
         lo mismo, pero lo hace quien edita pedidos, con su contraseña.
       - Nombre y precio de un producto del catalogo, y precio de cada opcion del
@@ -41,6 +42,9 @@ class ctrl extends core {
     const MAX_LINES  = 100;
     const MAX_PHOTOS = 10;
     const IMAGE_MAX  = 5242880;
+
+    // «Editar cliente» del menú de la fila pide 'update' de Clientes.
+    const CLIENTS = 'pos-clientes';
 
     // Tipo de getimagesize() -> extension con la que se guarda.
     private $imageTypes = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif', IMAGETYPE_WEBP => 'webp'];
@@ -93,11 +97,12 @@ class ctrl extends core {
             $turn    = $this->qOpenTurn($this->branchId());
             $turnId  = $turn ? (int) $turn['id'] : 0;
             $actions = $this->actions();
+            $editCus = Permission::can(self::CLIENTS, 'update');
 
             $rows = [];
 
             foreach ($this->qListOrders($filters) as $order) {
-                $rows[] = $this->orderRow($order, $turnId, $actions);
+                $rows[] = $this->orderRow($order, $turnId, $actions, $editCus);
             }
 
             $answer = [
@@ -269,8 +274,9 @@ class ctrl extends core {
         sucursal (vista «todas») sigue las reglas de alpha (core::foreignBlock):
         Dueño todo; Cajero editar y cobrar y, con turno abierto allá, entregar;
         Supervisor nada desde la fila (sus datos de entrega van en el detalle);
-        los demás Ver e Imprimir. Sus importes abren los pagos solo si puede cobrar. */
-    private function orderRow($o, $turnId, array $actions) {
+        los demás Ver e Imprimir. Sus importes abren los pagos solo si puede cobrar.
+        $editCustomer: el rol edita clientes ('update' de pos-clientes). */
+    private function orderRow($o, $turnId, array $actions, $editCustomer = false) {
         $id        = (int) $o['id'];
         $statusId  = (int) $o['sale_status_id'];
         $cancelled = $statusId === self::CANCELLED;
@@ -317,6 +323,11 @@ class ctrl extends core {
 
         if (in_array('print', $actions, true)) {
             $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
+        }
+
+        // Corregir nombre, teléfono o correo del cliente sin salir de la lista (ctrl-clientes › editCustomer).
+        if ($editCustomer && (int) $o['customer_id'] > 0) {
+            $menu[] = ['icon' => 'icon-user', 'text' => 'Editar cliente', 'onclick' => 'orders.editCustomer(' . (int) $o['customer_id'] . ')'];
         }
 
         // Como alpha (Eliminar descuento): cotización o pendiente. El corte cerrado lo revisa ctrl-cobro.
@@ -614,6 +625,14 @@ class ctrl extends core {
     }
 
     // -- Captura: opciones --
+
+    // «Nuevo pedido» de la lista: el turno se revisa ANTES de ir a pedido.php,
+    // con la misma regla que formOptions (is_new). 200 = se puede capturar.
+    public function getNewOrderTurn() {
+        $fail = $this->need('create') ?: $this->needBranch() ?: $this->needTurn();
+
+        return $fail ?: ['status' => 200];
+    }
 
     // order_id: editar un pedido de otra sucursal trae el catálogo y los clientes de la suya.
     // Crear y editar piden el turno de hoy abierto, como alpha (editar: core::needEditTurn).

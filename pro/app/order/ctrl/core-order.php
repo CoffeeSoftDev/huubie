@@ -25,6 +25,13 @@ class core extends mdl {
     // El calendario (Producción): palomea «ya se elaboró» con su 'update'.
     const CALENDAR = 'pos-calendario';
 
+    /*  Acciones propias de Pedidos (type_permissions, migración 2026-11-21):
+        hoy las tienen Dueño y Supervisor; Configuración › Roles las da a otro
+        perfil sin tocar código. */
+    const EDIT_DELIVERY = 'editar-entrega';        // «Editar entrega» del detalle
+    const SEE_LOG       = 'ver-bitacora';          // tarjeta Bitácora del detalle
+    const SEE_STAFF     = 'ver-capturo-produjo';   // renglones Capturó y Produjo
+
     // Estados de sale_status (plantillas de Huubie, iguales en todas las bases).
     const QUOTE     = 1;
     const PENDING   = 2;
@@ -34,7 +41,7 @@ class core extends mdl {
     // Días hacia atrás en que se buscan días sin cerrar (como alpha).
     const PENDING_WINDOW = 15;
 
-    // Contraseña (entregar, cancelar, quitar un pago, editar un pagado o su entrega):
+    // Contraseña (cancelar, quitar un pago, editar un pagado o su entrega, eliminar):
     // fallos seguidos que se toleran y segundos de espera después.
     const KEY_TRIES = 5;
     const KEY_WAIT  = 300;
@@ -782,14 +789,14 @@ class core extends mdl {
             && round((float) $o['total'] - (float) $o['paid'], 2) > 0.005;
     }
 
-    /*  Entregar pide la contraseña de quien opera, la misma con la que entra
-        (como alpha). null = correcta. Las respuestas llevan key = true para que
-        la pantalla deje la ventana abierta y marque el campo.
+    /*  La contraseña de quien opera, la misma con la que entra. null =
+        correcta. Las respuestas llevan key = true para que la pantalla deje la
+        ventana abierta y marque el campo.
         KEY_TRIES fallos seguidos hacen esperar KEY_WAIT segundos: sin ese freno
         la contraseña se podría adivinar probando desde una caja abierta.
-        $what completa los avisos: «para entregar», «para cancelar», «para quitar
-        un pago», «para editar la entrega». */
-    protected function needKey($what = 'entregar') {
+        $what completa los avisos: «para cancelar», «para quitar un pago»,
+        «para editar la entrega», «para eliminar». Entregar ya no la pide. */
+    protected function needKey($what) {
         $guard = isset($_SESSION['order_key']) && is_array($_SESSION['order_key']) ? $_SESSION['order_key'] : [];
         $fails = isset($guard['fails']) ? (int) $guard['fails'] : 0;
         $until = isset($guard['until']) ? (int) $guard['until'] : 0;
@@ -835,15 +842,15 @@ class core extends mdl {
 
     /*  Marca entregado. Valida despues de bloquear el pedido (FOR UPDATE): dos
         clics o dos cajas a la vez no lo entregan dos veces. sale no tiene
-        delivered_at: la hora queda en la bitacora. Pide 'update' de Pedidos y
-        la contraseña de quien entrega, antes de tocar la base. */
+        delivered_at: la hora queda en la bitacora con quien entregó. Pide
+        'update' de Pedidos; sin contraseña (la pantalla solo confirma). */
     protected function deliver($id) {
         $fail = $this->need('update', 'entregar pedidos') ?: $this->needBranch();
         if ($fail) return $fail;
 
         if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
 
-        $fail = $this->adoptOrderBranch($id, 'deliver') ?: $this->needKey();
+        $fail = $this->adoptOrderBranch($id, 'deliver');
         if ($fail) return $fail;
 
         return $this->attempt(function () use ($id) {
@@ -935,15 +942,15 @@ class core extends mdl {
 
     /*  «Editar datos de entrega» (como alpha): solo fecha, hora, tipo de
         entrega, dirección y nota. Lo abren Pedidos y Calendario desde el
-        detalle, así que no depende de ver la tabla. Pide 'update' de Pedidos.
-        Un pedido pagado lo autoriza Dueño o Supervisor (permiso cancel) con su
-        contraseña.
+        detalle, así que no depende de ver la tabla. Pide el permiso «Editar
+        entrega» de Pedidos (EDIT_DELIVERY). Un pedido pagado lo autoriza Dueño
+        o Supervisor (permiso cancel) con su contraseña.
         $paidEdit = «Editar» de un pedido pagado (alpha › editOrderPaid): los
         mismos campos, pero lo hace quien edita pedidos, con su contraseña y el
         turno de hoy abierto. Todo se valida antes de escribir: transaction()
         confirma lo hecho aunque se devuelva un fail. */
     protected function editDelivery($id, $paidEdit = false) {
-        $fail = $this->need('update', $paidEdit ? 'editar pedidos' : 'editar la entrega de pedidos') ?: $this->needBranch();
+        $fail = ($paidEdit ? $this->need('update', 'editar pedidos') : $this->need(self::EDIT_DELIVERY, 'editar la entrega de pedidos')) ?: $this->needBranch();
         if ($fail) return $fail;
 
         if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
@@ -1115,13 +1122,24 @@ class core extends mdl {
         $payments = $this->qPayments($id);
         $can      = $foreign ? $this->foreignCan($order, $place, $payments) : $this->orderCan($order, $payments);
 
+        /*  Bitácora y «Capturó / Produjo»: solo con su permiso (hoy Dueño y
+            Supervisor). Sin él no viajan: ni con las herramientas del navegador
+            se ven. produced_at sí va: con él se pinta «Ya se elaboró». */
+        $see = [
+            'history' => Permission::can(self::SECTION, self::SEE_LOG),
+            'staff'   => Permission::can(self::SECTION, self::SEE_STAFF)
+        ];
+
+        if (!$see['staff']) unset($order['created_by'], $order['produced_by']);
+
         $bundle = [
             'status'    => 200,
             'branch'    => $foreign ? $place['branch'] : $branch,
             'order'     => $order,
             'lines'     => $lines,
             'payments'  => $payments,
-            'history'   => $this->qHistory($id),
+            'history'   => $see['history'] ? $this->qHistory($id) : [],
+            'see'       => $see,
             'actions'   => $this->actions(),
             'can'       => $can,
             'limited'   => false,
@@ -1217,9 +1235,11 @@ class core extends mdl {
         $delete  = $this->isRoot() ? $this->deleteBlock($order) : 'Solo root (Developer) puede eliminar pedidos.';
         $lockOld = $update && $this->lockOld($order, $actions);
 
-        // Datos de entrega: el pagado lo edita solo Dueño o Supervisor, con contraseña.
+        /*  Datos de entrega: pide el permiso «Editar entrega» (hoy Dueño y
+            Supervisor; la Cajera lo ve apagado). El pagado, además, solo Dueño
+            o Supervisor, con contraseña. */
         $isPaid   = (int) $order['sale_status_id'] === self::PAID;
-        $delivery = !$update ? 'Tu rol no puede editar pedidos.' : $this->deliveryBlock($order);
+        $delivery = !in_array(self::EDIT_DELIVERY, $actions, true) ? 'Tu rol no tiene el permiso «Editar entrega».' : $this->deliveryBlock($order);
 
         if ($delivery === '' && $isPaid && !$boss) $delivery = 'La entrega de un pedido pagado la edita Dueño o Supervisor.';
 
