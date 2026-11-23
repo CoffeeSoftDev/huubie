@@ -464,6 +464,36 @@ class mdl extends CRUD {
         ", array_merge(array_values($branchIds), [$fi, $ff]));
     }
 
+    /*  En qué meses (de entrega) tiene pedidos un cliente: por mes, sucursal y
+        estado, con su primer día. El ctrl quita lo que el rol no ve.
+        $like = nombre; $phone = teléfono sin espacios ni guiones (o null). */
+    public function qCustomerMonths(array $branchIds, $like, $phone) {
+        $or   = ['c.name LIKE ?'];
+        $data = [$like];
+
+        if ($phone !== null) {
+            $or[]   = "REPLACE(REPLACE(IFNULL(c.phone, ''), ' ', ''), '-', '') LIKE ?";
+            $data[] = $phone;
+        }
+
+        return $this->qRows("
+            SELECT
+                DATE_FORMAT(s.delivery_date, '%Y-%m') AS ym,
+                s.branch_id,
+                s.sale_status_id,
+                COUNT(*)             AS total,
+                MIN(s.delivery_date) AS first_date
+            FROM {$this->pos}sale s
+            INNER JOIN {$this->pos}customer c ON c.id = s.customer_id
+            WHERE s.branch_id IN ({$this->qIn($branchIds)})
+                AND s.sale_type_id = 1
+                AND IFNULL(s.active, 1) = 1
+                AND s.delivery_date IS NOT NULL
+                AND (" . implode(' OR ', $or) . ")
+            GROUP BY ym, s.branch_id, s.sale_status_id
+        ", array_merge(array_values($branchIds), $data));
+    }
+
     // -- Detalle --
 
     // Solo si es un pedido de esa sucursal: el id solo no basta.

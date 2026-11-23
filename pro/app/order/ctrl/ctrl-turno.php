@@ -24,7 +24,8 @@ require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
       - Recalcular: turno cerrado y su dia sin cerrar. Lo contado, las fechas y
         quien cerro no cambian. La nota queda en reopen_reason con fecha y hora.
 
-    Permisos: abrir y cerrar = create (la cajera). Reabrir y recalcular = cancel (Dueño, Supervisor). */
+    Permisos: abrir y cerrar = create (la cajera). Reabrir y recalcular =
+    «Reabrir o recalcular turno» (core::TURN_FIX; hoy Dueño y Supervisor). */
 class ctrl extends core {
     use WhatsAppNotices;
 
@@ -330,7 +331,7 @@ class ctrl extends core {
 
     private function turnCan($turn, $open) {
         $create = $this->need('create') === null;
-        $boss   = $this->need('cancel') === null;
+        $boss   = $this->need(self::TURN_FIX) === null;
         $reopen = $boss ? $this->reopenBlock($turn, $open) : 'Tu rol no puede reabrir turnos.';
         $recalc = $boss ? $this->recalcBlock($turn) : 'Tu rol no puede recalcular turnos.';
         $day    = $create && !$open ? $this->dayBlock() : '';
@@ -541,7 +542,7 @@ class ctrl extends core {
     // -- Recalcular --
 
     public function recalcTurn() {
-        $fail = $this->need('cancel', 'recalcular turnos') ?: $this->needBranch();
+        $fail = $this->need(self::TURN_FIX, 'recalcular turnos') ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id    = $this->postId();
@@ -595,7 +596,7 @@ class ctrl extends core {
     // -- Reabrir --
 
     public function reopenTurn() {
-        $fail = $this->need('cancel', 'reabrir turnos') ?: $this->needBranch();
+        $fail = $this->need(self::TURN_FIX, 'reabrir turnos') ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id     = $this->postId();

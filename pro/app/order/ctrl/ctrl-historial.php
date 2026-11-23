@@ -315,7 +315,7 @@ class ctrl extends core {
                 'money_reason'   => '',
                 'deliver'        => false,
                 'settle'         => false,
-                'undeliver'      => false
+                'delivery_state' => false
             ],
             'limited'  => false,
             'ticket'   => $this->ticketOf($sale, $lines, $payments, $credit, $points ? (float) $points['amount'] : 0) + ['stamps' => $alive ? $this->saleStampsInfo($id) : null],

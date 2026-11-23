@@ -177,41 +177,52 @@ button.ord-money:hover { background: rgb(var(--brand-600, 192 90 64) / .08); }
 button.ord-money:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 1px; }
 
 /* -- Columna Entrega --
-   El badge es un .ord-pill, como los de Pago, con una flecha: es botón y abre
-   el menú de estados (Orders.deliveryMenu). El fondo va en el .ord-pill de
-   dentro: el preflight de Tailwind pisa el de un [type=button].
-   No es .ord-deliver: ese es el botón verde «Entregar» del detalle. */
-button.ord-deliv-btn {
+   El badge es un .ord-pill, como los de Pago, con una flecha. Encima va un
+   <select> transparente del mismo tamaño: el clic abre la lista de los tres
+   estados de alpha y elegir uno guarda (OrderDetail.pickDelivery). Va
+   transparente porque compact.css y dark-mode.css pisan con !important el
+   tamaño de letra, el alto y el fondo de todo select: así el badge no cambia.
+   No es .ord-deliver: ese es «Estado de entrega» del detalle. */
+.ord-deliv-pick {
+    position: relative;
     display: inline-flex;
-    padding: 0;
     border-radius: 999px;
-    background: transparent;
     cursor: pointer;
 }
 
-button.ord-deliv-btn:hover { opacity: .8; }
-button.ord-deliv-btn:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 1px; }
+.ord-deliv-pick select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100% !important;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+}
 
-/* Menú de estados de entrega: el actual con palomita y el otro con su ventana.
-   Lleva la clase ct3-dropdown-menu para cerrarse con el clic afuera de la tabla. */
-ul.ord-deliv-menu { padding: 4px 0; border-color: rgb(var(--gray-200, 231 229 228)); background: #FFFFFF; color: rgb(var(--gray-800, 41 37 36)); }
-.ord-deliv-head { padding: 6px 14px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgb(var(--gray-400, 168 162 158)); }
-.ord-deliv-opt { display: flex; align-items: flex-start; gap: 8px; padding: 8px 14px; font-size: 13px; line-height: 1.35; text-align: left; }
-.ord-deliv-opt small { display: block; margin-top: 2px; font-size: 11px; font-weight: 400; color: rgb(var(--gray-500, 120 113 108)); }
-.ord-deliv-opt.is-current { font-weight: 600; }
-.ord-deliv-opt.is-off { color: rgb(var(--gray-400, 168 162 158)); cursor: not-allowed; }
-a.ord-deliv-opt { cursor: pointer; }
-a.ord-deliv-opt:hover { background: rgb(var(--brand-600, 192 90 64) / .08); color: rgb(var(--brand-700, 168 74 51)); }
-.ord-deliv-dot { width: 8px; height: 8px; margin-top: 5px; border-radius: 999px; flex-shrink: 0; }
-.ord-deliv-dot.is-done { background: #10B981; }
-.ord-deliv-dot.is-wait { background: #EF4444; }
-.ord-deliv-opt.is-off .ord-deliv-dot { opacity: .5; }
+.ord-deliv-pick:hover { opacity: .8; }
+.ord-deliv-pick:has(select:focus-visible) { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 1px; }
 
-body.dark-mode ul.ord-deliv-menu { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); color: var(--dk-text, #F3F4F6); }
-body.dark-mode .ord-deliv-opt small,
-body.dark-mode .ord-deliv-head,
-body.dark-mode .ord-deliv-opt.is-off { color: var(--dk-muted, #9CA3AF); }
-body.dark-mode a.ord-deliv-opt:hover { background: var(--dk-row, #283341); color: var(--dk-text, #F3F4F6); }
+/* Ventana «Estado de entrega» (deliveryState): los tres estados de alpha, uno
+   por renglón, con sus colores (verde, rosa, rojo). Un clic guarda. El de
+   ahora sale apagado con la etiqueta «Actual». */
+.ord-dstates { display: grid; gap: 8px; }
+button.ord-dstate { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 0 14px; border: 1px solid transparent; border-radius: 10px; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; }
+button.ord-dstate small { margin-left: auto; font-size: 11px; font-weight: 600; opacity: .8; }
+button.ord-dstate.is-done { border-color: #A7F3D0; background: #ECFDF5; color: #047857; }
+button.ord-dstate.is-make { border-color: #FBCFE8; background: #FDF2F8; color: #BE185D; }
+button.ord-dstate.is-wait { border-color: #FECACA; background: #FEF2F2; color: #B91C1C; }
+button.ord-dstate:not(:disabled):hover { filter: brightness(.96); }
+button.ord-dstate.is-now { cursor: default; opacity: .55; }
+button.ord-dstate:focus { outline: none; box-shadow: none; }   /* SweetAlert enfoca la primera: sin el marco negro */
+button.ord-dstate:focus-visible { box-shadow: 0 0 0 2px currentColor; }
+body.dark-mode button.ord-dstate.is-done { border-color: rgb(16 185 129 / .35); background: rgb(16 185 129 / .12); color: #6EE7B7; }
+body.dark-mode button.ord-dstate.is-make { border-color: rgb(236 72 153 / .35); background: rgb(236 72 153 / .12); color: #F9A8D4; }
+body.dark-mode button.ord-dstate.is-wait { border-color: rgb(239 68 68 / .35); background: rgb(239 68 68 / .12); color: #FCA5A5; }
 
 /* Leyenda del punto verde del folio, entre «Mostrar N» y el buscador. lsOrders
    la enciende (is-on) solo si alguna fila trae el punto. */
@@ -387,8 +398,10 @@ body.dark-mode .ord-chg-arrow { color: #9CA3AF; }
 body.dark-mode .ord-chg-old { background: rgb(255 255 255 / .06); color: #9CA3AF; }
 body.dark-mode .ord-chg-new { background: rgb(16 185 129 / .14); color: #6EE7B7; }
 
-/* Quién sí puede, resaltado dentro del aviso (ordWhoCan, pedido-detalle.js). */
-.ord-who-can { padding: 1px 6px; border-radius: 6px; background: rgb(var(--brand-600, 192 90 64) / .10); color: rgb(var(--brand-700, 160 72 51)); font-weight: 700; white-space: nowrap; }
+/* Quién sí puede, resaltado dentro del aviso (ordWhoCan, pedido-detalle.js).
+   inline-block: el renglón crece a su alto. En línea, su relleno salía 1 px
+   abajo del texto y el aviso pintaba una barra de scroll. */
+.ord-who-can { display: inline-block; padding: 1px 6px; border-radius: 6px; background: rgb(var(--brand-600, 192 90 64) / .10); color: rgb(var(--brand-700, 160 72 51)); font-weight: 700; white-space: nowrap; }
 body.dark-mode .ord-who-can { background: rgb(var(--brand-600, 192 90 64) / .22); color: rgb(var(--brand-200, 243 199 186)); }
 
 /* -- Medida estándar de los avisos --
@@ -642,6 +655,14 @@ body.dark-mode .ord-branch-turn.is-none { color: #A8A29E; background: rgba(255, 
 
 body.dark-mode .ord-who-note { color: var(--dk-muted, #9CA3AF); }
 body.dark-mode .ord-who-note { background: rgb(255 255 255 / .03); border-color: rgb(255 255 255 / .10); }
+
+/* -- Captura: línea de un día anterior (OrderForm.renderLines, lockOld) --
+   Los botones se ven apagados pero reciben el clic: así sale el aviso «Queda fijo».
+   El #id gana al hover de pos-ticket.js (button.pos-tkl-step.is-del:hover). */
+#posOrderLines button.pos-tkl-step.is-locked,
+#posOrderLines button.pos-tkl-act.is-locked { opacity: .4; cursor: not-allowed; }
+#posOrderLines button.pos-tkl-step.is-locked:hover,
+#posOrderLines button.pos-tkl-act.is-locked:hover { background: transparent; color: var(--po-muted); }
 
 /* -- Captura: catálogo en espera (OrderForm.gate) --
    Sin los datos del pedido, en lugar del catálogo va este aviso. */
@@ -1851,6 +1872,39 @@ body.dark-mode .ord-close-diff.is-blind { color: var(--dk-text-soft, #D1D5DB); b
 /* Alpha oculta las barras de scroll (index.php): sin el hueco de la barra, la hoja mide lo mismo. */
 #modalOrderClosure .ord-viewer-desk:has(> .ord-z-view) { scrollbar-width: none; scrollbar-gutter: auto; }
 
+/* Corte Z en pasos, como la ventana «Corte Z» de Soft (22/11/2026, docs/propuesta-imprimir-corte-z.html):
+   Reporte y Hoja carta en segmentos, Destino en 3 botones grandes y un botón principal que
+   dice qué va a salir (apagado, abajo dice por qué). El panel no pasa del alto de la hoja:
+   si no cabe (días pendientes + Cerrar día), baja con la rueda. */
+#modalOrderClosure .ord-desk-side { gap: 8px; max-height: max(380px, 62vh); overflow-y: auto; scrollbar-width: thin; }
+.ord-desk-seg { display: flex; }
+.ord-desk-seg button.ord-seg { flex: 1; height: 34px; font-size: 13px; }
+.ord-desk-seg button.ord-seg:disabled { opacity: .45; cursor: not-allowed; }
+.ord-desk-field.is-off > span { opacity: .5; }
+body:not(.dark-mode) .ord-desk-seg button.ord-seg.is-active {
+    border-color: rgb(var(--brand-600, 192 90 64) / .12);
+    background: rgb(var(--brand-600, 192 90 64) / .10);
+    color: rgb(var(--brand-600, 192 90 64));
+}
+
+.ord-desk-dest { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ord-desk-dest button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 50px; padding: 0 2px; border: 1px solid rgb(var(--gray-300, 214 211 209)); border-radius: 10px; background: #FFFFFF; color: rgb(var(--gray-700, 68 64 60)); font-size: 11px; font-weight: 600; }
+.ord-desk-dest button svg { width: 20px; height: 20px; }
+.ord-desk-dest button:hover { border-color: rgb(var(--brand-600, 192 90 64)); color: rgb(var(--brand-700, 168 74 51)); }
+.ord-desk-dest button.is-active { border-color: rgb(var(--brand-600, 192 90 64)); background: rgb(var(--brand-600, 192 90 64) / .08); color: rgb(var(--brand-600, 192 90 64)); box-shadow: inset 0 0 0 1px rgb(var(--brand-600, 192 90 64)); }
+
+button.ord-desk-btn.is-run { background: rgb(var(--brand-600, 192 90 64)); }
+button.ord-desk-btn.is-run:hover { background: rgb(var(--brand-700, 168 74 51)); }
+button.ord-desk-btn.is-run:disabled:hover { background: rgb(var(--brand-600, 192 90 64)); }
+.ord-desk-hint { margin: 0; font-size: 11px; line-height: 1.35; text-align: center; color: rgb(var(--gray-500, 120 113 108)); }
+.ord-desk-hint:empty { display: none; }
+.ord-desk-modes > span b { font-weight: 600; color: rgb(var(--gray-800, 41 37 36)); }
+
+body.dark-mode .ord-desk-dest button { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-desk-dest button.is-active { border-color: rgb(var(--brand-600, 192 90 64)); background: rgb(var(--brand-600, 192 90 64) / .18); color: #FFFFFF; }
+body.dark-mode .ord-desk-hint { color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-desk-modes > span b { color: var(--dk-text, #F3F4F6); }
+
 .ord-desk-field { margin: 0; }
 .ord-desk-field > span,
 .ord-desk-field > label { display: block; margin: 0 0 4px !important; font-size: 11px !important; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgb(var(--gray-500, 120 113 108)) !important; }
@@ -2308,6 +2362,18 @@ button.ord-cal-legend.is-off .ord-cal-dot { background: transparent; box-shadow:
 .ord-cal.fc .fc-toolbar-chunk.ord-cal-titlebox { flex: 1 1 0; min-width: 0; }
 .ord-cal-hint svg { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: #059669; }   /* en línea: si el texto se dobla, el ícono sigue pegado a él */
 
+/* Buscador: el cliente no tiene pedidos a la vista; los meses en que sí tiene (vacío = no se ve). */
+.ord-cal-found { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border: 1px solid rgb(var(--brand-600, 192 90 64) / .25); border-radius: 12px; background: rgb(var(--brand-600, 192 90 64) / .06); font-size: 13px; color: rgb(var(--gray-800, 41 37 36)); }
+.ord-cal-found:empty { display: none; }
+.ord-cal-found p { margin: 0; }
+.ord-cal-found > svg { width: 16px; height: 16px; flex-shrink: 0; color: rgb(var(--brand-600, 192 90 64)); }
+.ord-cal-found-months { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+button.ord-cal-found-month { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 6px 0 10px; border: 1px solid rgb(var(--brand-600, 192 90 64) / .35); border-radius: 999px; background: #FFFFFF; color: rgb(var(--brand-700, 168 74 51)); font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+button.ord-cal-found-month:hover { background: rgb(var(--brand-600, 192 90 64) / .10); }
+button.ord-cal-found-month:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90 64)); outline-offset: 1px; }
+button.ord-cal-found-month b { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: rgb(var(--brand-600, 192 90 64) / .14); font-size: 11px; text-align: center; }
+.ord-cal-found-more { font-size: 12px; color: rgb(var(--gray-500, 120 113 108)); }
+
 /* Vistas Semana y Día: galería por día o por hora. */
 .ord-cal-day { display: flex; flex-direction: column; gap: 20px; padding: 16px 2px 4px; }
 .ord-cal-empty { margin: 0; padding: 48px 0; text-align: center; font-size: 13px; color: rgb(var(--gray-400, 168 162 158)); }
@@ -2467,11 +2533,78 @@ body.dark-mode .ord-cal-empty { color: var(--dk-muted, #9CA3AF); }
 
 body.dark-mode .ord-cal-hour-title { color: var(--dk-text, #F3F4F6); }
 
+body.dark-mode .ord-cal-found { background: var(--dk-card, #1F2A37); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode button.ord-cal-found-month { background: var(--dk-input, #111827); border-color: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode button.ord-cal-found-month:hover { border-color: rgb(var(--brand-600, 192 90 64)); }
+body.dark-mode button.ord-cal-found-month b { background: var(--dk-row, #283341); color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-cal-found-more { color: var(--dk-muted, #9CA3AF); }
+
 body.dark-mode button.ord-produce { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.14); color: #C4B5FD; }
 body.dark-mode button.ord-produce.is-on,
 body.dark-mode button.ord-undeliver,
 body.dark-mode button.ord-edit-delivery,
 body.dark-mode button.ord-act { border-color: var(--dk-line, #374151); background: var(--dk-input, #111827); color: var(--dk-text-soft, #D1D5DB); }
+
+/* -- Cortes: periodo (como alpha/order-visor) --
+   Una caja con la forma de los campos (.tw-input): radios Fecha | Rango, una
+   raya, la fecha o el rango y el ícono. Los inputs de adentro van sin caja:
+   dark-mode.css y themes.css pintan todo input con !important, por eso el #id.
+   Alto de los select de al lado (medido): 7 px arriba y abajo + renglón de 1.25rem. */
+.ord-cutper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 14px;
+    border: 1px solid rgb(var(--gray-300, 209 213 219));
+    border-radius: var(--radius-ctl, 12px);
+    background: #FFFFFF;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.ord-cutper:hover:not(:focus-within) { border-color: var(--accent-line, rgb(var(--gray-400, 156 163 175))); }
+.ord-cutper:focus-within {
+    border-color: rgb(var(--accent-2-600, 80 48 165));
+    box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 80 48 165) / .14);
+}
+
+#cutPeriodWrap label.ord-cutper-opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 1.25rem;
+    margin: 0 !important;
+    font-size: 13px !important;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--ink, rgb(var(--gray-800, 31 41 55)));
+}
+.ord-cutper-opt input { width: 14px; height: 14px; margin: 0; accent-color: rgb(var(--brand-600, 192 90 64)); cursor: pointer; }
+
+.ord-cutper-sep { flex-shrink: 0; width: 1px; height: 16px; background: rgb(var(--gray-300, 209 213 219)); }
+
+#cutPeriodWrap .ord-cutper input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    height: 1.25rem !important;
+    line-height: 1.25rem;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none;
+    color: var(--ink, rgb(var(--gray-800, 31 41 55))) !important;
+    cursor: pointer;
+}
+
+.ord-cutper-ico { flex-shrink: 0; width: 16px; height: 16px; color: rgb(var(--gray-400, 156 163 175)); pointer-events: none; }
+
+body.dark-mode .ord-cutper { border-color: var(--dk-input-line, #374151); background: var(--dk-input, #111827); }
+body.dark-mode .ord-cutper:focus-within { border-color: rgb(var(--accent-2-600, 192 90 64)); box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 192 90 64) / .2); }
+body.dark-mode #cutPeriodWrap label.ord-cutper-opt { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode .ord-cutper-opt input { color-scheme: dark; }
+body.dark-mode #cutPeriodWrap .ord-cutper input[type="text"] { color: var(--dk-text, #F3F4F6) !important; }
+body.dark-mode .ord-cutper-sep { background: var(--dk-line, #374151); }
 
 /* -- Cortes: visor (como alpha/order-visor) --
    Dos paneles redondeados con una agarradera en medio (16 px, como alpha): a la
@@ -3988,6 +4121,32 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
         left: 16px;
         width: 300px;
     }
+
+    /*  Alta de tarjeta y de tipo: el dibujo del tamaño de todas (ver «Un solo
+        tamaño» abajo). content-box: los 340 px son del dibujo, sin contar el
+        px-2 que le pone csModal; los campos empiezan después (16 + 340 + 16). */
+    #modalLoyCard .loy-split,
+    #modalLoyType .loy-split { padding-left: 372px; }
+
+    #modalLoyCard .loy-split > .loy-preview,
+    #modalLoyType .loy-split > .loy-preview { box-sizing: content-box; width: 340px; }
+}
+
+/*  Un solo tamaño para todas las tarjetas de lealtad: en Lealtad › Tarjetas la
+    galería, «Nuevo tipo» (pasos 1 y 2), «Nueva tarjeta» / «Editar tarjeta» y la
+    ficha (que también abre Programa); en Vender, la de «Venta cobrada».
+    340 px de ancho y apaisada como una de plástico (85.6 × 54 mm = 1.586), con
+    cualquier beneficio: la de sellos, con sus dos renglones, tampoco sale
+    cuadrada. Si lo de adentro no cabe (un nombre de dos renglones), crece. */
+.loy-tile .loy-card,
+.loy-struct-preview .loy-card,
+#modalLoyCard .loy-preview .loy-card,
+#modalLoyType .loy-preview .loy-card,
+.loy-detail-face .loy-card,
+.loy-sale .loy-card {
+    width: 340px;
+    max-width: 100%;
+    aspect-ratio: 1.586;
 }
 
 @media (max-width: 639px) {
@@ -4331,17 +4490,14 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
     .loy-card.is-shine .loy-card-sheen { animation: none; }
 }
 
-/*  Vender › «Venta cobrada»: la tarjeta chica de lealtad arriba de la ventana
-    (loyaltyMoment en ventas.js). Entra con rebote; los sellos nuevos (is-new;
-    --n es su turno) caen girando y dejan un anillo; con el premio completo
-    (is-done) brincan en ola y cruza el brillo; al subir de nivel, la insignia
-    gira y pulsa dorada (is-flip). */
-.loy-sale { max-width: 300px; margin: 4px auto 14px; text-align: left; }
+/*  Vender › «Venta cobrada»: la tarjeta de lealtad arriba de la ventana
+    (loyaltyMoment en ventas.js), del tamaño y con las medidas de todas («Un
+    solo tamaño»). Entra con rebote; los sellos nuevos (is-new; --n es su
+    turno) caen girando y dejan un anillo; con el premio completo (is-done)
+    brincan en ola y cruza el brillo; al subir de nivel, la insignia gira y
+    pulsa dorada (is-flip). */
+.loy-sale { width: 340px; max-width: 100%; margin: 4px auto 14px; text-align: left; }
 .loy-sale .loy-card { animation: loy-card-in .7s cubic-bezier(.2, .85, .25, 1.06) both; }
-.loy-sale .loy-card-head { padding: 10px 12px 0; }
-.loy-sale .loy-card-body { gap: 8px; padding: 10px 12px 12px; }
-.loy-sale .loy-card-stamps { grid-template-columns: repeat(5, minmax(0, 26px)); gap: 6px 4px; }
-.loy-sale .loy-card-stamps.is-many { grid-template-columns: repeat(10, minmax(0, 20px)); gap: 5px 2px; }
 .loy-sale .loy-stamp.is-new { animation: loy-stamp-drop .62s calc(.45s + var(--n) * 260ms) cubic-bezier(.2, 1.3, .4, 1) both; }
 
 .loy-sale .loy-stamp.is-new::after {
@@ -4497,9 +4653,10 @@ button.loy-color-other.is-active .loy-color-other-dot {
 /*  Lealtad › Tarjetas: galería de tipos. Cada tipo es su tarjeta, sin caja
     alrededor (clic = ver sus tarjetas), con sus cifras adentro; debajo, una fila
     de botones planos (loy-act) y el menú ⋯ (loy-menu).
-    250 px: caben más por renglón y cada tarjeta sale más chica. Bajo 260 px
-    «Nueva» se queda solo con su ícono (is-squeeze, más abajo). */
-.loy-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 22px 16px; }
+    Columnas de 340 px, el tamaño de todas las tarjetas («Un solo tamaño»): no se
+    estiran para llenar el renglón. En el teléfono, el ancho que haya; bajo
+    260 px «Nueva» se queda solo con su ícono (is-squeeze, más abajo). */
+.loy-gallery { display: grid; grid-template-columns: repeat(auto-fill, min(340px, 100%)); gap: 22px 16px; }
 
 /*  La primera vez los mosaicos suben uno tras otro (--i lo pone gallery()); al
     recargar (is-still: después de guardar o filtrar) ya no vuelven a entrar. La
@@ -4513,9 +4670,10 @@ button.loy-color-other.is-active .loy-color-other-dot {
     to   { opacity: 1; transform: none; }
 }
 
-/* En la galería la tarjeta llena el alto del mosaico: todas parejas en el renglón. */
-.loy-tile .loy-tile-face { flex: 1 1 auto; display: flex; flex-direction: column; }
-.loy-tile .loy-card { flex: 1 1 auto; }
+/*  La tarjeta no se estira con el mosaico: conserva su tamaño aunque el de al
+    lado sea más alto (un aviso de inactivo); los botones bajan solos (margin-top: auto). */
+.loy-tile .loy-tile-face { flex: none; display: flex; flex-direction: column; }
+.loy-tile .loy-card { flex: none; }
 
 .loy-tile { min-width: 0; container-type: inline-size; }
 .loy-tile-body { display: flex; flex-direction: column; gap: 10px; height: 100%; }
@@ -4670,10 +4828,12 @@ button.loy-struct b { font-size: 14px; }
 
 button.loy-struct.is-best .loy-struct-badge { display: block; }
 
+/*  La tarjeta de ejemplo a la izquierda (340 px: ancha para que la de sellos
+    quede apaisada, ver «forma de tarjeta» abajo) y sus datos en columna. */
 .loy-struct-detail {
     display: grid;
-    grid-template-columns: 250px minmax(0, 1fr);
-    gap: 18px;
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: 22px;
     align-items: center;
     padding: 14px;
     border-radius: 14px;
@@ -4681,14 +4841,14 @@ button.loy-struct.is-best .loy-struct-badge { display: block; }
 }
 
 .loy-struct-preview .loy-card-caption { display: none; }
-.loy-struct-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.loy-struct-facts { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .loy-struct-facts small { display: block; margin-bottom: 4px; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: rgb(var(--gray-400, 168 162 158)); }
 .loy-struct-facts p { margin: 0; font-size: 13px; line-height: 1.45; color: rgb(var(--gray-800, 41 37 36)); }
 
 @media (max-width: 767px) {
     .loy-structs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .loy-struct-detail { grid-template-columns: 1fr; }
-    .loy-struct-preview { max-width: 300px; }
+    .loy-struct-preview { width: 100%; max-width: 340px; }
     .loy-struct-facts { grid-template-columns: 1fr; gap: 10px; }
 }
 
@@ -4727,6 +4887,10 @@ button.loy-act.is-icon { flex: none; width: 30px; padding: 0; }
 button.loy-act.is-push { margin-left: auto; }
 button.loy-act.is-danger:hover { background: #FEE2E2; color: #B91C1C; }
 
+/* La acción de una tarjeta del tablero («Dar de alta cliente» en Tarjetas): la píldora en el tono de la marca. */
+button.loy-act.is-strong { flex: none; background: rgb(var(--brand-600, 82 72 156) / .1); color: rgb(var(--brand-600, 82 72 156)); }
+button.loy-act.is-strong:hover { background: rgb(var(--brand-600, 82 72 156) / .18); color: rgb(var(--brand-700, 67 56 135)); }
+
 @media (prefers-reduced-motion: reduce) {
     .loy-tile-face,
     button.loy-act { transition: none; }
@@ -4750,13 +4914,14 @@ button.loy-act.is-danger:hover { background: #FEE2E2; color: #B91C1C; }
 .loy-detail-face,
 .loy-detail-side { width: 100%; }
 
+/* content-box: los 340 px son del dibujo («Un solo tamaño»), sin contar el px-2 de csModal. */
 @media (min-width: 640px) {
-    #modalLoyDetail .loy-detail-face { width: 320px; flex: none; }
+    #modalLoyDetail .loy-detail-face { box-sizing: content-box; width: 340px; flex: none; }
     #modalLoyDetail .loy-detail-side { flex: 1 1 0; min-width: 0; }
 }
 
 @media (max-width: 639px) {
-    #modalLoyDetail .loy-detail-face .loy-card { max-width: 340px; margin: 0 auto; }
+    #modalLoyDetail .loy-detail-face .loy-card { margin: 0 auto; }
 }
 
 .loy-detail-owner { display: grid; grid-template-columns: 32px minmax(0, 1fr); column-gap: 10px; row-gap: 2px; align-items: start; }
@@ -4911,30 +5076,96 @@ button.loy-seg-b em { min-width: 18px; padding: 0 5px; border-radius: 9px; backg
 button.loy-seg-b.is-on { color: rgb(var(--brand-600, 82 72 156)); }
 button.loy-seg-b.is-on em { background: rgb(var(--brand-600, 82 72 156) / .12); }
 
-/*  «Niveles y beneficios»: la escalera en cuadros (estrella vacía, media y
-    llena en el más alto), que entran uno tras otro; abajo, la barra de cuántas
+/*  «Niveles y beneficios»: la escalera en tarjetitas del color de su tipo, con
+    el degradado, el filo y el brillo de las de la galería (.loy-card). data-ink
+    lo pone tarjetas.js (inkOf): «dark» = letra oscura sobre los colores claros.
+    La estrella va en un cuadro: vacía, media y, en el más alto, dorada. Entran
+    una tras otra; al pasar el ratón suben y les cruza el brillo (translate y no
+    transform: transform lo ocupa la entrada). Abajo, la barra de cuántas
     tarjetas hay en cada nivel, del color de cada tipo, que crece al entrar. */
-.loy-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 6px; }
+.loy-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px; }
 
 .loy-tier {
+    --tier-ink: #FFFFFF;
+    --tier-chip: rgb(255 255 255 / .22);
+    --tier-from: color-mix(in srgb, var(--c, #8373C5) 70%, #000000);
+    --tier-to: color-mix(in srgb, var(--c, #8373C5) 78%, #FFFFFF);
+    position: relative;
+    isolation: isolate;
     display: flex;
     flex-direction: column;
     gap: 1px;
     min-width: 0;
-    padding: 8px 10px;
+    overflow: hidden;
+    padding: 10px 12px 12px;
     border-radius: 12px;
-    background: color-mix(in srgb, var(--c, #8373C5) 10%, #FFFFFF);
+    background: linear-gradient(135deg, var(--tier-from) 0%, var(--c, #8373C5) 58%, var(--tier-to) 100%);
+    color: var(--tier-ink);
+    text-shadow: 0 1px 1px rgb(0 0 0 / .16);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .3), inset 0 0 0 .5px rgb(0 0 0 / .1), 0 10px 20px -12px rgb(24 12 60 / .55), 0 2px 4px rgb(24 12 60 / .1);
+    transition: translate .35s var(--loy-ease);
     animation: loy-tier-in .55s var(--loy-ease) calc(.35s + var(--k, 0) * 90ms) both;
 }
 
-.loy-tier.is-top { background: #FFF6D6; }
-.loy-tier b { overflow: hidden; font-size: 12.5px; color: rgb(var(--gray-900, 28 25 23)); text-overflow: ellipsis; white-space: nowrap; }
-.loy-tier small { font-size: 11px; color: rgb(var(--gray-500, 120 113 108)); }
-.loy-tier-perk { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: color-mix(in srgb, var(--c, #52489C) 75%, #000000); }
-.loy-tier-ic { color: color-mix(in srgb, var(--c, #52489C) 80%, #000000); }
-.loy-tier-ic.is-empty { color: rgb(var(--gray-400, 168 162 158)); }
-.loy-tier.is-top .loy-tier-ic { color: #D4A106; }
+/* El brillo fijo en diagonal, como en .loy-card. */
+.loy-tier::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    background: linear-gradient(125deg, rgb(255 255 255 / .2) 0%, rgb(255 255 255 / 0) 35%, rgb(255 255 255 / 0) 72%, rgb(255 255 255 / .08) 100%);
+    pointer-events: none;
+}
+
+.loy-tier[data-ink="dark"] {
+    --tier-ink: color-mix(in srgb, var(--c, #8373C5) 22%, #0F172A);
+    --tier-chip: rgb(15 23 42 / .08);
+    --tier-from: color-mix(in srgb, var(--c, #8373C5) 88%, #000000);
+    --tier-to: color-mix(in srgb, var(--c, #8373C5) 70%, #FFFFFF);
+    text-shadow: none;
+}
+
+.loy-tier b { overflow: hidden; font-size: 13.5px; font-weight: 800; letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
+.loy-tier small { font-size: 11px; font-weight: 600; opacity: .85; }
+
+.loy-tier-perk {
+    align-self: flex-start;
+    max-width: 100%;
+    margin-top: 6px;
+    padding: 2px 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--tier-chip);
+    font-size: 10.5px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.loy-tier-ic { display: grid; place-items: center; width: 26px; height: 26px; margin-bottom: 6px; border-radius: 8px; background: var(--tier-chip); }
+.loy-tier-ic.is-empty svg { opacity: .75; }
+
+/* El más alto: la estrella llena en el cuadro dorado de la insignia de nivel (.loy-card-badge.is-top). */
+.loy-tier.is-top .loy-tier-ic { background: linear-gradient(135deg, #FFF1A8, #FFDA4A 45%, #F2B01E); color: #4A3200; }
 .loy-tier.is-top .loy-tier-ic svg { fill: currentColor; }
+
+.loy-tier-sheen {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 3;
+    width: 45%;
+    background: linear-gradient(90deg, rgb(255 255 255 / 0), rgb(255 255 255 / .45), rgb(255 255 255 / 0));
+    transform: translateX(-130%) skewX(-18deg);
+    pointer-events: none;
+}
+
+@media (hover: hover) {
+    .loy-tier:hover { translate: 0 -3px; }
+    .loy-tier:hover .loy-tier-sheen { animation: loy-sheen 1s ease-in-out; }
+}
 
 @keyframes loy-tier-in {
     from { opacity: 0; transform: translateY(8px) scale(.96); }
@@ -5286,12 +5517,16 @@ button.loy-switch:focus-visible { outline: 2px solid rgb(var(--brand-600, 192 90
     .loy-msg-icon,
     .loy-seg-ind,
     .loy-dist i,
+    .loy-tier,
     button.loy-switch,
     button.loy-switch::after { transition: none; }
+
+    .loy-tier:hover { translate: none; }
 
     .loy-bx,
     .loy-bx.is-focus,
     .loy-tier,
+    .loy-tier:hover .loy-tier-sheen,
     .loy-mech,
     .loy-chip.is-live::before,
     .loy-entry-qr::after,
@@ -5430,6 +5665,8 @@ body.dark-mode .loy-detail-title { color: var(--dk-text, #F3F4F6); }
 body.dark-mode button.loy-act { background: rgb(255 255 255 / .08); color: var(--dk-text, #F3F4F6); }
 body.dark-mode button.loy-act:hover { background: rgb(255 255 255 / .16); color: #FFFFFF; }
 body.dark-mode button.loy-act.is-danger:hover { background: rgb(239 68 68 / .22); color: #FCA5A5; }
+body.dark-mode button.loy-act.is-strong { background: rgb(var(--brand-600, 82 72 156) / .25); color: rgb(var(--brand-300, 196 181 253)); }
+body.dark-mode button.loy-act.is-strong:hover { background: rgb(var(--brand-600, 82 72 156) / .35); color: #FFFFFF; }
 
 body.dark-mode #modalLoyDetail .cus-tile { background: var(--dk-panel, #29374A); }
 
@@ -5448,12 +5685,7 @@ body.dark-mode .loy-seg-ind { background: var(--dk-card, #1F2A37); box-shadow: i
 body.dark-mode button.loy-seg-b { color: var(--dk-muted, #9CA3AF); }
 body.dark-mode button.loy-seg-b.is-on { color: rgb(var(--brand-300, 196 181 253)); }
 body.dark-mode button.loy-seg-b em { background: rgb(255 255 255 / .08); }
-body.dark-mode .loy-tier { background: color-mix(in srgb, var(--c, #8373C5) 22%, var(--dk-panel, #29374A)); }
-body.dark-mode .loy-tier.is-top { background: rgb(245 158 11 / .16); }
-body.dark-mode .loy-tier b,
 body.dark-mode .loy-mech-t b { color: var(--dk-text, #F3F4F6); }
-body.dark-mode .loy-tier small,
-body.dark-mode .loy-tier-perk,
 body.dark-mode .loy-mech-t small,
 body.dark-mode .loy-dist-l { color: var(--dk-muted, #9CA3AF); }
 body.dark-mode .loy-prog-fact,

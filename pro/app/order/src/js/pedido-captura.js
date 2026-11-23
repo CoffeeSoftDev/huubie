@@ -799,9 +799,16 @@ class OrderForm extends Templates {
             onDelete: (index) => this.removeLine(index)
         });
 
-        // Lo de días anteriores (lockOld): sin −/+, editar ni quitar.
+        /*  Lo de días anteriores (lockOld): −/+, editar y quitar se VEN apagados
+            pero no se apagan de verdad. Con disabled el clic no llegaba y no
+            pasaba nada; así llega a setQuantity/editLine/removeLine y avisa (fixedWarn). */
         this.lines.forEach((line, i) => {
-            if (line.fixed) $(`#posOrderLines .pos-tkl-item[data-index="${i}"]`).find('button.pos-tkl-step, button.pos-tkl-act').prop('disabled', true);
+            if (!line.fixed) return;
+
+            $(`#posOrderLines .pos-tkl-item[data-index="${i}"]`)
+                .find('button.pos-tkl-step, button.pos-tkl-act')
+                .addClass('is-locked')
+                .attr({ 'aria-disabled': 'true', title: 'De un día anterior: queda fijo' });
         });
 
         this.flash = -1;
@@ -1005,10 +1012,10 @@ class OrderForm extends Templates {
                     empty:    '— Busca un producto —',
                     disabled: locked,
                     help:     locked ? 'El producto y su precio quedan como se guardaron. Para cambiarlo, quita la línea y agrega otra.' : '',
-                    class:    'w-full'
+                    class:    'w-full sm:w-2/3'
                 },
                 { id: 'op_quantity', lbl: 'Cantidad', tipo: 'number', required: true, min: 1, max: 9999, step: 1, value: line ? line.quantity : 1, class: 'w-full sm:w-1/3' },
-                { id: 'op_details', lbl: 'Detalles', maxlength: 255, value: line ? line.details : '', ph: 'Ej. Sin azúcar, empaque de regalo', class: 'w-full sm:w-2/3' }
+                { id: 'op_details', lbl: 'Detalles', tipo: 'textarea', rows: 4, maxlength: 255, value: line ? line.details : '', ph: 'Ej. Sin azúcar, empaque de regalo', class: 'w-full' }
             ],
             onSave: (values, close) => this.saveProduct(index, values, close)
         });
@@ -1234,10 +1241,10 @@ class OrderForm extends Templates {
         });
     }
 
-    /*  pay = true: «Guardar y cobrar». En un pedido nuevo abre los pagos ANTES
-        de guardar (payDraft): con anticipo, el pedido se crea al confirmar el
-        cobro; sin importe, la ventana pregunta cómo se guarda (askHow). En uno
-        que ya existe, guarda los cambios y abre sus pagos. */
+    /*  pay = true: «Guardar y cobrar». Abre los pagos ANTES de guardar (payDraft),
+        sobre la captura: con anticipo, el pedido se guarda al confirmar el cobro;
+        sin importe, la ventana pregunta cómo se guarda (askHow). Igual en un
+        pedido nuevo que en uno que ya existe. */
     submit(pay) {
         const values  = this.ticketValues();
         const missing = this.dataError(values) !== '';
@@ -1284,13 +1291,13 @@ class OrderForm extends Templates {
         if (error) return this.warn(error);
         if (!this.lines.length) return this.warn('Agrega al menos un producto.');
 
-        // Pedido nuevo: se guarda desde los pagos. Sin importe que cobrar solo queda cotización.
-        if (pay && !this.order) {
+        // Se guarda desde los pagos (nuevo o editado). Pedido nuevo sin importe que cobrar: solo queda cotización.
+        if (pay && this.order) return this.payDraft(values);
+
+        if (pay) {
             if (this.orderTotal() > 0.005) return this.payDraft(values);
 
             if (await this.askHow() !== 'quote') return;
-
-            pay = false;
         }
 
         const data = await this.send(values);
@@ -1304,11 +1311,6 @@ class OrderForm extends Templates {
 
         orders.lsOrders();
         orderTurn.touch();
-
-        if (pay && data.id) {
-            await alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 900 });
-            return orderPay.open(Number(data.id));
-        }
 
         alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 1600 });
     }
@@ -1381,37 +1383,43 @@ class OrderForm extends Templates {
         });
     }
 
-    // Pedido nuevo: abre los pagos sin guardar. El pedido se crea cuando la ventana
-    // confirma el cobro o elige cotización o pendiente (OrderPay.saveDraft llama a send()).
+    /*  Abre los pagos sin guardar, sobre la captura. El pedido se guarda cuando la
+        ventana confirma el cobro o elige cotización o pendiente (OrderPay.saveDraft
+        llama a send()). Uno que ya existe abre con sus pagos (openEdit); si ya no
+        es cotización, sin importe solo guarda los cambios ('save', sin preguntar). */
     async payDraft(values) {
-        const total = this.orderTotal();
+        const order = this.order;
+        const quote = !order || Number(order.sale_status_id) === 1;   // 1 = Cotización
+
+        const draft = {
+            customer: $('#of_customer_id option:selected').text().split(' · ')[0].trim(),
+            total:    this.orderTotal(),
+            delivery: values.of_delivery_date,
+            ask:      (block) => (quote ? this.askHow(block) : Promise.resolve('save')),
+            save:     async (how) => {
+                const data = await this.send(values, how);
+
+                if (data && data.status == 200) this.finish();
+
+                return data;
+            }
+        };
 
         this.saving = true;
 
         const button = $('#btnOrderSave, #btnOrderSavePay').prop('disabled', true);
 
         try {
-            await orderPay.openDraft({
-                customer: $('#of_customer_id option:selected').text().split(' · ')[0].trim(),
-                total:    total,
-                delivery: values.of_delivery_date,
-                ask:      (block) => this.askHow(block),
-                save:     async (how) => {
-                    const data = await this.send(values, how);
-
-                    if (data && data.status == 200) this.finish();
-
-                    return data;
-                }
-            });
+            if (order) await orderPay.openEdit(Number(order.id), draft);
+            else await orderPay.openDraft(draft);
         } finally {
             this.saving = false;
             button.prop('disabled', false);
         }
     }
 
-    // La petición de guardar, sin avisos: la usan save() y el cobro del pedido nuevo.
-    // how = 'pending': el pedido nuevo nace Pendiente aunque no deje anticipo (askHow).
+    // La petición de guardar, sin avisos: la usan save() y la ventana de pagos (payDraft).
+    // how = 'pending': queda Pendiente aunque no deje anticipo (askHow); el nuevo nace así, la cotización pasa a serlo.
     async send(values, how = '') {
         const delivery = values.of_delivery_method === '1';
 
@@ -1432,7 +1440,7 @@ class OrderForm extends Templates {
                 delivery_method: delivery ? '1' : '0',
                 location:        delivery ? values.of_location : '',
                 note:            values.of_note || '',
-                status:          !this.order && how === 'pending' ? 'pending' : '',
+                status:          how === 'pending' ? 'pending' : '',
                 lines:           JSON.stringify(this.payload())
             }
         });

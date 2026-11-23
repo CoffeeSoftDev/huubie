@@ -24,8 +24,7 @@ require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
         quien opera (core::needKey), antes de tocar la base. Dueño y
         Supervisor cancelan cualquier pedido; la cajera, solo cotizaciones.
       - «Editar entrega» cambia solo fecha, hora, tipo, direccion y nota
-        (core::editDelivery) y pide su permiso, «Editar entrega» (hoy Dueño y
-        Supervisor). Sirve tambien en un pagado: ahi lo autoriza Dueño
+        (core::editDelivery). Sirve tambien en un pagado: ahi lo autoriza Dueño
         o Supervisor con su contraseña. «Editar» un pagado (editPaidOrder) cambia
         lo mismo, pero lo hace quien edita pedidos, con su contraseña.
       - Nombre y precio de un producto del catalogo, y precio de cada opcion del
@@ -42,9 +41,6 @@ class ctrl extends core {
     const MAX_LINES  = 100;
     const MAX_PHOTOS = 10;
     const IMAGE_MAX  = 5242880;
-
-    // «Editar cliente» del menú de la fila pide 'update' de Clientes.
-    const CLIENTS = 'pos-clientes';
 
     // Tipo de getimagesize() -> extension con la que se guarda.
     private $imageTypes = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif', IMAGETYPE_WEBP => 'webp'];
@@ -97,12 +93,11 @@ class ctrl extends core {
             $turn    = $this->qOpenTurn($this->branchId());
             $turnId  = $turn ? (int) $turn['id'] : 0;
             $actions = $this->actions();
-            $editCus = Permission::can(self::CLIENTS, 'update');
 
             $rows = [];
 
             foreach ($this->qListOrders($filters) as $order) {
-                $rows[] = $this->orderRow($order, $turnId, $actions, $editCus);
+                $rows[] = $this->orderRow($order, $turnId, $actions);
             }
 
             $answer = [
@@ -274,9 +269,8 @@ class ctrl extends core {
         sucursal (vista «todas») sigue las reglas de alpha (core::foreignBlock):
         Dueño todo; Cajero editar y cobrar y, con turno abierto allá, entregar;
         Supervisor nada desde la fila (sus datos de entrega van en el detalle);
-        los demás Ver e Imprimir. Sus importes abren los pagos solo si puede cobrar.
-        $editCustomer: el rol edita clientes ('update' de pos-clientes). */
-    private function orderRow($o, $turnId, array $actions, $editCustomer = false) {
+        los demás Ver e Imprimir. Sus importes abren los pagos solo si puede cobrar. */
+    private function orderRow($o, $turnId, array $actions) {
         $id        = (int) $o['id'];
         $statusId  = (int) $o['sale_status_id'];
         $cancelled = $statusId === self::CANCELLED;
@@ -303,31 +297,9 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-money', 'text' => 'Pagos', 'onclick' => "orderPay.open({$id}, false, { tab: 'history' })"];
         }
 
-        // Entregar, solo sin saldo. Con saldo se cobra primero desde «Cobrar».
-        // El menú del badge de la columna Entrega abre la misma ventana.
-        $canDeliver = in_array('update', $actions, true) && $this->deliverBlock($o) === '' && $may('deliver');
-
-        if ($canDeliver) {
-            $menu[] = ['icon' => 'icon-ok-circled', 'text' => 'Entregar', 'onclick' => "orderDetail.deliver({$id})"];
-        }
-
-        // Entregado por error: lo regresa quien entrega, como alpha.
-        $canUndeliver = in_array('update', $actions, true) && $this->undeliverBlock($o) === '' && $may('deliver');
-
-        if ($canUndeliver) {
-            $menu[] = ['icon' => 'icon-undo', 'text' => 'Deshacer entrega', 'onclick' => "orderDetail.undeliver({$id})"];
-        }
-
-        // Con saldo, el badge de Entrega ofrece «Cobrar y entregar» (como el detalle).
-        $canSettle = $canPay && in_array('update', $actions, true) && $this->settleFirst($o) && $may('deliver');
-
+        // La entrega no va en el menú (como alpha): se cambia con el badge de la columna Entrega.
         if (in_array('print', $actions, true)) {
             $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id})"];
-        }
-
-        // Corregir nombre, teléfono o correo del cliente sin salir de la lista (ctrl-clientes › editCustomer).
-        if ($editCustomer && (int) $o['customer_id'] > 0) {
-            $menu[] = ['icon' => 'icon-user', 'text' => 'Editar cliente', 'onclick' => 'orders.editCustomer(' . (int) $o['customer_id'] . ')'];
         }
 
         // Como alpha (Eliminar descuento): cotización o pendiente. El corte cerrado lo revisa ctrl-cobro.
@@ -347,36 +319,17 @@ class ctrl extends core {
             $menu[] = ['icon' => 'icon-trash', 'text' => 'Eliminar', 'onclick' => "orderForm.remove({$id})"];
         }
 
-        $to  = $canDeliver ? 'deliver' : ($canSettle ? 'settle' : ($canUndeliver ? 'undeliver' : ''));
-        $why = $to === '' ? $this->deliveryWhy($o, $actions, $canPay) : '';
+        // El badge de Entrega: '' = cambia de estado; si no, por qué (rol, cotización/cancelado o la regla de otra sucursal).
+        $why = !in_array('update', $actions, true) ? 'Tu rol no puede cambiar la entrega.' : $this->deliveryStateBlock($o);
 
-        // De otra sucursal: si la regla de alpha es lo que frena, se dice eso.
-        if ($to === '' && $foreign) {
-            $gate = (int) $o['delivery_status'] !== 1 && $this->settleFirst($o) && !$canPay ? 'pay' : 'deliver';
-            $why  = $this->foreignBlock($gate, (int) $o['branch_id'], $o['branch']) ?: $why;
-        }
+        if ($why === '' && $foreign) $why = $this->foreignBlock('deliver', (int) $o['branch_id'], $o['branch']);
 
-        return $this->rowCells($o, $inTurn, $cancelled, $custom, $canPay, !$foreign || $may('pay'), ['to' => $to, 'why' => $why], $menu);
-    }
-
-    // Por qué el estado de entrega no se puede cambiar. Sale en el menú del badge de Entrega.
-    private function deliveryWhy($o, array $actions, $canPay) {
-        if ((int) $o['delivery_status'] === 1) {
-            return in_array('update', $actions, true) ? $this->undeliverBlock($o) : 'Tu rol no puede cambiar la entrega.';
-        }
-
-        if (!in_array('update', $actions, true)) return 'Tu rol no puede entregar pedidos.';
-
-        if ($this->settleFirst($o) && !$canPay) {
-            return in_array('create', $actions, true) ? $this->payBlock($o) : 'Tiene saldo y tu rol no puede cobrar pedidos.';
-        }
-
-        return $this->deliverBlock($o);
+        return $this->rowCells($o, $inTurn, $cancelled, $custom, $canPay, !$foreign || $may('pay'), $why, $menu);
     }
 
     // Las celdas de la fila. $open = los importes abren la ventana de pagos.
-    // $delivery = ['to', 'why'] del menú del badge de Entrega (ver cellDelivered).
-    private function rowCells($o, $inTurn, $cancelled, $custom, $canPay, $open, $delivery, array $menu) {
+    // $deliveryWhy = '' si el badge de Entrega cambia el estado; si no, su porqué (ver cellDelivered).
+    private function rowCells($o, $inTurn, $cancelled, $custom, $canPay, $open, $deliveryWhy, array $menu) {
         $id       = (int) $o['id'];
         $statusId = (int) $o['sale_status_id'];
 
@@ -391,7 +344,7 @@ class ctrl extends core {
             'Fecha de entrega' => $this->cellDeliveryDate($o['delivery_date'], $o['delivery_time']),
             'Hora'             => '<span class="text-gray-600 whitespace-nowrap"' . $this->sortKey($o['delivery_time']) . '>' . hour12($o['delivery_time']) . '</span>',
             'Pago'             => $this->statusPill($statusId, $o['status']),
-            'Entrega'          => $this->cellDelivered($id, $statusId, (int) $o['delivery_status'], $delivery),
+            'Entrega'          => $this->cellDelivered($id, $statusId, (int) $o['delivery_status'], $deliveryWhy),
             'Tipo de entrega'  => $this->cellMethod((int) $o['delivery_method']),
             'dropdown'         => $menu
         ];
@@ -504,36 +457,37 @@ class ctrl extends core {
         return '<span class="ord-pill ' . $tone . '">' . h($name !== '' ? $name : 'Sin estado') . '</span>';
     }
 
-    /*  Badge claro, como los de Pago (statusPill), con los colores de alpha:
-        verde Entregado, rosa En produccion, rojo Sin entregar.
-        Es botón: abre el menú de estados (orders.deliveryMenu, como alpha). El
-        otro estado usa la ventana de siempre, según $delivery['to']:
-          deliver    «Entregar pedido» (orderDetail.deliver), sin saldo
-          settle     «Cobrar y entregar» (orderPay con deliver), con saldo
-          undeliver  «Deshacer entrega» (orderDetail.undeliver), ya entregado
-          ''         no se puede: el menú dice por qué ($delivery['why'])
-        Una cotizacion o un pedido cancelado no se entregan. */
-    private function cellDelivered($id, $statusId, $deliveryStatus, $delivery) {
+    /*  Badge claro, como los de Pago (statusPill), con los textos y colores de
+        alpha: verde Entregado, rosa Para producir, rojo No entregado. Encima
+        lleva un <select> transparente: el clic abre la lista de los tres
+        estados ahí mismo y elegir uno guarda (orderDetail.pickDelivery). Si no
+        se puede ($why), el badge queda quieto y el title dice por qué.
+        Cotización y cancelado: «No aplica». */
+    private function cellDelivered($id, $statusId, $deliveryStatus, $why) {
         if ($statusId === self::QUOTE || $statusId === self::CANCELLED) {
             return '<span class="ord-sub">No aplica</span>';
         }
 
-        $badges = [
-            0 => ['bg-red-50 text-red-700',         'Sin entregar'],
-            1 => ['bg-emerald-50 text-emerald-700', 'Entregado'],
-            2 => ['bg-pink-50 text-pink-700',       'En producción']
-        ];
+        $tones = [0 => 'bg-red-50 text-red-700', 1 => 'bg-emerald-50 text-emerald-700', 2 => 'bg-pink-50 text-pink-700'];
+        $state = isset($tones[$deliveryStatus]) ? $deliveryStatus : 0;
+        $text  = self::DELIVERY_STATES[$state];
 
-        list($tone, $text) = isset($badges[$deliveryStatus]) ? $badges[$deliveryStatus] : $badges[0];
+        if ($why !== '') {
+            return '<span class="ord-pill ' . $tones[$state] . '" title="' . h($why) . '">' . $text . '</span>';
+        }
 
-        $badge = '<span class="ord-pill ' . $tone . '">' . $text . '<i data-lucide="chevron-down" class="w-3 h-3 opacity-70"></i></span>';
+        // Mismo orden que la ventana del detalle (deliveryState): Entregado, Para producir, No entregado.
+        $options = '';
 
-        return '<button type="button" class="ord-deliv-btn" onclick="orders.deliveryMenu(this, event)"'
-             .   ' data-id="' . (int) $id . '" data-state="' . (int) $deliveryStatus . '"'
-             .   ' data-to="' . h($delivery['to']) . '" data-why="' . h($delivery['why']) . '"'
-             .   ' title="Cambiar el estado de entrega" aria-haspopup="menu">'
-             .   $badge
-             . '</button>';
+        foreach ([1, 2, 0] as $s) {
+            $options .= '<option value="' . $s . '"' . ($s === $state ? ' selected' : '') . '>' . self::DELIVERY_STATES[$s] . '</option>';
+        }
+
+        // sortKey: sin él, DataTables ordenaría por el texto de las tres opciones.
+        return '<span class="ord-deliv-pick" title="Cambiar el estado de entrega"' . $this->sortKey($text) . '>'
+             .   '<span class="ord-pill ' . $tones[$state] . '">' . $text . '<i data-lucide="chevron-down" class="w-3 h-3 opacity-70"></i></span>'
+             .   '<select aria-label="Estado de entrega" data-now="' . $state . '" onchange="orderDetail.pickDelivery(this, ' . (int) $id . ')">' . $options . '</select>'
+             . '</span>';
     }
 
     private function cellMethod($method) {
@@ -607,14 +561,14 @@ class ctrl extends core {
 
     // -- Entrega --
 
-    // Desde el menu de la fila o desde el detalle. Las reglas viven en core.
+    // «Entregar» del tablero y del cobro («Cobrar y entregar»). Las reglas viven en core.
     public function deliverOrder() {
         return $this->deliver($this->postId());
     }
 
-    // Regresa a «sin entregar». Las reglas viven en core.
-    public function undeliverOrder() {
-        return $this->undeliver($this->postId());
+    // Entregado, Para producir o No entregado (como alpha): badge de la columna Entrega y detalle.
+    public function deliveryStateOrder() {
+        return $this->setDeliveryState($this->postId());
     }
 
     // Capturar = crear o editar: con una de las dos se abre el formulario.
@@ -954,6 +908,10 @@ class ctrl extends core {
 
                 $retotal = round((float) $order['total'], 2) !== $total;
 
+                // status = 'pending': la cotización se eligió Pendiente sin anticipo («¿Cómo se
+                // guarda?» de la ventana de pagos, como addOrder). Sin importe sigue cotización.
+                $pending = $this->post('status') === 'pending' && (int) $order['sale_status_id'] === self::QUOTE && $total > 0.005;
+
                 $changes = $this->headerChanges($order, $in);
                 $kept    = [];
 
@@ -979,6 +937,8 @@ class ctrl extends core {
                     $changes[] = 'Quitó ' . $old['name'];
                 }
 
+                if ($pending) $changes[] = 'Estado: Cotización » Pendiente';
+
                 if (empty($changes)) return $this->ok('Sin cambios.', ['id' => $id, 'unchanged' => true]);
 
                 if ($retotal) {
@@ -999,13 +959,27 @@ class ctrl extends core {
                     ]
                 ]), 'editOrder');
 
+                if ($pending) {
+                    $this->must($this->qUpdateOrder([
+                        'values' => ['sale_status_id'],
+                        'where'  => ['id'],
+                        'data'   => [self::PENDING, $id]
+                    ]), 'editOrder pendiente');
+                }
+
                 $this->log($id, 'edition', 'Pedido editado', implode(' · ', $changes));
 
-                return $this->ok("Pedido P{$id} actualizado.", ['id' => $id]);
+                return $this->ok($pending ? "Pedido P{$id} guardado como pendiente." : "Pedido P{$id} actualizado.", ['id' => $id, 'pending' => $pending]);
             });
         }, 'No se pudo guardar el pedido.');
 
         $this->rememberToken($token, $answer);
+
+        // La cotización que pasa a Pendiente sin anticipo = pedido terminado: su aviso, como addOrder.
+        if (!empty($answer['pending'])) {
+            session_write_close();
+            $this->notifyOrder((int) $answer['id']);
+        }
 
         return $answer;
     }

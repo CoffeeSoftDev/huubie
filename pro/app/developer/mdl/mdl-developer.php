@@ -1042,18 +1042,25 @@ class mdl extends CRUD {
 
     // Acciones vigentes del catálogo (acción, tipo, sección y módulo encendidos),
     // marcando las que tiene el rol. role_id = 0 (rol nuevo) las trae sin marcar.
+    // En el orden del menú: módulo, submódulo (Ventas, Administración...) y sección.
     function qRolePermissions($array) {
         // [role_id]
+        $description = $this->hasPermissionDescription() ? 'p.description' : 'NULL';
+
         $query = "
             SELECT
                 p.id    AS permission_id,
+                {$description} AS description,
                 s.id    AS section_id,
                 s.name  AS section_name,
                 s.icon  AS section_icon,
+                sm.name AS group_name,
                 m.id    AS module_id,
+                m.code  AS module_code,
                 m.name  AS module_name,
                 m.icon  AS module_icon,
                 tp.name AS type_name,
+                tp.code AS type_code,
                 tp.id   AS type_id,
                 tp.order AS type_order,
                 (pr.id IS NOT NULL) AS granted
@@ -1061,12 +1068,61 @@ class mdl extends CRUD {
             JOIN {$this->bd}type_permissions tp ON tp.id = p.type_permission_id AND tp.is_active = 1
             JOIN {$this->bd}sections s          ON s.id = p.section_id AND s.is_active = 1
             JOIN {$this->bd}modules m           ON m.id = s.module_id AND m.is_active = 1
+            LEFT JOIN {$this->bd}submodules sm  ON sm.id = s.submodule_id
             LEFT JOIN {$this->bd}permissions_roles pr ON pr.permission_id = p.id AND pr.role_id = ?
             WHERE p.is_active = 1
-            ORDER BY m.orden ASC, m.id ASC, s.orden ASC, s.id ASC, tp.order ASC, tp.id ASC
+            ORDER BY m.orden ASC, m.id ASC, COALESCE(sm.orden, 0) ASC, s.orden ASC, s.id ASC, tp.order ASC, tp.id ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
+    }
+
+    // Las acciones que tienen los roles de la lista: [role_id => [permission_id...]].
+    function qGrantsOfRoles($roleIds) {
+        $ids = array_values(array_filter(array_map('intval', (array) $roleIds)));
+        if (!$ids) return [];
+
+        $marks = implode(',', array_fill(0, count($ids), '?'));
+        $r     = $this->_Read("SELECT role_id, permission_id FROM {$this->bd}permissions_roles WHERE role_id IN ({$marks})", $ids);
+
+        $byRole = [];
+        foreach (is_array($r) ? $r : [] as $row) $byRole[(int) $row['role_id']][] = (int) $row['permission_id'];
+
+        return $byRole;
+    }
+
+    // permissions.description (migración 2026-11-22_roles-permisos-descripcion).
+    // Mientras no se corra, las acciones llegan sin descripción.
+    function hasPermissionDescription() {
+        static $has = null;
+        if ($has === null) {
+            $r   = $this->_Read("SHOW COLUMNS FROM {$this->bd}permissions LIKE 'description'");
+            $has = is_array($r) && !empty($r);
+        }
+        return $has;
+    }
+
+    // Las acciones encendidas de una sección, con lo que dice cada una.
+    function qSectionPermissionTexts($array) {
+        // [section_id]
+        $description = $this->hasPermissionDescription() ? 'p.description' : 'NULL';
+
+        $query = "
+            SELECT p.id, tp.name, tp.code, {$description} AS description
+            FROM {$this->bd}permissions p
+            JOIN {$this->bd}type_permissions tp ON tp.id = p.type_permission_id AND tp.is_active = 1
+            WHERE p.section_id = ? AND p.is_active = 1
+            ORDER BY tp.order ASC, tp.id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Qué hace una acción en su sección (NULL = sin texto).
+    function qSetPermissionDescription($array) {
+        // [description, id]
+        $query = "UPDATE {$this->bd}permissions SET description = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
     }
 
     function qInsertRolePermission($array) {

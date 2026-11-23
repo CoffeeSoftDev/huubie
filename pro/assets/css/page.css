@@ -486,32 +486,201 @@ body.dark-mode .pg .pg-input, body.dark-mode .pg-modal .pg-input { background-co
 .pg-access-row svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-dim); }
 .pg-access-row .pg-input { padding-top: 8px; padding-bottom: 8px; }
 
-/* -- Permisos de un rol: tabla sección × acción --
-   Una fila por sección y una columna por acción; --tree-cols lo pone
-   configuracion.js. En el teléfono no caben las columnas: cada acción
-   vuelve a ser una pastilla con su nombre (ver el @media de abajo). */
-.pg-tree { --tree-col: 66px; display: flex; flex-direction: column; gap: 14px; }
-.pg-tree-mod { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-.pg-tree-head, .pg-tree-sec { display: grid; grid-template-columns: minmax(0, 1fr) repeat(var(--tree-cols, 1), var(--tree-col)); align-items: center; padding: 0 6px 0 14px; }
-.pg-tree-head { min-height: 42px; background: var(--surface-hover, transparent); border-bottom: 1px solid var(--line); }
-.pg-tree-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
-.pg-tree-title svg { width: 16px; height: 16px; flex-shrink: 0; color: rgb(var(--brand-600, 192 90 64)); }
-.pg-tree-col { font-size: 11.5px; font-weight: 500; color: var(--ink-dim); text-align: center; }
-.pg-tree-sec { min-height: 44px; border-top: 1px solid var(--line); transition: background-color .15s ease; }
-.pg-tree-head + .pg-tree-sec { border-top: 0; }
-.pg-tree-sec:hover { background: rgb(var(--brand-600, 192 90 64) / .04); }
-.pg-tree-all { display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; padding: 10px 0; font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer; }
-.pg-tree-all span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Sin ninguna acción marcada, la sección se lee apagada. */
-.pg-tree-sec:not(:has([data-perm]:checked)) .pg-tree-all { color: var(--ink-dim); font-weight: 400; }
-.pg-tree-cell { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; align-self: stretch; margin: 0; cursor: pointer; }
-/* La sección no tiene esa acción: una raya. */
-.pg-tree-cell.is-none { cursor: default; }
-.pg-tree-cell.is-none::before { content: ''; width: 10px; height: 2px; border-radius: 2px; background: var(--ink-dim); opacity: .35; }
-/* El nombre ya está en la cabecera: aquí solo lo lee el lector de pantalla. */
-.pg-tree-act { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.pg-tree input[type="checkbox"] { width: 17px; height: 17px; margin: 0; flex-shrink: 0; accent-color: rgb(var(--primary-rgb, 41 37 36)); cursor: pointer; }
-.pg-tree input[type="checkbox"]:disabled, .pg-tree label:has(input:disabled) { cursor: default; }
+/* -- Roles y permisos (configuracion.js › cfgRoles) --
+   La lista de roles a la izquierda y el rol abierto a la derecha. Las 6
+   acciones básicas son columnas fijas (--rl-cols las pone el JS); los
+   permisos especiales de una sección se abren debajo de su fila, con lo que
+   hace cada uno. Así un permiso nuevo agrega un renglón, no una columna.
+     <=1180px  la lista se vuelve un selector arriba (.pg-rl-pick)
+     <=860px   cada sección es una ficha y sus acciones, pastillas con nombre */
+.pg-rl { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; align-items: start; }
+.pg-rl-pick { display: none; }
+.pg-rl-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.pg-rl-side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 2px 0; }
+.pg-btn.pg-rl-sm { padding: 7px 14px; font-size: 13px; }
+.pg-btn.pg-rl-sm svg { width: 15px; height: 15px; }
+.pg-rl-roles { display: flex; flex-direction: column; gap: 6px; }
+.pg-rl-role { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); font: inherit; text-align: left; color: var(--ink); cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
+.pg-rl-role:hover { border-color: var(--accent-line); }
+.pg-rl-role:focus-visible { outline: 2px solid rgb(var(--accent-2-600, 192 90 64)); outline-offset: 2px; }
+.pg-rl-role.is-on { border-color: rgb(var(--primary-rgb, 41 37 36)); box-shadow: 0 0 0 3px rgb(var(--primary-rgb, 41 37 36) / .12); background: var(--tint); }
+.pg-rl-role.is-off .pg-ico, .pg-rl-role.is-off .pg-rl-role-text { opacity: .55; }
+.pg-rl-role .pg-ico { width: 32px; height: 32px; }
+.pg-rl-role .pg-ico svg { width: 16px; height: 16px; }
+.pg-rl-role-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pg-rl-role-text b { font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pg-rl-role-text small { font-size: 12px; color: var(--ink-dim); }
+.pg-rl-meter { height: 4px; margin-top: 5px; border-radius: 9999px; background: rgb(var(--gray-200, 229 231 235)); overflow: hidden; }
+.pg-rl-meter i { display: block; height: 100%; border-radius: inherit; background: rgb(var(--brand-600, 192 90 64)); }
+body.dark-mode .pg-rl-meter { background: rgb(255 255 255 / .08); }
+.pg-rl-people { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 12px; color: var(--ink-dim); }
+.pg-rl-people svg { width: 13px; height: 13px; }
+.pg-rl-cmp-btn { width: 100%; }
+.pg-btn.pg-rl-cmp-btn.is-on { background: var(--tint); border-color: rgb(var(--primary-rgb, 41 37 36)); }
+.pg .pg-rl-hint { padding: 0 2px; font-size: 12.5px; }
+
+/* El rol abierto (y Comparar roles). Sin overflow:hidden: la barra de
+   Guardar es sticky y dentro de una caja recortada no se pegaría. */
+.pg-rl-main { min-width: 0; }
+.pg-card.pg-rl-ed { padding: 0; }
+.pg-rl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 20px 22px 14px; }
+.pg-rl-head-text { min-width: 0; }
+.pg-rl-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pg .pg-rl-title h2 { font-size: 20px; font-weight: 600; color: var(--ink); }
+.pg-rl-title .pg-btn.is-round { width: 30px; height: 30px; }
+.pg-rl-title .pg-btn.is-round svg { width: 14px; height: 14px; }
+.pg-rl-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pg-rl-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); }
+.pg .pg-rl-lock { display: flex; align-items: flex-start; gap: 8px; margin: 0 22px 14px; padding: 10px 14px; border-radius: 12px; background: var(--tint); font-size: 13px; color: var(--ink-dim); }
+.pg-rl-lock svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+.pg-rl-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 22px 14px; }
+.pg-rl-mods { display: flex; gap: 6px; flex-wrap: wrap; }
+.pg-rl-mod { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); font: inherit; font-size: 13px; font-weight: 500; color: var(--ink-dim); white-space: nowrap; cursor: pointer; }
+.pg-rl-mod svg { width: 15px; height: 15px; }
+.pg-rl-mod em { font-style: normal; font-size: 11px; padding: 1px 7px; border-radius: 9999px; background: rgb(var(--gray-100, 243 244 246)); color: var(--ink-dim); }
+.pg-rl-mod.is-on { background: rgb(var(--primary-rgb, 41 37 36)); border-color: transparent; color: #FFFFFF; box-shadow: 0 8px 18px -10px rgb(var(--primary-rgb, 41 37 36) / .70); }
+.pg-rl-mod.is-on em { background: rgb(255 255 255 / .20); color: #FFFFFF; }
+.pg-rl-mod:focus-visible, .pg-rl-x:focus-visible { outline: 2px solid rgb(var(--accent-2-600, 192 90 64)); outline-offset: 2px; }
+body.dark-mode .pg-rl-mod em { background: rgb(255 255 255 / .08); }
+.pg-rl-find { position: relative; width: 290px; max-width: 100%; margin: 0; }
+.pg-rl-find svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--ink-dim); pointer-events: none; }
+.pg .pg-rl-find input.pg-input { padding: 8px 12px 8px 38px; font-size: 13.5px; }
+
+/* Sección × las 6 básicas + el botón de sus especiales. */
+.pg-rl-grid { --rl-col: 74px; --rl-x: 150px; border-top: 1px solid var(--line); }
+.pg-rl-r { display: grid; grid-template-columns: minmax(180px, 1fr) repeat(var(--rl-cols, 6), var(--rl-col)) var(--rl-x); align-items: center; min-height: 50px; padding: 0 22px; border-top: 1px solid var(--line); }
+.pg-rl-th { min-height: 38px; font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-dim); border-top: 0; background: var(--surface-hover, transparent); }
+.pg-rl-th > span { min-width: 0; padding: 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.pg-rl-th > span:first-child { text-align: left; }
+.pg-rl-th > span:last-child { text-align: right; }
+.pg-rl-group { padding: 14px 22px 8px; font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: rgb(var(--brand-600, 192 90 64)); border-top: 1px solid var(--line); }
+.pg-rl-group + .pg-rl-r { border-top: 0; }
+body.dark-mode .pg-rl-group { color: rgb(var(--brand-300, 232 166 143)); }
+.pg-rl-sec { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pg-rl-ico { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 10px; background: var(--icon-box-bg, rgb(var(--brand-100, 247 227 220))); color: var(--icon-box-fg, rgb(var(--brand-600, 192 90 64))); }
+.pg-rl-ico svg { width: 15px; height: 15px; }
+.pg-rl-sec-text { min-width: 0; }
+.pg-rl-sec-text b { display: block; font-weight: 500; font-size: 14px; color: var(--ink); }
+.pg-rl-sec-text small { display: block; font-size: 12px; color: var(--ink-dim); }
+.pg-rl-r.is-off .pg-rl-sec-text b { color: var(--ink-dim); font-weight: 400; }
+.pg-rl-r.is-off .pg-rl-ico { opacity: .5; }
+.pg-rl-cell { position: relative; display: flex; align-items: center; justify-content: center; align-self: stretch; gap: 6px; margin: 0; cursor: pointer; }
+.pg-rl-cell input { width: 17px; height: 17px; margin: 0; flex-shrink: 0; accent-color: rgb(var(--primary-rgb, 41 37 36)); cursor: pointer; }
+.pg-rl-cell:has(input:disabled), .pg-rl-cell input:disabled { cursor: not-allowed; }
+.pg-rl-cell input:disabled { opacity: .3; }
+/* Rol de Huubie: solo se consulta, pero lo marcado se lee entero. */
+.pg-rl-grid.is-lock .pg-rl-cell, .pg-rl-grid.is-lock .pg-rl-cell input { cursor: default; }
+.pg-rl-grid.is-lock .pg-rl-cell input:disabled { opacity: 1; }
+.pg-rl-cell.is-none { cursor: default; }
+.pg-rl-cell.is-none::before { content: ''; width: 10px; height: 2px; border-radius: 2px; background: var(--ink-dim); opacity: .3; }
+/* El nombre ya está en la cabecera: aquí solo lo lee el lector de pantalla
+   (en el teléfono vuelve a verse, ver el @media). */
+.pg-rl-cell-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Básica que abre más de lo que dice su nombre: el punto avisa que tiene nota. */
+.pg-rl-cell-dot { position: absolute; top: calc(50% - 14px); left: calc(50% + 11px); width: 6px; height: 6px; border-radius: 9999px; background: rgb(var(--brand-600, 192 90 64)); }
+.pg-rl-x { justify-self: end; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px 5px 12px; border: 1px solid var(--line); border-radius: 9999px; background: var(--surface); font: inherit; font-size: 12.5px; font-weight: 500; color: var(--ink); white-space: nowrap; cursor: pointer; }
+.pg-rl-x svg { width: 14px; height: 14px; color: var(--ink-dim); transition: transform .15s ease; }
+.pg-rl-x.is-open { background: var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220))); color: var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51))); border-color: transparent; }
+.pg-rl-x.is-open svg { transform: rotate(180deg); color: inherit; }
+.pg-rl-x-long { display: none; }
+.pg-rl-x-none { justify-self: end; font-size: 12px; color: var(--ink-dim); opacity: .7; }
+.pg-rl-extra { margin: 0 22px 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-hover, transparent); }
+.pg-rl-notes { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px dashed var(--line); }
+.pg-rl-notes:last-child { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; }
+.pg-rl-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; line-height: 1.45; color: var(--ink-dim); }
+.pg-rl-note b { font-weight: 500; color: var(--ink); }
+.pg-rl-note svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; color: rgb(var(--brand-600, 192 90 64)); }
+.pg-rl-sp-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 28px; }
+.pg-rl-sp { display: flex; align-items: flex-start; gap: 12px; }
+.pg-rl-sp .pg-switch { flex-shrink: 0; margin-top: 1px; }
+.pg-rl-sp b { display: block; font-weight: 500; font-size: 13.5px; color: var(--ink); }
+.pg-rl-sp small { display: block; font-size: 12px; line-height: 1.35; color: var(--ink-dim); }
+.pg-rl-sp.is-off b { font-weight: 400; color: var(--ink-dim); }
+.pg .pg-rl-x-hint { margin-top: 10px; font-size: 12px; color: var(--ink-dim); }
+.pg-switch:disabled { opacity: .45; cursor: not-allowed; }
+.pg-rl-grid.is-lock .pg-switch:disabled { opacity: 1; cursor: default; }
+.pg .pg-rl-foot { display: flex; align-items: center; gap: 8px; padding: 12px 22px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-dim); }
+.pg-rl-foot svg { width: 15px; height: 15px; flex-shrink: 0; }
+.pg-rl-save { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 12px 22px; border-top: 1px solid var(--line); background: var(--surface); border-radius: 0 0 var(--radius-card, 20px) var(--radius-card, 20px); }
+.pg .pg-rl-save-text { flex: 1 1 160px; font-size: 13px; color: var(--ink-dim); }
+.pg-rl-save-text.is-dirty { font-weight: 500; color: rgb(var(--brand-600, 192 90 64)); }
+body.dark-mode .pg-rl-save-text.is-dirty { color: rgb(var(--brand-300, 232 166 143)); }
+
+/* Comparar roles: permiso × rol, solo consulta. */
+.pg-rl-cmp-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+.pg-rl-cmp { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.pg-rl-cmp thead th { padding: 10px 12px; font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-dim); text-align: left; white-space: nowrap; background: var(--surface-hover, transparent); border-bottom: 1px solid var(--line); }
+.pg-rl-cmp th:first-child, .pg-rl-cmp td:first-child { padding-left: 22px; }
+.pg-rl-cmp .pg-rl-c { width: 128px; text-align: center; }
+.pg-rl-cmp-role { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; padding: 2px 6px; border: 0; border-radius: 8px; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--ink); cursor: pointer; }
+.pg-rl-cmp-role:hover { color: rgb(var(--brand-600, 192 90 64)); }
+.pg-rl-cmp-role:focus-visible { outline: 2px solid rgb(var(--accent-2-600, 192 90 64)); outline-offset: 1px; }
+.pg-rl-cmp-role small { font-size: 11px; font-weight: 300; letter-spacing: 0; text-transform: none; color: var(--ink-dim); }
+.pg-rl-cmp tbody th, .pg-rl-cmp tbody td { padding: 8px 12px; border-top: 1px solid var(--line); font-weight: 400; color: var(--ink); text-align: left; }
+.pg-rl-cmp tbody td.pg-rl-c { text-align: center; }
+.pg-rl-cmp tr.pg-rl-cmp-sec th { padding-top: 12px; padding-bottom: 8px; font-weight: 500; }
+.pg-rl-cmp tr.pg-rl-cmp-sec .pg-rl-ico { width: 26px; height: 26px; border-radius: 8px; }
+.pg-rl-cmp tr.pg-rl-cmp-act th { padding-left: 58px; color: var(--ink-dim); }
+.pg-rl-cmp tr.pg-rl-cmp-act > * { border-top-style: dashed; }
+.pg-rl-dot { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 9999px; background: rgb(var(--primary-rgb, 41 37 36)); color: #FFFFFF; }
+.pg-rl-dot svg { width: 13px; height: 13px; }
+/* De Huubie: se compara, pero se lee distinto a los de la empresa. */
+.pg-rl-dot.is-sys { background: rgb(var(--gray-200, 229 231 235)); color: var(--ink-dim); }
+body.dark-mode .pg-rl-dot.is-sys { background: rgb(255 255 255 / .10); }
+.pg-rl-no { display: inline-block; width: 10px; height: 2px; border-radius: 2px; background: var(--ink-dim); opacity: .3; vertical-align: middle; }
+.pg-rl-tag { display: inline-block; margin-left: 8px; padding: 2px 7px; border-radius: 9999px; font-size: 10px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; vertical-align: 1px; background: var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220))); color: var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51))); }
+
+/* Rol nuevo y Copiar de…: una opción por rol. */
+.pg-rl-opts { display: flex; flex-direction: column; gap: 8px; }
+.pg-rl-opt { display: flex; align-items: center; gap: 12px; margin: 0; padding: 11px 14px; border: 1px solid var(--line); border-radius: 14px; cursor: pointer; }
+.pg-rl-opt:has(input:checked) { border-color: var(--accent-line); background: var(--tint); }
+.pg-rl-opt input { width: 17px; height: 17px; margin: 0; flex-shrink: 0; accent-color: rgb(var(--primary-rgb, 41 37 36)); }
+.pg-rl-opt b { display: block; font-weight: 500; color: var(--ink); }
+.pg-rl-opt small { display: block; font-size: 12.5px; color: var(--ink-dim); }
+
+@media (max-width: 1280px) {
+    .pg-rl-grid { --rl-col: 66px; --rl-x: 124px; }
+    .pg-rl-r { grid-template-columns: minmax(170px, 1fr) repeat(var(--rl-cols, 6), var(--rl-col)) var(--rl-x); }
+    .pg-rl-th { font-size: 10.5px; letter-spacing: .02em; }
+}
+/* Con la lista al lado, las 6 columnas ya no caben debajo de 1180 px. */
+@media (max-width: 1180px) {
+    .pg-rl { grid-template-columns: minmax(0, 1fr); }
+    .pg-rl-side { display: none; }
+    .pg-rl-pick { display: flex; align-items: center; gap: 10px; }
+    .pg-rl-pick select.pg-input { flex: 1; min-width: 0; }
+}
+@media (max-width: 1023px) {
+    .pg-rl-grid { --rl-col: 62px; --rl-x: 118px; }
+    .pg-rl-th { font-size: 10px; letter-spacing: 0; }
+}
+@media (max-width: 860px) {
+    .pg-rl-r { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 12px 16px; }
+    .pg-rl-r.pg-rl-th { display: none; }
+    .pg-rl-save { flex-wrap: nowrap; }
+    .pg .pg-rl-save-text { flex: 1 1 0; min-width: 0; }
+    .pg-rl-sec { flex: 0 0 100%; margin-bottom: 4px; }
+    .pg-rl-cell { padding: 6px 11px 6px 9px; border: 1px solid var(--line); border-radius: 9999px; font-size: 12.5px; color: var(--ink-dim); }
+    .pg-rl-cell input { width: 15px; height: 15px; }
+    .pg-rl-cell:has(input:checked) { color: var(--ink); border-color: var(--accent-line, var(--line)); background: var(--accent-soft-bg, transparent); }
+    .pg-rl-cell:has(input:disabled):not(:has(input:checked)) { opacity: .5; }
+    .pg-rl-cell.is-none, .pg-rl-x-none { display: none; }
+    .pg-rl-cell-name { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+    .pg-rl-cell-dot { position: static; }
+    .pg-rl-x { flex: 0 0 100%; justify-content: space-between; margin-top: 6px; padding: 8px 12px; }
+    .pg-rl-x-long { display: inline; }
+    .pg-rl-extra { margin: 0 16px 12px; }
+    .pg-rl-sp-list { grid-template-columns: minmax(0, 1fr); }
+    .pg-rl-head, .pg-rl-bar { padding-left: 16px; padding-right: 16px; }
+    .pg-rl-find { width: 100%; }
+    .pg-rl-mods { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+    .pg-rl-group { padding-left: 16px; padding-right: 16px; }
+    .pg-rl-save, .pg .pg-rl-foot { padding-left: 16px; padding-right: 16px; }
+    .pg .pg-rl-lock { margin-left: 16px; margin-right: 16px; }
+    .pg-rl-cmp th:first-child, .pg-rl-cmp td:first-child { padding-left: 16px; }
+    .pg-rl-cmp tr.pg-rl-cmp-act th { padding-left: 30px; }
+    .pg-rl-cmp .pg-rl-c { width: 92px; }
+}
 
 /* -- Modal --
    Cuelga del <body>, fuera de .pg: por eso repite lo básico de la página
@@ -525,6 +694,8 @@ body.pg-modal-open #main__content { overflow: hidden; }
 body.dark-mode .pg-modal-bg { background: rgb(0 0 0 / .60); }
 .pg-modal-box { position: relative; width: 100%; max-width: 460px; margin: auto 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card, 20px); box-shadow: 0 30px 70px -30px rgb(29 27 49 / .55); animation: pg-pop .2s cubic-bezier(.2, .8, .2, 1); }
 .pg-modal-box.is-wide { max-width: 680px; }
+/* El más ancho (cfgModal con xl). */
+.pg-modal-box.is-xl { max-width: 980px; }
 .pg-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 22px 16px; border-bottom: 1px solid var(--line); }
 .pg-modal-title { font-size: 17px; font-weight: 600; color: var(--ink); }
 .pg-modal-sub { font-size: 13.5px; color: var(--ink-dim); margin-top: 3px !important; }
@@ -563,14 +734,6 @@ body.dark-mode .pg-toast { background: #0B1220; border: 1px solid var(--dk-line,
     .pg-modal-head, .pg-modal-body { padding-left: 16px; padding-right: 16px; }
     .pg-modal-foot { padding: 12px 16px 14px; }
     .pg-access-row { grid-template-columns: minmax(0, 1fr); }
-    /* Permisos: sin columnas; cada acción, pastilla con su nombre. */
-    .pg-tree-head { grid-template-columns: minmax(0, 1fr); padding: 0 14px; }
-    .pg-tree-col, .pg-tree-cell.is-none { display: none; }
-    .pg-tree-sec { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 14px 12px; }
-    .pg-tree-all { flex: 0 0 100%; padding: 10px 0 4px; }
-    .pg-tree-cell { padding: 5px 10px 5px 8px; border: 1px solid var(--line); border-radius: 9999px; font-size: 13px; color: var(--ink-dim); }
-    .pg-tree-cell:has(input:checked) { color: var(--ink); border-color: var(--accent-line, var(--line)); background: var(--accent-soft-bg, transparent); }
-    .pg-tree-act { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
     .pg-toolbar-side { width: 100%; justify-content: space-between; }
     .pg-toolbar-side select.pg-input { flex: 1 1 100%; }
     .pg a.pg-tab { padding: 9px 12px; }

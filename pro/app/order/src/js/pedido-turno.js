@@ -5,7 +5,7 @@
     ctrl responde 423: sin turno abierto o con uno de otro dia.
 
     Quien puede que lo decide el ctrl en data.can: abrir y cerrar = create,
-    reabrir y recalcular = cancel (Dueño y Supervisor).
+    reabrir y recalcular = 'reabrir-turno' (hoy Dueño y Supervisor).
 
     Un turno cerrado muestra su corte. Si sus pedidos cambiaron después,
     t.changed trae las cifras de hoy y el modal ofrece «Recalcular».
@@ -858,7 +858,7 @@ class OrderTurn extends Templates {
 
         if (!t.closed && t.old) bars.push(this.alertBar('Turno de otro día: ciérralo para seguir capturando y cobrando.', 'is-warn'));
         if (t.changed) bars.push(this.driftBar(t, can));
-        if (t.closed && !can.reopen && orders.can('cancel') && can.reopen_reason) bars.push(this.alertBar(esc(can.reopen_reason), 'is-info'));
+        if (t.closed && !can.reopen && orders.can('reabrir-turno') && can.reopen_reason) bars.push(this.alertBar(esc(can.reopen_reason), 'is-info'));
 
         return bars.length ? [{ id: 'tc_alerts', tipo: 'html', class: 'w-full', html: bars.join('') }] : [];
     }
@@ -878,7 +878,7 @@ class OrderTurn extends Templates {
 
         const action = can.recalc
             ? '<div class="mt-2"><button type="button" class="ord-recalc"><i data-lucide="refresh-cw" class="w-[14px] h-[14px]"></i>Recalcular corte</button></div>'
-            : `<p class="text-[12px] font-normal mt-2 mb-0">${esc(orders.can('cancel') ? can.recalc_reason : 'Avísale a Dueño o Supervisor para que lo recalcule.')}</p>`;
+            : `<p class="text-[12px] font-normal mt-2 mb-0">${esc(orders.can('reabrir-turno') ? can.recalc_reason : 'Avísale a Dueño o Supervisor para que lo recalcule.')}</p>`;
 
         return this.alertBar(`
             <p class="mb-1">Sus pedidos cambiaron después del corte</p>
@@ -1065,6 +1065,9 @@ class OrderTurn extends Templates {
         this.token       = ordToken();
 
         this.sync(data.brief, true);
+
+        // En Ventas el cliente del ticket regresa a «Público en general».
+        if (typeof sale !== 'undefined' && sale && typeof sale.clearCustomer === 'function') sale.clearCustomer();
 
         // El selector y el ticket del mismo turno, ya cerrado (sello Cerrado, contado y diferencia).
         this.deskList(t.id, true);

@@ -405,6 +405,51 @@ class ctrl extends core {
         }, 'No se pudo cambiar el estado de la tarjeta.');
     }
 
+    // -- Tarjetas: cliente nuevo --
+
+    /*  «Dar de alta cliente» de la lista de tarjetas: el mismo cliente de Pedidos ›
+        Clientes (nombre, telefono de 10 digitos unico entre los activos de la
+        empresa, correo opcional), sin credito. Pide 'create' de Tarjetas. */
+    public function addCustomer() {
+        $fail = $this->needPoints('create') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $name  = trim((string) preg_replace('/\s+/u', ' ', $this->post('name')));
+        $phone = preg_replace('/\D/', '', $this->post('phone'));
+        $email = trim((string) $this->post('email'));
+
+        if ($name === '')               return $this->fail(422, 'Escribe el nombre del cliente.');
+        if ($this->tooLong($name, 120)) return $this->fail(422, 'El nombre admite hasta 120 caracteres.');
+        if (strlen($phone) !== 10)      return $this->fail(422, 'El teléfono debe tener 10 dígitos.');
+
+        if ($email !== '') {
+            if ($this->tooLong($email, 120))                return $this->fail(422, 'El correo admite hasta 120 caracteres.');
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return $this->fail(422, 'El correo no tiene un formato válido.');
+        }
+
+        return $this->attempt(function () use ($name, $phone, $email) {
+            return $this->transaction(function () use ($name, $phone, $email) {
+                $taken = $this->qCustomerPhoneTaken($this->branchId(), $phone, 0);
+
+                if ($taken) {
+                    $label = trim((string) $taken['name']) !== '' ? trim($taken['name']) : 'otro cliente';
+
+                    return $this->fail(409, "Ese teléfono ya es de {$label}.");
+                }
+
+                $this->must($this->qCreateCustomer([
+                    'values' => ['name', 'phone', 'email', 'branch_id', 'active'],
+                    'data'   => [$name, $phone, $email === '' ? null : $email, $this->branchId(), 1]
+                ]), 'addCustomer');
+
+                $id = $this->qLastInsertId();
+                if ($id <= 0) throw new RuntimeException('addCustomer: sin id');
+
+                return $this->ok('Cliente agregado. Ya puedes elegirlo al dar de alta su tarjeta.', ['id' => $id]);
+            });
+        }, 'No se pudo guardar el cliente.');
+    }
+
     // -- Tarjetas: tarjeta digital --
 
     // El enlace de la tarjeta digital. La primera vez lo crea, y eso pide 'update'; despues basta 'show'.

@@ -11,8 +11,8 @@
     pero sin recargar: se pide el init de la otra y se repinta la lista.
 
     Turnos: el corte (orderTurn.cutTicket) en modo Resumido o
-    Detallado. Cierres del día: el Corte Z de alpha en hoja carta
-    (orderClosure.paintReport); un clic en un pedido abre su ticket con
+    Detallado. Cierres del día: el Corte Z en hoja carta, Concentrado o
+    Detallado (orderClosure.paintReport); un clic en un pedido abre su ticket con
     «Volver al corte Z». Tickets: pedidos (P) y ventas de mostrador (V) por fecha de
     captura; el papel es el ticket (OrderDetail.ticketHtml / ordTicketHtml)
     con sus pagos y su bitácora al lado. Los modales de pedido-turno.js y
@@ -54,7 +54,9 @@ class Cuts extends Templates {
             days:    { title: 'Cierres del día', grid: 'minmax(0, 1fr) 58px 58px 108px',  cols: ['Folio', 'Turnos', 'Tickets', 'Vendido'] },
             tickets: { title: 'Tickets',         grid: 'minmax(0, 1fr) 62px 92px 108px',  cols: ['Folio', 'Hora', 'Pagado', 'Total'] }
         };
-        this.ranges         = { week: 'Semana actual', month: 'Mes actual', lastMonth: 'Mes anterior', last30: 'Últimos 30 días' };
+        // Los rangos del selector de alpha/order-visor.
+        this.ranges         = { today: 'Hoy', last7: 'Últimos 7 días', month: 'Mes actual', lastMonth: 'Mes anterior' };
+        this.period         = 'day';  // 'day' = Fecha, 'range' = Rango (filterBar › periodBox)
         this.views          = {
             turns:   { url: 'ctrl/ctrl-turno.php', opc: 'lsTurns', one: 'turno', many: 'turnos' },
             days:    { url: 'ctrl/ctrl-cierre.php', opc: 'lsDays', one: 'día', many: 'días' },
@@ -84,7 +86,7 @@ class Cuts extends Templates {
 
         return {
             view: this.views[view] ? view : 'turns',
-            ...getDataRangePicker('cut_calendar')
+            ...getDataRangePicker(this.period === 'range' ? 'cut_calendar' : 'cut_day')
         };
     }
 
@@ -160,12 +162,11 @@ class Cuts extends Templates {
                     onchange: 'orders.onFilterChange()'
                 },
                 {
-                    opc:      'input-calendar',
-                    id:       'calendar',
+                    opc:      'div',
+                    id:       'cutPeriodWrap',
                     lbl:      'Periodo',
                     required: false,
-                    readonly: true,
-                    class:    'col-12 col-sm-6 col-lg-4 col-xl-3'
+                    class:    'col-12 col-sm-6 col-lg-5 col-xl-4'
                 },
                 {
                     opc:      'select',
@@ -183,6 +184,52 @@ class Cuts extends Templates {
         // Con una sola sucursal se ve cuál es, pero no hay a dónde cambiar.
         $('#cut_branch').prop('disabled', places.length < 2);
 
+        this.periodBox(saved);
+    }
+
+    /*  El periodo como en alpha/order-visor: en una sola caja, Fecha o Rango
+        (radios), la fecha o el rango y el ícono de calendario. Cada modo tiene
+        su calendario; solo se ve el del modo elegido. */
+    periodBox(saved) {
+        const locale = {
+            format:           'DD/MM/YYYY',
+            separator:        ' - ',
+            firstDay:         1,
+            customRangeLabel: 'Personalizado',
+            daysOfWeek:       ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'],
+            monthNames:       this.months
+        };
+
+        this.period = saved.mode;
+
+        $('#cutPeriodWrap').html(`
+            <div class="ord-cutper">
+                <label class="ord-cutper-opt"><input type="radio" name="cutPeriod" value="day"> Fecha</label>
+                <label class="ord-cutper-opt"><input type="radio" name="cutPeriod" value="range"> Rango</label>
+                <span class="ord-cutper-sep"></span>
+                <input type="text" id="cut_day" readonly>
+                <input type="text" id="cut_calendar" readonly>
+                <i data-lucide="calendar" class="ord-cutper-ico"></i>
+            </div>`);
+
+        $(`input[name="cutPeriod"][value="${this.period}"]`).prop('checked', true);
+        $('input[name="cutPeriod"]').on('change', (e) => this.setPeriod(e.target.value));
+
+        if (window.lucide) lucide.createIcons({ root: $('#cutPeriodWrap')[0] });
+
+        dataPicker({
+            parent: 'cut_day',
+            type:   'simple',
+            rangeDefault: {
+                singleDatePicker: true,
+                startDate:        this.rangeDates('today')[0],
+                showDropdowns:    true,
+                autoApply:        true,
+                locale:           locale
+            },
+            onSelect: () => this.onFilterChange()
+        });
+
         dataPicker({
             parent: 'cut_calendar',
             type:   'all',
@@ -191,18 +238,26 @@ class Cuts extends Templates {
                 endDate:       saved.dates[1],
                 showDropdowns: true,
                 autoApply:     true,
-                locale: {
-                    format:           'DD/MM/YYYY',
-                    separator:        ' - ',
-                    firstDay:         1,
-                    customRangeLabel: 'Personalizado',
-                    daysOfWeek:       ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'],
-                    monthNames:       this.months
-                },
-                ranges: Object.fromEntries(Object.entries(this.ranges).map(([range, label]) => [label, this.rangeDates(range)]))
+                locale:        locale,
+                ranges:        Object.fromEntries(Object.entries(this.ranges).map(([range, label]) => [label, this.rangeDates(range)]))
             },
             onSelect: () => this.onFilterChange()
         });
+
+        this.paintPeriod();
+    }
+
+    // Solo se ve el calendario del modo elegido.
+    paintPeriod() {
+        $('#cut_day').toggle(this.period === 'day');
+        $('#cut_calendar').toggle(this.period === 'range');
+    }
+
+    setPeriod(mode) {
+        this.period = mode === 'range' ? 'range' : 'day';
+
+        this.paintPeriod();
+        this.onFilterChange();
     }
 
     header() {
@@ -758,7 +813,7 @@ class Cuts extends Templates {
             return;
         }
 
-        // Día sin cerrar y sin ser Dueño (como alpha): el Corte Z llega hasta cerrarlo.
+        // Día sin cerrar y sin 'ver-corte-z' (como alpha): el Corte Z llega hasta cerrarlo.
         if (view === 'days' && data.hidden) {
             this.current = null;
             this.paintBar();
@@ -798,10 +853,12 @@ class Cuts extends Templates {
             sub   = [o.status, ordDate(o.created_at, true), who ? `${data.kind === 'counter' ? 'Atendió' : 'Capturó'} ${who}` : '', o.turn_folio ? `Turno ${o.turn_folio}` : 'Sin turno'].filter(Boolean).join(' · ');
         }
 
+        // El mismo modo para turnos y cierres; en el Corte Z el corto se llama Concentrado (como en Soft).
         const modes = ['summary', 'detail'].map((mode) => {
             const active = this.mode === mode;
+            const text   = mode === 'detail' ? 'Detallado' : this.view === 'days' ? 'Concentrado' : 'Resumido';
 
-            return `<button type="button" class="ord-seg${active ? ' is-active' : ''}" data-mode="${mode}" aria-pressed="${active}">${mode === 'detail' ? 'Detallado' : 'Resumido'}</button>`;
+            return `<button type="button" class="ord-seg${active ? ' is-active' : ''}" data-mode="${mode}" aria-pressed="${active}">${text}</button>`;
         }).join('');
 
         // Como alpha: «Vista previa de impresión» a la izquierda y los modos a la derecha. Abajo, qué papel es.
@@ -824,7 +881,7 @@ class Cuts extends Templates {
                         type:  'div',
                         class: 'ord-viewer-tools',
                         children: [
-                            { type: 'div', class: 'ord-viewer-modes', html: data && turns ? modes : '' },
+                            { type: 'div', class: 'ord-viewer-modes', html: data && !tickets ? modes : '' },
                             { type: 'div', id: `barActions${this.PROJECT_NAME}`, class: 'flex' }
                         ]
                     }
@@ -866,7 +923,7 @@ class Cuts extends Templates {
         if (this.view === 'days') {
             if (this.over) return this.paintTicket(paper, this.over, true);
 
-            return orderClosure.paintReport(paper, this.current, (id) => this.openOver(id));
+            return orderClosure.paintReport(paper, this.current, (id) => this.openOver(id), this.mode);
         }
 
         const detail = this.mode === 'detail' ? this.current.detail : null;
@@ -1052,8 +1109,8 @@ class Cuts extends Templates {
             $(el).toggleClass('is-active', active).attr('aria-pressed', String(active));
         });
 
-        // Solo el corte del turno tiene Resumido | Detallado.
-        if (this.current && this.view === 'turns') this.paintPaper();
+        // Turnos (Resumido | Detallado) y cierres (Concentrado | Detallado); con un ticket abierto encima del Corte Z, se queda el ticket.
+        if (this.current && (this.view === 'turns' || (this.view === 'days' && !this.over))) this.paintPaper();
     }
 
     openCurrent() {
@@ -1076,7 +1133,7 @@ class Cuts extends Templates {
             return;
         }
 
-        if (this.view === 'days') return orderClosure.printDay(this.current);
+        if (this.view === 'days') return orderClosure.printDay(this.current, this.mode);
 
         orderTurn.printCut(this.current, this.mode === 'detail' ? this.current.detail : null);
     }
@@ -1193,8 +1250,9 @@ class Cuts extends Templates {
         }
     }
 
+    // Fecha arranca en hoy, como en alpha. Se recuerdan la vista, el modo y el rango.
     savedRange() {
-        const saved = { view: 'turns', dates: this.rangeDates('month') };
+        const saved = { view: 'turns', mode: 'day', dates: this.rangeDates('last7') };
 
         try {
             const raw = JSON.parse(localStorage.getItem(this.rangeKey) || '{}') || {};
@@ -1202,6 +1260,7 @@ class Cuts extends Templates {
             const ff  = moment(raw.ff, 'YYYY-MM-DD', true);
 
             if (this.views[raw.view]) saved.view = raw.view;
+            if (raw.mode === 'range') saved.mode = 'range';
 
             if (Object.keys(this.ranges).includes(raw.range)) saved.dates = this.rangeDates(raw.range);
             else if (raw.range === 'custom' && fi.isValid() && ff.isValid() && !ff.isBefore(fi)) saved.dates = [fi, ff];
@@ -1216,7 +1275,7 @@ class Cuts extends Templates {
         const { fi, ff } = getDataRangePicker('cut_calendar');
 
         try {
-            localStorage.setItem(this.rangeKey, JSON.stringify({ view: this.filters.view, range: this.rangeName(fi, ff), fi, ff }));
+            localStorage.setItem(this.rangeKey, JSON.stringify({ view: this.filters.view, mode: this.period, range: this.rangeName(fi, ff), fi, ff }));
         } catch (e) {
             return;
         }
@@ -1227,10 +1286,10 @@ class Cuts extends Templates {
         const today  = server.isValid() ? server : moment();
 
         switch (range) {
-            case 'week':      return [today.clone().startOf('isoWeek'), today.clone().endOf('isoWeek')];
+            case 'today':     return [today.clone(), today.clone()];
+            case 'last7':     return [today.clone().subtract(6, 'days'), today.clone()];
             case 'lastMonth': return [today.clone().subtract(1, 'months').startOf('month'), today.clone().subtract(1, 'months').endOf('month')];
-            case 'last30':    return [today.clone().subtract(29, 'days'), today.clone()];
-            default:          return [today.clone().startOf('month'), today.clone().endOf('month')];
+            default:          return [today.clone().startOf('month'), today.clone()];
         }
     }
 

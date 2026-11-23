@@ -14,7 +14,6 @@ let orders, orderDetail, orderForm, orderTurn, orderPay, orderClosure;
 let dataInit = {};
 
 const ORD_CALENDAR_API = 'ctrl/ctrl-calendario.php';
-const ORD_CLIENTS_API  = 'ctrl/ctrl-clientes.php';   // «Editar cliente» del menú de la fila
 
 $(async () => {
     dataInit = (await useFetch({ url: api, data: { opc: 'init' } })) || {};
@@ -46,6 +45,7 @@ class Orders extends Templates {
         super(link, div_modulo);
         this.PROJECT_NAME = 'Orders';
         this.rangeKey     = 'pro:pedidos:range:v1';
+        this.backKey      = 'pro:pedidos:regreso:v1';   // filtros al ir a editar (keepFilters)
         this.ranges       = { today: 'Hoy', yesterday: 'Ayer', week: 'Semana actual', month: 'Mes actual', lastMonth: 'Mes anterior' };
         this.request      = 0;
         this.searchTimer  = null;
@@ -55,7 +55,6 @@ class Orders extends Templates {
         this.view         = 'list';  // list | calendar | board
         this.calendar     = null;    // OrderCalendar, se arma la primera vez que se abre
         this.board        = null;    // OrderBoard, igual
-        this.savingCustomer = false; // «Editar cliente» en curso
     }
 
     get filters() {
@@ -83,6 +82,7 @@ class Orders extends Templates {
 
         this.filterBar();
         this.searchBar();
+        this.restoreFilters();
         this.showView(this.startView());
     }
 
@@ -578,149 +578,6 @@ class Orders extends Templates {
         $(`#length${this.PROJECT_NAME}`).append($(table.table().container()).find('.dataTables_length'));
     }
 
-    // -- Columna Entrega --
-
-    /*  El badge de Entrega abre un menú con los dos estados, como alpha: el
-        actual marcado y el otro con su ventana de siempre (entregar,
-        cobrar y entregar, o deshacer con motivo). El ctrl manda en
-        data-to qué ventana toca y, si no se puede, en data-why el porqué.
-        Usa la clase de los menús de la tabla: se cierra con el mismo clic afuera. */
-    deliveryMenu(btn, e) {
-        e.stopPropagation();
-
-        const el    = $(btn);
-        const id    = Number(el.attr('data-id'));
-        const given = Number(el.attr('data-state')) === 1;
-        const to    = String(el.attr('data-to') || '');
-        const why   = String(el.attr('data-why') || '');
-        const again = $('ul.ord-deliv-menu:not(.hidden)').data('for') === id;
-
-        $('ul.ct3-dropdown-menu').addClass('hidden');
-        $('ul.ord-deliv-menu').remove();
-
-        if (again) return;
-
-        const runs = {
-            deliver:   () => orderDetail.deliver(id),
-            settle:    () => orderPay.open(id, false, { deliver: true }),
-            undeliver: () => orderDetail.undeliver(id)
-        };
-
-        const note = to === 'settle' ? 'Primero cobras el saldo' : to ? '' : why;
-
-        const menu = $('<ul>', {
-            class: 'ct3-dropdown-menu ord-deliv-menu w-56 border rounded-md shadow-lg',
-            css:   { position: 'fixed', zIndex: 99999 },
-            role:  'menu'
-        }).data('for', id);
-
-        menu.append('<li class="ord-deliv-head">Estado de entrega</li>')
-            .append(this.deliveryItem(given ? 'Entregado' : 'Sin entregar', given, 'Estado actual', null, true))
-            .append(this.deliveryItem(given ? 'Sin entregar' : 'Entregado', !given, note, to ? runs[to] : null, false));
-
-        $('body').append(menu);
-
-        const rect = btn.getBoundingClientRect();
-        const wide = menu.outerWidth() || 224;
-        const tall = menu.outerHeight() || 140;
-        const left = Math.max(8, Math.min(rect.left, window.innerWidth - wide - 8));
-        const top  = rect.bottom + 6 + tall > window.innerHeight - 8 ? rect.top - tall - 6 : rect.bottom + 6;
-
-        menu.css({ top: `${top}px`, left: `${left}px` });
-
-        if (window.lucide) lucide.createIcons();
-    }
-
-    // Una opción del menú. done = el punto verde (entregado); run = null la deja apagada con su nota.
-    deliveryItem(label, done, note, run, current) {
-        const html = `<span class="ord-deliv-dot ${done ? 'is-done' : 'is-wait'}"></span>`
-                   + `<span class="min-w-0"><span class="block">${esc(label)}</span>${note ? `<small>${esc(note)}</small>` : ''}</span>`;
-
-        if (current) return $('<li>').append($('<div>', { class: 'ord-deliv-opt is-current', html: html + '<i data-lucide="check" class="w-4 h-4 ml-auto shrink-0"></i>' }));
-
-        if (!run) return $('<li>').append($('<div>', { class: 'ord-deliv-opt is-off', html: html }));
-
-        return $('<li>').append($('<a>', {
-            class: 'ord-deliv-opt',
-            role:  'menuitem',
-            html:  html,
-            click: () => {
-                $('ul.ord-deliv-menu').remove();
-                run();
-            }
-        }));
-    }
-
-    // -- Cliente --
-
-    /*  «Editar cliente» del menú de la fila: nombre, teléfono y correo, con
-        las reglas de Clientes (ctrl-clientes › editCustomer: 10 dígitos, sin
-        repetir teléfono). El crédito no viaja: se sigue dando en Clientes. */
-    async editCustomer(customerId) {
-        $('ul.ct3-dropdown-menu').addClass('hidden');
-
-        if (this.savingCustomer) return;
-
-        const data = await useFetch({ url: ORD_CLIENTS_API, data: { opc: 'getCustomer', id: customerId } });
-
-        if (!data || data.status != 200 || !data.row) {
-            return alert({ icon: 'info', title: 'No se abrió el cliente', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
-        }
-
-        const c = data.row;
-
-        this.csModal({
-            id:         'modalOrderCustomerEdit',
-            title:      'Editar cliente',
-            subtitle:   c.since ? `Cliente desde ${c.since}` : '',
-            lucideIcon: 'pencil',
-            width:      'max-w-md',
-            saveText:   'Guardar cambios',
-            cancelText: 'Cancelar',
-            info:       'El cambio sale en todos los pedidos del cliente.',
-            json: [
-                { id: 'oce_name', lbl: 'Nombre', required: true, maxlength: 120, value: c.name || '', class: 'w-full' },
-                { id: 'oce_phone', lbl: 'Teléfono', required: true, maxlength: 16, ph: '10 dígitos', value: c.phone || '', class: 'w-full' },
-                { id: 'oce_email', lbl: 'Correo', maxlength: 120, ph: 'Opcional', value: c.email || '', class: 'w-full' }
-            ],
-            onSave: (values, close) => this.saveCustomer(c.id, values, close)
-        });
-
-        $('#oce_phone')
-            .attr({ inputmode: 'numeric', autocomplete: 'off' })
-            .on('input', (e) => { e.target.value = e.target.value.replace(/[^\d\s-]/g, ''); });
-
-        $('#oce_email').attr({ inputmode: 'email', autocomplete: 'off' });
-    }
-
-    async saveCustomer(id, values, close) {
-        if (this.savingCustomer) return;
-
-        const name  = String(values.oce_name || '').trim().replace(/\s+/g, ' ');
-        const phone = String(values.oce_phone || '').replace(/\D/g, '');
-        const email = String(values.oce_email || '').trim();
-        const warn  = (text) => alert({ icon: 'warning', title: 'Revisa el cliente', text: text, btn1: true, btn1Text: 'Entendido' });
-
-        if (!name)               return warn('Escribe el nombre del cliente.');
-        if (phone.length !== 10) return warn('El teléfono debe tener 10 dígitos.');
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return warn('El correo no tiene un formato válido.');
-
-        this.savingCustomer = true;
-
-        const button = $('#modalOrderCustomerEdit .cs-modal-save').prop('disabled', true);
-        const data   = await useFetch({ url: ORD_CLIENTS_API, data: { opc: 'editCustomer', id: id, name: name, phone: phone, email: email } });
-
-        this.savingCustomer = false;
-        button.prop('disabled', false);
-
-        // Teléfono repetido o dato inválido: la ventana sigue abierta con lo escrito.
-        if (!data || data.status != 200) return warn((data && data.message) || 'No se guardó el cliente. Vuelve a intentar.');
-
-        close();
-        alert({ icon: 'success', title: data.message, timer: 1400 });
-        this.lsOrders();
-    }
-
     // -- Complements --
 
     onBranchChange() {
@@ -752,6 +609,46 @@ class Orders extends Templates {
 
     can(action) {
         return (dataInit.actions || []).includes(action);
+    }
+
+    /*  Al ir a editar (OrderLink.edit) se guardan la búsqueda, Estado y Tipo de
+        la lista; al regresar de pedido.php restoreFilters los vuelve a poner.
+        El periodo ya se recuerda solo (saveRange). En la pestaña, una sola vez. */
+    keepFilters() {
+        const saved = {
+            q:          String($('#ord_q').val() || '').trim(),
+            status:     String($('#ord_status').val() || ''),
+            order_type: String($('#ord_order_type').val() || '')
+        };
+
+        try {
+            sessionStorage.setItem(this.backKey, JSON.stringify(saved));
+        } catch (e) {
+            // Sin almacenamiento la lista regresa con los filtros de siempre.
+        }
+    }
+
+    restoreFilters() {
+        let saved = null;
+
+        try {
+            saved = JSON.parse(sessionStorage.getItem(this.backKey) || 'null');
+            sessionStorage.removeItem(this.backKey);
+        } catch (e) {
+            return;
+        }
+
+        if (!saved || typeof saved !== 'object') return;
+
+        $('#ord_q').val(String(saved.q || '').slice(0, 60));
+
+        // Solo un valor que siga en la lista de opciones.
+        ['status', 'order_type'].forEach((key) => {
+            const select = $(`#ord_${key}`);
+            const value  = String(saved[key] || '');
+
+            if (select.find('option').filter((i, o) => o.value === value).length) select.val(value);
+        });
     }
 
     savedRange() {
@@ -842,8 +739,13 @@ class OrderLink extends OrderForm {
         this.warnFail(data, 'No se pudo abrir la captura', go);
     }
 
+    // Al regresar de la captura, la lista vuelve con sus filtros y su búsqueda (orders.keepFilters).
     async edit(id) {
-        if (await this.editable(id)) location.href = this.formUrl(id);
+        if (!(await this.editable(id))) return;
+
+        orders.keepFilters();
+
+        location.href = this.formUrl(id);
     }
 
     // pedido.php conserva ?from=ventas: la franja sigue ofreciendo el regreso a Ventas.

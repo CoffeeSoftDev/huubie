@@ -14,8 +14,8 @@ require_once __DIR__ . '/core-order.php';
       - Entregar pide 'update' de PEDIDOS y sin saldo (decision 5: el saldo se
         cobra al entregar; la pantalla encadena cobro y entrega). Sin contraseña.
       - «Editar entrega» (fecha, hora, tipo, direccion y nota) tambien se hace
-        desde aqui: pide el permiso «Editar entrega» de PEDIDOS
-        (core::editDelivery). Un pagado lo edita Dueño o Supervisor, con su contraseña.
+        desde aqui: pide 'update' de PEDIDOS (core::editDelivery). Un pagado lo
+        edita Dueño o Supervisor, con su contraseña.
       - Quien no ve Pedidos ve solo pendientes y pagados: ni cotizaciones ni
         cancelados, como Produccion en alpha. Tampoco ve dinero: el calendario
         le llega sin total, abonado ni saldo, y el detalle sin importes, abonos
@@ -128,6 +128,49 @@ class ctrl extends core {
         return ['status' => 200, 'id' => $id, 'date' => (string) $order['delivery_date']];
     }
 
+    /*  Un cliente (nombre o teléfono) sin pedidos en lo visible: los meses en
+        que sí tiene, del más nuevo al más viejo, para saltar a ellos. Con la
+        misma regla que getCalendar: quien no ve Pedidos cuenta solo pendientes y pagados. */
+    public function locateCustomer() {
+        $fail = $this->needCalendar('show') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $q = mb_substr(trim($this->post('q')), 0, 60, 'UTF-8');
+
+        if (mb_strlen($q, 'UTF-8') < 3) return $this->fail(422, 'Escribe al menos 3 letras del cliente.');
+
+        return $this->attempt(function () use ($q) {
+            $digits   = preg_replace('/\D/', '', $q);
+            $branches = $this->readBranches(self::CALENDAR);
+            $active   = $this->branchId();
+            $limited  = $this->limited();
+            $money    = count($branches) > 1 ? $this->viewBranches(self::SECTION) : [];
+            $months   = [];
+
+            $rows = $this->qCustomerMonths($branches, '%' . addcslashes($q, '%_\\') . '%', strlen($digits) >= 3 ? '%' . $digits . '%' : null);
+
+            foreach ($rows as $r) {
+                $branch = (int) $r['branch_id'];
+                $lim    = $branch !== $active ? !isset($money[$branch]) : $limited;
+
+                if ($lim && !in_array((int) $r['sale_status_id'], [self::PENDING, self::PAID], true)) continue;
+
+                $ym    = (string) $r['ym'];
+                $first = (string) $r['first_date'];
+
+                if (!isset($months[$ym])) $months[$ym] = ['month' => $ym, 'total' => 0, 'first' => $first];
+
+                $months[$ym]['total'] += (int) $r['total'];
+
+                if ($first < $months[$ym]['first']) $months[$ym]['first'] = $first;
+            }
+
+            krsort($months);
+
+            return ['status' => 200, 'months' => array_values($months)];
+        }, 'No se pudo buscar al cliente en otras fechas.');
+    }
+
     // -- Detalle --
 
     public function getOrder() {
@@ -197,8 +240,9 @@ class ctrl extends core {
         return $this->deliver($this->postId());
     }
 
-    public function undeliverOrder() {
-        return $this->undeliver($this->postId());
+    // Entregado, Para producir o No entregado (como alpha), desde el detalle.
+    public function deliveryStateOrder() {
+        return $this->setDeliveryState($this->postId());
     }
 
     public function editOrderDelivery() {

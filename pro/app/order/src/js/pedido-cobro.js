@@ -27,7 +27,8 @@
     el pedido se crea al confirmar el cobro (saveDraft) y enseguida se registra
     el pago. Sin importe, el botón pregunta cómo se guarda (askDraft): como
     cotización se guarda sin dinero. Si se cierra la ventana, no queda nada
-    guardado y la captura sigue abierta.
+    guardado y la captura sigue abierta. Editar un pedido hace lo mismo
+    (openEdit): los cambios se guardan al cobrar o al elegir cómo se guarda.
 
     Lo que manda es el ctrl: aquí se arma el cobro y se avisa antes de mandar.
     SalePayments (historial.js) y SalePay (ventas.js, cobrar una venta) heredan
@@ -110,6 +111,54 @@ class OrderPay extends Templates {
         };
 
         this.start(data, false, { draft: draft });
+    }
+
+    /*  Pedido que ya existe, desde su captura: igual que openDraft, la ventana
+        abre ANTES de guardar los cambios y sobre la captura. Trae sus pagos y su
+        descuento; el total es el de la captura. Al confirmar se guardan los
+        cambios (editOrder) y luego el pago: una cotización con pago queda
+        Pendiente (statusFor). Sin importe, askDraft. Mientras no se guarde, no
+        se quitan pagos: la captura sigue con los cambios sin guardar. */
+    async openEdit(id, draft) {
+        if (this.loading) return;
+
+        this.loading = true;
+
+        const data = await useFetch({ url: this._link, data: { opc: 'payOptions', id: id } });
+
+        this.loading = false;
+
+        if (!data || data.status != 200) return this.fail(data, 'No se abrieron los pagos');
+
+        orderTurn.sync(data.turn, false);
+
+        // El candado del pedido (sin saldo, cotización vacía) es del total guardado, no del de la captura. payOrder lo vuelve a revisar.
+        if (data.pay_block && data.pay_block.kind === 'order') {
+            data.pay_block = null;
+            data.can_pay   = true;
+        }
+
+        const o = data.order;
+
+        o.subtotal      = draft.total;
+        o.total         = ordRound(draft.total - (Number(o.discount_amount) || 0));
+        o.customer      = draft.customer || o.customer;
+        o.delivery_date = draft.delivery;
+        data.can_delete = false;
+
+        this.thenDeliver = false;
+
+        this.start(data, false, { draft: { ...draft, edit: true, id: Number(id) } });
+    }
+
+    // Vuelve a abrir el borrador (después del turno): nuevo o editado.
+    reopenDraft(draft) {
+        return draft.edit ? this.openEdit(draft.id, draft) : this.openDraft(draft);
+    }
+
+    // El botón del borrador sin importe.
+    draftLabel() {
+        return this.draft && this.draft.edit ? 'Guardar cambios' : 'Guardar pedido';
     }
 
     fail(data, title) {
@@ -347,6 +396,11 @@ class OrderPay extends Templates {
         orderTurn.touch();
     }
 
+    // Al liquidar, ¿se pregunta si ya se entregó? Solo sin entregar y con permiso de entregar (update). Ventas no entrega.
+    asksDeliver() {
+        return !this.o.delivered && orders.can('update');
+    }
+
     // -- Textos (Ventas los cambia) --
 
     noun()         { return 'Pedido'; }
@@ -528,7 +582,7 @@ class OrderPay extends Templates {
             +     `<div class="pa-head-ico">${this.ico('wallet')}</div>`
             +     '<div class="pa-head-text"><h2 id="paTitle">Gestión de pagos</h2>'
             +       '<p class="pa-head-meta">'
-            +         (this.draft
+            +         (this.draft && !this.draft.edit
                 ? `<span>${this.ico('file-text')}<b>Pedido nuevo</b> · se guarda al cobrar</span>`
                 : `<span>${this.ico('file-text')}Folio <b>#${this.prefix()}${esc(o.folio)}</b></span>`)
             +         `<span class="is-client">${this.ico('user')}<em>${esc(o.customer || this.noClient())}</em></span>`
@@ -848,7 +902,7 @@ class OrderPay extends Templates {
 
         const draft      = this.draft;
 
-        const next = () => (draft ? this.openDraft(draft) : this.open(id, fromDetail, { deliver: deliver }));
+        const next = () => (draft ? this.reopenDraft(draft) : this.open(id, fromDetail, { deliver: deliver }));
 
         this.closeQuiet('modalOrderPay', this.modal.close);
 
@@ -954,12 +1008,12 @@ class OrderPay extends Templates {
             res = `<div class="pa-res is-bad"><span>${says[0]}</span>${says[1] ? `<small>· ${says[1]}</small>` : ''}</div>`;
         }
 
-        // Pedido nuevo sin poder cobrar: el botón sigue vivo para guardarlo como cotización.
+        // Borrador (nuevo o editado) sin poder cobrar: el botón sigue vivo para guardarlo sin pago.
         const ask = !!(lock && this.draft);
 
         return '<div class="pa-foot">'
             +   res
-            +   `<button type="button" class="pa-save${lock && !ask ? ' is-off' : ''}" id="paSave" data-act="save"><span class="pa-save-ico" id="paSaveIco" data-icon="check">${this.ico('check')}</span><span id="paSaveLabel">${ask ? 'Guardar pedido' : 'Registrar pago'}</span></button>`
+            +   `<button type="button" class="pa-save${lock && !ask ? ' is-off' : ''}" id="paSave" data-act="save"><span class="pa-save-ico" id="paSaveIco" data-icon="check">${this.ico('check')}</span><span id="paSaveLabel">${ask ? this.draftLabel() : 'Registrar pago'}</span></button>`
             + '</div>';
     }
 
@@ -971,11 +1025,13 @@ class OrderPay extends Templates {
         const after = Math.max(0, ordRound(c.balance - c.applied));
         const disc  = c.applied <= 0;
         const draft = !!this.draft;
+        const fresh = draft && !this.draft.edit;
+        const what  = fresh ? 'pedido' : 'cambios';
         const ask   = draft
-            ? (disc ? '¿Guardar pedido y aplicar descuento?' : '¿Guardar pedido y registrar pago?')
+            ? (disc ? `¿Guardar ${what} y aplicar descuento?` : `¿Guardar ${what} y registrar pago?`)
             : (disc ? '¿Aplicar descuento?' : '¿Registrar pago?');
         const yes   = draft ? 'Sí, guardar' : (disc ? 'Sí, aplicar' : 'Sí, registrar');
-        const tag   = draft ? 'Pedido nuevo' : `#${this.prefix()}${esc(o.folio)}`;
+        const tag   = fresh ? 'Pedido nuevo' : `#${this.prefix()}${esc(o.folio)}`;
         const name  = (id) => { const m = this.methodOf(id); return m ? esc(m.name) : 'Pago'; };
         const row   = (dt, dd, rowCls = '', ddCls = '') => `<div${rowCls ? ` class="${rowCls}"` : ''}><dt>${dt}</dt><dd${ddCls ? ` class="${ddCls}"` : ''}>${dd}</dd></div>`;
 
@@ -1159,7 +1215,7 @@ class OrderPay extends Templates {
     // El ícono solo se cambia cuando cambia la forma (lucide reemplaza el <i> por un <svg>).
     paintSave(c) {
         const ask          = !!this.draft && this.noAmount(c);
-        const [text, icon] = ask ? ['Guardar pedido', 'check'] : this.saveLabel(c);
+        const [text, icon] = ask ? [this.draftLabel(), 'check'] : this.saveLabel(c);
         const box          = document.getElementById('paSaveIco');
 
         $('#paSaveLabel').text(text);
@@ -1419,15 +1475,16 @@ class OrderPay extends Templates {
         $('#paWin button.pa-x').prop('disabled', on);
     }
 
-    /*  Pedido nuevo: se guarda aquí, al confirmar el cobro. true = ya existe (this.o.id).
-        Si no se guardó, la captura sigue abierta con todo lo escrito. El token de la
-        captura evita un pedido doble si se vuelve a confirmar. */
+    /*  Borrador (pedido nuevo o cambios de uno que ya existe): se guarda aquí, al
+        confirmar el cobro. true = ya existe (this.o.id). Si no se guardó, la
+        captura sigue abierta con todo lo escrito. El token de la captura evita
+        un pedido doble si se vuelve a confirmar. */
     async saveDraft(draft, how = '') {
         const made = await draft.save(how);
 
         if (made && made.status == 200 && made.id) {
             this.o.id    = Number(made.id);
-            this.o.folio = made.folio || made.id;
+            this.o.folio = made.folio || this.o.folio || made.id;
             this.draft   = null;
 
             return true;
@@ -1437,7 +1494,7 @@ class OrderPay extends Templates {
             this.closeQuiet('modalOrderPay', this.modal.close);
             this.busy = false;
 
-            orderTurn.locked(made, () => this.openDraft(draft));
+            orderTurn.locked(made, () => this.reopenDraft(draft));
 
             return false;
         }
@@ -1457,9 +1514,10 @@ class OrderPay extends Templates {
         return false;
     }
 
-    /*  Pedido nuevo sin importe: «¿Cómo se guarda?» (la pregunta es de la captura).
+    /*  Borrador sin importe: «¿Cómo se guarda?» (la pregunta es de la captura).
         Cotización se guarda sin dinero; Pendiente, sin anticipo y con todo el
-        saldo por cobrar. Las dos guardan y cierran la ventana y la captura.
+        saldo por cobrar. Un pedido que ya no es cotización no pregunta: 'save'
+        solo guarda los cambios. Todas guardan y cierran la ventana y la captura.
         Cerrada sin elegir, regresa al importe. block = por qué no se cobra;
         entonces solo queda Cotización. */
     async askDraft(block) {
@@ -1473,7 +1531,7 @@ class OrderPay extends Templates {
 
         this.asking = false;
 
-        if (how !== 'quote' && how !== 'pending') return this.focusField(this.active);
+        if (!['quote', 'pending', 'save'].includes(how)) return this.focusField(this.active);
         if (this.busy || this.draft !== draft) return;
 
         this.setBusy(true);
@@ -1484,7 +1542,9 @@ class OrderPay extends Templates {
         this.busy = false;
         this.afterChange();
 
-        alert({ icon: 'success', title: `${this.noun()} ${this.prefix()}${this.o.folio} guardado como ${how === 'pending' ? 'pendiente' : 'cotización'}`, timer: 1600 });
+        const done = how === 'save' ? 'actualizado' : `guardado como ${how === 'pending' ? 'pendiente' : 'cotización'}`;
+
+        alert({ icon: 'success', title: `${this.noun()} ${this.prefix()}${this.o.folio} ${done}`, timer: 1600 });
     }
 
     // «Sí, registrar»: el candado (busy) y el token impiden un segundo cobro con doble clic o doble Enter.
@@ -1497,11 +1557,12 @@ class OrderPay extends Templates {
         const cross      = this.isCross();
         const draft      = this.draft;
         const created    = !!draft;
+        const edited     = !!(draft && draft.edit);
 
         this.setBusy(true);
         $('#paConfirmYes').prop('disabled', true).find('[data-label]').text(draft ? 'Guardando…' : 'Registrando…');
 
-        // Pedido nuevo: primero se guarda; si no se guardó, no se cobra.
+        // Borrador (nuevo o editado): primero se guarda; si no se guardó, no se cobra.
         if (draft && !(await this.saveDraft(draft))) return;
 
         const id = this.o.id;
@@ -1545,7 +1606,7 @@ class OrderPay extends Templates {
             return reopen();
         }
 
-        // Pedido recién guardado y el cobro no entró: queda como cotización y se abren sus pagos.
+        // Pedido recién guardado y el cobro no entró: queda sin ese pago y se abren sus pagos.
         if (created && (!data || data.status != 200)) {
             this.closeQuiet('modalOrderPay', this.modal.close);
             this.busy = false;
@@ -1553,8 +1614,8 @@ class OrderPay extends Templates {
 
             await alert({
                 icon:     'warning',
-                title:    `Pedido P${id} guardado sin anticipo`,
-                text:     `${(data && data.message) || 'No se confirmó el cobro.'} Quedó como cotización: revisa sus pagos y registra el anticipo si falta.`,
+                title:    edited ? `Cambios de P${id} guardados sin el pago` : `Pedido P${id} guardado sin anticipo`,
+                text:     `${(data && data.message) || 'No se confirmó el cobro.'} ${edited ? 'Revisa sus pagos y registra el pago si falta.' : 'Quedó como cotización: revisa sus pagos y registra el anticipo si falta.'}`,
                 btn1:     true,
                 btn1Text: 'Entendido'
             });
@@ -1592,7 +1653,7 @@ class OrderPay extends Templates {
         // «Cobrar y entregar» solo entrega si el cobro dejó el saldo en cero.
         const handOver = this.thenDeliver && !owes;
         const pending  = this.thenDeliver && owes ? '<p class="text-[12.5px] mt-1 mb-0" style="color:rgb(var(--brand-600))">No se entrega todavía: falta cobrar el saldo.</p>' : '';
-        const saved    = created ? `<p class="text-[13px] mb-1">Pedido <b>P${id}</b> guardado.</p>` : '';
+        const saved    = created ? `<p class="text-[13px] mb-1">${edited ? 'Cambios de' : 'Pedido'} <b>P${id}</b> guardado${edited ? 's' : ''}.</p>` : '';
 
         const answer = await alert({
             icon:     'success',
@@ -1608,6 +1669,26 @@ class OrderPay extends Templates {
 
         // La ventana de la entrega es la confirmación (sin contraseña).
         if (handOver) return orderDetail.deliver(this.o.id, { fromDetail: this.fromDetail });
+
+        if (!owes && this.asksDeliver()) return this.askDeliver();
+
+        this.back();
+    }
+
+    /*  El cobro liquidó el pedido: pregunta si ya se entregó. «Sí» lo entrega
+        sin otra ventana (esta pregunta es la confirmación); «Todavía no» lo deja
+        pagado y por entregar. */
+    async askDeliver() {
+        const id     = this.o.id;
+        const answer = await alert({
+            icon:     'question',
+            title:    '¿Marcar como entregado?',
+            text:     `${this.noun()} ${this.prefix()}${this.o.folio || id} quedó liquidado. ¿Ya se le entregó al cliente?`,
+            btn1Text: 'Sí, entregado',
+            btn2Text: 'Todavía no'
+        });
+
+        if (answer && answer.isConfirmed) return orderDetail.deliverNow(id, () => this.back());
 
         this.back();
     }

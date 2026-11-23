@@ -353,17 +353,23 @@ class Navbar {
 
     async selectBranch(id) {
         const active = (this.data.branches || []).find((b) => b.selected);
+        const target = (this.data.branches || []).find((b) => String(b.id) === String(id));
+        const name   = target ? target.name : '';
+
+        this.closeAll();
+        this.branchLoader(name);
 
         // Desde «Todas», volver a la activa no cambia la sesión: solo apaga «Todas».
         if (active && String(active.id) === String(id)) {
             this.clearAll();
-            window.location.reload();
+            this.branchReload(name);
             return;
         }
 
         const res = await this.post({ opc: 'switchBranch', id: id });
 
         if (!res || res.status !== 200) {
+            if (window.InventoryPalette) InventoryPalette.loader.hide();
             this.alert('No se pudo cambiar de sucursal', (res && res.message) || 'Inténtalo nuevamente.');
             return;
         }
@@ -371,6 +377,19 @@ class Navbar {
         this.clearAll();
 
         // Todo lo que hay en pantalla es de la sucursal anterior.
+        this.branchReload(name);
+    }
+
+    /*  «Cambiando de sucursal»: el aviso de «Aplicando tema» (tailwind-theme.js)
+        con el fondo de la página (solid). Tapa la recarga y sigue en la carga
+        nueva hasta que el módulo pinta su contenido: no se ve la página vieja
+        ni la nueva armándose por partes. */
+    branchLoader(name) {
+        if (window.InventoryPalette) InventoryPalette.loader.show(name, false, 'Cambiando de sucursal', true);
+    }
+
+    branchReload(name) {
+        if (window.InventoryPalette) InventoryPalette.loader.carry(name, 'Cambiando de sucursal', true);
         window.location.reload();
     }
 
@@ -449,7 +468,9 @@ class Navbar {
             return;
         }
 
-        window.location.reload();
+        this.closeAll();
+        this.branchLoader('Todas');
+        this.branchReload('Todas');
     }
 
     // Elegir una sucursal concreta apaga «Todas» en todas las páginas.

@@ -28,11 +28,14 @@ class mdl extends CRUD {
     public $util;
     public $bd;
     public $pos;
+    public $inv;
 
     public function __construct() {
         $this->util = new Utileria;
         $this->bd   = '';
         $this->pos  = 'fayxzvov_pos.';
+        // Solo para las unidades del producto (product.unit_id es del módulo Inventarios).
+        $this->inv  = 'fayxzvov_inventarios.';
     }
 
     // -- Ayudantes --
@@ -286,7 +289,7 @@ class mdl extends CRUD {
                 AND t.id <> {$alias}.id
                 AND LOWER(TRIM(t.name)) = LOWER(TRIM({$alias}.name))
                 AND IFNULL(t.is_custom, 0) = 0
-                AND t.kind IN ('product', 'service')
+                AND t.kind IN ('product', 'service', 'supply')
                 AND IFNULL(t.active, 1) = 1
         ";
     }
@@ -330,7 +333,7 @@ class mdl extends CRUD {
                     AND o.branch_id <> p.branch_id
                     AND LOWER(TRIM(o.name)) = LOWER(TRIM(p.name))
                     AND IFNULL(o.is_custom, 0) = 0
-                    AND o.kind IN ('product', 'service')
+                    AND o.kind IN ('product', 'service', 'supply')
                     AND IFNULL(o.active, 1) = 1) AS own_elsewhere
             FROM {$this->pos}product p
             LEFT JOIN {$this->pos}category c    ON c.id = p.category_id
@@ -338,7 +341,7 @@ class mdl extends CRUD {
             WHERE p.company_id = ?
                 AND p.branch_id = ?
                 AND IFNULL(p.is_custom, 0) = 0
-                AND p.kind IN ('product', 'service')
+                AND p.kind IN ('product', 'service', 'supply')
                 AND IFNULL(p.active, 1) = ?
                 {$where}
             ORDER BY p.name
@@ -348,7 +351,7 @@ class mdl extends CRUD {
     public function qGetProduct($id, $companyId, $branchId) {
         return $this->qRow("
             SELECT
-                id, name, description, image, sku, barcode, kind, price, cost,
+                id, name, description, image, sku, barcode, kind, unit_id, price, cost, shelf_life_days,
                 sell_pos, in_catalog, is_inventoriable,
                 category_id, subcategory_id,
                 IFNULL(active, 1) AS active
@@ -357,7 +360,7 @@ class mdl extends CRUD {
                 AND company_id = ?
                 AND branch_id = ?
                 AND IFNULL(is_custom, 0) = 0
-                AND kind IN ('product', 'service')
+                AND kind IN ('product', 'service', 'supply')
             LIMIT 1
         ", [$id, $companyId, $branchId]);
     }
@@ -383,6 +386,7 @@ class mdl extends CRUD {
                 p.cost,
                 p.sell_pos,
                 p.in_catalog,
+                p.is_inventoriable,
                 IFNULL(p.active, 1) AS active,
                 c.name AS category,
                 s.name AS subcategory
@@ -392,7 +396,7 @@ class mdl extends CRUD {
             WHERE p.company_id = ?
                 AND p.branch_id = ?
                 AND IFNULL(p.is_custom, 0) = 0
-                AND p.kind IN ('product', 'service')
+                AND p.kind IN ('product', 'service', 'supply')
                 AND IFNULL(p.active, 1) = 1
                 AND NOT EXISTS ({$this->qTwinIn('p')})
                 {$where}
@@ -418,7 +422,7 @@ class mdl extends CRUD {
                 AND p.company_id = ?
                 AND p.branch_id = ?
                 AND IFNULL(p.is_custom, 0) = 0
-                AND p.kind IN ('product', 'service')
+                AND p.kind IN ('product', 'service', 'supply')
                 AND IFNULL(p.active, 1) = 1
             LIMIT 1
         ", [$id, $companyId, $mainId]);
@@ -498,7 +502,7 @@ class mdl extends CRUD {
             WHERE company_id = ?
                 AND branch_id = ?
                 AND IFNULL(is_custom, 0) = 0
-                AND kind IN ('product', 'service')
+                AND kind IN ('product', 'service', 'supply')
                 AND IFNULL(active, 1) = 1
         ", [$companyId, $branchId]);
 
@@ -510,10 +514,32 @@ class mdl extends CRUD {
             WHERE p.company_id = ?
                 AND p.branch_id = ?
                 AND IFNULL(p.is_custom, 0) = 0
-                AND p.kind IN ('product', 'service')
+                AND p.kind IN ('product', 'service', 'supply')
                 AND IFNULL(p.active, 1) = 1
                 AND NOT EXISTS ({$this->qTwinIn('p')})
         ", [$companyId, $mainId, $branchId]);
+    }
+
+    // -- Unidades (fayxzvov_inventarios.unit): las de la empresa y las plantillas (company_id NULL) --
+    // Si la base de Inventarios no existe en ese servidor, la lista sale vacía y el campo queda en «Sin unidad».
+
+    public function qUnitOptions($companyId) {
+        return $this->qRows("
+            SELECT id, CONCAT(code, ' · ', name) AS valor
+            FROM {$this->inv}unit
+            WHERE (company_id = ? OR company_id IS NULL)
+                AND active = 1
+            ORDER BY sort_order, name
+        ", [$companyId]);
+    }
+
+    public function qUnitExists($id, $companyId) {
+        return $this->qCount("
+            SELECT COUNT(*)
+            FROM {$this->inv}unit
+            WHERE id = ?
+                AND (company_id = ? OR company_id IS NULL)
+        ", [$id, $companyId]) > 0;
     }
 
     // Paquetes activos que lo llevan: mientras este en uno no se desactiva.

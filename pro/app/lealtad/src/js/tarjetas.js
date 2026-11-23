@@ -14,6 +14,8 @@
     «Tarjetas» es la lista del plástico (número, titular y, si se
     quiere, un cliente dueño), con filtro por tipo; «Ver tarjeta» abre su ficha
     de solo lectura: el dibujo, el cliente, sus cifras y sus últimas compras.
+    Su botón «Dar de alta cliente» crea el cliente (como Pedidos › Clientes,
+    sin crédito) para elegirlo después como dueño de una tarjeta.
     Un tipo da descuento O puntos, nunca los dos; el ctrl también lo revisa.
     No se borra: se desactiva. Una tarjeta inactiva, o con su tipo inactivo,
     deja de leerse en «Vender».
@@ -231,7 +233,11 @@ class Loyalty extends Templates {
         interruptor); abajo, «Tarjetas» (filtros y la lista). Las tarjetas del
         tablero entran una tras otra (--i). El resumen va arriba, aparte. */
     board() {
-        const box = (id, cls, i) => $('<section>', { id: id, class: `loy-bx ${cls}`, style: `--i:${i}` });
+        const box       = (id, cls, i) => $('<section>', { id: id, class: `loy-bx ${cls}`, style: `--i:${i}` });
+        const cardsHead = this.boxHead('credit-card', 'Tarjetas', ['', '']);
+
+        // «Dar de alta cliente», a la derecha de la cuenta: el cliente queda listo para elegirlo en «Nueva tarjeta».
+        if (this.allow('create')) cardsHead.append(this.jq(this.tileButton('user-plus', 'Dar de alta cliente', () => this.addCustomer(), 'is-strong')).attr('id', 'btnLoyNewCustomer'));
 
         $(`#body${this.PROJECT_NAME}`).empty().append(
             $('<div>', { id: `board${this.PROJECT_NAME}`, class: 'loy-board is-cards' }).append(
@@ -245,7 +251,7 @@ class Loyalty extends Templates {
                 ),
                 // Los filtros van fuera de la tabla: createCoffeeTable3 la reescribe y el buscador perdería el foco.
                 box('lbCards', 'is-list', 4).append(
-                    this.boxHead('credit-card', 'Tarjetas', ['', '']),
+                    cardsHead,
                     $('<div>', { id: 'filterLoyCards', class: 'w-full mb-[14px]' }),
                     $('<div>', { id: 'tableLoyCards', class: 'w-full' })
                 )
@@ -314,10 +320,11 @@ class Loyalty extends Templates {
     }
 
     /*  «Niveles y beneficios»: la escalera (tipos activos con gasto mínimo, del
-        más bajo al más alto) en cuadros con su estrella (vacía, media y llena en
-        el más alto) y, abajo, una barra con cuántas tarjetas hay en cada nivel,
-        del color de cada tipo; los tramos crecen al entrar. Con menos de 2
-        niveles, cómo armarla. */
+        más bajo al más alto), cada nivel una tarjetita del color de su tipo
+        (degradado y brillo, como las de la galería; data-ink da letra oscura en
+        los colores claros) con su estrella (vacía, media y dorada en el más alto)
+        y, abajo, una barra con cuántas tarjetas hay en cada nivel, del color de
+        cada tipo; los tramos crecen al entrar. Con menos de 2 niveles, cómo armarla. */
     renderLevels() {
         const levels = (this.types || []).filter((t) => t.active && t.levelPlace > 0).sort((a, b) => a.levelPlace - b.levelPlace);
         const box    = $('#lbLevels').empty();
@@ -337,11 +344,12 @@ class Loyalty extends Templates {
         const star = (i) => i === levels.length - 1 ? 'star' : (i === 0 ? 'star' : 'star-half');
 
         box.append(
-            $('<div>', { class: 'loy-tiers' }).append(levels.map((t, i) => $('<div>', { class: 'loy-tier' + (t.levelTop ? ' is-top' : ''), style: `--c:${t.color};--k:${i}` }).append(
+            $('<div>', { class: 'loy-tiers' }).append(levels.map((t, i) => $('<div>', { class: 'loy-tier' + (t.levelTop ? ' is-top' : ''), 'data-ink': this.inkOf(t.color), style: `--c:${t.color};--k:${i}` }).append(
                 $('<span>', { class: 'loy-tier-ic' + (i === 0 ? ' is-empty' : ''), html: `<i data-lucide="${star(i)}" class="w-4 h-4" aria-hidden="true"></i>` }),
                 $('<b>').text(t.name),
                 $('<small>').text(this.moneyShort(t.levelMin)),
-                $('<span>', { class: 'loy-tier-perk' }).text(t.discount > 0 ? `${this.pct(t.discount)} descuento` : `${this.pct(t.points)} puntos`)
+                $('<span>', { class: 'loy-tier-perk' }).text(t.discount > 0 ? `${this.pct(t.discount)} descuento` : `${this.pct(t.points)} puntos`),
+                $('<i>', { class: 'loy-tier-sheen', 'aria-hidden': 'true' })
             ))),
             $('<div>', { class: 'loy-dist', role: 'img', 'aria-label': total ? `Tarjetas por nivel: ${levels.map((t) => `${t.cards} en ${t.name}`).join(', ')}` : 'Aún no hay tarjetas en los niveles' }).append(
                 total ? levels.map((t) => $('<i>', { style: `--c:${t.color};--w:${(Number(t.cards) || 0) / total * 100}%` })) : null
@@ -619,7 +627,7 @@ class Loyalty extends Templates {
             title:      card ? 'Editar tarjeta' : 'Nueva tarjeta',
             subtitle:   scope.branch ? `Sucursal ${scope.branch}` : '',
             lucideIcon: card ? 'pencil' : 'credit-card',
-            width:      'max-w-3xl',
+            width:      'max-w-4xl',
             saveText:   card ? 'Guardar cambios' : 'Agregar tarjeta',
             cancelText: 'Cancelar',
             json:       json,
@@ -737,6 +745,65 @@ class Loyalty extends Templates {
         });
 
         if (create && r && r.isConfirmed) this.addType();
+    }
+
+    // -- Tarjetas: cliente nuevo --
+
+    /*  «Dar de alta cliente»: el mismo formulario de Pedidos › Clientes (nombre,
+        teléfono de 10 dígitos y correo opcional), sin crédito. El cliente es de
+        toda la empresa; después se elige en «Cliente» al dar de alta su tarjeta. */
+    addCustomer() {
+        if (this.saving) return;
+
+        const scope = dataInit.scope || {};
+
+        this.csModal({
+            id:         'modalLoyCustomer',
+            title:      'Dar de alta cliente',
+            subtitle:   scope.branch ? `Sucursal ${scope.branch}` : '',
+            lucideIcon: 'user-plus',
+            width:      'max-w-md',
+            saveText:   'Agregar cliente',
+            cancelText: 'Cancelar',
+            json: [
+                { id: 'lcu_name', lbl: 'Nombre', required: true, maxlength: 120, class: 'w-full' },
+                { id: 'lcu_phone', lbl: 'Teléfono', required: true, maxlength: 16, ph: '10 dígitos', help: 'Un teléfono no se repite entre los clientes activos de la empresa.', class: 'w-full' },
+                { id: 'lcu_email', lbl: 'Correo', maxlength: 120, ph: 'Opcional', class: 'w-full' }
+            ],
+            onSave: (values, close) => this.saveCustomer(values, close)
+        });
+
+        $('#lcu_phone')
+            .attr({ inputmode: 'numeric', autocomplete: 'off' })
+            .on('input', (e) => { e.target.value = e.target.value.replace(/[^\d\s-]/g, ''); });
+
+        $('#lcu_email').attr({ inputmode: 'email', autocomplete: 'off' });
+        $('#lcu_name').trigger('focus');
+    }
+
+    async saveCustomer(values, close) {
+        if (this.saving) return;
+
+        const name  = String(values.lcu_name || '').trim().replace(/\s+/g, ' ');
+        const phone = String(values.lcu_phone || '').replace(/\D/g, '');
+        const email = String(values.lcu_email || '').trim();
+
+        if (!name) return this.warn('Escribe el nombre del cliente.');
+        if (phone.length !== 10) return this.warn('El teléfono debe tener 10 dígitos.');
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return this.warn('El correo no tiene un formato válido.');
+
+        this.saving = true;
+
+        const button = $('#modalLoyCustomer .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({ url: this._link, data: { opc: 'addCustomer', name: name, phone: phone, email: email } });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (!data || data.status != 200) return this.fail(data, 'No se guardó el cliente');
+
+        close();
+        alert({ icon: 'success', title: data.message, timer: 1400 });
     }
 
     // -- Tarjetas: ficha --
@@ -2270,18 +2337,39 @@ class Loyalty extends Templates {
         });
     }
 
-    // Las cifras dentro de la tarjeta del tipo. La tercera depende de lo que da: el premio, lo descontado o los puntos del mes.
-    tileFields(t) {
+    /*  Las cifras dentro de la tarjeta del tipo. La tercera depende de lo que da: el premio, lo descontado o los puntos del mes.
+        benefit ('stamps', 'discount' o 'points'): lo manda «Nuevo tipo», que la pinta antes de tener porcentaje o meta. */
+    tileFields(t, benefit = t.goal > 0 ? 'stamps' : (t.discount > 0 ? 'discount' : (t.points > 0 ? 'points' : ''))) {
         const fields = [
             ['Tarjetas', t.cards > 0 ? (t.cards === 1 ? '1 activa' : `${t.cards} activas`) : 'Ninguna'],
             ['Ventas mes', t.sales > 0 ? `${t.sales} · ${this.moneyShort(t.sold)}` : '—']
         ];
 
-        if (t.goal > 0)          fields.push(['Premio', `hasta ${this.moneyShort(t.rewardValue)}`]);
-        else if (t.discount > 0) fields.push(['Descontado', this.moneyShort(t.discountGiven)]);
-        else if (t.points > 0)   fields.push(['Puntos dados', this.moneyShort(t.pointsGiven)]);
+        if (benefit === 'stamps')        fields.push(['Premio', `hasta ${this.moneyShort(t.rewardValue)}`]);
+        else if (benefit === 'discount') fields.push(['Descontado', this.moneyShort(t.discountGiven)]);
+        else if (benefit === 'points')   fields.push(['Puntos dados', this.moneyShort(t.pointsGiven)]);
 
         return fields;
+    }
+
+    // Los campos de un tipo que aún no existe («Nuevo tipo»): los de la galería, sin tarjetas ni ventas.
+    newTypeFields(benefit, rewardValue = 0) {
+        return this.tileFields({ cards: 0, sales: 0, sold: 0, rewardValue: rewardValue, discountGiven: 0, pointsGiven: 0 }, benefit);
+    }
+
+    /*  La insignia de nivel que tendría el tipo con ese gasto mínimo: su lugar en
+        la escalera de los tipos activos (sin él mismo, al editar), como la pone
+        el ctrl en la galería (levelTile). Vacío o inválido = no es nivel. */
+    levelFace(raw, id = 0) {
+        const min = String(raw === null || raw === undefined ? '' : raw).trim() === '' ? null : this.amount(raw);
+
+        if (min === null) return null;
+
+        const others = (this.types || []).filter((t) => t.active && t.levelPlace > 0 && Number(t.id) !== Number(id));
+        const place  = others.filter((t) => Number(t.levelMin) < min).length + 1;
+        const total  = others.length + 1;
+
+        return { tag: `Nivel ${place}`, from: `Desde ${this.moneyShort(min)} en 12 meses`, top: total > 1 && place === total };
     }
 
     /*  El menú ⋯ de un tipo: un botón que abre una lista de acciones debajo.
@@ -2410,7 +2498,8 @@ class Loyalty extends Templates {
 
     /*  Las 4 estructuras. benefit: el que queda elegido en el formulario (Niveles
         es un tipo de descuento o puntos con gasto mínimo). level: 1 a 3, qué tanto
-        hay que configurar. sample: el dibujo de ejemplo (lo pinta paintFace). */
+        hay que configurar. sample: el dibujo de ejemplo (lo pinta paintFace), igual
+        que su tarjeta en la galería; prize: el valor del premio de sus campos. */
     structures() {
         return [
             {
@@ -2419,7 +2508,8 @@ class Loyalty extends Templates {
                 goal: 'Que el cliente regrese: cada visita lo acerca al premio.',
                 fit:  'Café, panadería, comida rápida: compras chicas y frecuentes.',
                 use:  'Un premio claro y cercano. Ej.: 1 sello por cada $100 · 10 sellos = Café gratis.',
-                sample: { type: 'Café Lover', goal: 10, stamps: 3, icon: 'coffee', say: this.stampRule(100, 10, 'Café gratis') }
+                prize:  45,
+                sample: { type: 'Café Lover', goal: 10, icon: 'coffee', say: this.stampRule(100, 10, 'Café gratis') }
             },
             {
                 id: 'points', benefit: 'points', icon: 'star', color: '#0891B2', name: 'Puntos', level: 2,
@@ -2506,7 +2596,7 @@ class Loyalty extends Templates {
             modal.find('.loy-struct-facts').empty().append([['Objetivo principal', s.goal], ['Ideal para', s.fit], ['Mejor uso', s.use]].map(([label, text]) =>
                 $('<div>').append($('<small>').text(label), $('<p>').text(text))));
 
-            this.paintFace('lg_preview', Object.assign({ color: s.color, caption: '' }, s.sample));
+            this.paintFace('lg_preview', Object.assign({ color: s.color, caption: '', fields: this.newTypeFields(s.benefit, s.prize) }, s.sample));
         };
 
         // Un objetivo elige su estructura recomendada; una estructura se elige sola.
@@ -2583,7 +2673,7 @@ class Loyalty extends Templates {
             title:      type ? 'Editar tipo de tarjeta' : 'Nuevo tipo de tarjeta',
             subtitle:   [type ? '' : 'Paso 2 de 2', scope.branch ? `Sucursal ${scope.branch}` : ''].filter(Boolean).join(' · '),
             lucideIcon: type ? 'pencil' : 'layers',
-            width:      'max-w-3xl',
+            width:      'max-w-4xl',
             saveText:   type ? 'Guardar cambios' : 'Agregar tipo',
             cancelText: 'Cancelar',
             json:       json,
@@ -2603,7 +2693,7 @@ class Loyalty extends Templates {
         // «Otro color» abre el selector de la muestra del campo Color; lo elegido llega por su evento input.
         $('#modalLoyType').on('click', '.loy-color-other', () => this.pickColor());
 
-        this.preview('modalLoyType', '#lt_name, #lt_benefit, #lt_percent, #lt_stamp_amount, #lt_stamp_goal, #lt_reward_name, #lt_reward_value, #lt_stamp_icon, #lt_color, #lt_color__pick', () => this.paintType());
+        this.preview('modalLoyType', '#lt_name, #lt_benefit, #lt_percent, #lt_level, #lt_stamp_amount, #lt_stamp_goal, #lt_reward_name, #lt_reward_value, #lt_stamp_icon, #lt_color, #lt_color__pick', () => this.paintType(type ? type.id : 0));
 
         if (type) return;
 
@@ -2863,8 +2953,11 @@ class Loyalty extends Templates {
         box.closest('.px-2').find('p').text(hint);
     }
 
-    // El tipo con su color y su único beneficio; abajo, qué hace en pesos y la nota del beneficio elegido.
-    paintType() {
+    /*  El tipo con su color y su único beneficio, igual que su tarjeta en la
+        galería: sin sellos juntados, con sus campos (Tarjetas, Ventas mes y el
+        del beneficio) y la insignia si es nivel. Abajo, qué hace en pesos y la
+        nota del beneficio elegido. id: el tipo que se edita (0 en el alta). */
+    paintType(id = 0) {
         const modal   = $('#modalLoyType');
         const name    = String($('#lt_name').val() || '').trim().replace(/\s+/g, ' ');
         const benefit = ['points', 'stamps'].includes($('#lt_benefit').val()) ? $('#lt_benefit').val() : 'discount';
@@ -2884,10 +2977,11 @@ class Loyalty extends Templates {
             discount: benefit === 'discount' ? percent : 0,
             points:   benefit === 'points' ? percent : 0,
             goal:     goal,
-            stamps:   goal ? Math.min(3, goal) : 0,
             icon:     stamp ? stamp.icon : '',
             reward:   stamp ? stamp.reward : '',
             say:      goal && stamp.amount > 0 ? this.stampRule(stamp.amount, goal, stamp.reward) : '',
+            level:    stamp ? null : this.levelFace($('#lt_level').val(), id),
+            fields:   this.newTypeFields(benefit, stamp && stamp.value > 0 ? stamp.value : 0),
             empty:    { discount: 'descuento', points: 'puntos', stamps: 'sellos' }[benefit],
             caption:  stamp ? this.stampCaption(stamp) : this.typeCaption(benefit, percent)
         });
@@ -2923,8 +3017,8 @@ class Loyalty extends Templates {
           reward (el premio), say (la frase del centro; sin ella, en una tarjeta de
           sellos, lo que le falta), level ({ tag, from, top }: su insignia),
           fields ([[etiqueta, valor], ...]; la cara 'card' trae los suyos),
-          empty ('descuento', 'puntos' o 'sellos': sin valor todavía, «0 %» apagado
-          con esa palabra) y caption (el pie, fuera del dibujo).
+          empty ('descuento', 'puntos' o 'sellos': sin valor todavía, «0 %» o 10
+          sellos apagados) y caption (el pie, fuera del dibujo).
         Lo animado, solo al cambiar: color → se funde (is-painted prende esa
         transición después del primer pintado, para que al abrir no se funda
         desde el celeste); la cifra de arriba → da un salto (is-pop).
@@ -2963,12 +3057,16 @@ class Loyalty extends Templates {
         card.find('.loy-card-value b').text(value[1]).toggleClass('is-empty', !goal && !discount && !points);
 
         // Sellos: uno por sello de la meta, punteado; los juntados, llenos con el icono del tipo. El último es el premio (regalo).
-        const mark = icon ? `<i data-lucide="${icon}"></i>` : '';
+        // Un tipo de sellos sin meta todavía (su alta): 10 tenues de muestra, como el «0 %» apagado de los otros.
+        const mark  = icon ? `<i data-lucide="${icon}"></i>` : '';
+        const ghost = !goal && face.empty === 'sellos';
+        const slots = ghost ? 10 : goal;
 
         card.find('.loy-card-stamps')
-            .toggleClass('is-many', goal > 10)
-            .html(Array.from({ length: goal }, (v, i) => {
-                const gift = i === goal - 1;
+            .toggleClass('is-many', slots > 10)
+            .toggleClass('is-empty', ghost)
+            .html(Array.from({ length: slots }, (v, i) => {
+                const gift = i === slots - 1;
 
                 return `<span class="loy-stamp${i < have ? ' is-on' : ''}${gift ? ' is-gift' : ''}">${gift ? '<i data-lucide="gift"></i>' : mark}</span>`;
             }).join(''));

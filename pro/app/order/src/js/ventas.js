@@ -729,8 +729,7 @@ class Sale extends OrderForm {
             ? `<p class="text-[14px] text-emerald-700 mb-0">Su tarjeta subió a <b>${esc(lv.to)}</b>${lv.whatsapp && ['sent', 'simulated'].includes(lv.whatsapp.status) ? ` · le avisamos por WhatsApp${lv.whatsapp.status === 'simulated' ? ' (simulado)' : ''}` : ''}.</p>`
             : '';
 
-        // V7: «Enviar por WhatsApp» es el botón del medio (deny de SweetAlert).
-        const share = !!(data.share && data.share.link);
+        // Solo «Imprimir ticket» y «Nueva venta»: el ticket por WhatsApp se manda desde Historial.
         const moment = this.loyaltyMoment(s, lv);
 
         const asking = alert({
@@ -740,29 +739,16 @@ class Sale extends OrderForm {
             btn1:     this.canSell('print'),
             btn1Text: 'Imprimir ticket',
             btn2:     true,
-            btn2Text: 'Nueva venta',
-            btn3:     share,
-            btn3Text: 'Enviar por WhatsApp'
+            btn2Text: 'Nueva venta'
         });
 
-        // La tarjeta chica ya está en la ventana: sus iconos y, si completó el premio o subió de nivel, el confeti.
+        // La tarjeta ya está en la ventana: sus iconos y, si completó el premio o subió de nivel, el confeti.
         if (moment.html && window.lucide) lucide.createIcons();
         if (moment.party) this.loyaltyConfetti(moment.party);
-
-        // El deny de SweetAlert sale rojo, como si borrara algo: se pinta verde.
-        // alert() y compact.css solo le dan medida a confirm y cancel: se le copia aqui.
-        const deny = share && window.Swal && Swal.getDenyButton ? Swal.getDenyButton() : null;
-
-        if (deny) {
-            deny.classList.add('text-white', 'py-2', 'px-4', 'rounded');
-            deny.style.backgroundColor = '#059669';
-            deny.style.setProperty('font-size', '0.8rem', 'important');
-        }
 
         const answer = await asking;
 
         if (answer && answer.isConfirmed) this.printSale(t);
-        if (answer && answer.isDenied)    this.ticketShare(data.share, t);
     }
 
     addTab() {
@@ -882,6 +868,23 @@ class Sale extends OrderForm {
 
         this.ticketForm();
         this.renderLines();
+    }
+
+    /*  Al cerrar el turno (OrderTurn.saveClose) el cliente de los tickets regresa
+        a «Público en general». Una tarjeta con dueño pone su cliente: también se quita. */
+    clearCustomer() {
+        if (!this.pay) return;
+
+        this.persistTickets();
+
+        this.tickets.forEach((t) => {
+            t.customer_id = '';
+
+            if (t.card && t.card.customer_id) t.card = null;
+        });
+
+        this.ticketForm();
+        this.persistTickets();
     }
 
     // -- Descuento por producto --
@@ -1291,8 +1294,8 @@ class Sale extends OrderForm {
         };
     }
 
-    /*  «Venta cobrada» con tarjeta de lealtad: la tarjeta chica arriba de la
-        ventana (las clases .loy-card de order.css). Sellos: los nuevos caen uno
+    /*  «Venta cobrada» con tarjeta de lealtad: la tarjeta arriba de la ventana,
+        del mismo tamaño que en Lealtad (las clases .loy-card de order.css). Sellos: los nuevos caen uno
         tras otro; si con esta venta completó el premio, los sellos brincan, cruza
         un brillo y cae confeti. Nivel: la tarjeta del nivel nuevo, con su
         insignia que gira a dorado y confeti. Devuelve { html, party } (party:

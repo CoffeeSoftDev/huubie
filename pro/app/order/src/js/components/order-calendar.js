@@ -36,6 +36,8 @@ class OrderCalendar extends Templates {
         this.term         = '';
         this.scrollToHit  = false;
         this.searchTimer  = null;
+        this.found        = null;    // meses del cliente buscado: { key, months }
+        this.foundRequest = 0;
         this.all          = false;   // todas las sucursales: cada tarjeta dice de cuál es
     }
 
@@ -200,6 +202,7 @@ class OrderCalendar extends Templates {
                 id:    `calendarWrap${this.PROJECT_NAME}`,
                 class: 'flex flex-1 flex-col gap-[12px]',
                 container: [
+                    { type: 'div', id: `found${this.PROJECT_NAME}`, class: 'ord-cal-found' },
                     { type: 'div', id: `calendar${this.PROJECT_NAME}`, class: 'ord-cal' }
                 ]
             }
@@ -209,6 +212,8 @@ class OrderCalendar extends Templates {
             initialView:    this.savedView(),
             initialDate:    this.info.today || new Date(),
             locale:         'es',
+            // El locale 'es' arranca en lunes: la semana empieza en domingo.
+            firstDay:       0,
             headerToolbar:  { left: 'prev,next today', center: 'title', right: 'dayGridMonth,galeriaSemana,galeriaDia' },
             buttonText:     { today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día' },
             plugins:        [this.galleryPlugin()],
@@ -283,6 +288,7 @@ class OrderCalendar extends Templates {
 
         this.paintCounts();
         this.afterSearch();
+        this.paintFound();
     }
 
     // Lo que pasa la leyenda y los filtros, con la marca del buscador.
@@ -625,14 +631,20 @@ class OrderCalendar extends Templates {
 
     // Lo que está dibujado: el Mes incluye sus días de relleno; pasa leyenda y filtros.
     onScreen() {
+        const f = this.filters;
+
+        return this.inView().filter((r) => !this.hidden.has(r.status) && this.passFilters(r, f));
+    }
+
+    // Lo cargado en las fechas a la vista, sin leyenda ni filtros.
+    inView() {
         if (!this.calendar) return [];
 
         const view = this.calendar.view;
         const from = moment(view.activeStart).format('YYYY-MM-DD');
         const to   = moment(view.activeEnd).format('YYYY-MM-DD');
-        const f    = this.filters;
 
-        return this.rows.filter((r) => r.start >= from && r.start < to && !this.hidden.has(r.status) && this.passFilters(r, f));
+        return this.rows.filter((r) => r.start >= from && r.start < to);
     }
 
     // -- Buscador --
@@ -702,6 +714,95 @@ class OrderCalendar extends Templates {
 
     matches(r) {
         return [r.folio, r.title, r.phone].some((v) => this.normalize(v).includes(this.term));
+    }
+
+    // -- Cliente en otras fechas --
+
+    /*  Un cliente (3 letras o más, no un folio) sin pedidos a la vista: arriba
+        del calendario se dice en qué meses sí tiene (locateCustomer) y un clic
+        lleva a ese mes. Si están a la vista pero ocultos, lo dice. Los meses se
+        piden una vez por búsqueda; al moverse por el calendario solo se repinta. */
+    async paintFound() {
+        const state = this.foundState();
+
+        if (state !== 'away') return state === 'hidden' ? this.showFound(null) : this.hideFound();
+
+        const term = this.term;
+        const key  = `${term}|${this.all ? 1 : 0}`;
+
+        if (!this.found || this.found.key !== key) {
+            const request = ++this.foundRequest;
+            const data    = await useFetch({ url: this._link, data: { opc: 'locateCustomer', q: $('#cal_q').val().trim(), all: this.all ? 1 : 0 } });
+
+            // Mientras llegaba, cambió la búsqueda: manda la nueva.
+            if (request !== this.foundRequest || term !== this.term) return;
+
+            if (!data || data.status != 200) return this.hideFound();
+
+            this.found = { key: key, months: data.months || [] };
+        }
+
+        if (this.foundState() === 'away') this.showFound(this.found.months);
+    }
+
+    // '' = nada que decir · 'hidden' = a la vista pero ocultos (leyenda o filtros) · 'away' = en otras fechas.
+    foundState() {
+        if (this.term.length < 3 || /^p?\d+$/.test(this.term)) return '';
+        if (this.onScreen().some((r) => this.matches(r)))     return '';
+
+        return this.inView().some((r) => this.matches(r)) ? 'hidden' : 'away';
+    }
+
+    // months = null: están a la vista pero ocultos. En el Mes no se ofrece el mismo mes.
+    showFound(months) {
+        const view = this.calendar.view;
+        const now  = view.type === 'dayGridMonth' ? moment(view.currentStart).format('YYYY-MM') : '';
+        const here = { dayGridMonth: 'este mes', galeriaSemana: 'esta semana', galeriaDia: 'este día' }[view.type] || 'estas fechas';
+        const name = `<b>«${esc($('#cal_q').val().trim())}»</b>`;
+        const box  = $(`#found${this.PROJECT_NAME}`);
+
+        let html = `<p>Hay pedidos de ${name} en ${here}, pero los ocultan la leyenda o los filtros.</p>`;
+
+        if (months) {
+            const list = months.filter((m) => m.month !== now);
+            const show = list.slice(0, 8);
+            const more = list.length - show.length;
+
+            const chips = show.map((m) => `
+                <button type="button" class="ord-cal-found-month" data-first="${esc(m.first)}">
+                    ${esc(this.monthTitle(m.month))}<b>${Number(m.total)}</b>
+                </button>`).join('');
+
+            html = list.length
+                ? `<p>${name} no tiene pedidos en ${here}. Encontré pedidos en:</p>
+                   <div class="ord-cal-found-months">${chips}${more > 0 ? `<span class="ord-cal-found-more">y ${more} ${more === 1 ? 'mes' : 'meses'} más</span>` : ''}</div>`
+                : `<p>No encontré pedidos de ${name} en ninguna fecha.</p>`;
+        }
+
+        box.html(`<i data-lucide="search"></i>${html}`)
+            .off('click')
+            .on('click', 'button.ord-cal-found-month', (e) => this.goMonth(e.currentTarget.dataset.first));
+
+        if (window.lucide) lucide.createIcons({ root: box[0] });
+    }
+
+    hideFound() {
+        $(`#found${this.PROJECT_NAME}`).off('click').empty();
+    }
+
+    // Al mes del pedido (vista Mes) y a su tarjeta: afterSearch la centra.
+    goMonth(first) {
+        if (!first) return;
+
+        this.scrollToHit = true;
+        this.calendar.changeView('dayGridMonth', first);
+    }
+
+    // '2026-10' → «Octubre 2026».
+    monthTitle(ym) {
+        const text = new Date(`${ym}-01T00:00:00`).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }).replace(' de ', ' ');
+
+        return text.charAt(0).toUpperCase() + text.slice(1);
     }
 
     // Minusculas y sin acentos: «maria» encuentra «María».

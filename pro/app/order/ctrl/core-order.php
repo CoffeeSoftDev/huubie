@@ -28,9 +28,16 @@ class core extends mdl {
     /*  Acciones propias de Pedidos (type_permissions, migración 2026-11-21):
         hoy las tienen Dueño y Supervisor; Configuración › Roles las da a otro
         perfil sin tocar código. */
-    const EDIT_DELIVERY = 'editar-entrega';        // «Editar entrega» del detalle
-    const SEE_LOG       = 'ver-bitacora';          // tarjeta Bitácora del detalle
-    const SEE_STAFF     = 'ver-capturo-produjo';   // renglones Capturó y Produjo
+    const SEE_LOG   = 'ver-bitacora';          // tarjeta Bitácora del detalle
+    const SEE_STAFF = 'ver-capturo-produjo';   // renglones Capturó y Produjo
+
+    /*  Migración 2026-11-22: lo que antes colgaba de 'cancel' (o del Dueño),
+        cada cosa con su casilla. AUTH_DISCOUNT también existe en pos-ventas. */
+    const AUTH_DISCOUNT = 'autorizar-descuento';   // motivo de descuento que pide autorización
+    const PAY_METHOD    = 'cambiar-forma-pago';    // lápiz de la forma de un pago
+    const SEE_OPEN_Z    = 'ver-corte-z';           // Corte Z y detalle de un día sin cerrar
+    const CUT_EDIT      = 'editar-corte-cerrado';  // total de un pendiente cuyo corte ya cerró
+    const TURN_FIX      = 'reabrir-turno';         // reabrir o recalcular un turno
 
     // Estados de sale_status (plantillas de Huubie, iguales en todas las bases).
     const QUOTE     = 1;
@@ -208,7 +215,7 @@ class core extends mdl {
         $map = [
             'edit' => 'edit', 'edit_paid' => 'edit', 'cancel' => 'cancel', 'pay' => 'pay', 'settle' => 'pay',
             'delete_payment' => 'pay', 'payment_method' => 'pay', 'remove_discount' => 'discount',
-            'deliver' => 'deliver', 'undeliver' => 'deliver', 'delivery' => 'delivery', 'delete' => 'delete'
+            'deliver' => 'deliver', 'delivery_state' => 'deliver', 'delivery' => 'delivery', 'delete' => 'delete'
         ];
 
         foreach ($map as $key => $act) {
@@ -226,7 +233,7 @@ class core extends mdl {
         $can['delivery_key'] = $can['delivery_key'] && $can['delivery'];
 
         $any = $can['edit'] || $can['edit_paid'] || $can['cancel'] || $can['pay'] || $can['settle'] || $can['deliver']
-            || $can['undeliver'] || $can['delivery'] || $can['remove_discount'];
+            || $can['delivery_state'] || $can['delivery'] || $can['remove_discount'];
 
         $can['foreign_reason'] = $any
             ? "Es de {$name}: los cambios se guardan en esa sucursal."
@@ -586,25 +593,25 @@ class core extends mdl {
     }
 
     /*  Decisión 4: lo que mueve el dinero de un corte cerrado (editar el total,
-        cancelar, descontar al cobrar) lo autoriza Dueño o Supervisor (permiso
-        cancel). Solo aplica a Pendiente: la cotización no cuenta en lo vendido. */
+        cancelar, descontar al cobrar) lo autoriza quien tiene CUT_EDIT (hoy
+        Dueño y Supervisor). Solo aplica a Pendiente: la cotización no cuenta en lo vendido. */
     protected function moneyBlock($o) {
         if ((int) $o['sale_status_id'] !== self::PENDING) return '';
 
         $cut = $this->closedCut($o);
 
-        if ($cut === '' || $this->need('cancel') === null) return '';
+        if ($cut === '' || Permission::can(self::SECTION, self::CUT_EDIT)) return '';
 
         return "Este pedido {$cut}: cambiar su total lo autoriza Dueño o Supervisor.";
     }
 
-    /*  Editar un pendiente de un corte cerrado sin ser Dueño ni Supervisor
-        (como alpha): la cajera agrega productos, pero los de días anteriores
-        quedan fijos (ctrl-pedidos › fixedBlock). $actions: las del rol, si ya se leyeron. */
+    /*  Editar un pendiente de un corte cerrado sin CUT_EDIT (como alpha): la
+        cajera agrega productos, pero los de días anteriores quedan fijos
+        (ctrl-pedidos › fixedBlock). $actions: las del rol, si ya se leyeron. */
     protected function lockOld($o, $actions = null) {
         $actions = $actions === null ? $this->actions() : $actions;
 
-        return !in_array('cancel', $actions, true)
+        return !in_array(self::CUT_EDIT, $actions, true)
             && (int) $o['sale_status_id'] === self::PENDING
             && $this->closedCut($o) !== '';
     }
@@ -878,52 +885,68 @@ class core extends mdl {
         }, 'No se pudo marcar el pedido como entregado.');
     }
 
-    // '' = se puede deshacer la entrega.
-    protected function undeliverBlock($o) {
-        if ((int) $o['sale_status_id'] === self::CANCELLED) return 'Un pedido cancelado no tiene entrega que deshacer.';
-        if ((int) $o['delivery_status'] !== 1)              return 'El pedido no está entregado.';
+    // -- Estado de entrega (como alpha) --
+
+    // Los tres estados de alpha en sale.delivery_status.
+    const DELIVERY_STATES = [0 => 'No entregado', 1 => 'Entregado', 2 => 'Para producir'];
+
+    // '' = se puede cambiar el estado de entrega. Como alpha: en cotización y cancelado no aplica.
+    protected function deliveryStateBlock($o) {
+        $status = (int) $o['sale_status_id'];
+
+        if ($status === self::CANCELLED) return 'Un pedido cancelado no se entrega.';
+        if ($status === self::QUOTE)     return 'Una cotización no se entrega.';
+        if (!in_array($status, [self::PENDING, self::PAID], true)) return 'Este pedido no cambia de entrega en su estado actual.';
 
         return '';
     }
 
-    /*  Regresa el pedido a «sin entregar» (se marcó por error). Como alpha, lo
-        hace quien entrega ('update' de Pedidos; en otra sucursal, con su turno
-        abierto). Pide motivo, como los demás reversos; sin contraseña. El
-        motivo queda en la bitácora. */
-    protected function undeliver($id) {
-        $fail = $this->need('update', 'deshacer entregas') ?: $this->needBranch();
+    /*  Como alpha (updateDeliveryStatus): Entregado, Para producir o No
+        entregado, de un clic. Sin contraseña, sin motivo y sin pedir el saldo
+        cubierto: el saldo se sigue cobrando con «Cobrar». Pide 'update' de
+        Pedidos; un pedido de otra sucursal sigue la regla de alpha
+        (adoptOrderBranch 'deliver'). El cambio queda en la bitácora. */
+    protected function setDeliveryState($id) {
+        $fail = $this->need('update', 'cambiar la entrega de pedidos') ?: $this->needBranch();
         if ($fail) return $fail;
 
         if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
 
-        $reason = trim((string) preg_replace('/\s+/u', ' ', $this->post('reason')));
+        $raw = trim((string) $this->post('state'));
 
-        if ($reason === '')               return $this->fail(422, 'Escribe por qué se deshace la entrega.');
-        if ($this->tooLong($reason, 200)) return $this->fail(422, 'El motivo admite hasta 200 caracteres.');
+        if (!in_array($raw, ['0', '1', '2'], true)) return $this->fail(422, 'Elige el estado de entrega.');
+
+        $state = (int) $raw;
 
         $fail = $this->adoptOrderBranch($id, 'deliver');
         if ($fail) return $fail;
 
-        return $this->attempt(function () use ($id, $reason) {
-            return $this->transaction(function () use ($id, $reason) {
+        return $this->attempt(function () use ($id, $state) {
+            return $this->transaction(function () use ($id, $state) {
                 $order = $this->qLockOrder($id, $this->branchId());
 
                 if (!$order) return $this->fail(404, "El pedido P{$id} no existe en " . $this->scope()['branch'] . '.');
 
-                $block = $this->undeliverBlock($order);
+                $block = $this->deliveryStateBlock($order);
                 if ($block !== '') return $this->fail(409, $block);
+
+                $text   = self::DELIVERY_STATES[$state];
+                $before = (int) $order['delivery_status'];
+
+                if ($before === $state) return $this->ok("El pedido P{$id} ya estaba como «{$text}».", ['id' => $id, 'state' => $state]);
 
                 $this->must($this->qUpdateOrder([
                     'values' => ['delivery_status'],
                     'where'  => ['id'],
-                    'data'   => [0, $id]
-                ]), 'undeliver');
+                    'data'   => [$state, $id]
+                ]), 'setDeliveryState');
 
-                $this->log($id, 'delivery', 'Entrega deshecha', "Motivo: {$reason}");
+                $this->log($id, 'delivery', 'Pedido marcado como ' . mb_strtolower($text, 'UTF-8'),
+                    'Antes: ' . (self::DELIVERY_STATES[$before] ?? 'Sin estado') . '. Cambió el ' . date('d/m/Y') . ' a las ' . hour12(date('H:i:s')) . '.');
 
-                return $this->ok("Se deshizo la entrega del pedido P{$id}.", ['id' => $id]);
+                return $this->ok("Pedido P{$id}: {$text}.", ['id' => $id, 'state' => $state]);
             });
-        }, 'No se pudo deshacer la entrega.');
+        }, 'No se pudo cambiar el estado de entrega.');
     }
 
     // -- Datos de entrega --
@@ -942,15 +965,15 @@ class core extends mdl {
 
     /*  «Editar datos de entrega» (como alpha): solo fecha, hora, tipo de
         entrega, dirección y nota. Lo abren Pedidos y Calendario desde el
-        detalle, así que no depende de ver la tabla. Pide el permiso «Editar
-        entrega» de Pedidos (EDIT_DELIVERY). Un pedido pagado lo autoriza Dueño
-        o Supervisor (permiso cancel) con su contraseña.
+        detalle, así que no depende de ver la tabla. Pide 'update' de Pedidos.
+        Un pedido pagado lo autoriza Dueño o Supervisor (permiso cancel) con su
+        contraseña.
         $paidEdit = «Editar» de un pedido pagado (alpha › editOrderPaid): los
         mismos campos, pero lo hace quien edita pedidos, con su contraseña y el
         turno de hoy abierto. Todo se valida antes de escribir: transaction()
         confirma lo hecho aunque se devuelva un fail. */
     protected function editDelivery($id, $paidEdit = false) {
-        $fail = ($paidEdit ? $this->need('update', 'editar pedidos') : $this->need(self::EDIT_DELIVERY, 'editar la entrega de pedidos')) ?: $this->needBranch();
+        $fail = $this->need('update', $paidEdit ? 'editar pedidos' : 'editar la entrega de pedidos') ?: $this->needBranch();
         if ($fail) return $fail;
 
         if ($id <= 0) return $this->fail(422, 'Falta el pedido.');
@@ -1231,15 +1254,13 @@ class core extends mdl {
         $money   = $this->moneyBlock($order);
         $alive   = (int) $order['sale_status_id'] !== self::CANCELLED;
         $given   = (int) $order['delivery_status'] === 1;
-        $undo    = $update && $this->undeliverBlock($order) === '';
+        $state   = $update ? $this->deliveryStateBlock($order) : 'Tu rol no puede cambiar la entrega.';
         $delete  = $this->isRoot() ? $this->deleteBlock($order) : 'Solo root (Developer) puede eliminar pedidos.';
         $lockOld = $update && $this->lockOld($order, $actions);
 
-        /*  Datos de entrega: pide el permiso «Editar entrega» (hoy Dueño y
-            Supervisor; la Cajera lo ve apagado). El pagado, además, solo Dueño
-            o Supervisor, con contraseña. */
+        // Datos de entrega: el pagado lo edita solo Dueño o Supervisor, con contraseña.
         $isPaid   = (int) $order['sale_status_id'] === self::PAID;
-        $delivery = !in_array(self::EDIT_DELIVERY, $actions, true) ? 'Tu rol no tiene el permiso «Editar entrega».' : $this->deliveryBlock($order);
+        $delivery = !$update ? 'Tu rol no puede editar pedidos.' : $this->deliveryBlock($order);
 
         if ($delivery === '' && $isPaid && !$boss) $delivery = 'La entrega de un pedido pagado la edita Dueño o Supervisor.';
 
@@ -1269,7 +1290,8 @@ class core extends mdl {
             'deliver'         => $deliver === '',
             'deliver_reason'  => $deliver,
             'settle'          => $update && $pay === '' && $this->settleFirst($order),
-            'undeliver'       => $undo,
+            'delivery_state'  => $state === '',
+            'delivery_state_reason' => $state,
             'delivery'        => $delivery === '',
             'delivery_reason' => $delivery,
             'delivery_key'    => $delivery === '' && $isPaid,
@@ -1277,10 +1299,10 @@ class core extends mdl {
             'delete_reason'   => $delete,
             'remove_discount' => $undiscount === '',
             'remove_discount_reason' => $undiscount,
-            // Entregado = el dinero ya se cerró con el cliente: primero se deshace la entrega.
+            // Entregado = el dinero ya se cerró con el cliente: primero se marca «No entregado».
             'delete_payment'  => $alive && !$given && in_array('delete', $actions, true),
-            // Cambiar la forma de un pago (como alpha): Dueño o Supervisor; el turno del pago lo revisa la pantalla y ctrl-cobro.
-            'payment_method'  => $alive && $boss
+            // Cambiar la forma de un pago (como alpha): PAY_METHOD; el turno del pago lo revisa la pantalla y ctrl-cobro.
+            'payment_method'  => $alive && in_array(self::PAY_METHOD, $actions, true)
         ];
     }
 

@@ -269,13 +269,44 @@ class ctrl extends core {
             $data['module_id']    = $data['module_id'] !== null ? (string) $data['module_id'] : '';
             $data['submodule_id'] = $data['submodule_id'] !== null ? (string) $data['submodule_id'] : '';
         }
+        // Qué hace cada permiso en esta sección: se lee bajo cada uno en
+        // Configuración › Roles. Sin la migración de descripciones no se ofrece.
+        $texts = [];
+        if ($data && $this->hasPermissionDescription()) {
+            foreach ($this->qSectionPermissionTexts([$id]) as $p) {
+                $texts[] = ['id' => (int) $p['id'], 'name' => $p['name'], 'code' => $p['code'], 'text' => (string) $p['description']];
+            }
+        }
+
         return [
             'status'   => $data ? 200 : 404,
             'message'  => $data ? 'OK' : 'Sección no encontrada',
             'data'     => $data,
             // Para el select de permisos del modal.
-            'type_ids' => $data ? $this->qSectionTypeIds([$id]) : []
+            'type_ids' => $data ? $this->qSectionTypeIds([$id]) : [],
+            'texts'    => $texts
         ];
+    }
+
+    /*  `descriptions` llega como JSON {permission_id: texto}. Solo se guardan
+        los de ESTA sección; vacío = sin texto. 160 caracteres como la columna. */
+    private function syncPermissionTexts($sectionId) {
+        if (!isset($_POST['descriptions']) || !$this->hasPermissionDescription()) return;
+
+        $posted = json_decode((string) $_POST['descriptions'], true);
+        if (!is_array($posted)) return;
+
+        foreach ($this->qSectionPermissionTexts([$sectionId]) as $p) {
+            $pid = (int) $p['id'];
+            if (!array_key_exists((string) $pid, $posted)) continue;
+
+            $text = trim(preg_replace('/\s+/', ' ', (string) $posted[(string) $pid]));
+            $text = $text === '' ? null : mb_substr($text, 0, 160);
+
+            if ($text !== (($p['description'] ?? '') === '' ? null : $p['description'])) {
+                $this->qSetPermissionDescription([$text, $pid]);
+            }
+        }
     }
 
     // En transacción para que LAST_INSERT_ID lea la misma conexión del INSERT y
@@ -331,6 +362,7 @@ class ctrl extends core {
             ]);
 
             $this->syncSectionTypes($id);
+            $this->syncPermissionTexts($id);
 
             return ['status' => 200, 'message' => 'Sección actualizada correctamente'];
         });
@@ -535,8 +567,20 @@ class ctrl extends core {
         return [
             'status'     => 200,
             'fullAccess' => false,
-            'modules'    => $this->permissionTree($this->qRolePermissions([$id]))
+            'modules'    => $this->permissionTree($this->roleRows($role))
         ];
+    }
+
+    /*  Lo que se le puede marcar al rol. A un rol de empresa no se le ofrece
+        Developer: es solo de root (Permission::canSee) y marcarlo no le daria
+        nada. Lo que ya tuviera ahi no sale en la pestaña y no se toca. */
+    private function roleRows($role) {
+        $rows = $this->qRolePermissions([(int) $role['id']]);
+        if ($role['company_id'] === null) return $rows;
+
+        return array_values(array_filter($rows, function ($r) {
+            return strtolower((string) $r['module_code']) !== 'developer';
+        }));
     }
 
     // El rol nace sin acciones. Devuelve su id y empresa para que la pestaña
@@ -691,8 +735,8 @@ class ctrl extends core {
         if ($role['code'] === 'root') return ['status' => 400, 'message' => 'El rol root tiene acceso total: sus permisos no se editan'];
         if (!isset($_POST['permissions'])) return ['status' => 400, 'message' => 'No llegaron los permisos del rol'];
 
-        return $this->transaction(function () use ($id, $role) {
-            $this->syncRolePermissions($id);
+        return $this->transaction(function () use ($role) {
+            $this->syncRolePermissions($role);
             return ['status' => 200, 'message' => 'Permisos de «' . $role['name'] . '» guardados'];
         });
     }
@@ -700,16 +744,28 @@ class ctrl extends core {
     /*  Deja en permissions_roles exactamente las acciones que llegan en
         `permissions` (JSON con ids), pero solo entre las vigentes: lo que esté
         apagado en el catálogo no sale en la pestaña y se conserva tal cual, para
-        que el rol lo recupere si se vuelve a encender. */
-    private function syncRolePermissions($roleId) {
-        $rows    = $this->qRolePermissions([$roleId]);
-        $visible = array_map('intval', array_column($rows, 'permission_id'));
-        $granted = [];
+        que el rol lo recupere si se vuelve a encender.
+        «Ver» manda: una acción que llega sin el «Ver» de su sección lo trae
+        consigo (igual que Configuración › Roles). */
+    private function syncRolePermissions($role) {
+        $roleId    = (int) $role['id'];
+        $rows      = $this->roleRows($role);
+        $visible   = array_map('intval', array_column($rows, 'permission_id'));
+        $granted   = [];
+        $sectionOf = [];
+        $showOf    = [];
         foreach ($rows as $r) {
+            $sectionOf[(int) $r['permission_id']] = (int) $r['section_id'];
+            if ($r['type_code'] === 'show') $showOf[(int) $r['section_id']] = (int) $r['permission_id'];
             if ((int) $r['granted'] === 1) $granted[] = (int) $r['permission_id'];
         }
 
-        $wanted = array_values(array_intersect($this->postedIds('permissions'), $visible));
+        $wanted = array_values(array_unique(array_intersect($this->postedIds('permissions'), $visible)));
+
+        foreach ($wanted as $permissionId) {
+            $show = $showOf[$sectionOf[$permissionId]] ?? 0;
+            if ($show && !in_array($show, $wanted, true)) $wanted[] = $show;
+        }
 
         foreach (array_diff($granted, $wanted) as $permissionId) {
             $this->qDeleteRolePermission([$roleId, $permissionId]);

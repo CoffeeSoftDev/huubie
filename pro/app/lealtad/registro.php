@@ -327,6 +327,9 @@ $logo  = '';
 $perk  = '';
 $goal  = 0;
 
+// La cifra de arriba a la derecha de la tarjeta, como en Tarjetas: SELLOS 10 · DESCUENTO 5 % · PUNTOS 3 %.
+$cardValue = null;
+
 if ($link) {
     $store = trim((string) $link['company']) !== '' ? trim($link['company']) : (trim((string) $link['title']) !== '' ? trim($link['title']) : trim((string) $link['branch']));
     $logo  = $file(trim((string) $link['company_logo']) !== '' ? $link['company_logo'] : $link['branch_logo']);
@@ -335,6 +338,10 @@ if ($link) {
     if ($goal > 0)                                 $perk = '1 sello por cada ' . $short($link['stamp_amount']) . ' que pagas. Con ' . $goal . ' sellos: ' . trim((string) $link['reward_name']) . '.';
     elseif ((float) $link['discount_percent'] > 0) $perk = $pct($link['discount_percent']) . ' de descuento en cada compra.';
     elseif ((float) $link['points_percent'] > 0)   $perk = $pct($link['points_percent']) . ' de lo que pagas regresa a tu monedero.';
+
+    if ($goal > 0)                                 $cardValue = ['Sellos', (string) $goal];
+    elseif ((float) $link['discount_percent'] > 0) $cardValue = ['Descuento', $pct($link['discount_percent'])];
+    elseif ((float) $link['points_percent'] > 0)   $cardValue = ['Puntos', $pct($link['points_percent'])];
 }
 
 $months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -443,21 +450,40 @@ $err = fn ($key) => isset($errors[$key]) ? '<p class="err" id="err-' . $key . '"
         .store b { display: block; font-size: 15px; line-height: 1.2; }
         .store small { display: block; font-size: 13px; color: var(--soft); }
 
-        /* -- La tarjeta que va a recibir: lisa, de un solo color -- */
+        /*  -- La tarjeta que va a recibir: la misma de Lealtad › Tarjetas, de Vender
+            y de tarjeta.php (.loy-card en order/src/css/order.css), con sus
+            medidas: 340 px de ancho, apaisada como una de plástico (1.586),
+            degradado del color de su tipo con un brillo encima. -- */
         .card {
-            display: flex; flex-direction: column; justify-content: space-between;
+            --c-chip: <?= $light ? 'rgba(15, 23, 42, .08)' : 'rgba(255, 255, 255, .22)' ?>;
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            width: 340px;
+            max-width: 100%;
             aspect-ratio: 1.586;
-            padding: 18px 20px;
-            border-radius: var(--radius);
-            background: var(--card);
+            margin: 0 auto;
+            border-radius: 14px;
             color: <?= $ink ?>;
-            <?= !$light ? 'text-shadow: 0 1px 1px rgba(0, 0, 0, .22);' : '' ?>
+            background: var(--card);
+            background: linear-gradient(135deg, color-mix(in srgb, var(--card) <?= $light ? '88%' : '70%' ?>, #000) 0%, var(--card) 58%, color-mix(in srgb, var(--card) <?= $light ? '70%' : '78%' ?>, #FFF) 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 0 0 .5px rgba(0, 0, 0, .1), 0 12px 24px -12px rgba(24, 12, 60, .5), 0 2px 4px rgba(24, 12, 60, .1);
+            <?= !$light ? 'text-shadow: 0 1px 1px rgba(0, 0, 0, .16);' : '' ?>
         }
-        .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-        .card-type { font-size: 18px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
-        .card-brand { flex-shrink: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; font-weight: 600; letter-spacing: .07em; line-height: 1.9; text-transform: uppercase; opacity: .85; }
-        .card-free { font-size: 26px; font-weight: 800; line-height: 1.1; letter-spacing: -.01em; }
-        .card-label { display: block; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; opacity: .85; }
+        .card::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; background: linear-gradient(125deg, rgba(255, 255, 255, .2) 0%, rgba(255, 255, 255, 0) 35%, rgba(255, 255, 255, 0) 72%, rgba(255, 255, 255, .08) 100%); }
+        .card-head { display: flex; align-items: center; gap: 9px; padding: 12px 14px 0; }
+        .card-logo { width: 30px; height: 30px; flex: none; border-radius: 9px; display: grid; place-items: center; background: var(--c-chip); }
+        .card-logo svg { width: 17px; height: 17px; }
+        .card-name { flex: 1; min-width: 0; }
+        .card-type { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: 15px; font-weight: 800; letter-spacing: -.015em; line-height: 1.15; overflow-wrap: anywhere; }
+        .card-brand { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .78; }
+        .card-value { flex: none; text-align: right; line-height: 1; }
+        .card-value b { display: inline-block; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .card-label { display: block; margin-bottom: 4px; font-size: 8px; font-weight: 700; letter-spacing: .09em; line-height: 1; text-transform: uppercase; opacity: .8; }
+        .card-body { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; padding: 12px 14px 14px; }
+        .card-free { font-size: 22px; font-weight: 800; line-height: 1.1; letter-spacing: -.02em; }
 
         /* -- Cajas -- */
         .box { background: var(--paper); border-radius: var(--radius); padding: 18px; }
@@ -559,11 +585,17 @@ $err = fn ($key) => isset($errors[$key]) ? '<p class="err" id="err-' . $key . '"
         </section>
 <?php else: ?>
         <section class="card" aria-label="Tarjeta <?= $h($link['type']) ?>">
-            <div class="card-top">
-                <span class="card-type"><?= $h($link['type']) ?></span>
-                <span class="card-brand"><?= $h($store) ?></span>
+            <div class="card-head">
+                <span class="card-logo" aria-hidden="true"><?= $svg($goal > 0 ? 'gift' : 'card', 17) ?></span>
+                <div class="card-name">
+                    <span class="card-type"><?= $h($link['type']) ?></span>
+                    <span class="card-brand"><?= $h($store) ?></span>
+                </div>
+<?php if ($cardValue): ?>
+                <div class="card-value"><span class="card-label"><?= $h($cardValue[0]) ?></span><b><?= $h($cardValue[1]) ?></b></div>
+<?php endif; ?>
             </div>
-            <div>
+            <div class="card-body">
                 <span class="card-label">Gratis</span>
                 <span class="card-free">Es tuya en un minuto</span>
             </div>

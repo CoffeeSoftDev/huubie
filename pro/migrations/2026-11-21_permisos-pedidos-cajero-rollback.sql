@@ -3,9 +3,9 @@
 -- BD: la del .env de pro (DB_NAME, hoy fayxzvov_app)
 --
 -- Correr DESPUÉS de regresar el código: con el código nuevo y sin estos
--- permisos, el Supervisor pierde «Editar entrega», la bitácora y Capturó/Produjo.
+-- permisos, el Supervisor pierde la bitácora y Capturó/Produjo.
 --
--- Quita las tres acciones de Pedidos (con sus asignaciones) y el 'update' de
+-- Quita las dos acciones de Pedidos (con sus asignaciones) y el 'update' de
 -- `pos-clientes` a la Cajera (roles.code = 'cashier'), que antes no lo tenía.
 -- =============================================================================
 
@@ -15,15 +15,15 @@ DELETE pr
 FROM permissions_roles pr
 INNER JOIN permissions p       ON p.id = pr.permission_id
 INNER JOIN type_permissions tp ON tp.id = p.type_permission_id
-WHERE tp.code IN ('editar-entrega', 'ver-bitacora', 'ver-capturo-produjo');
+WHERE tp.code IN ('ver-bitacora', 'ver-capturo-produjo');
 
 DELETE p
 FROM permissions p
 INNER JOIN type_permissions tp ON tp.id = p.type_permission_id
-WHERE tp.code IN ('editar-entrega', 'ver-bitacora', 'ver-capturo-produjo');
+WHERE tp.code IN ('ver-bitacora', 'ver-capturo-produjo');
 
 DELETE FROM type_permissions
-WHERE code IN ('editar-entrega', 'ver-bitacora', 'ver-capturo-produjo');
+WHERE code IN ('ver-bitacora', 'ver-capturo-produjo');
 
 DELETE pr
 FROM permissions_roles pr
@@ -37,5 +37,5 @@ INNER JOIN type_permissions tp ON tp.id = p.type_permission_id AND tp.code = 'up
 SELECT tp.code, COUNT(p.id) AS permisos
 FROM type_permissions tp
 LEFT JOIN permissions p ON p.type_permission_id = tp.id
-WHERE tp.code IN ('editar-entrega', 'ver-bitacora', 'ver-capturo-produjo')
+WHERE tp.code IN ('ver-bitacora', 'ver-capturo-produjo')
 GROUP BY tp.code;

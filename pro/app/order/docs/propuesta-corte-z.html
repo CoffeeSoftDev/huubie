@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuesta · Corte Z claro, estilo Soft</title>
+<style>
+/* @piel plantilla-plano · siempre en claro, aunque el sistema esté oscuro */
+:root{
+  color-scheme: light;
+  --bp-ground:#F1F3F6; --bp-surface:#FFFFFF; --bp-surface-2:#F5F7F9;
+  --bp-line:#DDE3E8; --bp-line-soft:#E9EDF1;
+  --bp-ink:#0F1A21; --bp-ink-soft:#4A5A64; --bp-ink-dim:#6E7F8A;
+  --bp-ac:#0B6E77; --bp-write:#A15C08;
+  --bp-ui:"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif:Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono:ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{ background:var(--bp-ground); color:var(--bp-ink); font-family:var(--bp-ui);
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased }
+.wrap{ max-width:1120px; margin:0 auto; padding:0 22px 80px }
+
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:26px;
+  display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,42px); line-height:1.08;
+  letter-spacing:-.015em; max-width:26ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55; color:var(--bp-ink-soft); max-width:70ch }
+
+section{ display:flex; flex-direction:column; gap:14px; margin-bottom:56px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:26px; line-height:1.2; display:flex;
+  align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em; color:var(--bp-ac); flex:none }
+.intro{ color:var(--bp-ink-soft); max-width:78ch }
+code{ font-family:var(--bp-mono); font-size:.875em; background:var(--bp-surface-2);
+  border:1px solid var(--bp-line-soft); border-radius:4px; padding:.08em .34em }
+
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface) }
+table.bp{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:640px }
+.bp th, .bp td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft); vertical-align:top }
+.bp thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--bp-ink-dim); font-weight:500; background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line) }
+.bp tbody tr:last-child td{ border-bottom:0 }
+.bp td b{ font-weight:650 }
+.bp td.code{ font-family:var(--bp-mono); font-size:12px; color:var(--bp-ac); white-space:nowrap }
+
+/* Las dos hojas (hoy y propuesta) van igual: papel blanco de 1056 px sobre gris, como la vista de impresión */
+.shot{ border:1px solid var(--bp-line); border-radius:10px; overflow:hidden; background:#7A7F8C }
+.shot .paper{ overflow-x:auto; padding:14px 0 }
+.shot img{ display:block; width:1056px; max-width:none; height:auto; margin:0 auto; box-shadow:0 2px 12px rgba(0,0,0,.35) }
+.shot figcaption{ background:var(--bp-surface); border-top:1px solid var(--bp-line); padding:6px 12px;
+  font-size:12px; color:var(--bp-ink-dim); font-family:var(--bp-mono) }
+
+.note{ border-left:2px solid var(--bp-write); background:var(--bp-surface); border-radius:0 8px 8px 0;
+  padding:14px 18px; display:flex; flex-direction:column; gap:8px; font-size:13.5px; color:var(--bp-ink-soft) }
+.note > b:first-child{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--bp-write) }
+.note b{ color:var(--bp-ink) }
+.note ol, .note ul{ padding-left:20px; display:flex; flex-direction:column; gap:6px }
+.note .codes{ font-family:var(--bp-mono); font-size:11.5px; color:var(--bp-ac) }
+
+/* -- La hoja propuesta (Corte Z claro) --
+   Mismo orden que hoy: desglose por turno, corte de caja X y resumen con 3 cajas al final.
+   Carta horizontal: 11 in = 1056 px. Relleno 42 px = los 8 mm de margen del papel + 12 px.
+   Blanco y negro: líneas negras para secciones, gris claro solo en subtotales y totales. */
+.zs{ width:1056px; margin:0 auto; background:#FFFFFF; color:#111111; font-family:"Segoe UI", Arial, sans-serif;
+  font-size:10.5px; line-height:1.35; padding:42px; font-variant-numeric:tabular-nums;
+  box-shadow:0 2px 12px rgba(0,0,0,.35) }
+.zs-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; padding-bottom:10px; border-bottom:2px solid #111111 }
+.zs-title{ margin-bottom:6px; font-size:26px; font-weight:800; letter-spacing:.02em; line-height:1 }
+.zs-head-l, .zs-meta{ line-height:1.55; color:#333333 }
+.zs-meta{ text-align:right }
+.zs-head-l b, .zs-meta b{ color:#111111; font-weight:600 }
+
+.zs-sec{ margin-top:20px }
+.zs-sec-h{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding-bottom:3px; border-bottom:1.5px solid #111111 }
+.zs-sec-h h3{ font-size:11.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase }
+.zs-sec-h small{ font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase }
+.zs-sec-s{ padding:6px 6px 0; font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#555555 }
+
+table.zt{ width:100%; border-collapse:collapse; table-layout:fixed }
+.zt th{ padding:6px 6px 4px; border-bottom:1px solid #999999; font-size:9px; font-weight:600; letter-spacing:.05em;
+  text-align:left; text-transform:uppercase; color:#666666 }
+.zt td{ padding:4px 6px; border-bottom:1px solid #E2E2E2; vertical-align:top }
+.zt .r{ text-align:right }
+.zt .c{ text-align:center }
+.zt .muted{ color:#666666 }
+.zt .sm{ display:block; font-size:9.5px; color:#555555 }
+.zt .de{ color:#777777 }
+.zt s.sm{ color:#777777 }
+.zt .st{ text-align:center; font-size:9px; font-weight:700; letter-spacing:.05em }
+.zt .lbl{ text-align:right; font-size:9.5px; letter-spacing:.05em; text-transform:uppercase }
+.zt tr.turn td{ padding-top:14px; border-bottom:1px solid #111111; font-weight:800; letter-spacing:.03em; text-transform:uppercase }
+.zt tr.kind td{ padding-top:8px; padding-bottom:3px; border-bottom:1px solid #999999; font-size:9px; font-weight:700;
+  letter-spacing:.06em; text-transform:uppercase; color:#555555 }
+.zt tr.sub td{ border-top:1px solid #111111; border-bottom:0; background:#F3F3F3; font-weight:700 }
+.zt tr.tot td{ border-top:2px solid #111111; border-bottom:0; background:#EAEAEA; font-size:11px; font-weight:800 }
+
+/* Las 3 cajas del resumen, al final como hoy: borde negro, título sin franja, total con línea */
+.zs-boxes{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-top:10px }
+.zs-box{ display:flex; flex-direction:column; border:1px solid #111111 }
+.zs-box h4{ padding:6px 10px 5px; border-bottom:1px solid #111111; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase }
+.zs-box p{ padding:4px 10px; border-bottom:1px solid #E2E2E2; font-size:9.5px; color:#555555 }
+.zs-row{ display:flex; justify-content:space-between; gap:10px; padding:4px 10px; border-bottom:1px solid #E2E2E2 }
+.zs-row:last-child{ border-bottom:0 }
+.zs-row em{ font-style:normal; color:#777777 }
+.zs-row.strong{ font-weight:700 }
+.zs-row.tot{ border-top:1.5px solid #111111; background:#EAEAEA; font-size:11px; font-weight:800 }
+
+.zs-notes{ padding:6px; border-bottom:1px solid #E2E2E2 }
+.zs-foot{ display:flex; justify-content:space-between; margin-top:20px; padding-top:6px; border-top:1px solid #111111; font-size:9.5px; color:#444444 }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <p class="eyebrow">Pedidos TPV · Cierre del día · 22/11/2026</p>
+    <h1>Corte Z <em>claro</em>, estilo Soft Restaurant</h1>
+    <p class="lede">La misma hoja carta horizontal, en el mismo orden de hoy: desglose por turno, corte de caja por turno y el resumen con sus 3 cajas al final. Solo cambia cómo se ve: blanco y negro, líneas en vez de franjas grises y letra más grande.</p>
+  </header>
+
+  <!-- 01 -->
+  <section>
+    <h2><span class="num">01</span>Así se imprime hoy</h2>
+    <p class="intro">Captura real de la hoja que abre «Imprimir» en el Cierre del día. Datos del 22/10/2026, Reginas Guadalupe, cierre 396 (<code>getDay</code> de <code>ctrl-cierre</code>).</p>
+    <figure class="shot">
+      <div class="paper"><img src="img/corte-z-actual.png" alt="Corte Z actual: franjas grises, desglose por turno y resumen al final"></div>
+      <figcaption>Hoy · hoja carta horizontal · 1056 px = 11 in · letra de 8–9 px</figcaption>
+    </figure>
+  </section>
+
+  <!-- 02 -->
+  <section>
+    <h2><span class="num">02</span>Qué no se entiende</h2>
+    <div class="tscroll">
+      <table class="bp">
+        <thead><tr><th>Código</th><th>Qué pasa</th><th>Dónde se ve en la captura</th></tr></thead>
+        <tbody>
+          <tr><td class="code">Z1</td><td>El mismo gris oscuro pinta el título de la sección, los encabezados de columna y la fila del turno. Salen tres franjas seguidas y no se distingue el título del dato.</td><td>«Desglose de pedidos y ventas» → «Pedido / Hora…» → «Turno 877…»</td></tr>
+          <tr><td class="code">Z2</td><td>Hay celdas con fondo gris y no se explica por qué.</td><td>Columna «Importe» y columna «En caja»</td></tr>
+          <tr><td class="code">Z3</td><td>Las 3 cajas del resumen llevan el título en franja gris y filas sueltas con fondo gris. Se confunden con las franjas de arriba.</td><td>«Resumen del día»: Totales, Métodos de pago, Estado de cuentas</td></tr>
+          <tr><td class="code">Z4</td><td>La letra es de 8–9 px: en papel se lee, pero en la vista previa cansa.</td><td>Toda la hoja</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section>
+    <h2><span class="num">03</span>Propuesta de mejora</h2>
+    <div class="note">
+      <b>Propuesta de mejora</b>
+      <ol>
+        <li><b>Blanco y negro con líneas.</b> Título de sección en negritas con línea negra; fila del turno en negritas con línea; «Pedidos y ventas del turno» y «Abonos de pedidos anteriores» como subtítulo chico, sin fondo. <span class="codes">Z1</span></li>
+        <li><b>Sin celdas grises sueltas.</b> «Importe» y «En caja» van en blanco como las demás columnas. Gris claro solo en subtotales y totales. <span class="codes">Z2</span></li>
+        <li><b>Las 3 cajas siguen al final</b>, con el mismo contenido: borde negro, título sin franja y su fila de total con línea. <span class="codes">Z3</span></li>
+        <li><b>Letra de 10.5 px</b> y cifras con el mismo ancho para que las columnas alineen. <span class="codes">Z4</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section>
+    <h2><span class="num">04</span>Así quedaría</h2>
+    <p class="intro">Mismo orden, mismas columnas, mismas palabras y mismos datos del 22/10/2026 que la captura de arriba, a tamaño real de la hoja. Solo cambia el estilo.</p>
+    <figure class="shot">
+      <div class="paper">
+        <article class="zs" aria-label="Corte Z propuesto">
+
+          <div class="zs-head">
+            <div class="zs-head-l">
+              <div class="zs-title">CORTE Z</div>
+              Folio cierre: <b>396</b><br>
+              Sucursal: <b>Reginas Guadalupe</b><br>
+              Reginas
+            </div>
+            <div class="zs-meta">
+              Fecha: <b>22/10/2026</b><br>
+              Cerrado por: <b>Cinthia Berenice Huerta Arguello</b> — 22/10/2026 8:27 PM<br>
+              Generado: 22/11/2026 12:14 AM
+            </div>
+          </div>
+
+          <!-- Desglose: igual que hoy, pedidos y abonos dentro de cada turno -->
+          <div class="zs-sec">
+            <div class="zs-sec-h"><h3>Desglose de pedidos y ventas</h3><small>18 cuenta(s)</small></div>
+            <table class="zt">
+              <colgroup><col style="width:8%"><col style="width:8%"><col style="width:21%"><col style="width:14%"><col style="width:15%"><col style="width:11%"><col style="width:11%"><col style="width:12%"></colgroup>
+              <thead><tr><th>Pedido</th><th>Hora</th><th>Cuenta</th><th>Método</th><th class="r">Importe</th><th class="r">Abono</th><th class="r">Quedó</th><th class="c">Estado</th></tr></thead>
+              <tbody>
+                <tr class="turn"><td colspan="8">Turno 877 · 10:35 AM · GALILEA BARTOLOME · 9 cuenta(s)</td></tr>
+                <tr class="kind"><td colspan="8">Pedidos y ventas del turno</td></tr>
+                <tr><td>P1512</td><td>10:52 AM</td><td>SARILU RIVADULLA</td><td>Transferencia</td><td class="r">$270.00</td><td class="r">$170.00</td><td class="r">$100.00</td><td class="st">PARCIAL</td></tr>
+                <tr><td>P1513</td><td>11:05 AM</td><td>ITZEL LOPEZ GARCIA</td><td>Transferencia</td><td class="r">$580.00</td><td class="r">$400.00</td><td class="r">$180.00</td><td class="st">PARCIAL</td></tr>
+                <tr><td>P1514</td><td>1:10 PM</td><td>Oscar Velazco<span class="sm"><b>Descuento: −$48.00</b></span></td><td>Tarjeta</td><td class="r"><s class="sm">$480.00</s>$432.00</td><td class="r">$432.00</td><td class="r muted">—</td><td class="st">PAGADO</td></tr>
+                <tr><td>P1515</td><td>1:12 PM</td><td>ISAAC ALBORES</td><td>Tarjeta</td><td class="r">$480.00</td><td class="r">$480.00</td><td class="r muted">—</td><td class="st">PAGADO</td></tr>
+                <tr><td>P1516</td><td>2:06 PM</td><td>KAREN AVILA</td><td>Transferencia</td><td class="r">$1,250.00</td><td class="r">$625.00</td><td class="r">$625.00</td><td class="st">PARCIAL</td></tr>
+                <tr><td>P1518</td><td>2:30 PM</td><td>Itzel Santiago</td><td>Transferencia</td><td class="r">$1,585.00</td><td class="r">$1,345.00</td><td class="r">$240.00</td><td class="st">PARCIAL</td></tr>
+                <tr class="sub"><td colspan="4" class="lbl">Subtotal del turno</td><td class="r">$4,597.00</td><td class="r">$3,452.00</td><td class="r">$1,145.00</td><td></td></tr>
+                <tr class="kind"><td colspan="8">Abonos de pedidos anteriores</td></tr>
+                <tr><td>P1501<span class="sm">20/10/2026</span></td><td>11:13 AM</td><td>MARTHA HILDA</td><td>Efectivo</td><td class="r">$150.00 <span class="de">de $350.00</span></td><td class="r">$150.00</td><td class="r muted">—</td><td class="st">LIQUIDADO</td></tr>
+                <tr><td>P1506<span class="sm">21/10/2026</span></td><td>11:29 AM</td><td>RIBBYS</td><td>Transferencia</td><td class="r">$369.00 <span class="de">de $369.00</span></td><td class="r">$369.00</td><td class="r muted">—</td><td class="st">LIQUIDADO</td></tr>
+                <tr><td>P1498<span class="sm">20/10/2026</span></td><td>11:52 AM</td><td>Maria Teresa Gomez<span class="sm">Origen: Reginas Kafeto</span></td><td>Efectivo</td><td class="r">$250.00 <span class="de">de $875.00</span></td><td class="r">$250.00</td><td class="r muted">—</td><td class="st">LIQUIDADO</td></tr>
+                <tr class="sub"><td colspan="4" class="lbl">Subtotal abonos anteriores</td><td class="r">$769.00</td><td class="r">$769.00</td><td class="r muted">—</td><td></td></tr>
+                <tr class="tot"><td colspan="4" class="lbl">Total del turno</td><td class="r">$5,366.00</td><td class="r">$4,221.00</td><td class="r">$1,145.00</td><td></td></tr>
+
+                <tr class="turn"><td colspan="8">Turno 878 · 2:55 PM · Cinthia Berenice Huerta Arguello · 9 cuenta(s)</td></tr>
+                <tr class="kind"><td colspan="8">Pedidos y ventas del turno</td></tr>
+                <tr><td>P1519</td><td>4:08 PM</td><td>Nuun Studio</td><td class="muted">—</td><td class="r">$140.00</td><td class="r muted">—</td><td class="r">$140.00</td><td class="st">PENDIENTE</td></tr>
+                <tr><td>P1520</td><td>4:31 PM</td><td>paola gomez</td><td>Efectivo, Transferencia</td><td class="r">$1,250.00</td><td class="r">$1,250.00</td><td class="r muted">—</td><td class="st">PAGADO</td></tr>
+                <tr><td>P1522</td><td>4:47 PM</td><td>NELLY HERNANDEZ</td><td>Transferencia</td><td class="r">$1,050.00</td><td class="r">$500.00</td><td class="r">$550.00</td><td class="st">PARCIAL</td></tr>
+                <tr><td>P1523</td><td>7:09 PM</td><td>Gabrielle Medecigo</td><td>Transferencia</td><td class="r">$600.00</td><td class="r">$600.00</td><td class="r muted">—</td><td class="st">PAGADO</td></tr>
+                <tr><td>P1525</td><td>7:48 PM</td><td>MA RIOS</td><td>Transferencia</td><td class="r">$410.00</td><td class="r">$410.00</td><td class="r muted">—</td><td class="st">PAGADO</td></tr>
+                <tr><td>P1526</td><td>7:49 PM</td><td>Yerami Saucedo</td><td>Transferencia</td><td class="r">$650.00</td><td class="r">$400.00</td><td class="r">$250.00</td><td class="st">PARCIAL</td></tr>
+                <tr class="sub"><td colspan="4" class="lbl">Subtotal del turno</td><td class="r">$4,100.00</td><td class="r">$3,160.00</td><td class="r">$940.00</td><td></td></tr>
+                <tr class="kind"><td colspan="8">Abonos de pedidos anteriores</td></tr>
+                <tr><td>P1475<span class="sm">19/10/2026</span></td><td>5:15 PM</td><td>FRANCHESCA SUAREZ<span class="sm">Origen: Reginas Cuarta</span></td><td>Efectivo</td><td class="r">$500.00 <span class="de">de $1,000.00</span></td><td class="r">$500.00</td><td class="r muted">—</td><td class="st">LIQUIDADO</td></tr>
+                <tr><td>P1487<span class="sm">20/10/2026</span></td><td>5:25 PM</td><td>Nuun Studio<span class="sm">Origen: Reginas Cuarta</span></td><td>Tarjeta</td><td class="r">$140.00 <span class="de">de $140.00</span></td><td class="r">$140.00</td><td class="r muted">—</td><td class="st">LIQUIDADO</td></tr>
+                <tr><td>P1465<span class="sm">17/10/2026</span></td><td>7:46 PM</td><td>KATTE GARCIA<span class="sm">Origen: Reginas Cuarta</span></td><td>Efectivo</td><td class="r">$120.00 <span class="de">de $240.00</span></td><td class="r">$120.00</td><td class="r muted">—</td><td class="st">LIQUIDADO</td></tr>
+                <tr class="sub"><td colspan="4" class="lbl">Subtotal abonos anteriores</td><td class="r">$760.00</td><td class="r">$760.00</td><td class="r muted">—</td><td></td></tr>
+                <tr class="tot"><td colspan="4" class="lbl">Total del turno</td><td class="r">$4,860.00</td><td class="r">$3,920.00</td><td class="r">$940.00</td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Corte de caja X: igual que hoy -->
+          <div class="zs-sec">
+            <div class="zs-sec-h"><h3>*** Corte de caja X (cierre por turno) ***</h3><small>2 turno(s)</small></div>
+            <div class="zs-sec-s">Dinero en caja por turno · pedidos y ventas del día + abonos de días anteriores</div>
+            <table class="zt">
+              <colgroup><col style="width:7%"><col style="width:20%"><col style="width:16%"><col style="width:9%"><col><col><col><col></colgroup>
+              <thead><tr><th>Turno</th><th>Responsable</th><th>Apertura</th><th>Cierre</th><th class="r">En caja</th><th class="r">Efectivo</th><th class="r">Tarjeta</th><th class="r">Transferencia</th></tr></thead>
+              <tbody>
+                <tr><td>877</td><td>GALILEA BARTOLOME</td><td>22/10/2026 10:35 AM</td><td>2:41 PM</td><td class="r">$4,221.00</td><td class="r">$400.00</td><td class="r">$912.00</td><td class="r">$2,909.00</td></tr>
+                <tr><td>878</td><td>Cinthia Berenice Huerta Arguello</td><td>22/10/2026 2:55 PM</td><td>8:25 PM</td><td class="r">$3,920.00</td><td class="r">$1,170.00</td><td class="r">$140.00</td><td class="r">$2,610.00</td></tr>
+                <tr class="tot"><td colspan="4" class="lbl">Total caja</td><td class="r">$8,141.00</td><td class="r">$1,570.00</td><td class="r">$1,052.00</td><td class="r">$5,519.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Resumen del día: las 3 cajas al final, mismo contenido que hoy -->
+          <div class="zs-sec">
+            <div class="zs-sec-h"><h3>Resumen del día</h3><small>22/10/2026 · Reginas Guadalupe</small></div>
+            <div class="zs-boxes">
+              <div class="zs-box">
+                <h4>Totales</h4>
+                <p>Venta teórica (lo vendido, cobrado o no) vs dinero recibido</p>
+                <div class="zs-row strong"><span>Venta bruta (teórica)</span><span>$8,697.00</span></div>
+                <div class="zs-row"><span>Pendiente</span><span>$2,085.00</span></div>
+                <div class="zs-row"><span>Pedidos y ventas del día</span><span>$6,612.00</span></div>
+                <div class="zs-row"><span>Abonos ant.</span><span>$1,529.00</span></div>
+                <div class="zs-row tot"><span>EN CAJA</span><span>$8,141.00</span></div>
+              </div>
+              <div class="zs-box">
+                <h4>Métodos de pago</h4>
+                <p>El dinero que entró en el día</p>
+                <div class="zs-row"><span>Efectivo <em>5</em></span><span>$1,570.00</span></div>
+                <div class="zs-row"><span>Tarjeta <em>3</em></span><span>$1,052.00</span></div>
+                <div class="zs-row"><span>Transferencia <em>10</em></span><span>$5,519.00</span></div>
+                <div class="zs-row tot"><span>ENTRÓ A CAJA</span><span>$8,141.00</span></div>
+                <div class="zs-row"><span>Fondo inicial</span><span>—</span></div>
+              </div>
+              <div class="zs-box">
+                <h4>Estado de cuentas</h4>
+                <p>Por saldo al terminar el día</p>
+                <div class="zs-row"><span>Pagadas</span><span>5</span></div>
+                <div class="zs-row"><span>Pendientes</span><span>7</span></div>
+                <div class="zs-row"><span>Cotizaciones</span><span>0</span></div>
+                <div class="zs-row tot"><span>TOTAL</span><span>12</span></div>
+                <div class="zs-row"><span>Canceladas</span><span>0</span></div>
+                <div class="zs-row"><span>Con descuento</span><span>1</span></div>
+                <div class="zs-row"><span>Pedidos · Mostrador</span><span>12 · 0</span></div>
+                <div class="zs-row"><span>Ticket promedio</span><span>$724.75</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="zs-sec">
+            <div class="zs-sec-h"><h3>Notas</h3></div>
+            <div class="zs-notes"><b>Nota del cierre:</b> Pasado de alpha: vendido $8,745.00 » $8,697.00.</div>
+          </div>
+
+          <div class="zs-foot">
+            <span>— Fin del reporte · Huubie —</span>
+            <span>Generado: 22/11/2026 12:14 AM</span>
+          </div>
+
+        </article>
+      </div>
+      <figcaption>Propuesta · hoja carta horizontal · 1056 px = 11 in · letra de 10.5 px · mismo orden y mismos datos</figcaption>
+    </figure>
+  </section>
+
+  <!-- 05 -->
+  <section>
+    <h2><span class="num">05</span>Qué cambia y qué no</h2>
+    <div class="tscroll">
+      <table class="bp">
+        <thead><tr><th>Parte</th><th>Antes</th><th>Después</th></tr></thead>
+        <tbody>
+          <tr><td><b>Colores</b></td><td>Franjas gris oscuro en títulos, columnas, turnos y cajas</td><td>Blanco y negro con líneas; gris claro solo en subtotales y totales</td></tr>
+          <tr><td><b>Celdas sueltas</b></td><td>«Importe» y «En caja» con fondo gris</td><td>Sin fondo</td></tr>
+          <tr><td><b>Resumen del día</b></td><td>3 cajas con título en franja gris</td><td>Las mismas 3 cajas al final, con borde negro y título sin franja</td></tr>
+          <tr><td><b>Letra</b></td><td>8–9 px</td><td>10.5 px</td></tr>
+          <tr><td><b>Lo que no cambia</b></td><td colspan="2">El orden de la hoja, las columnas, las palabras, las 3 cajas al final, los datos (mismo <code>getDay</code> de <code>ctrl-cierre</code>), la ventana del Cierre del día (tamaño de alpha), la hoja carta horizontal y el zoom de la vista previa.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>Por decidir</b>
+      <ul>
+        <li><b>¿Solo pro o también alpha?</b> Si cambia solo pro, el Corte Z deja de verse igual en los dos sistemas.</li>
+        <li><b>Nombres de clientes:</b> ¿tal como se capturaron (hoy hay mayúsculas y minúsculas mezcladas) o todo en mayúsculas, como imprime Soft?</li>
+        <li><b>Referencia de Soft:</b> el estilo sale de cómo recuerdo el corte de Soft Restaurant; no lo comparé con uno real. Con una captura o un impreso de Soft lo igualo midiendo.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

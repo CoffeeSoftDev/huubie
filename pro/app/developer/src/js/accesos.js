@@ -1038,6 +1038,7 @@ class Sections extends Templates {
         this.bindSubmoduleSelect('formSectionEdit', request.data ? request.data.submodule_id : '');
         modules.mountIconField('formSectionEdit', request.data ? request.data.icon : '', false);
         this.mountTypesField('formSectionEdit', request.type_ids || []);
+        this.mountTextsField('formSectionEdit', request.texts || []);
     }
 
     toggleSection(id, active) {
@@ -1232,6 +1233,52 @@ class Sections extends Templates {
         }
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    /*  Qué hace cada permiso de la sección: una línea por permiso, debajo del
+        select. Se lee en Configuración › Roles bajo cada permiso especial, y en
+        las básicas como nota cuando abren más de lo que dice su nombre. Viajan
+        como JSON {permission_id: texto} en el hidden `descriptions`. Sin la
+        migración de descripciones el servidor no manda `texts` y no sale nada. */
+    mountTextsField(formId, texts) {
+        const $types = $(`#${formId}`).find('#typesFieldWrap');
+        if (!$types.length || !texts.length) return;
+
+        const $input = $('<input>', { type: 'hidden', name: 'descriptions' });
+        const $list = $('<div>', { class: 'flex flex-col gap-2' });
+
+        texts.forEach((t) => {
+            $list.append($('<label>', { class: 'flex flex-col gap-1 m-0' }).append(
+                $('<span>', { class: 'text-xs font-semibold text-gray-600', text: t.name }),
+                $('<input>', {
+                    type: 'text',
+                    class: 'form-control form-control-sm',
+                    maxlength: 160,
+                    'data-text': t.id,
+                    value: t.text,
+                    placeholder: 'Qué deja hacer en esta sección'
+                })
+            ));
+        });
+
+        // El modal es una rejilla de 12 de Tailwind (grid-cols-12): ancho completo = col-span-12.
+        const $wrap = $('<div>', { class: 'col-span-12 mt-2' }).append(
+            $('<p>', { class: 'text-sm font-semibold mb-1', text: 'Qué hace cada permiso (opcional)' }),
+            $('<p>', { class: 'text-[11px] text-gray-400 mt-0 mb-2', text: 'Una línea corta. En las básicas, solo si abren más de lo que dice su nombre. Los permisos que agregues ahora salen aquí al volver a abrir la sección.' }),
+            $list,
+            $input
+        );
+
+        $types.closest('[class*="col-span"]').after($wrap);
+
+        const sync = () => {
+            const out = {};
+            $list.find('[data-text]').each(function () { out[this.dataset.text] = this.value; });
+            $input.val(JSON.stringify(out));
+        };
+
+        $list.on('input', sync);
+        sync();
     }
 
     /*  "+ Nuevo permiso": crea el tipo de permiso ahí mismo (queda en el catálogo,

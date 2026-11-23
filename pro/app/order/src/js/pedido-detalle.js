@@ -9,8 +9,9 @@
     Produccion (el ctrl manda limited = true) lo ve sin dinero: ni resumen de
     pago, ni precios, ni importes. El ctrl ya no manda esas cifras.
 
-    Entregar solo confirma, sin contraseña: deliver() abre la ventana y
-    saveDeliver() marca el pedido en el ctrl.
+    La entrega es la de alpha: deliveryState() ofrece Entregado, Para
+    producir o No entregado y guarda al primer clic. deliver() (solo
+    confirmar) queda para el tablero y para «Cobrar y entregar».
 
     Bitácora y «Capturó / Produjo» salen solo con su permiso (data.see, hoy
     Dueño y Supervisor): sin él, el ctrl ni siquiera los manda.
@@ -21,7 +22,7 @@
     pagado (editPaid, alpha › editOrderPaid) usa la misma ventana: lo hace
     quien edita pedidos, con su contraseña y el turno de hoy abierto.
 
-    Lo usan pedidos.js y calendario.js: orderDetail.show(id), .print(id), .deliver(id). */
+    Lo usan pedidos.js y calendario.js: orderDetail.show(id), .print(id), .deliveryState(id). */
 
 // -- Ayudantes compartidos con pedidos.js --
 
@@ -513,14 +514,14 @@ class OrderDetail extends Templates {
             </div>`;
     }
 
-    // Una cotizacion o un pedido cancelado no se entregan.
+    // Una cotizacion o un pedido cancelado no se entregan. Textos y colores de alpha.
     deliveryBadge(status, delivery, chip) {
         if (status === 1 || status === 4) return '';
 
         if (delivery === 1) return `<span class="${chip} bg-emerald-50 text-emerald-700"><i data-lucide="circle-check" class="w-3 h-3"></i>Entregado</span>`;
-        if (delivery === 2) return `<span class="${chip} bg-sky-50 text-sky-700"><i data-lucide="chef-hat" class="w-3 h-3"></i>En producción</span>`;
+        if (delivery === 2) return `<span class="${chip} bg-pink-50 text-pink-700"><i data-lucide="cake" class="w-3 h-3"></i>Para producir</span>`;
 
-        return `<span class="${chip} bg-gray-100 text-gray-500"><i data-lucide="clock" class="w-3 h-3"></i>Sin entregar</span>`;
+        return `<span class="${chip} bg-red-50 text-red-700"><i data-lucide="circle-x" class="w-3 h-3"></i>No entregado</span>`;
     }
 
     // -- Tarjeta base --
@@ -601,8 +602,8 @@ class OrderDetail extends Templates {
     }
 
     /*  «Ya se elaboró» solo a Producción y al Dueño (data.producer, del
-        calendario). Entregar si no hay saldo; con saldo, «Cobrar y entregar»
-        encadena el cobro y la entrega (decision 5). */
+        calendario). «Estado de entrega» abre la ventana de alpha: Entregado,
+        Para producir o No entregado (deliveryState). */
     actions(data) {
         const o    = data.order;
         const id   = Number(o.id);
@@ -626,8 +627,7 @@ class OrderDetail extends Templates {
         // Sin dinero (Producción) no hay Cobrar, como antes en Resumen de pago.
         if (!this.limited && can.pay) main.push(btn('ord-pay-open', 'banknote', 'Cobrar', `orderPay.open(${id}, true)`));
 
-        if (can.deliver)     main.push(btn('ord-deliver', 'package-check', 'Entregar', `orderDetail.deliver(${id}, { fromDetail: true })`));
-        else if (can.settle) main.push(btn('ord-deliver', 'hand-coins', 'Cobrar y entregar', `orderPay.open(${id}, true, { deliver: true })`));
+        if (can.delivery_state) main.push(btn('ord-deliver', 'package-check', 'Estado de entrega', `orderDetail.deliveryState(${id}, { state: ${Number(o.delivery_status) || 0}, fromDetail: true })`));
 
         if (this.editable && can.edit) side.push(btn('ord-act', 'pencil-line', 'Editar pedido', `orderDetail.editOrder(${id})`));
         else if (this.editable && can.edit_paid) side.push(btn('ord-act', 'lock', 'Editar pedido', `orderDetail.editPaid(${id}, { fromDetail: true })`, 'Pedido pagado: pide tu contraseña y solo cambia los datos de entrega'));
@@ -640,16 +640,13 @@ class OrderDetail extends Templates {
             side.push(btn('ord-edit-delivery', can.delivery_key ? 'lock' : 'pencil', 'Editar entrega', `orderDetail.editDelivery(${id}, { fromDetail: true })`,
                 can.delivery_key ? 'Editar datos de entrega (pide tu contraseña)' : 'Editar datos de entrega'));
         } else if ([1, 2].includes(Number(o.sale_status_id))) {
-            /*  Cotización o pendiente que el rol no puede tocar (la Cajera no
-                tiene el permiso «Editar entrega»): el botón se ve apagado con su
-                porqué. El apagado no recibe el mouse: el title va en su caja
-                (order.css › .ord-locked). */
+            /*  Cotización o pendiente que el rol no puede tocar: el botón se ve
+                apagado con su porqué. El apagado no recibe el mouse: el title
+                va en su caja (order.css › .ord-locked). */
             side.push(`<span class="ord-locked" title="${esc(can.delivery_reason || 'Tu rol no puede editar la entrega.')}">
                 <button type="button" class="ord-edit-delivery" disabled><i data-lucide="lock" class="w-4 h-4"></i>Editar entrega</button>
             </span>`);
         }
-
-        if (can.undeliver) side.push(btn('ord-undeliver', 'undo-2', 'Deshacer entrega', `orderDetail.undeliver(${id}, { fromDetail: true })`));
 
         if ((data.actions || []).includes('print')) side.push(btn('ord-act', 'printer', 'Imprimir', 'orderDetail.printData(orderDetail.last)'));
 
@@ -1275,16 +1272,25 @@ class OrderDetail extends Templates {
     async saveDeliver(id, modal, back) {
         if (this.delivering) return;
 
-        this.delivering = true;
-
-        const button = $('#modalOrderDeliver .cf-confirm').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id } });
-
-        this.delivering = false;
-        button.prop('disabled', false);
+        $('#modalOrderDeliver .cf-confirm').prop('disabled', true);
 
         // modal.close() no dispara onCancel: el detalle se reabre abajo, con back().
-        modal.close();
+        await this.deliverNow(id, back, () => modal.close());
+    }
+
+    /*  Manda la entrega y avisa cómo quedó. Sin ventana lo usa el cobro al
+        liquidar (pedido-cobro › askDeliver): su pregunta ya fue la confirmación.
+        before() corre con la respuesta, antes del aviso (cierra la ventana). */
+    async deliverNow(id, back = () => null, before = () => null) {
+        if (this.delivering) return;
+
+        this.delivering = true;
+
+        const data = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id } });
+
+        this.delivering = false;
+
+        before();
 
         if (!data || data.status != 200) {
             const soft = !!data && [403, 404, 409].includes(Number(data.status));
@@ -1302,70 +1308,87 @@ class OrderDetail extends Templates {
         back();
     }
 
-    // Regresa el pedido a «sin entregar». Lo hace quien entrega (como alpha); pide motivo, no contraseña.
-    undeliver(id, opts = {}) {
+    // -- Estado de entrega --
+
+    /*  El select del badge de la columna Entrega (ctrl-pedidos › cellDelivered):
+        elegir guarda, sin ventana. Si no se guarda, el select vuelve al estado
+        de antes (data-now); si se guarda, lsOrders repinta la fila. */
+    pickDelivery(select, id) {
+        const back = () => { select.value = select.dataset.now; };
+
+        if (this.stating) return back();
+
+        this.saveDeliveryState(id, Number(select.value), back);
+    }
+
+    /*  Estado de entrega como alpha (app.js › handleDeliveryClick): un clic en
+        Entregado, Para producir o No entregado y se guarda, sin contraseña ni
+        motivo. La abre «Estado de entrega» del detalle (la lista usa el select
+        de pickDelivery). opts.state: el de ahora (sale marcado y apagado). Si
+        vino del detalle, lo cierra y lo vuelve a abrir al terminar. */
+    async deliveryState(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
-        if (this.undelivering) return;
+        if (this.stating) return;
 
+        const now        = Number(opts.state) || 0;
         const fromDetail = !!opts.fromDetail;
         const back       = () => (fromDetail ? this.show(id) : null);
+        const states     = [[1, 'Entregado', 'circle-check', 'is-done'], [2, 'Para producir', 'cake', 'is-make'], [0, 'No entregado', 'circle-x', 'is-wait']];
+
+        const options = states.map(([state, text, icon, tone]) => state === now
+            ? `<button type="button" class="ord-dstate ${tone} is-now" disabled><i data-lucide="${icon}" class="w-4 h-4"></i>${text}<small>Actual</small></button>`
+            : `<button type="button" class="ord-dstate ${tone}" data-state="${state}"><i data-lucide="${icon}" class="w-4 h-4"></i>${text}</button>`).join('');
 
         if (fromDetail) $('#modalOrderDetails .cs-modal-x').trigger('click');
 
-        this.csModal({
-            id:         'modalOrderUndeliver',
-            title:      'Deshacer entrega',
-            subtitle:   `Pedido #P${id}`,
-            lucideIcon: 'undo-2',
-            width:      'max-w-lg',
-            saveText:   'Deshacer entrega',
-            cancelText: 'Volver',
-            info:       'El pedido vuelve a «sin entregar». El motivo queda en la bitácora.',
-            json: [
-                { id: 'ud_reason', lbl: 'Motivo', tipo: 'textarea', required: true, maxlength: 200, rows: 3, ph: 'Ej. Se marcó entregado por error', class: 'w-full' }
-            ],
-            onSave: (values, close) => this.saveUndeliver(id, values, close, back)
+        let pick = null;
+
+        // Cada opción guarda al primer clic: anota cuál fue y cierra el aviso.
+        $(document).off('click.ordState').on('click.ordState', '.ord-dstate[data-state]', (e) => {
+            pick = Number($(e.currentTarget).attr('data-state'));
+            Swal.close();
         });
 
-        orderPay.onDismiss('modalOrderUndeliver', back);
+        const ask = alert({
+            icon:     'info',
+            title:    'Estado de entrega',
+            html:     `<p class="mb-2">Pedido <b>#P${id}</b></p><div class="ord-dstates">${options}</div>`,
+            btn2:     true,
+            btn2Text: 'Volver'
+        });
 
-        $('#ud_reason').trigger('focus');
+        if (window.lucide) lucide.createIcons();
+
+        await ask;
+
+        $(document).off('click.ordState');
+
+        if (pick === null) return back();
+
+        this.saveDeliveryState(id, pick, back);
     }
 
-    async saveUndeliver(id, values, close, back) {
-        if (this.undelivering) return;
+    async saveDeliveryState(id, state, back) {
+        if (this.stating) return;
 
-        const reason = String(values.ud_reason || '').trim();
+        this.stating = true;
 
-        if (!reason) {
-            alert({ icon: 'warning', title: 'Falta el motivo', text: 'Escribe por qué se deshace la entrega.', btn1: true, btn1Text: 'Entendido' });
-            return;
-        }
+        const data = await useFetch({ url: this._link, data: { opc: 'deliveryStateOrder', id: id, state: state } });
 
-        this.undelivering = true;
-
-        const button = $('#modalOrderUndeliver .cs-modal-save').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: { opc: 'undeliverOrder', id: id, reason: reason } });
-
-        this.undelivering = false;
-        button.prop('disabled', false);
+        this.stating = false;
 
         if (!data || data.status != 200) {
-            alert({
-                icon:     data && [403, 404, 409].includes(Number(data.status)) ? 'info' : 'error',
-                title:    'No se deshizo la entrega',
-                text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
-                btn1:     true,
-                btn1Text: 'Entendido'
-            });
-            return;
+            const soft = !!data && [403, 404, 409].includes(Number(data.status));
+            const text = data ? (data.message || 'Vuelve a intentar.') : 'No hubo respuesta. Revisa la conexión y vuelve a intentar.';
+
+            await alert({ icon: soft ? 'info' : 'error', title: 'No se cambió la entrega', text: text, btn1: true, btn1Text: 'Entendido' });
+
+            return back();
         }
 
-        orderPay.closeQuiet('modalOrderUndeliver', close);
-
         orders.lsOrders();
-        alert({ icon: 'success', title: data.message, timer: 1800 });
+        alert({ icon: 'success', title: data.message, timer: 1400 });
 
         back();
     }

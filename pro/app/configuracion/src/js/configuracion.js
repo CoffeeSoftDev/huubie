@@ -31,9 +31,9 @@ const CFG_METODOS = { stripe: 'Tarjeta (Stripe)', manual: 'Registro manual', tra
 
 // Lo que contesto init (la empresa, los catalogos) y lo ultimo de cada pestaña.
 // userBranch: la sucursal del filtro de Usuarios ('' = todas); sobrevive al refrescar.
-// roleState: el estado del filtro de Roles ('' = todos, '1' activos, '0' inactivos).
 // home: el editor de Mi inicio (cfgInicio); sobrevive al cambiar de pestaña.
-const cfg = { base: null, data: {}, userBranch: '', roleState: '', home: null };
+// Roles guarda lo suyo en cfgRl (mas abajo).
+const cfg = { base: null, data: {}, userBranch: '', home: null };
 
 $(async () => {
     const root = document.getElementById('root');
@@ -65,6 +65,14 @@ $(async () => {
     Page.icons();
 
     window.addEventListener('hashchange', cfgRoute);
+
+    // Cerrar o recargar con permisos sin guardar: el navegador pregunta.
+    window.addEventListener('beforeunload', (e) => {
+        if (!cfgRlDirty()) return;
+        e.preventDefault();
+        e.returnValue = '';
+    });
+
     cfgRoute();
 });
 
@@ -75,8 +83,17 @@ function cfgTab() {
     return CFG_TABS.some((t) => t.id === id) ? id : 'empresa';
 }
 
-function cfgRoute() {
+async function cfgRoute() {
     const tab = cfgTab();
+
+    // Salir de Roles con cambios sin guardar se pregunta; si se queda, vuelve a #roles.
+    if (tab !== 'roles' && cfgRlDirty()) {
+        if (!(await cfgRlLeave())) {
+            history.replaceState(null, '', '#roles');
+            return;
+        }
+        cfgRl.role = null;
+    }
 
     document.querySelectorAll('.pg-tab').forEach((el) => {
         const on = el.dataset.tab === tab;
@@ -212,7 +229,7 @@ function cfgModal(o) {
     wrap.className = 'pg-modal';
     wrap.innerHTML = `
         <div class="pg-modal-bg" data-close></div>
-        <form class="pg-modal-box ${o.wide ? 'is-wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="cfgModalTitle" novalidate>
+        <form class="pg-modal-box ${o.xl ? 'is-xl' : (o.wide ? 'is-wide' : '')}" role="dialog" aria-modal="true" aria-labelledby="cfgModalTitle" novalidate>
             <header class="pg-modal-head">
                 <div>
                     <h2 class="pg-modal-title" id="cfgModalTitle">${Page.esc(o.title)}</h2>
@@ -805,173 +822,725 @@ async function cfgUserPhoto(id, file, me) {
 
 // =================================================================== Roles
 
+/*  Roles y permisos: la lista de roles a la izquierda y, a la derecha, el rol
+    abierto o Comparar roles. En el teléfono la lista es un selector arriba.
+
+    Las 6 acciones de siempre (Ver, Agregar, Editar...) son columnas fijas.
+    Los permisos especiales de una sección (Ver bitácora, Autorizar
+    descuento...) se abren debajo de su fila con lo que hace cada uno: un
+    permiso nuevo agrega un renglón, no una columna. «Ver» manda: sin él no
+    se marca nada más de la sección y quitarlo la apaga entera (el servidor
+    hace lo mismo al guardar).
+
+    Lo marcado vive en cfgRl.marks hasta Guardar; cfgRl.saved es lo que tiene
+    el servidor, para saber si hay cambios y para Deshacer.
+
+      sel    el rol abierto           view   'editor' o 'compare'
+      mod    el módulo de la pestaña  find   lo que se busca
+      open   secciones con sus especiales a la vista
+      diff   Comparar: solo donde los roles difieren
+      role   getRole del rol abierto  cmp    compareRoles */
+const cfgRl = {
+    sel: 0, view: 'editor', mod: 0, find: '', open: new Set(), diff: true,
+    role: null, saved: new Set(), marks: new Set(), cmp: null
+};
+
 async function cfgRoles() {
     const d = await cfgLoad('roles', 'roles');
     if (!d) return;
 
-    const state = (value, label) => `<option value="${value}" ${cfg.roleState === value ? 'selected' : ''}>${label}</option>`;
-
-    cfgPanel(`
-        <div class="pg-card">
-            <div class="pg-card-head pg-toolbar">
-                <div>
-                    <p class="pg-card-title">Roles y permisos</p>
-                    <p class="pg-dim pg-small">Un rol dice qué puede ver y hacer alguien. Se asigna por sucursal en Usuarios.</p>
-                </div>
-                <div class="pg-toolbar-side">
-                    <select class="pg-input" id="cfgRoleState" aria-label="Filtrar por estado">
-                        ${state('', 'Todos los estados')}
-                        ${state('1', 'Activos')}
-                        ${state('0', 'Inactivos')}
-                    </select>
-                    <button type="button" class="pg-btn is-primary" id="btnAddRole"><i data-lucide="plus"></i>Crear rol</button>
-                </div>
-            </div>
-            <div class="pg-table-wrap">
-                <table class="pg-table" id="cfgRolesTable">
-                    <thead><tr><th>Rol</th><th class="pg-td-num">Personas</th><th class="pg-td-center">Estado</th><th></th></tr></thead>
-                    <tbody id="cfgRolesBody">${cfgRoleRows(d)}</tbody>
-                </table>
-            </div>
-        </div>`);
-
-    document.getElementById('btnAddRole').addEventListener('click', () => cfgRoleForm(0));
-
-    // Cambiar el estado solo vuelve a pintar las filas: los datos ya estan aqui.
-    document.getElementById('cfgRoleState').addEventListener('change', (e) => {
-        cfg.roleState = e.target.value;
-        document.getElementById('cfgRolesBody').innerHTML = cfgRoleRows(d);
-        Page.icons();
-    });
-
-    // Un solo escucha en la tabla: sigue sirviendo aunque las filas se repinten.
-    document.getElementById('cfgRolesTable').addEventListener('click', async (e) => {
-        const edit = e.target.closest('[data-edit]');
-        if (edit) return cfgRoleForm(Number(edit.dataset.edit));
-
-        const toggle = e.target.closest('[data-toggle]');
-        if (!toggle) return;
-
-        const r   = d.roles.find((x) => x.id === Number(toggle.dataset.toggle));
-        const res = await Page.post(CFG_API, { opc: 'toggleRole', id: r.id, active: r.active ? 0 : 1 });
-
-        cfgToast(res.message || 'No se pudo cambiar el estado.', res.status === 200);
-        if (res.status === 200) cfgRefresh('roles', cfgRoles);
-    });
-}
-
-// Las filas de la tabla, solo las del estado del filtro.
-function cfgRoleRows(d) {
-    const roles = cfg.roleState === '' ? d.roles : d.roles.filter((r) => String(r.active) === cfg.roleState);
-
-    if (!roles.length) {
-        return `<tr><td colspan="4"><div class="pg-empty"><i data-lucide="shield"></i>${d.roles.length ? 'No hay roles con ese estado.' : 'Todavía no hay roles.'}</div></td></tr>`;
+    // El rol abierto sigue abierto al volver; si ya no está, el primero propio y activo.
+    if (!d.roles.some((r) => r.id === cfgRl.sel)) {
+        const first = d.roles.find((r) => !r.system && r.active) || d.roles[0];
+        cfgRl.sel = first ? first.id : 0;
     }
 
-    return roles.map((r) => `
-        <tr class="${r.active ? '' : 'is-off'}">
-            <td>
-                <div class="pg-row">
-                    <span class="pg-ico"><i data-lucide="${r.system ? 'shield' : 'shield-check'}"></i></span>
-                    <div class="pg-row-text">
-                        <p class="pg-strong pg-ellipsis">${Page.esc(r.name)}</p>
-                        <p class="pg-dim pg-small">${r.system ? 'De Huubie · igual para todas las empresas' : 'Propio de tu empresa'}</p>
-                    </div>
-                </div>
-            </td>
-            <td class="pg-td-num" data-label="Personas">${r.users}</td>
-            <td class="pg-td-center" data-label="Estado"><span class="pg-chip ${r.active ? 'is-ok' : 'is-off'}">${r.active ? 'Activo' : 'Inactivo'}</span></td>
-            <td class="pg-td-actions">
-                <button type="button" class="pg-btn is-ghost is-round" data-edit="${r.id}" title="${r.system ? 'Ver permisos' : 'Editar'}" aria-label="${r.system ? 'Ver permisos de' : 'Editar'} ${Page.esc(r.name)}"><i data-lucide="${r.system ? 'eye' : 'pencil'}"></i></button>
-                ${r.system ? '' : cfgSwitch(r.active, `data-toggle="${r.id}"`, r.active ? 'Desactivar' : 'Activar')}
-            </td>
-        </tr>`).join('');
+    cfgPanel(`
+        <div class="pg-rl" id="cfgRl">
+            <div class="pg-rl-pick" id="cfgRlPick">${cfgRlPick(d)}</div>
+            <aside class="pg-card pg-rl-side" id="cfgRlSide" aria-label="Roles">${cfgRlSide(d)}</aside>
+            <div class="pg-rl-main" id="cfgRlMain"></div>
+        </div>`);
+
+    cfgRlEvents(document.getElementById('cfgRl'));
+
+    if (cfgRl.view === 'compare') return cfgRlCompare();
+
+    if (!d.roles.length) {
+        document.getElementById('cfgRlMain').innerHTML = '<div class="pg-card"><div class="pg-empty"><i data-lucide="shield"></i>Todavía no hay roles. Crea el primero.</div></div>';
+        return Page.icons();
+    }
+
+    cfgRlOpen(cfgRl.sel, false);
 }
 
-/*  El rol con sus permisos como tabla: una fila por seccion y una columna por
-    accion (Ver, Agregar, Editar...), asi cada accion cae siempre en la misma
-    columna. Donde la seccion no tiene esa accion queda una raya. Los del
-    sistema solo se consultan. */
-async function cfgRoleForm(id) {
-    const res = await Page.post(CFG_API, { opc: 'getRole', id: id });
+// -- Lista de roles --
 
-    if (res.status !== 200) return cfgToast(res.message || 'No se pudo abrir el rol.', false);
+function cfgRlSide(d) {
+    const total = d.sections;
 
-    const role = res.data;
-    const lock = role.system ? 'disabled' : '';
-    const cols = role.columns || [];
-
-    const cell = (s, name) => {
-        const a = s.actions.find((x) => x.name === name);
-
-        if (!a) return '<span class="pg-tree-cell is-none" aria-hidden="true"></span>';
+    const item = (r) => {
+        const on  = cfgRl.view === 'editor' && r.id === cfgRl.sel;
+        const pct = total ? Math.round(r.sections / total * 100) : 0;
+        const sub = r.system ? 'De Huubie · solo consulta' : `${r.active ? '' : 'Inactivo · '}${r.sections} de ${total} secciones`;
 
         return `
-            <label class="pg-tree-cell" title="${Page.esc(name)} · ${Page.esc(s.name)}">
-                <input type="checkbox" data-perm="${a.id}" ${lock} ${a.granted ? 'checked' : ''}>
-                <span class="pg-tree-act">${Page.esc(name)}</span>
-            </label>`;
+            <button type="button" class="pg-rl-role ${on ? 'is-on' : ''} ${r.active ? '' : 'is-off'}" data-role="${r.id}" aria-current="${on ? 'true' : 'false'}">
+                <span class="pg-ico"><i data-lucide="${r.system ? 'shield' : 'shield-check'}"></i></span>
+                <span class="pg-rl-role-text">
+                    <b>${Page.esc(r.name)}</b>
+                    <small>${sub}</small>
+                    <span class="pg-rl-meter" aria-hidden="true"><i style="width:${pct}%"></i></span>
+                </span>
+                <span class="pg-rl-people" title="Personas con este rol"><i data-lucide="user"></i>${r.users}</span>
+            </button>`;
     };
 
-    const tree = role.modules.map((m) => `
-        <div class="pg-tree-mod">
-            <div class="pg-tree-head">
-                <p class="pg-tree-title"><i data-lucide="${Page.esc(m.icon)}"></i>${Page.esc(m.name)}</p>
-                ${cols.map((c) => `<span class="pg-tree-col">${Page.esc(c)}</span>`).join('')}
+    return `
+        <div class="pg-rl-side-head">
+            <p class="pg-card-title">Roles</p>
+            <button type="button" class="pg-btn is-primary pg-rl-sm" data-new><i data-lucide="plus"></i>Crear rol</button>
+        </div>
+        <div class="pg-rl-roles">${d.roles.map(item).join('')}</div>
+        <button type="button" class="pg-btn is-ghost pg-rl-sm pg-rl-cmp-btn ${cfgRl.view === 'compare' ? 'is-on' : ''}" data-compare aria-pressed="${cfgRl.view === 'compare'}"><i data-lucide="columns-3"></i>Comparar roles</button>
+        <p class="pg-dim pg-rl-hint">Un rol dice qué puede ver y hacer alguien. Se asigna por sucursal en Usuarios.</p>`;
+}
+
+// La misma lista como selector, para pantallas angostas.
+function cfgRlPick(d) {
+    const people = (r) => r.system ? 'de Huubie' : (r.users === 1 ? '1 persona' : `${r.users} personas`);
+
+    return `
+        <select class="pg-input" id="cfgRlPickSel" aria-label="Rol">
+            ${d.roles.map((r) => `<option value="${r.id}" ${cfgRl.view === 'editor' && r.id === cfgRl.sel ? 'selected' : ''}>${Page.esc(r.name)} · ${people(r)}${r.active ? '' : ' · inactivo'}</option>`).join('')}
+            <option value="compare" ${cfgRl.view === 'compare' ? 'selected' : ''}>Comparar roles</option>
+        </select>
+        <button type="button" class="pg-btn is-primary is-round" data-new title="Crear rol" aria-label="Crear rol"><i data-lucide="plus"></i></button>`;
+}
+
+function cfgRlSideRefresh() {
+    const d = cfg.data.roles;
+    if (!d || !document.getElementById('cfgRlSide')) return;
+
+    document.getElementById('cfgRlSide').innerHTML = cfgRlSide(d);
+    document.getElementById('cfgRlPick').innerHTML = cfgRlPick(d);
+    Page.icons();
+}
+
+// Vuelve a pedir la lista (personas y avance de cada rol). Lo de otras pestañas se olvida.
+async function cfgRlList() {
+    const res = await Page.post(CFG_API, { opc: 'roles' });
+
+    if (res.status === 200) cfg.data = { roles: res.data };
+    cfgRlSideRefresh();
+}
+
+// Un solo escucha por evento en toda la pestaña: sigue sirviendo aunque se repinte.
+function cfgRlEvents(root) {
+    const repaint = () => (cfgRl.view === 'compare' ? cfgRlCmpPaint() : cfgRlPaint());
+
+    root.addEventListener('click', (e) => {
+        const t = e.target;
+        let el;
+
+        if ((el = t.closest('[data-role]')))  return cfgRlGo(Number(el.dataset.role));
+        if (t.closest('[data-new]'))          return cfgRlNew(0);
+        if (t.closest('[data-from]'))         return cfgRlNew(cfgRl.sel);
+        if (t.closest('[data-compare]'))      return cfgRlGo('compare');
+        if (t.closest('[data-rename]'))       return cfgRlRename();
+        if (t.closest('[data-copy]'))         return cfgRlCopy();
+        if (t.closest('[data-active]'))       return cfgRlActive();
+        if (t.closest('[data-save]'))         return cfgRlSave();
+
+        if (t.closest('[data-undo]')) {
+            cfgRl.marks = new Set(cfgRl.saved);
+            return cfgRlPaint();
+        }
+
+        if (t.closest('[data-diff]')) {
+            cfgRl.diff = !cfgRl.diff;
+            return cfgRlCmpPaint();
+        }
+
+        if ((el = t.closest('[data-mod]'))) {
+            cfgRl.mod = Number(el.dataset.mod);
+            return repaint();
+        }
+
+        if ((el = t.closest('[data-open]'))) {
+            const id = Number(el.dataset.open);
+            if (cfgRl.open.has(id)) cfgRl.open.delete(id); else cfgRl.open.add(id);
+            return cfgRlPaint();
+        }
+
+        // Los especiales son interruptores (botones), no casillas.
+        if ((el = t.closest('.pg-switch[data-perm]')) && !el.disabled) return cfgRlMark(el.dataset, !el.classList.contains('is-on'));
+    });
+
+    root.addEventListener('change', (e) => {
+        if (e.target.matches('input[data-perm]')) return cfgRlMark(e.target.dataset, e.target.checked);
+        if (e.target.id === 'cfgRlPickSel') cfgRlGo(e.target.value === 'compare' ? 'compare' : Number(e.target.value));
+    });
+
+    root.addEventListener('input', (e) => {
+        if (!e.target.matches('[data-find]')) return;
+        cfgRl.find = e.target.value;
+        repaint();
+    });
+}
+
+// -- Abrir un rol o Comparar --
+
+async function cfgRlGo(target) {
+    const same = target === 'compare' ? cfgRl.view === 'compare' : (cfgRl.view === 'editor' && cfgRl.sel === target && cfgRl.role);
+    if (same) return;
+
+    if (!(await cfgRlLeave())) return cfgRlSideRefresh();
+
+    cfgRl.view = target === 'compare' ? 'compare' : 'editor';
+    if (target !== 'compare') cfgRl.sel = target;
+    cfgRl.role = null;
+    cfgRlSideRefresh();
+
+    return target === 'compare' ? cfgRlCompare() : cfgRlOpen(target, false);
+}
+
+// ¿Se puede dejar el rol abierto? Con cambios sin guardar, se pregunta.
+async function cfgRlLeave() {
+    if (!cfgRlDirty()) return true;
+    return cfgAsk('Hay cambios sin guardar', `Lo que cambiaste en «${cfgRl.role.name}» se pierde si sales sin guardar.`, 'Salir sin guardar');
+}
+
+function cfgRlChanges() {
+    let n = 0;
+    cfgRl.marks.forEach((id) => { if (!cfgRl.saved.has(id)) n++; });
+    cfgRl.saved.forEach((id) => { if (!cfgRl.marks.has(id)) n++; });
+    return n;
+}
+
+function cfgRlDirty() {
+    return cfgRl.view === 'editor' && !!cfgRl.role && !cfgRl.role.system && cfgRlChanges() > 0;
+}
+
+// quiet: sin el esqueleto (al volver a pedir el mismo rol después de guardar).
+async function cfgRlOpen(id, quiet) {
+    const main = document.getElementById('cfgRlMain');
+    if (!quiet) main.innerHTML = '<div class="pg-skel"></div>';
+
+    const res = await Page.post(CFG_API, { opc: 'getRole', id: id });
+
+    // Mientras llegaba se cambió de rol, de vista o de pestaña: se tira.
+    if (cfgTab() !== 'roles' || cfgRl.view !== 'editor' || cfgRl.sel !== id || !document.getElementById('cfgRlMain')) return;
+
+    if (res.status !== 200) {
+        main.innerHTML = `<div class="pg-card"><div class="pg-empty"><i data-lucide="cloud-off"></i>${Page.esc(res.message || 'No se pudo abrir el rol.')}</div></div>`;
+        return Page.icons();
+    }
+
+    const ids = cfgRlGranted(res.data);
+
+    cfgRl.role  = res.data;
+    cfgRl.saved = new Set(ids);
+    cfgRl.marks = new Set(ids);
+    if (!res.data.modules.some((m) => m.id === cfgRl.mod)) cfgRl.mod = res.data.modules.length ? res.data.modules[0].id : 0;
+
+    cfgRlEditor();
+}
+
+// Los ids que un getRole trae concedidos.
+function cfgRlGranted(role) {
+    const ids = [];
+    role.modules.forEach((m) => m.sections.forEach((s) => s.basic.concat(s.special).forEach((a) => { if (a.granted) ids.push(a.id); })));
+    return ids;
+}
+
+// -- El rol abierto --
+
+function cfgRlEditor() {
+    const r    = cfgRl.role;
+    const lock = !!r.system;
+
+    const actions = lock
+        ? '<button type="button" class="pg-btn is-ghost pg-rl-sm" data-from><i data-lucide="copy-plus"></i>Crear uno a partir de este</button>'
+        : `<button type="button" class="pg-btn is-ghost pg-rl-sm" data-copy><i data-lucide="copy"></i>Copiar de…</button>
+           <span class="pg-rl-toggle">${cfgSwitch(r.active, 'data-active', r.active ? 'Desactivar rol' : 'Activar rol')}<span>${r.active ? 'Activo' : 'Inactivo'}</span></span>`;
+
+    document.getElementById('cfgRlMain').innerHTML = `
+        <section class="pg-card pg-rl-ed" aria-labelledby="cfgRlName">
+            <header class="pg-rl-head">
+                <div class="pg-rl-head-text">
+                    <div class="pg-rl-title">
+                        <h2 id="cfgRlName">${Page.esc(r.name)}</h2>
+                        ${lock ? '<span class="pg-chip is-off is-mini">De Huubie</span>' : '<button type="button" class="pg-btn is-ghost is-round" data-rename title="Cambiar nombre" aria-label="Cambiar nombre del rol"><i data-lucide="pencil"></i></button>'}
+                    </div>
+                    <p class="pg-dim pg-small" id="cfgRlSub"></p>
+                </div>
+                <div class="pg-rl-actions">${actions}</div>
+            </header>
+            ${lock ? '<p class="pg-rl-lock"><i data-lucide="lock"></i><span>Rol de Huubie: lo comparten todas las empresas y aquí solo se consulta. Para uno parecido, créalo a partir de este y ajústalo.</span></p>' : ''}
+            <div class="pg-rl-bar">
+                <nav class="pg-rl-mods" id="cfgRlMods" aria-label="Módulos"></nav>
+                <label class="pg-rl-find"><i data-lucide="search"></i><input class="pg-input" type="search" data-find value="${Page.esc(cfgRl.find)}" placeholder="Buscar sección o permiso…" aria-label="Buscar sección o permiso"></label>
             </div>
-            ${m.sections.map((s) => `
-                <div class="pg-tree-sec">
-                    <label class="pg-tree-all">
-                        <input type="checkbox" data-all ${lock} ${s.actions.every((a) => a.granted) ? 'checked' : ''}>
-                        <span>${Page.esc(s.name)}</span>
-                    </label>
-                    ${cols.map((c) => cell(s, c)).join('')}
-                </div>`).join('')}
-        </div>`).join('');
+            <div class="pg-rl-grid ${lock ? 'is-lock' : ''}" id="cfgRlGrid" style="--rl-cols:${r.basic.length}"></div>
+            ${lock ? '' : `
+                <p class="pg-rl-foot"><i data-lucide="lock"></i>Sin «Ver» no se marca nada más de esa sección. Quitar «Ver» apaga la sección entera.</p>
+                <div class="pg-rl-save">
+                    <p class="pg-rl-save-text" id="cfgRlState" role="status"></p>
+                    <button type="button" class="pg-btn is-ghost pg-rl-sm" data-undo><i data-lucide="rotate-ccw"></i>Deshacer</button>
+                    <button type="button" class="pg-btn is-primary pg-rl-sm" data-save><i data-lucide="check"></i>Guardar</button>
+                </div>`}
+        </section>`;
+
+    cfgRlPaint();
+}
+
+// «Ver» de la sección marcado. Una sección sin «Ver» (no debería haber) cuenta con cualquier acción.
+function cfgRlGate(s) {
+    const show = s.basic.find((a) => a.code === 'show');
+    return show ? cfgRl.marks.has(show.id) : s.basic.concat(s.special).some((a) => cfgRl.marks.has(a.id));
+}
+
+function cfgRlSection(id) {
+    for (const m of cfgRl.role.modules) {
+        const s = m.sections.find((x) => x.id === id);
+        if (s) return s;
+    }
+    return null;
+}
+
+// Sin acentos ni mayúsculas, para buscar.
+function cfgRlNorm(t) {
+    return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+
+// Vuelve a pintar todo lo que depende de lo marcado, sin perder el foco.
+function cfgRlPaint() {
+    const r = cfgRl.role;
+    if (!r || !document.getElementById('cfgRlGrid')) return;
+
+    const active = document.activeElement;
+    const keep   = active && document.getElementById('cfgRlGrid').contains(active)
+        ? (active.dataset.perm ? `[data-perm="${active.dataset.perm}"]` : (active.dataset.open ? `[data-open="${active.dataset.open}"]` : ''))
+        : '';
+
+    const all   = r.modules.reduce((n, m) => n + m.sections.length, 0);
+    const seen  = r.modules.reduce((n, m) => n + m.sections.filter(cfgRlGate).length, 0);
+    const li    = cfg.data.roles ? cfg.data.roles.roles.find((x) => x.id === r.id) : null;
+    const users = li ? li.users : 0;
+
+    document.getElementById('cfgRlSub').textContent = [
+        users === 1 ? '1 persona' : `${users} personas`,
+        r.system ? 'De Huubie' : 'Propio de tu empresa',
+        `${seen} de ${all} secciones`
+    ].join(' · ');
+
+    document.getElementById('cfgRlMods').innerHTML = r.modules.map((m) => `
+        <button type="button" class="pg-rl-mod ${m.id === cfgRl.mod ? 'is-on' : ''}" data-mod="${m.id}" aria-pressed="${m.id === cfgRl.mod}">
+            <i data-lucide="${Page.esc(m.icon)}"></i>${Page.esc(m.name)}<em title="Secciones con «Ver»">${m.sections.filter(cfgRlGate).length}/${m.sections.length}</em>
+        </button>`).join('');
+
+    document.getElementById('cfgRlGrid').innerHTML = cfgRlGrid();
+
+    const state = document.getElementById('cfgRlState');
+    if (state) {
+        const n = cfgRlChanges();
+
+        state.textContent = n ? (n === 1 ? '1 cambio sin guardar' : `${n} cambios sin guardar`) : 'Sin cambios';
+        state.classList.toggle('is-dirty', n > 0);
+        document.querySelector('#cfgRlMain [data-undo]').disabled = !n;
+        document.querySelector('#cfgRlMain [data-save]').disabled = !n;
+    }
+
+    Page.icons();
+
+    if (keep) {
+        const el = document.querySelector(`#cfgRlGrid ${keep}`);
+        if (el) el.focus();
+    }
+}
+
+function cfgRlGrid() {
+    const r   = cfgRl.role;
+    const mod = r.modules.find((m) => m.id === cfgRl.mod);
+
+    if (!mod) return '<div class="pg-empty"><i data-lucide="layout-grid"></i>Tu plan todavía no tiene secciones con permisos.</div>';
+
+    const q    = cfgRlNorm(cfgRl.find);
+    const rows = [];
+    let group  = null;
+
+    mod.sections.forEach((s) => {
+        const hit = cfgRlHit(s, q);
+        if (!hit) return;
+
+        // Lo encontrado en un especial o en una nota: su sección se abre para verlo.
+        if (hit.extra) cfgRl.open.add(s.id);
+
+        if (s.group !== group) {
+            group = s.group;
+            if (group) rows.push(`<div class="pg-rl-group">${Page.esc(group)}</div>`);
+        }
+
+        rows.push(cfgRlRow(s));
+    });
+
+    if (!rows.length) return `<div class="pg-empty"><i data-lucide="search-x"></i>Nada coincide con «${Page.esc(cfgRl.find)}» en ${Page.esc(mod.name)}.</div>`;
+
+    return `
+        <div class="pg-rl-r pg-rl-th" aria-hidden="true"><span>Sección</span>${r.basic.map((b) => `<span>${Page.esc(b.name)}</span>`).join('')}<span>Especiales</span></div>
+        ${rows.join('')}`;
+}
+
+// null: la sección no coincide. extra: coincidió un especial o la nota de una básica.
+function cfgRlHit(s, q) {
+    if (!q || cfgRlNorm(s.name).includes(q)) return { extra: false };
+
+    const match = (a) => cfgRlNorm(`${a.name} ${a.text}`).includes(q);
+    const extra = s.special.some(match) || s.basic.some((a) => a.text && cfgRlNorm(a.text).includes(q));
+
+    return extra || s.basic.some(match) ? { extra: extra } : null;
+}
+
+function cfgRlRow(s) {
+    const r     = cfgRl.role;
+    const lock  = !!r.system;
+    const gate  = cfgRlGate(s);
+    const onB   = s.basic.filter((a) => cfgRl.marks.has(a.id)).length;
+    const onS   = s.special.filter((a) => cfgRl.marks.has(a.id)).length;
+    const notes = s.basic.filter((a) => a.text);
+    const extra = s.special.length > 0 || notes.length > 0;
+    const open  = extra && cfgRl.open.has(s.id);
+    const state = !gate ? 'Sin acceso' : (onB === s.basic.length ? 'Todo lo básico' : `${onB} de ${s.basic.length} básicas`);
+    const off   = (a) => lock || (a.code !== 'show' && !gate) ? 'disabled' : '';
+    const data  = (a) => `data-perm="${a.id}" data-sec="${s.id}" data-code="${Page.esc(a.code)}"`;
+
+    const cells = r.basic.map((b) => {
+        const a = s.basic.find((x) => x.code === b.code);
+        if (!a) return '<span class="pg-rl-cell is-none" aria-hidden="true"></span>';
+
+        const tip = `${a.name} · ${s.name}${a.text ? `. ${a.text}` : ''}`;
+
+        return `
+            <label class="pg-rl-cell" title="${Page.esc(tip)}">
+                <input type="checkbox" ${data(a)} ${cfgRl.marks.has(a.id) ? 'checked' : ''} ${off(a)}>
+                <span class="pg-rl-cell-name">${Page.esc(a.name)}<span class="pg-sr"> · ${Page.esc(s.name)}</span></span>
+                ${a.text ? '<i class="pg-rl-cell-dot" aria-hidden="true"></i>' : ''}
+            </label>`;
+    }).join('');
+
+    const toggle = !extra
+        ? '<span class="pg-rl-x-none" aria-hidden="true">—</span>'
+        : `<button type="button" class="pg-rl-x ${open ? 'is-open' : ''}" data-open="${s.id}" aria-expanded="${open}" aria-controls="cfgRlX${s.id}" title="${s.special.length ? 'Permisos especiales' : 'Qué abre cada casilla'} de ${Page.esc(s.name)}">
+               <span>${s.special.length ? `<span class="pg-rl-x-long">Especiales · </span>${onS} de ${s.special.length}` : 'Nota'}</span><i data-lucide="chevron-down"></i>
+           </button>`;
+
+    const special = s.special.map((a) => {
+        const on = cfgRl.marks.has(a.id);
+
+        return `
+            <div class="pg-rl-sp ${on ? '' : 'is-off'}">
+                <button type="button" class="pg-switch ${on ? 'is-on' : ''}" role="switch" aria-checked="${on}" aria-label="${Page.esc(a.name)} · ${Page.esc(s.name)}" ${data(a)} ${off(a)}><span></span></button>
+                <span><b>${Page.esc(a.name)}</b>${a.text ? `<small>${Page.esc(a.text)}</small>` : ''}</span>
+            </div>`;
+    }).join('');
+
+    const panel = !open ? '' : `
+        <div class="pg-rl-extra" id="cfgRlX${s.id}">
+            ${notes.length ? `<div class="pg-rl-notes">${notes.map((a) => `<p class="pg-rl-note"><i data-lucide="info"></i><span><b>${Page.esc(a.name)}:</b> ${Page.esc(a.text)}</span></p>`).join('')}</div>` : ''}
+            ${special ? `<div class="pg-rl-sp-list">${special}</div>` : ''}
+            ${special && !gate && !lock ? '<p class="pg-rl-x-hint">Marca «Ver» de esta sección para poder darlos.</p>' : ''}
+        </div>`;
+
+    return `
+        <div class="pg-rl-r ${gate ? '' : 'is-off'}">
+            <div class="pg-rl-sec">
+                <span class="pg-rl-ico"><i data-lucide="${Page.esc(s.icon)}"></i></span>
+                <span class="pg-rl-sec-text"><b>${Page.esc(s.name)}</b><small>${state}</small></span>
+            </div>
+            ${cells}
+            ${toggle}
+        </div>${panel}`;
+}
+
+// Marcar o desmarcar una acción. Quitar «Ver» apaga la sección entera; cualquier otra trae su «Ver».
+function cfgRlMark(ds, on) {
+    if (!cfgRl.role || cfgRl.role.system) return;
+
+    const s = cfgRlSection(Number(ds.sec));
+    if (!s) return;
+
+    const show = s.basic.find((a) => a.code === 'show');
+
+    if (ds.code === 'show' && !on) {
+        s.basic.concat(s.special).forEach((a) => cfgRl.marks.delete(a.id));
+    } else if (on) {
+        cfgRl.marks.add(Number(ds.perm));
+        if (show) cfgRl.marks.add(show.id);
+    } else {
+        cfgRl.marks.delete(Number(ds.perm));
+    }
+
+    cfgRlPaint();
+}
+
+async function cfgRlSave() {
+    const r   = cfgRl.role;
+    const btn = document.querySelector('#cfgRlMain [data-save]');
+
+    if (btn) btn.disabled = true;
+
+    const res = await Page.post(CFG_API, { opc: 'saveRole', id: r.id, name: r.name, permissions: JSON.stringify(Array.from(cfgRl.marks)) });
+
+    cfgToast(res.message || 'No se pudo guardar el rol.', res.status === 200);
+    if (res.status !== 200) return cfgRlPaint();
+
+    // Lo guardado puede traer un «Ver» que puso el servidor: se vuelve a pedir.
+    cfgRl.saved = new Set(cfgRl.marks);
+    await cfgRlList();
+    if (cfgTab() === 'roles' && cfgRl.view === 'editor' && cfgRl.sel === r.id) cfgRlOpen(r.id, true);
+}
+
+function cfgRlRename() {
+    const r = cfgRl.role;
 
     cfgModal({
-        title:  role.system ? role.name : (id ? 'Editar rol' : 'Nuevo rol'),
-        sub:    role.system ? 'Rol de Huubie: lo comparten todas las empresas y no se modifica aquí.' : 'Marca lo que este rol puede ver y hacer en cada sección.',
-        submit: id ? 'Guardar' : 'Crear rol',
+        title:  'Cambiar nombre',
+        sub:    'Solo el nombre: lo marcado no cambia.',
+        submit: 'Guardar',
+        body:   `<div class="pg-form is-one">${cfgField('name', 'Nombre del rol', r.name, 'maxlength="60" required')}</div>`,
+        onSubmit: async (data) => {
+            const res = await Page.post(CFG_API, { opc: 'saveRole', id: r.id, name: data.name });
+
+            if (res.status === 200) {
+                cfgToast(res.message, true);
+                r.name = String(data.name).replace(/\s+/g, ' ').trim().slice(0, 60);
+                await cfgRlList();
+                if (cfgRl.role === r) cfgRlEditor();
+            }
+
+            return res;
+        }
+    });
+}
+
+// Un rol que alguien tiene no se apaga (lo revisa el servidor y lo explica).
+async function cfgRlActive() {
+    const r   = cfgRl.role;
+    const res = await Page.post(CFG_API, { opc: 'toggleRole', id: r.id, active: r.active ? 0 : 1 });
+
+    cfgToast(res.message || 'No se pudo cambiar el estado.', res.status === 200);
+    if (res.status !== 200) return;
+
+    r.active = r.active ? 0 : 1;
+    await cfgRlList();
+    if (cfgRl.role === r) cfgRlEditor();
+}
+
+// Una opción por rol en Nuevo rol y en Copiar de…
+function cfgRlOption(r, on) {
+    const sections = r.sections === 1 ? '1 sección' : `${r.sections} secciones`;
+    const perms    = r.perms === 1 ? '1 permiso' : `${r.perms} permisos`;
+
+    return `
+        <label class="pg-rl-opt">
+            <input type="radio" name="from_role" value="${r.id}" ${on ? 'checked' : ''}>
+            <span><b>${Page.esc(r.name)}</b><small>${sections} · ${perms}${r.system ? ' · de Huubie' : ''}${r.active ? '' : ' · inactivo'}</small></span>
+        </label>`;
+}
+
+// Deja marcado lo mismo que otro rol. No guarda: se revisa y se le da Guardar.
+function cfgRlCopy() {
+    const me     = cfgRl.role;
+    const others = cfg.data.roles.roles.filter((x) => x.id !== me.id);
+
+    if (!others.length) return cfgToast('No hay otro rol de dónde copiar.', false);
+
+    cfgModal({
+        title:  'Copiar permisos de otro rol',
+        sub:    `«${me.name}» queda marcado igual que el rol que elijas. No se guarda hasta que le des Guardar.`,
+        submit: 'Copiar',
+        wide:   true,
+        body:   `<div class="pg-rl-opts">${others.map((x, i) => cfgRlOption(x, i === 0)).join('')}</div>`,
+        onSubmit: async (data) => {
+            const from = others.find((x) => x.id === Number(data.from_role));
+            if (!from) return { status: 400, message: 'Elige de qué rol copiar.' };
+
+            const res = await Page.post(CFG_API, { opc: 'getRole', id: from.id });
+            if (res.status !== 200) return res;
+            if (cfgRl.role !== me) return { status: 200 };
+
+            cfgRl.marks = new Set(cfgRlGranted(res.data));
+            cfgRlPaint();
+            cfgToast(`Marcado como ${from.name}. Revisa y dale Guardar.`, true);
+
+            return { status: 200 };
+        }
+    });
+}
+
+// from: el rol que queda elegido como punto de partida (0 = empezar vacío).
+async function cfgRlNew(from) {
+    if (!(await cfgRlLeave())) return;
+
+    const roles = cfg.data.roles.roles.filter((x) => x.active || x.id === from);
+
+    cfgModal({
+        title:  'Nuevo rol',
+        sub:    'Ponle nombre y elige desde dónde empieza. Después ajustas lo que haga falta.',
+        submit: 'Crear y abrir',
         wide:   true,
         body: `
             <div class="pg-form is-one">
-                ${role.system ? '' : cfgField('name', 'Nombre del rol', role.name, 'maxlength="60" required placeholder="Ej. Encargado de sucursal"')}
-                <div class="pg-tree" style="--tree-cols:${cols.length}">${tree || '<div class="pg-empty"><i data-lucide="layout-grid"></i>Tu plan todavía no tiene secciones con permisos.</div>'}</div>
+                ${cfgField('name', 'Nombre del rol', '', 'maxlength="60" required placeholder="Ej. Encargado de sucursal"')}
+                <div class="pg-field">
+                    <span class="pg-label">Empezar con los permisos de</span>
+                    <div class="pg-rl-opts">
+                        <label class="pg-rl-opt">
+                            <input type="radio" name="from_role" value="0" ${from ? '' : 'checked'}>
+                            <span><b>Nada</b><small>Rol vacío: marcas todo tú.</small></span>
+                        </label>
+                        ${roles.map((x) => cfgRlOption(x, x.id === from)).join('')}
+                    </div>
+                    <p class="pg-dim pg-small">Es una copia: cambiar después el rol original no cambia este.</p>
+                </div>
             </div>`,
-        onOpen: (form) => {
-            // La casilla de la seccion marca o desmarca todas sus acciones, y se
-            // queda a medias (indeterminate) cuando solo hay algunas.
-            const sync = (sec) => {
-                const boxes = Array.from(sec.querySelectorAll('[data-perm]'));
-                const all   = sec.querySelector('[data-all]');
-                const on    = boxes.filter((b) => b.checked).length;
+        onSubmit: async (data) => {
+            const res = await Page.post(CFG_API, { opc: 'saveRole', id: 0, name: data.name, from_role: Number(data.from_role || 0) });
 
-                all.checked       = on === boxes.length && on > 0;
-                all.indeterminate = on > 0 && on < boxes.length;
-            };
+            if (res.status === 200) {
+                cfgToast(res.message, true);
 
-            form.querySelectorAll('.pg-tree-sec').forEach((sec) => {
-                sync(sec);
+                cfgRl.view = 'editor';
+                cfgRl.sel  = Number(res.id);
+                cfgRl.role = null;
 
-                sec.addEventListener('change', (e) => {
-                    if (e.target.matches('[data-all]')) sec.querySelectorAll('[data-perm]').forEach((b) => { b.checked = e.target.checked; });
-                    sync(sec);
-                });
-            });
-        },
-        onSubmit: role.system ? null : async (data, form) => {
-            const permissions = Array.from(form.querySelectorAll('[data-perm]:checked')).map((el) => Number(el.dataset.perm));
-            const saved       = await Page.post(CFG_API, { opc: 'saveRole', id: id, name: data.name, permissions: JSON.stringify(permissions) });
-
-            if (saved.status === 200) {
-                cfgToast(saved.message, true);
-                cfgRefresh('roles', cfgRoles);
+                await cfgRlList();
+                if (cfgTab() === 'roles') cfgRlOpen(cfgRl.sel, false);
             }
 
-            return saved;
+            return res;
         }
     });
+}
+
+// -- Comparar roles --
+
+async function cfgRlCompare() {
+    const main = document.getElementById('cfgRlMain');
+    if (!cfgRl.cmp) main.innerHTML = '<div class="pg-skel"></div>';
+
+    const res = await Page.post(CFG_API, { opc: 'compareRoles' });
+
+    if (cfgTab() !== 'roles' || cfgRl.view !== 'compare' || !document.getElementById('cfgRlMain')) return;
+
+    if (res.status !== 200) {
+        main.innerHTML = `<div class="pg-card"><div class="pg-empty"><i data-lucide="cloud-off"></i>${Page.esc(res.message || 'No se pudo comparar.')}</div></div>`;
+        return Page.icons();
+    }
+
+    cfgRl.cmp = res.data;
+    if (!res.data.modules.some((m) => m.id === cfgRl.mod)) cfgRl.mod = res.data.modules.length ? res.data.modules[0].id : 0;
+
+    main.innerHTML = `
+        <section class="pg-card pg-rl-ed" aria-labelledby="cfgRlName">
+            <header class="pg-rl-head">
+                <div class="pg-rl-head-text">
+                    <div class="pg-rl-title"><h2 id="cfgRlName">Comparar roles</h2></div>
+                    <p class="pg-dim pg-small">Quién puede hacer qué, rol contra rol. Solo se consulta: para cambiar algo, abre el rol.</p>
+                </div>
+                <div class="pg-rl-actions">
+                    <span class="pg-rl-toggle">${cfgSwitch(cfgRl.diff, 'data-diff id="cfgRlDiff"', 'Solo donde los roles difieren')}<span>Solo donde los roles difieren</span></span>
+                </div>
+            </header>
+            <div class="pg-rl-bar">
+                <nav class="pg-rl-mods" id="cfgRlMods" aria-label="Módulos"></nav>
+                <label class="pg-rl-find"><i data-lucide="search"></i><input class="pg-input" type="search" data-find value="${Page.esc(cfgRl.find)}" placeholder="Buscar permiso…" aria-label="Buscar permiso"></label>
+            </div>
+            <div class="pg-rl-cmp-wrap" id="cfgRlCmp"></div>
+            <p class="pg-rl-foot" id="cfgRlFoot" hidden></p>
+        </section>`;
+
+    cfgRlCmpPaint();
+}
+
+function cfgRlCmpPaint() {
+    const c = cfgRl.cmp;
+    if (!c || !document.getElementById('cfgRlCmp')) return;
+
+    const roles = c.roles;
+    const has   = new Map(roles.map((r) => [r.id, new Set(r.grants)]));
+
+    // "Difieren" se mide entre los roles de la empresa; los de Huubie se ven, pero no cuentan.
+    const own   = roles.filter((r) => !r.system);
+    const judge = own.length >= 2 ? own : roles;
+
+    const sw = document.getElementById('cfgRlDiff');
+    sw.classList.toggle('is-on', cfgRl.diff);
+    sw.setAttribute('aria-checked', cfgRl.diff ? 'true' : 'false');
+
+    document.getElementById('cfgRlMods').innerHTML = c.modules.map((m) => {
+        const n = m.sections.reduce((t, s) => t + s.basic.length + s.special.length, 0);
+        return `<button type="button" class="pg-rl-mod ${m.id === cfgRl.mod ? 'is-on' : ''}" data-mod="${m.id}" aria-pressed="${m.id === cfgRl.mod}"><i data-lucide="${Page.esc(m.icon)}"></i>${Page.esc(m.name)}<em title="Permisos">${n}</em></button>`;
+    }).join('');
+
+    const mod  = c.modules.find((m) => m.id === cfgRl.mod);
+    const q    = cfgRlNorm(cfgRl.find);
+    let hidden = 0;
+
+    const body = !mod ? '' : mod.sections.map((s) => {
+        const whole = !q || cfgRlNorm(s.name).includes(q);
+        const acts  = s.basic.map((a) => ({ a: a, sp: false })).concat(s.special.map((a) => ({ a: a, sp: true })));
+
+        const keep = acts.filter((x) => {
+            if (!whole && !cfgRlNorm(`${x.a.name} ${x.a.text}`).includes(q)) return false;
+
+            if (cfgRl.diff) {
+                const v = judge.map((r) => has.get(r.id).has(x.a.id));
+                if (v.every((y) => y === v[0])) { hidden++; return false; }
+            }
+
+            return true;
+        });
+
+        if (!keep.length) return '';
+
+        return `
+            <tr class="pg-rl-cmp-sec"><th colspan="${roles.length + 1}" scope="rowgroup"><span class="pg-rl-sec"><span class="pg-rl-ico"><i data-lucide="${Page.esc(s.icon)}"></i></span>${Page.esc(s.name)}</span></th></tr>
+            ${keep.map((x) => `
+                <tr class="pg-rl-cmp-act">
+                    <th scope="row" ${x.a.text ? `title="${Page.esc(x.a.text)}"` : ''}>${Page.esc(x.a.name)}${x.sp ? '<span class="pg-rl-tag">especial</span>' : ''}</th>
+                    ${roles.map((r) => `<td class="pg-rl-c">${has.get(r.id).has(x.a.id)
+                        ? `<span class="pg-rl-dot ${r.system ? 'is-sys' : ''}"><i data-lucide="check"></i><span class="pg-sr">Sí</span></span>`
+                        : '<span class="pg-rl-no"></span><span class="pg-sr">No</span>'}</td>`).join('')}
+                </tr>`).join('')}`;
+    }).join('');
+
+    const empty = !roles.length ? 'No hay roles activos que comparar.'
+        : (q ? `Nada coincide con «${Page.esc(cfgRl.find)}».` : (cfgRl.diff ? 'En este módulo todos los roles tienen lo mismo.' : 'Este módulo no tiene permisos.'));
+
+    document.getElementById('cfgRlCmp').innerHTML = `
+        <table class="pg-rl-cmp">
+            <thead><tr>
+                <th scope="col">Permiso</th>
+                ${roles.map((r) => `
+                    <th scope="col" class="pg-rl-c">
+                        <button type="button" class="pg-rl-cmp-role" data-role="${r.id}" title="Abrir ${Page.esc(r.name)}">
+                            ${Page.esc(r.name)}<small>${r.system ? 'de Huubie' : (r.users === 1 ? '1 persona' : `${r.users} personas`)}</small>
+                        </button>
+                    </th>`).join('')}
+            </tr></thead>
+            <tbody>${body || `<tr><td colspan="${roles.length + 1}"><div class="pg-empty"><i data-lucide="equal"></i>${empty}</div></td></tr>`}</tbody>
+        </table>`;
+
+    const foot  = document.getElementById('cfgRlFoot');
+    const names = judge.map((r) => r.name);
+    const list  = names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names.join('');
+
+    foot.hidden    = !(cfgRl.diff && hidden);
+    foot.innerHTML = `<i data-lucide="eye-off"></i>${hidden === 1 ? '1 permiso oculto' : `${hidden} permisos ocultos`}: ${Page.esc(list)} ${names.length > 1 ? 'los tienen igual' : 'lo tiene así'}.`;
+
+    Page.icons();
 }
 
 // ============================================================ Plan y pagos

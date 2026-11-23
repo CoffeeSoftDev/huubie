@@ -30,7 +30,7 @@ class ctrl extends core {
     // Opciones del modal. keep_* conserva la categoría y la subcategoría actuales aunque estén inactivas.
     public function formOptions() {
         $fail = $this->needBranch();
-        if ($fail) return array_merge($fail, ['categories' => [], 'subcategories' => [], 'kinds' => []]);
+        if ($fail) return array_merge($fail, ['categories' => [], 'subcategories' => [], 'kinds' => [], 'units' => []]);
 
         $branch = $this->branchId();
 
@@ -38,7 +38,9 @@ class ctrl extends core {
             'status'        => 200,
             'categories'    => $this->qCategoryOptions($branch, $this->postId('keep_category_id')),
             'subcategories' => $this->qSubcategoryOptions($branch, $this->postId('keep_subcategory_id')),
-            'kinds'         => $this->productKinds()
+            'kinds'         => $this->productKinds(),
+            // Unidades del módulo Inventarios (product.unit_id): las de la empresa y las plantillas.
+            'units'         => $this->qUnitOptions($this->companyId())
         ];
     }
 
@@ -155,13 +157,13 @@ class ctrl extends core {
             $this->transaction(function () use ($in, $photo) {
                 $this->must($this->qCreateProduct([
                     'values' => [
-                        'name', 'description', 'sku', 'barcode', 'kind', 'price', 'cost',
+                        'name', 'description', 'sku', 'barcode', 'kind', 'unit_id', 'price', 'cost', 'shelf_life_days',
                         'is_custom', 'is_inventoriable', 'sell_pos', 'in_catalog',
                         'company_id', 'branch_id', 'category_id', 'subcategory_id', 'active'
                     ],
                     'data' => [
-                        $in['name'], $in['description'], $in['sku'], $in['barcode'], $in['kind'], $in['price'], $in['cost'],
-                        0, $in['is_inventoriable'], $in['sell_pos'], $in['in_catalog'],
+                        $in['name'], $in['description'], $in['sku'], $in['barcode'], $in['kind'], $in['unit_id'], $in['price'], $in['cost'],
+                        $in['shelf_life_days'], 0, $in['is_inventoriable'], $in['sell_pos'], $in['in_catalog'],
                         $this->companyId(), $this->branchId(), $in['category_id'], $in['subcategory_id'], 1
                     ]
                 ]), 'addProduct');
@@ -204,13 +206,13 @@ class ctrl extends core {
 
             $this->must($this->qUpdateProduct([
                 'values' => [
-                    'name', 'description', 'image', 'sku', 'barcode', 'kind', 'price', 'cost',
+                    'name', 'description', 'image', 'sku', 'barcode', 'kind', 'unit_id', 'price', 'cost', 'shelf_life_days',
                     'is_inventoriable', 'sell_pos', 'in_catalog', 'category_id', 'subcategory_id', 'updated_at = NOW()'
                 ],
                 'where' => ['id'],
                 'data'  => [
-                    $in['name'], $in['description'], $image, $in['sku'], $in['barcode'], $in['kind'], $in['price'], $in['cost'],
-                    $in['is_inventoriable'], $in['sell_pos'], $in['in_catalog'], $in['category_id'], $in['subcategory_id'], $id
+                    $in['name'], $in['description'], $image, $in['sku'], $in['barcode'], $in['kind'], $in['unit_id'], $in['price'], $in['cost'],
+                    $in['shelf_life_days'], $in['is_inventoriable'], $in['sell_pos'], $in['in_catalog'], $in['category_id'], $in['subcategory_id'], $id
                 ]
             ]), 'editProduct');
 
@@ -250,10 +252,15 @@ class ctrl extends core {
 
     // -- Auxiliares --
 
+    /*  supply = insumo (harina, domos, cajas): lleva inventario y no se vende.
+        23/11/2026: los insumos viven en el Catálogo para que Inventarios cuente
+        un solo catálogo. El POS, la tienda y WhatsApp siguen filtrando
+        kind IN ('product', 'service'): un insumo nunca se les ofrece. */
     private function productKinds() {
         return [
             ['id' => 'product', 'valor' => 'Producto'],
-            ['id' => 'service', 'valor' => 'Servicio']
+            ['id' => 'service', 'valor' => 'Servicio'],
+            ['id' => 'supply',  'valor' => 'Insumo']
         ];
     }
 
@@ -323,12 +330,20 @@ class ctrl extends core {
         $cost          = $this->amount('cost', 0);
         $categoryId    = $this->selectOrNull('category_id');
         $subcategoryId = $this->selectOrNull('subcategory_id');
+        $unitId        = $this->selectOrNull('unit_id');
+        $shelfLife     = $this->intOrNull('shelf_life_days');
 
         if ($kind === '') $kind = 'product';
 
         if (!in_array($kind, array_column($this->productKinds(), 'id'), true)) {
             return $this->fail(400, 'El tipo de producto no es válido.');
         }
+
+        // Un insumo no se vende: sin precio de venta vale 0.
+        if ($kind === 'supply' && $price === null && $this->post('price') === '') $price = 0;
+
+        if ($unitId !== null && !$this->qUnitExists($unitId, $this->companyId())) return $this->fail(400, 'La unidad elegida no existe.');
+        if ($shelfLife !== null && ($shelfLife < 0 || $shelfLife > 3650)) return $this->fail(400, 'La vida útil va de 0 a 3650 días.');
 
         if ($name === '')                       return $this->fail(400, 'Escribe el nombre del producto.');
         if ($this->tooLong($name, 255))         return $this->fail(400, 'El nombre admite hasta 255 caracteres.');
@@ -344,19 +359,24 @@ class ctrl extends core {
         $problem = $this->subcategoryProblem($subcategoryId, $categoryId, $current ? (int) $current['subcategory_id'] : 0);
         if ($problem) return $problem;
 
+        $supply = $kind === 'supply';
+
         return [
             'kind'             => $kind,
             'name'             => $name,
             'sku'              => $sku,
             'barcode'          => $barcode,
             'description'      => $description,
+            'unit_id'          => $unitId,
             'price'            => $price,
             'cost'             => $cost,
+            'shelf_life_days'  => $shelfLife,
             'category_id'      => $categoryId,
             'subcategory_id'   => $subcategoryId,
-            'sell_pos'         => $this->flag('sell_pos'),
-            'in_catalog'       => $this->flag('in_catalog'),
-            'is_inventoriable' => $this->flag('is_inventoriable')
+            // El insumo no sale en el POS ni en la tienda, y siempre lleva inventario.
+            'sell_pos'         => $supply ? 0 : $this->flag('sell_pos'),
+            'in_catalog'       => $supply ? 0 : $this->flag('in_catalog'),
+            'is_inventoriable' => $supply ? 1 : $this->flag('is_inventoriable')
         ];
     }
 
@@ -420,7 +440,7 @@ class ctrl extends core {
             'Producto'  => $this->productCell($item),
             'Origen'    => $this->originCell($item, $isMain),
             'Categoría' => $this->categoryCell($item),
-            'Tipo'      => $item['kind'] === 'service' ? chip('Servicio', 'sky') : chip('Producto', 'slate'),
+            'Tipo'      => $item['kind'] === 'service' ? chip('Servicio', 'sky') : ($item['kind'] === 'supply' ? chip('Insumo', 'amber') : chip('Producto', 'slate')),
             'Precio'    => moneyCell($item['price']),
             'Costo'     => moneyCell($item['cost']),
             'Canales'   => $this->channelsCell($item),
@@ -502,6 +522,7 @@ class ctrl extends core {
 
         if ((int) $item['sell_pos'] === 1)   $chips[] = chip('POS', 'emerald');
         if ((int) $item['in_catalog'] === 1) $chips[] = chip('Catálogo', 'sky');
+        if ((int) ($item['is_inventoriable'] ?? 0) === 1) $chips[] = chip('Inventario', 'amber');
 
         return $chips ? implode(' ', $chips) : '<span class="cp-celda-sub">—</span>';
     }

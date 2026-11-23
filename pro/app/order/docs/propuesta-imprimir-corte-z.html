@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuesta · Imprimir el Corte Z como Soft</title>
+<style>
+/* @piel plantilla-plano · siempre en claro, aunque el sistema esté oscuro */
+:root{
+  color-scheme: light;
+  --bp-ground:#F1F3F6; --bp-surface:#FFFFFF; --bp-surface-2:#F5F7F9;
+  --bp-line:#DDE3E8; --bp-line-soft:#E9EDF1;
+  --bp-ink:#0F1A21; --bp-ink-soft:#4A5A64; --bp-ink-dim:#6E7F8A;
+  --bp-ac:#0B6E77; --bp-write:#A15C08;
+  --bp-ui:"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif:Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono:ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{ background:var(--bp-ground); color:var(--bp-ink); font-family:var(--bp-ui);
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased }
+.wrap{ max-width:1120px; margin:0 auto; padding:0 22px 80px }
+
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:26px;
+  display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,42px); line-height:1.08;
+  letter-spacing:-.015em; max-width:28ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55; color:var(--bp-ink-soft); max-width:70ch }
+
+section{ display:flex; flex-direction:column; gap:14px; margin-bottom:56px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:26px; line-height:1.2; display:flex;
+  align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em; color:var(--bp-ac); flex:none }
+.intro{ color:var(--bp-ink-soft); max-width:78ch }
+code{ font-family:var(--bp-mono); font-size:.875em; background:var(--bp-surface-2);
+  border:1px solid var(--bp-line-soft); border-radius:4px; padding:.08em .34em }
+
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface) }
+table.bp{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:640px }
+.bp th, .bp td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft); vertical-align:top }
+.bp thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--bp-ink-dim); font-weight:500; background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line) }
+.bp tbody tr:last-child td{ border-bottom:0 }
+.bp td b{ font-weight:650 }
+.bp td.code{ font-family:var(--bp-mono); font-size:12px; color:var(--bp-ac); white-space:nowrap }
+
+/* Capturas: cada una en su propio marco, a lo ancho de la página */
+.shot{ border:1px solid var(--bp-line); border-radius:10px; overflow:hidden; background:var(--bp-surface) }
+.shot img{ display:block; width:100%; height:auto }
+.shot figcaption{ border-top:1px solid var(--bp-line); padding:6px 12px; font-size:12px; color:var(--bp-ink-dim); font-family:var(--bp-mono) }
+.pair{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px }
+.pair .shot{ background:#E9E3DA }
+.pair .shot img{ width:auto; max-width:100%; margin:14px auto }
+@media (max-width:760px){ .pair{ grid-template-columns:minmax(0, 1fr) } }
+
+.note{ border-left:2px solid var(--bp-write); background:var(--bp-surface); border-radius:0 8px 8px 0;
+  padding:14px 18px; display:flex; flex-direction:column; gap:8px; font-size:13.5px; color:var(--bp-ink-soft) }
+.note > b:first-child{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--bp-write) }
+.note b{ color:var(--bp-ink) }
+.note ol, .note ul{ padding-left:20px; display:flex; flex-direction:column; gap:6px }
+.note .codes{ font-family:var(--bp-mono); font-size:11.5px; color:var(--bp-ac) }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <p class="eyebrow">Pedidos TPV · Cierre del día · 22/11/2026</p>
+    <h1>Imprimir el Corte Z <em>como Soft</em>, desde tu Cierre del día</h1>
+    <p class="lede">Soft imprime el Corte Z desde una ventana chica con tres pasos: fecha, reporte y destino, y un botón «Ejecutar». La propuesta pone esos mismos pasos en el panel izquierdo de tu Cierre del día. La hoja de la derecha, el zoom y «Cerrar día» se quedan como están.</p>
+    <p class="lede"><b>Aprobada y construida en local el 22/11/2026</b> con tus decisiones: PDF en descarga directa, Excel sí, un día sin cerrar no se imprime y sin Corte X en el panel (sección 07).</p>
+  </header>
+
+  <!-- 01 -->
+  <section>
+    <h2><span class="num">01</span>Cómo lo imprime Soft</h2>
+    <p class="intro">Las dos ventanas de la caja de Soft Restaurant 9.5. El Corte Z junta todos los turnos del día; el Corte X es de un solo turno.</p>
+    <div class="pair">
+      <figure class="shot">
+        <img src="img/soft-ventana-corte-z.png" alt="Ventana Corte Z de Soft: empresa, fecha con horario, reporte, destino y Ejecutar">
+        <figcaption>Corte Z · manual SR 9.5, p. 131</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="img/soft-ventana-corte-x.png" alt="Ventana Corte de Caja X de Soft: además pide estación y turno">
+        <figcaption>Corte de Caja X · manual SR 9.5, p. 128</figcaption>
+      </figure>
+    </div>
+    <div class="tscroll">
+      <table class="bp">
+        <thead><tr><th>Control</th><th>Qué hace en Soft</th></tr></thead>
+        <tbody>
+          <tr><td><b>Fecha</b></td><td>El día del corte. Debajo, el horario que abarca: <code>06:00:00 AM - 05:59:59 AM</code>. Se configura una vez en Configuración general («Horario de corte Z»).</td></tr>
+          <tr><td><b>Reporte</b></td><td>Resumido o Detallado.</td></tr>
+          <tr><td><b>Destino</b></td><td>Tres botones grandes: Impresora, Pantalla o Excel.</td></tr>
+          <tr><td><b>Ejecutar</b></td><td>Saca el corte al destino elegido. «Cerrar» sale sin hacer nada.</td></tr>
+          <tr><td><b>Regla</b></td><td>Con turnos abiertos no imprime el Corte Z: «Existen turnos abiertos. No es posible imprimir el corte Z». A la vista previa sin cerrar le dice <b>«Precorte»</b>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section>
+    <h2><span class="num">02</span>Así se imprime hoy</h2>
+    <p class="intro">Captura real del Cierre del día de Reginas Cuarta, 18/11/2026: día cerrado, 2 turnos.</p>
+    <figure class="shot">
+      <img src="img/imprimir-z-hoy.png" alt="Cierre del día hoy: sucursal, fecha, orientación e Imprimir a la izquierda; Concentrado y Detallado arriba de la hoja">
+      <figcaption>Hoy · ventana de 940 px en pantalla de 1440 × 900</figcaption>
+    </figure>
+  </section>
+
+  <!-- 03 -->
+  <section>
+    <h2><span class="num">03</span>Qué no se entiende</h2>
+    <div class="tscroll">
+      <table class="bp">
+        <thead><tr><th>Código</th><th>Qué pasa</th><th>Dónde se ve en la captura</th></tr></thead>
+        <tbody>
+          <tr><td class="code">I1</td><td>Lo de imprimir está en tres lugares: la orientación a la izquierda, Concentrado | Detallado arriba de la hoja y el botón abajo a la izquierda.</td><td>Panel izquierdo y franja de arriba de la hoja</td></tr>
+          <tr><td class="code">I2</td><td>La fecha no dice qué abarca el corte: de qué hora a qué hora ni cuántos turnos.</td><td>Debajo de «Fecha» solo sale «Por:»</td></tr>
+          <tr><td class="code">I3</td><td>Un día sin cerrar se imprime con el mismo título «CORTE Z». Solo un recuadro punteado avisa que son cifras preliminares.</td><td>Hoja de un día «En curso» o «Por cerrar»</td></tr>
+          <tr><td class="code">I4</td><td>Hay un solo destino: la hoja carta a la impresora. No hay PDF con nombre ni Excel.</td><td>Botón «Imprimir»</td></tr>
+          <tr><td class="code">I5</td><td>«Imprimir» es un botón blanco que siempre dice lo mismo: no destaca ni dice qué va a salir.</td><td>Botón «Imprimir»</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section>
+    <h2><span class="num">04</span>Propuesta de mejora</h2>
+    <div class="note">
+      <b>Propuesta de mejora</b>
+      <ol>
+        <li><b>El panel en pasos, como la ventana de Soft:</b> Fecha → Reporte → Hoja carta → Destino → botón. Concentrado | Detallado baja de arriba de la hoja al panel. La orientación pasa de lista a dos botones (Horizontal | Vertical). <span class="codes">I1</span></li>
+        <li><b>La jornada debajo de la fecha:</b> «Jornada 9:15 AM – 8:19 PM · 2 turnos», de la primera apertura al último cierre de los turnos del día («en curso» si hay uno abierto). Abajo, quién cerró y cuándo. <span class="codes">I2</span></li>
+        <li><b>Precorte, como Soft:</b> en un día sin cerrar la hoja de la pantalla dice «PRECORTE Z», el botón se apaga y debajo dice «El Corte Z se imprime al cerrar el día.» No sale ni por impresora, ni en PDF, ni en Excel (tampoco desde el visor de Cortes). <span class="codes">I3</span></li>
+        <li><b>Destino con 3 botones:</b> Impresora (lo de hoy), PDF (se descarga directo, con el nombre ya puesto) y Excel (las tablas de la hoja en un archivo). <span class="codes">I4</span></li>
+        <li><b>Un solo botón principal</b> en el color de acento, que dice qué va a salir: «Imprimir Corte Z», «Descargar PDF» o «Descargar Excel». <span class="codes">I5</span></li>
+        <li><b>Arriba de la hoja, lo que va a salir:</b> «Así saldrá · Corte Z detallado · carta horizontal». <span class="codes">I1 · I5</span></li>
+        <li><b>Lo demás igual:</b> la hoja, el zoom, «Cerrar día» aparte abajo y «Reabrir día» solo para root.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section>
+    <h2><span class="num">05</span>Así quedó</h2>
+    <p class="intro">Capturas del módulo ya construido en local, con datos reales de Reginas Cuarta.</p>
+    <figure class="shot">
+      <img src="img/imprimir-z-propuesta.png" alt="Día cerrado: fecha con jornada, Reporte, Hoja carta, Destino y el botón Imprimir Corte Z">
+      <figcaption>Día cerrado · 18/11/2026 · Detallado · Impresora</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="img/imprimir-z-excel.png" alt="Destino Excel: los botones de hoja carta se apagan y el botón dice Descargar Excel">
+      <figcaption>Destino Excel · la hoja carta no aplica y se apaga</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="img/imprimir-z-precorte.png" alt="Día en curso: la hoja dice PRECORTE Z y el botón está apagado">
+      <figcaption>Día en curso · 22/11/2026 · turno abierto · precorte: no sale</figcaption>
+    </figure>
+    <div class="pair">
+      <figure class="shot">
+        <img src="img/imprimir-z-pdf-p1.png" alt="PDF descargado, hoja 1: desglose y corte de caja X">
+        <figcaption>PDF descargado · carta horizontal · hoja 1</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="img/imprimir-z-pdf-p2.png" alt="PDF descargado, hoja 2: el resumen del día con sus 3 cajas">
+        <figcaption>Hoja 2 · el resumen no se separa de su título</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section>
+    <h2><span class="num">06</span>Qué hace cada destino</h2>
+    <div class="tscroll">
+      <table class="bp">
+        <thead><tr><th>Destino</th><th>Qué sale</th><th>Hoja carta</th><th>Trabajo</th></tr></thead>
+        <tbody>
+          <tr><td><b>Impresora</b></td><td>La ventana de impresión de hoy (<code>printDay</code>), con el diálogo ya orientado.</td><td>Sí</td><td>Ninguno: ya existe.</td></tr>
+          <tr><td><b>PDF</b></td><td>Descarga directa de la misma hoja, carta con 8 mm de margen: «Corte Z 18-11-2026 Reginas Cuarta detallado.pdf». Con html2pdf.js 0.10.1, copia local en <code>pro/assets/plugins/html2pdf/</code>. Se carga la primera vez que alguien descarga. La hoja va como imagen: el texto no se selecciona.</td><td>Sí</td><td>Hecho.</td></tr>
+          <tr><td><b>Excel</b></td><td>Un archivo .xlsx con las tablas de la hoja: desglose, corte de caja y las 3 cajas del resumen. Los importes van como número con formato de dinero, para poder sumarlos. Con ExcelJS (ya estaba en <code>pro/assets/plugins/exceljs/</code>).</td><td>No: los botones de hoja se apagan</td><td>Hecho.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section>
+    <h2><span class="num">07</span>Decisiones</h2>
+    <div class="tscroll">
+      <table class="bp">
+        <thead><tr><th>Código</th><th>Pregunta</th><th>Decisión (22/11/2026)</th></tr></thead>
+        <tbody>
+          <tr><td class="code">D1</td><td>¿El PDF con el diálogo del navegador o una descarga directa?</td><td><b>Descarga directa</b> (html2pdf.js).</td></tr>
+          <tr><td class="code">D2</td><td>¿Excel sí?</td><td><b>Sí.</b></td></tr>
+          <tr><td class="code">D3</td><td>El precorte: ¿se imprime con su marca o, como Soft, no se imprime hasta cerrar el día?</td><td><b>No se imprime hasta cerrar el día</b>, como Soft. En pantalla se sigue viendo como «PRECORTE Z».</td></tr>
+          <tr><td class="code">D4</td><td>¿Ticket de 80 mm como cuarto destino?</td><td>Sin respuesta: no se hizo.</td></tr>
+          <tr><td class="code">D5</td><td>¿Corte X en el mismo panel (Tipo: Z del día | X de un turno, con lista de turnos), como Soft?</td><td><b>No.</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 08 -->
+  <section>
+    <h2><span class="num">08</span>Qué se toca</h2>
+    <div class="tscroll">
+      <table class="bp">
+        <thead><tr><th>Archivo</th><th>Cambio</th></tr></thead>
+        <tbody>
+          <tr><td class="code">src/js/pedido-cierre.js</td><td><code>deskBody</code> con el panel en pasos; <code>deskPaint</code>, <code>span</code> y <code>deskOutput</code> con la jornada, el botón y por qué no sale; <code>outputBlock</code> y <code>notClosedWarn</code> (un día sin cerrar no sale); <code>pdfDay</code> y <code>excelDay</code> nuevos; <code>dayReport</code> con «PRECORTE Z».</td></tr>
+          <tr><td class="code">src/css/order.css</td><td>Los segmentos, los 3 botones de destino y el botón principal (<code>.ord-desk-seg</code>, <code>.ord-desk-dest</code>, <code>.is-run</code>), en claro y oscuro.</td></tr>
+          <tr><td class="code">assets/plugins/html2pdf/</td><td>Nuevo: <code>html2pdf.bundle.min.js</code> 0.10.1, verificado contra el hash de cdnjs.</td></tr>
+          <tr><td class="code">ctrl/ctrl-cierre.php</td><td>Nada: <code>getDay</code> ya trae cada turno con su apertura y su cierre.</td></tr>
+          <tr><td class="code">Base de datos</td><td>Sin migraciones.</td></tr>
+          <tr><td class="code">Visor de Cortes</td><td>Usa el mismo <code>printDay</code>: en un día sin cerrar «Imprimir» avisa y no imprime.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -3,11 +3,12 @@
 
       tarjeta.php?t=<token de 32 caracteres>   (card.token)
 
-    Muestra la tarjeta como pase de Wallet (degradado del color de su tipo; ver
-    lealtad/docs/propuesta-diseno.html) con sus sellos o su beneficio, el nivel
-    y su barra si es de nivel, y un QR con el NUMERO para que en caja la lean con
-    el lector igual que el plastico; debajo, lo que da, el monedero si la tarjeta
-    tiene cliente dueño y sus ultimas compras. Todo lo pinta PHP; el QR lo dibuja
+    Muestra la tarjeta igual que en Lealtad › Tarjetas y en Vender (340 × 214,
+    degradado del color de su tipo; ver lealtad/docs/propuesta-diseno.html) con
+    sus sellos o su beneficio y el nivel y su barra si es de nivel; debajo, en su
+    cuadro, un QR con el NUMERO para que en caja la lean con el lector igual que
+    el plastico; despues, lo que da, el monedero si la tarjeta tiene cliente
+    dueño y sus ultimas compras. Todo lo pinta PHP; el QR lo dibuja
     qrcode-generator en el navegador (sin JavaScript queda el numero escrito,
     que tambien sirve).
 
@@ -338,9 +339,12 @@ $qrVersion = @filemtime(__DIR__ . '/../../assets/plugins/qrcode/qrcode.js') ?: 1
         .store b { display: block; font-size: 15px; line-height: 1.2; }
         .store small { display: block; font-size: 13px; color: var(--soft); }
 
-        /*  -- La tarjeta: un pase al estilo de Wallet. Degradado en diagonal del
-            color de su tipo con un brillo encima; letra blanca u oscura segun el
-            color (el mismo corte que inkOf de tarjetas.js). -- */
+        /*  -- La tarjeta: la misma de Lealtad › Tarjetas y de Vender (.loy-card en
+            order/src/css/order.css), con sus medidas: 340 px de ancho y apaisada
+            como una de plástico (85.6 × 54 mm = 1.586; si lo de adentro no cabe,
+            crece). Degradado en diagonal del color de su tipo con un brillo
+            encima; letra blanca u oscura segun el color (el mismo corte que
+            inkOf de tarjetas.js). El QR va abajo, en su cuadro blanco. -- */
         .pass {
             --p-ink: <?= $ink ?>;
             --p-chip: <?= $d && $light ? 'rgba(15, 23, 42, .08)' : 'rgba(255, 255, 255, .22)' ?>;
@@ -348,58 +352,65 @@ $qrVersion = @filemtime(__DIR__ . '/../../assets/plugins/qrcode/qrcode.js') ?: 1
             position: relative;
             isolation: isolate;
             overflow: hidden;
-            border-radius: var(--radius);
+            display: flex;
+            flex-direction: column;
+            width: 340px;
+            max-width: 100%;
+            aspect-ratio: 1.586;
+            margin: 0 auto;
+            border-radius: 14px;
             color: var(--p-ink);
             background: var(--card);
             background: linear-gradient(135deg, color-mix(in srgb, var(--card) <?= $d && $light ? '88%' : '70%' ?>, #000) 0%, var(--card) 58%, color-mix(in srgb, var(--card) <?= $d && $light ? '70%' : '78%' ?>, #FFF) 100%);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 0 0 .5px rgba(0, 0, 0, .1), 0 16px 30px -16px rgba(24, 12, 60, .55), 0 2px 4px rgba(24, 12, 60, .12);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 0 0 .5px rgba(0, 0, 0, .1), 0 12px 24px -12px rgba(24, 12, 60, .5), 0 2px 4px rgba(24, 12, 60, .1);
             <?= $d && !$light ? 'text-shadow: 0 1px 1px rgba(0, 0, 0, .16);' : '' ?>
         }
         .pass::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; background: linear-gradient(125deg, rgba(255, 255, 255, .2) 0%, rgba(255, 255, 255, 0) 35%, rgba(255, 255, 255, 0) 72%, rgba(255, 255, 255, .08) 100%); }
-        .pass-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 0; }
-        .pass-logo { width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center; background: var(--p-chip); }
-        .pass-logo svg { width: 20px; height: 20px; }
+        .pass-head { display: flex; align-items: center; gap: 9px; padding: 12px 14px 0; }
+        .pass-logo { width: 30px; height: 30px; flex: none; border-radius: 9px; display: grid; place-items: center; background: var(--p-chip); }
+        .pass-logo svg { width: 17px; height: 17px; }
         .pass-name { flex: 1; min-width: 0; }
-        .pass-name b { display: block; font-size: 18px; font-weight: 800; letter-spacing: -.015em; line-height: 1.15; overflow-wrap: anywhere; }
-        .pass-name small { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .8; }
+        .pass-name b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: 15px; font-weight: 800; letter-spacing: -.015em; line-height: 1.15; overflow-wrap: anywhere; }
+        .pass-name small { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .78; }
         .pass-val { flex: none; text-align: right; line-height: 1; }
-        .pass-val b { display: inline-block; font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .lbl { display: block; margin-bottom: 5px; font-size: 9px; font-weight: 700; letter-spacing: .09em; line-height: 1; text-transform: uppercase; opacity: .8; }
-        .pass-body { display: grid; gap: 12px; padding: 16px 18px; }
-        .pass-big { display: flex; align-items: flex-end; gap: 8px; }
-        .pass-big b { flex: none; font-size: 40px; font-weight: 800; letter-spacing: -.035em; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .pass-big span { padding-bottom: 4px; font-size: 14px; font-weight: 600; line-height: 1.2; opacity: .9; }
-        .pass-say { margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.35; }
-        .pass-tier { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; font-weight: 600; }
-        .pass-tier > span:last-child { min-width: 0; opacity: .92; text-align: right; }
-        .badge { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px 0 8px; border-radius: 12px; background: var(--p-chip); font-size: 12px; font-weight: 700; white-space: nowrap; }
-        .badge svg { width: 13px; height: 13px; }
+        .pass-val b { display: inline-block; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .lbl { display: block; margin-bottom: 4px; font-size: 8px; font-weight: 700; letter-spacing: .09em; line-height: 1; text-transform: uppercase; opacity: .8; }
+        .pass-body { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 12px 14px; }
+        .pass-big { display: flex; align-items: flex-end; gap: 6px; }
+        .pass-big b { flex: none; font-size: 34px; font-weight: 800; letter-spacing: -.035em; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .pass-big span { min-width: 0; padding-bottom: 3px; font-size: 12.5px; font-weight: 600; line-height: 1.2; opacity: .9; }
+        .pass-say { margin: 0; font-size: 11.5px; font-weight: 600; line-height: 1.3; }
+        .pass-tier { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 600; }
+        .pass-tier > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .92; text-align: right; }
+        .badge { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 21px; padding: 0 9px 0 7px; border-radius: 11px; background: var(--p-chip); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+        .badge svg { width: 12px; height: 12px; }
         .badge em { display: inline-block; font-style: normal; }
         .badge.is-top { background: linear-gradient(135deg, #FFF1A8, #FFDA4A 45%, #F2B01E); color: #4A3200; text-shadow: none; }
-        .bar { height: 7px; overflow: hidden; border-radius: 7px; background: <?= $d && $light ? 'rgba(15, 23, 42, .12)' : 'rgba(255, 255, 255, .26)' ?>; }
+        .bar { height: 6px; overflow: hidden; border-radius: 6px; background: <?= $d && $light ? 'rgba(15, 23, 42, .12)' : 'rgba(255, 255, 255, .26)' ?>; }
         .bar i { display: block; height: 100%; border-radius: inherit; background: var(--p-ink); transition: width 1.3s cubic-bezier(.3, .8, .3, 1); }
-        .pass-fields { display: flex; justify-content: space-between; gap: 12px; padding: 0 18px; }
+        .pass-fields { display: flex; justify-content: space-between; gap: 10px; padding: 0 14px 14px; }
         .pass-fields > span { min-width: 0; }
         .pass-fields > span:last-child { text-align: right; }
-        .pass-fields b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
-        /* El QR: siempre negro sobre blanco, aun en modo oscuro, para que el lector lo lea. */
-        .pass-qr { display: flex; flex-direction: column; align-items: center; padding: 18px 18px 0; }
-        .pass-qrbox { position: relative; width: 100%; max-width: 212px; padding: 10px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 8px 18px -6px rgba(0, 0, 0, .35); }
+        .pass-fields b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 600; }
+        .pass-sheen { position: absolute; top: 0; bottom: 0; left: 0; z-index: 3; width: 45%; pointer-events: none; background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .5), rgba(255, 255, 255, 0)); transform: translateX(-130%) skewX(-18deg); }
+
+        /* -- El QR, en su cuadro debajo de la tarjeta: siempre negro sobre blanco, aun en modo oscuro, para que el lector lo lea. -- */
+        .qr-box { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .pass-qrbox { position: relative; width: 100%; max-width: 212px; padding: 10px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 0 0 1px rgba(15, 23, 42, .08), 0 8px 18px -10px rgba(0, 0, 0, .35); }
         .qr-code { width: 100%; aspect-ratio: 1; display: grid; place-items: center; color: #0F172A; }
         .qr-code svg { display: block; width: 100%; height: auto; }
         .pass-num { margin: 10px 0 0; font: 700 13px/1.2 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: .18em; overflow-wrap: anywhere; text-align: center; }
         .pass-ready { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; height: 26px; padding: 0 12px; border-radius: 13px; background: #FFDA4A; color: #3D2C00; font-size: 12px; font-weight: 700; text-shadow: none; }
         .pass-ready svg { width: 14px; height: 14px; }
-        .pass-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 18px 14px; font-size: 11px; font-weight: 500; opacity: .8; }
+        .qr-hint { margin: 10px 0 0; max-width: 36ch; font-size: 12.5px; color: var(--soft); }
+        .pass-foot { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; font-weight: 500; color: var(--faint); }
         .pass-foot svg { width: 14px; height: 14px; }
-        .pass-sheen { position: absolute; top: 0; bottom: 0; left: 0; z-index: 3; width: 45%; pointer-events: none; background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .5), rgba(255, 255, 255, 0)); transform: translateX(-130%) skewX(-18deg); }
-        .qr-hint { margin: -4px auto 0; max-width: 36ch; font-size: 12.5px; color: var(--soft); text-align: center; }
 
-        /* -- Sellos: punteados; el juntado, lleno del color de la letra con el icono del color de la tarjeta. El ultimo es el premio. -- */
-        .pass-stamps { display: grid; grid-template-columns: repeat(5, minmax(0, 40px)); justify-content: space-between; row-gap: 10px; }
-        .pass-stamps.is-many { grid-template-columns: repeat(10, minmax(0, 28px)); column-gap: 2px; row-gap: 7px; }
+        /* -- Sellos: punteados; el juntado, lleno del color de la letra con el icono del color de la tarjeta. El ultimo es el premio. Hasta 10, cinco por renglón; de 11 a 20, diez y más chicos (como .loy-card-stamps). -- */
+        .pass-stamps { display: grid; grid-template-columns: repeat(5, minmax(0, 30px)); justify-content: space-between; gap: 8px 4px; }
+        .pass-stamps.is-many { grid-template-columns: repeat(10, minmax(0, 22px)); gap: 6px 2px; }
         .st { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1; border: 1.5px dashed var(--p-line); border-radius: 99px; color: var(--p-ink); }
-        .st svg { width: 50%; height: 50%; stroke-width: 2.2; opacity: 0; }
+        .st svg { width: 52%; height: 52%; stroke-width: 2.2; opacity: 0; }
         .st.is-gift svg { opacity: .65; }
         .st.is-on { border-style: solid; border-color: var(--p-ink); background: var(--p-ink); color: var(--card); box-shadow: 0 3px 8px rgba(0, 0, 0, .18); }
         .st.is-on svg { opacity: 1; }
@@ -541,17 +552,18 @@ $qrVersion = @filemtime(__DIR__ . '/../../assets/plugins/qrcode/qrcode.js') ?: 1
                 <span><span class="lbl"><?= $h($label) ?></span><b><?= $h($value) ?></b></span>
 <?php endforeach; ?>
             </div>
-            <div class="pass-qr" aria-label="Código para leer en caja">
-                <div class="pass-qrbox"><div class="qr-code" id="qr" data-code="<?= $h($number) ?>"></div></div>
-                <p class="pass-num"><?= $h($number) ?></p>
-<?php if ($ready > 0): ?>
-                <span class="pass-ready"><?= $svg('gift', 14) ?>Listo para canjear<?= $ready > 1 ? ' · ' . $ready : '' ?></span>
-<?php endif; ?>
-            </div>
-            <div class="pass-foot"><span>Actualizado hace un momento</span><?= $svg('info', 14) ?></div>
             <i class="pass-sheen" aria-hidden="true"></i>
         </section>
-        <p class="qr-hint">Enséñala en caja al pagar. Si el lector no lee el QR, sube el brillo o di el número.</p>
+
+        <section class="box qr-box" aria-label="Código para leer en caja">
+            <div class="pass-qrbox"><div class="qr-code" id="qr" data-code="<?= $h($number) ?>"></div></div>
+            <p class="pass-num"><?= $h($number) ?></p>
+<?php if ($ready > 0): ?>
+            <span class="pass-ready"><?= $svg('gift', 14) ?>Listo para canjear<?= $ready > 1 ? ' · ' . $ready : '' ?></span>
+<?php endif; ?>
+            <p class="qr-hint">Enséñala en caja al pagar. Si el lector no lee el QR, sube el brillo o di el número.</p>
+            <p class="pass-foot"><?= $svg('info', 14) ?><span>Actualizado hace un momento</span></p>
+        </section>
 
         <section class="box">
             <h2><i><?= $svg($goal > 0 ? 'gift' : ($points > 0 && $discount <= 0 ? 'wallet' : 'tag')) ?></i>Lo que te da</h2>

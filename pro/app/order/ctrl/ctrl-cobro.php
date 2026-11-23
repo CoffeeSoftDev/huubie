@@ -16,17 +16,18 @@ require_once __DIR__ . '/../mdl/mdl-whatsapp.php';
       - El estado lo pone el dinero (statusFor): sin pagos Cotizacion, con saldo
         Pendiente, sin saldo Pagado. Lo que mande el navegador no cuenta.
       - Descuento: uno por pedido, con motivo y tope (max_percent sobre el subtotal).
-        Un motivo con requires_authorization lo aplica solo quien puede cancelar.
+        Un motivo con requires_authorization lo aplica solo quien tiene
+        «Autorizar descuento» (core::AUTH_DISCOUNT).
         El total nuevo no puede quedar por debajo de lo ya abonado.
-        Si el pedido es de un turno o dia cerrado, el descuento lo autoriza Dueño
-        o Supervisor (moneyBlock): mueve lo vendido de ese corte.
+        Si el pedido es de un turno o dia cerrado, el descuento lo autoriza quien
+        tiene «Editar corte cerrado» (moneyBlock): mueve lo vendido de ese corte.
       - Quitar el descuento (como alpha): quien edita pedidos, en una cotizacion o
         un pendiente; el total vuelve al subtotal. Un pendiente de un corte
         cerrado lo autoriza Dueño o Supervisor (core::undiscountBlock).
       - Quitar un pago = borrado logico (active 0 + deleted_at) con motivo y solo
         con permiso delete. Un pago de un turno cerrado no se quita: se reabre antes.
-      - Cambiar la forma de un pago (como alpha): Dueño o Supervisor (permiso
-        cancel), solo con el turno de ese pago abierto. El importe no cambia.
+      - Cambiar la forma de un pago (como alpha): quien tiene «Cambiar forma de
+        pago» (core::PAY_METHOD), solo con el turno de ese pago abierto. El importe no cambia.
       - La ventana de pagos (payOptions) abre aunque no se pueda cobrar: trae los
         pagos del pedido y dice en can_pay / pay_block por que no (rol, pedido o
         turno). Quien decide de verdad son payOrder y deletePayment.
@@ -100,7 +101,7 @@ class ctrl extends core {
                 'can_delete'    => $alive && !$given && $foreign === '' && $this->need('delete') === null,
                 'methods'       => $this->qPaymentMethods($this->branchId()),
                 'reasons'       => $this->qDiscountReasons($this->companyId()),
-                'can_authorize' => $this->need('cancel') === null,
+                'can_authorize' => Permission::can(self::SECTION, self::AUTH_DISCOUNT),
                 'disc_block'    => $this->moneyBlock($order),
                 'turn'          => $this->turnBrief(),
                 'branch_id'     => $this->branchId(),
@@ -128,7 +129,7 @@ class ctrl extends core {
                 'can_delete'    => false,
                 'methods'       => $this->qPaymentMethods($this->branchId()),
                 'reasons'       => $this->qDiscountReasons($this->companyId()),
-                'can_authorize' => $this->need('cancel') === null,
+                'can_authorize' => Permission::can(self::SECTION, self::AUTH_DISCOUNT),
                 'disc_block'    => '',
                 'turn'          => $this->turnBrief(),
                 'branch_id'     => $this->branchId(),
@@ -454,7 +455,7 @@ class ctrl extends core {
 
         if (!$reason) return $this->fail(422, 'Ese motivo de descuento ya no existe.');
 
-        if ((int) $reason['requires_authorization'] === 1 && $this->need('cancel') !== null) {
+        if ((int) $reason['requires_authorization'] === 1 && !Permission::can(self::SECTION, self::AUTH_DISCOUNT)) {
             return $this->fail(403, 'El motivo «' . $reason['name'] . '» lo autoriza un Dueño o Supervisor.');
         }
 
@@ -583,7 +584,7 @@ class ctrl extends core {
                 }
 
                 if ((int) $order['delivery_status'] === 1) {
-                    return $this->fail(409, 'El pedido ya se entregó: para quitar un pago, primero deshaz la entrega.');
+                    return $this->fail(409, 'El pedido ya se entregó: para quitar un pago, primero márcalo como «No entregado».');
                 }
 
                 $payment = $this->qGetPayment($paymentId, $id);
@@ -632,12 +633,12 @@ class ctrl extends core {
 
     // -- Cambiar la forma de un pago --
 
-    /*  alpha › editPaymentMethod: Dueño o Supervisor (permiso cancel) y solo
+    /*  alpha › editPaymentMethod: «Cambiar forma de pago» (PAY_METHOD) y solo
         mientras el turno que recibió el pago siga abierto (su corte aún no se
         guarda). La forma nueva es de la sucursal que cobró. Lo recibido queda
         igual al importe: el cambio solo existe en efectivo y al cobrar. */
     public function changePaymentMethod() {
-        $fail = $this->need('cancel', 'cambiar la forma de un pago') ?: $this->needBranch();
+        $fail = $this->need(self::PAY_METHOD, 'cambiar la forma de un pago') ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id        = $this->postId();

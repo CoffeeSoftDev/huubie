@@ -190,7 +190,8 @@ class Products extends Templates {
         return {
             categories: response.categories || [],
             subcategories: response.subcategories || [],
-            kinds: response.kinds || []
+            kinds: response.kinds || [],
+            units: response.units || []
         };
     }
 
@@ -206,6 +207,7 @@ class Products extends Templates {
         const data = {
             name: '', kind: 'product', sku: '', barcode: '', category_id: '', subcategory_id: '',
             price: '', cost: '', description: '', sell_pos: 1, in_catalog: 0, is_inventoriable: 0,
+            unit_id: '', shelf_life_days: '',
             ...row
         };
         const third = 'w-full sm:w-1/3';
@@ -232,7 +234,12 @@ class Products extends Templates {
             this.formSection('secChannels', 'Dónde se vende'),
             { id: 'sell_pos', lbl: 'POS', tipo: 'switch', class: `${third} cp-switch`, value: data.sell_pos },
             { id: 'in_catalog', lbl: 'Catálogo', tipo: 'switch', class: `${third} cp-switch`, value: data.in_catalog },
-            { id: 'is_inventoriable', lbl: 'Inventario', tipo: 'switch', class: `${third} cp-switch`, value: data.is_inventoriable }
+            { id: 'is_inventoriable', lbl: 'Inventario', tipo: 'switch', class: `${third} cp-switch`, value: data.is_inventoriable },
+
+            // Lo que usa el módulo Inventarios: en qué se cuenta y cuántos días dura (caducidad).
+            this.formSection('secInventory', 'Inventario'),
+            { id: 'unit_id', lbl: 'Unidad', tipo: 'select', empty: 'Sin unidad', class: third, data: options.units, value: data.unit_id },
+            { id: 'shelf_life_days', lbl: 'Vida útil (días)', tipo: 'number', icon: 'calendar-clock', min: 0, step: '1', ph: 'Opcional', class: third, value: data.shelf_life_days }
         ];
     }
 
@@ -273,7 +280,27 @@ class Products extends Templates {
 
         this.layoutIdentity();
         this.bindCategory(options.subcategories);
+        this.bindKind();
         this.photo = mountPhoto('modalProduct');
+    }
+
+    /*  Insumo (harina, domos): no se vende, siempre lleva inventario. Al elegirlo se
+        apagan POS y Catálogo y se prende Inventario; el ctrl lo vuelve a forzar al guardar. */
+    bindKind() {
+        const modal = $('#modalProduct');
+        const sync  = () => {
+            const supply = modal.find('#kind').val() === 'supply';
+
+            if (supply) {
+                modal.find('#sell_pos, #in_catalog').prop('checked', false);
+                modal.find('#is_inventoriable').prop('checked', true);
+            }
+
+            modal.find('#sell_pos, #in_catalog, #is_inventoriable').prop('disabled', supply);
+        };
+
+        modal.on('change', '#kind', sync);
+        sync();
     }
 
     async edit(id) {
@@ -298,6 +325,7 @@ class Products extends Templates {
 
         this.layoutIdentity();
         this.bindCategory(options.subcategories);
+        this.bindKind();
         this.photo = mountPhoto('modalProduct', response.data.image);
     }
 
@@ -310,8 +338,11 @@ class Products extends Templates {
         const warn = (text) => warnBox(text);
         const price = String(values.price || '').trim();
 
+        // El insumo no se vende: sin precio vale 0.
+        const supply = values.kind === 'supply';
+
         if (!String(values.name || '').trim()) return warn('Escribe el nombre del producto.');
-        if (price === '' || !(Number(price) >= 0)) return warn('Escribe el precio de venta: un número mayor o igual a 0.');
+        if (!(supply && price === '') && (price === '' || !(Number(price) >= 0))) return warn('Escribe el precio de venta: un número mayor o igual a 0.');
         if (this.badAmount(values.cost)) return warn('El costo debe ser un número mayor o igual a 0.');
         if (values.subcategory_id && !values.category_id) return warn('Elige primero la categoría de la subcategoría.');
 

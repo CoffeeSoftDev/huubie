@@ -34,8 +34,8 @@ if (is_file(__DIR__ . '/../mdl/mdl-lealtad-whatsapp.php')) require_once __DIR__ 
       - La propina va aparte del total (tip_amount): los pagos suman total + propina.
         El corte la reparte entre los pagos (qDayMethods).
       - Descuento: uno por venta, con motivo y tope (max_percent sobre el subtotal).
-        Un motivo con requires_authorization lo aplica solo quien puede cancelar en
-        pos-ventas (Dueño o Supervisor).
+        Un motivo con requires_authorization lo aplica solo quien tiene
+        «Autorizar descuento» en pos-ventas (core::AUTH_DISCOUNT; hoy Dueño y Supervisor).
       - Descuento por producto: cada renglon puede traer el suyo, con las mismas
         reglas pero sobre su importe (precio × cantidad). Se guarda en detail_sale
         (discount_amount, discount_percent, discount_reason_id). El subtotal de la
@@ -172,7 +172,7 @@ class ctrl extends core {
                 'methods'       => $methods,
                 'wallet_method' => $purse ? ['id' => (int) $purse['id'], 'name' => $purse['name'], 'code' => $purse['code'], 'is_cash' => 0] : null,
                 'reasons'       => $this->qDiscountReasons($this->companyId()),
-                'can_authorize' => $this->needSales('cancel') === null,
+                'can_authorize' => $this->needSales(self::AUTH_DISCOUNT) === null,
                 'turn'          => $this->turnBrief(),
                 'day'           => $this->dayBrief()
             ];
@@ -694,7 +694,7 @@ class ctrl extends core {
 
         if (!$reason) return $this->fail(422, "{$pos}: ese motivo de descuento ya no existe.");
 
-        if ((int) $reason['requires_authorization'] === 1 && $this->needSales('cancel') !== null) {
+        if ((int) $reason['requires_authorization'] === 1 && $this->needSales(self::AUTH_DISCOUNT) !== null) {
             return $this->fail(403, "{$pos}: el motivo «{$reason['name']}» lo autoriza un Dueño o Supervisor.");
         }
 
@@ -781,7 +781,7 @@ class ctrl extends core {
 
         if (!$reason) return $this->fail(422, 'Ese motivo de descuento ya no existe.');
 
-        if ((int) $reason['requires_authorization'] === 1 && $this->needSales('cancel') !== null) {
+        if ((int) $reason['requires_authorization'] === 1 && $this->needSales(self::AUTH_DISCOUNT) !== null) {
             return $this->fail(403, 'El motivo «' . $reason['name'] . '» lo autoriza un Dueño o Supervisor.');
         }
 
@@ -1081,7 +1081,7 @@ class ctrl extends core {
         $what = [
             'show'   => 'ver ventas',
             'create' => 'cobrar ventas',
-            'cancel' => 'autorizar descuentos',
+            self::AUTH_DISCOUNT => 'autorizar descuentos',
             'print'  => 'imprimir tickets'
         ];
 

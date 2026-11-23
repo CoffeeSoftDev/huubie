@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuesta · Roles y permisos</title>
+<style>
+/* @piel plantilla-plano · siempre en claro, aunque el sistema esté oscuro */
+:root{
+  color-scheme: light;
+  --bp-ground:#F1F3F6; --bp-surface:#FFFFFF; --bp-surface-2:#F5F7F9;
+  --bp-line:#DDE3E8; --bp-line-soft:#E9EDF1;
+  --bp-ink:#0F1A21; --bp-ink-soft:#4A5A64; --bp-ink-dim:#6E7F8A;
+  --bp-ac:#0B6E77; --bp-write:#A15C08;
+  --bp-ui:"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --bp-serif:Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --bp-mono:ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{ background:var(--bp-ground); color:var(--bp-ink); font-family:var(--bp-ui);
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased }
+.wrap{ max-width:1180px; margin:0 auto; padding:0 22px 80px }
+
+.head{ border-bottom:1px solid var(--bp-line); padding:48px 0 24px; margin-bottom:26px;
+  display:flex; flex-direction:column; gap:14px }
+.eyebrow{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--bp-ac); display:flex; align-items:center; gap:10px }
+.eyebrow::after{ content:""; flex:1; height:1px; background:var(--bp-line) }
+h1{ font-family:var(--bp-serif); font-weight:400; font-size:clamp(30px,4.6vw,42px); line-height:1.08;
+  letter-spacing:-.015em; max-width:28ch }
+h1 em{ font-style:italic; color:var(--bp-ac) }
+.lede{ font-family:var(--bp-serif); font-size:18px; line-height:1.55; color:var(--bp-ink-soft); max-width:76ch }
+
+section{ display:flex; flex-direction:column; gap:14px; margin-bottom:56px }
+h2{ font-family:var(--bp-serif); font-weight:400; font-size:26px; line-height:1.2; display:flex;
+  align-items:baseline; gap:12px }
+h2 .num{ font-family:var(--bp-mono); font-size:11.5px; letter-spacing:.08em; color:var(--bp-ac); flex:none }
+h3{ font-size:16px; font-weight:650; margin-top:8px }
+.intro{ color:var(--bp-ink-soft); max-width:82ch }
+code{ font-family:var(--bp-mono); font-size:.875em; background:var(--bp-surface-2);
+  border:1px solid var(--bp-line-soft); border-radius:4px; padding:.08em .34em }
+a{ color:var(--bp-ac) }
+
+.tscroll{ overflow-x:auto; border:1px solid var(--bp-line); border-radius:10px; background:var(--bp-surface) }
+table.bp{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:720px }
+.bp th, .bp td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--bp-line-soft); vertical-align:top }
+.bp thead th{ font-family:var(--bp-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--bp-ink-dim); font-weight:500; background:var(--bp-surface-2); border-bottom:1px solid var(--bp-line) }
+.bp tbody tr:last-child td{ border-bottom:0 }
+.bp td b{ font-weight:650 }
+.bp td.code{ font-family:var(--bp-mono); font-size:12px; color:var(--bp-ac); white-space:nowrap }
+.bp td.c, .bp th.c{ text-align:center }
+.bp td.n{ font-family:var(--bp-mono); color:var(--bp-ink-dim); white-space:nowrap }
+.bp .muted{ color:var(--bp-ink-dim) }
+.bp td.bad{ color:#B42318 }
+.bp td.good{ color:#047857 }
+
+.note{ border-left:2px solid var(--bp-write); background:var(--bp-surface); border-radius:0 8px 8px 0;
+  padding:14px 18px; display:flex; flex-direction:column; gap:8px; font-size:13.5px; color:var(--bp-ink-soft) }
+.note > b:first-child{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--bp-write) }
+.note b{ color:var(--bp-ink) }
+.note ol, .note ul{ padding-left:20px; display:flex; flex-direction:column; gap:7px }
+.tag{ display:inline-block; font-family:var(--bp-mono); font-size:10.5px; padding:0 6px; border-radius:4px;
+  background:#FFF6E8; border:1px solid #F1D3A8; color:var(--bp-write); margin-left:4px; vertical-align:1px }
+
+.shot{ border:1px solid var(--bp-line); border-radius:10px; overflow:hidden; background:var(--bp-surface) }
+.shot img{ display:block; width:100%; height:auto }
+.shot figcaption{ border-top:1px solid var(--bp-line); padding:8px 12px; font-size:12.5px; color:var(--bp-ink-soft) }
+.shot figcaption b{ color:var(--bp-ink) }
+.shot figcaption code{ font-size:11px }
+/* Captura de escritorio junto a capturas de celular (390 px), que van angostas. */
+.pair{ display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:14px; align-items:start }
+.trio{ display:grid; grid-template-columns:minmax(0,1fr) 230px 230px; gap:14px; align-items:start }
+@media (max-width:900px){ .pair, .trio{ grid-template-columns:1fr } }
+
+.label{ font-family:var(--bp-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:3px 8px;
+  border-radius:4px; align-self:flex-start }
+.label.antes{ background:#FDECEC; color:#B42318 }
+.label.despues{ background:#E7F6EF; color:#047857 }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <div class="eyebrow">Propuesta · Roles y permisos de Huubie PRO · 22/11/2026</div>
+    <h1>Los permisos nuevos crecen <em>hacia abajo</em>, no hacia los lados</h1>
+    <p class="lede">Hoy cada casilla nueva suma una columna a todas las secciones. Pedidos ya trae 13 y la tabla del rol
+      tiene más rayas que casillas. La propuesta separa las 6 acciones de siempre de los permisos especiales de cada
+      sección, explica qué abre cada uno y agrega una vista para comparar roles. Datos de Reginas en la base local.</p>
+  </header>
+
+  <!-- ===================================================================== -->
+  <section>
+    <h2><span class="num">01</span>Lo que hoy no se ve bien</h2>
+    <span class="label antes">Antes</span>
+    <figure class="shot"><img src="img/permisos-antes-matriz.png" alt="Modal Editar rol de Supervisor en Configuración">
+      <figcaption><b>Configuración › Roles y permisos › Supervisor.</b> Una columna por tipo de permiso: 13. De 130 casillas,
+        89 son raya (68 %, contadas con Playwright). La última columna se corta: «Reabrir o recalcula…».</figcaption></figure>
+    <div class="pair">
+      <figure class="shot"><img src="img/permisos-antes-accesos.png" alt="Developer › Accesos › Roles y Permisos">
+        <figcaption><b>Developer › Accesos (root).</b> Pedidos en dos renglones de 13 pastillas, básicas y especiales mezcladas.
+          A un rol de empresa le ofrece las secciones de Developer.</figcaption></figure>
+      <figure class="shot"><img src="img/permisos-antes-celular.png" alt="El mismo modal a 390 px">
+        <figcaption><b>Celular (390 px).</b> Pedidos: 13 pastillas seguidas. Nada dice cuáles son las especiales.</figcaption></figure>
+    </div>
+
+    <div class="tscroll"><table class="bp">
+      <thead><tr><th>#</th><th>Problema</th><th>Dato</th><th>De dónde sale</th></tr></thead>
+      <tbody>
+        <tr><td class="n">P1</td><td><b>Una columna por tipo de permiso.</b> Cada casilla nueva ensancha la tabla de todas las secciones.</td>
+          <td>13 columnas hoy. Con las 3 que propone Inventarios (<code>ver-costos</code>, <code>aplicar-ajuste</code>, <code>producir</code>) serían 16.</td>
+          <td><code>ctrl-configuracion.php › permissionTree</code> arma <code>columns</code> con todos los tipos.</td></tr>
+        <tr><td class="n">P2</td><td><b>Las especiales viven en una sola sección</b> pero ocupan columna en las 10.</td>
+          <td>7 de 13 tipos son especiales; 6 existen solo en Pedidos y 1 en Pedidos y Ventas.</td>
+          <td><code>type_permissions</code> × <code>permissions</code>, base local.</td></tr>
+        <tr><td class="n">P3</td><td><b>El nombre no dice todo lo que abre.</b> No hay dónde leer qué hace cada casilla.</td>
+          <td>«Cancelar» de Pedidos también deja cancelar pedidos que no son cotización, atender otra sucursal, cambiar la entrega de un pagado y reenviar WhatsApp. «Agregar» y «Cancelar» de Ventas mandan en Historial y en Clientes.</td>
+          <td><code>core-order.php › foreignRules</code>, <code>ctrl-pedidos.php:525</code>, <code>ctrl-historial.php:306, 889</code>, <code>ctrl-clientes.php:343</code>. <code>type_permissions</code> no tiene descripción.</td></tr>
+        <tr><td class="n">P4</td><td><b>Para saber quién puede algo hay que abrir rol por rol.</b></td>
+          <td>Reginas tiene 4 roles activos y 41 permisos en Punto de venta.</td>
+          <td>Ni Configuración ni Accesos tienen una vista por permiso.</td></tr>
+        <tr><td class="n">P5</td><td><b>«Ver» no es requisito.</b> Se puede marcar «Editar» sin «Ver», y con cualquier acción se entra a la sección.</td>
+          <td>Hoy 0 casos, pero nada lo impide.</td>
+          <td><code>_Permission.php › grantedTo</code> no pregunta por <code>show</code>.</td></tr>
+        <tr><td class="n">P6</td><td><b>Accesos ofrece Developer a roles de empresa.</b></td>
+          <td>El Dueño de Reginas (rol 2) tiene 5 permisos ahí (4 en Accesos, 1 en Personalización) que no sirven.</td>
+          <td><code>_Permission.php › canSee</code>: Developer es solo de root.</td></tr>
+        <tr><td class="n">P7</td><td><b>Dos pantallas, dos dibujos.</b> Matriz en un modal (Configuración) y pastillas (Accesos).</td>
+          <td>El modal mide 980 px y no crece con los módulos.</td>
+          <td><code>configuracion.js › cfgRoleForm</code>, <code>accesos.js › Permissions</code>.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section>
+    <h2><span class="num">02</span>Propuesta de mejora</h2>
+    <div class="note">
+      <b>Seis cambios</b>
+      <ol>
+        <li><b>Dos capas.</b> Las 6 acciones de siempre (Ver, Agregar, Editar, Cancelar, Eliminar, Imprimir) son columnas fijas.
+          Las especiales se abren debajo de su sección, con interruptor. Un permiso nuevo agrega un renglón en su sección, no una columna. <span class="tag">P1 P2</span></li>
+        <li><b>Cada permiso dice qué hace.</b> Una línea bajo cada especial, y una nota por sección cuando una básica abre más de lo que dice su nombre. <span class="tag">P3</span></li>
+        <li><b>«Ver» manda.</b> Sin «Ver», la fila se apaga y no se marca nada más. Quitarlo apaga la sección entera.
+          El servidor agrega «Ver» si llega otra acción sola. <span class="tag">P5</span></li>
+        <li><b>Lista y editor lado a lado, fuera del modal.</b> Roles a la izquierda con su avance («7 de 10 secciones») y cuántas personas lo tienen.
+          A la derecha, el rol con los módulos como pestañas y un buscador. Mismo dibujo en Configuración y en Accesos. <span class="tag">P7</span></li>
+        <li><b>Comparar roles.</b> Una tabla permiso × rol, con el filtro «Solo donde los roles difieren». Solo consulta. <span class="tag">P4</span></li>
+        <li><b>Crear un rol a partir de otro.</b> El rol nuevo empieza como copia de uno existente y se ajusta. Y Accesos deja de ofrecer Developer a roles de empresa. <span class="tag">P6</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section>
+    <h2><span class="num">03</span>Así quedaría con la propuesta</h2>
+    <span class="label despues">Después</span>
+    <p class="intro">Maqueta pintada dentro de la página real de Configuración (sesión de dueño de Reginas, 1440 px), con los permisos
+      reales de Supervisor, Cajero y Producción. Lealtad e Inventarios salen en las pestañas solo para ver cómo crece:
+      en la pantalla real aparecen únicamente los módulos que la empresa contrató.</p>
+
+    <h3>El rol abierto</h3>
+    <figure class="shot"><img src="img/permisos-despues-editor.png" alt="Editor del rol Supervisor propuesto">
+      <figcaption><b>Supervisor.</b> 6 columnas fijas. Pedidos tiene abiertos sus 7 especiales, cada uno con lo que hace,
+        y arriba la nota de lo que también abre «Cancelar». Las secciones sin «Ver» se ven apagadas y no dejan marcar lo demás.</figcaption></figure>
+
+    <h3>Comparar roles</h3>
+    <figure class="shot"><img src="img/permisos-despues-comparar.png" alt="Vista Comparar roles">
+      <figcaption><b>Comparar roles, con «Solo donde los roles difieren».</b> 28 de 41 permisos; los otros 13 los tienen igual Supervisor, Cajero y Producción.
+        De un vistazo: solo Supervisor autoriza descuentos y cambia la forma de pago; Cajero y Supervisor editan corte cerrado.</figcaption></figure>
+
+    <h3>Rol nuevo y celular</h3>
+    <div class="trio">
+      <figure class="shot"><img src="img/permisos-despues-nuevo.png" alt="Modal Nuevo rol">
+        <figcaption><b>Nuevo rol.</b> Empieza vacío o como copia de otro. La copia no queda ligada al rol original.</figcaption></figure>
+      <figure class="shot"><img src="img/permisos-despues-celular.png" alt="Editor en celular">
+        <figcaption><b>Celular.</b> El rol se elige arriba; cada sección es una tarjeta con sus pastillas.</figcaption></figure>
+      <figure class="shot"><img src="img/permisos-despues-celular-pedidos.png" alt="Especiales de Pedidos en celular">
+        <figcaption><b>Especiales de Pedidos</b> plegados bajo sus básicas, con su descripción.</figcaption></figure>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section>
+    <h2><span class="num">04</span>Antes y después</h2>
+    <div class="tscroll"><table class="bp">
+      <thead><tr><th>Qué</th><th>Antes</th><th>Después</th></tr></thead>
+      <tbody>
+        <tr><td>Columnas de la tabla del rol</td><td class="bad">13, y crece con cada casilla</td><td class="good">6 fijas</td></tr>
+        <tr><td>Rayas en la tabla de Supervisor</td><td class="bad">89 de 130 (68 %)</td><td class="good">27 de 60 (45 %): solo básicas que la sección no tiene</td></tr>
+        <tr><td>Inventarios con sus 3 casillas nuevas</td><td class="bad">16 columnas en todas las secciones</td><td class="good">6 columnas; las 3 especiales dentro de sus secciones</td></tr>
+        <tr><td>Saber qué abre una casilla</td><td class="bad">Solo el nombre</td><td class="good">Una línea por especial y nota por sección</td></tr>
+        <tr><td>¿Quién autoriza descuentos?</td><td class="bad">Abrir los roles uno por uno</td><td class="good">Un renglón en Comparar roles</td></tr>
+        <tr><td>Crear un rol parecido a otro</td><td class="bad">Vacío: marcar todo a mano</td><td class="good">Copia de otro rol</td></tr>
+        <tr><td>Pedidos en celular</td><td class="bad">13 pastillas seguidas</td><td class="good">6 pastillas + «Especiales · 6 de 7» plegable</td></tr>
+        <tr><td>Roles de empresa en Accesos</td><td class="bad">Les ofrece Developer</td><td class="good">Solo sus módulos</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section>
+    <h2><span class="num">05</span>Qué cambia en la base y en el código</h2>
+    <p class="intro">Las 6 básicas no necesitan columna nueva: son los <code>code</code> de siempre (<code>show</code>, <code>create</code>,
+      <code>update</code>, <code>cancel</code>, <code>delete</code>, <code>print</code>) en una constante. Todo tipo que no sea de esos es especial,
+      también los que se creen después en Accesos › Tipos de permiso.</p>
+    <div class="tscroll"><table class="bp">
+      <thead><tr><th>Cambio</th><th>Dónde</th><th class="c">Migración</th></tr></thead>
+      <tbody>
+        <tr><td><code>permissions.description</code> VARCHAR(160) NULL: qué hace ese permiso en esa sección. Con los textos de Pedidos y Ventas.</td><td class="code">fayxzvov_app</td><td class="c">Sí, antes del código en prod</td></tr>
+        <tr><td>El árbol del rol devuelve por sección <code>basic</code>, <code>special</code> y <code>note</code>; sin <code>columns</code>.</td><td class="code">ctrl-configuracion.php › permissionTree<br>ctrl-accesos.php › permissionTree</td><td class="c">No</td></tr>
+        <tr><td>Al guardar, una acción sin «Ver» en su sección suma «Ver».</td><td class="code">ctrl-configuracion.php › saveRole<br>ctrl-accesos.php › syncRolePermissions</td><td class="c">No</td></tr>
+        <tr><td>Comparar roles: un <code>opc</code> nuevo que lee <code>permissions_roles</code> de los roles de la empresa en una consulta.</td><td class="code">ctrl / mdl-configuracion.php</td><td class="c">No</td></tr>
+        <tr><td>Crear desde otro rol: <code>saveRole</code> acepta <code>from_role</code> y copia sus filas.</td><td class="code">ctrl-configuracion.php</td><td class="c">No</td></tr>
+        <tr><td>Accesos: sin Developer para roles con empresa.</td><td class="code">ctrl-accesos.php › getRolePermissions</td><td class="c">No</td></tr>
+        <tr><td>Escribir la descripción de cada permiso: un renglón por permiso en el modal de la sección.</td><td class="code">accesos.js › Sections</td><td class="c">No</td></tr>
+        <tr><td>Pantalla: lista + editor, especiales plegables, pestañas de módulo, buscador, comparar.</td><td class="code">configuracion.js · page.css</td><td class="c">No</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section>
+    <h2><span class="num">06</span>Lo que falta decidir</h2>
+    <div class="tscroll"><table class="bp">
+      <thead><tr><th>#</th><th>Pregunta</th><th>Lo que propongo</th><th>Por qué importa</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>¿«Cancelar» de Pedidos se parte en especiales con nombre propio (otra sucursal, entrega de pagado, reenviar WhatsApp)?</td>
+          <td>Todavía no: la nota de la sección lo explica</td><td>Partirlo cambia 4 revisiones de <code>cancel</code> en order/ y lleva otra migración. Se puede hacer después sin tocar el diseño.</td></tr>
+        <tr><td>2</td><td>Los 5 permisos de Developer del Dueño de Reginas (rol 2)</td>
+          <td>Borrarlos</td><td>No dan nada (Developer es solo de root) y confunden al revisar el rol.</td></tr>
+        <tr><td>3</td><td>¿Comparar roles deja marcar con clic en la celda?</td>
+          <td>No, solo consulta</td><td>Un solo lugar para guardar. Si se edita ahí, cada clic guarda en otro rol y Deshacer se complica.</td></tr>
+        <tr><td>4</td><td>¿Configuración sale del modal y pasa a lista + editor?</td>
+          <td>Sí</td><td>El modal no crece: con Lealtad e Inventarios serían 21 secciones en una caja de 980 px.</td></tr>
+        <tr><td>5</td><td>¿Accesos (root) adopta el mismo dibujo?</td>
+          <td>Sí, en una fase aparte</td><td>Accesos carga Bootstrap y CoffeeSoft; no verifiqué que <code>page.css</code> conviva ahí sin que Bootstrap lo pise.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <section>
+    <h2><span class="num">07</span>Orden de trabajo si se aprueba</h2>
+    <div class="tscroll"><table class="bp">
+      <thead><tr><th>Fase</th><th>Qué entra</th><th>Migración</th></tr></thead>
+      <tbody>
+        <tr><td><b>F1</b></td><td>Configuración: lista + editor, 6 columnas, especiales plegables, pestañas de módulo, buscador, «Ver» manda (pantalla y servidor). Accesos sin Developer para roles de empresa.</td><td>No</td></tr>
+        <tr><td><b>F2</b></td><td><code>permissions.description</code> con los textos de Pedidos y Ventas; se ven bajo cada especial y como nota. Root los escribe en Accesos › Módulos.</td><td>Sí</td></tr>
+        <tr><td><b>F3</b></td><td>Comparar roles y Crear desde otro rol.</td><td>No</td></tr>
+        <tr><td><b>F4</b></td><td>Accesos › Roles y Permisos con el mismo dibujo.</td><td>No</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+</div>
+</body>
+</html>

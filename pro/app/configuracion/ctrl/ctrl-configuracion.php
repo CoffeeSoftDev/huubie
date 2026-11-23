@@ -27,14 +27,20 @@ class ctrl extends configMdl {
         'init', 'saveCompany', 'saveLogo', 'removeLogo',
         'branches', 'saveBranch', 'toggleBranch',
         'users', 'saveUser', 'saveUserPhoto', 'toggleUser',
-        'roles', 'getRole', 'saveRole', 'toggleRole',
+        'roles', 'getRole', 'saveRole', 'toggleRole', 'compareRoles',
         'billing', 'checkout', 'portal', 'plans', 'changePlan',
         'homeLayout', 'saveHomeLayout', 'resetHomeLayout',
     ];
 
     // Las que solo leen la sesion: se suelta antes para no formar en fila a la
     // barra y al rail.
-    const READ_ONLY = ['init', 'branches', 'users', 'roles', 'getRole', 'billing', 'checkout', 'portal', 'plans', 'changePlan', 'homeLayout', 'saveHomeLayout', 'resetHomeLayout'];
+    const READ_ONLY = ['init', 'branches', 'users', 'roles', 'getRole', 'compareRoles', 'billing', 'checkout', 'portal', 'plans', 'changePlan', 'homeLayout', 'saveHomeLayout', 'resetHomeLayout'];
+
+    /*  Las 6 acciones de siempre, por su code y en este orden: son las columnas
+        fijas del editor de roles. Cualquier otro code es un permiso ESPECIAL y
+        se pinta debajo de su seccion, asi un permiso nuevo no agrega columna.
+        El nombre que se enseña es el de type_permissions; este, si no llega. */
+    const BASIC = ['show' => 'Ver', 'create' => 'Agregar', 'update' => 'Editar', 'cancel' => 'Cancelar', 'delete' => 'Eliminar', 'print' => 'Imprimir'];
 
     const LOGO_MAX   = 2097152;   // 2 MB
     const LOGO_TYPES = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'];
@@ -368,8 +374,13 @@ class ctrl extends configMdl {
             $branches[] = ['id' => (int) $b['id'], 'name' => (string) $b['valor'], 'active' => (int) $b['is_active']];
         }
 
+        $used = [];
+        foreach ($access as $rows) foreach ($rows as $a) $used[$a['role_id']] = true;
+
         $roles = [];
         foreach ($this->qRolesForCompany([$this->cid]) as $r) {
+            if ($this->spareOwnerRole($r, isset($used[(int) $r['id']]) ? 1 : 0)) continue;
+
             $roles[] = ['id' => (int) $r['id'], 'name' => (string) $r['valor'], 'system' => (int) $r['is_system']];
         }
 
@@ -572,21 +583,42 @@ class ctrl extends configMdl {
 
     // ============================================================= Roles
 
+    /*  La lista de la izquierda. Cada rol con su avance: en cuantas secciones
+        tiene «Ver» (sections) y cuantas acciones (perms), contando solo lo que
+        la empresa contrato. sections de la respuesta: cuantas hay en total. */
     function roles() {
+        $list    = $this->companyRoles(false);
+        $catalog = $this->grantable(0);
+        $grants  = $this->qGrantsOfRoles(array_column($list, 'id'));
+
+        $sections = [];
+        $isShow   = [];
+        $isMine   = [];
+
+        foreach ($catalog as $c) {
+            $sections[(int) $c['section_id']] = true;
+            $isMine[(int) $c['permission_id']] = true;
+            if ($c['type_code'] === 'show') $isShow[(int) $c['permission_id']] = true;
+        }
+
         $roles = [];
 
-        foreach ($this->listRoles([$this->cid, $this->cid]) as $r) {
+        foreach ($list as $r) {
+            $mine = $grants[(int) $r['id']] ?? [];
+
             $roles[] = [
-                'id'     => (int) $r['id'],
-                'name'   => (string) $r['name'],
+                'id'       => (int) $r['id'],
+                'name'     => (string) $r['name'],
                 // Del sistema: lo comparten todas las empresas, aqui solo se consulta.
-                'system' => $this->lockedRole($r) ? 1 : 0,
-                'active' => (int) $r['is_active'],
-                'users'  => (int) $r['users'],
+                'system'   => $this->lockedRole($r) ? 1 : 0,
+                'active'   => (int) $r['is_active'],
+                'users'    => (int) $r['users'],
+                'sections' => count(array_filter($mine, function ($pid) use ($isShow) { return isset($isShow[$pid]); })),
+                'perms'    => count(array_filter($mine, function ($pid) use ($isMine) { return isset($isMine[$pid]); })),
             ];
         }
 
-        return ['status' => 200, 'data' => ['roles' => $roles]];
+        return ['status' => 200, 'data' => ['roles' => $roles, 'sections' => count($sections)]];
     }
 
     // El rol con lo que deja hacer, por modulo y seccion. id = 0: un rol nuevo, sin nada marcado.
@@ -599,20 +631,27 @@ class ctrl extends configMdl {
             if (!$role) return ['status' => 404, 'message' => 'Ese rol no está disponible para tu empresa.'];
         }
 
-        $tree = $this->permissionTree($id);
+        $tree = $this->permissionTree($this->grantable($id));
 
         return [
             'status' => 200,
             'data'   => [
-                'id'       => $id,
-                'name'     => $role ? (string) $role['name'] : '',
-                'system'   => $role && $this->lockedRole($role) ? 1 : 0,
-                'modules'  => $tree['modules'],
-                'columns'  => $tree['columns'],
+                'id'      => $id,
+                'name'    => $role ? (string) $role['name'] : '',
+                'system'  => $role && $this->lockedRole($role) ? 1 : 0,
+                'active'  => $role ? (int) $role['is_active'] : 1,
+                'basic'   => $tree['basic'],
+                'modules' => $tree['modules'],
             ]
         ];
     }
 
+    /*  Crea un rol o guarda uno propio.
+          permissions  JSON con los ids que quedan marcados. Solo si llega:
+                       renombrar no la manda y no toca lo marcado.
+          from_role    al crear: el rol nace con lo que tiene ese otro (uno que
+                       la empresa ve, tambien de Huubie). Es copia: cambiar
+                       despues el original no cambia este. */
     function saveRole() {
         $id   = (int) ($_POST['id'] ?? 0);
         $name = $this->text('name', 60);
@@ -623,10 +662,28 @@ class ctrl extends configMdl {
 
         if ($this->qRoleNameExists([$name, $this->cid, $id])) return $this->invalid('name', 'Ya tienes un rol con ese nombre.');
 
+        // Ni un segundo "Dueño": los nombres de los roles de Huubie no se repiten.
+        if ($this->qRoleNameExists([$name, null, 0])) return $this->invalid('name', 'Ese nombre ya es de un rol de Huubie. Elige otro.');
+
+        $sync   = isset($_POST['permissions']);
         $wanted = [];
         foreach ((array) json_decode((string) ($_POST['permissions'] ?? '[]'), true) as $pid) $wanted[] = (int) $pid;
 
-        return $this->transaction(function () use ($id, $name, $wanted) {
+        $from = $id === 0 ? (int) ($_POST['from_role'] ?? 0) : 0;
+        $copy = null;
+
+        if ($from > 0) {
+            $copy = $this->visibleRole($from);
+            if (!$copy) return $this->invalid('from_role', 'Ese rol no está disponible para tu empresa.');
+
+            $wanted = [];
+            foreach ($this->grantable($from) as $r) {
+                if ((int) $r['granted'] === 1) $wanted[] = (int) $r['permission_id'];
+            }
+            $sync = true;
+        }
+
+        return $this->transaction(function () use ($id, $name, $wanted, $sync, $copy) {
             if ($id === 0) {
                 // Sin code: los permisos especiales se resuelven por roles.code
                 // (root, dueno) y un rol de empresa no debe tener ninguno.
@@ -639,10 +696,48 @@ class ctrl extends configMdl {
                 $this->qUpdateRole([$role['code'], $name, $id]);
             }
 
-            $this->syncPermissions($id, $wanted);
+            if ($sync) $this->syncPermissions($id, $wanted);
 
-            return ['status' => 200, 'message' => 'Rol guardado.', 'id' => $id];
+            $message = $copy ? 'Rol creado con los permisos de ' . $copy['name'] . '.' : 'Rol guardado.';
+
+            return ['status' => 200, 'message' => $message, 'id' => (int) $id];
         });
+    }
+
+    /*  Comparar roles: el catalogo sin marcar y, por cada rol activo, los ids
+        de lo que tiene. Solo de consulta: para cambiar algo se abre el rol. */
+    function compareRoles() {
+        $list   = $this->companyRoles(true);
+        $tree   = $this->permissionTree($this->grantable(0));
+        $grants = $this->qGrantsOfRoles(array_column($list, 'id'));
+
+        $roles = [];
+
+        foreach ($list as $r) {
+            $roles[] = [
+                'id'     => (int) $r['id'],
+                'name'   => (string) $r['name'],
+                'system' => $this->lockedRole($r) ? 1 : 0,
+                'users'  => (int) $r['users'],
+                'grants' => $grants[(int) $r['id']] ?? [],
+            ];
+        }
+
+        return ['status' => 200, 'data' => ['basic' => $tree['basic'], 'modules' => $tree['modules'], 'roles' => $roles]];
+    }
+
+    // Los roles que la empresa ve, sin el Dueño repetido. $active: solo los encendidos.
+    private function companyRoles($active) {
+        $list = [];
+
+        foreach ($this->listRoles([$this->cid, $this->cid]) as $r) {
+            if ($this->spareOwnerRole($r, (int) $r['users'])) continue;
+            if ($active && (int) $r['is_active'] !== 1) continue;
+
+            $list[] = $r;
+        }
+
+        return $list;
     }
 
     // Un rol que alguien tiene no se apaga: esa gente se quedaria sin entrar.
@@ -678,6 +773,13 @@ class ctrl extends configMdl {
         return (int) $role['is_system'] === 1 || in_array(strtolower((string) ($role['code'] ?? '')), $this->reservedRoleCodes, true);
     }
 
+    /*  Un solo Dueño en la lista: el de Huubie (code owner). El que la empresa
+        trae de antes (code dueno) solo sale si alguien lo tiene; si no, se
+        vería repetido. $users: cuánta gente de la empresa lo tiene. */
+    private function spareOwnerRole($role, $users) {
+        return (int) $role['is_system'] !== 1 && strtolower((string) ($role['code'] ?? '')) === 'dueno' && (int) $users === 0;
+    }
+
     // Uno que la empresa puede ver: propio, o del sistema y activo. Nunca root.
     private function visibleRole($id) {
         $role = $this->qRole([$id]);
@@ -699,55 +801,101 @@ class ctrl extends configMdl {
         }));
     }
 
-    /*  modulo > seccion > acciones, en el orden del menu. columns: cada accion
-        una sola vez (Ver, Agregar, Editar...) en el orden de type_permissions;
-        la pantalla las pinta como columnas de una tabla. */
-    private function permissionTree($roleId) {
+    /*  Filas de grantable -> modulo > seccion, en el orden del menu. Cada
+        seccion trae sus acciones en dos montones:
+          basic    las de BASIC que tenga, en el orden de las columnas
+          special  las demas (Ver bitacora, Autorizar descuento...), en el
+                   orden de type_permissions
+        group: el submodulo (Ventas, Administracion), para separar las
+        secciones como en el menu. text: que hace esa accion ahi
+        (permissions.description). basic de la respuesta: las columnas, con
+        el nombre que tienen en la base. */
+    private function permissionTree($rows) {
         $modules = [];
-        $columns = [];
+        $names   = self::BASIC;
 
-        foreach ($this->grantable($roleId) as $r) {
-            $mid = (int) $r['module_id'];
-            $sid = (int) $r['section_id'];
-
-            // Mismo orden que el ORDER BY de qRolePermissions: order (NULL primero) y luego id.
-            if (!isset($columns[$r['type_name']])) {
-                $columns[$r['type_name']] = [$r['type_order'] === null ? PHP_INT_MIN : (int) $r['type_order'], (int) $r['type_id']];
-            }
+        foreach ($rows as $r) {
+            $mid  = (int) $r['module_id'];
+            $sid  = (int) $r['section_id'];
+            $code = (string) $r['type_code'];
 
             if (!isset($modules[$mid])) {
                 $modules[$mid] = ['id' => $mid, 'name' => $r['module_name'], 'icon' => $r['module_icon'] ?: 'layout-grid', 'sections' => []];
             }
             if (!isset($modules[$mid]['sections'][$sid])) {
-                $modules[$mid]['sections'][$sid] = ['id' => $sid, 'name' => $r['section_name'], 'icon' => $r['section_icon'] ?: 'square', 'actions' => []];
+                $modules[$mid]['sections'][$sid] = [
+                    'id'      => $sid,
+                    'name'    => $r['section_name'],
+                    'icon'    => $r['section_icon'] ?: 'square',
+                    'group'   => (string) ($r['group_name'] ?? ''),
+                    'basic'   => [],
+                    'special' => [],
+                ];
             }
 
-            $modules[$mid]['sections'][$sid]['actions'][] = [
+            $action = [
                 'id'      => (int) $r['permission_id'],
-                'name'    => $r['type_name'],
+                'code'    => $code,
+                'name'    => (string) $r['type_name'],
+                'text'    => trim((string) ($r['description'] ?? '')),
                 'granted' => (int) $r['granted'] === 1 ? 1 : 0,
             ];
+
+            if (isset(self::BASIC[$code])) {
+                $names[$code] = $action['name'];
+                $modules[$mid]['sections'][$sid]['basic'][$code] = $action;
+            } else {
+                $modules[$mid]['sections'][$sid]['special'][] = $action;
+            }
         }
 
-        foreach ($modules as &$m) $m['sections'] = array_values($m['sections']);
+        foreach ($modules as &$m) {
+            foreach ($m['sections'] as &$s) {
+                $ordered = [];
+                foreach (array_keys(self::BASIC) as $code) {
+                    if (isset($s['basic'][$code])) $ordered[] = $s['basic'][$code];
+                }
+                $s['basic'] = $ordered;
+            }
+            unset($s);
+
+            $m['sections'] = array_values($m['sections']);
+        }
         unset($m);
 
-        uasort($columns, function ($a, $b) { return $a <=> $b; });
+        $basic = [];
+        foreach ($names as $code => $name) $basic[] = ['code' => $code, 'name' => $name];
 
-        return ['modules' => array_values($modules), 'columns' => array_keys($columns)];
+        return ['modules' => array_values($modules), 'basic' => $basic];
     }
 
-    // Deja al rol exactamente con $wanted, pero solo entre lo que se puede conceder.
+    /*  Deja al rol exactamente con $wanted, pero solo entre lo que se puede
+        conceder. «Ver» manda: una accion que llega sin el «Ver» de su seccion
+        lo trae consigo (con cualquier accion ya se entra a la seccion, asi que
+        sin «Ver» la casilla mentiria). */
     private function syncPermissions($roleId, $wanted) {
-        $rows    = $this->grantable($roleId);
-        $visible = array_map('intval', array_column($rows, 'permission_id'));
-        $granted = [];
+        $rows      = $this->grantable($roleId);
+        $visible   = [];
+        $granted   = [];
+        $sectionOf = [];
+        $showOf    = [];
 
         foreach ($rows as $r) {
-            if ((int) $r['granted'] === 1) $granted[] = (int) $r['permission_id'];
+            $pid = (int) $r['permission_id'];
+
+            $visible[]       = $pid;
+            $sectionOf[$pid] = (int) $r['section_id'];
+
+            if ($r['type_code'] === 'show')  $showOf[(int) $r['section_id']] = $pid;
+            if ((int) $r['granted'] === 1)   $granted[] = $pid;
         }
 
-        $wanted = array_values(array_intersect($wanted, $visible));
+        $wanted = array_values(array_unique(array_intersect($wanted, $visible)));
+
+        foreach ($wanted as $pid) {
+            $show = $showOf[$sectionOf[$pid]] ?? 0;
+            if ($show && !in_array($show, $wanted, true)) $wanted[] = $show;
+        }
 
         foreach (array_diff($granted, $wanted) as $pid) $this->qDeleteRolePermission([$roleId, $pid]);
         foreach (array_diff($wanted, $granted) as $pid) $this->qInsertRolePermission([$roleId, $pid]);

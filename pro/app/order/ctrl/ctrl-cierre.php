@@ -34,7 +34,8 @@ class ctrl extends core {
         cierre de Pedidos, pide 'show') traen cada folio y cada cobro del día.
         report = 1 trae el Corte Z de alpha (dayReport) en lugar de esa lista.
         Como alpha (getCierre › preview), el Corte Z y el detalle de un día SIN
-        cerrar solo los ve el Dueño (y root): los demás, al cerrarse (hidden).
+        cerrar solo los ve quien tiene «Ver Corte Z sin cerrar» (core::SEE_OPEN_Z;
+        hoy el Dueño, y root): los demás, al cerrarse (hidden).
         Las cifras del resumen sí viajan: las pide la pregunta de «Cerrar día». */
     public function getDay() {
         $fail = ($this->post('detail') === '1' ? $this->needTickets() : $this->need('show')) ?: $this->needBranch();
@@ -54,7 +55,7 @@ class ctrl extends core {
             $closure = $this->qDayClosure($branchId, $from, $to);
             $turns   = $this->dayTurns($branchId, $from, $to);
             $pending = $this->pendingDays();
-            $hidden  = !$closure && !$this->isOwner();
+            $hidden  = !$closure && !Permission::can(self::SECTION, self::SEE_OPEN_Z);
 
             // company y logo: el encabezado del ticket (el mismo formato del corte de turno).
             return [
@@ -71,7 +72,7 @@ class ctrl extends core {
                 'detail'   => $full && !$hidden ? $this->cutDetail(array_column($turns, 'id')) : null,
                 'report'   => $report && !$hidden ? $this->dayReport($branchId, $to, $turns) : null,
                 'hidden'   => $hidden,
-                'hidden_reason' => $hidden ? 'El Corte Z de un día sin cerrar solo lo ve el Dueño. Se verá al cerrar el día.' : '',
+                'hidden_reason' => $hidden ? 'Tu rol no ve el Corte Z de un día sin cerrar. Se verá al cerrar el día.' : '',
                 'reopens'  => array_map([$this, 'closureInfo'], $this->qDayReopens($branchId, $from, $to)),
                 'pending'  => $pending,
                 'warnings' => $closure ? [] : $this->dayWarnings($day, $turns),

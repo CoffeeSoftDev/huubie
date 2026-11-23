@@ -935,6 +935,9 @@ class SalePayments extends OrderPay {
     fillsBalance() { return true; }
     originLabel()  { return 'Origen de la venta'; }
 
+    // Una venta no se entrega: al liquidarla no pregunta.
+    asksDeliver()  { return false; }
+
     // Bajo el Total: la propina que trae (sola, o después del total tachado).
     totalExtra(after) {
         if (this.tip <= 0.005) return '';

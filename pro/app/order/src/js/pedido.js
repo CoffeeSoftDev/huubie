@@ -151,11 +151,11 @@ class OrderPage extends Templates {
         this.calm       = 0;
     }
 
-    // Nada abierto (avisos, ventanas, el cobro) ni en camino (peticiones de cobro, detalle o turno, impresión).
+    // Nada abierto (avisos, ventanas, el cobro) ni en camino (peticiones de cobro, detalle, entrega o turno, impresión).
     idle() {
         if ($('#posOrderHost, .swal2-container, .cs-modal-bg, .cf-overlay, [data-ab-backdrop], #modalOrderPay').length) return false;
         if (orderPay.loading || orderPay.busy || orderPay.isOpen) return false;
-        if (orderDetail.loading || orderTurn.loading || orderForm.saving) return false;
+        if (orderDetail.loading || orderDetail.delivering || orderTurn.loading || orderForm.saving) return false;
         if (typeof ordPrintDoc === 'function' && ordPrintDoc.pending) return false;
 
         return true;

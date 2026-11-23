@@ -1,0 +1,118 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventarios · Huubie PRO</title>
+<!--
+    Template estático del módulo Inventarios de Huubie PRO (fayxzvov_app.modules id 3).
+    Junta app/inventarios (generación alpha: stock, entradas, mermas, traspasos, movimientos, administrador)
+    con inventory/ (ERP: salidas, requisiciones y surtir, conteo físico, reportes, presentaciones, folios por sucursal).
+    BD: pro/migrations/2026-11-22_crear-fayxzvov-inventarios.sql. Datos simulados: js/inv-data.js (Reginas).
+    Sin backend: todo vive en memoria; al recargar vuelve a los datos de arranque.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../assets/css/general.css">
+<link rel="stylesheet" href="../../../assets/css/colors.css">
+<!-- El CSS del rail viene de sidebar.js; data-rail="static" deja en paz los botones de la plantilla. -->
+<script src="../../../auth/src/js/sidebar.js"></script>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="../../../assets/js/tailwind-theme.js"></script>
+<link rel="stylesheet" href="../../../assets/css/compact.css">
+<link rel="stylesheet" href="../../../assets/css/themes.css">
+<link rel="stylesheet" href="../../../assets/css/dark-mode.css">
+<script src="../../../assets/plugins/lucide/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js"></script>
+<link rel="stylesheet" href="css/inventarios.css?v=8">
+</head>
+<body>
+
+<!-- Rail lateral (sidebar de pro) -->
+<div id="menu-sidebar" data-rail="static">
+    <button type="button" class="menu-rail-item" data-view="inicio" onclick="setView('inicio')" title="Inicio"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></button>
+    <button type="button" class="menu-rail-item" data-view="stock" onclick="setView('stock')" title="Stock"><i data-lucide="boxes"></i><span class="menu-rail-label">Stock</span></button>
+    <button type="button" class="menu-rail-item" data-view="entradas" onclick="setView('entradas')" title="Entradas"><i data-lucide="arrow-down-to-line"></i><span class="menu-rail-label">Entradas</span><span id="badgeEntradas" class="iv-rail-badge hidden">0</span></button>
+    <button type="button" class="menu-rail-item" data-view="salidas" onclick="setView('salidas')" title="Salidas y mermas"><i data-lucide="arrow-up-from-line"></i><span class="menu-rail-label">Salidas</span></button>
+    <button type="button" class="menu-rail-item" data-view="traspasos" onclick="setView('traspasos')" title="Traspasos"><i data-lucide="arrow-right-left"></i><span class="menu-rail-label">Traspasos</span><span id="badgeTraspasos" class="iv-rail-badge hidden">0</span></button>
+    <button type="button" class="menu-rail-item" data-view="requisiciones" onclick="setView('requisiciones')" title="Requisiciones"><i data-lucide="clipboard-list"></i><span class="menu-rail-label">Requisición</span><span id="badgeReq" class="iv-rail-badge hidden">0</span></button>
+    <button type="button" class="menu-rail-item" data-view="surtir" onclick="setView('surtir')" title="Surtir"><i data-lucide="truck"></i><span class="menu-rail-label">Surtir</span><span id="badgeSurtir" class="iv-rail-badge hidden">0</span></button>
+    <button type="button" class="menu-rail-item" data-view="movimientos" onclick="setView('movimientos')" title="Movimientos (kárdex)"><i data-lucide="history"></i><span class="menu-rail-label">Kárdex</span></button>
+    <button type="button" class="menu-rail-item" data-view="reportes" onclick="setView('reportes')" title="Reportes"><i data-lucide="file-chart-column"></i><span class="menu-rail-label">Reportes</span></button>
+    <button type="button" class="menu-rail-item" data-view="catalogo" onclick="setView('catalogo')" title="Catálogo"><i data-lucide="package"></i><span class="menu-rail-label">Catálogo</span></button>
+</div>
+<div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-30 hidden" onclick="toggleSidebar()"></div>
+
+<main>
+    <!-- Barra superior (navbar de pro) -->
+    <div id="menu-navbar">
+        <nav class="flex items-center justify-between gap-3 px-3 bg-white border-b border-gray-200">
+            <div class="flex items-center gap-3 min-w-0">
+                <button type="button" id="btn-menu" onclick="toggleSidebar()" class="p-2 rounded-md text-gray-500 hover:bg-gray-100" title="Menú" aria-controls="menu-sidebar"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                <a href="../../../index.php" class="flex items-center gap-2 no-underline text-gray-900 shrink-0">
+                    <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-[#0A0A0A]"><img src="../../../assets/img/huubie.png" alt="" class="w-6 h-6"></span>
+                    <span class="hidden sm:inline font-semibold">Huubie</span>
+                </a>
+                <span class="hidden md:flex items-center gap-1.5 text-sm text-gray-500 min-w-0"><span class="text-gray-300">/</span><span class="truncate">Inventarios</span></span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <!-- Solo en la plantilla: en el módulo real el rol sale del usuario -->
+                <div class="relative">
+                    <button type="button" class="iv-branch iv-role-as" onclick="toggleDropdown('ddRole', event)" title="Ver la plantilla como otro rol">
+                        <span id="icoRoleAs" class="iv-branch-ico iv-tone"><i data-lucide="user"></i></span>
+                        <span class="flex flex-col items-start leading-tight"><span class="text-[10px] font-medium text-gray-500">Ver como</span><span id="lblRoleAs">Rol</span></span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-60"></i>
+                    </button>
+                    <div id="ddRole" class="iv-dd" role="menu" style="width:340px"></div>
+                </div>
+                <div class="relative">
+                    <button type="button" id="btnBranch" class="iv-branch" onclick="toggleDropdown('ddBranch', event)" title="Sucursal de la sesión">
+                        <span class="iv-branch-ico"><i data-lucide="store"></i></span>
+                        <span class="flex flex-col items-start leading-tight"><span id="lblBranch">Sucursal</span><span id="lblBranchRole" class="text-[10px] font-medium text-gray-500">Sucursal</span></span>
+                        <span id="icoBranchMore"><i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-60"></i></span>
+                    </button>
+                    <div id="ddBranch" class="iv-dd" role="menu"></div>
+                </div>
+                <button type="button" id="btnDark" onclick="toggleDark()" class="p-2 rounded-md text-gray-500 hover:bg-gray-100" title="Modo oscuro"><i data-lucide="moon" class="w-[18px] h-[18px]"></i></button>
+                <div id="nav-user" class="flex items-center gap-2">
+                    <span id="lblAvatar" class="w-8 h-8 flex items-center justify-center rounded-full text-white text-xs font-semibold" style="background:#C05A40">AM</span>
+                    <div class="hidden sm:flex flex-col leading-tight"><span id="lblUser" class="text-sm font-medium text-gray-900">Usuario</span><span id="lblRole" class="text-xs text-gray-500">Rol</span></div>
+                </div>
+                <button type="button" id="btn-logout" onclick="logoutDemo()" class="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900" title="Cerrar sesión"><i data-lucide="log-out" class="w-[18px] h-[18px]"></i></button>
+            </div>
+        </nav>
+    </div>
+
+    <div id="main__content">
+        <div id="root">
+            <div class="flex-1 min-h-0 flex flex-col">
+                <section id="view-inicio" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+                <section id="view-stock" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+                <section id="view-entradas" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+                <section id="view-salidas" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+                <section id="view-traspasos" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+                <section id="view-requisiciones" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+                <section id="view-surtir" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+                <section id="view-movimientos" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+                <section id="view-reportes" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+                <section id="view-catalogo" class="iv-view hidden flex-col flex-1 min-h-0 gap-3"></section>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Visor lateral (detalle de documento o artículo) -->
+<div id="drawerVeil" class="iv-veil" onclick="closeDrawer()"></div>
+<aside id="drawer" class="iv-drawer" aria-label="Detalle">
+    <div id="drawerHead" class="iv-drawer-head"></div>
+    <div id="drawerBody" class="iv-drawer-body"></div>
+    <div id="drawerFoot" class="iv-drawer-foot"></div>
+</aside>
+
+<!-- ?v= evita que el navegador sirva una copia vieja al cambiar el template -->
+<script src="js/inv-data.js?v=8"></script>
+<script src="js/inv-core.js?v=9"></script>
+<script src="js/inv-vistas.js?v=8"></script>
+<script src="js/inv-docs.js?v=8"></script>
+<script src="js/inv-catalogo.js?v=8"></script>
+</body>
+</html>
