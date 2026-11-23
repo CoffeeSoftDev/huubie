@@ -90,8 +90,9 @@ class Navbar {
             <nav class="navbar-main">
                 <div class="nav-left">
                     <button type="button" id="btnRail" class="nav-tool-btn nav-rail-btn" aria-controls="menu-sidebar" hidden>
-                        <span class="nav-rail-to-open"><i data-lucide="panel-left-open"></i></span>
-                        <span class="nav-rail-to-close"><i data-lucide="panel-left-close"></i></span>
+                        <!-- <span class="nav-rail-to-open"><i data-lucide="panel-left-open"></i></span> -->
+                        <span class="nav-rail-to-open"><i data-lucide="menu"></i></span>
+                        <span class="nav-rail-to-close"><i data-lucide="menu"></i></span>
                     </button>
 
                     <a class="nav-brand" href="${this.base}/app/home/" title="Ir al inicio" aria-label="Ir al inicio">
