@@ -8,7 +8,8 @@
       - «Recordatorios» (whatsapp-recordatorios.js, wap.reminders) y
         «Métricas» (whatsapp-metricas.js, wap.metrics, F6).
       - «Avisos»: pedido nuevo, cierre de turno y cierre del día. Cada uno con
-        su texto (editable, con variables) y cómo le llega a WhatsApp.
+        su texto (editable, con variables) y cómo le llega a WhatsApp. El del
+        pedido lleva sus fotos: su editor tiene «Solo texto | Con foto».
       - «Destinatarios»: a quién le llegan. Sin sucursal = de todas. «Le
         pregunta al agente» (F6) deja a ese número preguntarle al agente del
         dueño ventas, turno, pedidos y cartera.
@@ -72,9 +73,27 @@ function wspMsg(text, hour, opt = {}) {
     return `<div class="${cls}">${who}${opt.head || ''}${body}<span class="wsp-time">${esc(time)}${opt.meta || ''}</span></div>`;
 }
 
-// La burbuja verde de un aviso, dentro de su fondo de chat.
-function wspBubble(text, hour) {
-    return `<div class="wsp-chat">${wspMsg(text, hour)}</div>`;
+// La burbuja verde de un aviso, dentro de su fondo de chat. photo = con la foto de ejemplo arriba.
+function wspBubble(text, hour, photo) {
+    return `<div class="wsp-chat">${wspMsg(text, hour, photo ? { head: wspPhoto() } : {})}</div>`;
+}
+
+/*  La foto de ejemplo del aviso del pedido (un pastel dibujado), la misma
+    idea que la vista previa «Con foto» de alpha › Admin › WhatsApp: el aviso
+    real lleva la foto del pedido arriba y el texto como su pie. */
+function wspPhoto() {
+    return '<div class="wsp-photo"><svg viewBox="0 0 300 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Foto de ejemplo del pedido">'
+        + '<rect width="300" height="190" fill="#F6D5C4"/>'
+        + '<ellipse cx="150" cy="158" rx="105" ry="14" fill="#E9B79D"/>'
+        + '<rect x="85" y="95" width="130" height="58" rx="6" fill="#F4A6B8"/>'
+        + '<rect x="85" y="95" width="130" height="14" rx="6" fill="#FFFFFF"/>'
+        + '<path d="M85 109 q10 14 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t10 0" fill="#FFFFFF"/>'
+        + '<rect x="105" y="62" width="90" height="36" rx="6" fill="#F9C5D1"/>'
+        + '<rect x="105" y="62" width="90" height="10" rx="5" fill="#FFFFFF"/>'
+        + '<rect x="146" y="38" width="8" height="24" rx="2" fill="#C05A40"/>'
+        + '<path d="M150 24 q-7 9 0 14 q7 -5 0 -14z" fill="#F59E0B"/>'
+        + '<circle cx="108" cy="130" r="5" fill="#EF4444"/><circle cx="150" cy="134" r="5" fill="#EF4444"/><circle cx="192" cy="130" r="5" fill="#EF4444"/>'
+        + '</svg></div>';
 }
 
 // -- Fondo de chat --
@@ -194,6 +213,11 @@ function wspCSS() {
         .wsp-bubble.no-tail { border-radius: 10px; }
         .wsp-bubble.no-tail::after { display: none; }
         .wsp-who { display: block; margin-bottom: 2px; font-size: 12px; font-weight: 600; color: ${aFg}; }
+        .wsp-photo { width: 260px; max-width: 100%; margin: -4px -7px 6px; border-radius: 8px; overflow: hidden; }
+        .wsp-photo svg { display: block; width: 100%; height: auto; }
+        .wsp-modes { display: flex; justify-content: center; margin-bottom: 8px; }
+        .wsp-modes .ord-viewer-modes { width: 220px; }
+        .wsp-modes button.ord-seg { height: 30px; font-size: 12.5px; }
         .wsp-media { display: flex; align-items: center; gap: 6px; font-size: 13px; font-style: italic; color: #54656F; }
         .wsp-media svg { width: 16px; height: 16px; flex-shrink: 0; }
         .wsp-time { display: inline-flex; align-items: center; gap: 3px; }
@@ -217,6 +241,12 @@ function wspCSS() {
         button.wsp-var:hover { border-style: solid; background: ${tint}; }
         .wsp-var-key { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; font-weight: 600; color: ${aFg}; }
         .wsp-count { margin: 4px 0 0; font-size: 12px; text-align: right; color: ${mute}; }
+
+        .wsp-group-state { display: flex; align-items: flex-start; gap: 6px; margin: -4px 0 0; font-size: 12.5px; line-height: 1.4; color: ${mute}; }
+        .wsp-group-state svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+        .wsp-group-state.is-ok svg { color: #047857; }
+        .wsp-group-state.is-warn { color: #B45309; }
+        .wsp-group-state.is-info svg { color: ${aFg}; }
 
         .wsp-box-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
         @media (min-width: 640px) { .wsp-box-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -257,6 +287,8 @@ function wspCSS() {
         body.dark-mode .wsp-help,
         body.dark-mode .wsp-empty,
         body.dark-mode .wsp-section { border-color: var(--dk-line, #374151); }
+        body.dark-mode .wsp-group-state { color: var(--dk-muted, #9CA3AF); }
+        body.dark-mode .wsp-group-state.is-warn { color: #FCD34D; }
         body.dark-mode .wsp-card-title,
         body.dark-mode .wsp-box-value,
         body.dark-mode .wsp-banner-title { color: var(--dk-text, #F3F4F6); }
@@ -307,7 +339,8 @@ class WhatsAppNotices extends Templates {
         this.inbox        = new WhatsAppInbox(link, div_modulo, this);
         this.reminders    = new WhatsAppReminders(link, div_modulo, this);
         this.metrics      = new WhatsAppMetrics(link, div_modulo, this);
-        this.requests     = { notices: 0, recipients: 0, log: 0, preview: 0 };
+        this.requests     = { notices: 0, recipients: 0, log: 0, preview: 0, groups: 0 };
+        this.groups       = [];
         this.pageLength   = { recipients: 15, log: 15, reminders: 15 };
         this.terms        = { recipients: '', log: '', reminders: '' };
         this.saving       = false;
@@ -316,6 +349,7 @@ class WhatsAppNotices extends Templates {
         this.check        = null;
         this.testPhone    = '';
         this.previewTimer = null;
+        this.previewPhoto = false;   // «Solo texto | Con foto» del editor del aviso (como alpha)
 
         // Filtro propio de DataTables: el buscador de cada pestaña.
         $.fn.dataTable.ext.search.push((settings, row) => {
@@ -552,7 +586,8 @@ class WhatsAppNotices extends Templates {
         ];
 
         if (this.allow('create')) {
-            data.push({ opc: 'button', id: 'btnWspAddRecipient', class: 'col-12 col-sm-6 col-md-4 col-xl-3', text: 'Agregar destinatario', icon: 'icon-plus', color_btn: 'primary', onClick: () => this.formRecipient(null) });
+            data.push({ opc: 'button', id: 'btnWspAddRecipient', class: 'col-12 col-sm-6 col-md-3 col-xl-3', text: 'Agregar destinatario', icon: 'icon-plus', color_btn: 'primary', onClick: () => this.formRecipient(null) });
+            data.push({ opc: 'button', id: 'btnWspAddGroup', class: 'col-12 col-sm-6 col-md-3 col-xl-2', text: 'Agregar grupo', icon: 'icon-users', color_btn: 'outline', onClick: () => this.formGroup(null) });
         }
 
         this.createfilterBar({
@@ -695,7 +730,7 @@ class WhatsAppNotices extends Templates {
 
         return `<article class="wsp-card${on ? '' : ' is-paused'}" data-type="${esc(n.type)}">`
              +   '<header class="wsp-card-head">'
-             +     `<div class="min-w-0"><h3 class="wsp-card-title">${esc(type.name)}</h3><p class="wsp-card-when">${esc(type.when)}</p></div>`
+             +     `<div class="min-w-0"><h3 class="wsp-card-title">${esc(type.name)}</h3><p class="wsp-card-when">${esc(type.when)}</p>${type.note ? `<p class="wsp-card-when">${esc(type.note)}</p>` : ''}</div>`
              +     `<span class="wsp-state ${on ? 'is-on' : 'is-off'}"><span class="wsp-state-dot"></span>${on ? 'Encendido' : 'Pausado'}</span>`
              +   '</header>'
              +   `<div class="wsp-tags"><span class="wsp-tag${count ? '' : ' is-warn'}"><i data-lucide="users"></i>${people}</span>${custom}</div>`
@@ -744,7 +779,8 @@ class WhatsAppNotices extends Templates {
                     tipo:  'html',
                     class: 'w-full lg:w-1/2',
                     html:  '<p class="wsp-label" style="margin-bottom:8px">Así le llega (con datos de ejemplo)</p>'
-                         + `<div id="wnPreview">${wspBubble(n.preview)}</div>`
+                         + (t.note ? `<p class="wsp-hint">${esc(t.note)}</p>${this.photoModes()}` : '')
+                         + `<div id="wnPreview">${wspBubble(n.preview, '', this.withPhoto(type))}</div>`
                 },
                 { id: 'wn_active', lbl: 'Aviso encendido', tipo: 'switch', value: Number(n.active) === 1 ? 1 : 0, help: 'Pausado no le llega a nadie; el texto se queda guardado.', class: 'w-full' }
             ],
@@ -754,6 +790,7 @@ class WhatsAppNotices extends Templates {
         const modal = $('#modalWspNotice');
 
         modal.on('click', '.wsp-var', (e) => this.insertVar(`{${$(e.currentTarget).attr('data-var')}}`));
+        modal.on('click', 'button[data-photo]', (e) => this.photoMode(type, $(e.currentTarget).attr('data-photo') === '1'));
         modal.on('input', '#wn_body', () => {
             this.countBody();
             this.schedulePreview(type);
@@ -805,7 +842,44 @@ class WhatsAppNotices extends Templates {
             return;
         }
 
-        $('#wnPreview').html(wspBubble(data.text));
+        $('#wnPreview').html(wspBubble(data.text, '', this.withPhoto(type)));
+    }
+
+    // -- Vista previa con foto --
+
+    // «Solo texto | Con foto», como alpha › Admin › WhatsApp. Solo los avisos que llevan fotos (note).
+    photoModes() {
+        const on   = !!this.previewPhoto;
+        const seg  = (value, text) => {
+            const active = (value === '1') === on;
+
+            return `<button type="button" class="ord-seg${active ? ' is-active' : ''}" data-photo="${value}" aria-pressed="${active}">${text}</button>`;
+        };
+
+        return `<div class="wsp-modes"><div class="ord-viewer-modes" role="group" aria-label="Vista previa">${seg('0', 'Solo texto')}${seg('1', 'Con foto')}</div></div>`;
+    }
+
+    withPhoto(type) {
+        return !!this.previewPhoto && !!this.typeOf(type).note;
+    }
+
+    // Cambia la foto de la burbuja sin volver a pedir el texto: el pie no cambia.
+    photoMode(type, on) {
+        this.previewPhoto = on;
+
+        $('#modalWspNotice button[data-photo]').each((i, button) => {
+            const active = ($(button).attr('data-photo') === '1') === on;
+
+            $(button).toggleClass('is-active', active).attr('aria-pressed', active);
+        });
+
+        const bubble = $('#wnPreview .wsp-bubble');
+
+        if (!bubble.length) return;
+
+        bubble.find('.wsp-photo').remove();
+
+        if (this.withPhoto(type)) bubble.prepend(wspPhoto());
     }
 
     // Solo cambia el texto del editor: se guarda con «Guardar aviso».
@@ -927,6 +1001,8 @@ class WhatsAppNotices extends Templates {
 
         if (!data || data.status != 200) return this.fail(data, 'No se pudo abrir el destinatario');
 
+        if (/@g\.us$/i.test(String(data.row.phone))) return this.formGroup(data.row);
+
         this.formRecipient(data.row);
     }
 
@@ -947,7 +1023,7 @@ class WhatsAppNotices extends Templates {
             cancelText: 'Cancelar',
             json: [
                 { id: 'wr_name', lbl: 'Nombre', maxlength: 80, ph: 'Ej. Ana López (dueña)', value: row.name, class: 'w-full sm:w-1/2' },
-                { id: 'wr_phone', lbl: 'WhatsApp', maxlength: 40, ph: '962 123 4567', icon: 'phone', value: this.phone(row.phone), help: '10 dígitos, sin lada de país. Un grupo va con su id …@g.us.', class: 'w-full sm:w-1/2' },
+                { id: 'wr_phone', lbl: 'WhatsApp', maxlength: 40, ph: '962 123 4567', icon: 'phone', value: this.phone(row.phone), help: '10 dígitos, sin lada de país. Para un grupo usa «Agregar grupo».', class: 'w-full sm:w-1/2' },
                 { id: 'wr_branch', lbl: 'Sucursal', tipo: 'select', data: dataInit.branches || [], empty: 'Todas las sucursales', value: row.branch_id, help: 'Con una sucursal, solo le llegan los avisos de esa sucursal.', class: 'w-full' },
                 { id: 'wr_s1', tipo: 'html', class: 'w-full', html: '<p class="wsp-section">Qué avisos recibe</p>' },
                 { id: 'wr_order', lbl: 'Pedido nuevo', tipo: 'switch', value: Number(row.notify_order) === 1 ? 1 : 0, class: 'w-full sm:w-1/3' },
@@ -998,6 +1074,125 @@ class WhatsAppNotices extends Templates {
 
         close();
         alert({ icon: 'success', title: data.message, timer: 1400 });
+        this.lsRecipients(id > 0);
+    }
+
+    // -- Grupos --
+
+    /*  «Agregar grupo»: se elige de los grupos del WhatsApp conectado
+        (lsGroups) y su nombre llena «Nombre». Si no aparece, o el proveedor
+        es «simulado», se pega su ID …@g.us. Se guarda como cualquier
+        destinatario (saveRecipient); un grupo no le pregunta al agente. */
+    formGroup(r) {
+        if (this.saving) return;
+
+        const isNew = !r;
+        const row   = r || { id: 0, name: '', phone: '', branch_id: '', notify_order: 1, notify_turn: 1, notify_day: 1 };
+
+        this.csModal({
+            id:         'modalWspGroup',
+            title:      isNew ? 'Agregar grupo' : 'Editar grupo',
+            subtitle:   'Un grupo de WhatsApp que recibe los avisos',
+            lucideIcon: 'users-round',
+            width:      'max-w-xl',
+            saveText:   isNew ? 'Agregar grupo' : 'Guardar cambios',
+            cancelText: 'Cancelar',
+            json: [
+                { id: 'wg_pick', lbl: 'Grupo de WhatsApp', tipo: 'select2', data: [], empty: '— Elige un grupo —', class: 'w-full' },
+                { id: 'wg_state', tipo: 'html', class: 'w-full', html: '<p class="wsp-group-state"><i data-lucide="loader-circle" class="animate-spin"></i>Buscando los grupos de tu WhatsApp…</p>' },
+                { id: 'wg_id', lbl: 'ID del grupo', maxlength: 60, ph: '120363000000000000@g.us', icon: 'hash', value: row.phone, help: 'Se llena al elegir el grupo. Si no aparece en la lista, pega aquí su ID.', class: 'w-full' },
+                { id: 'wg_name', lbl: 'Nombre', maxlength: 80, ph: 'Ej. Encargados de sucursal', value: row.name, class: 'w-full sm:w-1/2' },
+                { id: 'wg_branch', lbl: 'Sucursal', tipo: 'select', data: dataInit.branches || [], empty: 'Todas las sucursales', value: row.branch_id, class: 'w-full sm:w-1/2' },
+                { id: 'wg_s1', tipo: 'html', class: 'w-full', html: '<p class="wsp-section">Qué avisos recibe</p>' },
+                { id: 'wg_order', lbl: 'Pedido nuevo', tipo: 'switch', value: Number(row.notify_order) === 1 ? 1 : 0, class: 'w-full sm:w-1/3' },
+                { id: 'wg_turn', lbl: 'Cierre de turno', tipo: 'switch', value: Number(row.notify_turn) === 1 ? 1 : 0, class: 'w-full sm:w-1/3' },
+                { id: 'wg_day', lbl: 'Cierre del día', tipo: 'switch', value: Number(row.notify_day) === 1 ? 1 : 0, class: 'w-full sm:w-1/3' }
+            ],
+            onSave: (values, close) => this.saveGroup(Number(row.id) || 0, values, close)
+        });
+
+        // Elegir el grupo llena el ID y, si el nombre está vacío o era el de otro grupo, el nombre.
+        $('#wg_pick').on('change', () => {
+            const pick = (this.groups || []).find((g) => g.id === $('#wg_pick').val());
+
+            if (!pick) return;
+
+            const name = String($('#wg_name').val() || '').trim();
+
+            $('#wg_id').val(pick.id);
+
+            if (!name || (this.groups || []).some((g) => g.name === name)) $('#wg_name').val(pick.name);
+        });
+
+        this.icons();
+        this.loadGroups(row.phone);
+    }
+
+    // Los grupos del WhatsApp conectado. keep = el ID que ya tenía (al editar).
+    async loadGroups(keep) {
+        const request = ++this.requests.groups;
+        const data    = await useFetch({ url: this._link, data: { opc: 'lsGroups' } });
+
+        if (request !== this.requests.groups || !$('#modalWspGroup').length) return;
+
+        const pick  = $('#wg_pick');
+        const state = (icon, text, tone) => {
+            $('#wg_state').html(`<p class="wsp-group-state${tone ? ' is-' + tone : ''}"><i data-lucide="${icon}"></i>${esc(text)}</p>`);
+            this.icons();
+        };
+
+        this.groups = data && data.status == 200 && data.ok ? data.groups || [] : [];
+
+        if (!data || data.status != 200) return state('triangle-alert', (data && data.message) || 'No se pudo preguntar por los grupos. Pega el ID del grupo.', 'warn');
+        if (data.simulated) return state('info', 'WhatsApp está en modo simulado: no hay un número conectado para ver sus grupos. Pega el ID del grupo.', 'info');
+        if (!data.ok) return state('triangle-alert', `${data.detail || 'El proveedor no dio la lista.'} Pega el ID del grupo.`, 'warn');
+        if (!this.groups.length) return state('info', 'El WhatsApp conectado no está en ningún grupo. Agrégalo al grupo y vuelve a abrir esta ventana.', 'info');
+
+        // Los que ya reciben avisos se ven, pero no se eligen otra vez (salvo el que se está editando).
+        pick.html('<option value="">— Elige un grupo —</option>' + this.groups.map((g) => {
+            const taken = g.added && g.id !== keep;
+
+            return `<option value="${esc(g.id)}"${taken ? ' disabled' : ''}${g.id === keep ? ' selected' : ''}>${esc(g.name)}${taken ? ' · ya agregado' : ''}</option>`;
+        }).join('')).trigger('change.select2');
+
+        state('circle-check', `${this.groups.length} ${this.groups.length === 1 ? 'grupo' : 'grupos'} en tu WhatsApp. Escribe para buscar.`, 'ok');
+    }
+
+    async saveGroup(id, values, close) {
+        if (this.saving) return;
+
+        const name  = String(values.wg_name || '').replace(/\s+/g, ' ').trim();
+        const group = String(values.wg_id || '').trim();
+
+        if (!/^[0-9-]+@g\.us$/.test(group)) return this.warn('Elige el grupo de la lista o pega su ID, por ejemplo 120363000000000000@g.us.');
+        if (!name) return this.warn('Escribe un nombre para reconocer el grupo.');
+        if (!values.wg_order && !values.wg_turn && !values.wg_day) return this.warn('Marca al menos un aviso.');
+
+        this.saving = true;
+
+        const button = $('#modalWspGroup .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({
+            url:  this._link,
+            data: {
+                opc:          'saveRecipient',
+                id:           id,
+                name:         name,
+                phone:        group,
+                branch_id:    values.wg_branch || '',
+                notify_order: values.wg_order ? '1' : '0',
+                notify_turn:  values.wg_turn ? '1' : '0',
+                notify_day:   values.wg_day ? '1' : '0',
+                can_ask:      '0'
+            }
+        });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (!data || data.status != 200) return this.fail(data, 'No se guardó el grupo');
+
+        close();
+        alert({ icon: 'success', title: id > 0 ? 'Grupo guardado.' : 'Grupo agregado.', timer: 1400 });
         this.lsRecipients(id > 0);
     }
 

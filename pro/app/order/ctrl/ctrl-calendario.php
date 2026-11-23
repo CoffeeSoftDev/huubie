@@ -11,19 +11,18 @@ require_once __DIR__ . '/core-order.php';
         (Produccion). El detalle lo sirve este ctrl con el mismo armado que Pedidos.
       - Palomear «ya se elaboro» pide 'update' del CALENDARIO (Produccion) o
         ser el Dueño (core::isOwner). Solo llena produced_at y quien; no cambia la entrega.
-      - Entregar pide 'update' de PEDIDOS, sin saldo (decision 5: el saldo se
-        cobra al entregar; la pantalla encadena cobro y entrega) y la contraseña
-        de quien entrega (core::needKey).
+      - Entregar pide 'update' de PEDIDOS y sin saldo (decision 5: el saldo se
+        cobra al entregar; la pantalla encadena cobro y entrega). Sin contraseña.
       - «Editar entrega» (fecha, hora, tipo, direccion y nota) tambien se hace
-        desde aqui: pide 'update' de PEDIDOS (core::editDelivery). Un pagado lo
-        edita Dueño o Supervisor, con su contraseña.
+        desde aqui: pide el permiso «Editar entrega» de PEDIDOS
+        (core::editDelivery). Un pagado lo edita Dueño o Supervisor, con su contraseña.
       - Quien no ve Pedidos ve solo pendientes y pagados: ni cotizaciones ni
         cancelados, como Produccion en alpha. Tampoco ve dinero: el calendario
         le llega sin total, abonado ni saldo, y el detalle sin importes, abonos
         ni los renglones de cobro de la bitacora (core::withoutMoney). */
 class ctrl extends core {
 
-    const CALENDAR  = 'pos-calendario';
+    // CALENDAR ('pos-calendario') y producer() viven en core: el detalle de Pedidos también palomea.
     const RANGE_MAX = 62;
 
     // -- Arranque --
@@ -213,13 +212,6 @@ class ctrl extends core {
         if (Permission::can(self::CALENDAR, $action)) return null;
 
         return ['status' => 403, 'message' => "Tu rol no tiene permiso para {$text} en esta sucursal.", 'row' => [], 'events' => []];
-    }
-
-    // Palomea «ya se elaboró»: Producción ('update' del calendario) y el Dueño.
-    private function producer() {
-        if (Permission::can(self::CALENDAR, 'update')) return true;
-
-        return Permission::can(self::CALENDAR, 'show') && $this->isOwner();
     }
 
     // fi/ff del POST, en orden y con tope: un mes en pantalla trae 6 semanas.

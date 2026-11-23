@@ -30,8 +30,8 @@
     guardado y la captura sigue abierta.
 
     Lo que manda es el ctrl: aquí se arma el cobro y se avisa antes de mandar.
-    SalePayments (historial.js) hereda de aquí; SalePay (ventas.js) también,
-    pero con su propia forma (SalePayBase). */
+    SalePayments (historial.js) y SalePay (ventas.js, cobrar una venta) heredan
+    de aquí: la misma ventana, con sus ganchos (dueOf, autoCap, infoHtml…). */
 
 // -- Cobro --
 
@@ -153,13 +153,14 @@ class OrderPay extends Templates {
         this.fromDetail   = fromDetail;
         this.token        = ordToken();
         this.branches     = this.readBranches(data);
+        this.pickOk       = data.pick_branch !== false;   // false = no está asignado a otra sucursal: cobra en la del pedido, sin elegir otra
         this.mcache       = null;
         this.draft        = (opts && opts.draft) || null;
 
-        // origin = la sucursal de la sesión: el pedido es de ella. cobro = la que recibe el dinero.
+        // origin = la sucursal del pedido (branch_id; de otra sucursal en la vista «todas»). cobro = la que recibe el dinero.
         const session = this.branches.find((b) => b.session);
 
-        this.origin = session ? session.id : (Number(data.branch_id) || (this.branches.length ? this.branches[0].id : 0));
+        this.origin = Number(data.branch_id) || (session ? session.id : (this.branches.length ? this.branches[0].id : 0));
         this.cobro  = this.origin;
 
         // Sin pestaña pedida: cobrar si se puede (o si se resuelve aquí); si no, los pagos que ya hay.
@@ -362,11 +363,21 @@ class OrderPay extends Templates {
 
     // -- Cuentas --
 
+    // Lo que se cobra en esta ventana: el saldo del pedido. Ventas le suma la propina.
+    dueOf(total) {
+        return Math.max(0, ordRound(total - this.o.paid));
+    }
+
+    // Tope de la fila que cubre lo que falta (Ventas: el saldo del monedero).
+    autoCap(m) {
+        return Infinity;
+    }
+
     calc() {
         const o       = this.o;
         const d       = this.discountCalc();
         const total   = ordRound(o.total - d.amount);
-        const balance = Math.max(0, ordRound(total - o.paid));
+        const balance = this.dueOf(total);
 
         let bad = null;
 
@@ -387,7 +398,7 @@ class OrderPay extends Templates {
         const fixed = ordRound(rows.reduce((s, r) => s + r.amount, 0));
         const auto  = rows.find((r) => r.m.id === this.auto);
 
-        if (auto) auto.amount = Math.max(0, ordRound(balance - fixed));
+        if (auto) auto.amount = Math.min(this.autoCap(auto.m), Math.max(0, ordRound(balance - fixed)));
 
         /*  Efectivo: lo escrito en su fila es «hasta cuánto». Se aplica lo que
             cabe en el saldo después de los demás métodos y lo que sobra es
@@ -571,13 +582,16 @@ class OrderPay extends Templates {
         return `<div class="pa-label"><span>${text}</span>${aside ? `<small>${aside}</small>` : ''}</div>`;
     }
 
-    // Las dos tarjetas de alpha: de dónde es el pedido y qué sucursal cobra.
+    /*  Las dos tarjetas de alpha: de dónde es el pedido y qué sucursal cobra.
+        La lista trae solo las sucursales donde el usuario está asignado (y la
+        de origen). Sin pickOk (no está asignado a otra) queda fija en la de origen. */
     branchesHtml(lock) {
         const origin = this.originBranch();
         const cobro  = this.cobroBranch();
         const off    = lock === 'paid' || lock === 'block';
-        const fixed  = off || this.branches.length < 2;
+        const fixed  = off || this.branches.length < 2 || !this.pickOk;
         const opts   = this.branches.map((b) => `<option value="${b.id}"${b.id === this.cobro ? ' selected' : ''}>${esc(b.name)}${b.session ? ' · tu sesión' : ''}</option>`).join('');
+        const title  = this.pickOk ? this.turnTitle(cobro) : `${this.turnTitle(cobro)} · Solo cobras en las sucursales donde estás asignado`;
 
         return '<div class="pa-field">'
             +   this.label(this.originLabel())
@@ -587,8 +601,8 @@ class OrderPay extends Templates {
             +   '</div>'
             + '</div>'
             + '<div class="pa-field">'
-            +   this.label('Sucursal que cobrará')
-            +   `<div class="pa-branch is-cobro${this.isCross() ? ' is-cross' : ''}${off ? ' is-off' : ''}" title="${esc(this.turnTitle(cobro))}">`
+            +   this.label('Sucursal que cobrará', this.pickOk ? '' : 'La de origen')
+            +   `<div class="pa-branch is-cobro${this.isCross() ? ' is-cross' : ''}${off ? ' is-off' : ''}" title="${esc(title)}">`
             +     `<span class="pa-branch-ico">${this.ico('landmark')}</span>`
             +     `<span class="pa-branch-text"><b>${esc(cobro.name)}</b><small>${this.turnLine(cobro)}</small></span>`
             +     (fixed ? '' : `<span class="pa-branch-chev">${this.ico('chevron-down')}</span>`)
@@ -606,7 +620,7 @@ class OrderPay extends Templates {
         const cobro = this.cobroBranch();
         const home  = this.sessionBranch();
         const go    = (act, icon, text) => `<button type="button" class="pa-alert-go" data-act="${act}">${this.ico(icon)}${esc(text)}</button>`;
-        const here  = home && home.id !== this.cobro && this.usable(home) ? go('cobro-here', 'landmark', `Cobrar en ${home.name}`) : '';
+        const here  = this.pickOk && home && home.id !== this.cobro && this.usable(home) ? go('cobro-here', 'landmark', `Cobrar en ${home.name}`) : '';
 
         let title = '';
         let text  = '';
@@ -755,18 +769,24 @@ class OrderPay extends Templates {
             +       `<div class="pa-rows" id="paRows" role="group" aria-label="Formas de pago">${this.rowsHtml()}</div>`
             +       this.padHtml()
             +     '</fieldset>'
-            +     '<div class="pa-col pa-col-info">'
-            +       this.branchesHtml(lock)
-            +       `<fieldset class="pa-set${cls}"${off}>`
-            +         '<div class="pa-field">'
-            +           this.label('Observación', 'Opcional')
-            +           '<textarea id="paNote" class="pa-input pa-textarea" rows="2" maxlength="200" placeholder="Ej. paga la mamá de la festejada" aria-label="Observación"></textarea>'
-            +         '</div>'
-            +         this.discArea()
-            +       '</fieldset>'
-            +     '</div>'
+            +     `<div class="pa-col pa-col-info">${this.infoHtml(lock)}</div>`
             +   '</div>'
             + '</div>';
+    }
+
+    // La columna derecha: de dónde es, quién cobra, la observación y el descuento. Ventas la cambia.
+    infoHtml(lock) {
+        const off = lock ? ' disabled' : '';
+        const cls = lock ? ' is-locked' : '';
+
+        return this.branchesHtml(lock)
+            + `<fieldset class="pa-set${cls}"${off}>`
+            +   '<div class="pa-field">'
+            +     this.label('Observación', 'Opcional')
+            +     '<textarea id="paNote" class="pa-input pa-textarea" rows="2" maxlength="200" placeholder="Ej. paga la mamá de la festejada" aria-label="Observación"></textarea>'
+            +   '</div>'
+            +   this.discArea()
+            + '</fieldset>';
     }
 
     // Lo que dice el aviso si se pulsa el botón apagado.
@@ -1334,7 +1354,7 @@ class OrderPay extends Templates {
 
     // Otra sucursal que cobra: otro turno y otro catálogo de formas de pago. La observación se queda.
     pickBranch(id) {
-        if (!this.branchOf(id) || Number(id) === this.cobro) return;
+        if (!this.pickOk || !this.branchOf(id) || Number(id) === this.cobro) return;
 
         const note = $('#paNote').val() || '';
 
@@ -1511,13 +1531,14 @@ class OrderPay extends Templates {
         // Sin turno: en la sesión se ofrece abrirlo; en otra sucursal solo se avisa y se vuelve a abrir.
         if (data && data.status == 423) {
             const reopen = () => this.open(id, fromDetail, { deliver: deliver });
+            const home   = this.cobroBranch().session;
 
             this.closeQuiet('modalOrderPay', this.modal.close);
             this.busy = false;
 
             if (created) this.afterChange();
 
-            if (!cross) return orderTurn.locked(data, reopen);
+            if (home) return orderTurn.locked(data, reopen);
 
             await alert({ icon: 'warning', title: data.title || 'Sin turno abierto', text: data.message || '', btn1: true, btn1Text: 'Entendido' });
 
@@ -1585,7 +1606,7 @@ class OrderPay extends Templates {
 
         if (answer && answer.isConfirmed) await orderDetail.print(this.o.id);
 
-        // La entrega pide la contraseña: esa ventana es la confirmación.
+        // La ventana de la entrega es la confirmación (sin contraseña).
         if (handOver) return orderDetail.deliver(this.o.id, { fromDetail: this.fromDetail });
 
         this.back();
@@ -1761,6 +1782,83 @@ class OrderPay extends Templates {
         (back || (() => orderDetail.show(orderId)))();
 
         alert({ icon: 'success', title: data.message, timer: 1800 });
+    }
+
+    // -- Cambiar la forma de un pago (desde el detalle) --
+
+    /*  alpha › editPaymentMethod: Dueño o Supervisor, mientras el turno de ese
+        pago siga abierto. Las formas son las de la sucursal que lo cobró
+        (payOptions › branches); el importe no cambia. */
+    async changeMethod(orderId, paymentId) {
+        const d    = typeof orderDetail !== 'undefined' ? orderDetail.last : null;
+        const same = !!(d && d.order && Number(d.order.id) === Number(orderId));
+        const p    = same ? (d.payments || []).find((x) => Number(x.id) === Number(paymentId)) : null;
+
+        if (!p) return;
+
+        const data = await useFetch({ url: this._link, data: { opc: 'payOptions', id: orderId } });
+
+        if (!data || data.status != 200) return this.fail(data, 'No se abrió el cambio de forma de pago');
+
+        const branch  = (data.branches || []).find((b) => Number(b.id) === Number(p.branch_id));
+        const methods = ((branch && branch.methods) || data.methods || []).map((m) => ({ id: Number(m.id), valor: m.name }));
+
+        if (!methods.length) return this.warn('La sucursal que cobró este pago no tiene formas de pago activas.');
+
+        $('#modalOrderDetails .cs-modal-x').trigger('click');
+
+        const back = () => orderDetail.show(orderId);
+
+        this.csModal({
+            id:         'modalOrderPayMethod',
+            title:      'Cambiar forma de pago',
+            subtitle:   `${this.noun()} #${this.prefix()}${d.order.folio || orderId} · ${p.method || 'Sin método'} ${money(p.amount)}`,
+            lucideIcon: 'arrow-left-right',
+            width:      'max-w-lg',
+            saveText:   'Guardar',
+            cancelText: 'Volver',
+            info:       'El importe no cambia. Solo se puede mientras el turno de ese pago siga abierto.',
+            json: [
+                { id: 'pm_method', lbl: 'Forma de pago', tipo: 'select', empty: false, class: 'w-full', value: Number(p.method_id) || methods[0].id, data: methods }
+            ],
+            onSave: (values, close) => this.saveMethod(orderId, paymentId, close, back)
+        });
+
+        this.onDismiss('modalOrderPayMethod', back);
+    }
+
+    async saveMethod(orderId, paymentId, close, back) {
+        if (this.saving) return;
+
+        const methodId = Number($('#pm_method').val()) || 0;
+
+        if (!methodId) return this.warn('Elige la forma de pago.');
+
+        this.saving = true;
+
+        const button = $('#modalOrderPayMethod .cs-modal-save').prop('disabled', true);
+        const data   = await useFetch({ url: this._link, data: { opc: 'changePaymentMethod', id: orderId, payment_id: paymentId, method_id: methodId } });
+
+        this.saving = false;
+        button.prop('disabled', false);
+
+        if (!data || data.status != 200) {
+            alert({
+                icon:     data && [403, 404, 409, 422].includes(Number(data.status)) ? 'warning' : 'error',
+                title:    'No se cambió la forma de pago',
+                text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
+                btn1:     true,
+                btn1Text: 'Entendido'
+            });
+            return;
+        }
+
+        this.closeQuiet('modalOrderPayMethod', close);
+        this.afterChange();
+
+        back();
+
+        alert({ icon: data.unchanged ? 'info' : 'success', title: data.message, timer: 1800 });
     }
 
     // -- Eventos --

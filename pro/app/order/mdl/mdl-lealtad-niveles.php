@@ -39,7 +39,7 @@ trait LoyaltyLevels {
                 IFNULL(t.discount_percent, 0) AS discount_percent,
                 IFNULL(t.points_percent, 0)   AS points_percent,
                 IFNULL(t.color, '')           AS color
-            FROM {$this->pos}card_type t
+            FROM {$this->crm}card_type t
             WHERE {$this->qSameCompany('t.branch_id')}
                 AND IFNULL(t.active, 1) = 1
                 AND t.level_min_spend IS NOT NULL
@@ -52,7 +52,7 @@ trait LoyaltyLevels {
     protected function qLevelTaken($branchId, $minSpend, $exceptId) {
         return $this->qRow("
             SELECT id, name
-            FROM {$this->pos}card_type
+            FROM {$this->crm}card_type
             WHERE {$this->qSameCompany('branch_id')}
                 AND id <> ?
                 AND IFNULL(active, 1) = 1
@@ -97,8 +97,8 @@ trait LoyaltyLevels {
                 t.name                      AS type,
                 t.level_min_spend,
                 {$this->qLevelSpendSql('c')} AS spend
-            FROM {$this->pos}card c
-            INNER JOIN {$this->pos}card_type t ON t.id = c.card_type_id
+            FROM {$this->crm}card c
+            INNER JOIN {$this->crm}card_type t ON t.id = c.card_type_id
                 AND IFNULL(t.active, 1) = 1
                 AND t.level_min_spend IS NOT NULL
                 AND IFNULL(t.stamp_goal, 0) = 0
@@ -116,8 +116,8 @@ trait LoyaltyLevels {
             SELECT
                 IFNULL(SUM(l.direction = 'sube'), 0) AS up,
                 IFNULL(SUM(l.direction = 'baja'), 0) AS down
-            FROM {$this->pos}card_level_log l
-            INNER JOIN {$this->pos}card c ON c.id = l.card_id
+            FROM {$this->crm}card_level_log l
+            INNER JOIN {$this->crm}card c ON c.id = l.card_id
             WHERE {$this->qSameCompany('c.branch_id')}
                 AND l.created_at >= ?
         ", [$branchId, $since]) ?: ['up' => 0, 'down' => 0];
@@ -125,16 +125,16 @@ trait LoyaltyLevels {
 
     // Dentro de transaction(): la tarjeta apartada con su tipo de hoy.
     protected function qLockCardType($cardId) {
-        return $this->qRow("SELECT id, card_type_id FROM {$this->pos}card WHERE id = ? LIMIT 1 FOR UPDATE", [$cardId]);
+        return $this->qRow("SELECT id, card_type_id FROM {$this->crm}card WHERE id = ? LIMIT 1 FOR UPDATE", [$cardId]);
     }
 
     protected function qMoveCardLevel($cardId, $typeId) {
-        return $this->_CUD("UPDATE {$this->pos}card SET card_type_id = ?, updated_at = NOW() WHERE id = ?", [$typeId, $cardId]);
+        return $this->_CUD("UPDATE {$this->crm}card SET card_type_id = ?, updated_at = NOW() WHERE id = ?", [$typeId, $cardId]);
     }
 
     protected function qLogLevel($cardId, $fromId, $toId, $spend, $direction, $userId) {
         return $this->_CUD("
-            INSERT INTO {$this->pos}card_level_log (card_id, from_type_id, to_type_id, spend, direction, user_id, created_at)
+            INSERT INTO {$this->crm}card_level_log (card_id, from_type_id, to_type_id, spend, direction, user_id, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ", [$cardId, $fromId, $toId, round((float) $spend, 2), $direction, $userId ?: null, date('Y-m-d H:i:s')]);
     }

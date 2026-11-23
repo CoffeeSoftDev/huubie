@@ -13,7 +13,7 @@ if (Session::user() === null) {
 }
 
 if (Permission::section('pos-pedidos')) {
-    header('Location: pedidos.php');
+    header('Location: lista-pedidos.php');
     exit;
 }
 

@@ -58,7 +58,7 @@ class PublicCardPage extends mdl {
         nombre, su lugar, el gasto de 12 meses y el siguiente (null = el mas
         alto). La barra va del minimo de su nivel al del siguiente. */
     private function cardLevel($card) {
-        $setting = $this->qRow("SELECT levels_enabled FROM {$this->pos}loyalty_setting WHERE company_id = ? LIMIT 1", [(int) $card['company_id']]);
+        $setting = $this->qRow("SELECT levels_enabled FROM {$this->crm}loyalty_setting WHERE company_id = ? LIMIT 1", [(int) $card['company_id']]);
 
         if (!$setting || (int) $setting['levels_enabled'] !== 1) return null;
 

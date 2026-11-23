@@ -167,9 +167,8 @@ class Customers extends Templates {
 
         if (dataInit.status != 200) return;
 
-        // Desde aquí se cobra un pedido o se abona crédito: la franja dice si hay turno.
-        orderTurn.paintStrip(true);
-
+        // Clientes no lleva la franja de caja (abrir/cerrar turno ni «Ir a Cortes»): el turno
+        // lo pide el cobro o el abono cuando hace falta (orderTurn.locked).
         const json = [];
 
         // La insignia de «Comprobantes» la pinta receipts.paintCounts().

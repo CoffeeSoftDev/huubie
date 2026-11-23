@@ -5,9 +5,12 @@ require_once __DIR__ . '/../../../core/helpers/_Utileria.php';
 /*  Modelo de Pedidos. Lee la lista y el detalle; escribe la captura (Etapa 2).
     Las escrituras (qCreate*, qUpdate*) solo se llaman dentro de transaction().
 
-    Dos bases en el mismo servidor:
+    Tres bases en el mismo servidor (y en la misma conexion: una transaccion
+    puede escribir en las tres):
       fayxzvov_app  (la del .env) empresas, sucursales y usuarios. Sin prefijo: $this->bd.
-      fayxzvov_pos  los pedidos. Con prefijo: $this->pos.
+      fayxzvov_pos  los pedidos, ventas y clientes. Con prefijo: $this->pos.
+      fayxzvov_crm  lealtad (card*, loyalty_*) y WhatsApp (wa_*). Con prefijo: $this->crm.
+                    Las tablas van en CRM_TABLES: qInsertInto y qUpdateIn eligen la base solos.
 
     Un pedido es una venta con sale_type_id = 1 (sale_type "Pedido").
       sale.total            ya es NETO (subtotal - descuento).
@@ -23,11 +26,26 @@ class mdl extends CRUD {
     public $util;
     public $bd;
     public $pos;
+    public $crm;
+
+    // Tablas que viven en fayxzvov_crm (migra 2026-11-19_base-crm.sql).
+    const CRM_TABLES = [
+        'card', 'card_type', 'card_stamp', 'card_level_log',
+        'loyalty_setting', 'loyalty_signup', 'loyalty_signup_log', 'loyalty_notice',
+        'wa_agent', 'wa_agent_product', 'wa_chat', 'wa_message', 'wa_proposal',
+        'wa_reminder', 'wa_notice', 'wa_recipient', 'wa_log'
+    ];
 
     public function __construct() {
         $this->util = new Utileria;
         $this->bd   = '';
         $this->pos  = 'fayxzvov_pos.';
+        $this->crm  = 'fayxzvov_crm.';
+    }
+
+    // 'base.tabla' para una tabla del POS o del CRM.
+    protected function qTable($table) {
+        return (in_array($table, self::CRM_TABLES, true) ? $this->crm : $this->pos) . $table;
     }
 
     // -- Ayudantes --
@@ -70,6 +88,30 @@ class mdl extends CRUD {
                   WHERE p.sale_id = {$alias}.id
                     AND IFNULL(p.active, 1) = 1
                     AND p.deleted_at IS NULL)";
+    }
+
+    // La foto del pedido: la primera de referencia (pastel personalizado) o, si no hay,
+    // la del primer producto del catalogo que tenga. '' = sin foto. Calendario y Tablero.
+    protected function qPhotoSql($alias) {
+        return "COALESCE(
+                    (SELECT si.path
+                       FROM {$this->pos}sale_image si
+                       INNER JOIN {$this->pos}detail_sale di ON di.id = si.detail_sale_id
+                      WHERE di.sale_id = {$alias}.id
+                        AND IFNULL(di.active, 1) = 1
+                        AND IFNULL(si.active, 1) = 1
+                      ORDER BY si.id
+                      LIMIT 1),
+                    (SELECT NULLIF(pi.image, '')
+                       FROM {$this->pos}detail_sale dp
+                       INNER JOIN {$this->pos}product pi ON pi.id = dp.product_id
+                      WHERE dp.sale_id = {$alias}.id
+                        AND IFNULL(dp.active, 1) = 1
+                        AND IFNULL(pi.image, '') <> ''
+                      ORDER BY dp.id
+                      LIMIT 1),
+                    ''
+                )";
     }
 
     // 1 si alguna linea viva es un pastel personalizado.
@@ -205,6 +247,22 @@ class mdl extends CRUD {
         ", [$branchId]);
     }
 
+    // Las sucursales de la empresa con turno abierto y desde cuándo (el más reciente de cada una).
+    // Lo usan los selectores de sucursal de la barra y de la captura (core-order › branchTurns).
+    public function qOpenTurnsByCompany($companyId) {
+        return $this->qRows("
+            SELECT
+                t.branch_id,
+                MAX(IFNULL(t.opened_at, t.created_at)) AS opened_at
+            FROM {$this->pos}turn t
+            INNER JOIN {$this->bd}branches b ON b.id = t.branch_id
+            WHERE b.company_id = ?
+                AND t.status = 'open'
+                AND IFNULL(t.active, 1) = 1
+            GROUP BY t.branch_id
+        ", [$companyId]);
+    }
+
     // -- Lista --
 
     /*  $f: branches (ids; una sola salvo «todas»), date_type ('created'|'delivery'), fi, ff, status (int|null),
@@ -266,6 +324,62 @@ class mdl extends CRUD {
             LEFT JOIN {$this->pos}customer c ON c.id = s.customer_id
             WHERE {$where}
         ", $data);
+    }
+
+    // -- Tablero --
+
+    /*  Los pedidos que se entregan entre fi y ff, con lo que pinta su tarjeta:
+        la marca de Produccion, el motivo de cancelacion y el primer producto
+        (con su cantidad y cuantas lineas mas trae). Mismo WHERE que la lista.
+        Las cotizaciones vacias ($0 y sin pagos) no salen: son borradores. */
+    public function qBoardOrders(array $f) {
+        list($where, $data) = $this->qOrdersWhere($f);
+
+        $line = "FROM {$this->pos}detail_sale d WHERE d.sale_id = s.id AND IFNULL(d.active, 1) = 1";
+
+        return $this->qRows("
+            SELECT
+                s.id,
+                s.folio,
+                s.delivery_date,
+                s.delivery_time,
+                s.delivery_method,
+                s.delivery_status,
+                s.sale_status_id,
+                s.total,
+                s.produced_at,
+                IFNULL(s.cancel_reason, '') AS cancel_reason,
+                s.branch_id,
+                IFNULL(b.name, '')  AS branch,
+                IFNULL(c.name, '')  AS customer,
+                IFNULL(c.phone, '') AS phone,
+                {$this->qPaidSql('s')} AS paid,
+                {$this->qPhotoSql('s')} AS photo,
+                (SELECT d.name {$line} ORDER BY d.id LIMIT 1)     AS first_item,
+                (SELECT d.quantity {$line} ORDER BY d.id LIMIT 1) AS first_qty,
+                (SELECT COUNT(*) {$line})                          AS line_count
+            FROM {$this->pos}sale s
+            LEFT JOIN {$this->pos}customer c ON c.id = s.customer_id
+            LEFT JOIN {$this->bd}branches b  ON b.id = s.branch_id
+            WHERE {$where}
+                AND NOT (s.sale_status_id = 1 AND IFNULL(s.total, 0) <= 0 AND {$this->qPaidSql('s')} <= 0)
+            ORDER BY s.delivery_date, s.delivery_time, s.id
+        ", $data);
+    }
+
+    // Las entregas de hoy (Pendiente y Pagado): cuántas son y cuántas ya salieron.
+    public function qBoardToday(array $branchIds, $day) {
+        return $this->qRow("
+            SELECT
+                COUNT(*)                                         AS total,
+                IFNULL(SUM(IFNULL(s.delivery_status, 0) = 1), 0) AS done
+            FROM {$this->pos}sale s
+            WHERE s.branch_id IN ({$this->qIn($branchIds)})
+                AND s.sale_type_id = 1
+                AND IFNULL(s.active, 1) = 1
+                AND s.sale_status_id IN (2, 3)
+                AND s.delivery_date = ?
+        ", array_merge(array_values($branchIds), [$day]));
     }
 
     // El WHERE comun de lista y conteo: [sql, datos].
@@ -337,25 +451,7 @@ class mdl extends CRUD {
                 IFNULL(c.phone, '') AS phone,
                 {$this->qPaidSql('s')} AS paid,
                 {$this->qCustomSql('s')} AS is_custom,
-                COALESCE(
-                    (SELECT si.path
-                       FROM {$this->pos}sale_image si
-                       INNER JOIN {$this->pos}detail_sale di ON di.id = si.detail_sale_id
-                      WHERE di.sale_id = s.id
-                        AND IFNULL(di.active, 1) = 1
-                        AND IFNULL(si.active, 1) = 1
-                      ORDER BY si.id
-                      LIMIT 1),
-                    (SELECT NULLIF(pi.image, '')
-                       FROM {$this->pos}detail_sale dp
-                       INNER JOIN {$this->pos}product pi ON pi.id = dp.product_id
-                      WHERE dp.sale_id = s.id
-                        AND IFNULL(dp.active, 1) = 1
-                        AND IFNULL(pi.image, '') <> ''
-                      ORDER BY dp.id
-                      LIMIT 1),
-                    ''
-                ) AS photo
+                {$this->qPhotoSql('s')} AS photo
             FROM {$this->pos}sale s
             LEFT JOIN {$this->pos}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->pos}customer c     ON c.id = s.customer_id
@@ -432,6 +528,7 @@ class mdl extends CRUD {
                 d.quantity,
                 d.discount_amount,
                 d.product_id,
+                d.created_at,
                 IFNULL(p.is_custom, 0)   AS is_custom,
                 IFNULL(p.image, '')      AS image,
                 IFNULL(p.portion_qty, 0) AS portion_qty,
@@ -494,6 +591,7 @@ class mdl extends CRUD {
                 p.description,
                 p.turn_id,
                 COALESCE(p.paid_at, p.created_at) AS paid_at,
+                IFNULL(p.payment_method_id, 0) AS method_id,
                 IFNULL(pmt.name, '')  AS method,
                 IFNULL(pmt.code, '')  AS method_code,
                 IFNULL(pmt.is_cash, 0) AS is_cash,
@@ -733,7 +831,7 @@ class mdl extends CRUD {
 
     protected function qInsertInto($table, $array) {
         return $this->_Insert([
-            'table'  => $this->pos . $table,
+            'table'  => $this->qTable($table),
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
@@ -741,7 +839,7 @@ class mdl extends CRUD {
 
     protected function qUpdateIn($table, $array) {
         return $this->_Update([
-            'table'  => $this->pos . $table,
+            'table'  => $this->qTable($table),
             'values' => $array['values'],
             'where'  => $array['where'],
             'data'   => $array['data']
@@ -934,6 +1032,96 @@ class mdl extends CRUD {
         ", [$turnId]);
     }
 
+    /*  Abonos cobrados en el turno a pedidos de otro turno (el «Abonos de pedidos
+        anteriores» del ticket de alpha), uno por pedido: lo abonado aquí y lo
+        pagado hasta $until (el cierre, o ahora) para el Debía · Abonó · Quedó.
+        El dinero ya está en las formas de pago; el pedido se cuenta en su turno.
+        Misma regla que qCutPayments: otro turn_id = de fuera. */
+    public function qShiftPrevSales($turnId, $until) {
+        return $this->qRows("
+            SELECT
+                s.id,
+                IFNULL(s.folio, s.id)  AS folio,
+                s.sale_type_id,
+                IFNULL(s.branch_id, 0) AS branch_id,
+                IFNULL(b.name, '')     AS origin,
+                IFNULL(c.name, '')     AS customer,
+                IFNULL(s.total, 0)     AS total,
+                SUM(p.amount)          AS paid,
+                (SELECT IFNULL(SUM(x.amount), 0)
+                   FROM {$this->pos}payment x
+                  WHERE x.sale_id = s.id
+                    AND IFNULL(x.active, 1) = 1
+                    AND x.deleted_at IS NULL
+                    AND IFNULL(x.paid_at, x.created_at) <= ?) AS paid_upto
+            FROM {$this->pos}payment p
+            JOIN {$this->pos}sale s          ON s.id = p.sale_id
+            LEFT JOIN {$this->pos}customer c ON c.id = s.customer_id
+            LEFT JOIN {$this->bd}branches b  ON b.id = s.branch_id
+            WHERE p.turn_id = ?
+                AND IFNULL(p.active, 1) = 1
+                AND p.deleted_at IS NULL
+                AND IFNULL(s.turn_id, 0) <> ?
+            GROUP BY s.id, s.folio, s.sale_type_id, s.branch_id, b.name, c.name, s.total
+            ORDER BY MIN(IFNULL(p.paid_at, p.created_at)), s.id
+        ", [$until, $turnId, $turnId]);
+    }
+
+    // Ticket de alpha, Detallado: los pedidos y ventas del turno (sin cancelados) con lo cobrado de cada uno EN el turno.
+    public function qShiftSales($turnId) {
+        return $this->qRows("
+            SELECT
+                s.id,
+                IFNULL(s.folio, s.id) AS folio,
+                s.sale_type_id,
+                s.sale_status_id,
+                IFNULL(c.name, '')    AS customer,
+                IFNULL(s.subtotal, IFNULL(s.total, 0)) AS subtotal,
+                IFNULL(s.discount_amount, 0)           AS discount,
+                IFNULL(s.total, 0)    AS total,
+                (SELECT IFNULL(SUM(p.amount), 0)
+                   FROM {$this->pos}payment p
+                  WHERE p.sale_id = s.id
+                    AND p.turn_id = s.turn_id
+                    AND IFNULL(p.active, 1) = 1
+                    AND p.deleted_at IS NULL) AS paid
+            FROM {$this->pos}sale s
+            LEFT JOIN {$this->pos}customer c ON c.id = s.customer_id
+            WHERE s.turn_id = ?
+                AND IFNULL(s.active, 1) = 1
+                AND IFNULL(s.sale_status_id, 0) <> 4
+            ORDER BY s.created_at, s.id
+        ", [$turnId]);
+    }
+
+    /*  Ticket de alpha, Detallado: cobros a pedidos de ESTE turno que entraron a
+        la caja de otra sucursal. Informativos: no suman a esta caja.
+        Un pago sin branch_id (de antes del cobro cruzado) no cuenta como de fuera. */
+    public function qShiftCrossPayments($turnId, $branchId) {
+        return $this->qRows("
+            SELECT
+                s.id,
+                IFNULL(s.folio, s.id) AS folio,
+                s.sale_type_id,
+                IFNULL(c.name, '')    AS customer,
+                IFNULL(b.name, '')    AS branch,
+                SUM(p.amount)         AS amount
+            FROM {$this->pos}payment p
+            JOIN {$this->pos}sale s          ON s.id = p.sale_id
+            LEFT JOIN {$this->pos}customer c ON c.id = s.customer_id
+            LEFT JOIN {$this->bd}branches b  ON b.id = p.branch_id
+            WHERE s.turn_id = ?
+                AND IFNULL(s.active, 1) = 1
+                AND IFNULL(p.turn_id, 0) <> ?
+                AND p.branch_id IS NOT NULL
+                AND p.branch_id <> ?
+                AND IFNULL(p.active, 1) = 1
+                AND p.deleted_at IS NULL
+            GROUP BY s.id, s.folio, s.sale_type_id, c.name, b.name, p.branch_id
+            ORDER BY s.id
+        ", [$turnId, $turnId, $branchId]);
+    }
+
     // La foto por estado que guardó el corte Z (solo importe: turn_status no lleva conteo).
     public function qTurnCutStatuses($turnId) {
         return $this->qRows("
@@ -952,6 +1140,7 @@ class mdl extends CRUD {
     // -- Cortes: listas --
 
     // Turnos abiertos en [$from, $to) con su foto y lo vendido en vivo (para ver si cambió).
+    // tickets: pedidos y ventas del turno que suman a lo vendido (Pendiente o Pagado).
     public function qTurnList($branchId, $from, $to) {
         return $this->qRows("
             SELECT
@@ -972,6 +1161,11 @@ class mdl extends CRUD {
                   WHERE s.turn_id = t.id
                     AND s.sale_status_id IN (2, 3)
                     AND IFNULL(s.active, 1) = 1) AS sold,
+                (SELECT COUNT(*)
+                   FROM {$this->pos}sale s
+                  WHERE s.turn_id = t.id
+                    AND s.sale_status_id IN (2, 3)
+                    AND IFNULL(s.active, 1) = 1) AS tickets,
                 (SELECT COUNT(*)
                    FROM {$this->pos}daily_closure d
                   WHERE d.branch_id = t.branch_id
@@ -1014,6 +1208,8 @@ class mdl extends CRUD {
                 s.sale_type_id,
                 IFNULL(ss.name, 'Sin estado') AS status,
                 IFNULL(c.name, '')            AS customer,
+                IFNULL(s.subtotal, IFNULL(s.total, 0)) AS subtotal,
+                IFNULL(s.discount_amount, 0)  AS discount,
                 IFNULL(s.total, 0)            AS total,
                 s.created_at
             FROM {$this->pos}sale s
@@ -1037,6 +1233,8 @@ class mdl extends CRUD {
                 IFNULL(p.amount, 0)            AS amount,
                 IFNULL(p.paid_at, p.created_at) AS paid_at,
                 IFNULL(pm.name, 'Sin método')  AS method,
+                p.sale_id,
+                s.sale_type_id,
                 IFNULL(s.folio, '')            AS folio,
                 IFNULL(c.name, '')             AS customer,
                 IF(s.turn_id IN ({$in}), 0, 1) AS other
@@ -1077,13 +1275,15 @@ class mdl extends CRUD {
         ", [$companyId]);
     }
 
-    // Un pago vivo del pedido, con el estado del turno en que entro.
+    // Un pago vivo del pedido, con el estado del turno en que entro y la sucursal que lo cobro.
     public function qGetPayment($paymentId, $saleId) {
         return $this->qRow("
             SELECT
                 p.id,
                 p.amount,
                 p.turn_id,
+                IFNULL(p.payment_method_id, 0) AS payment_method_id,
+                IFNULL(p.branch_id, 0)         AS branch_id,
                 IFNULL(pm.name, 'Sin método') AS method,
                 IFNULL(t.status, '')          AS turn_status,
                 IFNULL(t.folio, '')           AS turn_folio
@@ -1210,6 +1410,16 @@ class mdl extends CRUD {
             SELECT COUNT(*)
             FROM {$this->pos}turn t
             WHERE " . $this->qDayTurnWhere('t') . "
+        ", [$branchId, $from, $to]);
+    }
+
+    // Los turnos del día que ya tienen su corte: sin uno, el día no se cierra.
+    public function qDayClosedTurnCount($branchId, $from, $to) {
+        return $this->qCount("
+            SELECT COUNT(*)
+            FROM {$this->pos}turn t
+            WHERE " . $this->qDayTurnWhere('t') . "
+              AND t.status <> 'open'
         ", [$branchId, $from, $to]);
     }
 
@@ -1375,7 +1585,9 @@ class mdl extends CRUD {
         ", [$closureId]);
     }
 
-    // El importe es la foto del cierre; el número de pedidos sale de los ligados.
+    /*  El importe es la foto del cierre; el número de pedidos sale de los turnos
+        ligados al cierre. Por sale.daily_closure_id no: qLinkClosure no liga las
+        cotizaciones y el ticket del día cerrado salía con «COTIZACIONES: -». */
     public function qClosureStatuses($closureId) {
         return $this->qRows("
             SELECT
@@ -1383,7 +1595,8 @@ class mdl extends CRUD {
                 IFNULL(ss.name, 'Sin estado') AS name,
                 (SELECT COUNT(*)
                    FROM {$this->pos}sale s
-                  WHERE s.daily_closure_id = x.daily_closure_id
+                   JOIN {$this->pos}turn t ON t.id = s.turn_id
+                  WHERE t.daily_closure_id = x.daily_closure_id
                     AND s.sale_status_id = x.sale_status_id
                     AND IFNULL(s.active, 1) = 1) AS orders,
                 IFNULL(x.amount, 0)           AS amount

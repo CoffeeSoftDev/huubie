@@ -93,7 +93,7 @@ class HomeWidgets {
                     'icon'  => 'hand-coins',
                     'title' => '$' . number_format($sum['due'], 2) . ' por cobrar en las entregas de hoy',
                     'text'  => $this->count($sum['due_orders'], 'pedido se entrega', 'pedidos se entregan') . ' con saldo pendiente.',
-                    'route' => 'app/order/pedidos.php',
+                    'route' => 'app/order/lista-pedidos.php',
                     'go'    => 'Ver pedidos',
                 ];
             }
@@ -103,7 +103,7 @@ class HomeWidgets {
                     'icon'  => 'alarm-clock',
                     'title' => $this->count($sum['late'], 'pedido atrasado', 'pedidos atrasados') . ' o sin marcar como entregado',
                     'text'  => trim('Su entrega era en los últimos ' . self::LATE_DAYS . ' días. ' . $this->perBranch($business['branches'], 'late')),
-                    'route' => 'app/order/pedidos.php',
+                    'route' => 'app/order/lista-pedidos.php',
                     'go'    => 'Ver pedidos',
                 ];
             }

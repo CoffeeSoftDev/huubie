@@ -19,7 +19,7 @@ trait WhatsAppInbox {
     protected function qWaAgentByNumber($phoneNumberId) {
         return $this->qRow("
             SELECT COUNT(*) AS n, MAX(company_id) AS company_id
-            FROM {$this->pos}wa_agent
+            FROM {$this->crm}wa_agent
             WHERE phone_number_id = ?
         ", [$phoneNumberId]);
     }
@@ -29,7 +29,7 @@ trait WhatsAppInbox {
         se cambia si llega uno. Devuelve el id, o 0. */
     protected function qWaLockChat($companyId, $phone, $waId, $name, $now) {
         $this->qWaRun("
-            INSERT INTO {$this->pos}wa_chat (company_id, phone, wa_id, name, mode, opt_out, created_at, updated_at)
+            INSERT INTO {$this->crm}wa_chat (company_id, phone, wa_id, name, mode, opt_out, created_at, updated_at)
             VALUES (?, ?, ?, ?, 'agent', 0, ?, ?)
             ON DUPLICATE KEY UPDATE
                 wa_id = VALUES(wa_id),
@@ -38,7 +38,7 @@ trait WhatsAppInbox {
 
         $row = $this->qRow("
             SELECT id
-            FROM {$this->pos}wa_chat
+            FROM {$this->crm}wa_chat
             WHERE company_id = ? AND phone = ?
             LIMIT 1
             FOR UPDATE
@@ -50,7 +50,7 @@ trait WhatsAppInbox {
     protected function qWaMessageExists($providerId) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}wa_message
+            FROM {$this->crm}wa_message
             WHERE provider_id = ?
         ", [$providerId]) > 0;
     }
@@ -62,7 +62,7 @@ trait WhatsAppInbox {
     // last_in_at y last_message_at nunca van hacia atras: un aviso viejo que llega tarde no las mueve.
     protected function qWaTouchChat($chatId, $sentAt, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_chat
+            UPDATE {$this->crm}wa_chat
             SET last_in_at      = GREATEST(IFNULL(last_in_at, ?), ?),
                 last_message_at = GREATEST(IFNULL(last_message_at, ?), ?),
                 updated_at      = ?
@@ -76,7 +76,7 @@ trait WhatsAppInbox {
         return $this->qRow("
             SELECT id, company_id, phone_number_id, IFNULL(display_phone, '') AS display_phone,
                    enabled, hours, IFNULL(catalog_mode, 'store') AS catalog_mode, IFNULL(auto_topics, '') AS auto_topics, updated_at
-            FROM {$this->pos}wa_agent
+            FROM {$this->crm}wa_agent
             WHERE company_id = ?
             LIMIT 1
         ", [$companyId]);
@@ -84,7 +84,7 @@ trait WhatsAppInbox {
 
     // 1 si el telefono del chat c es de un destinatario con «Pregunta» (agente del dueño, F6).
     private function qWaOwnerSql() {
-        return "EXISTS (SELECT 1 FROM {$this->pos}wa_recipient wr
+        return "EXISTS (SELECT 1 FROM {$this->crm}wa_recipient wr
                         WHERE wr.company_id = c.company_id AND wr.phone = c.phone AND wr.active = 1 AND IFNULL(wr.can_ask, 0) = 1)";
     }
 
@@ -116,16 +116,16 @@ trait WhatsAppInbox {
                    c.opt_out, c.last_in_at, c.last_message_at, c.seen_at, c.menu_at,
                    IFNULL(c.mode, 'agent') AS mode, c.human_until, IFNULL(c.handoff_note, '') AS handoff_note,
                    (SELECT COUNT(*)
-                    FROM {$this->pos}wa_message mi
+                    FROM {$this->crm}wa_message mi
                     WHERE mi.chat_id = c.id AND mi.direction = 'in'
                         AND (c.seen_at IS NULL OR mi.created_at > c.seen_at)) AS unread,
                    IFNULL(lm.body, '') AS last_body, IFNULL(lm.type, '') AS last_type,
                    IFNULL(lm.direction, '') AS last_dir, IFNULL(lm.status, '') AS last_status,
                    {$this->qWaOwnerSql()} AS owner
-            FROM {$this->pos}wa_chat c
+            FROM {$this->crm}wa_chat c
             LEFT JOIN {$this->bd}branches b ON b.id = c.branch_id
-            LEFT JOIN {$this->pos}wa_message lm
-                   ON lm.id = (SELECT MAX(m2.id) FROM {$this->pos}wa_message m2 WHERE m2.chat_id = c.id)
+            LEFT JOIN {$this->crm}wa_message lm
+                   ON lm.id = (SELECT MAX(m2.id) FROM {$this->crm}wa_message m2 WHERE m2.chat_id = c.id)
             WHERE c.company_id = ?{$where}
             ORDER BY c.last_message_at DESC, c.id DESC
             LIMIT 200
@@ -138,7 +138,7 @@ trait WhatsAppInbox {
                    c.opt_out, c.opt_out_at, c.last_in_at, c.last_message_at, c.seen_at, c.menu_at, c.customer_id,
                    IFNULL(c.mode, 'agent') AS mode, c.human_until, IFNULL(c.handoff_note, '') AS handoff_note,
                    {$this->qWaOwnerSql()} AS owner
-            FROM {$this->pos}wa_chat c
+            FROM {$this->crm}wa_chat c
             LEFT JOIN {$this->bd}branches b ON b.id = c.branch_id
             WHERE c.id = ? AND c.company_id = ?
             LIMIT 1
@@ -148,7 +148,7 @@ trait WhatsAppInbox {
     protected function qWaChatByPhone($companyId, $phone) {
         return $this->qRow("
             SELECT id, wa_id
-            FROM {$this->pos}wa_chat
+            FROM {$this->crm}wa_chat
             WHERE company_id = ? AND phone = ?
             LIMIT 1
         ", [$companyId, $phone]);
@@ -162,8 +162,8 @@ trait WhatsAppInbox {
                 SELECT m.id, m.direction, m.type, IFNULL(m.body, '') AS body, IFNULL(m.media_type, '') AS media_type,
                        m.status, IFNULL(m.error, '') AS error, m.sent_at, m.user_id, m.receipt_id,
                        IFNULL(CONCAT_WS(' ', u.name, u.last_name), '') AS user,
-                       EXISTS (SELECT 1 FROM {$this->pos}wa_proposal p WHERE p.sent_message_id = m.id AND p.auto_sent = 1) AS auto
-                FROM {$this->pos}wa_message m
+                       EXISTS (SELECT 1 FROM {$this->crm}wa_proposal p WHERE p.sent_message_id = m.id AND p.auto_sent = 1) AS auto
+                FROM {$this->crm}wa_message m
                 LEFT JOIN {$this->bd}users u ON u.id = m.user_id
                 WHERE m.chat_id = ?
                 ORDER BY m.id DESC
@@ -174,18 +174,18 @@ trait WhatsAppInbox {
     }
 
     protected function qWaSeen($chatId, $now) {
-        $this->qWaRun("UPDATE {$this->pos}wa_chat SET seen_at = ? WHERE id = ?", [$now, $chatId]);
+        $this->qWaRun("UPDATE {$this->crm}wa_chat SET seen_at = ? WHERE id = ?", [$now, $chatId]);
     }
 
     // $branchId null = vuelve a «sin sucursal».
     protected function qWaSetBranch($chatId, $branchId, $now) {
-        $this->qWaRun("UPDATE {$this->pos}wa_chat SET branch_id = ?, updated_at = ? WHERE id = ?", [$branchId, $now, $chatId]);
+        $this->qWaRun("UPDATE {$this->crm}wa_chat SET branch_id = ?, updated_at = ? WHERE id = ?", [$branchId, $now, $chatId]);
     }
 
     // Solo si sigue sin sucursal: la eleccion del cliente no pisa la que puso una persona.
     protected function qWaChooseBranch($chatId, $branchId, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_chat
+            UPDATE {$this->crm}wa_chat
             SET branch_id = ?, updated_at = ?
             WHERE id = ? AND branch_id IS NULL
         ", [$branchId, $now, $chatId]);
@@ -194,7 +194,7 @@ trait WhatsAppInbox {
     // Empresa con una sola sucursal activa: todos sus chats son de esa.
     protected function qWaAssignAll($companyId, $branchId, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_chat
+            UPDATE {$this->crm}wa_chat
             SET branch_id = ?, updated_at = ?
             WHERE company_id = ? AND branch_id IS NULL
         ", [$branchId, $now, $companyId]);
@@ -204,7 +204,7 @@ trait WhatsAppInbox {
 
     protected function qWaTouchOut($chatId, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_chat
+            UPDATE {$this->crm}wa_chat
             SET last_message_at = GREATEST(IFNULL(last_message_at, ?), ?),
                 updated_at      = ?
             WHERE id = ?
@@ -214,7 +214,7 @@ trait WhatsAppInbox {
     protected function qWaHasOut($chatId) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}wa_message
+            FROM {$this->crm}wa_message
             WHERE chat_id = ? AND direction = 'out'
         ", [$chatId]) > 0;
     }
@@ -226,7 +226,7 @@ trait WhatsAppInbox {
     protected function qWaMenuPending($companyId, $since) {
         return $this->qRows("
             SELECT c.id
-            FROM {$this->pos}wa_chat c
+            FROM {$this->crm}wa_chat c
             WHERE c.company_id = ?
                 AND c.branch_id IS NULL
                 AND c.menu_at IS NULL
@@ -234,7 +234,7 @@ trait WhatsAppInbox {
                 AND c.last_in_at >= ?
                 AND NOT {$this->qWaOwnerSql()}
                 AND NOT EXISTS (
-                    SELECT 1 FROM {$this->pos}wa_message m
+                    SELECT 1 FROM {$this->crm}wa_message m
                     WHERE m.chat_id = c.id AND m.direction = 'out'
                 )
             ORDER BY c.last_in_at, c.id
@@ -246,7 +246,7 @@ trait WhatsAppInbox {
     protected function qWaLockChatById($chatId) {
         return $this->qRow("
             SELECT id, company_id, phone, wa_id, name, branch_id, opt_out, last_in_at, menu_at
-            FROM {$this->pos}wa_chat
+            FROM {$this->crm}wa_chat
             WHERE id = ?
             LIMIT 1
             FOR UPDATE
@@ -254,7 +254,7 @@ trait WhatsAppInbox {
     }
 
     protected function qWaMarkMenu($chatId, $now) {
-        $this->qWaRun("UPDATE {$this->pos}wa_chat SET menu_at = ?, updated_at = ? WHERE id = ?", [$now, $now, $chatId]);
+        $this->qWaRun("UPDATE {$this->crm}wa_chat SET menu_at = ?, updated_at = ? WHERE id = ?", [$now, $now, $chatId]);
     }
 
     // -- Statuses de Meta --
@@ -263,8 +263,8 @@ trait WhatsAppInbox {
     protected function qWaOutByProvider($companyId, $providerId) {
         return $this->qRow("
             SELECT m.id, m.status
-            FROM {$this->pos}wa_message m
-            INNER JOIN {$this->pos}wa_chat c ON c.id = m.chat_id
+            FROM {$this->crm}wa_message m
+            INNER JOIN {$this->crm}wa_chat c ON c.id = m.chat_id
             WHERE m.provider_id = ? AND m.direction = 'out' AND c.company_id = ?
             LIMIT 1
         ", [$providerId, $companyId]);
@@ -273,7 +273,7 @@ trait WhatsAppInbox {
     // Solo avanza desde $from: un "entregado" que llega despues del "leido" no lo regresa.
     protected function qWaSetStatus($messageId, $status, $error, array $from) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_message
+            UPDATE {$this->crm}wa_message
             SET status = ?, error = COALESCE(?, error)
             WHERE id = ? AND status IN (" . $this->qIn($from) . ")
         ", array_merge([$status, $error, $messageId], $from));
@@ -345,8 +345,8 @@ trait WhatsAppAgentFlow {
         // BAJA apaga recordatorios y plantillas (lo que inicia la empresa); ALTA los vuelve a encender.
         $word = in_array($msg['type'], ['text', 'button', 'interactive'], true) ? $this->inboxKeyword($msg['body']) : '';
 
-        if ($word === 'baja') $this->qWaRun("UPDATE {$this->pos}wa_chat SET opt_out = 1, opt_out_at = ?, updated_at = ? WHERE id = ?", [$sentAt, $now, $chatId]);
-        if ($word === 'alta') $this->qWaRun("UPDATE {$this->pos}wa_chat SET opt_out = 0, opt_out_at = NULL, updated_at = ? WHERE id = ?", [$now, $chatId]);
+        if ($word === 'baja') $this->qWaRun("UPDATE {$this->crm}wa_chat SET opt_out = 1, opt_out_at = ?, updated_at = ? WHERE id = ?", [$sentAt, $now, $chatId]);
+        if ($word === 'alta') $this->qWaRun("UPDATE {$this->crm}wa_chat SET opt_out = 0, opt_out_at = NULL, updated_at = ? WHERE id = ?", [$now, $chatId]);
 
         return $chatId;
     }

@@ -98,7 +98,7 @@ class ctrl extends core {
 
             foreach ($type['vars'] as $var => $label) $vars[] = ['key' => $var, 'label' => $label];
 
-            $types[] = ['key' => $key, 'name' => $type['name'], 'when' => $type['when'], 'vars' => $vars];
+            $types[] = ['key' => $key, 'name' => $type['name'], 'when' => $type['when'], 'note' => $type['note'] ?? '', 'vars' => $vars];
         }
 
         $branches = array_map(function ($b) {
@@ -1054,6 +1054,28 @@ class ctrl extends core {
         }, 'No se pudo abrir el destinatario.');
     }
 
+    /*  «Agregar grupo»: los grupos del WhatsApp conectado para elegir uno; added
+        = ya es destinatario. Pregunta al proveedor (no manda nada): se suelta la
+        sesión mientras. Se guarda con saveRecipient, el id …@g.us va en phone. */
+    public function lsGroups() {
+        $fail = $this->needWa('create', 'agregar grupos de WhatsApp') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        $taken = array_column($this->qWaRecipientList($this->companyId()), 'phone');
+
+        session_write_close();
+
+        $wa     = new WhatsApp();
+        $answer = $wa->groups();
+
+        foreach ($answer['groups'] as &$group) {
+            $group['added'] = in_array($group['id'], $taken, true);
+        }
+        unset($group);
+
+        return ['status' => 200, 'provider' => $wa->provider()] + $answer;
+    }
+
     /*  id 0 = nuevo. can_ask (F6) = puede preguntarle al agente del dueño: solo
         un telefono de 10 digitos (un grupo no escribe al agente). Basta con
         eso o con un aviso. */
@@ -1136,7 +1158,7 @@ class ctrl extends core {
             if ($id <= 0 || !$this->qWaRecipient($id, $this->companyId())) return $this->fail(404, 'Ese destinatario ya no existe.');
 
             $this->must($this->_Delete([
-                'table' => $this->pos . 'wa_recipient',
+                'table' => $this->crm . 'wa_recipient',
                 'where' => ['id', 'company_id'],
                 'data'  => [$id, $this->companyId()]
             ]), 'deleteRecipient');
@@ -1651,10 +1673,15 @@ class ctrl extends core {
         // F6: le pregunta al agente del dueño (ventas, turno, pedidos, cartera).
         if ((int) $r['can_ask'] === 1) $pills .= '<span class="ord-pill bg-emerald-50 text-emerald-700 me-1" title="Puede preguntarle al agente">Pregunta</span>';
 
+        $group = substr((string) $r['phone'], -5) === '@g.us';
+        $sub   = $group
+               ? '<i data-lucide="users-round" class="inline-block w-3 h-3 align-[-1px] me-1"></i>Grupo de WhatsApp'
+               : h($this->phoneText($r['phone']));
+
         $row = [
             'id'           => $id,
             'Destinatario' => '<div class="font-semibold text-gray-800">' . h($r['name']) . '</div>'
-                            . '<div class="ord-sub whitespace-nowrap">' . h($this->phoneText($r['phone'])) . '</div>',
+                            . '<div class="ord-sub whitespace-nowrap">' . $sub . '</div>',
             'Sucursal'     => $r['branch_id'] !== null
                             ? h($r['branch'] !== '' ? $r['branch'] : 'Sucursal borrada')
                             : '<span class="text-gray-500">Todas</span>',

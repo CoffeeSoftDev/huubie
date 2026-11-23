@@ -1,11 +1,8 @@
 <?php
-require_once __DIR__ . '/../../core/security/_Permission.php';
+/*  La lista de pedidos ahora es lista-pedidos.php. Este archivo solo
+    redirige los enlaces viejos (marcadores, la ruta del menu mientras no
+    corra 2026-11-20_ruta-lista-pedidos.sql), con su ?vista= y ?from=. */
+$query = $_SERVER['QUERY_STRING'] ?? '';
 
-// Sin sesion al login; sin la seccion, a su inicio.
-Permission::page('pos-pedidos', '../../');
-
-$title  = 'Pedidos';
-$script = 'pedidos';
-
-require __DIR__ . '/layout/head.php';
-require __DIR__ . '/layout/scripts.php';
+header('Location: lista-pedidos.php' . ($query !== '' ? '?' . $query : ''));
+exit;

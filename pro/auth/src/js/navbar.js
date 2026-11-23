@@ -312,22 +312,33 @@ class Navbar {
                 <span class="branch-radio"><span class="branch-radio-inner"></span></span>
             </button>` : '';
 
-        const cards = branches.map((b) => `
+        const cards = branches.map((b) => {
+            const place = (allOn && b.selected ? 'Activa · ' : '') + this.esc(b.ubication || 'Sin dirección');
+            const turn  = this.turnLook(b.id);
+
+            return `
             <button type="button" class="branch-card ${b.selected && !allOn ? 'branch-card-sel' : ''}" data-id="${b.id}">
                 <span class="branch-card-avatar">${this.esc(this.initials(b.name))}</span>
                 <span class="branch-card-text">
                     <span class="branch-card-name">${this.esc(b.name)}</span>
-                    <span class="branch-card-place">${allOn && b.selected ? 'Activa · ' : ''}${this.esc(b.ubication || 'Sin dirección')}</span>
+                    ${turn
+                        ? `<span class="branch-card-place"><span class="branch-turn ${turn[0]}"><i class="branch-turn-dot"></i>${turn[1]}</span> · ${place}</span>`
+                        : `<span class="branch-card-place">${place}</span>`}
                 </span>
                 <span class="branch-radio"><span class="branch-radio-inner"></span></span>
-            </button>`).join('');
+            </button>`;
+        }).join('');
+
+        // El punto de la píldora: el turno de la sucursal activa (con «Todas» no lleva).
+        const pillTurn = allOn ? null : this.turnLook(current.id);
+        const pillDot  = pillTurn ? `<i class="branch-turn-dot branch-turn ${pillTurn[0]}" title="${pillTurn[1]}"></i>` : '';
 
         box.innerHTML = `
             <button type="button" id="btnBranch" class="branch-pill ${multi ? '' : 'branch-pill-static'}" aria-expanded="false" ${multi ? '' : 'disabled'}>
                 <span class="branch-pill-icon"><i data-lucide="${allOn ? 'layers' : 'building-2'}"></i></span>
                 <span class="branch-pill-text">
                     <span class="branch-pill-label">${allOn ? 'Sucursales' : 'Sucursal'}</span>
-                    <span class="branch-pill-name">${allOn ? 'Todas' : this.esc(current.name)}</span>
+                    <span class="branch-pill-row">${pillDot}<span class="branch-pill-name">${allOn ? 'Todas' : this.esc(current.name)}</span></span>
                 </span>
                 ${multi ? '<i data-lucide="chevron-down" class="branch-pill-chev"></i>' : ''}
             </button>
@@ -362,6 +373,49 @@ class Navbar {
 
         // Todo lo que hay en pantalla es de la sucursal anterior.
         window.location.reload();
+    }
+
+    // -- Turno de caja por sucursal --
+
+    /*  Las páginas de caja (Pedidos y Ventas) dicen qué sucursal tiene turno,
+        como la barra de alpha: { branch_id: 'open' | 'old' }, sin llave = sin
+        turno (core-order › branchTurns). Cada tarjeta lo dice con su punto y la
+        píldora lleva el de la sucursal activa. Sin llamar aquí, la barra no
+        habla de turnos (las demás páginas no tienen caja). */
+    showTurns(turns) {
+        this.turns = Object.assign({}, turns || {});
+        this.paintBranch();
+    }
+
+    // La sucursal de la sesión abrió o cerró su turno (orderTurn.sync): 'open', 'old' o '' = sin turno.
+    setTurn(state) {
+        const active = ((this.data && this.data.branches) || []).find((b) => b.selected);
+
+        if (!this.turns || !active) return;
+        if (String(this.turns[active.id] || '') === String(state || '')) return;
+
+        if (state) this.turns[active.id] = state;
+        else delete this.turns[active.id];
+
+        this.paintBranch();
+    }
+
+    // [clase, texto] del turno de una sucursal; null si la página no habla de turnos.
+    turnLook(id) {
+        if (!this.turns) return null;
+
+        return ({
+            open: ['is-open', 'Turno abierto'],
+            old:  ['is-old', 'Turno de otro día']
+        })[this.turns[id]] || ['is-none', 'Sin turno'];
+    }
+
+    // Repinta la píldora y las tarjetas si la sesión ya llegó (antes, renderSession lo hace).
+    paintBranch() {
+        if (!this.data || !this.data.branches) return;
+
+        this.renderBranch();
+        this.icons();
     }
 
     // -- Todas las sucursales --
@@ -688,6 +742,23 @@ class Navbar {
             .branch-radio-inner { width:7px; height:7px; border-radius:9999px; background:var(--nav-accent); opacity:0; }
             .branch-card-sel .branch-radio-inner { opacity:1; }
             .branch-card-all .branch-card-avatar svg { width:14px; height:14px; }
+
+            /* Turno de la sucursal (showTurns): verde abierto, terracota de otro
+               día, gris sin turno, igual que el selector de la captura de Pedidos.
+               Solo el abierto late, despacio. */
+            .branch-pill-row { display:flex; align-items:center; gap:6px; min-width:0; max-width:100%; }
+            .branch-turn { display:inline-flex; align-items:center; gap:5px; font-weight:500; }
+            .branch-turn.is-open { color:#047857; }
+            .branch-turn.is-old  { color:#A84A33; }
+            .branch-turn.is-none { color:var(--nav-pop-dim); }
+            .branch-turn-dot { width:6px; height:6px; border-radius:9999px; background:currentColor; flex-shrink:0; font-style:normal; }
+            .branch-turn.is-open .branch-turn-dot, .branch-turn-dot.is-open { box-shadow:0 0 0 2px rgba(16,185,129,.20); animation:branchTurnPulse 2.4s ease-in-out infinite; }
+            .branch-turn-dot.branch-turn { width:7px; height:7px; }
+            .branch-turn-dot.is-none { color:#9CA3AF; }
+            @keyframes branchTurnPulse { 0%, 100% { opacity:1; } 50% { opacity:.35; } }
+            @media (prefers-reduced-motion: reduce) { .branch-turn-dot { animation:none !important; } }
+            body.dark-mode .branch-turn.is-open { color:#6EE7B7; }
+            body.dark-mode .branch-turn.is-old  { color:#EE937A; }
 
             /* Modo. En la barra, un boton que muestra a donde se va: luna en
                claro, sol en oscuro. */

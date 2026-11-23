@@ -52,36 +52,36 @@ trait LoyaltyBirthday {
                 IFNULL(t.stamp_goal, 0)        AS stamp_goal,
                 (
                     SELECT n.created_at
-                    FROM {$this->pos}loyalty_notice n
+                    FROM {$this->crm}loyalty_notice n
                     WHERE n.customer_id = cu.id AND n.kind = 'cumple' AND n.created_at >= ?
                     ORDER BY n.id DESC
                     LIMIT 1
                 ) AS greeted_at,
                 (
                     SELECT n.status
-                    FROM {$this->pos}loyalty_notice n
+                    FROM {$this->crm}loyalty_notice n
                     WHERE n.customer_id = cu.id AND n.kind = 'cumple' AND n.created_at >= ?
                     ORDER BY n.id DESC
                     LIMIT 1
                 ) AS greeted_status,
                 IFNULL((
                     SELECT wc.opt_out
-                    FROM {$this->pos}wa_chat wc
+                    FROM {$this->crm}wa_chat wc
                     WHERE wc.company_id = ? AND wc.phone = {$phone}
                     LIMIT 1
                 ), 0) AS opt_out
             FROM {$this->pos}customer cu
-            INNER JOIN {$this->pos}card c ON c.id = (
+            INNER JOIN {$this->crm}card c ON c.id = (
                 SELECT c2.id
-                FROM {$this->pos}card c2
-                INNER JOIN {$this->pos}card_type t2 ON t2.id = c2.card_type_id AND IFNULL(t2.active, 1) = 1
+                FROM {$this->crm}card c2
+                INNER JOIN {$this->crm}card_type t2 ON t2.id = c2.card_type_id AND IFNULL(t2.active, 1) = 1
                 WHERE c2.customer_id = cu.id
                     AND IFNULL(c2.active, 1) = 1
                     AND {$this->qSameCompany('c2.branch_id')}
                 ORDER BY c2.id DESC
                 LIMIT 1
             )
-            INNER JOIN {$this->pos}card_type t ON t.id = c.card_type_id
+            INNER JOIN {$this->crm}card_type t ON t.id = c.card_type_id
             WHERE {$this->qSameCompany('cu.branch_id')}
                 AND IFNULL(cu.active, 1) = 1
                 AND cu.birthday IS NOT NULL
@@ -92,7 +92,7 @@ trait LoyaltyBirthday {
     protected function qBirthdayGreeted($customerId, $yearStart) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}loyalty_notice
+            FROM {$this->crm}loyalty_notice
             WHERE customer_id = ? AND kind = 'cumple' AND created_at >= ?
         ", [$customerId, $yearStart]) > 0;
     }
@@ -101,7 +101,7 @@ trait LoyaltyBirthday {
     protected function qBirthdayCount($companyId, $since) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}loyalty_notice
+            FROM {$this->crm}loyalty_notice
             WHERE company_id = ? AND kind = 'cumple' AND created_at >= ?
         ", [$companyId, $since]);
     }
@@ -119,7 +119,7 @@ trait LoyaltyBirthday {
                 cu.whatsapp_optin_at,
                 (
                     SELECT CONCAT(n.created_at, '|', n.status)
-                    FROM {$this->pos}loyalty_notice n
+                    FROM {$this->crm}loyalty_notice n
                     WHERE n.customer_id = cu.id AND n.kind = 'cumple' AND n.created_at >= ?
                     ORDER BY n.id DESC
                     LIMIT 1

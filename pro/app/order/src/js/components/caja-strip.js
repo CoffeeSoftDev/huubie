@@ -1,24 +1,25 @@
 /*  Franja de caja: el estado del turno a lo ancho, bajo la barra de arriba.
-    Es la misma en todas las pantallas de order/ (pedidos, ventas, historial,
-    calendario, cortes y clientes). La pinta OrderTurn cada vez que cambia el turno.
+    Es la misma en las pantallas de caja de order/ (pedidos, ventas, historial,
+    calendario y cortes); Clientes no la lleva. La pinta OrderTurn cada vez que cambia el turno.
 
     Cinco estados, en este orden: turno de otro día, turno abierto, día cerrado,
     día pendiente de cierre y sin turno.
 
-    Con la captura de Pedidos abierta, «Volver a pedidos» va a la izquierda,
-    junto al estado del turno: un círculo con la flecha, sin texto.
+    Con la captura de Pedidos abierta (pedido.php), «Volver a pedidos» va a la
+    izquierda, junto al estado del turno: un círculo con la flecha, sin texto.
 
     A la derecha, los botones de Soft Restaurant: recuadro con la tecla arriba,
     el ícono al centro y el nombre abajo. Abrir turno (F2) y Cerrar turno (F3)
     están siempre; el que no aplica al estado se ve apagado.
     Con el día pendiente se suma «Ir a Cortes»: ahí se cierra el día.
-    En Ventas se suma «Cierre del día»: se enciende cuando hoy ya se abrió más
-    de un turno. En Pedidos también se suma: se enciende cuando ya no hay turno
-    abierto y hubo uno cerrado. En las demás pantallas se queda en su encabezado.
-    También en Ventas, al final, va «Ir a Pedidos»: cambia a pedidos.php.
-    Lo ve quien ve esa sección, tenga o no create.
-    Quien llegó a Pedidos por ese botón (pedidos.php?from=ventas) ve «Ventas»
-    al principio, junto a «Abrir turno», para regresar.
+    En Ventas y Pedidos se suma «Cierre del día»: se enciende con la regla de
+    todas las pantallas (orderTurn.dayReady): sin turno abierto y con un turno
+    cerrado. En las demás pantallas se queda en su encabezado.
+    También en Ventas, al final, va «Ir a Pedidos»: abre el TPV de Pedidos
+    (pedido.php, un pedido nuevo), no la lista. Lo ve quien ve esa sección,
+    tenga o no create.
+    Quien llegó a Pedidos por ese botón (pedido.php?from=ventas, y la lista
+    a la que regresa) ve «Ventas» al principio, junto a «Abrir turno», para regresar.
 
     Quien no tiene create (Consulta) no ve Abrir, Cerrar, «Cierre del día» ni «Ir a Cortes». */
 
@@ -178,23 +179,22 @@ class CajaStrip extends Templates {
             list.push({ id: 'btnCajaClose', key: 'F3', icon: 'alarm-clock-off', text: 'Cerrar turno', kind: 'is-close', on: s.close, onClick: () => orderTurn.open() });
         }
 
-        if (can && this.onSale()) {
-            list.push({ id: 'btnCajaDay', icon: 'calendar-check', text: 'Cierre del día', kind: 'is-day', on: this.dayReady(), onClick: () => orderClosure.open() });
-        }
-
-        // Pedidos: abre el día pendiente si lo hay; si no, el de hoy.
-        if (can && this.onOrders()) {
-            list.push({ id: 'btnCajaDay', icon: 'calendar-check', text: 'Cierre del día', kind: 'is-day', on: this.turnClosed(), onClick: () => orderClosure.open(this.pendingDay()) });
+        // Ventas y Pedidos: abre el día pendiente si lo hay; si no, el de hoy.
+        if (can && (this.onSale() || this.onOrders())) {
+            list.push({ id: 'btnCajaDay', icon: 'calendar-check', text: 'Cierre del día', kind: 'is-day', on: orderTurn.dayReady(), why: orderTurn.dayWhy(), onClick: () => orderClosure.open(this.pendingDay()) });
         }
 
         if (can && s.cuts) {
             list.push({ id: 'btnCajaCuts', icon: 'file-text', text: 'Ir a Cortes', kind: 'is-cuts', on: true, onClick: () => { location.href = 'cortes.php'; } });
         }
 
-        // Ventas › cambiar a Pedidos sin pasar por el menú. No depende de create ni del turno.
+        // Ventas › directo al TPV de Pedidos (pedido.php = pedido nuevo), sin pasar por la lista.
+        // Quien no captura pedidos (sin create de pos-pedidos) va a la lista. El turno lo pide la captura.
         // is-nav no tiene color propio en order.css: el ícono sale gris.
         if (this.onSale() && this.seesOrders()) {
-            list.push({ id: 'btnCajaOrders', icon: 'clipboard-list', text: 'Ir a Pedidos', kind: 'is-nav', on: true, onClick: () => { location.href = 'pedidos.php?from=ventas'; } });
+            const page = (dataInit.actions || []).includes('create') ? 'pedido.php' : 'lista-pedidos.php';
+
+            list.push({ id: 'btnCajaOrders', icon: 'clipboard-list', text: 'Ir a Pedidos', kind: 'is-nav', on: true, onClick: () => { location.href = `${page}?from=ventas`; } });
         }
 
         this.coffeeForm({
@@ -213,7 +213,7 @@ class CajaStrip extends Templates {
             }))
         });
 
-        list.forEach((t) => $(`#${t.id}`).prop('disabled', !t.on));
+        list.forEach((t) => $(`#${t.id}`).prop('disabled', !t.on).attr('title', !t.on && t.why ? t.why : null));
 
         if (window.lucide) lucide.createIcons({ root: document.getElementById('cajaStrip') });
     }
@@ -258,9 +258,10 @@ class CajaStrip extends Templates {
         return typeof Sale !== 'undefined' && orders instanceof Sale;
     }
 
-    // Pedidos (pedidos.js) lleva «Cierre del día» en la franja.
+    // Pedidos lleva «Cierre del día» en la franja: la lista (lista-pedidos.js) y la captura (pedido.js).
     onOrders() {
-        return typeof Orders !== 'undefined' && orders instanceof Orders;
+        return (typeof Orders !== 'undefined' && orders instanceof Orders)
+            || (typeof OrderPage !== 'undefined' && orders instanceof OrderPage);
     }
 
     // Ve Pedidos quien tiene al menos una acción en esa sección: la regla del menú.
@@ -277,21 +278,6 @@ class CajaStrip extends Templates {
     // La captura de Pedidos está abierta (Ventas usa el mismo #posOrderHost, pero no vuelve a ningún lado).
     onOrderForm() {
         return typeof orderForm !== 'undefined' && !!orderForm && !this.onSale() && $('#posOrderHost').length > 0;
-    }
-
-    // Se enciende cuando hoy ya se abrió más de un turno y el día sigue sin cerrar.
-    // Con un turno todavía abierto el modal enseña el parcial y no deja cerrar.
-    dayReady() {
-        const day = dataInit.day || {};
-
-        return Number(day.turns || 0) > 1 && !day.closed;
-    }
-
-    // Pedidos: sin turno abierto y con un turno ya cerrado (hoy o en un día pendiente).
-    turnClosed() {
-        const day = dataInit.day || {};
-
-        return !dataInit.turn && (Number(day.turns || 0) > 0 || this.pendingDay() !== '');
     }
 
     // El día anterior que falta cerrar; '' = ninguno.

@@ -38,7 +38,7 @@ trait WhatsAppAgentAuto {
     // Solo si sigue 'pending': si una persona la decidio mientras tanto, se queda como la dejo.
     protected function qWaAutoDecide($id, $now) {
         $this->qWaRun("
-            UPDATE {$this->pos}wa_proposal
+            UPDATE {$this->crm}wa_proposal
             SET status = 'sent', auto_sent = 1, decided_by = NULL, decided_at = ?
             WHERE id = ? AND status = 'pending'
         ", [$now, $id]);
@@ -49,8 +49,8 @@ trait WhatsAppAgentAuto {
             SELECT p.id, p.chat_id, IFNULL(p.kind, 'customer') AS kind, p.status, IFNULL(p.auto_sent, 0) AS auto_sent,
                    p.topic, IFNULL(p.tools_used, '') AS tools_used, IFNULL(p.action, '') AS action,
                    p.decided_by, p.requested_by, p.elapsed_ms, p.created_at
-            FROM {$this->pos}wa_proposal p
-            INNER JOIN {$this->pos}wa_chat c ON c.id = p.chat_id
+            FROM {$this->crm}wa_proposal p
+            INNER JOIN {$this->crm}wa_chat c ON c.id = p.chat_id
             WHERE c.company_id = ? AND p.created_at >= ? AND p.created_at < ?
             ORDER BY p.id
             LIMIT 20000
@@ -61,9 +61,9 @@ trait WhatsAppAgentAuto {
     protected function qWaMetricMessages($companyId, $from, $to) {
         return $this->qRows("
             SELECT m.id, m.chat_id, m.direction, m.type, LEFT(IFNULL(m.body, ''), 20) AS body, m.user_id, m.sent_at,
-                   EXISTS (SELECT 1 FROM {$this->pos}wa_proposal p WHERE p.sent_message_id = m.id AND p.auto_sent = 1) AS auto
-            FROM {$this->pos}wa_message m
-            INNER JOIN {$this->pos}wa_chat c ON c.id = m.chat_id
+                   EXISTS (SELECT 1 FROM {$this->crm}wa_proposal p WHERE p.sent_message_id = m.id AND p.auto_sent = 1) AS auto
+            FROM {$this->crm}wa_message m
+            INNER JOIN {$this->crm}wa_chat c ON c.id = m.chat_id
             WHERE c.company_id = ? AND m.sent_at >= ? AND m.sent_at < ?
             ORDER BY m.chat_id, m.id
             LIMIT 50000
@@ -74,10 +74,10 @@ trait WhatsAppAgentAuto {
     protected function qWaOwnerChatIds($companyId) {
         return array_map('intval', array_column($this->qRows("
             SELECT c.id
-            FROM {$this->pos}wa_chat c
+            FROM {$this->crm}wa_chat c
             WHERE c.company_id = ?
                 AND EXISTS (
-                    SELECT 1 FROM {$this->pos}wa_recipient r
+                    SELECT 1 FROM {$this->crm}wa_recipient r
                     WHERE r.company_id = c.company_id AND r.phone = c.phone AND r.active = 1 AND IFNULL(r.can_ask, 0) = 1
                 )
         ", [$companyId]), 'id'));

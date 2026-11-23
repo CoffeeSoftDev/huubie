@@ -9,12 +9,17 @@
     Produccion (el ctrl manda limited = true) lo ve sin dinero: ni resumen de
     pago, ni precios, ni importes. El ctrl ya no manda esas cifras.
 
-    Entregar pide la contraseña de quien opera: deliver() abre la ventana y
-    saveDeliver() la manda al ctrl, que es quien la revisa.
+    Entregar solo confirma, sin contraseña: deliver() abre la ventana y
+    saveDeliver() marca el pedido en el ctrl.
+
+    Bitácora y «Capturó / Produjo» salen solo con su permiso (data.see, hoy
+    Dueño y Supervisor): sin él, el ctrl ni siquiera los manda.
 
     «Editar entrega» (como alpha) va al pie de Informacion y sale tambien en
     el calendario: editDelivery() cambia solo fecha, hora, tipo, direccion y
-    nota. En un pagado la misma ventana pide la contraseña.
+    nota. En un pagado la misma ventana pide la contraseña. «Editar» un
+    pagado (editPaid, alpha › editOrderPaid) usa la misma ventana: lo hace
+    quien edita pedidos, con su contraseña y el turno de hoy abierto.
 
     Lo usan pedidos.js y calendario.js: orderDetail.show(id), .print(id), .deliver(id). */
 
@@ -75,6 +80,17 @@ function ordRound(n) {
     return Math.round(Number(n || 0) * 100) / 100;
 }
 
+// Botón de coffeeForm apagado con su porqué. El botón apagado no recibe el mouse:
+// el title va en su caja (order.css › .ord-locked). why vacío = encendido.
+function ordLock(id, off, why) {
+    $(`#${id}`).prop('disabled', !!off).parent().toggleClass('ord-locked', !!off).attr('title', off && why ? why : null);
+}
+
+// El porqué de un aviso de «no se puede editar», con quién sí puede resaltado (order.css › .ord-who-can). Devuelve HTML.
+function ordWhoCan(text) {
+    return esc(text).replace(/Dueño o Supervisor|Dueño|Supervisor/g, (who) => `<b class="ord-who-can">${who}</b>`);
+}
+
 // Hoja de ~80 mm en un iframe oculto: no abre ventana ni cambia de pagina.
 function ordPrint(title, body) {
     const css = `
@@ -116,12 +132,17 @@ function ordPrintDoc(title, css, body) {
     const images = Promise.all(Array.from(doc.images).map((img) => img.decode().catch(() => { })));
     const limit  = new Promise((resolve) => setTimeout(resolve, 2000));
 
+    // pending: hay una impresión en camino. pedido.js no regresa a la lista hasta que salga.
+    ordPrintDoc.pending = true;
+
     Promise.race([images, limit]).then(() => setTimeout(() => {
         // Otra impresión ya quitó este iframe.
-        if (!frame.contentWindow) return;
+        if (frame.contentWindow) {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        }
 
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
+        ordPrintDoc.pending = false;
     }, 250));
 }
 
@@ -159,6 +180,8 @@ const ORD_TICKET_CSS = `
     .tk-logo.is-img { overflow: hidden; }
     .tk-logo.is-none { display: flex; align-items: center; justify-content: center; background: #7c3aed; }
     .tk-logo.is-img span, .tk-logo.is-none img { display: none; }
+    .tk-order .tk-logo { width: 64px; height: 64px; }   /* ticket de pedido: logo más chico que el de venta */
+    .tk-order .tk-logo span { font-size: 24px; }
     .tk-company, .tk-branch, .tk-tag, .tk-reason, .tk-stamp, .tk-notes div, .tk-small { font-size: 9px; line-height: 12px; }
     .tk-company { margin-bottom: 3px; font-weight: 600; text-transform: uppercase; }
     .tk-branch { text-transform: uppercase; }
@@ -197,8 +220,14 @@ const ORD_TICKET_CSS = `
 /*  t = el ticket como lo arma el ctrl (ticketData en ctrl-ventas.php, ticketOf
     en ctrl-historial.php). La empresa y su logo salen de dataInit.scope.
     opts.draft   = número del ticket en espera: sale como PRE-CUENTA, sin folio.
-    opts.reprint = true desde el Historial: dice «Reimpreso». */
+    opts.reprint = true desde el Historial: dice «Reimpreso».
+    ordTicketHtml arma la hoja (el visor de Tickets/Cierre la muestra tal cual);
+    ordPrintTicket la manda a la impresora. */
 function ordPrintTicket(t, opts = {}) {
+    ordPrintDoc(opts.draft ? 'Pre-cuenta' : `Venta V${t.folio}`, ORD_TICKET_CSS, ordTicketHtml(t, opts));
+}
+
+function ordTicketHtml(t, opts = {}) {
     const scope   = (typeof dataInit !== 'undefined' && dataInit && dataInit.scope) || {};
     const company = scope.company || '';
     const draft   = opts.draft || 0;
@@ -316,7 +345,7 @@ function ordPrintTicket(t, opts = {}) {
             </div>
         </div>`;
 
-    ordPrintDoc(draft ? 'Pre-cuenta' : `Venta V${t.folio}`, ORD_TICKET_CSS, body);
+    return body;
 }
 
 // -- Tablas --
@@ -439,14 +468,16 @@ class OrderDetail extends Templates {
             width: 'max-w-5xl',
             saveText: false,
             cancelText: 'Cerrar',
-            // El de otra sucursal dice dónde se cambia, también en el calendario.
-            info: !data.can ? '' : data.foreign ? (data.can.edit_reason || '') : !this.editable ? '' : !data.can.edit ? (data.can.edit_reason || '') : (data.can.money_reason || ''),
+            // El de otra sucursal dice de cuál es y si ahí se puede cambiar (reglas de alpha), también en el calendario.
+            info: !data.can ? '' : data.foreign ? (data.can.foreign_reason || '') : !this.editable ? ''
+                : !data.can.edit ? (data.can.edit_paid ? 'Pedido pagado: editarlo pide tu contraseña y solo cambia los datos de entrega.' : (data.can.edit_reason || ''))
+                : (data.can.lock_reason || data.can.money_reason || ''),
             body: `
                 <div id="orderDetailsContainer" class="flex flex-col lg:flex-row gap-[16px] p-[20px] max-h-[70vh] overflow-y-auto">
                     <div class="lg:w-1/3 flex flex-col gap-[16px] min-w-0">
                         ${this.infoOrder(data)}
                         ${this.limited ? '' : this.infoSales(data)}
-                        ${this.historyCard(data.history || [])}
+                        ${data.see && data.see.history ? this.historyCard(data.history || []) : ''}
                     </div>
                     <div class="lg:w-2/3 min-w-0">
                         ${this.listProducts(data.lines || [])}
@@ -528,12 +559,15 @@ class OrderDetail extends Templates {
         const ship    = Number(o.delivery_method) === 1;
         const contact = [o.phone, o.email].filter(Boolean).map(esc).join(' · ');
 
+        // Capturó y Produjo: solo con su permiso (data.see.staff; hoy Dueño y Supervisor, como alpha).
+        const staff = !!(data.see && data.see.staff);
+
         const rows = [
             this.infoRow('file-text', 'Folio', `P${esc(o.folio || o.id)}`),
             this.infoRow('user', 'Cliente', esc(o.customer || 'Sin cliente'), contact),
             this.infoRow('clock', 'Creado', ordDate(o.created_at, true)),
-            this.infoRow('user-pen', 'Capturó', o.created_by ? esc(o.created_by) : none),
-            this.infoRow('cake', 'Produjo', o.produced_by ? esc(o.produced_by) : none, o.produced_at ? ordDate(o.produced_at, true) : ''),
+            staff ? this.infoRow('user-pen', 'Capturó', o.created_by ? esc(o.created_by) : none) : '',
+            staff ? this.infoRow('cake', 'Produjo', o.produced_by ? esc(o.produced_by) : none, o.produced_at ? ordDate(o.produced_at, true) : '') : '',
             this.infoRow('calendar', 'Entrega', o.delivery_date ? ordDate(o.delivery_date) : '<span class="font-normal text-gray-400">Sin fecha</span>', ordHour(o.delivery_time))
         ];
 
@@ -576,9 +610,10 @@ class OrderDetail extends Templates {
         const main = [];
         const side = [];
 
+        // icon: nombre Lucide, o el <i> ya armado (el logo de WhatsApp es de fontello: Lucide no trae marcas).
         const btn = (cls, icon, text, click, title) => `
             <button type="button" class="${cls}"${title ? ` title="${title}"` : ''} onclick="${click}">
-                <i data-lucide="${icon}" class="w-4 h-4"></i>${text}
+                ${icon.charAt(0) === '<' ? icon : `<i data-lucide="${icon}" class="w-4 h-4"></i>`}${text}
             </button>`;
 
         // En el orden en que avanza el pedido: lo último que se hace queda en la orilla derecha.
@@ -595,18 +630,71 @@ class OrderDetail extends Templates {
         else if (can.settle) main.push(btn('ord-deliver', 'hand-coins', 'Cobrar y entregar', `orderPay.open(${id}, true, { deliver: true })`));
 
         if (this.editable && can.edit) side.push(btn('ord-act', 'pencil-line', 'Editar pedido', `orderDetail.editOrder(${id})`));
+        else if (this.editable && can.edit_paid) side.push(btn('ord-act', 'lock', 'Editar pedido', `orderDetail.editPaid(${id}, { fromDetail: true })`, 'Pedido pagado: pide tu contraseña y solo cambia los datos de entrega'));
+
+        // Como alpha (Eliminar descuento): el total vuelve al subtotal.
+        if (!this.limited && can.remove_discount) side.push(btn('ord-act', 'percent', 'Quitar descuento', `orderDetail.removeDiscount(${id}, { fromDetail: true })`));
 
         // Sale aunque la captura no (calendario).
         if (can.delivery) {
             side.push(btn('ord-edit-delivery', can.delivery_key ? 'lock' : 'pencil', 'Editar entrega', `orderDetail.editDelivery(${id}, { fromDetail: true })`,
                 can.delivery_key ? 'Editar datos de entrega (pide tu contraseña)' : 'Editar datos de entrega'));
+        } else if ([1, 2].includes(Number(o.sale_status_id))) {
+            /*  Cotización o pendiente que el rol no puede tocar (la Cajera no
+                tiene el permiso «Editar entrega»): el botón se ve apagado con su
+                porqué. El apagado no recibe el mouse: el title va en su caja
+                (order.css › .ord-locked). */
+            side.push(`<span class="ord-locked" title="${esc(can.delivery_reason || 'Tu rol no puede editar la entrega.')}">
+                <button type="button" class="ord-edit-delivery" disabled><i data-lucide="lock" class="w-4 h-4"></i>Editar entrega</button>
+            </span>`);
         }
 
         if (can.undeliver) side.push(btn('ord-undeliver', 'undo-2', 'Deshacer entrega', `orderDetail.undeliver(${id}, { fromDetail: true })`));
 
         if ((data.actions || []).includes('print')) side.push(btn('ord-act', 'printer', 'Imprimir', 'orderDetail.printData(orderDetail.last)'));
 
+        // El «Reenviar» de alpha: el aviso del pedido otra vez a WhatsApp › Avisos (Dueño o Supervisor).
+        if (can.notify) side.push(btn('ord-act ord-wa', '<i class="icon-whatsapp ord-wa-ico" aria-hidden="true"></i>', 'Enviar por WhatsApp', `orderDetail.resendNotice(${id})`, 'Enviar otra vez el aviso del pedido a los destinatarios de WhatsApp'));
+
         return { main, side };
+    }
+
+    /*  Manda otra vez el aviso del pedido, con sus datos de hoy, a los
+        destinatarios de WhatsApp › Avisos. Siempre por ctrl-pedidos: el detalle
+        también se abre desde el calendario. Cada envío tarda: el botón se apaga. */
+    async resendNotice(id) {
+        const sure = await alert({
+            icon:     'question',
+            title:    '¿Enviar el aviso por WhatsApp?',
+            text:     'Sale otra vez el aviso del pedido, con sus datos de hoy, a los destinatarios de WhatsApp › Avisos.',
+            btn1Text: 'Enviar',
+            btn2Text: 'Cancelar'
+        });
+
+        if (!sure || !sure.isConfirmed) return;
+
+        const button = $('#modalOrderDetails button.ord-wa');
+        const label  = button.html();
+
+        button.prop('disabled', true).html('<i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i>Enviando…');
+
+        if (window.lucide) lucide.createIcons();
+
+        const data = await useFetch({ url: 'ctrl/ctrl-pedidos.php', data: { opc: 'resendOrderNotice', id: id } });
+
+        button.prop('disabled', false).html(label);
+
+        if (window.lucide) lucide.createIcons();
+
+        const sent = data && data.status == 200 && data.sent && (Number(data.sent.sent) + Number(data.sent.simulated)) > 0;
+
+        alert({
+            icon:     sent ? 'success' : 'warning',
+            title:    sent ? 'Aviso enviado' : 'No se envió',
+            text:     (data && data.message) || 'Revisa la conexión y vuelve a intentar.',
+            btn1:     true,
+            btn1Text: 'Entendido'
+        });
     }
 
     // «Editar pedido»: cierra el detalle y abre la captura.
@@ -694,7 +782,7 @@ class OrderDetail extends Templates {
 
             <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Abonos (${payments.length})</p>
             ${payments.length
-                ? `<div class="border-l-2 border-gray-200 pl-[12px] flex flex-col gap-2">${payments.map((p) => this.paymentRow(p, o.id, data.can && data.can.delete_payment)).join('')}</div>`
+                ? `<div class="border-l-2 border-gray-200 pl-[12px] flex flex-col gap-2">${payments.map((p) => this.paymentRow(p, o.id, data.can && data.can.delete_payment, data.can && data.can.payment_method)).join('')}</div>`
                 : '<p class="text-[12.5px] text-gray-400 mb-0">Sin abonos registrados.</p>'}
 
             <div class="border-t-[1px] border-gray-200 mt-[12px] pt-2">
@@ -716,7 +804,8 @@ class OrderDetail extends Templates {
         return ['wallet', 'text-gray-500'];
     }
 
-    paymentRow(p, orderId, canDelete) {
+    // canMethod: Dueño o Supervisor cambian la forma de un pago mientras su turno siga abierto (como alpha).
+    paymentRow(p, orderId, canDelete, canMethod) {
         const [icon, tone] = this.paymentIcon(p);
 
         const change = Number(p.change_amount) > 0
@@ -733,6 +822,12 @@ class OrderDetail extends Templates {
                </button>`
             : '';
 
+        const method = canMethod && p.turn_status !== 'closed'
+            ? `<button type="button" class="ord-pay-edit" aria-label="Cambiar la forma de pago" title="Cambiar la forma de pago" onclick="orderPay.changeMethod(${Number(orderId)}, ${Number(p.id)})">
+                   <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+               </button>`
+            : '';
+
         return `
             <div class="flex items-start gap-2 text-[12.5px]">
                 <i data-lucide="${icon}" class="w-4 h-4 ${tone} shrink-0 mt-0.5"></i>
@@ -742,7 +837,7 @@ class OrderDetail extends Templates {
                     ${change}${who}
                 </div>
                 <span class="ml-auto font-semibold text-gray-800 whitespace-nowrap">${money(p.amount)}</span>
-                ${remove}
+                ${method}${remove}
             </div>`;
     }
 
@@ -1142,11 +1237,11 @@ class OrderDetail extends Templates {
 
     // -- Entrega y elaboracion --
 
-    /*  Entregar pide la contraseña de quien opera: esta ventana es la
-        confirmacion (badge o menu de la tabla, detalle o al terminar «Cobrar y
-        entregar»). Es createCoffeeModalForm, el modal compacto de Huubie
-        (coffee-modal-form.js). Si vino del detalle, lo cierra antes y lo vuelve
-        a abrir al terminar o al volver (onCancel). */
+    /*  Entregar solo confirma, sin contraseña: la ventana dice qué pedido
+        queda entregado (badge o menu de la tabla, detalle o al terminar
+        «Cobrar y entregar»). Es createCoffeeModalForm, el modal compacto de
+        Huubie (coffee-modal-form.js). Si vino del detalle, lo cierra antes y
+        lo vuelve a abrir al terminar o al volver (onCancel). */
     deliver(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
@@ -1157,7 +1252,6 @@ class OrderDetail extends Templates {
 
         if (fromDetail) $('#modalOrderDetails .cs-modal-x').trigger('click');
 
-        // Sin required: saveDeliver dice qué falta bajo el campo (#modalOrderDeliver-help).
         this.createCoffeeModalForm({
             id:          'modalOrderDeliver',
             title:       'Entregar pedido',
@@ -1168,55 +1262,35 @@ class OrderDetail extends Templates {
             footerNote:  'Queda como entregado y ya no se edita.',
             json: [
                 { opc: 'display', id: 'folio', lbl: 'Pedido', icon: '<i data-lucide="receipt" class="w-4 h-4"></i>', value: `#P${id}` },
-                { opc: 'text', type: 'password', id: 'key', lbl: 'Tu contraseña', autofocus: true },
-                { opc: 'html', html: '<p id="modalOrderDeliver-help" class="text-[11px] text-gray-400 mb-0">La misma con la que entras a Huubie.</p>' }
+                { opc: 'html', html: '<p class="text-[12px] text-gray-500 mb-0">Marca que el pedido ya se entregó al cliente.</p>' }
             ],
-            onConfirm: (values, modal) => { this.saveDeliver(id, values, modal, back); },
+            onConfirm: (values, modal) => { this.saveDeliver(id, modal, back); },
             onCancel:  back
         });
 
-        // one-time-code: el navegador no la rellena sola (si no, la clave no pediria nada).
-        $('#modalOrderDeliver-key')
-            .attr({ autocomplete: 'one-time-code', spellcheck: 'false' })
-            .on('keydown', (e) => {
-                if (e.key !== 'Enter') return;
-
-                e.preventDefault();
-                $('#modalOrderDeliver .cf-confirm').trigger('click');
-            });
+        // Sin campo que escribir: Enter confirma desde el botón.
+        $('#modalOrderDeliver .cf-confirm').trigger('focus');
     }
 
-    // El ctrl revisa la contraseña. Si falla (data.key) la ventana sigue abierta y lo dice bajo el campo.
-    async saveDeliver(id, values, modal, back) {
+    async saveDeliver(id, modal, back) {
         if (this.delivering) return;
-
-        const field = $('#modalOrderDeliver-key');
-        const key   = String(values.key || '');
-        const wrong = (text) => {
-            $('#modalOrderDeliver-help').removeClass('text-gray-400').addClass('text-red-600 font-semibold').text(text);
-            field.val('').trigger('focus');
-        };
-
-        if (!key) return wrong('Escribe tu contraseña para entregar.');
 
         this.delivering = true;
 
         const button = $('#modalOrderDeliver .cf-confirm').prop('disabled', true);
-        const data   = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id, key: key } });
+        const data   = await useFetch({ url: this._link, data: { opc: 'deliverOrder', id: id } });
 
         this.delivering = false;
         button.prop('disabled', false);
 
-        if (!data)    return wrong('No hubo respuesta. Revisa la conexión y vuelve a intentar.');
-        if (data.key) return wrong(data.message || 'Contraseña incorrecta.');
-
         // modal.close() no dispara onCancel: el detalle se reabre abajo, con back().
         modal.close();
 
-        if (data.status != 200) {
-            const soft = [403, 404, 409].includes(Number(data.status));
+        if (!data || data.status != 200) {
+            const soft = !!data && [403, 404, 409].includes(Number(data.status));
+            const text = data ? (data.message || 'Vuelve a intentar.') : 'No hubo respuesta. Revisa la conexión y vuelve a intentar.';
 
-            await alert({ icon: soft ? 'info' : 'error', title: 'No se entregó', text: data.message || 'Vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+            await alert({ icon: soft ? 'info' : 'error', title: 'No se entregó', text: text, btn1: true, btn1Text: 'Entendido' });
 
             return back();
         }
@@ -1228,7 +1302,7 @@ class OrderDetail extends Templates {
         back();
     }
 
-    // Regresa el pedido a «sin entregar». Solo Dueño o Supervisor; pide motivo, no contraseña.
+    // Regresa el pedido a «sin entregar». Lo hace quien entrega (como alpha); pide motivo, no contraseña.
     undeliver(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
@@ -1296,9 +1370,9 @@ class OrderDetail extends Templates {
         back();
     }
 
-    // Palomeo desde el detalle (Produccion en el calendario). Lo mismo que la casilla de la tarjeta.
+    // Palomeo desde el detalle (Pedidos o calendario). Lo mismo que la casilla de la tarjeta: siempre por ctrl-calendario.
     async produce(id, want) {
-        const data = await useFetch({ url: this._link, data: { opc: 'toggleProduced', id: id, produced: want ? 1 : 0 } });
+        const data = await useFetch({ url: 'ctrl/ctrl-calendario.php', data: { opc: 'toggleProduced', id: id, produced: want ? 1 : 0 } });
 
         if (!data || data.status != 200) {
             alert({ icon: 'info', title: 'No se cambió la marca', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
@@ -1312,10 +1386,16 @@ class OrderDetail extends Templates {
 
     // -- Datos de entrega --
 
+    // «Editar» un pedido pagado (como alpha): la ventana de la entrega, con contraseña y el turno de hoy abierto.
+    editPaid(id, opts = {}) {
+        return this.editDelivery(id, Object.assign({}, opts, { paid: true }));
+    }
+
     /*  «Editar entrega» (como alpha): solo fecha, hora, tipo de entrega,
         direccion y nota; productos y pagos no se tocan. Pide el pedido de
         nuevo para saber si todavia se puede. En un pagado la contraseña va en
-        la misma ventana. Si vino del detalle, lo vuelve a abrir al terminar. */
+        la misma ventana. Si vino del detalle, lo vuelve a abrir al terminar.
+        opts.paid: es el «Editar» de un pagado (editPaid). */
     async editDelivery(id, opts = {}) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
@@ -1324,11 +1404,28 @@ class OrderDetail extends Templates {
         const data = await this.fetchOrder(id);
         if (!data) return;
 
-        const o   = data.order;
-        const can = data.can || {};
+        const o    = data.order;
+        const can  = data.can || {};
+        const paid = !!opts.paid;
 
-        if (!can.delivery) {
-            alert({ icon: 'info', title: 'No se puede editar la entrega', text: can.delivery_reason || 'Este pedido ya no se edita.', btn1: true, btn1Text: 'Entendido' });
+        if (paid ? !can.edit_paid : !can.delivery) {
+            alert({
+                icon:     'info',
+                title:    paid ? 'No se puede editar' : 'No se puede editar la entrega',
+                html:     ordWhoCan((paid ? can.edit_paid_reason : can.delivery_reason) || 'Este pedido ya no se edita.'),
+                btn1:     true,
+                btn1Text: 'Entendido'
+            });
+            return;
+        }
+
+        // Como alpha (requireOpenShift): editar un pagado pide primero el turno de hoy. El ctrl lo vuelve a revisar al guardar.
+        if (paid && data.edit_turn) {
+            const lock = data.edit_turn;
+
+            if (Number(lock.status) === 423) return orderTurn.locked(lock, () => this.editPaid(id, opts));
+
+            alert({ icon: 'warning', title: lock.title || 'Sin turno abierto', text: lock.message || '', btn1: true, btn1Text: 'Entendido' });
             return;
         }
 
@@ -1340,7 +1437,7 @@ class OrderDetail extends Templates {
         const fromDetail = !!opts.fromDetail;
         const back       = () => (fromDetail ? this.show(id) : null);
         const date       = String(o.delivery_date || '').slice(0, 10);
-        const ctx        = { date: date, today: today, keyed: !!can.delivery_key };
+        const ctx        = { date: date, today: today, keyed: paid || !!can.delivery_key, paid: paid };
 
         if (fromDetail) $('#modalOrderDetails .cs-modal-x').trigger('click');
 
@@ -1363,7 +1460,7 @@ class OrderDetail extends Templates {
                 id: 'ed_method', lbl: 'Tipo de entrega', tipo: 'select', empty: false, class: 'w-full', value: Number(o.delivery_method) === 1 ? 1 : 0,
                 data: [{ id: 0, valor: 'Recoge en tienda' }, { id: 1, valor: 'Envío a domicilio' }]
             },
-            { id: 'ed_location', lbl: 'Dirección de envío', tipo: 'text', required: true, maxlength: 255, class: 'w-full', icon: 'map-pin', value: o.location || '', ph: 'Calle, número y colonia' },
+            { id: 'ed_location', lbl: 'Dirección de envío', tipo: 'text', required: false, maxlength: 255, class: 'w-full', icon: 'map-pin', value: o.location || '', ph: 'Calle, número y colonia' },
             { id: 'ed_note', lbl: 'Nota', tipo: 'textarea', maxlength: 2000, rows: 3, class: 'w-full', value: o.note || '', ph: 'Ej. Entregar en recepción' }
         );
 
@@ -1371,7 +1468,7 @@ class OrderDetail extends Templates {
 
         this.csModal({
             id:         'modalOrderDelivery',
-            title:      'Editar datos de entrega',
+            title:      paid ? 'Editar pedido pagado' : 'Editar datos de entrega',
             subtitle:   `Pedido #P${o.folio || o.id} · ${o.customer || 'Sin cliente'}`,
             lucideIcon: 'calendar-clock',
             width:      'max-w-lg',
@@ -1384,8 +1481,10 @@ class OrderDetail extends Templates {
 
         orderPay.onDismiss('modalOrderDelivery', back);
 
-        // csModal no tiene campo de hora ni de contraseña: se pintan de texto y aqui se cambian.
-        $('#ed_time').attr('type', 'time');
+        /*  csModal no tiene campo de hora ni de contraseña: se pintan de texto y
+            aqui se cambian. La hora lleva el reloj de ruedas de la captura
+            (components/pos-time.js); #ed_time sigue guardando HH:MM. */
+        this.posTime({ input: 'ed_time', title: 'Hora de entrega' });
 
         // La direccion solo va con envio.
         const place = () => $('#ed_location').closest('.px-2').toggleClass('hidden', $('#ed_method').val() !== '1');
@@ -1431,16 +1530,16 @@ class OrderDetail extends Templates {
         if (!date)                                 return warn('Elige la fecha de entrega.');
         if (date !== ctx.date && date < ctx.today) return warn('La fecha de entrega no puede ser anterior a hoy.');
         if (!time)                                 return warn('Elige la hora de entrega.');
-        if (method === 1 && !location)             return warn('Escribe la dirección de envío.');
-        if (ctx.keyed && !key)                     return wrong('Escribe tu contraseña para editar la entrega.');
+        if (ctx.keyed && !key)                   return wrong(ctx.paid ? 'Escribe tu contraseña para editar el pedido.' : 'Escribe tu contraseña para editar la entrega.');
 
         this.savingDelivery = true;
 
+        // «Editar» un pagado vive solo en ctrl-pedidos: el detalle también se abre desde el calendario.
         const button = $('#modalOrderDelivery .cs-modal-save').prop('disabled', true);
         const data   = await useFetch({
-            url:  this._link,
+            url:  ctx.paid ? 'ctrl/ctrl-pedidos.php' : this._link,
             data: {
-                opc:             'editOrderDelivery',
+                opc:             ctx.paid ? 'editPaidOrder' : 'editOrderDelivery',
                 id:              id,
                 delivery_date:   date,
                 delivery_time:   time,
@@ -1459,6 +1558,9 @@ class OrderDetail extends Templates {
         if (Number(data.status) === 422) return warn(data.message || 'Revisa los datos de entrega.');
 
         orderPay.closeQuiet('modalOrderDelivery', close);
+
+        // Sin turno de hoy (editar un pagado): se ofrece abrirlo y se vuelve a la ventana.
+        if (Number(data.status) === 423) return orderTurn.locked(data, () => this.editPaid(id));
 
         if (data.status != 200) {
             const soft = [403, 404, 409].includes(Number(data.status));
@@ -1481,22 +1583,75 @@ class OrderDetail extends Templates {
         back();
     }
 
-    // Un renglon por cambio: campo, antes tachado y despues resaltado.
+    /*  Un renglon por cambio dentro de una tarjeta (order.css › .ord-chg): el
+        campo arriba; abajo, lo de antes en gris tachado y lo nuevo en verde. */
     deliveryChangesHtml(changes) {
         if (!changes.length) return '<p class="text-[14px] mb-0">No cambió ningún dato de entrega.</p>';
 
         const cut  = (t) => { const s = String(t == null ? '' : t); return s.length > 120 ? s.slice(0, 117) + '…' : s; };
         const rows = changes.map((c) => `
-            <li class="py-1.5 break-words">
-                <span class="block text-[11px] font-semibold uppercase tracking-wide opacity-60">${esc(c.field)}</span>
-                <span class="line-through opacity-60">${esc(cut(c.before))}</span>
-                <span class="mx-1 opacity-60">→</span>
-                <span class="font-semibold">${esc(cut(c.after))}</span>
+            <li class="ord-chg-row">
+                <span class="ord-chg-field">${esc(c.field)}</span>
+                <span class="ord-chg-vals">
+                    <span class="ord-chg-old">${esc(cut(c.before))}</span>
+                    <span class="ord-chg-arrow" aria-label="cambió a">→</span>
+                    <span class="ord-chg-new">${esc(cut(c.after))}</span>
+                </span>
             </li>`).join('');
 
         const count = changes.length === 1 ? 'Se guardó 1 cambio' : `Se guardaron ${changes.length} cambios`;
 
-        return `<p class="text-[13px] mb-1">${count}:</p><ul class="text-left text-[13px] mb-0 pl-0 list-none">${rows}</ul>`;
+        return `<div class="ord-chg"><p class="ord-chg-count">${count}</p><ul class="ord-chg-list">${rows}</ul></div>`;
+    }
+
+    // -- Descuento --
+
+    /*  «Quitar descuento» (alpha › deleteDiscount): cotización o pendiente; el
+        total vuelve al subtotal. Pide el pedido de nuevo para saber si todavía
+        se puede. Siempre por ctrl-cobro: el detalle también se abre desde el calendario. */
+    async removeDiscount(id, opts = {}) {
+        $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        const data = await this.fetchOrder(id);
+        if (!data) return;
+
+        const o   = data.order;
+        const can = data.can || {};
+
+        if (!can.remove_discount) {
+            alert({ icon: 'info', title: 'No se puede quitar el descuento', text: can.remove_discount_reason || '', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        const sure = await alert({
+            icon:     'question',
+            title:    '¿Quitar el descuento?',
+            text:     `P${o.folio || o.id}: se quita el descuento de ${money(o.discount_amount)} y el total vuelve a ${money(o.subtotal)}.`,
+            btn1:     true,
+            btn1Text: 'Quitar descuento',
+            btn2:     true,
+            btn2Text: 'Cancelar'
+        });
+
+        if (!sure || !sure.isConfirmed) return;
+
+        const res = await useFetch({ url: 'ctrl/ctrl-cobro.php', data: { opc: 'removeDiscount', id: id } });
+
+        if (!res || res.status != 200) {
+            alert({
+                icon:     res && [403, 404, 409].includes(Number(res.status)) ? 'info' : 'error',
+                title:    'No se quitó el descuento',
+                text:     (res && res.message) || 'Revisa la conexión y vuelve a intentar.',
+                btn1:     true,
+                btn1Text: 'Entendido'
+            });
+            return;
+        }
+
+        orders.lsOrders();
+        alert({ icon: 'success', title: res.message, timer: 1800 });
+
+        if (opts.fromDetail) this.show(id);
     }
 
     // -- Impresion --
@@ -1562,7 +1717,7 @@ class OrderDetail extends Templates {
         }).join('');
 
         return `
-        <div class="tk">
+        <div class="tk tk-order">
             <div class="tk-head">
                 ${logo}
                 ${company ? `<div class="tk-company">${esc(company)}</div>` : ''}

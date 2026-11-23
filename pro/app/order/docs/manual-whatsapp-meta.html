@@ -252,7 +252,7 @@ details.more[open] summary { margin-bottom: 10px; }
 
           <rect x="452" y="70" width="110" height="80" rx="12" class="d-card"/>
           <text x="507" y="104" class="d-tb" text-anchor="middle">Base</text>
-          <text x="507" y="124" class="d-ts" text-anchor="middle">fayxzvov_pos</text>
+          <text x="507" y="124" class="d-ts" text-anchor="middle">fayxzvov_crm</text>
 
           <rect x="596" y="70" width="110" height="80" rx="12" class="d-card"/>
           <text x="651" y="104" class="d-tb" text-anchor="middle">Cron</text>
@@ -292,7 +292,7 @@ details.more[open] summary { margin-bottom: 10px; }
         <ol>
           <li>El cliente escribe al número de la empresa: lo da de alta Meta (pasos A3 y A7).</li>
           <li>Meta avisa al webhook. Lo registras en A5; tu servidor lo acepta con <code>WHATSAPP_META_APP_SECRET</code> y <code>WHATSAPP_META_VERIFY_TOKEN</code> (B5).</li>
-          <li>El webhook guarda el mensaje. Necesita las 9 migraciones (B2) y la fila de la empresa en <code>wa_agent</code> (B6).</li>
+          <li>El webhook guarda el mensaje. Necesita las 10 migraciones (B2) y la fila de la empresa en <code>wa_agent</code> (B6).</li>
           <li>Cada minuto el cron toma lo que espera respuesta: la línea del cron (B7).</li>
           <li>El cron le pregunta al modelo: <code>OLLAMA_API_KEY</code> (B5).</li>
           <li>La respuesta queda en la bandeja de Huubie para que una persona la mande (o sale sola si el tema está encendido, C7).</li>
@@ -597,7 +597,7 @@ details.more[open] summary { margin-bottom: 10px; }
             <li>Nombre visible: el nombre del negocio como lo verán los clientes (por ejemplo, <code>Reginas</code>). Meta lo revisa; tarda de horas a días.</li>
             <li>Escribe el número y confírmalo con el código por SMS o llamada. Si ese número tenía WhatsApp, borra antes la cuenta en el teléfono.</li>
             <li>Copia el Identificador del número de teléfono del número nuevo (como en A3 ①). En el servidor, cambia la fila de la empresa:
-              <pre>UPDATE fayxzvov_pos.wa_agent
+              <pre>UPDATE fayxzvov_crm.wa_agent
 SET phone_number_id = 'EL_NUEVO_ID', display_phone = '+52 961 000 0000', updated_at = NOW()
 WHERE company_id = ID_DE_LA_EMPRESA;</pre></li>
             <li>Método de pago: en el administrador de WhatsApp, «Configuración de pagos» (o «Facturación» del portafolio), agrega la tarjeta.</li>
@@ -751,7 +751,7 @@ Para no recibir mensajes de la tienda, responde BAJA.</pre></td>
       <div class="phase">
         <div class="phase-id"><b>B2</b><span>20 min</span></div>
         <div class="phase-body">
-          <h3>Las 9 migraciones</h3>
+          <h3>Las 10 migraciones</h3>
           <p>Están en <code>pro/migrations/</code>. Para cada una, en orden: phpMyAdmin › elige la base de la columna «Base» › pestaña «SQL» › pega el contenido del archivo › «Continuar». Cada una termina mostrando lo que agregó.</p>
           <div class="tbl">
             <table>
@@ -766,6 +766,7 @@ Para no recibir mensajes de la tienda, responde BAJA.</pre></td>
                 <tr><td class="n">7</td><td><code>2026-11-16_whatsapp-pedidos.sql</code></td><td><code>fayxzvov_pos</code></td><td><code>action</code>, <code>action_data</code>, <code>sale_id</code>, <code>receipt_id</code>, <code>handoff_note</code></td></tr>
                 <tr><td class="n">8</td><td><code>2026-11-17_whatsapp-recordatorios.sql</code></td><td><code>fayxzvov_pos</code></td><td>3 filas: <code>reminders</code>, <code>opt_out_at</code>, <code>wa_reminder</code></td></tr>
                 <tr><td class="n">9</td><td><code>2026-11-17_whatsapp-dueno.sql</code></td><td><code>fayxzvov_pos</code></td><td>4 columnas y 2 índices</td></tr>
+                <tr><td class="n">10</td><td><code>2026-11-19_base-crm.sql</code></td><td><code>fayxzvov_pos</code> → <code>fayxzvov_crm</code> <small>Antes: crea <code>fayxzvov_crm</code> en cPanel › «Bases de datos MySQL» y dale todos los privilegios al usuario del <code>.env</code>. Pide también las migras de lealtad hasta el 18/11.</small></td><td>17 tablas en <code>fayxzvov_crm</code> y 5 llaves</td></tr>
               </tbody>
             </table>
           </div>
@@ -850,7 +851,7 @@ OLLAMA_API_KEY=tu_llave_de_ollama</pre>
           <ol>
             <li>Busca el id de la empresa: <pre>SELECT id, name FROM fayxzvov_app.companies;</pre></li>
             <li>Inserta la fila (apagada; se enciende desde Huubie):
-              <pre>INSERT INTO fayxzvov_pos.wa_agent
+              <pre>INSERT INTO fayxzvov_crm.wa_agent
   (company_id, phone_number_id, display_phone, enabled, catalog_mode, hourly_cap, created_at, updated_at)
 VALUES
   (ID_DE_LA_EMPRESA, 'EL_ID_DE_A3', '+1 555 012 3456', 0, 'store', 20, NOW(), NOW());</pre></li>

@@ -49,6 +49,27 @@ function posTicketCSS() {
         + '.pos-tk-acc.is-sec-open .pos-tk-lines{display:none}'
         + '.pos-tk-foot{flex-shrink:0;border-top:1px solid var(--po-line);background:var(--po-sunken)}'
 
+        // Pestañas (tabs: true): datos y lista, una a la vez; el pie (totales y cobro) solo con la lista.
+        + '.pos-tk-tabbar{display:flex;gap:4px;flex-shrink:0;padding:6px 8px 0;border-bottom:1px solid var(--po-line)}'
+        + 'button.pos-tk-tab{position:relative;display:flex;align-items:center;gap:8px;flex:1 1 0%;min-width:0;margin:0;padding:8px 10px 10px;border:0;border-radius:9px 9px 0 0;background:transparent;color:var(--po-muted);text-align:left;cursor:pointer;transition:background-color .15s,color .15s}'
+        + 'button.pos-tk-tab::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;border-radius:2px;background:transparent}'
+        + 'button.pos-tk-tab.is-on{color:var(--po-ink)}'
+        + 'button.pos-tk-tab.is-on::after{background:var(--po-brand)}'
+        + 'button.pos-tk-tab:not(:disabled):not(.is-on):hover{background:var(--po-hover);color:var(--po-ink)}'
+        + 'button.pos-tk-tab:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--po-ring)}'
+        + 'button.pos-tk-tab:disabled{cursor:not-allowed}'
+        + 'button.pos-tk-tab svg{width:16px;height:16px;flex-shrink:0}'
+        + 'button.pos-tk-tab.is-on svg.pos-tk-tab-ico{color:var(--po-brand-ink)}'
+        + '.pos-tk-tab-text{display:flex;flex-direction:column;flex:1;min-width:0}'
+        + '.pos-tk-tab-text b{font-size:12.5px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+        + '.pos-tk-tab-text span{font-size:11px;line-height:1.3;color:var(--po-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+        + 'button.pos-tk-tab svg.pos-tk-tab-lock{display:none;width:14px;height:14px}'
+        + 'button.pos-tk-tab.is-locked{opacity:.6}'
+        + 'button.pos-tk-tab.is-locked svg.pos-tk-tab-lock{display:block}'
+        + '.pos-tk-pane{display:none}'
+        + '.pos-tk-pane.is-on{display:block}'
+        + '.pos-tk-tabbed.is-tab-data .pos-tk-foot{display:none}'
+
         + '.pos-tkl{display:flex;flex-direction:column;gap:8px;padding:12px 14px}'
         + '.pos-tkl-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:36px 16px;text-align:center;color:var(--po-muted)}'
         + '.pos-tkl-empty svg{width:28px;height:28px;margin-bottom:6px;opacity:.7}'
@@ -177,7 +198,12 @@ Templates.prototype.posTicket = function (options) {
         // Vacío: las partidas van sin encabezado, como siempre.
         // accordion: solo una de las dos abierta. Con los datos abiertos la lista
         // se pliega a su encabezado; al cerrar los datos, la lista ocupa todo el ticket.
-        lines:    { title: '', icon: 'shopping-cart', accordion: false },
+        lines:    { title: '', icon: 'shopping-cart', accordion: false, locked: false, lockText: 'Primero completa los datos' },
+        // true: datos y lista en dos pestañas (necesita lines.title). El pie solo se ve
+        // con la lista. lines.locked apaga la de la lista (lock). beforeTab(name) en false
+        // detiene el cambio que pide un clic.
+        tabs:      false,
+        beforeTab: null,
         launcher: { parent: '', text: 'Ver ticket' }
     };
 
@@ -185,6 +211,7 @@ Templates.prototype.posTicket = function (options) {
     const section  = Object.assign({}, defaults.section, opts.section);
     const list     = Object.assign({}, defaults.lines, opts.lines);
     const launcher = Object.assign({}, defaults.launcher, opts.launcher);
+    const tabbed   = Boolean(opts.tabs && list.title);
 
     posTicketCSS();
 
@@ -197,15 +224,60 @@ Templates.prototype.posTicket = function (options) {
     const body   = $('<div>', { class: 'pos-tk-body' });
     const sec    = $('<div>', { class: 'pos-tk-sec' });
     const toggle = $('<button>', { type: 'button', class: 'pos-tk-sec-btn', 'aria-controls': `${opts.id}Form` });
-    const form   = $('<div>', { id: `${opts.id}Form`, class: 'pos-tk-sec-body' });
+    const form   = $('<div>', { id: `${opts.id}Form`, class: tabbed ? 'pos-tk-pane' : 'pos-tk-sec-body' });
     const lines  = $('<div>', { id: `${opts.id}Lines`, class: 'pos-tk-lines' });
     const foot   = $('<div>', { id: `${opts.id}Foot`, class: 'pos-tk-foot' });
-    const accordion = Boolean(list.title && list.accordion);
+    const accordion = Boolean(list.title && list.accordion && !tabbed);
     const listHead  = accordion
         ? $('<button>', { type: 'button', class: 'pos-tk-lines-head', 'aria-controls': `${opts.id}Lines` })
         : $('<div>', { class: 'pos-tk-lines-head' });
 
+    // -- Pestañas --
+
+    // Cada una: ícono, título y debajo su resumen (#{id}Summary / #{id}LinesCount, los escribe quien pinta).
+    const tabOf = (key, conf, caption, pane) => $('<button>', { type: 'button', class: 'pos-tk-tab', role: 'tab', 'data-tab': key, 'aria-controls': pane }).append(
+        posTicketIcon(conf.icon, 'pos-tk-tab-ico'),
+        $('<span>', { class: 'pos-tk-tab-text' }).append($('<b>', { text: conf.title }), $('<span>', { id: caption })),
+        key === 'lines' ? posTicketIcon('lock', 'pos-tk-tab-lock') : ''
+    );
+
+    const tabData  = tabbed ? tabOf('data', section, `${opts.id}Summary`, `${opts.id}Form`) : $();
+    const tabLines = tabbed ? tabOf('lines', list, `${opts.id}LinesCount`, `${opts.id}Lines`) : $();
+    let locked     = false;
+
+    const setTab = (key) => {
+        if (!tabbed || (key === 'lines' && locked)) return;
+
+        const onLines = key === 'lines';
+
+        root.toggleClass('is-tab-data', !onLines).toggleClass('is-tab-lines', onLines);
+        tabData.toggleClass('is-on', !onLines).attr('aria-selected', String(!onLines));
+        tabLines.toggleClass('is-on', onLines).attr('aria-selected', String(onLines));
+        form.toggleClass('is-on', !onLines);
+        lines.toggleClass('is-on', onLines);
+        body.scrollTop(0);
+    };
+
+    // Lista apagada: con candado y sin clic. Si estaba a la vista, vuelven los datos.
+    const setLock = (on) => {
+        if (!tabbed) return;
+
+        locked = !!on;
+
+        tabLines.prop('disabled', locked).toggleClass('is-locked', locked).attr('title', locked ? list.lockText : null);
+
+        if (locked && tabLines.hasClass('is-on')) setTab('data');
+    };
+
+    const askTab = (key) => {
+        if (opts.beforeTab && opts.beforeTab(key) === false) return;
+
+        setTab(key);
+    };
+
     const setSection = (open) => {
+        if (tabbed) return setTab(open ? 'data' : 'lines');
+
         sec.toggleClass('is-open', !!open);
         toggle.attr('aria-expanded', open ? 'true' : 'false');
 
@@ -228,39 +300,53 @@ Templates.prototype.posTicket = function (options) {
 
     head.append($('<span>', { class: 'pos-tk-ico' }).append(posTicketIcon(opts.icon)), titles, shut);
 
-    toggle.append(
-        posTicketIcon(section.icon),
-        $('<b>', { text: section.title }),
-        $('<span>', { id: `${opts.id}Summary`, class: 'pos-tk-sec-sum' }),
-        posTicketIcon('chevron-down', 'pos-tk-chev')
-    );
+    if (tabbed) {
+        // Pestañas: la barra bajo el encabezado y una sola parte a la vista.
+        lines.addClass('pos-tk-pane');
+        body.append(form, lines);
+        root.addClass('pos-tk-tabbed').append(head, $('<div>', { class: 'pos-tk-tabbar', role: 'tablist' }).append(tabData, tabLines), body, foot);
 
-    sec.append(toggle, form);
-    body.append(sec);
+        setLock(list.locked);
+        setTab(section.open || locked ? 'data' : 'lines');
 
-    // Encabezado de las partidas: ícono, título y, a la derecha, el conteo
-    // (lo escribe quien pinta los totales en #{id}LinesCount).
-    if (list.title) {
-        listHead.append(
-            posTicketIcon(list.icon),
-            $('<b>', { text: list.title }),
-            $('<span>', { id: `${opts.id}LinesCount`, class: 'pos-tk-lines-count' })
+        tabData.on('click', () => askTab('data'));
+        tabLines.on('click', () => askTab('lines'));
+    } else {
+        toggle.append(
+            posTicketIcon(section.icon),
+            $('<b>', { text: section.title }),
+            $('<span>', { id: `${opts.id}Summary`, class: 'pos-tk-sec-sum' }),
+            posTicketIcon('chevron-down', 'pos-tk-chev')
         );
 
-        if (accordion) listHead.append(posTicketIcon('chevron-down', 'pos-tk-chev'));
+        sec.append(toggle, form);
+        body.append(sec);
 
-        body.append(listHead);
+        // Encabezado de las partidas: ícono, título y, a la derecha, el conteo
+        // (lo escribe quien pinta los totales en #{id}LinesCount).
+        if (list.title) {
+            listHead.append(
+                posTicketIcon(list.icon),
+                $('<b>', { text: list.title }),
+                $('<span>', { id: `${opts.id}LinesCount`, class: 'pos-tk-lines-count' })
+            );
+
+            if (accordion) listHead.append(posTicketIcon('chevron-down', 'pos-tk-chev'));
+
+            body.append(listHead);
+        }
+
+        body.append(lines);
+        root.toggleClass('pos-tk-acc', accordion).append(head, body, foot);
+
+        setSection(section.open);
+
+        toggle.on('click', () => setSection(!sec.hasClass('is-open')));
+
+        // En acordeón, tocar la lista pliega los datos (y al revés).
+        if (accordion) listHead.on('click', () => setSection(!sec.hasClass('is-open')));
     }
 
-    body.append(lines);
-    root.toggleClass('pos-tk-acc', accordion).append(head, body, foot);
-
-    setSection(section.open);
-
-    toggle.on('click', () => setSection(!sec.hasClass('is-open')));
-
-    // En acordeón, tocar la lista pliega los datos (y al revés).
-    if (accordion) listHead.on('click', () => setSection(!sec.hasClass('is-open')));
     shut.on('click', () => setOverlay(false));
 
     host.addClass('pos-tk-host').html(root);
@@ -283,7 +369,7 @@ Templates.prototype.posTicket = function (options) {
         if (window.lucide) lucide.createIcons({ root: launch[0] });
     }
 
-    return { section: setSection, overlay: setOverlay };
+    return { section: setSection, overlay: setOverlay, tab: setTab, lock: setLock };
 };
 
 // -- Partidas --

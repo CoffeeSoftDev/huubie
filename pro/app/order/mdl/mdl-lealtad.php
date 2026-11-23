@@ -61,11 +61,11 @@ trait LoyaltyCards {
                 t.level_min_spend,
                 (
                     SELECT COUNT(*)
-                    FROM {$this->pos}card c
+                    FROM {$this->crm}card c
                     WHERE c.card_type_id = t.id
                         AND IFNULL(c.active, 1) = 1
                 ) AS cards
-            FROM {$this->pos}card_type t
+            FROM {$this->crm}card_type t
             WHERE {$this->qSameCompany('t.branch_id')}
                 {$where}
             ORDER BY t.name, t.id
@@ -84,7 +84,7 @@ trait LoyaltyCards {
                 IFNULL(color, '')            AS color,
                 IFNULL(active, 1)            AS active,
                 level_min_spend
-            FROM {$this->pos}card_type
+            FROM {$this->crm}card_type
             WHERE id = ?
                 AND {$this->qSameCompany('branch_id')}
             LIMIT 1
@@ -95,7 +95,7 @@ trait LoyaltyCards {
     protected function qCardTypeNameTaken($branchId, $name, $exceptId) {
         return $this->qRow("
             SELECT id, name
-            FROM {$this->pos}card_type
+            FROM {$this->crm}card_type
             WHERE {$this->qSameCompany('branch_id')}
                 AND id <> ?
                 AND name = ?
@@ -174,7 +174,7 @@ trait LoyaltyCards {
                 IFNULL(cu.wallet, 0)           AS wallet,
                 (
                     SELECT IFNULL(SUM(cs.qty), 0)
-                    FROM {$this->pos}card_stamp cs
+                    FROM {$this->crm}card_stamp cs
                     WHERE cs.card_id = c.id
                         AND cs.active = 1
                         AND cs.deleted_at IS NULL
@@ -191,8 +191,8 @@ trait LoyaltyCards {
                     WHERE s.card_id = c.id
                         AND {$this->qLiveSaleSql('s')}
                 ) AS last_sale
-            FROM {$this->pos}card c
-            LEFT JOIN {$this->pos}card_type t  ON t.id  = c.card_type_id
+            FROM {$this->crm}card c
+            LEFT JOIN {$this->crm}card_type t  ON t.id  = c.card_type_id
             LEFT JOIN {$this->pos}customer cu  ON cu.id = c.customer_id
             WHERE {$this->qSameCompany('c.branch_id')}
                 {$where}
@@ -205,8 +205,8 @@ trait LoyaltyCards {
         return $this->qRow("
             SELECT
                 {$this->cardColumns()}
-            FROM {$this->pos}card c
-            LEFT JOIN {$this->pos}card_type t  ON t.id  = c.card_type_id
+            FROM {$this->crm}card c
+            LEFT JOIN {$this->crm}card_type t  ON t.id  = c.card_type_id
             LEFT JOIN {$this->pos}customer cu  ON cu.id = c.customer_id
             WHERE c.id = ?
                 AND {$this->qSameCompany('c.branch_id')}
@@ -218,7 +218,7 @@ trait LoyaltyCards {
     protected function qCardNumberTaken($branchId, $number, $exceptId) {
         return $this->qRow("
             SELECT id, number
-            FROM {$this->pos}card
+            FROM {$this->crm}card
             WHERE {$this->qSameCompany('branch_id')}
                 AND id <> ?
                 AND number = ?
@@ -232,8 +232,8 @@ trait LoyaltyCards {
         return $this->qRow("
             SELECT
                 {$this->cardColumns()}
-            FROM {$this->pos}card c
-            INNER JOIN {$this->pos}card_type t ON t.id  = c.card_type_id AND IFNULL(t.active, 1) = 1
+            FROM {$this->crm}card c
+            INNER JOIN {$this->crm}card_type t ON t.id  = c.card_type_id AND IFNULL(t.active, 1) = 1
             LEFT JOIN {$this->pos}customer cu  ON cu.id = c.customer_id
             WHERE {$this->qSameCompany('c.branch_id')}
                 AND c.number = ?
@@ -249,8 +249,8 @@ trait LoyaltyCards {
             SELECT
                 {$this->cardColumns()},
                 IFNULL(t.color, '') AS color
-            FROM {$this->pos}card c
-            INNER JOIN {$this->pos}card_type t ON t.id  = c.card_type_id AND IFNULL(t.active, 1) = 1
+            FROM {$this->crm}card c
+            INNER JOIN {$this->crm}card_type t ON t.id  = c.card_type_id AND IFNULL(t.active, 1) = 1
             LEFT JOIN {$this->pos}customer cu  ON cu.id = c.customer_id
             WHERE c.id = ?
                 AND {$this->qSameCompany('c.branch_id')}
@@ -300,14 +300,14 @@ trait LoyaltyCards {
     protected function qCardStamps($cardId) {
         return $this->qCount("
             SELECT IFNULL(SUM(qty), 0)
-            FROM {$this->pos}card_stamp
+            FROM {$this->crm}card_stamp
             WHERE card_id = ? AND active = 1 AND deleted_at IS NULL
         ", [$cardId]);
     }
 
     // Dentro de transaction(): aparta la tarjeta hasta el commit. Dos cobros con el mismo premio se forman.
     protected function qLockCard($cardId) {
-        return $this->qRow("SELECT id FROM {$this->pos}card WHERE id = ? LIMIT 1 FOR UPDATE", [$cardId]);
+        return $this->qRow("SELECT id FROM {$this->crm}card WHERE id = ? LIMIT 1 FOR UPDATE", [$cardId]);
     }
 
     protected function qCreateStamp($array) {
@@ -318,7 +318,7 @@ trait LoyaltyCards {
     protected function qSaleStamps($saleId) {
         return $this->qRows("
             SELECT id, card_id, kind, qty, amount
-            FROM {$this->pos}card_stamp
+            FROM {$this->crm}card_stamp
             WHERE sale_id = ? AND active = 1 AND deleted_at IS NULL
             ORDER BY id
         ", [$saleId]);
@@ -331,7 +331,7 @@ trait LoyaltyCards {
                 IFNULL(SUM(IF(kind = 'sello', qty, 0)), 0)     AS earned,
                 IFNULL(SUM(kind = 'canje'), 0)                 AS rewards,
                 IFNULL(SUM(IF(kind = 'canje', amount, 0)), 0)  AS saved
-            FROM {$this->pos}card_stamp
+            FROM {$this->crm}card_stamp
             WHERE card_id = ? AND active = 1 AND deleted_at IS NULL
         ", [$cardId]);
     }
@@ -460,7 +460,7 @@ trait LoyaltyCards {
             SELECT
                 COUNT(*) AS cards,
                 IFNULL(SUM(cu.id IS NOT NULL AND IFNULL(cu.active, 1) = 1), 0) AS owned
-            FROM {$this->pos}card c
+            FROM {$this->crm}card c
             LEFT JOIN {$this->pos}customer cu ON cu.id = c.customer_id
                 AND {$this->qSameCompany('cu.branch_id')}
             WHERE {$this->qSameCompany('c.branch_id')}
@@ -501,7 +501,7 @@ trait LoyaltyCards {
     protected function qLoyaltyHasStamps($branchId) {
         return $this->qCount("
             SELECT COUNT(*)
-            FROM {$this->pos}card_type t
+            FROM {$this->crm}card_type t
             WHERE {$this->qSameCompany('t.branch_id')}
                 AND IFNULL(t.stamp_goal, 0) > 0
         ", [$branchId]) > 0;
@@ -514,8 +514,8 @@ trait LoyaltyCards {
                 IFNULL(SUM(IF(cs.kind = 'sello', cs.qty, 0)), 0)     AS given,
                 IFNULL(SUM(cs.kind = 'canje'), 0)                    AS rewards,
                 IFNULL(SUM(IF(cs.kind = 'canje', cs.amount, 0)), 0)  AS saved
-            FROM {$this->pos}card_stamp cs
-            INNER JOIN {$this->pos}card c ON c.id = cs.card_id
+            FROM {$this->crm}card_stamp cs
+            INNER JOIN {$this->crm}card c ON c.id = cs.card_id
             WHERE {$this->qSameCompany('c.branch_id')}
                 AND cs.active = 1
                 AND cs.deleted_at IS NULL
@@ -534,7 +534,7 @@ trait LoyaltyCards {
                 IFNULL(SUM({$this->qCardDiscountSql('s')}), 0)  AS discount,
                 IFNULL(SUM({$this->qSalePointsSql('s')}), 0)    AS points
             FROM {$this->pos}sale s
-            INNER JOIN {$this->pos}card c ON c.id = s.card_id
+            INNER JOIN {$this->crm}card c ON c.id = s.card_id
             WHERE {$this->qSameCompany('s.branch_id')}
                 AND {$this->qLiveSaleSql('s')}
                 AND s.created_at >= ?
@@ -570,9 +570,9 @@ trait LoyaltyCards {
                 IFNULL(s.total, 0)              AS total,
                 {$this->qCardDiscountSql('s')}  AS discount,
                 {$this->qSalePointsSql('s')}    AS points,
-                (SELECT IFNULL(SUM(cs.qty), 0) FROM {$this->pos}card_stamp cs
+                (SELECT IFNULL(SUM(cs.qty), 0) FROM {$this->crm}card_stamp cs
                   WHERE cs.sale_id = s.id AND cs.kind = 'sello' AND cs.active = 1 AND cs.deleted_at IS NULL) AS stamps,
-                (SELECT IFNULL(SUM(cs.amount), 0) FROM {$this->pos}card_stamp cs
+                (SELECT IFNULL(SUM(cs.amount), 0) FROM {$this->crm}card_stamp cs
                   WHERE cs.sale_id = s.id AND cs.kind = 'canje' AND cs.active = 1 AND cs.deleted_at IS NULL) AS reward,
                 IFNULL(b.name, '')              AS branch
             FROM {$this->pos}sale s
@@ -600,13 +600,13 @@ trait LoyaltyCards {
 
     // El token del enlace de una tarjeta. '' = aun no tiene. Quien llama ya la valido con qCard.
     protected function qCardLinkToken($cardId) {
-        $row = $this->qRow("SELECT IFNULL(token, '') AS token FROM {$this->pos}card WHERE id = ? LIMIT 1", [$cardId]);
+        $row = $this->qRow("SELECT IFNULL(token, '') AS token FROM {$this->crm}card WHERE id = ? LIMIT 1", [$cardId]);
 
         return $row ? (string) $row['token'] : '';
     }
 
     protected function qCardTokenTaken($token) {
-        return $this->qCount("SELECT COUNT(*) FROM {$this->pos}card WHERE token = ?", [$token]) > 0;
+        return $this->qCount("SELECT COUNT(*) FROM {$this->crm}card WHERE token = ?", [$token]) > 0;
     }
 
     /*  Pone el token del enlace. $onlyEmpty: solo si aun no tiene (asi, si dos
@@ -614,7 +614,7 @@ trait LoyaltyCards {
         Devuelve true o el aviso del CRUD; el ctrl usa must(). */
     protected function qSetCardToken($cardId, $token, $onlyEmpty) {
         return $this->_CUD(
-            "UPDATE {$this->pos}card SET token = ? WHERE id = ?" . ($onlyEmpty ? ' AND token IS NULL' : ''),
+            "UPDATE {$this->crm}card SET token = ? WHERE id = ?" . ($onlyEmpty ? ' AND token IS NULL' : ''),
             [$token, $cardId]
         );
     }
@@ -633,8 +633,8 @@ trait LoyaltyCards {
                 IFNULL(co.name, '')       AS company,
                 IFNULL(co.logo, '')       AS company_logo,
                 IFNULL(os.title, '')      AS title
-            FROM {$this->pos}card c
-            INNER JOIN {$this->pos}card_type t ON t.id = c.card_type_id AND IFNULL(t.active, 1) = 1
+            FROM {$this->crm}card c
+            INNER JOIN {$this->crm}card_type t ON t.id = c.card_type_id AND IFNULL(t.active, 1) = 1
             LEFT JOIN {$this->pos}customer cu  ON cu.id = c.customer_id
             INNER JOIN {$this->bd}branches b   ON b.id = c.branch_id
             INNER JOIN {$this->bd}companies co ON co.id = b.company_id

@@ -1122,8 +1122,8 @@ class ctrl extends core {
             LEFT JOIN {$this->pos}sale_status st     ON st.id = s.sale_status_id
             LEFT JOIN {$this->pos}customer c         ON c.id  = s.customer_id
             LEFT JOIN {$this->pos}discount_reason dr ON dr.id = s.discount_reason_id
-            LEFT JOIN {$this->pos}card cd            ON cd.id = s.card_id
-            LEFT JOIN {$this->pos}card_type ct       ON ct.id = cd.card_type_id
+            LEFT JOIN {$this->crm}card cd            ON cd.id = s.card_id
+            LEFT JOIN {$this->crm}card_type ct       ON ct.id = cd.card_type_id
             LEFT JOIN {$this->bd}users uc            ON uc.id = s.user_id
             LEFT JOIN {$this->bd}users ux            ON ux.id = s.cancel_user_id
             WHERE s.id = ?

@@ -107,8 +107,8 @@ class PublicTicket extends mdl {
             FROM {$this->pos}sale s
             LEFT JOIN {$this->pos}customer c         ON c.id  = s.customer_id
             LEFT JOIN {$this->pos}discount_reason dr ON dr.id = s.discount_reason_id
-            LEFT JOIN {$this->pos}card cd            ON cd.id = s.card_id
-            LEFT JOIN {$this->pos}card_type ct       ON ct.id = cd.card_type_id
+            LEFT JOIN {$this->crm}card cd            ON cd.id = s.card_id
+            LEFT JOIN {$this->crm}card_type ct       ON ct.id = cd.card_type_id
             LEFT JOIN {$this->bd}users u             ON u.id  = s.user_id
             LEFT JOIN {$this->bd}branches b          ON b.id  = s.branch_id
             LEFT JOIN {$this->bd}companies co        ON co.id = b.company_id

@@ -145,7 +145,7 @@ details.more[open] summary { margin-bottom: 10px; }
     <div class="facts">
       <div class="fact"><b>F1 a F6</b><span>hechas en local (16 y 17/11/2026)</span></div>
       <div class="fact"><b>9 etapas</b><span>de respaldo a respuestas que salen solas</span></div>
-      <div class="fact"><b>9 migraciones</b><span>todas con rollback</span></div>
+      <div class="fact"><b>10 migraciones</b><span>todas con rollback</span></div>
       <div class="fact"><b>0 en producción</b><span>nada subido</span></div>
     </div>
     <p class="note">El diseño y las decisiones del 15/11/2026 están en <a href="plan-agente-whatsapp.html">plan-agente-whatsapp.html</a>. Este documento no los repite: dice cómo implementarlo. El paso a paso con dibujos (Meta, servidor y pruebas) está en <a href="manual-whatsapp-meta.html">manual-whatsapp-meta.html</a>.</p>
@@ -216,7 +216,7 @@ details.more[open] summary { margin-bottom: 10px; }
         <div class="phase-id"><b>E1</b><span>20 min</span></div>
         <div class="phase-body">
           <h3>Base de datos</h3>
-          <p>Las 9 migraciones, en este orden y ANTES del código. Todas se pueden volver a correr (agregan solo lo que falta) y cada una termina con su comprobación.</p>
+          <p>Las 10 migraciones, en este orden y ANTES del código. Las 9 primeras se pueden volver a correr (agregan solo lo que falta); la 10 no se repite: si ya corrió, falla sin tocar nada. Cada una termina con su comprobación.</p>
           <div class="tbl">
             <table>
               <thead><tr><th>#</th><th>Archivo en <code>pro/migrations/</code></th><th>Base</th><th>Qué agrega</th></tr></thead>
@@ -230,6 +230,7 @@ details.more[open] summary { margin-bottom: 10px; }
                 <tr><td class="n">7</td><td><code>2026-11-16_whatsapp-pedidos.sql</code></td><td><code>fayxzvov_pos</code></td><td>F4: <code>wa_proposal.action</code>, <code>action_data</code>, <code>sale_id</code>; <code>wa_message.receipt_id</code>; <code>wa_chat.handoff_note</code></td></tr>
                 <tr><td class="n">8</td><td><code>2026-11-17_whatsapp-recordatorios.sql</code></td><td><code>fayxzvov_pos</code></td><td>F5: <code>wa_agent.reminders</code>, <code>wa_chat.opt_out_at</code>, tabla <code>wa_reminder</code></td></tr>
                 <tr><td class="n">9</td><td><code>2026-11-17_whatsapp-dueno.sql</code></td><td><code>fayxzvov_pos</code></td><td>F6: <code>wa_recipient.can_ask</code>; <code>wa_proposal.kind</code>, <code>auto_sent</code> y <code>topic</code>; dos índices de <code>wa_proposal</code></td></tr>
+                <tr><td class="n">10</td><td><code>2026-11-19_base-crm.sql</code></td><td><code>fayxzvov_pos</code> → <code>fayxzvov_crm</code></td><td>Muda las 17 tablas de WhatsApp y lealtad a su base propia. Antes: crear <code>fayxzvov_crm</code> en cPanel con todos los privilegios para el usuario del <code>.env</code>, y correr las migras de lealtad hasta el 18/11.</td></tr>
               </tbody>
             </table>
           </div>
@@ -501,7 +502,7 @@ details.more[open] summary { margin-bottom: 10px; }
     <div class="sec-head">
       <div class="eyebrow">5 · Referencia</div>
       <h2>Tablas y migraciones</h2>
-      <p>Todas en <code>fayxzvov_pos</code>. Una fila de <code>wa_agent</code> por empresa la da de alta soporte; la pantalla no la crea.</p>
+      <p>Nacen en <code>fayxzvov_pos</code> y la migración 10 (19/11/2026) las muda a <code>fayxzvov_crm</code>; ahí viven. Una fila de <code>wa_agent</code> por empresa la da de alta soporte; la pantalla no la crea.</p>
     </div>
     <div class="tbl">
       <table>

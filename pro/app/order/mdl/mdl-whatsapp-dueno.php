@@ -34,7 +34,7 @@ trait WhatsAppOwnerAgent {
     protected function qWaOwnerRows($companyId, $phone) {
         return $this->qRows("
             SELECT id, name, branch_id
-            FROM {$this->pos}wa_recipient
+            FROM {$this->crm}wa_recipient
             WHERE company_id = ? AND phone = ? AND active = 1 AND IFNULL(can_ask, 0) = 1
             ORDER BY (branch_id IS NULL) DESC, id
         ", [$companyId, (string) $phone]);

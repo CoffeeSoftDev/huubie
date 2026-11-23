@@ -8,7 +8,7 @@ function posCakeCSS() {
         + '--po-brand:rgb(var(--brand-600,192 90 64));--po-brand-ink:rgb(var(--brand-700,160 72 51));--po-brand-soft:rgb(var(--brand-50,253 243 240));--po-brand-line:rgb(var(--brand-200,243 199 186));'
         + '--po-ring:rgb(var(--brand-600,192 90 64) / .18);--po-grad:linear-gradient(90deg,rgb(var(--brand-600,192 90 64)),#EC4899);'
         + '--po-ok:#047857;--po-ok-fill:#059669;--po-ok-soft:#ECFDF5;--po-ok-line:#A7F3D0;--po-warn:#92400E;--po-warn-soft:#FFFBEB;--po-warn-line:#FDE68A;'
-        + 'display:grid;grid-template-columns:minmax(0,1fr) 290px;grid-template-areas:"prog prog" "main side";grid-template-rows:auto minmax(0,1fr);flex:1 1 auto;min-height:0;gap:12px;padding:16px 1.25rem 12px;color:var(--po-ink);font-size:13px;line-height:1.4;text-align:left}'
+        + 'display:grid;grid-template-columns:minmax(0,1fr) 290px;grid-template-areas:"prog prog" "main side";grid-template-rows:auto minmax(0,1fr);flex:1 1 auto;min-height:0;gap:10px;padding:12px 16px 10px;color:var(--po-ink);font-size:13px;line-height:1.4;text-align:left}'
         + 'body.dark-mode .pos-ck{--po-surface:var(--dk-card,#1F2A37);--po-sunken:var(--dk-sunken,#1a2332);--po-line:var(--dk-line,#374151);--po-line-hi:var(--dk-line-hi,#4B5563);--po-ink:var(--dk-text,#f5f5f5);--po-ink-2:#D1D5DB;'
         + '--po-muted:var(--dk-muted,#9CA3AF);--po-hover:var(--dk-row-hover,#334155);--po-brand-ink:rgb(var(--brand-200,243 199 186));--po-brand-soft:rgb(var(--brand-600,192 90 64) / .16);--po-brand-line:rgb(var(--brand-600,192 90 64) / .45);'
         + '--po-ok:#6EE7B7;--po-ok-soft:rgb(16 185 129 / .14);--po-ok-line:rgb(16 185 129 / .4);--po-warn:#FCD34D;--po-warn-soft:rgb(245 158 11 / .12);--po-warn-line:rgb(245 158 11 / .35);color-scheme:dark}'
@@ -19,47 +19,64 @@ function posCakeCSS() {
         + '.pos-ck-card{min-width:0;border:1px solid var(--po-line);border-radius:14px;background:var(--po-surface)}'
         + '.pos-ck-card-title{font-size:14px;font-weight:700;line-height:1.3;color:var(--po-ink)}'
 
-        + '.pos-ck-prog{grid-area:prog;display:flex;flex-direction:column;gap:9px;padding:12px 14px 10px;background:var(--po-sunken)}'
-        + '.pos-ck-prog-head{display:flex;align-items:center;gap:10px}'
-        + '.pos-ck-prog-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;border-radius:999px;background:var(--po-brand-soft);color:var(--po-brand)}'
-        + '.pos-ck-prog-icon svg{width:18px;height:18px}'
-        + '.pos-ck-prog-main{display:flex;flex-direction:column;flex:1 1 0%;min-width:0}'
-        + '.pos-ck-prog-title{font-size:14px;font-weight:700;line-height:1.3;color:var(--po-brand-ink)}'
+        + '.pos-ck-prog{grid-area:prog;display:flex;flex-direction:column;gap:6px;padding:8px 12px 6px;background:var(--po-sunken)}'
+        + '.pos-ck-prog-head{display:flex;align-items:center;gap:8px}'
+        + '.pos-ck-prog-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;border-radius:999px;background:var(--po-brand-soft);color:var(--po-brand)}'
+        + '.pos-ck-prog-icon svg{width:16px;height:16px}'
+        + '.pos-ck-prog-main{display:flex;flex-direction:row;align-items:baseline;flex-wrap:wrap;column-gap:8px;flex:1 1 0%;min-width:0}'
+        + '.pos-ck-prog-title{font-size:13.5px;font-weight:700;line-height:1.3;color:var(--po-brand-ink)}'
         + '.pos-ck-prog-text{font-size:12px;color:var(--po-muted)}'
-        + '.pos-ck-badge{display:inline-flex;align-items:center;gap:5px;height:26px;flex-shrink:0;padding:0 10px;border:1px solid var(--po-brand-line);border-radius:999px;background:var(--po-brand-soft);color:var(--po-brand-ink);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}'
+        + '.pos-ck-badge{display:inline-flex;align-items:center;gap:5px;height:24px;flex-shrink:0;padding:0 10px;border:1px solid var(--po-brand-line);border-radius:999px;background:var(--po-brand-soft);color:var(--po-brand-ink);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}'
         + '.pos-ck-badge svg{display:none;width:13px;height:13px}'
         + '.pos-ck-prog.is-done .pos-ck-badge{border-color:var(--po-ok-line);background:var(--po-ok-soft);color:var(--po-ok)}'
         + '.pos-ck-prog.is-done .pos-ck-badge svg{display:block}'
-        + '.pos-ck-bar{height:8px;border-radius:999px;background:var(--po-line);overflow:hidden}'
+        + '.pos-ck-bar{height:6px;border-radius:999px;background:var(--po-line);overflow:hidden}'
         + '.pos-ck-bar > span{display:block;width:0;height:100%;border-radius:999px;background:var(--po-brand);transition:width .4s ease,background-color .2s}'
         + '.pos-ck-prog.is-done .pos-ck-bar > span{background:var(--po-ok-fill)}'
-        + '.pos-ck-steps{display:flex;gap:4px;margin:0 -2px -2px;padding:2px;overflow-x:auto;scrollbar-width:none}'
+        // Carril de categorías (propuesta A): píldoras con el nombre completo, flechas y orillas
+        // que se desvanecen solo del lado donde hay más (has-prev / has-next los pone edges()).
+        + '.pos-ck-rail{position:relative;margin:0 -2px -2px}'
+        + '.pos-ck-rail.has-prev{--pos-ck-fl:40px}'
+        + '.pos-ck-rail.has-next{--pos-ck-fr:40px}'
+        + '.pos-ck-steps{position:relative;display:flex;gap:6px;padding:2px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;'
+        + '-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--pos-ck-fl,0px),#000 calc(100% - var(--pos-ck-fr,0px)),transparent 100%);'
+        + 'mask-image:linear-gradient(90deg,transparent 0,#000 var(--pos-ck-fl,0px),#000 calc(100% - var(--pos-ck-fr,0px)),transparent 100%)}'
         + '.pos-ck-steps::-webkit-scrollbar{display:none}'
-        + 'button.pos-ck-step{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex:1 0 72px;min-width:72px;margin:0;padding:6px 6px 5px;border:0;border-radius:10px;background:transparent;color:var(--po-muted);font-size:11.5px;font-weight:600;line-height:1.2;cursor:pointer;transition:background-color .15s,color .15s}'
-        + 'button.pos-ck-step:hover{background:var(--po-hover);color:var(--po-brand-ink)}'
+        // Con categorías fuera de vista el carril se arrastra con la mano (grab); al arrastrar, la mano cerrada.
+        + '.pos-ck-rail.has-prev .pos-ck-steps,.pos-ck-rail.has-next .pos-ck-steps,.pos-ck-rail.has-prev button.pos-ck-step,.pos-ck-rail.has-next button.pos-ck-step{cursor:grab}'
+        + '.pos-ck-rail .pos-ck-steps.is-grabbing,.pos-ck-rail .pos-ck-steps.is-grabbing button.pos-ck-step{cursor:grabbing;user-select:none}'
+        + 'button.pos-ck-arrow{position:absolute;top:50%;z-index:2;display:none;align-items:center;justify-content:center;width:28px;height:28px;margin:-14px 0 0;padding:0;border:1px solid var(--po-line-hi);border-radius:999px;background:var(--po-surface);color:var(--po-ink-2);box-shadow:0 1px 3px rgb(0 0 0 / .12);cursor:pointer;transition:border-color .15s,color .15s}'
+        + 'button.pos-ck-arrow.is-prev{left:0}'
+        + 'button.pos-ck-arrow.is-next{right:0}'
+        + '.pos-ck-rail.has-prev button.pos-ck-arrow.is-prev,.pos-ck-rail.has-next button.pos-ck-arrow.is-next{display:inline-flex}'
+        + 'button.pos-ck-arrow:hover{border-color:var(--po-brand);color:var(--po-brand-ink)}'
+        + 'button.pos-ck-arrow:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}'
+        + 'button.pos-ck-arrow svg{width:16px;height:16px}'
+        + 'button.pos-ck-step{display:inline-flex;flex-direction:row;align-items:center;gap:6px;flex:0 0 auto;margin:0;padding:3px 12px 3px 4px;border:1px solid var(--po-line);border-radius:999px;background:var(--po-surface);color:var(--po-muted);font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}'
+        + 'button.pos-ck-step:hover{border-color:var(--po-line-hi);background:var(--po-hover);color:var(--po-brand-ink)}'
         + 'button.pos-ck-step:focus-visible{outline:none;box-shadow:0 0 0 3px var(--po-ring)}'
-        + '.pos-ck-step-name{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
-        + '.pos-ck-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;border-radius:999px;background:var(--po-line);color:var(--po-ink-2);font-size:11px;font-variant-numeric:tabular-nums;transition:background-color .15s,color .15s}'
+        + '.pos-ck-step-name{display:block;white-space:nowrap}'
+        + '.pos-ck-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex-shrink:0;border-radius:999px;background:var(--po-line);color:var(--po-ink-2);font-size:11px;font-variant-numeric:tabular-nums;transition:background-color .15s,color .15s}'
         + '.pos-ck-num b{font-weight:700}'
         + '.pos-ck-num svg{display:none;width:13px;height:13px;stroke-width:3}'
-        + 'button.pos-ck-step.is-done{color:var(--po-ok)}'
+        + 'button.pos-ck-step.is-done{border-color:var(--po-ok-line);background:var(--po-ok-soft);color:var(--po-ok)}'
         + 'button.pos-ck-step.is-done .pos-ck-num{background:var(--po-ok-fill);color:#fff}'
         + 'button.pos-ck-step.is-done .pos-ck-num b{display:none}'
         + 'button.pos-ck-step.is-done .pos-ck-num svg{display:block}'
-        + 'button.pos-ck-step.is-on{background:var(--po-brand-soft);color:var(--po-brand-ink)}'
+        + 'button.pos-ck-step.is-on{border-color:var(--po-brand);background:var(--po-brand-soft);color:var(--po-brand-ink)}'
         + 'button.pos-ck-step.is-on .pos-ck-num{background:var(--po-brand);color:#fff}'
 
-        + '.pos-ck-main{grid-area:main;display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow-y:auto;scrollbar-width:thin}'
-        + '.pos-ck-stage{grid-area:stage;display:flex;flex-direction:column;flex:1 1 auto;min-height:260px;gap:10px;padding:14px}'
+        + '.pos-ck-main{grid-area:main;display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0;overflow-y:auto;scrollbar-width:thin}'
+        + '.pos-ck-stage{grid-area:stage;display:flex;flex-direction:column;flex:1 1 auto;min-height:240px;gap:8px;padding:12px}'
         + '.pos-ck-stage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}'
-        + '.pos-ck-stage-text{display:flex;align-items:flex-start;gap:9px;min-width:0}'
-        + '.pos-ck-stage-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;border-radius:9px;background:var(--po-grad);color:#fff}'
-        + '.pos-ck-stage-icon svg{width:16px;height:16px}'
+        + '.pos-ck-stage-text{display:flex;align-items:flex-start;gap:8px;min-width:0}'
+        + '.pos-ck-stage-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex-shrink:0;border-radius:8px;background:var(--po-grad);color:#fff}'
+        + '.pos-ck-stage-icon svg{width:15px;height:15px}'
         + '.pos-ck-stage-main{display:flex;flex-direction:column;gap:1px;min-width:0}'
-        + '.pos-ck-title{font-size:16px;font-weight:700;line-height:1.3;color:var(--po-brand-ink);overflow-wrap:anywhere}'
+        + '.pos-ck-title{font-size:15px;font-weight:700;line-height:1.3;color:var(--po-brand-ink);overflow-wrap:anywhere}'
         + '.pos-ck-hint{font-size:12px;color:var(--po-muted)}'
         + '.pos-ck-nav{display:flex;gap:6px;flex-shrink:0}'
-        + 'button.pos-ck-navbtn{display:inline-flex;align-items:center;justify-content:center;gap:3px;height:32px;margin:0;padding:0 13px;border:1px solid var(--po-line-hi);border-radius:999px;background:var(--po-surface);color:var(--po-ink-2);font-size:12.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s,opacity .15s}'
+        + 'button.pos-ck-navbtn{display:inline-flex;align-items:center;justify-content:center;gap:3px;height:30px;margin:0;padding:0 12px;border:1px solid var(--po-line-hi);border-radius:999px;background:var(--po-surface);color:var(--po-ink-2);font-size:12.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s,opacity .15s}'
         + 'button.pos-ck-navbtn.is-prev{padding-left:8px}'
         + 'button.pos-ck-navbtn.is-next{padding-right:8px;border-color:var(--po-brand);color:var(--po-brand-ink)}'
         + 'button.pos-ck-navbtn:hover{border-color:var(--po-brand);background:var(--po-brand-soft);color:var(--po-brand-ink)}'
@@ -68,22 +85,23 @@ function posCakeCSS() {
         + 'button.pos-ck-navbtn svg{width:15px;height:15px}'
 
         + 'input.pos-ck-in,textarea.pos-ck-in{display:block;width:100%;margin:0;border:1px solid var(--po-line-hi);border-radius:10px;background:var(--po-surface);color:var(--po-ink);font-size:13.5px !important;line-height:1.35;outline:none;box-shadow:none;transition:border-color .15s,box-shadow .15s}'
-        + 'input.pos-ck-in{height:38px !important;padding:0 12px}'
-        + 'textarea.pos-ck-in{min-height:64px;padding:8px 12px;resize:vertical}'
+        + 'input.pos-ck-in{height:34px !important;padding:0 12px}'
+        // Observaciones: cuatro renglones a la vista (antes dos y el texto se iba de lado con scroll).
+        + 'textarea.pos-ck-in{min-height:86px;padding:6px 12px;resize:vertical}'
         + 'input.pos-ck-in::placeholder,textarea.pos-ck-in::placeholder{color:var(--po-muted);opacity:1}'
         + 'input.pos-ck-in:focus,textarea.pos-ck-in:focus{border-color:var(--po-brand);box-shadow:0 0 0 3px var(--po-ring)}'
         + '.pos-ck-field{display:flex;flex-direction:column;min-width:0}'
-        + '.pos-ck label.pos-ck-lbl{display:block;margin:0 0 4px !important;font-size:12px !important;font-weight:600;line-height:1.3;color:var(--po-ink-2)}'
+        + '.pos-ck label.pos-ck-lbl{display:block;margin:0 0 3px !important;font-size:12px !important;font-weight:600;line-height:1.3;color:var(--po-ink-2)}'
         + '.pos-ck-help{display:block;margin-top:3px;font-size:11.5px;line-height:1.3;color:var(--po-muted)}'
-        + '.pos-ck-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}'
-        + '.pos-ck-data{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}'
+        + '.pos-ck-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}'
+        + '.pos-ck-data{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}'
         + '.pos-ck-search{position:relative}'
         + '.pos-ck-search.is-off{display:none}'
         + '.pos-ck-search > svg{position:absolute;left:12px;top:50%;width:15px;height:15px;margin-top:-7.5px;color:var(--po-muted);pointer-events:none}'
         + '.pos-ck-search input.pos-ck-in{padding-left:36px}'
 
-        + '.pos-ck-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));grid-auto-rows:min-content;align-content:start;flex:1 1 0%;gap:8px;min-height:96px;margin:-4px;padding:4px;overflow-y:auto;scrollbar-width:thin}'
-        + 'button.pos-ck-opt,div.pos-ck-opt{display:flex;align-items:center;gap:8px;width:100%;min-width:0;min-height:44px;margin:0;padding:6px 8px 6px 12px;border:1px solid var(--po-line);border-radius:10px;background:var(--po-surface);color:var(--po-ink);font-size:13px;line-height:1.3;text-align:left;transition:background-color .15s,border-color .15s,box-shadow .15s,transform .15s}'
+        + '.pos-ck-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));grid-auto-rows:min-content;align-content:start;flex:1 1 0%;gap:6px;min-height:96px;margin:-4px;padding:4px;overflow-y:auto;scrollbar-width:thin}'
+        + 'button.pos-ck-opt,div.pos-ck-opt{display:flex;align-items:center;gap:8px;width:100%;min-width:0;min-height:38px;margin:0;padding:4px 8px 4px 10px;border:1px solid var(--po-line);border-radius:10px;background:var(--po-surface);color:var(--po-ink);font-size:13px;line-height:1.3;text-align:left;transition:background-color .15s,border-color .15s,box-shadow .15s,transform .15s}'
         + 'button.pos-ck-opt{cursor:pointer}'
         + 'button.pos-ck-opt:hover{border-color:var(--po-line-hi);background:var(--po-hover)}'
         + 'button.pos-ck-opt:focus-visible{outline:none;border-color:var(--po-brand);box-shadow:0 0 0 3px var(--po-ring)}'
@@ -114,10 +132,10 @@ function posCakeCSS() {
         + '.pos-ck-none svg{width:26px;height:26px;margin-bottom:5px;opacity:.7}'
         + '.pos-ck-none b{font-size:13.5px;font-weight:600;color:var(--po-ink-2)}'
 
-        + '.pos-ck-side{grid-area:side;display:flex;flex-direction:column;gap:10px;min-height:0;padding:14px;overflow-y:auto;scrollbar-width:thin}'
+        + '.pos-ck-side{grid-area:side;display:flex;flex-direction:column;gap:8px;min-height:0;padding:12px;overflow-y:auto;scrollbar-width:thin}'
         + '.pos-ck-side > *{flex-shrink:0}'
-        + '.pos-ck-side-head{display:flex;align-items:center;gap:10px;padding-bottom:2px}'
-        + '.pos-ck-cake{display:inline-block;flex-shrink:0;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif;font-size:32px;line-height:1;animation:pos-ck-bounce 1s infinite}'
+        + '.pos-ck-side-head{display:flex;align-items:center;gap:8px;padding-bottom:2px}'
+        + '.pos-ck-cake{display:inline-block;flex-shrink:0;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif;font-size:26px;line-height:1;animation:pos-ck-bounce 1s infinite}'
         + '.pos-ck-side-main{display:flex;flex-direction:column;gap:1px;min-width:0}'
         + '.pos-ck-side-title{font-size:14.5px;font-weight:700;line-height:1.25;color:var(--po-brand-ink)}'
         + '.pos-ck-side-sub{font-size:11.5px;line-height:1.3;color:var(--po-muted)}'
@@ -138,9 +156,11 @@ function posCakeCSS() {
         + '.pos-ck-warn{display:none;align-items:flex-start;gap:7px;padding:7px 10px;border:1px solid var(--po-warn-line);border-radius:10px;background:var(--po-warn-soft);color:var(--po-warn);font-size:12px;font-weight:500;line-height:1.35}'
         + '.pos-ck-warn.is-on{display:flex}'
         + '.pos-ck-warn svg{width:14px;height:14px;margin-top:1px}'
-        + '.pos-ck-tot{position:sticky;bottom:-14px;z-index:1;display:flex;flex-direction:column;gap:6px;margin:auto -14px -14px;padding:10px 14px 14px;border-top:1px solid var(--po-brand-line);background:var(--po-surface)}'
+        + '.pos-ck-tot{position:sticky;bottom:-12px;z-index:1;display:flex;flex-direction:column;gap:6px;margin:auto -12px -12px;padding:8px 12px 12px;border-top:1px solid var(--po-brand-line);background:var(--po-surface)}'
         + '.pos-ck-tot-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;color:var(--po-muted)}'
         + '.pos-ck-tot-line.is-off{display:none}'
+        + '.pos-ck-tot-line.is-sub{padding-top:5px;border-top:1px dashed var(--po-brand-line);font-weight:600;color:var(--po-ink-2)}'
+        + '.pos-ck-tot-line.is-sub b{font-weight:700;color:var(--po-ink)}'
         + '.pos-ck-tot-line b{font-weight:600;font-variant-numeric:tabular-nums;color:var(--po-ink-2);white-space:nowrap}'
         + '.pos-ck-tot-line.is-main{align-items:center;font-size:13.5px;font-weight:700;color:var(--po-brand-ink)}'
         + '.pos-ck-tot-line.is-main > span{display:inline-flex;align-items:center;gap:5px}'
@@ -150,17 +170,18 @@ function posCakeCSS() {
         + '.pos-ck .pos-ck-real label.pos-ck-lbl{display:flex;flex-direction:column;margin:0 !important;font-size:12.5px !important}'
         + '.pos-ck-real label small{font-size:11px;font-weight:500;color:var(--po-muted)}'
         + '.pos-ck-money{position:relative}'
-        + '.pos-ck-money > span{position:absolute;left:12px;top:0;display:flex;align-items:center;height:38px;font-size:13.5px;font-weight:600;color:var(--po-muted);pointer-events:none}'
+        + '.pos-ck-money > span{position:absolute;left:12px;top:0;display:flex;align-items:center;height:34px;font-size:13.5px;font-weight:600;color:var(--po-muted);pointer-events:none}'
         + '.pos-ck-money input.pos-ck-in{padding-left:26px}'
         + '.pos-ck-total{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 12px;border-radius:12px;background:var(--po-sunken)}'
         + '.pos-ck-total-text{display:flex;flex-direction:column;font-size:12.5px;font-weight:600;line-height:1.3;color:var(--po-ink-2)}'
         + '.pos-ck-total-text small{font-size:11px;font-weight:500;color:var(--po-muted)}'
         + '.pos-ck-total > b{font-size:18px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--po-ink)}'
 
-        + '.pos-ck-more{grid-area:more;display:flex;flex-direction:column;flex-shrink:0;gap:10px;padding:14px}'
-        + '.pos-ck-more-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}'
-        + '.pos-ck-sec{display:flex;flex-direction:column;gap:10px;min-width:0}'
-        + '.pos-ck-sec.is-photos{padding-left:14px;border-left:1px solid var(--po-line)}'
+        // Datos más ancho que Fotos: Nombre y Dedicatoria caben en un renglón (pos-ck-data).
+        + '.pos-ck-more{grid-area:more;display:flex;flex-direction:column;flex-shrink:0;gap:8px;padding:12px}'
+        + '.pos-ck-more-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:12px}'
+        + '.pos-ck-sec{display:flex;flex-direction:column;gap:8px;min-width:0}'
+        + '.pos-ck-sec.is-photos{padding-left:12px;border-left:1px solid var(--po-line)}'
         + '.pos-ck-sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px}'
         + '.pos-ck-sec-title{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;line-height:1.3;letter-spacing:.04em;text-transform:uppercase;color:var(--po-muted)}'
         + '.pos-ck .pos-ck-sec-title svg{width:14px;height:14px;color:var(--po-brand)}'
@@ -181,7 +202,7 @@ function posCakeCSS() {
         + '.pos-ck label.pos-ck-drop:focus-within{border-color:var(--po-brand);box-shadow:0 0 0 3px var(--po-ring)}'
         + '.pos-ck label.pos-ck-drop.is-off{display:none}'
         + '.pos-ck label.pos-ck-drop.is-busy{pointer-events:none;opacity:.75}'
-        + '.pos-ck-shots.is-empty label.pos-ck-drop{grid-column:1 / -1;flex-direction:row;gap:10px;aspect-ratio:auto;min-height:64px;padding:10px 12px;font-size:12px !important}'
+        + '.pos-ck-shots.is-empty label.pos-ck-drop{grid-column:1 / -1;flex-direction:row;gap:10px;aspect-ratio:auto;min-height:52px;padding:8px 12px;font-size:12px !important}'
         + '.pos-ck-drop-icon,.pos-ck-drop-spin{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;border-radius:999px;background:var(--po-brand);color:#fff}'
         + '.pos-ck-drop-icon svg,.pos-ck-drop-spin svg{width:15px;height:15px}'
         + '.pos-ck-drop-spin{display:none}'
@@ -214,7 +235,7 @@ function posCakeCSS() {
         + '.pos-ck-prog,.pos-ck-stage,.pos-ck-side,.pos-ck-more{padding:12px}'
         + '.pos-ck-stage-head{flex-direction:column;align-items:stretch}'
         + '.pos-ck-nav button.pos-ck-navbtn{flex:1 1 0%}'
-        + 'button.pos-ck-step{flex-basis:58px;min-width:58px;padding:6px 3px 5px;font-size:11px}'
+        + 'button.pos-ck-step{font-size:11.5px}'
         + '.pos-ck-list{grid-template-columns:minmax(0,1fr);max-height:320px}'
         + '}';
 
@@ -295,6 +316,9 @@ Templates.prototype.posCake = function (options) {
     const badgeText = $('<span>');
     const fill      = $('<span>');
     const steps     = $('<div>', { class: 'pos-ck-steps' });
+    const rail      = $('<div>', { class: 'pos-ck-rail' });
+    const toPrev    = $('<button>', { type: 'button', class: 'pos-ck-arrow is-prev', tabindex: -1, 'aria-label': 'Ver categorías anteriores' }).append(icon('chevron-left'));
+    const toNext    = $('<button>', { type: 'button', class: 'pos-ck-arrow is-next', tabindex: -1, 'aria-label': 'Ver más categorías' }).append(icon('chevron-right'));
 
     const main    = $('<div>', { class: 'pos-ck-main' });
     const stage   = $('<div>', { class: 'pos-ck-card pos-ck-stage' });
@@ -319,6 +343,8 @@ Templates.prototype.posCake = function (options) {
     const baseValue  = $('<b>');
     const extraLine  = $('<div>', { class: 'pos-ck-tot-line' });
     const extraValue = $('<b>');
+    const subLine    = $('<div>', { class: 'pos-ck-tot-line is-sub' });
+    const subValue   = $('<b>');
     const suggested  = $('<b>');
     const total      = $('<b>');
     const totalNote  = $('<small>');
@@ -326,7 +352,7 @@ Templates.prototype.posCake = function (options) {
     const more         = $('<div>', { class: 'pos-ck-card pos-ck-more' });
     const inName       = $('<input>', { id: `${opts.id}Name`, class: 'pos-ck-in', type: 'text', maxlength: 150, autocomplete: 'off', placeholder: 'Ej. Pastel de cumpleaños para Ana' }).val(value.name);
     const inDedication = $('<input>', { id: `${opts.id}Dedication`, class: 'pos-ck-in', type: 'text', maxlength: 255, autocomplete: 'off', placeholder: 'Ej. Feliz cumpleaños, Ana' }).val(value.dedication);
-    const inDetails    = $('<textarea>', { id: `${opts.id}Details`, class: 'pos-ck-in', rows: 2, maxlength: 255, placeholder: 'Colores, forma, alergias…' }).val(value.details);
+    const inDetails    = $('<textarea>', { id: `${opts.id}Details`, class: 'pos-ck-in', rows: 4, maxlength: 255, placeholder: 'Colores, forma, alergias…' }).val(value.details);
     const photos       = $('<div>', { class: 'pos-ck-sec is-photos' });
     const shots        = $('<div>', { id: `${opts.id}Shots`, class: 'pos-ck-shots' });
     const counter      = $('<span>', { class: 'pos-ck-count' });
@@ -463,7 +489,8 @@ Templates.prototype.posCake = function (options) {
     };
 
     const stepEls = groups.map((g, i) => {
-        const el = $('<button>', { type: 'button', class: 'pos-ck-step', title: g.name });
+        // title con .attr(): en las props de jQuery, title lo toma el plugin $.fn.title y no queda el tooltip.
+        const el = $('<button>', { type: 'button', class: 'pos-ck-step' }).attr('title', g.name);
 
         el.append(
             $('<span>', { class: 'pos-ck-num' }).append($('<b>', { text: String(i + 1) }), icon('check')),
@@ -476,6 +503,27 @@ Templates.prototype.posCake = function (options) {
 
         return el;
     });
+
+    // -- Carril de categorías --
+
+    // Flechas y orillas desvanecidas solo del lado donde quedan categorías por ver.
+    const edges = () => {
+        const el   = steps[0];
+        const rest = el.scrollWidth - el.clientWidth;
+
+        rail.toggleClass('has-prev', el.scrollLeft > 1).toggleClass('has-next', el.scrollLeft < rest - 1);
+    };
+
+    // La categoría actual al centro del carril. smooth: al cambiar de paso; sin animar al abrir o al cambiar de tamaño.
+    const center = (smooth) => {
+        const el   = steps[0];
+        const step = stepEls[state.step] ? stepEls[state.step][0] : null;
+
+        if (!step || !el.clientWidth) return;
+
+        el.scrollTo({ left: Math.max(0, step.offsetLeft - (el.clientWidth - step.offsetWidth) / 2), behavior: smooth ? 'smooth' : 'auto' });
+        edges();
+    };
 
     const sumEls = groups.map((g, i) => {
         const el   = $('<button>', { type: 'button', class: 'pos-ck-sumrow' });
@@ -552,15 +600,16 @@ Templates.prototype.posCake = function (options) {
         baseValue.text(portions ? cash(base * portions) : '—');
         extraLine.toggleClass('is-off', extras <= 0);
         extraValue.text(cash(extras));
+        subLine.toggleClass('is-off', !perPortion && extras <= 0);
+        subValue.text(cash(price));
         suggested.text(cash(price));
         inPrice.attr('placeholder', price.toFixed(2));
         total.text(cash(unit * quantity));
         totalNote.text(quantity ? `${quantity.toLocaleString('es-MX')} ${quantity === 1 ? 'pastel' : 'pasteles'}` : 'Falta la cantidad');
     };
 
-    const renderStep = () => {
-        const g    = groups[state.step];
-        const step = stepEls[state.step][0];
+    const renderStep = (smooth) => {
+        const g = groups[state.step];
 
         rows = g.options.map((o) => (g.multiple ? multi(o) : single(g, o)));
 
@@ -580,7 +629,7 @@ Templates.prototype.posCake = function (options) {
         paint();
 
         list.scrollTop(0);
-        steps.scrollLeft(step.offsetLeft - (steps[0].clientWidth - step.offsetWidth) / 2);
+        center(smooth);
     };
 
     const go = (i, reveal) => {
@@ -588,7 +637,7 @@ Templates.prototype.posCake = function (options) {
 
         if (i !== state.step) {
             state.step = i;
-            renderStep();
+            renderStep(true);
         }
 
         if (reveal) stage[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -692,7 +741,7 @@ Templates.prototype.posCake = function (options) {
             badge.append(icon('check'), badgeText)
         ),
         $('<div>', { class: 'pos-ck-bar' }).append(fill),
-        steps
+        rail.append(toPrev, steps, toNext)
     );
 
     search.append(icon('search'), query);
@@ -732,10 +781,12 @@ Templates.prototype.posCake = function (options) {
 
     baseLine.append(baseLabel, baseValue);
     extraLine.append($('<span>', { text: 'Extras' }), extraValue);
+    subLine.append($('<span>', { text: 'Subtotal' }), subValue);
 
     side.append($('<div>', { class: 'pos-ck-tot' }).append(
         baseLine,
         extraLine,
+        subLine,
         $('<div>', { class: 'pos-ck-tot-line is-main' }).append($('<span>').append($('<span>', { text: 'Precio sugerido' }), icon('sparkles')), suggested),
         $('<div>', { class: 'pos-ck-real' }).append(
             $('<label>', { class: 'pos-ck-lbl', for: inPrice.attr('id') }).append($('<span>', { text: 'Precio real' }), $('<small>', { text: 'Vacío = sugerido' })),
@@ -803,6 +854,77 @@ Templates.prototype.posCake = function (options) {
 
         if (next.prop('disabled')) prev.trigger('focus');
     });
+
+    steps.on('scroll', edges);
+
+    // La rueda del mouse recorre el carril de lado, solo si quedan categorías fuera de vista.
+    steps.on('wheel', (e) => {
+        const ev = e.originalEvent;
+        const el = steps[0];
+
+        if (el.scrollWidth <= el.clientWidth || Math.abs(ev.deltaY) <= Math.abs(ev.deltaX)) return;
+
+        e.preventDefault();
+        el.scrollLeft += ev.deltaY;
+    });
+
+    /*  Arrastrar el carril con el mouse, como con el dedo en el celular (ese ya
+        se desliza solo). Más de 5 px es arrastre: al soltar, el clic no elige
+        la categoría que quedó bajo el cursor. */
+    let grab    = null;
+    let dragged = false;
+
+    steps.on('pointerdown', (e) => {
+        const ev = e.originalEvent;
+        const el = steps[0];
+
+        dragged = false;
+
+        if (ev.pointerType !== 'mouse' || ev.button !== 0 || el.scrollWidth <= el.clientWidth) return;
+
+        grab = { x: ev.clientX, left: el.scrollLeft, id: ev.pointerId, moved: false };
+    });
+
+    steps.on('pointermove', (e) => {
+        const ev = e.originalEvent;
+        const el = steps[0];
+
+        if (!grab || ev.pointerId !== grab.id) return;
+
+        const dx = ev.clientX - grab.x;
+
+        if (!grab.moved && Math.abs(dx) < 5) return;
+
+        if (!grab.moved) {
+            grab.moved = true;
+            steps.addClass('is-grabbing');
+            el.setPointerCapture(grab.id);
+        }
+
+        el.scrollLeft = grab.left - dx;
+    });
+
+    steps.on('pointerup pointercancel lostpointercapture', (e) => {
+        if (!grab || e.originalEvent.pointerId !== grab.id) return;
+
+        dragged = grab.moved;
+        grab    = null;
+        steps.removeClass('is-grabbing');
+    });
+
+    steps[0].addEventListener('click', (e) => {
+        if (!dragged) return;
+
+        dragged = false;
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+
+    toPrev.on('click', () => steps[0].scrollBy({ left: -steps[0].clientWidth * 0.7, behavior: 'smooth' }));
+    toNext.on('click', () => steps[0].scrollBy({ left: steps[0].clientWidth * 0.7, behavior: 'smooth' }));
+
+    // Al cambiar de ancho (la ventana, o el primer acomodo de Tailwind CDN) la categoría actual vuelve al centro.
+    if (window.ResizeObserver) new ResizeObserver(() => center(false)).observe(steps[0]);
 
     query.on('input', filter);
 

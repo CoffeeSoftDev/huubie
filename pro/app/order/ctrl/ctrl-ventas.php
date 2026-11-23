@@ -95,6 +95,7 @@ class ctrl extends core {
             'today'     => date('Y-m-d'),
             'turn'      => $this->turnBrief(),
             'day'       => $this->dayBrief(),
+            'turns'     => $this->branchTurns(),   // selector de sucursal de la barra
             'user'      => ['id' => $this->userId(), 'name' => $this->userName()],
             'branch_id' => $this->branchId()
         ];
