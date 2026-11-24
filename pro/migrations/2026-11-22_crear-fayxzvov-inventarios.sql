@@ -2,7 +2,10 @@
 -- Crea fayxzvov_inventarios: Inventarios de Huubie PRO (29 tablas + 1 vista)
 -- Fecha:    22/11/2026 · rev 23/11/2026: lo que se inventaria son los productos
 --           del Catalogo (fayxzvov_pos.product); se quitaron item e item_category.
--- Pantallas: pro/app/inventarios (stock.php, entradas.php, salidas.php)
+--           rev 24/11/2026: traspaso con receive_note y moved_at; la vista dice a
+--           que almacen va o de cual viene.
+-- Pantallas: pro/app/inventarios (stock.php, entradas.php, salidas.php,
+--           traspasos.php, kardex.php)
 -- Origen:   app/inventarios (generacion alpha, BD fayxzvov_reginas, modo FAKE)
 --           + inventory/operacion/almacen (ERP, BD fayxzvov_inventory)
 -- Reglas:   ~/.claude/steering/grimorios/db-rules.md
@@ -674,7 +677,8 @@ CREATE TABLE `inventory_transfer` (
   `total_cost`                DOUBLE NOT NULL DEFAULT 0,
   `requested_at`              DATETIME NULL DEFAULT NULL,
   `received_at`               DATETIME NULL DEFAULT NULL COMMENT 'aqui se mueve el stock de los dos almacenes',
-  `reject_reason`             VARCHAR(255) NULL DEFAULT NULL,
+  `receive_note`              VARCHAR(255) NULL DEFAULT NULL COMMENT 'lo que dijo quien recibio (llego menos, llego danado)',
+  `reject_reason`             VARCHAR(255) NULL DEFAULT NULL COMMENT 'por que se rechazo (destino) o se cancelo (origen)',
   `created_at`                DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`                DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `transfer_status_id`        INT NOT NULL,
@@ -725,6 +729,7 @@ CREATE TABLE `detail_inventory_transfer` (
   `origin_resulting_stock`       DOUBLE NULL DEFAULT NULL,
   `destination_previous_stock`   DOUBLE NULL DEFAULT NULL,
   `destination_resulting_stock`  DOUBLE NULL DEFAULT NULL,
+  `moved_at`                     DATETIME(6) NULL DEFAULT NULL COMMENT 'cuando se recibio y movio los dos almacenes: ordena el kardex',
   `created_at`                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `inventory_transfer_id`        INT NOT NULL,
@@ -1034,24 +1039,27 @@ SELECT CONCAT('OUT-X-', d.id), 'CANCELACION', r.folio, CONCAT('Cancelación de s
   JOIN inventory_outflow r ON r.id = d.inventory_outflow_id
  WHERE d.active = 1 AND r.active = 1 AND r.status = 'cancelled' AND d.cancel_resulting_stock IS NOT NULL
 UNION ALL
-SELECT CONCAT('TR-OUT-', d.id), 'TRANSFERENCIA', r.folio, 'Traspaso enviado', r.note,
+SELECT CONCAT('TR-OUT-', d.id), 'TRANSFERENCIA', r.folio, CONCAT('Traspaso a ', IFNULL(wd.name, '')), r.note,
        -d.quantity, d.origin_previous_stock, d.origin_resulting_stock, d.cost, -d.subtotal,
-       r.received_at, r.created_at, r.received_at,
+       r.received_at, r.created_at, COALESCE(d.moved_at, r.received_at),
        d.product_id, r.origin_warehouse_id, r.received_user_id, r.origin_branch_id, r.company_id
   FROM detail_inventory_transfer d
   JOIN inventory_transfer r ON r.id = d.inventory_transfer_id
   JOIN transfer_status s ON s.id = r.transfer_status_id
+  LEFT JOIN warehouse wd ON wd.id = r.destination_warehouse_id
  WHERE d.active = 1 AND r.active = 1 AND s.code = 'RECEIVED'
 UNION ALL
-SELECT CONCAT('TR-IN-', d.id), 'TRANSFERENCIA', r.folio, 'Traspaso recibido', r.note,
+SELECT CONCAT('TR-IN-', d.id), 'TRANSFERENCIA', r.folio, CONCAT('Traspaso de ', IFNULL(wo.name, '')), r.note,
        COALESCE(d.quantity_received, d.quantity), d.destination_previous_stock, d.destination_resulting_stock,
        d.cost, COALESCE(d.quantity_received, d.quantity) * d.cost,
-       r.received_at, r.created_at, r.received_at,
+       r.received_at, r.created_at, COALESCE(d.moved_at, r.received_at),
        d.product_id, r.destination_warehouse_id, r.received_user_id, r.destination_branch_id, r.company_id
   FROM detail_inventory_transfer d
   JOIN inventory_transfer r ON r.id = d.inventory_transfer_id
   JOIN transfer_status s ON s.id = r.transfer_status_id
+  LEFT JOIN warehouse wo ON wo.id = r.origin_warehouse_id
  WHERE d.active = 1 AND r.active = 1 AND s.code = 'RECEIVED'
+   AND COALESCE(d.quantity_received, d.quantity) > 0
 UNION ALL
 SELECT CONCAT('ADJ-', d.id), 'AJUSTE', r.folio, a.name, r.note,
        d.difference, d.previous_stock, d.resulting_stock, d.cost, d.cost_difference,

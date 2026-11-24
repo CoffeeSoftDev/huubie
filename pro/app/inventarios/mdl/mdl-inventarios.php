@@ -102,6 +102,17 @@ class mdl extends CRUD {
         ", [$id]);
     }
 
+    // Las sucursales activas de la empresa (destinos de un traspaso).
+    public function qBranches($companyId) {
+        return $this->qRows("
+            SELECT id, name, company_id
+            FROM {$this->bd}branches
+            WHERE company_id = ?
+                AND IFNULL(is_active, 1) = 1
+            ORDER BY id
+        ", [$companyId]);
+    }
+
     public function qUserNames(array $ids) {
         if (!$ids) return [];
 
@@ -371,10 +382,10 @@ class mdl extends CRUD {
         ", $data);
     }
 
-    // FIFO: primero el que vence antes; los que no caducan, al final.
+    // FIFO: primero el que vence antes; los que no caducan, al final. El resto viaja en un traspaso.
     public function qLotsForUpdate($warehouseId, $productId) {
         return $this->qRows("
-            SELECT id, quantity
+            SELECT id, quantity, batch_code, cost, produced_at, expires_at
             FROM {$this->inv}stock_lot
             WHERE warehouse_id = ? AND product_id = ? AND quantity > 0 AND active = 1
             ORDER BY expires_at IS NULL, expires_at, id
@@ -593,7 +604,164 @@ class mdl extends CRUD {
         return $this->_CUD("UPDATE {$this->inv}detail_inventory_outflow SET cancel_previous_stock = ?, cancel_resulting_stock = ?, cancel_moved_at = NOW(6) WHERE id = ?", [$previous, $resulting, $id]);
     }
 
+    // -- Traspasos (folio TRA-KAF-0001) --
+    /*  Solicitado (REQUESTED) no mueve nada. El destino lo recibe (RECEIVED):
+        resta del origen y suma al destino a la vez. O lo rechaza (REJECTED); el
+        origen lo puede cancelar (CANCELLED) mientras nadie lo recibe. */
+
+    public function qTransferStatusId($code, $companyId) {
+        $row = $this->qRow("
+            SELECT id
+            FROM {$this->inv}transfer_status
+            WHERE code = ? AND (company_id = ? OR company_id IS NULL) AND active = 1
+            ORDER BY company_id IS NULL
+            LIMIT 1
+        ", [$code, $companyId]);
+
+        return $row ? (int) $row['id'] : 0;
+    }
+
+    private function transferSelect() {
+        return "
+            SELECT t.*,
+                   s.code AS status_code, s.name AS status_name, s.name_out, s.name_in, s.color_hex AS status_color,
+                   wo.name AS origin_warehouse, wd.name AS destination_warehouse,
+                   bo.name AS origin_branch, bd.name AS destination_branch
+            FROM {$this->inv}inventory_transfer t
+            LEFT JOIN {$this->inv}transfer_status s ON s.id = t.transfer_status_id
+            LEFT JOIN {$this->inv}warehouse wo      ON wo.id = t.origin_warehouse_id
+            LEFT JOIN {$this->inv}warehouse wd      ON wd.id = t.destination_warehouse_id
+            LEFT JOIN {$this->bd}branches bo        ON bo.id = t.origin_branch_id
+            LEFT JOIN {$this->bd}branches bd        ON bd.id = t.destination_branch_id
+        ";
+    }
+
+    /*  tab 'out' = los que la sucursal envió; 'pending' = los que le mandan y
+        esperan su «Recibí» (sin fechas); 'in' = los que le mandaron y ya se
+        cerraron (recibidos, rechazados, cancelados). */
+    public function qListTransfers($companyId, $branchId, $tab, $from, $to, $statusCode) {
+        $side  = $tab === 'out' ? 't.origin_branch_id = ?' : 't.destination_branch_id = ?';
+        $where = '';
+        $data  = [$companyId, $branchId];
+
+        if ($tab === 'pending') {
+            $where .= " AND s.code = 'REQUESTED'";
+        } else {
+            $where .= ' AND t.created_at >= ? AND t.created_at < DATE_ADD(?, INTERVAL 1 DAY)';
+            $data[] = $from;
+            $data[] = $to;
+
+            if ($tab === 'in')      $where .= " AND s.code <> 'REQUESTED'";
+            if ($statusCode !== '') { $where .= ' AND s.code = ?'; $data[] = $statusCode; }
+        }
+
+        return $this->qRows($this->transferSelect() . "
+            WHERE t.company_id = ? AND {$side} AND t.active = 1
+                {$where}
+            ORDER BY t.created_at DESC, t.id DESC
+        ", $data);
+    }
+
+    public function qCountIncoming($companyId, $branchId) {
+        return $this->qCount("
+            SELECT COUNT(*)
+            FROM {$this->inv}inventory_transfer t
+            INNER JOIN {$this->inv}transfer_status s ON s.id = t.transfer_status_id AND s.code = 'REQUESTED'
+            WHERE t.company_id = ? AND t.destination_branch_id = ? AND t.active = 1
+        ", [$companyId, $branchId]);
+    }
+
+    public function qGetTransfer($id, $companyId) {
+        return $this->qRow($this->transferSelect() . "
+            WHERE t.id = ? AND t.company_id = ? AND t.active = 1
+            LIMIT 1
+        ", [$id, $companyId]);
+    }
+
+    // Dentro de la transacción, antes de leerlo: dos personas no lo reciben a la vez.
+    public function qLockTransfer($id) {
+        return $this->qRow("SELECT id FROM {$this->inv}inventory_transfer WHERE id = ? LIMIT 1 FOR UPDATE", [$id]);
+    }
+
+    public function qTransferLines($transferId) {
+        return $this->qRows("
+            SELECT d.*, p.name, p.sku, u.code AS unit, IFNULL(u.allows_decimals, 0) AS decimals
+            FROM {$this->inv}detail_inventory_transfer d
+            LEFT JOIN {$this->pos}product p ON p.id = d.product_id
+            LEFT JOIN {$this->inv}unit u    ON u.id = p.unit_id
+            WHERE d.inventory_transfer_id = ? AND d.active = 1
+            ORDER BY d.id
+        ", [$transferId]);
+    }
+
+    public function qTransferHistory($transferId) {
+        return $this->qRows("
+            SELECT h.note, h.created_at, h.user_id, s.code, s.name, s.color_hex
+            FROM {$this->inv}inventory_transfer_history h
+            LEFT JOIN {$this->inv}transfer_status s ON s.id = h.transfer_status_id
+            WHERE h.inventory_transfer_id = ? AND h.active = 1
+            ORDER BY h.id
+        ", [$transferId]);
+    }
+
+    public function qCreateTransfer($values, $data) {
+        return $this->qInsertInv('inventory_transfer', $values, $data);
+    }
+
+    public function qUpdateTransfer($values, $data) {
+        return $this->qUpdateInv('inventory_transfer', $values, ['id'], $data);
+    }
+
+    public function qCreateTransferLine($values, $data) {
+        return $this->qInsertInv('detail_inventory_transfer', $values, $data);
+    }
+
+    public function qCreateTransferHistory($values, $data) {
+        return $this->qInsertInv('inventory_transfer_history', $values, $data);
+    }
+
+    // Lo que llegó y el Antes → Quedó de los dos almacenes. moved_at ordena el kárdex.
+    public function qSetTransferLineStock($id, $received, $originPrev, $originPost, $destPrev, $destPost) {
+        return $this->_CUD("
+            UPDATE {$this->inv}detail_inventory_transfer
+            SET quantity_received = ?,
+                origin_previous_stock = ?, origin_resulting_stock = ?,
+                destination_previous_stock = ?, destination_resulting_stock = ?,
+                moved_at = NOW(6)
+            WHERE id = ?
+        ", [$received, $originPrev, $originPost, $destPrev, $destPost, $id]);
+    }
+
     // -- Kardex (vista inventory_movement) --
+
+    /*  Todos los movimientos del periodo en esos almacenes, del más nuevo al más
+        viejo. type: ENTRADA, SALIDA, TRANSFERENCIA, AJUSTE, CANCELACION o ''. */
+    public function qKardex($companyId, array $warehouseIds, $from, $to, $type, $productId, $limit) {
+        if (!$warehouseIds) return [];
+
+        $where = '';
+        $data  = array_merge([$companyId], $warehouseIds, [$from, $to]);
+        $limit = max(1, (int) $limit);
+
+        if ($type !== '')      { $where .= ' AND m.movement_type = ?'; $data[] = $type; }
+        if ($productId !== null) { $where .= ' AND m.product_id = ?';  $data[] = $productId; }
+
+        return $this->qRows("
+            SELECT m.movement_uid, m.movement_type, m.folio, m.concept, m.quantity, m.stock_prev, m.stock_post,
+                   m.cost_unit, m.cost_total, m.occurred_at, m.user_id, m.product_id, m.warehouse_id,
+                   w.name AS warehouse, p.name AS product, p.sku, u.code AS unit
+            FROM {$this->inv}inventory_movement m
+            LEFT JOIN {$this->inv}warehouse w ON w.id = m.warehouse_id
+            LEFT JOIN {$this->pos}product p   ON p.id = m.product_id
+            LEFT JOIN {$this->inv}unit u      ON u.id = p.unit_id
+            WHERE m.company_id = ?
+                AND m.warehouse_id IN ({$this->qIn($warehouseIds)})
+                AND m.occurred_at >= ? AND m.occurred_at < DATE_ADD(?, INTERVAL 1 DAY)
+                {$where}
+            ORDER BY m.sort_at DESC, m.movement_uid DESC
+            LIMIT {$limit}
+        ", $data);
+    }
 
     public function qMoves($productId, array $warehouseIds, $limit = 60) {
         if (!$warehouseIds) return [];

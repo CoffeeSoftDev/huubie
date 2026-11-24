@@ -1,7 +1,8 @@
 /*  Inventarios: la misma página de Catálogo (catalogo.css carga antes que
     esta). Aquí solo va lo que Catálogo amarra a sus ids (#tabbarCatalogo,
     #modalProduct) y lo propio: resumen sobre la tabla, detalle de un
-    documento, rejilla de captura y foto de evidencia. */
+    documento (con la ruta y el historial del traspaso), rejilla de captura y
+    foto de evidencia. */
 
 /* -- Pestañas: enteras, sin esquinas ni aro (las de Catálogo) -- */
 #tabbarInv button.cs-tab,
@@ -48,11 +49,15 @@
     font-size: inherit !important;
 }
 
-/* El folio (ENT-CUA-0001) no se parte en renglones. */
+/* El folio (ENT-CUA-0001, TRA-CUA-0001) no se parte en renglones. */
 #tbInflows td:first-child .cp-celda-titulo,
 #tbPending td:first-child .cp-celda-titulo,
 #tbOutflows td:first-child .cp-celda-titulo,
-#tbLoss td:first-child .cp-celda-titulo {
+#tbLoss td:first-child .cp-celda-titulo,
+#tbTrOut td:first-child .cp-celda-titulo,
+#tbTrPending td:first-child .cp-celda-titulo,
+#tbTrIn td:first-child .cp-celda-titulo,
+#tbMoves td:nth-child(3) .cp-celda-titulo {
     white-space: nowrap;
 }
 
@@ -134,7 +139,8 @@
     min-width: 0;
 }
 
-.inv-dato span {
+/* Solo la etiqueta: un chip dentro del valor (Estado) no va en mayúsculas. */
+.inv-dato > span {
     font-size: 1rem;
     font-weight: 600;
     letter-spacing: .04em;
@@ -152,6 +158,122 @@
 .inv-dato small {
     font-weight: 400;
     color: #9CA3AF;
+}
+
+/* Ruta del traspaso: de dónde sale → a dónde va. */
+.inv-ruta {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.inv-ruta-lado {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 10px 14px;
+    border: 1px solid rgb(var(--gray-200, 226 232 240));
+    border-radius: 12px;
+}
+
+.inv-ruta-lado.es-mia {
+    border-color: rgb(var(--brand-600, 192 90 64) / .35);
+    background: rgb(var(--brand-600, 192 90 64) / .05);
+}
+
+.inv-ruta-lado span {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #9CA3AF;
+}
+
+.inv-ruta-lado b {
+    font-size: 1rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+    color: rgb(var(--gray-800, 31 41 55));
+}
+
+.inv-ruta-lado small {
+    font-size: 1rem;
+    color: #9CA3AF;
+}
+
+.inv-ruta-flecha {
+    flex-shrink: 0;
+    align-self: center;
+    width: 20px;
+    height: 20px;
+    color: #9CA3AF;
+}
+
+/* Historial del traspaso: un punto del color del estado por cada cambio. */
+.inv-historial {
+    margin-top: 16px;
+}
+
+.inv-historial-titulo {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #9CA3AF;
+}
+
+.inv-historial ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.inv-historial li {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    padding: 0 0 12px;
+}
+
+.inv-historial li:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    top: 14px;
+    bottom: 0;
+    left: 4px;
+    width: 2px;
+    background: rgb(var(--gray-200, 226 232 240));
+}
+
+.inv-historial-punto {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    margin-top: 5px;
+    border-radius: 999px;
+}
+
+.inv-historial b {
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgb(var(--gray-800, 31 41 55));
+}
+
+.inv-historial small {
+    margin-left: 6px;
+    font-size: 1rem;
+    color: #9CA3AF;
+}
+
+.inv-historial p {
+    margin: 2px 0 0;
+    font-size: 1rem;
+    color: rgb(var(--gray-600, 75 85 99));
 }
 
 /* Aviso de una línea: pendiente, cancelada, qué hace el tipo elegido. */
@@ -176,6 +298,9 @@
 #modalInflow textarea,
 #modalOutflow select,
 #modalOutflow textarea,
+#modalTransfer select,
+#modalTransfer textarea,
+#modalReceive textarea,
 #modalSetting select {
     font-size: 1rem !important;
     line-height: 1.25 !important;
@@ -277,8 +402,27 @@ body.dark-mode .inv-chip {
 }
 
 body.dark-mode .inv-chip b,
-body.dark-mode .inv-dato b {
+body.dark-mode .inv-dato b,
+body.dark-mode .inv-ruta-lado b,
+body.dark-mode .inv-historial b {
     color: var(--dk-text, #F3F4F6);
+}
+
+body.dark-mode .inv-ruta-lado {
+    border-color: var(--dk-line, #374151);
+}
+
+body.dark-mode .inv-ruta-lado.es-mia {
+    border-color: rgb(var(--brand-300, 232 166 143) / .35);
+    background: rgb(var(--brand-300, 232 166 143) / .08);
+}
+
+body.dark-mode .inv-historial li:not(:last-child)::before {
+    background: var(--dk-line, #374151);
+}
+
+body.dark-mode .inv-historial p {
+    color: var(--dk-text-soft, #D1D5DB);
 }
 
 body.dark-mode .inv-chip--amber {

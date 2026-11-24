@@ -1,5 +1,6 @@
-// -- Inventarios: lo que comparten Stock, Entradas y Salidas --
-// Cada página carga este archivo y el suyo (stock.js, entradas.js, salidas.js).
+// -- Inventarios: lo que comparten Stock, Entradas, Salidas, Traspasos y Kárdex --
+// Cada página carga este archivo y el suyo (stock.js, entradas.js, salidas.js,
+// traspasos.js, kardex.js).
 // La forma es la de Catálogo: título + sucursal, pestañas en su tarjeta,
 // barra de filtros, tabla flowbite y ventanas csModal.
 
@@ -271,9 +272,10 @@ class InvPage extends Templates {
     }
 
     // -- Detalle de un documento --
-    // info: [[etiqueta, html]], lines: filas para createCoffeeTable3.
+    // info: [[etiqueta, html]], lines: filas para createCoffeeTable3,
+    // top / extra: html antes de los datos (la ruta del traspaso) y después de la tabla (su historial).
 
-    detail({ id, title, subtitle, icon, info, lines, right = [], center = [], save = null, action = null, warn = '' }) {
+    detail({ id, title, subtitle, icon, info, lines, right = [], center = [], save = null, action = null, warn = '', top = '', extra = '' }) {
         const cells = info
             .filter((i) => i && i[1] !== '' && i[1] != null)
             .map(([label, html]) => `<div class="inv-dato"><span>${esc(label)}</span><b>${html}</b></div>`)
@@ -292,8 +294,10 @@ class InvPage extends Templates {
             body: `
                 <div class="inv-detalle">
                     ${warn ? `<p class="inv-aviso">${warn}</p>` : ''}
+                    ${top}
                     <div class="inv-datos">${cells}</div>
                     <div id="${id}Lines"></div>
+                    ${extra}
                 </div>
             `
         });
@@ -313,36 +317,40 @@ class InvPage extends Templates {
     }
 
     // -- Cancelar con motivo y contraseña (la regla de Pedidos) --
+    // key: false cuando no se mueve existencia (cerrar un traspaso que nadie recibió): solo el motivo.
 
-    cancelDoc({ opc, id, folio, what, done }) {
+    cancelDoc({ opc, id, folio, what, done, key = true, verb = 'Cancelar', saveText = 'Cancelar documento', subtitle = 'Queda en el historial como cancelada', ph = '¿Por qué se cancela?' }) {
+        const json = [{ id: 'reason', lbl: 'Motivo', tipo: 'textarea', rows: 2, maxlength: 255, required: true, class: 'w-full', ph }];
+
+        if (key) {
+            json.push({
+                id: 'keyField', tipo: 'html', class: 'w-full',
+                html: `
+                    <label for="invKey" class="block text-xs font-semibold text-gray-500 mb-1.5">Tu contraseña <span class="text-red-500">*</span></label>
+                    <input id="invKey" type="password" autocomplete="current-password"
+                        class="w-full text-sm text-gray-800 bg-[#fff] border-[1px] border-gray-300 rounded-lg px-[12px] py-2 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15">
+                `
+            });
+        }
+
         this.csModal({
             id: 'modalCancelDoc',
-            title: `Cancelar ${what} ${folio || ''}`.trim(),
-            subtitle: 'Queda en el historial como cancelada',
+            title: `${verb} ${what} ${folio || ''}`.trim(),
+            subtitle,
             lucideIcon: 'ban',
             width: 'max-w-md',
-            saveText: 'Cancelar documento',
+            saveText,
             cancelText: 'Volver',
-            json: [
-                { id: 'reason', lbl: 'Motivo', tipo: 'textarea', rows: 2, maxlength: 255, required: true, class: 'w-full', ph: '¿Por qué se cancela?' },
-                {
-                    id: 'keyField', tipo: 'html', class: 'w-full',
-                    html: `
-                        <label for="invKey" class="block text-xs font-semibold text-gray-500 mb-1.5">Tu contraseña <span class="text-red-500">*</span></label>
-                        <input id="invKey" type="password" autocomplete="current-password"
-                            class="w-full text-sm text-gray-800 bg-[#fff] border-[1px] border-gray-300 rounded-lg px-[12px] py-2 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15">
-                    `
-                }
-            ],
+            json,
             onSave: (values, close) => {
                 const reason = String(values.reason || '').trim();
-                const key    = String($('#invKey').val() || '');
+                const pass   = key ? String($('#invKey').val() || '') : '';
 
-                if (!reason) return warnBox('Escribe por qué se cancela.');
-                if (!key)    return warnBox('Escribe tu contraseña.');
+                if (!reason)       return warnBox(`Escribe por qué se ${verb === 'Rechazar' ? 'rechaza' : 'cancela'}.`);
+                if (key && !pass)  return warnBox('Escribe tu contraseña.');
 
                 return saveFrom('modalCancelDoc', async () => {
-                    const response = await useFetch({ url: this._link, data: { opc, id, reason, key } });
+                    const response = await useFetch({ url: this._link, data: key ? { opc, id, reason, key: pass } : { opc, id, reason } });
 
                     if (response && response.status == 200) {
                         close();

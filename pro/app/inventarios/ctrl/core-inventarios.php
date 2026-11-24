@@ -88,25 +88,30 @@ class core extends mdl {
     }
 
     // -- Almacenes --
-    /*  La primera vez que una sucursal entra al modulo se le da su almacen
-        («Almacén Kafeto»). El de la Matriz es el principal de la empresa: ahi se
-        piden las requisiciones (etapa siguiente). Se cambian en Catálogo. */
+    /*  La primera vez que una sucursal entra al modulo (o le mandan un
+        traspaso) se le da su almacen («Almacén Kafeto»). El de la Matriz es el
+        principal de la empresa: ahi se piden las requisiciones (etapa
+        siguiente). Se cambian en Catálogo. */
 
     protected function warehouses() {
-        $list = $this->qWarehouses($this->companyId(), $this->branchId());
+        return $this->branchWarehouses($this->branchId(), $this->scope()['branch']);
+    }
+
+    // Los almacenes de una sucursal de la empresa; si no tiene, le crea el suyo.
+    protected function branchWarehouses($branchId, $branchName) {
+        $list = $this->qWarehouses($this->companyId(), $branchId);
 
         if ($list) return $list;
 
-        $scope  = $this->scope();
-        $isMain = $scope['is_main'] && $this->qCountMainWarehouses($this->companyId()) === 0;
-        $name   = 'Almacén ' . $this->shortBranch($scope['branch']);
+        $isMain = (int) $branchId === $this->mainBranchId() && $this->qCountMainWarehouses($this->companyId()) === 0;
+        $name   = 'Almacén ' . $this->shortBranch($branchName);
 
         $this->qCreateWarehouse(
             ['name', 'is_main', 'is_default', 'supply_moves_stock', 'company_id', 'branch_id', 'active'],
-            [$name, $isMain ? 1 : 0, 1, 1, $this->companyId(), $this->branchId(), 1]
+            [$name, $isMain ? 1 : 0, 1, 1, $this->companyId(), (int) $branchId, 1]
         );
 
-        return $this->qWarehouses($this->companyId(), $this->branchId());
+        return $this->qWarehouses($this->companyId(), $branchId);
     }
 
     // El que llega en el POST, si es de la sucursal; '' o 0 = todos los de la sucursal.
@@ -252,8 +257,17 @@ class core extends mdl {
 
     // Saca de los lotes empezando por el que vence primero. Devuelve el id del primero que tocó.
     protected function takeLots($warehouseId, $productId, $qty) {
-        $first = null;
-        $rest  = $qty;
+        $pieces = $this->takeLotPieces($warehouseId, $productId, $qty);
+
+        return $pieces ? $pieces[0]['id'] : null;
+    }
+
+    /*  Lo mismo, pero devuelve cada pedazo que tomó (lote, cantidad, caducidad,
+        costo): el traspaso los vuelve a crear en el almacén destino. Lo que no
+        cubren los lotes (existencia de antes de llevar lotes) no sale aquí. */
+    protected function takeLotPieces($warehouseId, $productId, $qty) {
+        $pieces = [];
+        $rest   = $qty;
 
         foreach ($this->qLotsForUpdate($warehouseId, $productId) as $lot) {
             if ($rest <= 0) break;
@@ -263,10 +277,17 @@ class core extends mdl {
 
             $this->must($this->qSetLot((int) $lot['id'], round((float) $lot['quantity'] - $take, 4)), 'takeLots');
 
-            if ($first === null) $first = (int) $lot['id'];
+            $pieces[] = [
+                'id'          => (int) $lot['id'],
+                'take'        => round($take, 4),
+                'batch_code'  => $lot['batch_code'],
+                'cost'        => (float) $lot['cost'],
+                'produced_at' => $lot['produced_at'],
+                'expires_at'  => $lot['expires_at']
+            ];
         }
 
-        return $first;
+        return $pieces;
     }
 
     /*  Aplica una entrada: suma cada renglon, deja su lote (si el producto lleva
@@ -532,7 +553,8 @@ class core extends mdl {
             'ban'     => '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
             'history' => '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
             'sliders' => '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
-            'trash'   => '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>'
+            'trash'   => '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+            'package-check' => '<path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/>'
         ];
 
         return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
@@ -576,8 +598,13 @@ class core extends mdl {
 
     // Cantidad con su unidad, sin ceros de más: 12 PZA, 2.5 KG.
     protected function qty($n, $unit = '') {
-        $text = rtrim(rtrim(number_format((float) $n, 3, '.', ','), '0'), '.');
+        $text = $this->num($n);
         return $unit ? $text . ' <span class="cp-celda-sub">' . h($unit) . '</span>' : $text;
+    }
+
+    // El número solo, sin ceros de más (para avisos y Antes / Quedó): 1,250.5
+    protected function num($n) {
+        return rtrim(rtrim(number_format((float) $n, 3, '.', ','), '0'), '.');
     }
 }
 
