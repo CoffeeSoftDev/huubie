@@ -405,7 +405,7 @@ class Billing extends CRUD {
         $texto .= "Tu usuario: {$sub['owner_email']}\n";
         $texto .= "Tu contraseña: la que elegiste al registrarte. Si no la recuerdas, usa \"¿La olvidaste?\" en esa misma página.\n\n";
         $texto .= "La primera vez que entres te pediremos completar los datos de tu empresa. Toma un minuto.\n\n";
-        $texto .= "¿Dudas? Escríbenos a coffeesoftdev@gmail.com o llama al 962 149 3749.";
+        $texto .= "¿Dudas? Escríbenos a soporte@huubie.com o llama al 962 149 3749.";
 
         (new Message)->correo($sub['owner_email'], 'Tu cuenta de Huubie está lista', $texto);
     }

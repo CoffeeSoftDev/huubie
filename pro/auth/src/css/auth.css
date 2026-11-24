@@ -602,6 +602,8 @@
 }
 
 .auth-note b { font-weight: 500; color: var(--acc-ink); }
+.auth-note a { font-weight: 500; color: var(--acc-link); text-decoration: none; }
+.auth-note a:hover { text-decoration: underline; }
 
 /* En bloque y con el icono en linea: con flex, al partirse el texto en movil
    el escudo se quedaba solo a la izquierda. */

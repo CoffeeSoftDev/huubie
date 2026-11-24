@@ -10,6 +10,9 @@ if (Session::user() !== null) {
 $version = function ($file) {
     return filemtime(__DIR__ . '/' . $file);
 };
+
+// La pagina de Huubie, donde se contrata. En pruebas apunta a la copia local.
+$landing = 'http://localhost/landingpage_huubie/';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -104,7 +107,7 @@ $version = function ($file) {
                     </button>
                 </form>
 
-                <p class="auth-note reveal" style="--i:4">¿Sin acceso? <b>Pide una cuenta a tu administrador.</b></p>
+                <p class="auth-note reveal" style="--i:4">¿Sin acceso? <b>Pide una cuenta a tu administrador</b> o contrátanos en <a href="<?= htmlspecialchars($landing) ?>">nuestra página</a>.</p>
             </div>
         </main>
 

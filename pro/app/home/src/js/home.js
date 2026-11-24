@@ -38,9 +38,8 @@ const ESTADOS_PLAN = {
     expired:   { text: 'Expirado',   tone: 'is-off' }
 };
 
-// A quien acudir cuando la empresa no puede operar. El cobro en linea (Stripe)
-// todavia no esta conectado: mientras tanto, el aviso de pago manda aqui.
-const SOPORTE = { email: 'coffeesoftdev@gmail.com', phone: '962 149 3749', tel: '+529621493749' };
+// El soporte de Huubie: la tarjeta de soporte del tablero y el aviso de pago.
+const SOPORTE = { email: 'soporte@huubie.com', phone: '962 149 3749', tel: '+529621493749' };
 
 const CICLOS = { monthly: 'al mes', yearly: 'al año', lifetime: 'pago único' };
 
@@ -331,8 +330,7 @@ function renderHome(d) {
         if (html) (zones[w.zone] || zones.main).push(html);
     });
 
-    const owner = ownerCard(d);
-    if (owner) zones.side.push(owner);
+    zones.side.push(supportCard());
 
     const main = zones.main.join('');
     const side = zones.side.join('');
@@ -345,9 +343,9 @@ function renderHome(d) {
         ${head(d)}
         ${d.paid && d.plan.ok ? '<div class="pg-trial is-ok" role="status"><i data-lucide="circle-check"></i><p><b>Pago recibido.</b> Tu plan está activo y tus módulos ya están disponibles. ¡Gracias!</p></div>' : ''}
         ${d.plan.ok ? trialNotice(d) : payNotice(d)}
+        ${d.widgets.length ? '' : emptyHome(d)}
         ${zones.top.length ? `<div class="pg-col">${zones.top.join('')}</div>` : ''}
-        ${body}
-        ${d.widgets.length ? '' : emptyHome(d)}`;
+        ${body}`;
 }
 
 /*  Como se pinta cada tarjeta, por su funcion (home_widgets.fn, la misma de
@@ -605,23 +603,22 @@ function planCard(w) {
         </div>`;
 }
 
-// A quien acudir. Al dueño no se le presenta a si mismo (lo ve root, que entra como dueño).
-function ownerCard(d) {
-    const o = d.owner;
-    if (!o || o.me) return '';
-
+/*  A quien acude el dueño con una duda o un problema con Huubie: nosotros
+    (SOPORTE). Va siempre en la columna lateral; no es una tarjeta que se
+    pueda quitar. */
+function supportCard() {
     return `
         <div class="pg-card">
-            <div class="pg-card-head"><p class="pg-card-title"><span class="pg-ico"><i data-lucide="headset"></i></span>Tu administrador</p></div>
-            <p class="pg-dim pg-small" style="margin-bottom:12px !important">¿Alguna duda o problema con Huubie?</p>
+            <div class="pg-card-head"><p class="pg-card-title"><span class="pg-ico"><i data-lucide="headset"></i></span>Soporte Huubie</p></div>
+            <p class="pg-dim pg-small" style="margin-bottom:12px !important">¿Alguna duda o problema con Huubie? Escríbenos o llámanos.</p>
             <div class="pg-row">
-                ${Page.avatar(o)}
+                <span class="pg-avatar is-photo"><img src="${Page.root}assets/img/huubie192.png" alt=""></span>
                 <div class="pg-row-text">
-                    <p class="pg-strong pg-ellipsis">${Page.esc(o.name)}</p>
-                    <p class="pg-dim pg-small pg-ellipsis">${Page.esc(o.email)}</p>
+                    <p class="pg-strong pg-ellipsis">Equipo Huubie</p>
+                    <p class="pg-dim pg-small pg-ellipsis">${SOPORTE.email}</p>
                 </div>
-                ${o.phone ? `<a class="pg-btn is-ghost is-round" href="tel:${Page.esc(o.phone.replace(/[^0-9+]/g, ''))}" title="Llamar"><i data-lucide="phone"></i></a>` : ''}
-                <a class="pg-btn is-ghost is-round" href="mailto:${Page.esc(o.email)}" title="Escribir un correo"><i data-lucide="mail"></i></a>
+                <a class="pg-btn is-ghost is-round" href="tel:${SOPORTE.tel}" title="Llamar al ${SOPORTE.phone}"><i data-lucide="phone"></i></a>
+                <a class="pg-btn is-ghost is-round" href="mailto:${SOPORTE.email}" title="Escribir a ${SOPORTE.email}"><i data-lucide="mail"></i></a>
             </div>
         </div>`;
 }
