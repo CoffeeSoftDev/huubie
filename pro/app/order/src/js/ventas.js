@@ -1,8 +1,8 @@
 /*  Pedidos › Ventas (pos-ventas): venta de mostrador, fase V1 del plan de Ventas.
 
     Hereda la captura de Pedidos (OrderForm) y su cobro (OrderPay). Aqui no hay
-    fecha ni entrega: «Cobrar» guarda la venta ya pagada en un solo paso.
-    La propina va aparte del total. Hasta 5 tickets en espera viven en este
+    fecha ni entrega: «Cobrar» (o F4) guarda la venta ya pagada en un solo paso.
+    Sin propina. Hasta 5 tickets en espera viven en este
     navegador, por usuario y sucursal; al cobrar, el ticket queda vacio.
     Lo que se vende hoy se cierra hoy: cada ticket lleva su día (tk.day) y uno
     de otro día no vuelve al abrir Ventas (restoreTickets lo descarta).
@@ -19,8 +19,8 @@
     leer por si la desactivaron o le cambiaron el tipo.
 
     El cobro (SalePay) es la misma ventana de pagos de Pedidos (OrderPay):
-    una fila por forma de pago como Soft, con la propina, el monedero, el
-    resto a crédito y la tarjeta de la venta.
+    una fila por forma de pago como Soft, con el cambio arriba, el monedero,
+    el resto a crédito y la tarjeta de la venta.
 
     Manda el ctrl (ctrl-ventas.php): aqui solo se arma la venta y se avisa
     antes de mandar. `orders` apunta a esta pantalla porque el turno y el
@@ -70,6 +70,23 @@ class Sale extends OrderForm {
         this.paintTurn();
 
         $(document).off('fullscreenchange.sale').on('fullscreenchange.sale', () => this.paintFull());
+        $(document).off('keydown.saleCharge').on('keydown.saleCharge', (e) => this.chargeKey(e));
+    }
+
+    /*  F4 = el botón «Cobrar». Solo con la pantalla libre: con un modal, un aviso
+        o la búsqueda de cliente abiertos la tecla es de ellos (en el cobro, F4
+        abre el descuento). Botón apagado = la tecla no hace nada. */
+    chargeKey(e) {
+        if (e.key !== 'F4' || e.repeat || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+        if ($('.cs-modal-bg, .cf-overlay, .swal2-container, .select2-container--open').length) return;
+
+        const button = $('#btnSaleCharge');
+
+        if (!button.length) return;
+
+        e.preventDefault();
+
+        if (!button.prop('disabled')) this.charge();
     }
 
     async loadOptions() {
@@ -275,6 +292,8 @@ class Sale extends OrderForm {
 
         $('#of_note').attr('maxlength', 255);
 
+        this.customerSearch();
+
         // El lector de código de barras escribe el número y manda Enter.
         $('#of_card')
             .attr({ maxlength: 40, autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false' })
@@ -295,6 +314,95 @@ class Sale extends OrderForm {
         });
 
         this.refreshSummary();
+    }
+
+    /*  Buscar cliente: si lo escrito no está en la lista, en lugar de «No se
+        encontraron resultados» sale «Agregar cliente «…»» (addCustomerOption).
+        Enter hace lo mismo. Mismos ajustes de select2 que pone coffeeForm.
+        Con un cliente elegido sale la × (o Supr / Retroceso con el foco en el
+        campo): lo quita y el ticket regresa a «Público en general» (valor '0',
+        la opción que pone coffeeForm con «selected»). */
+    customerSearch() {
+        const select = $('#of_customer_id');
+
+        if (!select.data('select2')) return;
+
+        select.select2('destroy').select2({
+            theme:       'bootstrap-5',
+            width:       '100%',
+            placeholder: { id: '0', text: 'Público en general' },
+            allowClear:  true,
+            language:    { noResults: () => this.addCustomerOption() }
+        });
+
+        // Al quitarlo, select2 abre la lista en el mismo tic: aquí solo se quita.
+        select
+            .on('select2:clear', () => {
+                select.data('saleCleared', true);
+                setTimeout(() => select.removeData('saleCleared'));
+            })
+            .on('select2:opening', (e) => {
+                if (!select.data('saleCleared')) return;
+
+                select.removeData('saleCleared');
+                e.preventDefault();
+            });
+
+        select.on('select2:open', () => {
+            $('.select2-container--open .select2-search__field')
+                .off('keydown.saleCustomer')
+                .on('keydown.saleCustomer', (e) => {
+                    if (e.key !== 'Enter' || !$('.select2-container--open .sale-cus-add').length) return;
+
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.addTypedCustomer();
+                });
+        });
+    }
+
+    // La opción va dentro de la lista de select2; mousedown no le quita el foco al buscador.
+    addCustomerOption() {
+        const term  = this.customerTerm();
+        const label = $('<span>').text('Agregar cliente');
+
+        if (term) label.append(' ', $('<b>').text(`«${term}»`));
+
+        return $('<button>', { type: 'button', class: 'sale-cus-add' })
+            .append($('<i>', { class: 'icon-user-add' }), label)
+            .on('mousedown', (e) => e.preventDefault())
+            .on('click', () => this.addTypedCustomer());
+    }
+
+    addTypedCustomer() {
+        const term = this.customerTerm();
+
+        $('#of_customer_id').select2('close');
+        this.customer(term);
+    }
+
+    // Lo escrito en el buscador de clientes (abierto).
+    customerTerm() {
+        return String($('.select2-container--open .select2-search__field').val() || '').trim();
+    }
+
+    /*  «Nuevo» y «Agregar cliente» del buscador. Lo que se escribió llega puesto:
+        si son números va en Teléfono y si no, en Nombre; el cursor queda en el otro. */
+    customer(term = '') {
+        super.customer();
+
+        const text = String(term || '').trim().replace(/\s+/g, ' ');
+
+        if (!text || !$('#modalOrderCustomer').length) return;
+
+        if (/^[\d\s()+-]+$/.test(text)) {
+            $('#ocu_phone').val(text.replace(/\D/g, '').slice(0, 16));
+            $('#ocu_name').trigger('focus');
+            return;
+        }
+
+        $('#ocu_name').val(text.slice(0, 120));
+        $('#ocu_phone').trigger('focus');
     }
 
     refreshSummary() {
@@ -438,6 +546,7 @@ class Sale extends OrderForm {
 
         $('#btnSaleClear').attr({ title: 'Vaciar venta', 'aria-label': 'Vaciar venta' });
         $('#btnSalePreview').attr({ title: 'Imprimir pre-cuenta', 'aria-label': 'Imprimir pre-cuenta' });
+        $('#btnSaleCharge').attr({ title: 'Cobrar (F4)', 'aria-keyshortcuts': 'F4' }).append('<span class="sale-key" aria-hidden="true">F4</span>');
 
         $('#posOrderTkLauncherCount').text(pieces);
         $('#posOrderTkLauncherTotal').text(money(total));
@@ -699,6 +808,7 @@ class Sale extends OrderForm {
 
         this.syncAccount(data.customer);
         this.resetTicket();
+        this.resetSearch();
 
         const change = Number(data.change) > 0.005
             ? `<p class="text-[12px] font-semibold uppercase tracking-wide mb-0">Cambio</p><p class="text-[32px] font-bold text-emerald-600 leading-tight mb-2">${money(data.change)}</p>`
@@ -868,6 +978,21 @@ class Sale extends OrderForm {
 
         this.ticketForm();
         this.renderLines();
+    }
+
+    /*  Después de cobrar, el catálogo vuelve a como abrió: sin texto en el
+        buscador y en la categoría «Todos» (su clic limpia también el texto).
+        Sin categorías (una o ninguna) solo se borra el texto. */
+    resetSearch() {
+        const all = $('#posOrderCatalogListChips button[data-cat=""]');
+
+        if (all.length) {
+            all.trigger('click');
+            $('#posOrderCatalogListChips').scrollLeft(0);
+            return;
+        }
+
+        $('#posOrderCatalogListSearch').val('').trigger('input');
     }
 
     /*  Al cerrar el turno (OrderTurn.saveClose) el cliente de los tickets regresa
@@ -1344,15 +1469,16 @@ class Sale extends OrderForm {
         };
     }
 
-    // Letra oscura sobre colores claros y blanca sobre los fuertes (luminancia de WCAG, el corte 0.24 de tarjetas.js).
+    // Letra oscura solo en los colores pálidos y blanca en los demás; en los medios (oro) con más sombra, 'glow' (los cortes 0.55 y 0.24 de tarjetas.js).
     loyaltyInk(hex) {
         const ch = (at) => {
             const v = parseInt(hex.slice(at, at + 2), 16) / 255;
 
             return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
         };
+        const light = 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5);
 
-        return 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5) > 0.24 ? 'dark' : 'light';
+        return light > 0.55 ? 'dark' : (light > 0.24 ? 'glow' : 'light');
     }
 
     // Confeti sobre toda la pantalla, encima de la ventana, 2.6 s. Con «reducir movimiento», nada.
@@ -1760,8 +1886,9 @@ class Sale extends OrderForm {
 /*  Cobrar la venta con la ventana de pagos de Pedidos (OrderPay, pedido-cobro.js):
     la misma tabla de formas de pago como Soft, el teclado táctil, el descuento
     con motivo y la confirmación antes de mandar. La venta suma lo suyo:
-      - Propina: aparte del total (Sin propina, 10 %, 15 % u Otra); se cobra
-        junto con él (dueOf).
+      - Cambio: en efectivo se puede dar más que la cuenta (venta de $600,
+        recibe $1,000); el cambio sale arriba, en el recuadro del medio.
+      - Teclas: ↑ / ↓ cambian de fila (quickKey).
       - Monedero: una forma de pago más, solo si el cliente tiene saldo. La
         fila que cubre lo que falta no pasa de ese saldo (autoCap).
       - «Resto a crédito»: lo que falte va a la cuenta del cliente (si tiene
@@ -1776,8 +1903,6 @@ class SalePay extends OrderPay {
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = 'SalePay';
-        this.tipMode      = 'none';
-        this.tipNow       = { amount: 0, error: '' };
         this.onCredit     = false;
         this.redeem       = false;
         this.card         = null;
@@ -1795,8 +1920,6 @@ class SalePay extends OrderPay {
 
         this.account  = sale.customerAccount();
         this.card     = sale.currentTicket().card || null;
-        this.tipMode  = 'none';
-        this.tipNow   = { amount: 0, error: '' };
         this.onCredit = false;
         this.redeem   = false;
 
@@ -1834,20 +1957,13 @@ class SalePay extends OrderPay {
     paidLabel()    { return 'Venta pagada completamente'; }
     paidShort()    { return 'Venta pagada.'; }
     keyOnSettled() { return false; }
-    fillsBalance() { return true; }
+    fillsBalance() { return false; }   // Abre vacía: quien cobra escribe o toca la forma de pago.
     originLabel()  { return 'Origen de la venta'; }
 
     // Con una tarjeta que descuenta, ese es el descuento de la venta: no se ofrece otro.
     canDiscount()  { return !(this.card && this.card.discount_percent > 0); }
 
     // -- Cuentas --
-
-    // Lo que se cobra: la venta (con su descuento) más la propina.
-    dueOf(total) {
-        this.tipNow = this.tipCalc(total);
-
-        return ordRound(total + this.tipNow.amount);
-    }
 
     // Si el monedero cubre lo que falta, no pasa de su saldo.
     autoCap(m) {
@@ -1861,8 +1977,6 @@ class SalePay extends OrderPay {
         const free    = this.account ? this.account.credit : 0;
         const inPurse = ordRound(c.payments.reduce((sum, p) => sum + ((this.methodOf(p.method_id) || {}).wallet ? p.amount : 0), 0));
 
-        c.tip        = this.tipNow.amount;
-        c.tipError   = this.tipNow.error;
         c.short      = Math.max(0, ordRound(c.balance - c.applied));
         c.credit     = this.onCredit ? c.short : 0;
         c.walletOver = !!this.account && inPurse > this.account.wallet + 0.005;
@@ -1875,7 +1989,6 @@ class SalePay extends OrderPay {
     problem(c) {
         const free = this.account ? this.account.credit : 0;
 
-        if (c.tipError)            return c.tipError;
         if (c.d.error)             return c.d.error;
         if (c.bad)                 return `El monto de ${c.bad.name} no es válido.`;
         if (c.badRec)              return 'El monto recibido en efectivo no es válido.';
@@ -1919,8 +2032,7 @@ class SalePay extends OrderPay {
 
         let st;   // [clase, etiqueta, monto, nota]
 
-        if (c.tipError)                                     st = ['is-bad', 'Corrige', '', 'La propina no es válida'];
-        else if (c.d.error)                                 st = ['is-bad', 'Corrige', '', 'El descuento no es válido'];
+        if (c.d.error)                                      st = ['is-bad', 'Corrige', '', 'El descuento no es válido'];
         else if (c.bad)                                     st = ['is-bad', 'Corrige', '', `El monto de ${c.bad.name} no es válido`];
         else if (c.badRec)                                  st = ['is-bad', 'Corrige', '', 'Lo recibido en efectivo no es válido'];
         else if (c.over > 0.005)                            st = ['is-bad', 'Sobran', money(c.over), 'No se cobra de más: baja algún monto'];
@@ -1936,6 +2048,8 @@ class SalePay extends OrderPay {
 
         res.className = `pa-res${st[0] ? ` ${st[0]}` : ''}`;
         res.innerHTML = `<span>${esc(st[1])}</span>${st[2] ? `<b>${st[2]}</b>` : ''}<small>· ${esc(st[3])}</small>`;
+
+        this.paintChange(c);
     }
 
     // El Monedero es una forma más; su pista es el saldo del cliente.
@@ -1975,19 +2089,27 @@ class SalePay extends OrderPay {
             + '</div>';
     }
 
-    // Los tres recuadros de Pedidos; el del medio es la propina (una venta nueva no trae pagos).
+    // Los tres recuadros de Pedidos; el del medio es el cambio (una venta nueva no trae pagos). Lo llena paintChange.
     summaryHtml() {
         return '<div class="pa-sum">'
             +   `<div class="pa-stat is-total"><span>${this.ico('wallet')}Total</span><b id="paSumTotal"></b><small id="paSumTotalNote"></small></div>`
-            +   `<div class="pa-stat is-paid"><span>${this.ico('coins')}Propina</span><b id="paSumPaid"></b></div>`
+            +   `<div class="pa-stat is-change" id="paSumChangeBox"><span>${this.ico('hand-coins')}Cambio</span><b id="paSumPaid"></b><small id="paSumChangeNote"></small></div>`
             +   `<div class="pa-stat is-due" id="paSumDueBox"><span>${this.ico('clock')}Restante</span><b id="paSumDue"></b><small id="paSumDueNote"></small></div>`
             + '</div>';
     }
 
-    paintSummary(v) {
-        super.paintSummary(v);
+    /*  El cambio, grande y en verde: lo que dio el cliente en efectivo menos lo
+        que se aplica (venta de $600, da $1,000: cambio $400, «Recibe $1,000.00»).
+        «Recibe en efectivo» sin escribir muestra eso mismo y no lo aplicado. */
+    paintChange(c) {
+        const on   = c.change > 0.005;
+        const recv = document.getElementById('paRecv');
 
-        $('#paSumPaid').text(money(this.tipNow.amount));
+        $('#paSumPaid').text(money(on ? c.change : 0));
+        $('#paSumChangeNote').text(on ? `Recibe ${money(c.cashGiven)}` : '');
+        $('#paSumChangeBox').toggleClass('is-on', on);
+
+        if (recv && c.cashPaid > 0) recv.placeholder = c.cashGiven.toFixed(2);
     }
 
     // Una sola sucursal: la de la sesión, con su turno.
@@ -2006,7 +2128,7 @@ class SalePay extends OrderPay {
             + '</div>';
     }
 
-    // A la derecha: quién cobra, la tarjeta, la propina, el crédito y el descuento.
+    // A la derecha: quién cobra, la tarjeta, el crédito y el descuento.
     infoHtml(lock) {
         const off = lock ? ' disabled' : '';
         const cls = lock ? ' is-locked' : '';
@@ -2014,7 +2136,6 @@ class SalePay extends OrderPay {
         return this.branchesHtml(lock)
             + `<fieldset class="pa-set${cls}"${off}>`
             +   this.cardHtml()
-            +   this.tipHtml()
             +   this.creditHtml()
             +   `<div class="pa-disc-wrap" id="paDiscWrap">${this.discArea()}</div>`
             + '</fieldset>';
@@ -2038,17 +2159,6 @@ class SalePay extends OrderPay {
 
         return note
             + `<button type="button" class="pa-extra-btn${this.redeem ? ' is-on' : ''}" id="paReward" data-act="reward" aria-pressed="${this.redeem}">${this.ico('gift')}<span>Canjear premio: <b>${esc(card.reward_name)}</b> (hasta ${money(card.reward_value)})</span></button>`;
-    }
-
-    tipHtml() {
-        // pa-tip y no pa-seg-btn: OrderPay.paintDiscount repinta todos los pa-seg-btn con el modo del descuento.
-        const chip = (mode, text) => `<button type="button" class="pa-tip${this.tipMode === mode ? ' is-active' : ''}" data-act="tip" data-value="${mode}" aria-pressed="${this.tipMode === mode}">${text}</button>`;
-
-        return '<div class="pa-field">'
-            +   this.label('Propina', 'Va aparte del total')
-            +   `<div class="pa-seg pa-tips">${chip('none', 'Sin propina')}${chip('10', '10 %')}${chip('15', '15 %')}${chip('other', 'Otra')}</div>`
-            +   `<div class="pa-amt pa-tip-amt" id="paTipRow"${this.tipMode === 'other' ? '' : ' hidden'}><span>$</span><input id="paTip" type="text" inputmode="${this.inputMode()}" autocomplete="off" placeholder="0.00" data-field="tip" aria-label="Propina"></div>`
-            + '</div>';
     }
 
     // Solo si el cliente tiene crédito disponible.
@@ -2096,7 +2206,7 @@ class SalePay extends OrderPay {
 
     // -- Confirmar y guardar --
 
-    // La confirmación de Pedidos con lo de la venta: cuánto se cobra, en qué, el cambio, la propina y el crédito.
+    // La confirmación de Pedidos con lo de la venta: cuánto se cobra, en qué, el cambio y el crédito.
     confirmHtml(c) {
         const b    = this.cobroBranch();
         const turn = b.turn && b.turn.folio != null ? `Turno ${esc(b.turn.folio)}` : '';
@@ -2118,7 +2228,6 @@ class SalePay extends OrderPay {
             +       how
             +       (c.change > 0.005 ? row('Recibe', `${money(c.cashGiven)} · cambio ${money(c.change)}`) : '')
             +       (c.d.amount > 0 ? row('Descuento', `−${money(c.d.amount)} · ${why}`) : '')
-            +       (c.tip > 0.005 ? row('Propina', money(c.tip)) : '')
             +       (c.credit > 0.005 ? row('A crédito', money(c.credit)) : '')
             +       row('Sucursal que cobra', `${esc(b.name)}${turn ? ` · ${turn}` : ''}`, '', 'is-brand')
             +     '</dl>'
@@ -2157,7 +2266,6 @@ class SalePay extends OrderPay {
                 token:       this.token,
                 customer_id: customer === '0' ? '' : customer,
                 note:        String($('#of_note').val() || '').trim(),
-                tip:         c.tip > 0 ? c.tip.toFixed(2) : '',
                 lines:       JSON.stringify(sale.payload()),
                 payments:    c.payments.length ? JSON.stringify(c.payments) : '',
                 discount:    discount,
@@ -2201,36 +2309,14 @@ class SalePay extends OrderPay {
     // -- Eventos --
 
     act(name, el) {
-        if (name === 'tip')    return this.pickTip(el.dataset.value);
         if (name === 'credit') return this.toggleCredit();
         if (name === 'reward') return this.toggleReward();
 
         super.act(name, el);
     }
 
-    // Otra: sale el campo del monto (el teclado también escribe ahí).
-    pickTip(mode) {
-        const input = document.getElementById('paTip');
-
-        this.tipMode = ['10', '15', 'other'].includes(mode) ? mode : 'none';
-
-        if (this.tipMode !== 'other' && input) input.value = '';
-
-        $('#paTipRow').prop('hidden', this.tipMode !== 'other');
-        $('#modalOrderPay button.pa-tip').each((i, b) => {
-            b.classList.toggle('is-active', b.dataset.value === this.tipMode);
-            b.setAttribute('aria-pressed', String(b.dataset.value === this.tipMode));
-        });
-
-        this.paintCalc();
-
-        if (this.tipMode === 'other') return this.focusField('tip');
-        if (this.active === 'tip') this.active = this.homeId();
-
-        this.focusField(this.active);
-    }
-
-    // Con «Resto a crédito» ninguna fila cubre lo que falta: se escribe lo que paga hoy y el resto va a la cuenta.
+    /*  Con «Resto a crédito» ninguna fila cubre lo que falta: se escribe lo que
+        paga hoy y el resto va a la cuenta. Al quitarlo queda como abrió: vacía. */
     toggleCredit() {
         const old = this.fieldInput(this.auto);
 
@@ -2239,8 +2325,6 @@ class SalePay extends OrderPay {
         if (this.onCredit) {
             if (old) old.value = '';
             this.auto = 0;
-        } else {
-            this.auto = Number(this.homeId()) || 0;
         }
 
         $('#paCredit').toggleClass('is-on', this.onCredit).attr('aria-pressed', String(this.onCredit));
@@ -2261,34 +2345,33 @@ class SalePay extends OrderPay {
         this.paintCalc();
     }
 
-    // -- Complements --
+    // -- Teclas --
 
-    // El campo de la propina entra al teclado y al orden de «Siguiente».
-    fieldInput(f) {
-        return f === 'tip' ? document.getElementById('paTip') : super.fieldInput(f);
+    /*  Moverse con el teclado (bindKeys de OrderPay pregunta aquí antes de
+        Enter, F2 y F4; con la confirmación o un aviso abiertos no llega):
+        ↑ / ↓ suben o bajan de fila: formas, «Recibe en efectivo» y descuento.
+        Las formas no llevan letra. En una lista (motivo del descuento) las
+        flechas siguen siendo de ella. */
+    quickKey(e) {
+        const t = e.target;
+
+        if (e.ctrlKey || e.metaKey || e.altKey || !document.getElementById('paPayForm') || this.lockState() !== '') return false;
+        if (t && t.matches && t.matches('select, textarea')) return false;
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return false;
+        if (!t || !t.matches || !t.matches('#paPayForm input[data-field]')) return false;
+
+        this.stepField(e.key === 'ArrowDown' ? 1 : -1);
+        return true;
     }
 
-    visibleFields() {
-        const list = super.visibleFields();
+    // La fila de arriba o de abajo, sin dar la vuelta.
+    stepField(dir) {
+        const list = this.visibleFields();
 
-        if (this.tipMode === 'other') list.push('tip');
+        if (!list.length) return;
 
-        return list;
-    }
+        const at = list.indexOf(String(this.active));
 
-    tipCalc(total) {
-        if (this.tipMode === 'none') return { amount: 0, error: '' };
-
-        if (this.tipMode === 'other') {
-            const raw = String($('#paTip').val() || '').trim();
-
-            if (raw === '') return { amount: 0, error: '' };
-
-            const value = this.num(raw);
-
-            return value === null ? { amount: 0, error: 'Escribe una propina válida.' } : { amount: value, error: '' };
-        }
-
-        return { amount: ordRound(total * Number(this.tipMode) / 100), error: '' };
+        this.focusField(list[Math.min(list.length - 1, Math.max(0, at + dir))]);
     }
 }

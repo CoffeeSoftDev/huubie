@@ -3139,8 +3139,12 @@ class Loyalty extends Templates {
         return `Te faltan ${left} sellos para ${prize}`;
     }
 
-    /*  Letra oscura sobre colores claros y blanca sobre los fuertes. Sale de la
-        luminancia de WCAG: arriba de 0.24 contrasta más la oscura. */
+    /*  Letra blanca en casi todos los colores, también en los medios (oro,
+        verde, naranja, mostaza), como el resto de la galería; oscura solo en
+        los pálidos (celeste, crema, amarillo). Corte: luminancia de WCAG
+        arriba de 0.55. En los medios (arriba de 0.24) la blanca lleva una
+        sombra más marcada para leerse: 'glow' (order.css).
+        tarjeta.php, registro.php y ventas.js usan los mismos cortes. */
     inkOf(color) {
         const hex     = hex6(color);
         const channel = (at) => {
@@ -3150,7 +3154,7 @@ class Loyalty extends Templates {
         };
         const light   = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
 
-        return light > 0.24 ? 'dark' : 'light';
+        return light > 0.55 ? 'dark' : (light > 0.24 ? 'glow' : 'light');
     }
 
     // El celeste claro de los tipos sin color (lo manda el ctrl).

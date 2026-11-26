@@ -2077,6 +2077,9 @@ class OrderPay extends Templates {
                 return;
             }
 
+            // Las teclas de captura rápida de quien hereda (Ventas: SalePay.quickKey).
+            if (this.quickKey(e)) return stop();
+
             if (e.key === 'F2') {
                 stop();
                 this.save();
@@ -2090,6 +2093,11 @@ class OrderPay extends Templates {
         };
 
         document.addEventListener('keydown', this.keyHandler, true);
+    }
+
+    // Pedidos no suma teclas. true = la tecla ya se usó.
+    quickKey(e) {
+        return false;
     }
 
     unbindKeys() {

@@ -357,14 +357,11 @@ body.dark-mode #modalOrderPay {
 #modalOrderPay .pa-lock { display: inline-flex; color: var(--pa-muted); opacity: .7; }
 #modalOrderPay .pa-lock svg { width: 14px; height: 14px; }
 
-/* -- Ventas (SalePay, ventas.js): propina, resto a crédito y tarjeta -- */
-/* La propina va en el marco del segmento del descuento (% | $), a lo ancho de la columna. */
-#modalOrderPay .pa-tips { width: 100%; gap: 2px; }
-#modalOrderPay button.pa-tip { flex: 1; height: 26px; border-radius: 6px; background: transparent; color: var(--pa-muted); font-size: 11.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
-#modalOrderPay button.pa-tip:hover { color: var(--pa-ink); }
-#modalOrderPay button.pa-tip.is-active { background: var(--pa-brand-soft); color: var(--pa-brand-ink); box-shadow: 0 0 0 1px var(--pa-brand-line); }
-#modalOrderPay .pa-tip-amt { width: 100%; margin-top: 6px; }
-#modalOrderPay .pa-tip-amt[hidden] { display: none; }
+/* -- Ventas (SalePay, ventas.js): cambio, resto a crédito y tarjeta -- */
+/* Cambio: gris en $0; verde cuando el efectivo pasa de la cuenta (paintChange). */
+#modalOrderPay .pa-stat.is-change { background: var(--pa-sunken); color: var(--pa-muted); }
+#modalOrderPay .pa-stat.is-change.is-on { background: var(--pa-ok-bg); color: var(--pa-ok); box-shadow: inset 0 0 0 1px var(--pa-ok-line); }
+#modalOrderPay .pa-stat.is-change.is-on > small { color: var(--pa-ok); }
 #modalOrderPay .pa-disc-wrap { display: flex; flex-direction: column; gap: 8px; }
 #modalOrderPay .pa-disc-wrap[hidden],
 #modalOrderPay .pa-disc-wrap:empty { display: none; }

@@ -316,10 +316,12 @@ $light = true;
 
 if ($link && preg_match('/^#[0-9A-F]{6}$/i', (string) $link['color'])) $color = strtoupper($link['color']);
 
-// Letra oscura sobre colores claros y blanca sobre los fuertes: el mismo corte (0.24) que tarjeta.php.
+// Letra oscura solo en los colores pálidos y blanca en los demás; en los medios (oro) con más sombra ($glow). Los mismos cortes (0.55 y 0.24) que tarjeta.php.
 [$r, $g, $b] = sscanf($color, '#%02x%02x%02x');
 $lin   = function ($v) { $v = $v / 255; return $v <= 0.03928 ? $v / 12.92 : pow(($v + 0.055) / 1.055, 2.4); };
-$light = 0.2126 * $lin($r) + 0.7152 * $lin($g) + 0.0722 * $lin($b) > 0.24;
+$lum   = 0.2126 * $lin($r) + 0.7152 * $lin($g) + 0.0722 * $lin($b);
+$light = $lum > 0.55;
+$glow  = !$light && $lum > 0.24;
 $ink   = $light ? "color-mix(in srgb, {$color} 22%, #0F172A)" : '#FFFFFF';
 
 $store = '';
@@ -470,7 +472,7 @@ $err = fn ($key) => isset($errors[$key]) ? '<p class="err" id="err-' . $key . '"
             background: var(--card);
             background: linear-gradient(135deg, color-mix(in srgb, var(--card) <?= $light ? '88%' : '70%' ?>, #000) 0%, var(--card) 58%, color-mix(in srgb, var(--card) <?= $light ? '70%' : '78%' ?>, #FFF) 100%);
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 0 0 .5px rgba(0, 0, 0, .1), 0 12px 24px -12px rgba(24, 12, 60, .5), 0 2px 4px rgba(24, 12, 60, .1);
-            <?= !$light ? 'text-shadow: 0 1px 1px rgba(0, 0, 0, .16);' : '' ?>
+            <?= !$light ? ($glow ? 'text-shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 0 1px rgba(0, 0, 0, .35);' : 'text-shadow: 0 1px 1px rgba(0, 0, 0, .16);') : '' ?>
         }
         .card::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; background: linear-gradient(125deg, rgba(255, 255, 255, .2) 0%, rgba(255, 255, 255, 0) 35%, rgba(255, 255, 255, 0) 72%, rgba(255, 255, 255, .08) 100%); }
         .card-head { display: flex; align-items: center; gap: 9px; padding: 12px 14px 0; }

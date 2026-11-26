@@ -50,7 +50,7 @@ class CajaStrip extends Templates {
                     ...(back ? [{ type: 'div', id: 'cajaStripBack', class: 'caja-strip-back' }] : []),
                     { type: 'span', class: 'caja-strip-icon', html: '<i class="icon-wallet"></i>' },
                     { type: 'span', class: 'caja-strip-title', html: `<span class="ord-turn-dot"></span>${esc(s.title)}` },
-                    { type: 'span', class: 'caja-strip-text', text: s.text }
+                    ...(s.text ? [{ type: 'span', class: 'caja-strip-text', text: s.text }] : [])
                 ]
             }
         ];
@@ -142,10 +142,11 @@ class CajaStrip extends Templates {
             };
         }
 
+        // Quien abre turno solo ve «Sin turno abierto»; a quien no puede se le dice dónde se abre.
         return {
             tone:  'is-none',
             title: 'Sin turno abierto',
-            text:  can ? 'Sin turno no se puede vender, capturar pedidos ni cobrar.' : 'El turno se abre en caja. Pídeselo a quien cobra.',
+            text:  can ? '' : 'El turno se abre en caja. Pídeselo a quien cobra.',
             open:  true
         };
     }

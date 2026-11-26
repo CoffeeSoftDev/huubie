@@ -2606,6 +2606,17 @@ body.dark-mode .ord-cutper-opt input { color-scheme: dark; }
 body.dark-mode #cutPeriodWrap .ord-cutper input[type="text"] { color: var(--dk-text, #F3F4F6) !important; }
 body.dark-mode .ord-cutper-sep { background: var(--dk-line, #374151); }
 
+/*  Ver, Periodo y Sucursal van del mismo ancho (cortes.js › filterBar), como
+    en alpha. En «Rango» las dos fechas no caben en ese ancho hasta ~1680 px:
+    ahí el periodo toma una columna más (en alpha la caja es col-auto y crece). */
+@media (min-width: 1024px) and (max-width: 1679px) {
+    #fbCuts > div:has(input[name="cutPeriod"][value="range"]:checked) { grid-column: span 5 / span 5; }
+}
+
+@media (min-width: 1280px) and (max-width: 1679px) {
+    #fbCuts > div:has(input[name="cutPeriod"][value="range"]:checked) { grid-column: span 4 / span 4; }
+}
+
 /* -- Cortes: visor (como alpha/order-visor) --
    Dos paneles redondeados con una agarradera en medio (16 px, como alpha): a la
    izquierda la lista (encabezado con buscador, columnas, renglones y el total
@@ -3489,6 +3500,19 @@ body.dark-mode .cus-order-due.is-due { color: #F87171; }
 button.pos-tkt-btn.sale-tk-icon { flex: 0 0 44px; width: 44px; padding: 0; gap: 0; }
 button.pos-tkt-btn.sale-tk-icon span:empty { display: none; }
 
+/* «Cobrar» lleva su tecla (F4, ventas.js › chargeKey), como los botones de la franja de caja. */
+button.pos-tkt-btn .sale-key { padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; font-size: 10px; font-weight: 700; line-height: 1.3; opacity: .75; }
+
+/* Cliente que no está: «Agregar cliente «…»» dentro de la búsqueda (ventas.js › addCustomerOption). La lista cuelga de <body>. */
+/* Letra chica como las opciones de la lista; lo escrito va en negritas. */
+button.sale-cus-add { display: flex; align-items: center; gap: 6px; width: 100%; padding: 5px 8px; border: 1px dashed rgb(var(--brand-600, 80 48 165) / .35); border-radius: 6px; background: rgb(var(--brand-600, 80 48 165) / .05); color: rgb(var(--brand-600, 80 48 165)); font-size: 12px; font-weight: 500; line-height: 1.35; text-align: left; cursor: pointer; }
+button.sale-cus-add:hover { background: rgb(var(--brand-600, 80 48 165) / .1); }
+button.sale-cus-add i { flex: none; font-size: 12px; line-height: 1; }
+button.sale-cus-add i::before { margin: 0; }
+button.sale-cus-add span { min-width: 0; overflow-wrap: anywhere; }
+button.sale-cus-add b { font-weight: 600; }
+body.dark-mode button.sale-cus-add { color: rgb(var(--brand-300, 196 181 253)); }
+
 body.dark-mode #saleTabList .sale-tab-count { background: var(--dk-line, #374151); color: var(--dk-text-soft, #D1D5DB); }
 body.dark-mode #saleTabList .sale-tab-x:hover { background: rgba(220, 38, 38, 0.15); color: #F87171; }
 
@@ -4132,13 +4156,14 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
     #modalLoyType .loy-split > .loy-preview { box-sizing: content-box; width: 340px; }
 }
 
-/*  Un solo tamaño para todas las tarjetas de lealtad: en Lealtad › Tarjetas la
-    galería, «Nuevo tipo» (pasos 1 y 2), «Nueva tarjeta» / «Editar tarjeta» y la
-    ficha (que también abre Programa); en Vender, la de «Venta cobrada».
+/*  Un solo tamaño para todas las tarjetas de lealtad: en Lealtad › Tarjetas
+    «Nuevo tipo» (pasos 1 y 2), «Nueva tarjeta» / «Editar tarjeta» y la ficha
+    (que también abre Programa); en Vender, la de «Venta cobrada».
     340 px de ancho y apaisada como una de plástico (85.6 × 54 mm = 1.586), con
     cualquier beneficio: la de sellos, con sus dos renglones, tampoco sale
-    cuadrada. Si lo de adentro no cabe (un nombre de dos renglones), crece. */
-.loy-tile .loy-card,
+    cuadrada. Si lo de adentro no cabe (un nombre de dos renglones), crece.
+    La galería de «Tipos de tarjeta» es la excepción: va más chica (240 px, ver
+    «galería de tipos» abajo). */
 .loy-struct-preview .loy-card,
 #modalLoyCard .loy-preview .loy-card,
 #modalLoyType .loy-preview .loy-card,
@@ -4220,6 +4245,9 @@ body.dark-mode .cus-move.is-abono .cus-move-amount { color: #6EE7B7; }
     --loy-to: color-mix(in srgb, var(--loy-color) 70%, #FFFFFF);
     text-shadow: none;
 }
+
+/* Colores medios (oro, verde, naranja): letra blanca con una sombra más marcada para que se lea. */
+.loy-card[data-ink="glow"] { text-shadow: 0 1px 2px rgb(0 0 0 / .45), 0 0 1px rgb(0 0 0 / .35); }
 
 @keyframes loy-card-in {
     from {
@@ -4653,10 +4681,30 @@ button.loy-color-other.is-active .loy-color-other-dot {
 /*  Lealtad › Tarjetas: galería de tipos. Cada tipo es su tarjeta, sin caja
     alrededor (clic = ver sus tarjetas), con sus cifras adentro; debajo, una fila
     de botones planos (loy-act) y el menú ⋯ (loy-menu).
-    Columnas de 340 px, el tamaño de todas las tarjetas («Un solo tamaño»): no se
-    estiran para llenar el renglón. En el teléfono, el ancho que haya; bajo
+    Columnas de 240 px, más chicas que las 340 del resto («Un solo tamaño»): no
+    se estiran para llenar el renglón. En el teléfono, el ancho que haya; bajo
     260 px «Nueva» se queda solo con su ícono (is-squeeze, más abajo). */
-.loy-gallery { display: grid; grid-template-columns: repeat(auto-fill, min(340px, 100%)); gap: 22px 16px; }
+.loy-gallery { display: grid; grid-template-columns: repeat(auto-fill, min(240px, 100%)); gap: 18px 14px; }
+
+/*  La tarjeta de la galería, a 240 px con la misma proporción (1.586). Adentro
+    se encogen el relleno, el ícono, la letra, el porcentaje grande y los sellos
+    para que todo quepa sin que la tarjeta crezca. */
+.loy-tile .loy-card { width: 240px; max-width: 100%; aspect-ratio: 1.586; }
+.loy-tile .loy-card-head { gap: 7px; padding: 9px 11px 0; }
+.loy-tile .loy-card-logo { width: 24px; height: 24px; border-radius: 7px; }
+.loy-tile .loy-card-logo svg { width: 14px; height: 14px; }
+.loy-tile .loy-card-type { font-size: 13px; }
+.loy-tile .loy-card-value b { font-size: 14px; }
+.loy-tile .loy-card-body { gap: 5px; padding: 7px 11px; }
+.loy-tile .loy-card-big b { font-size: 24px; }
+.loy-tile .loy-card-big span { font-size: 11.5px; }
+.loy-tile .loy-card-tier { font-size: 10.5px; }
+.loy-tile .loy-card-badge { height: 19px; font-size: 10px; }
+.loy-tile .loy-card-say { font-size: 10.5px; }
+.loy-tile .loy-card-stamps { grid-template-columns: repeat(5, minmax(0, 20px)); gap: 5px 3px; }
+.loy-tile .loy-card-stamps.is-many { grid-template-columns: repeat(10, minmax(0, 15px)); gap: 4px 2px; }
+.loy-tile .loy-card-fields { gap: 8px; padding: 0 11px 10px; }
+.loy-tile .loy-card-field b { font-size: 11px; }
 
 /*  La primera vez los mosaicos suben uno tras otro (--i lo pone gallery()); al
     recargar (is-still: después de guardar o filtrar) ya no vuelven a entrar. La
@@ -5125,6 +5173,8 @@ button.loy-seg-b.is-on em { background: rgb(var(--brand-600, 82 72 156) / .12); 
     --tier-to: color-mix(in srgb, var(--c, #8373C5) 70%, #FFFFFF);
     text-shadow: none;
 }
+
+.loy-tier[data-ink="glow"] { text-shadow: 0 1px 2px rgb(0 0 0 / .45), 0 0 1px rgb(0 0 0 / .35); }
 
 .loy-tier b { overflow: hidden; font-size: 13.5px; font-weight: 800; letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
 .loy-tier small { font-size: 11px; font-weight: 600; opacity: .85; }

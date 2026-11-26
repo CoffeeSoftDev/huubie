@@ -139,7 +139,9 @@ class Cuts extends Templates {
         });
     }
 
-    // Ver, Periodo y Sucursal (alpha: Tipo de reporte, Período de consulta y Sucursal).
+    /*  Ver, Periodo y Sucursal (alpha: Tipo de reporte, Período de consulta y
+        Sucursal), los tres del mismo ancho como en alpha. En «Rango» el
+        periodo toma una columna más para que quepan las dos fechas (order.css). */
     filterBar() {
         const saved  = this.savedRange();
         const visor  = dataInit.visor || {};
@@ -156,7 +158,7 @@ class Cuts extends Templates {
                     id:       'view',
                     lbl:      'Ver',
                     required: false,
-                    class:    'col-12 col-sm-6 col-lg-3 col-xl-2',
+                    class:    'col-12 col-sm-6 col-lg-4 col-xl-3',
                     data:     [{ id: 'turns', valor: 'Turnos de caja' }, { id: 'days', valor: 'Cierres del día' }, { id: 'tickets', valor: 'Tickets' }],
                     value:    saved.view,
                     onchange: 'orders.onFilterChange()'
@@ -166,14 +168,14 @@ class Cuts extends Templates {
                     id:       'cutPeriodWrap',
                     lbl:      'Periodo',
                     required: false,
-                    class:    'col-12 col-sm-6 col-lg-5 col-xl-4'
+                    class:    'col-12 col-sm-6 col-lg-4 col-xl-3'
                 },
                 {
                     opc:      'select',
                     id:       'branch',
                     lbl:      'Sucursal',
                     required: false,
-                    class:    'col-12 col-sm-6 col-lg-3 col-xl-2',
+                    class:    'col-12 col-sm-6 col-lg-4 col-xl-3',
                     data:     places,
                     value:    String(visor.branch_id || ''),
                     onchange: 'orders.changeBranch()'
