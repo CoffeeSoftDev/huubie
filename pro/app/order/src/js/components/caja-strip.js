@@ -1,6 +1,6 @@
 /*  Franja de caja: el estado del turno a lo ancho, bajo la barra de arriba.
-    Es la misma en las pantallas de caja de order/ (pedidos, ventas, historial,
-    calendario y cortes); Clientes no la lleva. La pinta OrderTurn cada vez que cambia el turno.
+    Es la misma en las pantallas de caja de order/ (pedidos, ventas, calendario
+    y cortes); Clientes y Vendido no la llevan. La pinta OrderTurn cada vez que cambia el turno.
 
     Cinco estados, en este orden: turno de otro día, turno abierto, día cerrado,
     día pendiente de cierre y sin turno.
@@ -11,7 +11,8 @@
     A la derecha, los botones de Soft Restaurant: recuadro con la tecla arriba,
     el ícono al centro y el nombre abajo. Abrir turno (F2) y Cerrar turno (F3)
     están siempre; el que no aplica al estado se ve apagado.
-    Con el día pendiente se suma «Ir a Cortes»: ahí se cierra el día.
+    Con el día pendiente se suma «Ir a Cortes»: ahí se cierra el día. Ventas
+    no lo lleva: su «Cierre del día» ya abre el día pendiente.
     En Ventas y Pedidos se suma «Cierre del día»: se enciende con la regla de
     todas las pantallas (orderTurn.dayReady): sin turno abierto y con un turno
     cerrado. En las demás pantallas se queda en su encabezado.
@@ -185,7 +186,8 @@ class CajaStrip extends Templates {
             list.push({ id: 'btnCajaDay', icon: 'calendar-check', text: 'Cierre del día', kind: 'is-day', on: orderTurn.dayReady(), why: orderTurn.dayWhy(), onClick: () => orderClosure.open(this.pendingDay()) });
         }
 
-        if (can && s.cuts) {
+        // Ventas no lleva «Ir a Cortes»: su «Cierre del día» ya abre el día pendiente.
+        if (can && s.cuts && !this.onSale()) {
             list.push({ id: 'btnCajaCuts', icon: 'file-text', text: 'Ir a Cortes', kind: 'is-cuts', on: true, onClick: () => { location.href = 'cortes.php'; } });
         }
 
@@ -233,7 +235,7 @@ class CajaStrip extends Templates {
         const id = { F2: 'btnCajaOpen', F3: 'btnCajaClose' }[e.key];
 
         if (!id || e.repeat || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
-        if ($('.cs-modal-bg, .cf-overlay, .swal2-container').length) return;
+        if ($('.cs-modal-bg, .cf-overlay, .swal2-container, [data-ab-backdrop]').length) return;
 
         const btn = $(`#${id}`);
 

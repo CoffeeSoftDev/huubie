@@ -1,14 +1,16 @@
-/*  Pedidos › Historial de ventas (pos-historial): fase V2 del plan de Ventas.
+/*  Ventas › Vendido (pos-historial). Antes «Historial de ventas» (V2 del plan
+    de Ventas); desde el 27/11/2026 vive en el menú de Ventas.
 
-    Lista las ventas de mostrador por periodo, turno y método de pago. El
-    detalle, el cobro y quitar un pago son los de Pedidos con subclases:
-    OrderDetail → SaleDetail y OrderPay → SalePayments. Aquí se agregan
-    cancelar la venta y cambiar su cliente.
+    Lista lo vendido: ventas de mostrador (V) por fecha de captura y pedidos
+    (P) por lo que se cobró en el periodo. Arriba, los indicadores (kpisRow).
+    El detalle, el cobro y quitar
+    un pago son los de Pedidos con subclases: OrderDetail → SaleDetail y
+    OrderPay → SalePayments. Un pedido abre el detalle de Pedidos, solo para ver.
 
-    Manda el ctrl (ctrl-historial.php): la Cajera solo recibe sus ventas del
-    turno abierto; Dueño o Supervisor ven todo y cancelan. `orders` apunta a
-    esta pantalla porque el turno, el cierre y el cobro llaman orders.can(),
-    orders.paintTurn() y orders.lsOrders(). */
+    Manda el ctrl (ctrl-historial.php): todos ven lo mismo; solo Dueño o
+    Supervisor (dataInit.can_all) cobran, cancelan, cambian el cliente y
+    descargan. `orders` apunta a esta pantalla porque el turno, el cierre y el
+    cobro llaman orders.can(), orders.paintTurn() y orders.lsOrders(). */
 
 let api = 'ctrl/ctrl-historial.php';
 let saleHistory, orders, orderDetail, orderPay, orderTurn, orderClosure;
@@ -35,23 +37,28 @@ class SaleHistory extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = 'SaleHistory';
-        this.ranges       = { today: 'Hoy', yesterday: 'Ayer', week: 'Semana actual', month: 'Mes actual', lastMonth: 'Mes anterior' };
+        // Los rangos del selector de Tickets/Cierre (cortes.js).
+        this.ranges       = { today: 'Hoy', last7: 'Últimos 7 días', month: 'Mes actual', lastMonth: 'Mes anterior' };
+        this.period       = 'day';  // 'day' = Fecha, 'range' = Rango (filterBar › periodBox)
+        this.kinds        = [{ id: 'all', valor: 'Todo' }, { id: 'sale', valor: 'Ventas' }, { id: 'order', valor: 'Pedidos' }];
         this.request      = 0;
         this.pageLength   = 15;
+        this.table        = null;   // la DataTable de la lista (Buscar filtra aquí, sin ir al ctrl)
+        this.query        = '';
+        this.exporting    = false;
     }
 
-    // La Cajera no filtra: el ctrl le fija su usuario y el turno abierto.
-    get own() {
+    // La Cajera ve lo mismo que el Dueño, pero solo ve.
+    get readOnly() {
         return !dataInit.can_all;
     }
 
     get filters() {
-        if (this.own) return {};
-
         return {
-            ...getDataRangePicker('his_calendar'),
+            ...getDataRangePicker(this.period === 'range' ? 'his_calendar' : 'his_day'),
             turn_id:   $('#his_turn').val() || 0,
-            method_id: $('#his_method').val() || 0
+            method_id: $('#his_method').val() || 0,
+            kind:      $('#his_kind').val() || 'all'
         };
     }
 
@@ -65,12 +72,11 @@ class SaleHistory extends Templates {
         this.layout();
         this.header();
 
-        if (dataInit.status != 200) return this.blocked(dataInit.message || 'No se pudo cargar el historial. Recarga la página.');
+        if (dataInit.status != 200) return this.blocked(dataInit.message || 'No se pudo cargar lo vendido. Recarga la página.');
 
-        if (!this.canHistory('show')) return this.blocked('Tu rol no tiene permiso para ver el historial de ventas en esta sucursal.');
+        if (!this.canHistory('show')) return this.blocked('Tu rol no tiene permiso para ver lo vendido en esta sucursal.');
 
-        if (!this.own) this.filterBar();
-
+        this.filterBar();
         this.lsOrders();
     }
 
@@ -83,6 +89,7 @@ class SaleHistory extends Templates {
                 class: 'flex flex-1 flex-col gap-[16px]',
                 container: [
                     { type: 'div', id: `header${this.PROJECT_NAME}`, class: 'w-full' },
+                    { type: 'div', id: `kpis${this.PROJECT_NAME}`, class: 'w-full' },
                     { type: 'div', id: `body${this.PROJECT_NAME}`, class: 'w-full flex flex-1 flex-col' }
                 ]
             }
@@ -101,7 +108,7 @@ class SaleHistory extends Templates {
             }
         });
 
-        // "Mostrar N registros" (lo mueve lsOrders) y los totales del periodo, sobre la tabla.
+        // "Mostrar N registros" (lo mueve lsOrders) sobre la tabla; la de la descarga va oculta.
         this.createLayout({
             parent: `container${this.PROJECT_NAME}`,
             design: false,
@@ -109,23 +116,20 @@ class SaleHistory extends Templates {
                 id:    `list${this.PROJECT_NAME}`,
                 class: 'w-full',
                 container: [
-                    {
-                        type:  'div',
-                        id:    `search${this.PROJECT_NAME}`,
-                        class: 'w-full',
-                        children: [
-                            { type: 'div', id: `length${this.PROJECT_NAME}`, class: 'ord-dt-length dataTables_wrapper' },
-                            { type: 'div', id: `summary${this.PROJECT_NAME}`, class: 'his-summary' }
-                        ]
-                    },
-                    { type: 'div', id: `table${this.PROJECT_NAME}`, class: 'w-full' }
+                    { type: 'div', id: `length${this.PROJECT_NAME}`, class: 'ord-dt-length dataTables_wrapper' },
+                    { type: 'div', id: `table${this.PROJECT_NAME}`, class: 'w-full' },
+                    { type: 'div', id: `export${this.PROJECT_NAME}`, class: 'hidden' }
                 ]
             }
         });
     }
 
+    /*  Turno, Método de pago, Tipo y Buscar del mismo ancho (col-2); en el
+        celular uno por renglón y en tableta dos. El periodo va en col-4: en
+        col-2 (191 px a 1366) la caja de Fecha | Rango no deja ver la fecha.
+        En «Rango», de 1024 a 1279 px, toma una columna más (order.css). */
     filterBar() {
-        const col = 'col-12 col-sm-6 col-lg-3';
+        const col = 'col-12 col-sm-6 col-lg-2';
 
         this.createfilterBar({
             parent:     `filterBar${this.PROJECT_NAME}`,
@@ -134,12 +138,11 @@ class SaleHistory extends Templates {
             coffeesoft: true,
             data: [
                 {
-                    opc:      'input-calendar',
-                    id:       'calendar',
+                    opc:      'div',
+                    id:       'hisPeriodWrap',
                     lbl:      'Periodo',
                     required: false,
-                    readonly: true,
-                    class:    col
+                    class:    'col-12 col-lg-3'
                 },
                 {
                     opc:      'select',
@@ -158,32 +161,101 @@ class SaleHistory extends Templates {
                     class:    col,
                     data:     [{ id: '', valor: 'Todos' }, ...(dataInit.methods || [])],
                     onchange: 'saleHistory.lsOrders()'
+                },
+                {
+                    opc:      'select',
+                    id:       'kind',
+                    lbl:      'Tipo',
+                    required: false,
+                    class:    col,
+                    data:     this.kinds,
+                    onchange: 'saleHistory.lsOrders()'
+                },
+                {
+                    opc:         'input',
+                    id:          'search',
+                    lbl:         'Buscar',
+                    required:    false,
+                    placeholder: 'Folio o cliente',
+                    class:       col,
+                    onkeyup:     'saleHistory.search()'
                 }
             ]
         });
 
-        const today = this.rangeDates('today');
+        this.periodBox();
+    }
+
+    /*  El periodo de Tickets/Cierre (cortes.js › periodBox): en una sola caja,
+        Fecha o Rango (radios), la fecha o el rango y el ícono de calendario.
+        Cada modo tiene su calendario; solo se ve el del modo elegido. Arranca en Fecha = hoy. */
+    periodBox() {
+        const locale = {
+            format:           'DD/MM/YYYY',
+            separator:        ' - ',
+            firstDay:         1,
+            customRangeLabel: 'Personalizado',
+            daysOfWeek:       ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'],
+            monthNames:       ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        };
+        const last7 = this.rangeDates('last7');
+
+        $('#hisPeriodWrap').html(`
+            <div class="ord-cutper">
+                <label class="ord-cutper-opt"><input type="radio" name="hisPeriod" value="day"> Fecha</label>
+                <label class="ord-cutper-opt"><input type="radio" name="hisPeriod" value="range"> Rango</label>
+                <span class="ord-cutper-sep"></span>
+                <input type="text" id="his_day" readonly>
+                <input type="text" id="his_calendar" readonly>
+                <i data-lucide="calendar" class="ord-cutper-ico"></i>
+            </div>`);
+
+        $(`input[name="hisPeriod"][value="${this.period}"]`).prop('checked', true);
+        $('input[name="hisPeriod"]').on('change', (e) => this.setPeriod(e.target.value));
+
+        if (window.lucide) lucide.createIcons({ root: $('#hisPeriodWrap')[0] });
+
+        dataPicker({
+            parent: 'his_day',
+            type:   'simple',
+            rangeDefault: {
+                singleDatePicker: true,
+                startDate:        this.rangeDates('today')[0],
+                showDropdowns:    true,
+                autoApply:        true,
+                locale:           locale
+            },
+            onSelect: () => this.onPeriodChange()
+        });
 
         dataPicker({
             parent: 'his_calendar',
             type:   'all',
             rangepicker: {
-                startDate:     today[0],
-                endDate:       today[1],
+                startDate:     last7[0],
+                endDate:       last7[1],
                 showDropdowns: true,
                 autoApply:     true,
-                locale: {
-                    format:           'DD/MM/YYYY',
-                    separator:        ' - ',
-                    firstDay:         1,
-                    customRangeLabel: 'Personalizado',
-                    daysOfWeek:       ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'],
-                    monthNames:       ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-                },
-                ranges: Object.fromEntries(Object.entries(this.ranges).map(([range, label]) => [label, this.rangeDates(range)]))
+                locale:        locale,
+                ranges:        Object.fromEntries(Object.entries(this.ranges).map(([range, label]) => [label, this.rangeDates(range)]))
             },
             onSelect: () => this.onPeriodChange()
         });
+
+        this.paintPeriod();
+    }
+
+    // Solo se ve el calendario del modo elegido.
+    paintPeriod() {
+        $('#his_day').toggle(this.period === 'day');
+        $('#his_calendar').toggle(this.period === 'range');
+    }
+
+    setPeriod(mode) {
+        this.period = mode === 'range' ? 'range' : 'day';
+
+        this.paintPeriod();
+        this.onPeriodChange();
     }
 
     header() {
@@ -215,8 +287,16 @@ class SaleHistory extends Templates {
                 id:    `headerTextBody${this.PROJECT_NAME}`,
                 class: 'w-full',
                 container: [
-                    { type: 'h1', class: 'cp-pagina-titulo', text: 'Historial de ventas' },
-                    { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, scope.branch].filter(Boolean).join(' · ') || 'Ventas de mostrador de la sucursal' }
+                    {
+                        type:  'div',
+                        class: 'flex items-center gap-[10px] flex-wrap',
+                        children: [
+                            { type: 'h1', class: 'cp-pagina-titulo', text: 'Vendido' },
+                            // La Cajera ve todo, pero no cambia nada ni descarga.
+                            ...(dataInit.status == 200 && this.readOnly ? [{ type: 'span', class: 'his-readonly', html: '<i data-lucide="eye" class="w-3.5 h-3.5"></i>Solo ver' }] : [])
+                        ]
+                    },
+                    { type: 'p', class: 'cp-pagina-subtitulo', html: this.subtitle(scope) }
                 ]
             }
         });
@@ -224,12 +304,20 @@ class SaleHistory extends Templates {
         if (dataInit.status != 200 || !this.canHistory('show')) return;
 
         this.paintTurn();
-
-        orderTurn.paintStrip(true);
     }
 
-    // «Cierre del día» del encabezado. El turno lo muestra la franja de caja (caja-strip.js).
-    // orderTurn.sync() lo repinta: el botón abre el día pendiente si lo hay.
+    // Empresa · sucursal, como en Pedidos: la sucursal en negritas y con el color de la marca (order.css › .ord-head-branch).
+    subtitle(scope) {
+        if (!scope.company && !scope.branch) return 'Ventas y pedidos cobrados de la sucursal';
+
+        return [
+            scope.company ? esc(scope.company) : '',
+            scope.branch ? `<b class="ord-head-branch">${esc(scope.branch)}</b>` : ''
+        ].filter(Boolean).join(' · ');
+    }
+
+    // «Descargar» (solo Dueño o Supervisor) y «Cierre del día» del encabezado. Vendido no lleva
+    // la franja de caja. orderTurn.sync() lo repinta: el botón abre el día pendiente si lo hay.
     paintTurn() {
         if (!$(`#headerActions${this.PROJECT_NAME}`).length) return;
 
@@ -254,6 +342,15 @@ class SaleHistory extends Templates {
             class:        'flex gap-[8px]',
             showRequired: false,
             json: [
+                ...(dataInit.can_export ? [{
+                    opc:       'button',
+                    id:        'btnSoldExport',
+                    class:     'col-auto',
+                    text:      'Descargar',
+                    icon:      'icon-download',
+                    color_btn: 'outline',
+                    onClick:   () => this.download()
+                }] : []),
                 {
                     opc:       'button',
                     id:        'btnDayHistory',
@@ -306,42 +403,101 @@ class SaleHistory extends Templates {
         select.val(turns.some((t) => String(t.id) === current) ? current : '');
     }
 
-    // Lo que ve la Cajera en lugar de los filtros.
-    paintOwn(own) {
-        if (!own) return;
+    /*  Los indicadores del periodo (kpisRow). Vendido = ventas + lo cobrado de
+        pedidos, sin canceladas ni propinas. */
+    paintSummary(s) {
+        const kpis = $(`#kpis${this.PROJECT_NAME}`);
 
-        const text = own.open
-            ? `Tus ventas del turno <b>${esc(own.turn_folio)}</b>. Para ver otros turnos, pide acceso a Dueño o Supervisor.`
-            : 'No hay turno abierto: aquí verás tus ventas cuando se abra uno.';
+        if (!s) {
+            kpis.empty();
+            return;
+        }
 
-        this.createLayout({
-            parent: `filterBar${this.PROJECT_NAME}`,
-            design: false,
-            data: {
-                id:    `own${this.PROJECT_NAME}`,
-                class: 'his-own',
-                container: [
-                    { type: 'i', class: 'icon-user' },
-                    { type: 'span', html: text }
-                ]
-            }
+        const count = Number(s.count || 0);
+
+        this.kpisRow({
+            parent:      `kpis${this.PROJECT_NAME}`,
+            id:          `kpiRow${this.PROJECT_NAME}`,
+            cols:        5,
+            cardClass:   'his-kpi bg-white rounded-lg border border-gray-200 px-3 py-3',
+            activeClass: '',
+            valueClass:  'text-xl font-bold text-left',
+            json: [
+                { id: 'kpiSold',   label: 'Vendido',          value: money(s.total),                         icon: 'trending-up',    tone: 'success' },
+                { id: 'kpiSales',  label: 'Ventas',           value: String(Number(s.sales || 0)),           icon: 'shopping-bag',   tone: 'default' },
+                { id: 'kpiOrders', label: 'Pedidos cobrados', value: String(Number(s.orders || 0)),          icon: 'clipboard-list', tone: 'info' },
+                { id: 'kpiAvg',    label: 'Ticket promedio',  value: money(count ? s.total / count : 0),     icon: 'calculator',     tone: 'default' },
+                { id: 'kpiCancel', label: 'Canceladas',       value: String(Number(s.cancelled || 0)),       icon: 'ban',            tone: Number(s.cancelled) > 0 ? 'danger' : 'default' }
+            ]
         });
     }
 
-    // Ventas cobradas, total, propinas y canceladas del periodo.
-    paintSummary(s) {
-        const box = $(`#summary${this.PROJECT_NAME}`);
+    // Buscar: filtra la lista que ya llegó (DataTables), sin volver al ctrl.
+    search() {
+        this.query = String($('#his_search').val() || '').trim();
 
-        if (!s) return box.empty();
+        if (this.table) this.table.search(this.query).draw();
+    }
 
-        const chip = (label, value, tone) => `<span class="his-chip${tone ? ' ' + tone : ''}">${label} <b>${value}</b></span>`;
+    // Los renglones que coinciden con Buscar (la descarga lleva lo mismo que se ve).
+    matches(rows) {
+        const plain = (text) => String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+        const query = plain(this.query);
 
-        box.html([
-            chip('Ventas', Number(s.count || 0)),
-            chip('Total', money(s.total)),
-            Number(s.tips) > 0.005 ? chip('Propinas', money(s.tips)) : '',
-            Number(s.cancelled) > 0 ? chip('Canceladas', Number(s.cancelled), 'is-cancel') : ''
-        ].join(''));
+        if (!query) return rows;
+
+        return rows.filter((r) => plain([r.Folio, r.Cliente, r['Atendió']].join(' ')).includes(query));
+    }
+
+    /*  Descargar (solo Dueño o Supervisor; el ctrl lo vuelve a revisar): pide lo
+        de los filtros sin HTML (lsExport), lo pinta en una tabla oculta y
+        createExcel la guarda. ExcelJS se carga la primera vez (pedido-cierre.js). */
+    async download() {
+        if (!dataInit.can_export || this.exporting) return;
+
+        this.exporting = true;
+
+        const filters = this.filters;
+        const data    = await useFetch({ url: this._link, data: { opc: 'lsExport', ...filters } });
+
+        if (!data || data.status != 200) {
+            this.exporting = false;
+            alert({ icon: 'error', title: 'No se pudo descargar', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        const rows = this.matches(data.row || []);
+
+        if (!rows.length) {
+            this.exporting = false;
+            alert({ icon: 'info', title: 'Nada que descargar', text: 'No hay ventas ni cobros con estos filtros.', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        try {
+            await ordLoadScript(ordPluginUrl(ORD_DAY_LIBS.excel));
+        } catch (e) {
+            this.exporting = false;
+            alert({ icon: 'error', title: 'No se pudo descargar', text: 'No cargó la librería de Excel. Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+            return;
+        }
+
+        this.createCoffeeTable3({
+            parent: `export${this.PROJECT_NAME}`,
+            id:     `tbExport${this.PROJECT_NAME}`,
+            theme:  'light',
+            data:   { row: rows },
+            right:  [9, 10, 11]
+        });
+
+        this.createExcel({
+            tableId:   `tbExport${this.PROJECT_NAME}`,
+            fileName:  `vendido_${filters.fi}_${filters.ff}`,
+            onSuccess: () => alert({ icon: 'success', title: 'Descarga lista', timer: 1600 }),
+            onError:   () => {}
+        });
+
+        this.exporting = false;
     }
 
     // -- CRUD --
@@ -357,15 +513,14 @@ class SaleHistory extends Templates {
 
         const loaded = Boolean(data && data.status == 200);
 
-        if (!loaded) alert({ icon: 'error', title: 'No se pudo cargar el historial', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
+        if (!loaded) alert({ icon: 'error', title: 'No se pudo cargar lo vendido', text: (data && data.message) || 'Revisa la conexión y vuelve a intentar.', btn1: true, btn1Text: 'Entendido' });
 
         $('ul.ct3-dropdown-menu').remove();
         $(`#table${this.PROJECT_NAME}`).removeClass('opacity-50');
 
-        if (loaded) {
-            this.paintOwn(data.own);
-            this.paintTurns(data.turns || []);
-        }
+        this.table = null;
+
+        if (loaded) this.paintTurns(data.turns || []);
 
         this.paintSummary(loaded ? data.summary : null);
 
@@ -389,22 +544,25 @@ class SaleHistory extends Templates {
 
         $(`#tb${this.PROJECT_NAME} [data-cancelled]`).closest('tr').addClass('ord-row-cancel');
 
-        // El ctrl ya ordena (lo más nuevo arriba) y las celdas no traen data-order: sin orden por columna.
+        /*  El ctrl ya ordena (lo más nuevo arriba) y las celdas no traen data-order: sin orden por columna.
+            searching sin caja propia ('f' no va en dom): la busca la da el campo Buscar de la barra. */
         const table = $(`#tb${this.PROJECT_NAME}`).DataTable({
             dom:          'l<"ord-dt-scroll"t><"ord-dt-foot"ip>',
             pageLength:   this.pageLength,
             lengthMenu:   [10, 15, 25, 50],
             ordering:     false,
-            searching:    false,
+            searching:    true,
             lengthChange: true,
             destroy:      true,
             autoWidth:    false,
             language: {
-                lengthMenu: 'Mostrar _MENU_ registros por página',
-                info:       'Mostrando _START_ a _END_ de _TOTAL_ ventas',
-                infoEmpty:  'Sin ventas',
-                emptyTable: 'Sin ventas',
-                paginate:   { first: 'Primera', last: 'Última', next: '›', previous: '‹' }
+                lengthMenu:   'Mostrar _MENU_ registros por página',
+                info:         'Mostrando _START_ a _END_ de _TOTAL_ tickets',
+                infoEmpty:    'Sin tickets',
+                infoFiltered: '(de _MAX_)',
+                emptyTable:   'Sin tickets',
+                zeroRecords:  'Ningún ticket coincide con la búsqueda',
+                paginate:     { first: 'Primera', last: 'Última', next: '›', previous: '‹' }
             },
             drawCallback: (settings) => {
                 ordStripe(settings.nTBody);
@@ -412,6 +570,10 @@ class SaleHistory extends Templates {
                 if (window.lucide) lucide.createIcons();
             }
         }).on('length.dt', (e, settings, len) => { this.pageLength = len; });
+
+        this.table = table;
+
+        if (this.query) table.search(this.query).draw();
 
         $(`#length${this.PROJECT_NAME}`).append($(table.table().container()).find('.dataTables_length'));
     }
@@ -443,28 +605,27 @@ class SaleHistory extends Templates {
 
         switch (range) {
             case 'today':     return [today.clone(), today.clone()];
-            case 'yesterday': return [today.clone().subtract(1, 'days'), today.clone().subtract(1, 'days')];
-            case 'week':      return [today.clone().startOf('isoWeek'), today.clone()];
+            case 'last7':     return [today.clone().subtract(6, 'days'), today.clone()];
             case 'lastMonth': return [today.clone().subtract(1, 'months').startOf('month'), today.clone().subtract(1, 'months').endOf('month')];
             default:          return [today.clone().startOf('month'), today.clone()];
         }
     }
 
     emptyState(data) {
-        if (!data) return { emptyMessage: 'No se pudo cargar el historial de ventas', emptyIcon: 'icon-attention' };
+        if (!data) return { emptyMessage: 'No se pudo cargar lo vendido', emptyIcon: 'icon-attention' };
 
-        if (data.own && !data.own.open) return { emptyMessage: 'No hay turno abierto', emptyIcon: 'icon-lock' };
-
-        if (data.own) return { emptyMessage: 'Aún no registras ventas en este turno', emptyIcon: 'icon-clock' };
-
-        return { emptyMessage: 'No hay ventas con estos filtros', emptyIcon: 'icon-calendar-1' };
+        return { emptyMessage: 'No hay ventas ni cobros con estos filtros', emptyIcon: 'icon-calendar-1' };
     }
 }
 
 // -- SaleDetail --
 
 /*  El detalle de Pedidos con lo de una venta: sin entrega ni edición, con
-    propina, turno y cierre del día, y los botones Cambiar cliente y Cancelar. */
+    propina, turno y cierre del día, y los botones Cambiar cliente y Cancelar.
+    Un pedido (showOrder) abre el detalle de Pedidos tal cual, solo para ver:
+    kind = 'order' hace que cada parte use la de OrderDetail y pide getPedido.
+    Es la misma instancia (orderDetail) para que las galerías del pastel y la
+    impresión sigan apuntando a ella. */
 class SaleDetail extends OrderDetail {
 
     constructor(link, div_modulo) {
@@ -473,9 +634,17 @@ class SaleDetail extends OrderDetail {
         this.editable     = false;
         this.busy         = false;
         this.last         = null;   // la última venta abierta (SalePayments la lee)
+        this.kind         = 'sale'; // 'sale' (V) u 'order' (P, solo ver)
+        this.all          = true;   // el pedido cobrado aquí puede ser de otra sucursal
+    }
+
+    get isOrder() {
+        return this.kind === 'order';
     }
 
     async fetchOrder(id) {
+        if (this.isOrder) return this.fetchPedido(id);
+
         const data = await super.fetchOrder(id);
 
         if (data) this.last = data;
@@ -483,8 +652,57 @@ class SaleDetail extends OrderDetail {
         return data;
     }
 
+    // El de OrderDetail.fetchOrder con getPedido (ctrl-historial): el pedido sin acciones.
+    async fetchPedido(id) {
+        if (this.loading) return null;
+
+        this.loading = true;
+
+        const data = await useFetch({ url: this._link, data: { opc: 'getPedido', id: id, all: 1 } });
+
+        this.loading = false;
+
+        if (!data || data.status != 200) {
+            alert({ icon: 'error', text: (data && data.message) || 'No se pudo abrir el pedido.', btn1: true });
+            return null;
+        }
+
+        this.limited = !!data.limited;
+        this.last    = data;
+
+        return data;
+    }
+
+    // Un pedido cobrado: el detalle de Pedidos, solo para ver.
+    async showOrder(id) {
+        this.kind = 'order';
+
+        return super.show(id);
+    }
+
+    // «Imprimir» del menú de la fila: kind 'order' imprime el ticket de pedido.
+    print(id, kind = 'sale') {
+        this.kind = kind;
+
+        return super.print(id);
+    }
+
+    // En un pedido solo «Imprimir»: se cobra, entrega o cancela en Pedidos.
+    // En una venta, Enviar ticket, Cambiar cliente y Cancelar venta (saleActions), a la izquierda del pie.
+    actions(data) {
+        if (!this.isOrder) return { main: [], side: this.saleActions(data) };
+
+        const side = (data.actions || []).includes('print')
+            ? ['<button type="button" class="ord-act" onclick="orderDetail.printData(orderDetail.last)"><i data-lucide="printer" class="w-4 h-4"></i>Imprimir</button>']
+            : [];
+
+        return { main: [], side: side };
+    }
+
     async show(id) {
         $('ul.ct3-dropdown-menu').addClass('hidden');
+
+        this.kind = 'sale';
 
         const data = await this.fetchOrder(id);
         if (!data) return;
@@ -517,6 +735,8 @@ class SaleDetail extends OrderDetail {
 
         $('#modalOrderDetails .cs-modal-title').after(this.badges(data));
 
+        // Enviar ticket, Cambiar cliente y Cancelar venta van en el pie, como en Pedidos.
+        this.footActions(data);
         this.bindGalleries();
 
         if (window.lucide) lucide.createIcons();
@@ -525,6 +745,8 @@ class SaleDetail extends OrderDetail {
     // -- Insignias bajo el titulo --
 
     badges(data) {
+        if (this.isOrder) return super.badges(data);
+
         const o      = data.order;
         const tone   = this.tones()[Number(o.sale_status_id)] || 'bg-slate-100 text-slate-600';
         const chip   = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap';
@@ -544,6 +766,8 @@ class SaleDetail extends OrderDetail {
     // -- Informacion de la venta --
 
     infoOrder(data) {
+        if (this.isOrder) return super.infoOrder(data);
+
         const o       = data.order;
         const none    = '<span class="font-normal text-gray-400">Sin registro</span>';
         const contact = [o.phone, o.email].filter(Boolean).map(esc).join(' · ');
@@ -564,23 +788,26 @@ class SaleDetail extends OrderDetail {
                </div>`
             : '';
 
-        return this.card('info', 'Información de la venta', `<div class="divide-y divide-gray-200">${rows.join('')}</div>${note}${this.cancelBox(o)}`, this.saleActions(data));
+        return this.card('info', 'Información de la venta', `<div class="divide-y divide-gray-200">${rows.join('')}</div>${note}${this.cancelBox(o)}`);
     }
 
+    /*  Los botones del pie (footActions), con la regla de Pedidos que manda el
+        ctrl (saleBundle): Enviar ticket = imprimir; Cambiar cliente = editar
+        (update), como «Editar pedido»; Cancelar venta = cancel. */
     saleActions(data) {
         const id  = Number(data.order.id);
         const can = data.can || {};
         const out = [];
 
-        // V7: el enlace solo llega con el permiso de imprimir (ctrl saleBundle).
+        // V7: el enlace solo llega con el permiso de imprimir.
         if (data.share && data.share.link) {
-            out.push(`<button type="button" class="ord-undeliver" onclick="orderDetail.shareTicket()">
+            out.push(`<button type="button" class="ord-act" onclick="orderDetail.shareTicket()">
                           <i data-lucide="message-circle" class="w-4 h-4"></i>Enviar ticket
                       </button>`);
         }
 
         if (can.customer) {
-            out.push(`<button type="button" class="ord-undeliver" onclick="orderDetail.changeCustomer(${id})">
+            out.push(`<button type="button" class="ord-act" onclick="orderDetail.changeCustomer(${id})">
                           <i data-lucide="user-pen" class="w-4 h-4"></i>Cambiar cliente
                       </button>`);
         }
@@ -591,7 +818,7 @@ class SaleDetail extends OrderDetail {
                       </button>`);
         }
 
-        return out.length ? `<div class="flex flex-wrap gap-[6px]">${out.join('')}</div>` : '';
+        return out;
     }
 
     // -- Enviar ticket (V7) --
@@ -605,6 +832,8 @@ class SaleDetail extends OrderDetail {
     }
 
     cancelBox(o) {
+        if (this.isOrder) return super.cancelBox(o);
+
         return super.cancelBox(o).replace('Pedido cancelado', 'Venta cancelada');
     }
 
@@ -612,6 +841,8 @@ class SaleDetail extends OrderDetail {
 
     // Lo que se debe es el total más la propina (order.due, del ctrl).
     infoSales(data) {
+        if (this.isOrder) return super.infoSales(data);
+
         const o         = data.order;
         const can       = data.can || {};
         const cancelled = Number(o.sale_status_id) === 4;
@@ -684,6 +915,8 @@ class SaleDetail extends OrderDetail {
     }
 
     listProducts(lines) {
+        if (this.isOrder) return super.listProducts(lines);
+
         return super.listProducts(lines)
             .replace('Productos del pedido', 'Productos de la venta')
             .replace('Este pedido no contiene productos.', 'Esta venta no contiene productos.');
@@ -692,7 +925,10 @@ class SaleDetail extends OrderDetail {
     // -- Impresion --
 
     // El ticket de Ventas (ordPrintTicket, formato de alpha) con lo guardado; si se canceló, lo dice.
+    // Un pedido sale con el ticket de pedido (OrderDetail.printData).
     printData(data) {
+        if (this.isOrder) return super.printData(data);
+
         if (!(data.actions || []).includes('print')) {
             alert({ icon: 'error', text: 'Tu rol no tiene permiso para imprimir ventas en esta sucursal.', btn1: true });
             return;
@@ -711,6 +947,8 @@ class SaleDetail extends OrderDetail {
         $('ul.ct3-dropdown-menu').addClass('hidden');
 
         if (this.busy) return;
+
+        this.kind = 'sale';
 
         const data = await this.fetchOrder(id);
         if (!data) return;
@@ -828,6 +1066,7 @@ class SaleDetail extends OrderDetail {
     async changeCustomer(id) {
         if (this.busy) return;
 
+        this.kind = 'sale';
         this.busy = true;
 
         const data = await useFetch({ url: this._link, data: { opc: 'customerOptions', id: id } });

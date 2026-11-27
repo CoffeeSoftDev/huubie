@@ -2048,6 +2048,9 @@ class OrderPay extends Templates {
                 return;
             }
 
+            // Un alertBox encima (las preguntas y, en Ventas, todos los avisos) atiende sus propias teclas.
+            if (document.querySelector('[data-ab-backdrop]')) return;
+
             if (this.busy) {
                 if (['Escape', 'Enter', 'F2'].includes(e.key)) stop();
                 return;

@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../core/security/_Permission.php';
 // Sin sesion al login; sin la seccion, a su inicio.
 Permission::page('pos-historial', '../../');
 
-$title  = 'Historial';
+$title  = 'Vendido';
 $script = 'historial';
 
 require __DIR__ . '/layout/head.php';

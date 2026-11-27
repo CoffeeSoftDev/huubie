@@ -516,7 +516,7 @@ class OrderTurn extends Templates {
         return `
             <div class="ord-desk">
                 <aside class="ord-desk-side">
-                    <div class="ord-desk-field"><span>Sucursal</span><b>${esc(data.branch || '—')}</b></div>
+                    <div class="ord-desk-field"><span>Sucursal</span><b class="has-ico"><i data-lucide="store"></i><span>${esc(data.branch || '—')}</span></b></div>
                     <div class="ord-desk-field">
                         <label for="td_date">Fecha</label>
                         <div class="ord-desk-pick"><input type="text" id="td_date" readonly autocomplete="off"><i data-lucide="calendar" class="w-4 h-4"></i></div>
@@ -986,7 +986,7 @@ class OrderTurn extends Templates {
 
         $(document).off('keydown.ordCut').on('keydown.ordCut', (e) => {
             if (!$(id).length) return $(document).off('keydown.ordCut');
-            if (e.key !== 'F2' || $('.swal2-container').length) return;
+            if (e.key !== 'F2' || $('.swal2-container, [data-ab-backdrop]').length) return;
 
             e.preventDefault();
             $(`${id} .cs-modal-save`).trigger('click');
@@ -1256,7 +1256,7 @@ class OrderTurn extends Templates {
                 ${row('Aperturó:', esc(t.opened_by || 'N/A'))}
                 ${row('Apertura:', ordDate(t.opened_at, true))}
                 ${t.closed ? row('Cerró:', esc(t.closed_by || 'N/A')) + row('Cierre:', ordDate(t.closed_at, true)) : row('Corte al:', ordNow())}
-                ${row('Inicio de caja:', money(t.opening_cash))}
+                ${Number(t.opening_cash) > 0.005 ? row('Inicio de caja:', money(t.opening_cash)) : ''}
                 <hr>
                 ${shift ? this.shiftDetail(shift, row, dash) : ''}
                 ${pays}
