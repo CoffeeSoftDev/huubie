@@ -368,8 +368,6 @@ const HOME_WIDGETS = {
     entregas:       (w) => deliveriesCard(w),
     // Capital Humano
     cumpleanos:     (w) => peopleCard(w, `Nadie de tu equipo cumple años en ${mesActual()}.`, (p) => `${p.day} de ${mesActual()}`),
-    aniversarios:   (w) => peopleCard(w, `Nadie cumple años en tu empresa en ${mesActual()}.`, (p) => `${plural(p.years, 'año', 'años')} en la empresa · ${p.day} de ${mesActual()}`),
-    ingresos:       (w) => peopleCard(w, `Nadie se ha integrado a tu equipo en ${mesActual()}.`, (p) => [p.job, p.branch, `${p.day} de ${mesActual()}`].filter(Boolean).join(' · ')),
     // Lealtad
     lealtadMes:     (w) => loyaltyCard(w)
 };
@@ -951,8 +949,8 @@ function hour12(time) {
 
 // ========================================================= Capital Humano
 
-/*  Cumpleaños, aniversarios laborales e ingresos del mes: una persona por
-    renglon; a quien le toca hoy se le marca. */
+/*  Cumpleaños del mes: una persona por renglon; a quien le toca hoy se le
+    marca. */
 function peopleCard(w, empty, detail) {
     const people = w.data || [];
 

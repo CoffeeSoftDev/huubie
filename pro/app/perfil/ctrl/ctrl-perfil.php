@@ -11,11 +11,9 @@ require_once __DIR__ . '/../../../core/helpers/_CoffeeSoft.php';
     no pasa por Permission -- no hay seccion que conceder, solo hace falta
     haber entrado.
 
-    Lo personal (telefono, cumpleaños, direccion, contacto de emergencia) lo
-    edita la persona y se guarda en su ficha de Capital Humano (employees). Lo
-    de trabajo (puesto, area, ingreso) solo se muestra: lo lleva la empresa.
-
-    root no es empleado de nadie: su perfil es solo la cuenta. */
+    Todo vive en su cuenta (users), tambien lo personal: telefono,
+    cumpleaños, direccion y contacto de emergencia. La empresa y la sucursal
+    solo se muestran; root no es de ninguna empresa y no las tiene. */
 class ctrl extends mdl {
     const OPS = ['init', 'saveProfile', 'savePassword', 'savePhoto'];
 
@@ -34,9 +32,6 @@ class ctrl extends mdl {
 
         if (!$p) return ['status' => 404, 'message' => 'No encontramos tu cuenta.'];
 
-        // Con empresa propia hay ficha (o se le crea al guardar); root no la tiene.
-        $employee = !empty($p['company_id']);
-
         return [
             'status' => 200,
             'data'   => [
@@ -49,17 +44,14 @@ class ctrl extends mdl {
                     'rol'       => $_SESSION['rol'],
                     'is_root'   => !empty($_SESSION['is_root']) ? 1 : 0,
                 ],
-                'colors' => self::COLORS,
-                'work'   => !$employee ? null : [
-                    'company'    => (string) $p['company'],
-                    'branch'     => $p['employee_branch'] ?: $_SESSION['branch'],
-                    'job_title'  => (string) $p['job_title'],
-                    'department' => (string) $p['department'],
+                'colors'  => self::COLORS,
+                'company' => empty($p['company_id']) ? null : [
+                    'name'   => (string) $p['company'],
+                    'branch' => (string) ($p['branch'] ?: ($_SESSION['branch'] ?? '')),
                     // Fechas crudas (Y-m-d): las escribe en español el navegador (Page.date).
-                    'hire_date'  => (string) $p['hire_date'],
-                    'seniority'  => $this->seniority($p['hire_date']),
+                    'since'  => substr((string) $p['created_at'], 0, 10),
                 ],
-                'personal' => !$employee ? null : [
+                'personal' => [
                     'phone'           => (string) $p['phone'],
                     'birth_date'      => (string) $p['birth_date'],
                     'address'         => (string) $p['address'],
@@ -86,25 +78,15 @@ class ctrl extends mdl {
 
         if (!in_array($color, self::COLORS, true)) $color = $p['color'] ?: null;
 
-        // Lo personal se revisa ANTES de escribir nada: si el telefono viene
-        // mal no se queda guardado el nombre a medias.
-        $personal = null;
+        $personal = $this->personal();
+        if (is_string($personal)) return ['status' => 400, 'message' => $personal];
 
-        if (!empty($p['company_id'])) {
-            $personal = $this->personal();
-            if (is_string($personal)) return ['status' => 400, 'message' => $personal];
-        }
-
-        if ($this->updateAccount([$name, $lastName, $color, $userId]) !== true) {
+        if ($this->updateAccount(array_merge([$name, $lastName, $color], $personal, [$userId])) !== true) {
             return ['status' => 500, 'message' => 'No pudimos guardar tus datos. Inténtalo de nuevo.'];
         }
 
         // La barra y el inicio saludan con este nombre.
         $_SESSION['user'] = trim($name . ' ' . $lastName);
-
-        if ($personal !== null && !$this->savePersonal($p, $personal)) {
-            return ['status' => 500, 'message' => 'Tu nombre quedó guardado, pero no tus datos personales. Inténtalo de nuevo.'];
-        }
 
         return ['status' => 200, 'message' => 'Tus datos quedaron guardados.'];
     }
@@ -186,10 +168,11 @@ class ctrl extends mdl {
         return ['status' => 200, 'message' => 'Tu foto quedó actualizada.', 'data' => ['photo' => userPhotoUrl($name, 4)]];
     }
 
-    // -- Ficha --
+    // -- Datos personales --
 
-    // Lo personal que mando el formulario, ya revisado: el arreglo listo para
-    // updatePersonal() (sin el user_id), o el motivo por el que no se acepta.
+    // Lo personal que mando el formulario, ya revisado: [phone, birth_date,
+    // address, emergency_name, emergency_phone] en el orden de updateAccount(),
+    // o el motivo por el que no se acepta.
     private function personal() {
         $phone   = $this->text('phone', 20);
         $birth   = trim((string) ($_POST['birth_date'] ?? ''));
@@ -212,35 +195,10 @@ class ctrl extends mdl {
         return [$phone, $birth === '' ? null : $birth, $this->text('address', 255), $this->text('emergency_name', 120), $emPhone];
     }
 
-    // Quien todavia no tenia ficha la estrena aqui, en su sucursal activa.
-    private function savePersonal($p, $personal) {
-        if (empty($p['employee_id'])) {
-            $branch = (int) ($_SESSION['branch_id'] ?? 0);
-
-            if ($this->createEmployee([$p['id'], $p['company_id'], $branch > 0 ? $branch : null]) !== true) return false;
-        }
-
-        return $this->updatePersonal(array_merge($personal, [$p['id']])) === true;
-    }
-
     // Texto opcional: vacio -> NULL, y recortado al ancho de su columna.
     private function text($key, $max) {
         $value = trim((string) ($_POST[$key] ?? ''));
         return $value === '' ? null : mb_substr($value, 0, $max);
-    }
-
-    // "2 años y 3 meses", "5 meses", "Menos de un mes".
-    private function seniority($hireDate) {
-        if (!$hireDate) return '';
-
-        $diff = (new DateTime($hireDate))->diff(new DateTime('today'));
-        if ($diff->invert) return '';
-
-        $parts = [];
-        if ($diff->y > 0) $parts[] = $diff->y . ($diff->y === 1 ? ' año' : ' años');
-        if ($diff->m > 0) $parts[] = $diff->m . ($diff->m === 1 ? ' mes' : ' meses');
-
-        return empty($parts) ? 'Menos de un mes' : implode(' y ', $parts);
     }
 }
 

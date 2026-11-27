@@ -57,8 +57,6 @@ class HomeLayout extends CRUD {
         'topClientes'    => ['name' => 'Ranking de clientes del mes',        'module' => 'pedidos',        'zones' => 'main,side'],
         'entregas'       => ['name' => 'Entregas de hoy a pasado mañana',    'module' => 'pedidos',        'zones' => 'top,main,side'],
         'cumpleanos'     => ['name' => 'Cumpleaños del mes',                 'module' => 'capital-humano', 'zones' => 'main,side'],
-        'aniversarios'   => ['name' => 'Aniversarios laborales del mes',     'module' => 'capital-humano', 'zones' => 'main,side'],
-        'ingresos'       => ['name' => 'Ingresos al equipo del mes',         'module' => 'capital-humano', 'zones' => 'main,side'],
         'lealtadMes'     => ['name' => 'Resumen de lealtad del mes',         'module' => 'lealtad',        'zones' => 'main,side'],
     ];
 

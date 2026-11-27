@@ -87,6 +87,8 @@ class mdl extends CRUD {
         // [is_active]
         // module_ids: los de plan_module (solo cuentan si modules_mode = 'included').
         // classification_ids: las páginas donde se publica (classification_plan).
+        // subscriptions: todas las que lo usan, aun canceladas (con alguna ya no
+        // se puede eliminar); live: las vigentes (activa o en prueba).
         // Del más barato al más caro; Personalizado (sin precio fijo) al final.
         $query = "
             SELECT
@@ -94,6 +96,8 @@ class mdl extends CRUD {
                 p.max_users, p.max_branches, p.trial_days, p.is_active, p.features,
                 p.modules_mode, p.modules_pick, p.featured,
                 DATE_FORMAT(p.created_at, '%d/%m/%Y') AS created,
+                (SELECT COUNT(*) FROM {$this->bd}subscriptions s WHERE s.plan_id = p.id) AS subscriptions,
+                (SELECT COUNT(*) FROM {$this->bd}subscriptions s WHERE s.plan_id = p.id AND s.status IN ('active', 'trial')) AS live_subscriptions,
                 (
                     SELECT GROUP_CONCAT(pm.module_id)
                     FROM {$this->bd}plan_module pm
@@ -203,6 +207,17 @@ class mdl extends CRUD {
         // [is_active, id]
         $query = "UPDATE {$this->bd}plans SET is_active = ? WHERE id = ?";
         return $this->_CUD($query, $array);
+    }
+
+    function qCountPlanSubscriptions($array) {
+        // [plan_id]. Todas, de cualquier estado: son el historial de quien lo contrató.
+        $r = $this->_Read("SELECT COUNT(*) AS total FROM {$this->bd}subscriptions WHERE plan_id = ?", $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['total'] : 0;
+    }
+
+    function qDeletePlan($array) {
+        // [id]. Solo uno dado de baja.
+        return $this->_CUD("DELETE FROM {$this->bd}plans WHERE id = ? AND is_active = 0", $array);
     }
 
     function qPlanClassificationIds($array) {

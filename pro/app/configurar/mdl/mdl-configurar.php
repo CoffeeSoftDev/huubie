@@ -20,12 +20,10 @@ class mdl extends CRUD {
         $query = "
             SELECT
                 c.name, c.rfc, c.ubication, c.setup_done_at,
-                u.name AS user_name, u.last_name,
-                e.phone,
+                u.name AS user_name, u.last_name, u.phone,
                 b.id AS branch_id, b.name AS branch, b.ubication AS branch_ubication
             FROM {$this->bd}users u
             INNER JOIN {$this->bd}companies c ON c.id = ?
-            LEFT JOIN {$this->bd}employees e  ON e.user_id = u.id
             LEFT JOIN {$this->bd}branches b   ON b.id = (
                 SELECT MIN(b2.id) FROM {$this->bd}branches b2 WHERE b2.company_id = c.id AND b2.is_active = 1
             )
@@ -56,8 +54,8 @@ class mdl extends CRUD {
         return $this->_CUD("UPDATE {$this->bd}users SET name = ?, last_name = ?, updated_at = NOW() WHERE id = ?", $array);
     }
 
-    // [phone, user_id]
+    // [phone, id]
     function updatePhone($array) {
-        return $this->_CUD("UPDATE {$this->bd}employees SET phone = ?, updated_at = NOW() WHERE user_id = ?", $array);
+        return $this->_CUD("UPDATE {$this->bd}users SET phone = ?, updated_at = NOW() WHERE id = ?", $array);
     }
 }

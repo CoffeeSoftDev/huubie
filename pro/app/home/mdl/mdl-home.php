@@ -5,15 +5,11 @@ require_once __DIR__ . '/../../../core/helpers/_Utileria.php';
 /*  Lo que enseña el inicio de una empresa. Todo se pide por company_id: nada
     de aqui cruza de una empresa a otra.
 
-    Las personas salen de employees (Capital Humano) y no de users: el equipo
-    de una empresa incluye a quien no tiene cuenta. El nombre es el de su
-    cuenta cuando la tiene y employees.full_name cuando no. */
+    Las personas son las cuentas de la empresa (users): su telefono y su
+    cumpleaños tambien viven ahi. */
 class mdl extends CRUD {
     public $util;
     public $bd;
-
-    // Como se nombra a un empleado, tenga cuenta o no.
-    const EMPLOYEE_NAME = "TRIM(COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))), ''), e.full_name, ''))";
 
     public function __construct() {
         $this->util = new Utileria;
@@ -62,9 +58,8 @@ class mdl extends CRUD {
                 u.email,
                 u.photo,
                 u.color,
-                e.phone
+                u.phone
             FROM {$this->bd}users u
-            LEFT JOIN {$this->bd}employees e ON e.user_id = u.id
             WHERE u.company_id = ? AND u.is_owner = 1 AND u.status = 'active'
             ORDER BY u.id ASC
             LIMIT 1
@@ -78,41 +73,17 @@ class mdl extends CRUD {
     function listBirthdaysByCompany($array) {
         $query = "
             SELECT
-                " . self::EMPLOYEE_NAME . " AS name,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS name,
                 u.photo,
                 u.color,
-                DAY(e.birth_date) AS day,
-                (DAY(e.birth_date) = DAY(CURDATE())) AS today
-            FROM {$this->bd}employees e
-            LEFT JOIN {$this->bd}users u ON u.id = e.user_id
-            WHERE e.company_id = ?
-              AND e.birth_date IS NOT NULL
-              AND MONTH(e.birth_date) = MONTH(CURDATE())
-              AND (u.id IS NULL OR u.status = 'active')
-            ORDER BY DAY(e.birth_date) ASC
-        ";
-
-        $sql = $this->_Read($query, $array);
-        return is_array($sql) ? $sql : [];
-    }
-
-    // Aniversarios de ingreso del mes: quien cumple al menos un año.
-    function listAnniversariesByCompany($array) {
-        $query = "
-            SELECT
-                " . self::EMPLOYEE_NAME . " AS name,
-                u.photo,
-                u.color,
-                DAY(e.hire_date) AS day,
-                (YEAR(CURDATE()) - YEAR(e.hire_date)) AS years
-            FROM {$this->bd}employees e
-            LEFT JOIN {$this->bd}users u ON u.id = e.user_id
-            WHERE e.company_id = ?
-              AND e.hire_date IS NOT NULL
-              AND MONTH(e.hire_date) = MONTH(CURDATE())
-              AND YEAR(e.hire_date) < YEAR(CURDATE())
-              AND (u.id IS NULL OR u.status = 'active')
-            ORDER BY DAY(e.hire_date) ASC
+                DAY(u.birth_date) AS day,
+                (DAY(u.birth_date) = DAY(CURDATE())) AS today
+            FROM {$this->bd}users u
+            WHERE u.company_id = ?
+              AND u.status = 'active'
+              AND u.birth_date IS NOT NULL
+              AND MONTH(u.birth_date) = MONTH(CURDATE())
+            ORDER BY DAY(u.birth_date) ASC
         ";
 
         $sql = $this->_Read($query, $array);
@@ -362,29 +333,6 @@ class mdl extends CRUD {
 
         $sql = $this->_Read($query, $array);
         return empty($sql) ? 0 : (int) $sql[0]['total'];
-    }
-
-    // [company_id, desde, hasta). Quien entro a trabajar en el periodo (employees.hire_date).
-    function listNewHiresByCompany($array) {
-        $query = "
-            SELECT
-                " . self::EMPLOYEE_NAME . " AS name,
-                u.photo,
-                u.color,
-                e.job_title,
-                b.name AS branch,
-                DAY(e.hire_date) AS day
-            FROM {$this->bd}employees e
-            LEFT JOIN {$this->bd}users u    ON u.id = e.user_id
-            LEFT JOIN {$this->bd}branches b ON b.id = e.branch_id
-            WHERE e.company_id = ?
-              AND e.hire_date >= ? AND e.hire_date < ?
-              AND (u.id IS NULL OR u.status = 'active')
-            ORDER BY e.hire_date ASC
-        ";
-
-        $sql = $this->_Read($query, $array);
-        return is_array($sql) ? $sql : [];
     }
 
     // [desde, company_id]. Tarjetas de lealtad activas de la empresa y cuantas se dieron desde `desde`.

@@ -1,0 +1,22 @@
+-- =====================================================================
+-- Apaga el modulo Configuracion (modules.code = 'configuracion')
+-- Fecha: 26/11/2026
+-- BD:    la del .env de pro (DB_NAME, hoy fayxzvov_app)
+-- Rollback: 2026-11-26_apagar-modulo-configuracion-rollback.sql
+--
+-- Lo creo 2026-11-09_modulos-pos-h02.sql sin ruta y sin secciones. Como
+-- algunos planes lo incluyen (Pro: 2,3,6,9), salia en el menu lateral como
+-- un "Configuración" gris que no abria, y lo veian todos, tambien el cajero
+-- (un modulo sin secciones se le muestra a cualquiera). Ademas se ofrecia
+-- como modulo a la venta en los planes ("el cliente elige 1 de 8").
+--
+-- La pagina app/configuracion NO depende de este modulo: la abre cualquier
+-- dueño (is_owner) y el menu lateral le pone su acceso al pie
+-- (auth/ctrl/ctrl-nav.php :: extras). Apagado deja de salir en el menu, en
+-- el inicio y en los formularios de planes. plan_module conserva sus filas:
+-- todo filtra por modules.is_active = 1.
+--
+-- Se puede volver a correr.
+-- =====================================================================
+
+UPDATE modules SET is_active = 0 WHERE code = 'configuracion';

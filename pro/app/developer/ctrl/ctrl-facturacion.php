@@ -305,6 +305,8 @@ class ctrl extends core {
             $p['module_ids']         = $this->idList($p['module_ids']);
             $p['classification_ids'] = $this->idList($p['classification_ids']);
             $p['modules_pick']       = $p['modules_pick'] !== null ? (int) $p['modules_pick'] : null;
+            $p['subscriptions']      = (int) $p['subscriptions'];
+            $p['live_subscriptions'] = (int) $p['live_subscriptions'];
             return $p;
         }, $ls);
 
@@ -461,9 +463,12 @@ class ctrl extends core {
         }
     }
 
+    /*  Dar de baja (active 0) o de alta (1). De baja deja de ofrecerse: no sale
+        en las paginas de precios ni al asignar una suscripcion. Las empresas que
+        ya lo tienen lo conservan. */
     function togglePlan() {
         $id     = (int) $_POST['id'];
-        $active = (int) $_POST['active'];
+        $active = (int) $_POST['active'] === 1 ? 1 : 0;
         if (!$this->qPlan([$id])) {
             return ['status' => 404, 'message' => 'Plan no encontrado'];
         }
@@ -471,8 +476,39 @@ class ctrl extends core {
         $ok = $this->qSetPlanActive([$active, $id]);
         return [
             'status'  => $ok ? 200 : 500,
-            'message' => $ok ? ($active ? 'Plan activado' : 'Plan desactivado') : 'No se pudo actualizar el estado'
+            'message' => $ok ? ($active ? 'Plan dado de alta' : 'Plan dado de baja') : 'No se pudo actualizar el estado'
         ];
+    }
+
+    /*  Eliminar por completo. Solo uno dado de baja y que nadie haya contratado
+        nunca: borrar un plan se lleva en cascada sus suscripciones, y con ellas
+        los pagos, los cupones canjeados y los modulos contratados. */
+    function deletePlan() {
+        $id   = (int) ($_POST['id'] ?? 0);
+        $plan = $this->qPlan([$id]);
+
+        if (!$plan) return ['status' => 404, 'message' => 'Plan no encontrado'];
+        if ((int) $plan['is_active'] === 1) {
+            return ['status' => 400, 'message' => 'Dalo de baja primero: solo se elimina un plan inactivo'];
+        }
+
+        $subs = $this->qCountPlanSubscriptions([$id]);
+        if ($subs > 0) {
+            return [
+                'status'  => 400,
+                'message' => 'No se puede eliminar: ' . $subs . ($subs === 1 ? ' suscripción lo usa' : ' suscripciones lo usan')
+                           . ' y se borrarían con su historial de pagos. Déjalo de baja.'
+            ];
+        }
+
+        // plan_module y classification_plan se borran a mano: no dependen de que la llave foranea exista.
+        return $this->saveInTransaction(function () use ($id, $plan) {
+            $this->qDeletePlanModules([$id]);
+            $this->qDeletePlanClassifications([$id]);
+            if ($this->qDeletePlan([$id]) !== true) throw new \Exception('plans');
+
+            return ['status' => 200, 'message' => 'Plan «' . $plan['name'] . '» eliminado'];
+        }, 'No se pudo eliminar el plan');
     }
 
     /* ===== Clasificaciones de planes (plans_classification) =====

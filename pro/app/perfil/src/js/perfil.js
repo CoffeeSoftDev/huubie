@@ -1,11 +1,9 @@
-/*  Mi perfil. A la izquierda la ficha (foto, nombre, puesto e informacion
+/*  Mi perfil. A la izquierda la ficha (foto, nombre, rol e informacion
     general); a la derecha lo que la persona puede cambiar: sus datos, su
     contraseña y el color de su avatar.
 
-    Dos fuentes para la misma persona: su cuenta (users) y su ficha de Capital
-    Humano (employees). Lo de trabajo -- puesto, area, ingreso -- solo se
-    muestra: lo lleva la empresa desde Capital Humano. root no tiene ficha: su
-    perfil es solo la cuenta. */
+    Todo sale de su cuenta (users). La empresa y la sucursal solo se muestran;
+    root no es de ninguna empresa y no ve esa tarjeta. */
 const PERFIL_API = 'ctrl/ctrl-perfil.php';
 
 let perfil = null;
@@ -37,7 +35,7 @@ async function loadPerfil() {
         <div class="pg-grid">
             <div class="pg-col">${fichaCard()}</div>
             <div class="pg-col">
-                ${perfil.work ? trabajoCard() : ''}
+                ${perfil.company ? empresaCard() : ''}
                 ${datosCard()}
                 ${passwordCard()}
             </div>
@@ -63,19 +61,16 @@ function fact(label, value) {
 
 function fichaCard() {
     const a = perfil.account;
-    const w = perfil.work;
+    const c = perfil.company;
     const p = perfil.personal;
 
-    const general = p ? `
+    const general = `
         <div class="pg-list" style="margin-top:18px">
             <div class="pg-row"><div class="pg-row-text">${fact('Correo', a.email)}</div></div>
             <div class="pg-row"><div class="pg-row-text">${fact('Teléfono', p.phone)}</div></div>
             <div class="pg-row"><div class="pg-row-text">${fact('Cumpleaños', Page.date(p.birth_date))}</div></div>
             <div class="pg-row"><div class="pg-row-text">${fact('Dirección', p.address)}</div></div>
             <div class="pg-row"><div class="pg-row-text">${fact('Contacto de emergencia', [p.emergency_name, p.emergency_phone].filter(Boolean).join(' · '))}</div></div>
-        </div>` : `
-        <div class="pg-list" style="margin-top:18px">
-            <div class="pg-row"><div class="pg-row-text">${fact('Correo', a.email)}</div></div>
         </div>`;
 
     return `
@@ -84,7 +79,7 @@ function fichaCard() {
                 <span id="perfilAvatar">${Page.avatar({ name: fullName(), photo: a.photo, color: a.color }, 'xl')}</span>
                 <div style="min-width:0;max-width:100%">
                     <p class="pg-strong" style="font-size:18px">${Page.esc(fullName())}</p>
-                    <p class="pg-dim pg-small">${Page.esc((w && w.job_title) || a.rol || '')}</p>
+                    <p class="pg-dim pg-small">${Page.esc((c && c.name) || '')}</p>
                 </div>
                 <span class="pg-chip">${Page.esc(a.is_root ? 'Administrador de la plataforma' : (a.rol || 'Sin rol asignado'))}</span>
                 <label class="pg-btn is-ghost" for="perfilPhoto" style="margin-top:4px"><i data-lucide="camera"></i>Cambiar foto</label>
@@ -96,24 +91,21 @@ function fichaCard() {
         </div>`;
 }
 
-// -- Trabajo (solo lectura) --
+// -- Empresa (solo lectura) --
 
-function trabajoCard() {
-    const w = perfil.work;
+function empresaCard() {
+    const c = perfil.company;
 
     return `
         <div class="pg-card">
             <div class="pg-card-head">
-                <p class="pg-card-title"><span class="pg-ico"><i data-lucide="briefcase"></i></span>Mi trabajo</p>
-                <span class="pg-card-note">Lo administra Capital Humano</span>
+                <p class="pg-card-title"><span class="pg-ico"><i data-lucide="building-2"></i></span>Mi empresa</p>
             </div>
             <div class="pg-facts">
-                ${fact('Puesto', w.job_title)}
-                ${fact('Área', w.department)}
-                ${fact('Empresa', w.company)}
-                ${fact('Sucursal', w.branch)}
-                ${fact('Fecha de ingreso', Page.date(w.hire_date))}
-                ${fact('Antigüedad', w.seniority)}
+                ${fact('Empresa', c.name)}
+                ${fact('Sucursal', c.branch)}
+                ${fact('Rol', perfil.account.rol)}
+                ${fact('Cuenta creada', Page.date(c.since))}
             </div>
         </div>`;
 }
@@ -143,11 +135,11 @@ function datosCard() {
             <form class="pg-form" id="formDatos" novalidate>
                 ${field('name', 'Nombre', a.name, 'maxlength="80" autocomplete="given-name" required')}
                 ${field('last_name', 'Apellidos', a.last_name, 'maxlength="80" autocomplete="family-name"')}
-                ${p ? field('phone', 'Teléfono', p.phone, 'type="tel" maxlength="20" autocomplete="tel"') : ''}
-                ${p ? field('birth_date', 'Fecha de nacimiento', p.birth_date, 'type="date"') : ''}
-                ${p ? field('address', 'Dirección', p.address, 'maxlength="255" autocomplete="street-address"', true) : ''}
-                ${p ? field('emergency_name', 'Contacto de emergencia', p.emergency_name, 'maxlength="120"') : ''}
-                ${p ? field('emergency_phone', 'Teléfono de emergencia', p.emergency_phone, 'type="tel" maxlength="20"') : ''}
+                ${field('phone', 'Teléfono', p.phone, 'type="tel" maxlength="20" autocomplete="tel"')}
+                ${field('birth_date', 'Fecha de nacimiento', p.birth_date, 'type="date"')}
+                ${field('address', 'Dirección', p.address, 'maxlength="255" autocomplete="street-address"', true)}
+                ${field('emergency_name', 'Contacto de emergencia', p.emergency_name, 'maxlength="120"')}
+                ${field('emergency_phone', 'Teléfono de emergencia', p.emergency_phone, 'type="tel" maxlength="20"')}
                 <div class="pg-field is-wide">
                     <span class="pg-label">Color de tu avatar (cuando no hay foto)</span>
                     <div class="pg-swatches" id="perfilColors">${swatches}</div>

@@ -254,17 +254,9 @@ class HomeWidgets {
 
     // ======================================================== Capital Humano
 
+    // Las cuentas activas de la empresa que cumplen años este mes (users.birth_date).
     function cumpleanos() {
         return $this->people($this->db->listBirthdaysByCompany([$this->cid]));
-    }
-
-    function aniversarios() {
-        return $this->people($this->db->listAnniversariesByCompany([$this->cid]));
-    }
-
-    function ingresos() {
-        list($from, $to) = $this->month();
-        return $this->people($this->db->listNewHiresByCompany([$this->cid, $from, $to]));
     }
 
     // =============================================================== Lealtad
@@ -402,11 +394,8 @@ class HomeWidgets {
                 'name'   => $row['name'],
                 'photo'  => userPhotoUrl($row['photo'] ?? '', 4),
                 'color'  => $row['color'] ?: '',
-                'job'    => $row['job_title'] ?? '',
-                'branch' => $row['branch'] ?? '',
                 'day'    => isset($row['day']) ? (int) $row['day'] : 0,
                 'today'  => !empty($row['today']) ? 1 : 0,
-                'years'  => isset($row['years']) ? (int) $row['years'] : 0,
             ];
         }, $rows);
     }

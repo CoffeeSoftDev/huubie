@@ -266,15 +266,15 @@ class ctrl extends mdl {
             $extras[] = ['name' => 'Empresas', 'icon' => 'building-2', 'route' => self::ROUTE_COMPANIES];
         }
 
-        // El dueño entra a su perfil y a la configuracion desde las tarjetas del
-        // inicio (ctrl-home :: shortcuts) y desde el menu de la barra. root los
-        // conserva aqui.
-        if ($this->ownsCompany() && empty($_SESSION['is_root'])) return $extras;
+        // El dueño entra a su perfil desde las tarjetas del inicio (ctrl-home ::
+        // shortcuts) y desde el menu de la barra. root lo conserva aqui.
+        if (!$this->ownsCompany() || !empty($_SESSION['is_root'])) {
+            $extras[] = ['name' => 'Mi perfil', 'icon' => 'user-round', 'route' => self::ROUTE_PROFILE];
+        }
 
-        $extras[] = ['name' => 'Mi perfil', 'icon' => 'user-round', 'route' => self::ROUTE_PROFILE];
-
-        // La configuracion de la empresa es de su dueño (root dentro de una
-        // empresa la ve como tal: app/empresas le pone is_owner).
+        // La configuracion de la empresa es de su dueño y la tiene siempre en
+        // el rail, en cualquier pagina (root dentro de una empresa la ve como
+        // tal: app/empresas le pone is_owner).
         if ($this->ownsCompany()) {
             $extras[] = ['name' => 'Configuración', 'icon' => 'settings', 'route' => self::ROUTE_SETTINGS];
         }

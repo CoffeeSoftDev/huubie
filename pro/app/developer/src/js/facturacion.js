@@ -1861,7 +1861,7 @@ class Plans extends BillingPanel {
 
         const body = count
             ? $('<div>', { class: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-1' }).html(group.plans.map(p => this.buildPlanCard(p)).join(''))
-            : $('<p>', { class: 'text-sm text-gray-400 py-6 text-center mb-0', text: 'Todavía no hay planes en esta página. Asígnalos desde Editar.' });
+            : $('<p>', { class: 'text-sm text-gray-400 py-6 text-center mb-0', text: 'Todavía no hay planes en esta página. Asígnalos desde Configurar.' });
 
         return $('<section>', { class: 'mb-6' }).append(head, body);
     }
@@ -1916,9 +1916,22 @@ class Plans extends BillingPanel {
             ? `<p class="text-[11px] text-gray-400 mb-0">Se publica en: ${esc(pages.join(', '))}</p>`
             : '';
 
-        const toggleChecked = isActive ? 'checked' : '';
-        const toggleNext    = isActive ? 0 : 1;
-        const cardBorder    = isActive ? 'border-blue-600' : 'border-gray-200 opacity-70';
+        const cardBorder = isActive ? 'border-blue-600' : 'border-gray-200';
+        const live       = Number(p.live_subscriptions) || 0;
+        const liveHtml   = live
+            ? `<p class="text-[11px] text-gray-500 mb-0">${live} ${live === 1 ? 'empresa lo tiene vigente' : 'empresas lo tienen vigente'}</p>`
+            : '';
+
+        // Activo: se configura o se cancela (se da de baja). De baja: se da de
+        // alta o se elimina por completo.
+        const primaryBtn = 'flex-1 text-[11px] bg-blue-600 text-white rounded-md py-1 px-2 font-medium hover:bg-blue-700 transition-colors';
+        // ring y no border: el .border de Bootstrap lleva !important y lo dejaria gris.
+        const dangerBtn  = 'flex-1 text-[11px] ring-1 ring-inset ring-red-600 text-red-600 rounded-md py-1 px-2 font-medium hover:bg-red-600 hover:text-white transition-colors';
+        const actions    = isActive
+            ? `<button onclick="plans.editPlan(${p.id})" class="${primaryBtn}">Configurar</button>
+               <button onclick="plans.cancelPlan(${p.id})" class="${dangerBtn}" title="Dar de baja el plan">Cancelar</button>`
+            : `<button onclick="plans.activatePlan(${p.id})" class="${primaryBtn}">Dar de alta</button>
+               <button onclick="plans.deletePlan(${p.id})" class="${dangerBtn}" title="Eliminar el plan por completo">Eliminar</button>`;
 
         return `
             <div class="bg-white rounded-lg border ${cardBorder} shadow-sm flex flex-col p-3.5 gap-3 transition-all hover:shadow-md">
@@ -1928,16 +1941,7 @@ class Plans extends BillingPanel {
                         <h3 class="text-sm font-bold text-gray-800 leading-tight truncate">${esc(p.name)}</h3>
                         ${p.description ? `<p class="text-[11px] text-gray-500 leading-snug mb-0">${esc(p.description)}</p>` : ''}
                     </div>
-                    <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-0.5" title="${isActive ? 'Desactivar' : 'Activar'}">
-                        <input type="checkbox" class="sr-only peer" ${toggleChecked}
-                            onchange="plans.togglePlan(${p.id}, ${toggleNext})">
-                        <div class="w-8 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer
-                            peer-checked:bg-blue-600
-                            after:content-[''] after:absolute after:top-0.5 after:left-0.5
-                            after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all
-                            peer-checked:after:translate-x-4">
-                        </div>
-                    </label>
+                    ${isActive ? '' : '<span class="flex-shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">De baja</span>'}
                 </div>
 
                 <div>
@@ -1949,6 +1953,7 @@ class Plans extends BillingPanel {
                     <p class="text-[11px] font-semibold text-gray-700 mb-0">${esc(this.modulesText(p))}</p>
                     <p class="text-[11px] text-gray-500 mb-0">${limits.join(' · ')}</p>
                     ${pageHtml}
+                    ${liveHtml}
                 </div>
 
                 <ul class="flex flex-col gap-1 flex-1 mb-0 ps-0">
@@ -1956,14 +1961,7 @@ class Plans extends BillingPanel {
                 </ul>
 
                 <div class="flex gap-1.5 pt-2 border-t border-gray-100">
-                    <button onclick="plans.editPlan(${p.id})"
-                        class="flex-1 text-[11px] border border-blue-600 text-blue-600 rounded-md py-1 px-2 font-medium hover:bg-blue-600 hover:text-white transition-colors">
-                        Editar
-                    </button>
-                    <button onclick="plans.configurePlan(${p.id})"
-                        class="flex-1 text-[11px] bg-blue-600 text-white rounded-md py-1 px-2 font-medium hover:bg-blue-700 transition-colors">
-                        Configurar
-                    </button>
+                    ${actions}
                 </div>
             </div>
         `;
@@ -1997,15 +1995,6 @@ class Plans extends BillingPanel {
         return bullets;
     }
 
-    configurePlan(id) {
-        Swal.fire({
-            icon: 'info',
-            title: 'Próximamente',
-            text: 'La configuración avanzada del plan estará disponible pronto.',
-            confirmButtonColor: 'rgb(var(--brand-600, 192 90 64))'
-        });
-    }
-
     addPlan() {
         this.createModalForm({
             id: 'formPlanAdd',
@@ -2036,8 +2025,8 @@ class Plans extends BillingPanel {
         if (data.billing_cycle != null) data.billing_cycle = String(data.billing_cycle);
 
         const title = data.name
-            ? `Editar Plan · <span class="text-blue-600 font-bold">${esc(data.name)}</span>`
-            : 'Editar Plan';
+            ? `Configurar plan · <span class="text-blue-600 font-bold">${esc(data.name)}</span>`
+            : 'Configurar plan';
 
         this.createModalForm({
             id: 'formPlanEdit',
@@ -2052,15 +2041,73 @@ class Plans extends BillingPanel {
         this.wirePlanForm('formPlanEdit', data.module_ids || [], data.classification_ids || []);
     }
 
-    togglePlan(id, active) {
-        const action = active == 1 ? 'activar' : 'desactivar';
+    planById(id) {
+        return this.list.find(p => Number(p.id) === Number(id)) || {};
+    }
+
+    // Cancelar = dar de baja: deja de ofrecerse, quien ya lo tiene lo conserva.
+    cancelPlan(id) {
+        const p    = this.planById(id);
+        const live = Number(p.live_subscriptions) || 0;
+
         this.swalQuestion({
             opts: {
-                title: `¿${active == 1 ? 'Activar' : 'Desactivar'} plan?`,
-                text: `¿Deseas ${action} este plan?`,
-                icon: 'warning'
+                title: '¿Dar de baja este plan?',
+                text: `«${p.name || 'Plan'}» deja de salir en las páginas de precios y al asignar suscripciones.`
+                    + (live ? ` ${live} ${live === 1 ? 'empresa lo tiene vigente y lo conserva' : 'empresas lo tienen vigente y lo conservan'}.` : ''),
+                icon: 'warning',
+                confirmButtonText: 'Sí, dar de baja',
+                cancelButtonText: 'No, mantenerlo'
             },
-            data: { opc: 'togglePlan', id: id, active: active },
+            data: { opc: 'togglePlan', id: id, active: 0 },
+            methods: { send: (r) => afterSave(r, () => this.afterPlanSave()) }
+        });
+    }
+
+    activatePlan(id) {
+        const p = this.planById(id);
+
+        this.swalQuestion({
+            opts: {
+                title: '¿Dar de alta este plan?',
+                text: `«${p.name || 'Plan'}» vuelve a ofrecerse en sus páginas y al asignar suscripciones.`,
+                icon: 'question',
+                confirmButtonText: 'Sí, dar de alta',
+                cancelButtonText: 'No'
+            },
+            data: { opc: 'togglePlan', id: id, active: 1 },
+            methods: { send: (r) => afterSave(r, () => this.afterPlanSave()) }
+        });
+    }
+
+    // Solo si nadie lo contrató nunca: borrarlo se llevaría sus suscripciones y pagos.
+    deletePlan(id) {
+        const p    = this.planById(id);
+        const subs = Number(p.subscriptions) || 0;
+
+        // Swal directo: alert() pinta el texto blanco (es para tema oscuro).
+        if (subs) {
+            Swal.fire({
+                icon: 'info',
+                title: 'No se puede eliminar',
+                text: `«${p.name || 'Plan'}» tiene ${subs} ${subs === 1 ? 'suscripción' : 'suscripciones'} en su historial. Eliminarlo borraría también sus pagos: déjalo de baja.`,
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: 'rgb(var(--brand-600, 192 90 64))',
+                heightAuto: false,
+                scrollbarPadding: false
+            });
+            return;
+        }
+
+        this.swalQuestion({
+            opts: {
+                title: '¿Eliminar el plan por completo?',
+                text: `«${p.name || 'Plan'}» se borra junto con sus módulos y sus páginas. No se puede deshacer.`,
+                icon: 'warning',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'No'
+            },
+            data: { opc: 'deletePlan', id: id },
             methods: { send: (r) => afterSave(r, () => this.afterPlanSave()) }
         });
     }
