@@ -24,9 +24,23 @@
     <!-- Pestañas y modal de CostSys: cuelgan sus metodos de Templates. Van antes del modulo. -->
     <script src="<?= $asset('assets/components/cs-tabs.js') ?>"></script>
     <script src="<?= $asset('assets/components/cs-modal.js') ?>"></script>
+    <?php foreach ($proComponents ?? [] as $name): ?>
+    <script src="<?= $asset('assets/components/' . $name . '.js') ?>"></script>
+    <?php endforeach; ?>
 
-    <!-- Lo comun de Inventarios y luego la pagina. -->
-    <?php foreach (['inventarios', $script] as $name): ?>
+    <!-- $cdnJs: librerías de fuera (FullCalendar en Requisiciones y Surtir). -->
+    <?php foreach ($cdnJs ?? [] as $src): ?>
+    <script src="<?= htmlspecialchars($src) ?>"></script>
+    <?php endforeach; ?>
+
+    <!-- $pageJs: archivos de otro módulo, desde pro/ (la foto del Catálogo de venta). -->
+    <?php foreach ($pageJs ?? [] as $file): ?>
+    <script src="<?= $asset($file) ?>"></script>
+    <?php endforeach; ?>
+
+    <!-- Lo comun de Inventarios, la captura de inventory que use la pagina, sus pestañas
+         ($tabs: una clase por archivo, como el Catálogo de venta) y luego la pagina. -->
+    <?php foreach (array_merge(['inventarios'], array_map(function ($c) { return 'components/' . $c; }, $components ?? []), $tabs ?? [], [$script]) as $name): ?>
     <script src="src/js/<?= $name ?>.js?v=<?= filemtime(__DIR__ . '/../src/js/' . $name . '.js') ?>"></script>
     <?php endforeach; ?>
 </body>

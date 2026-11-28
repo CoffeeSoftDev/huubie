@@ -61,9 +61,15 @@ body:not(.dark-mode) .cs-tabs-panels > div {
     box-shadow: var(--shadow-card);
 }
 
-body:not(.dark-mode) button.cs-tab { color: var(--ink-dim); border-radius: 10px 10px 0 0; transition: color .15s ease, border-color .15s ease, background .15s ease; }
-body:not(.dark-mode) button.cs-tab:hover { color: rgb(var(--brand-600, 80 48 165)); background: var(--tint); }
-body:not(.dark-mode) button.cs-tab.is-active { color: rgb(var(--brand-600, 80 48 165)); }
+/* Como CostSys (28/11/2026): sin relleno. Al pasar el cursor solo se oscurece
+   la letra; la seleccionada va en el color de la marca, con su línea abajo y
+   el contador teñido (cs-tabs.js). El fondo tenue se confundía con un hover. */
+button.cs-tab,
+button.cs-tab:hover,
+button.cs-tab.is-active { border-radius: 0; background: none; }
+body:not(.dark-mode) button.cs-tab { color: var(--ink-dim); transition: color .15s ease, border-color .15s ease; }
+body:not(.dark-mode) button.cs-tab:hover { color: var(--ink); }
+body:not(.dark-mode) button.cs-tab.is-active { color: rgb(var(--brand-600, 80 48 165)); border-bottom-color: rgb(var(--brand-600, 80 48 165)); }
 body:not(.dark-mode) .cs-tab-count { background: rgb(var(--gray-100, 243 244 246)); color: var(--ink-dim); }
 
 

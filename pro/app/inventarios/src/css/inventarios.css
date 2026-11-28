@@ -1,456 +1,97 @@
-/*  Inventarios: la misma página de Catálogo (catalogo.css carga antes que
-    esta). Aquí solo va lo que Catálogo amarra a sus ids (#tabbarCatalogo,
-    #modalProduct) y lo propio: resumen sobre la tabla, detalle de un
-    documento (con la ruta y el historial del traspaso), rejilla de captura y
-    foto de evidencia. */
+/*  Inventarios: la interfaz es la de inventory/ (visor .cs-visor) y sus clases
+    ya viven en las hojas de pro (general.css, table.css, dark-mode.css). Aquí
+    solo lo que esas hojas no traen. */
 
-/* -- Pestañas: enteras, sin esquinas ni aro (las de Catálogo) -- */
-#tabbarInv button.cs-tab,
-#tabbarInv .cs-tab-count,
-#headerInv .cp-pagina-subtitulo {
-    font-size: 1rem;
-}
-
-#tabbarInv button.cs-tab {
-    border-radius: 0;
-}
-
-#tabbarInv button.cs-tab:hover {
-    background: none;
-}
-
-#tabbarInv button.cs-tab:focus,
-#tabbarInv button.cs-tab:focus-visible {
-    outline: none;
-    box-shadow: none;
-}
-
-#tabbarInv button.cs-tab.is-active,
-#tabbarInv button.cs-tab.is-active:hover {
-    background: rgb(var(--brand-600, 192 90 64) / .08);
-}
-
-#tabbarInv button.cs-tab:focus-visible:not(.is-active) {
-    background: rgb(var(--brand-600, 192 90 64) / .05);
-}
-
-/* -- Tablas a 12px (lo que el f_size del JS no alcanza) -- */
-#tabbarInv .cs-tabs-panels table,
-.inv-detalle table {
-    font-size: 12px !important;
-}
-
-#tabbarInv .cs-tabs-panels table .text-xs,
-#tabbarInv .cs-tabs-panels table .text-sm,
-#tabbarInv .cs-tabs-panels table .cp-celda-sub,
-#tabbarInv .cs-tabs-panels table .cp-chip,
-.inv-detalle table .cp-celda-sub,
-.inv-detalle table .cp-chip {
-    font-size: inherit !important;
-}
-
-/* El folio (ENT-CUA-0001, TRA-CUA-0001) no se parte en renglones. */
-#tbInflows td:first-child .cp-celda-titulo,
-#tbPending td:first-child .cp-celda-titulo,
-#tbOutflows td:first-child .cp-celda-titulo,
-#tbLoss td:first-child .cp-celda-titulo,
-#tbTrOut td:first-child .cp-celda-titulo,
-#tbTrPending td:first-child .cp-celda-titulo,
-#tbTrIn td:first-child .cp-celda-titulo,
-#tbMoves td:nth-child(3) .cp-celda-titulo {
+/* La tabla del visor no parte el folio (ENT-CUA-0001, TRA-CUA-0001) en renglones. */
+.cs-visor #tableWrap td:first-child a {
     white-space: nowrap;
 }
 
-/* -- Resumen sobre la tabla: «12 productos · 3 bajo mínimo · Valor $4,520.00» -- */
-.inv-resumen {
-    display: flex;
-    flex-wrap: wrap;
+/* Catálogo de insumos: diez pestañas. Más juntas que en el Catálogo de venta
+   para que quepan en una fila; con la ventana angosta se recorren de lado. */
+#tabbarCatalogo.cp-tabs-juntas button.cs-tab {
     gap: 6px;
-    margin: 0 0 10px;
+    padding: 14px 8px;
+    font-size: 13.5px;
 }
 
-.inv-resumen:empty {
-    display: none;
-}
-
-.inv-chip {
-    display: inline-flex;
+/* -- Ficha de inventario (components/ficha-inventario.js) --
+   Stock › «Abrir ficha» y Catálogo de insumos › Productos. Arriba la foto y lo
+   que no se toca; abajo la sección Inventario. */
+#modalFicha .inv-ficha-head {
+    display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 10px;
-    border: 1px solid rgb(var(--gray-200, 226 232 240));
-    border-radius: 999px;
-    background: rgb(var(--gray-50, 248 250 252));
-    font-size: 1rem;
-    white-space: nowrap;
-    color: rgb(var(--gray-500, 107 114 128));
-}
-
-.inv-chip b {
-    font-weight: 700;
-    color: rgb(var(--gray-800, 31 41 55));
-}
-
-.inv-chip--amber {
-    border-color: #FDE68A;
-    background: #FFFBEB;
-    color: #B45309;
-}
-
-.inv-chip--amber b {
-    color: #92400E;
-}
-
-.inv-chip--red {
-    border-color: #FECACA;
-    background: #FEF2F2;
-    color: #B91C1C;
-}
-
-.inv-chip--red b {
-    color: #991B1B;
-}
-
-.inv-vacio {
-    padding: 40px 16px;
-    border: 1px dashed rgb(var(--gray-300, 203 213 225));
-    border-radius: 14px;
-    text-align: center;
-    font-size: 1rem;
-    color: rgb(var(--gray-500, 107 114 128));
-}
-
-/* -- Detalle de un documento (csModal con body) -- */
-.inv-detalle {
-    padding: 16px 24px 4px;
-}
-
-.inv-datos {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 10px 16px;
-    margin-bottom: 16px;
-}
-
-.inv-dato {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-/* Solo la etiqueta: un chip dentro del valor (Estado) no va en mayúsculas. */
-.inv-dato > span {
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    color: #9CA3AF;
-}
-
-.inv-dato b {
-    font-size: 1rem;
-    font-weight: 600;
-    overflow-wrap: anywhere;
-    color: rgb(var(--gray-800, 31 41 55));
-}
-
-.inv-dato small {
-    font-weight: 400;
-    color: #9CA3AF;
-}
-
-/* Ruta del traspaso: de dónde sale → a dónde va. */
-.inv-ruta {
-    display: flex;
-    align-items: stretch;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.inv-ruta-lado {
-    display: flex;
-    flex: 1 1 0;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    padding: 10px 14px;
-    border: 1px solid rgb(var(--gray-200, 226 232 240));
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid #E5E7EB;
     border-radius: 12px;
+    background: #F9FAFB;
 }
 
-.inv-ruta-lado.es-mia {
-    border-color: rgb(var(--brand-600, 192 90 64) / .35);
-    background: rgb(var(--brand-600, 192 90 64) / .05);
-}
-
-.inv-ruta-lado span {
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    color: #9CA3AF;
-}
-
-.inv-ruta-lado b {
-    font-size: 1rem;
-    font-weight: 600;
-    overflow-wrap: anywhere;
-    color: rgb(var(--gray-800, 31 41 55));
-}
-
-.inv-ruta-lado small {
-    font-size: 1rem;
-    color: #9CA3AF;
-}
-
-.inv-ruta-flecha {
-    flex-shrink: 0;
-    align-self: center;
-    width: 20px;
-    height: 20px;
-    color: #9CA3AF;
-}
-
-/* Historial del traspaso: un punto del color del estado por cada cambio. */
-.inv-historial {
-    margin-top: 16px;
-}
-
-.inv-historial-titulo {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    color: #9CA3AF;
-}
-
-.inv-historial ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.inv-historial li {
-    position: relative;
-    display: flex;
-    gap: 10px;
-    padding: 0 0 12px;
-}
-
-.inv-historial li:not(:last-child)::before {
-    content: '';
-    position: absolute;
-    top: 14px;
-    bottom: 0;
-    left: 4px;
-    width: 2px;
-    background: rgb(var(--gray-200, 226 232 240));
-}
-
-.inv-historial-punto {
-    flex-shrink: 0;
-    width: 10px;
-    height: 10px;
-    margin-top: 5px;
-    border-radius: 999px;
-}
-
-.inv-historial b {
-    font-size: 1rem;
-    font-weight: 600;
-    color: rgb(var(--gray-800, 31 41 55));
-}
-
-.inv-historial small {
-    margin-left: 6px;
-    font-size: 1rem;
-    color: #9CA3AF;
-}
-
-.inv-historial p {
-    margin: 2px 0 0;
-    font-size: 1rem;
-    color: rgb(var(--gray-600, 75 85 99));
-}
-
-/* Aviso de una línea: pendiente, cancelada, qué hace el tipo elegido. */
-.inv-aviso {
-    margin: 0 0 12px;
-    padding: 8px 12px;
+#modalFicha .inv-ficha-foto {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
     border-radius: 10px;
-    background: rgb(var(--brand-600, 192 90 64) / .07);
-    font-size: 1rem;
-    color: rgb(var(--gray-600, 75 85 99));
+    object-fit: cover;
+    background: #F1F5F9;
 }
 
-.inv-aviso:empty,
-.inv-aviso.hidden {
-    display: none;
-}
-
-/* -- Formularios de captura -- */
-
-/* compact.css deja select y textarea en .8rem (por .text-sm): igual que #modalProduct. */
-#modalInflow select,
-#modalInflow textarea,
-#modalOutflow select,
-#modalOutflow textarea,
-#modalTransfer select,
-#modalTransfer textarea,
-#modalReceive textarea,
-#modalSetting select {
-    font-size: 1rem !important;
-    line-height: 1.25 !important;
-}
-
-/* La rejilla de captura es la de Paquetes; aquí con más columnas. */
-.inv-rej {
-    max-height: 360px;
-}
-
-/* compact.css deja las celdas en .8rem: aquí al tamaño de los campos. */
-.cp-rej.inv-rej td {
-    font-size: 1rem !important;
-}
-
-.inv-rej #gridRows tr:nth-child(even) td {
-    background: rgb(var(--gray-50, 248 250 252));
-}
-
-.inv-rej .inv-rej-falta.hidden {
-    display: none;
-}
-
-.inv-rej .inv-rej-costo {
-    width: 110px;
-}
-
-.inv-rej .inv-rej-lote {
-    width: 120px;
-}
-
-.inv-rej .inv-rej-cad {
-    width: 150px;
-}
-
-.inv-rej td.cp-celda-sub {
-    color: #9CA3AF;
-}
-
-/* -- Foto de evidencia (mermas) -- */
-.inv-foto {
+#modalFicha .inv-ficha-foto--vacia {
     display: flex;
     align-items: center;
-    gap: 12px;
-    min-height: 38px;
+    justify-content: center;
+    font-size: 24px;
+    color: #94A3B8;
 }
 
-button.inv-foto-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 38px;
-    padding: 0 14px;
-    border: 1px dashed #CBD5E1;
-    border-radius: 8px;
-    background: #fff;
-    font-size: 1rem;
-    font-weight: 500;
-    color: #4B5563;
+#modalFicha .inv-ficha-nombre {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1F2937;
 }
 
-button.inv-foto-btn:hover {
-    border-color: rgb(var(--brand-600, 192 90 64));
-    color: rgb(var(--brand-600, 192 90 64));
+#modalFicha .inv-ficha-meta {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: #6B7280;
 }
 
-.inv-foto-mini {
-    width: 56px;
-    height: 56px;
-    border-radius: 8px;
-    object-fit: cover;
-    cursor: pointer;
+#modalFicha .inv-ficha-off {
+    opacity: .5;
 }
 
-.inv-foto-mini.hidden {
-    display: none;
-}
-
-/* -- Oscuro -- */
-body.dark-mode #tabbarInv .cs-tabs-panels > div {
-    background: var(--dk-card, #1F2A37) !important;
-    box-shadow: none;
-}
-
-body.dark-mode #tabbarInv .cs-tabs,
-body.dark-mode #tabbarInv .cs-tabs-panels > div {
-    border: 0;
-}
-
-body.dark-mode #tabbarInv button.cs-tab.is-active,
-body.dark-mode #tabbarInv button.cs-tab.is-active:hover {
-    background: rgb(var(--brand-600, 192 90 64) / .20);
-}
-
-body.dark-mode .inv-chip {
-    border-color: var(--dk-line, #374151);
+body.dark-mode #modalFicha .inv-ficha-head {
     background: transparent;
-    color: var(--dk-muted, #9CA3AF);
+    border-color: var(--dk-line, #374151);
 }
 
-body.dark-mode .inv-chip b,
-body.dark-mode .inv-dato b,
-body.dark-mode .inv-ruta-lado b,
-body.dark-mode .inv-historial b {
+body.dark-mode #modalFicha .inv-ficha-nombre {
     color: var(--dk-text, #F3F4F6);
 }
 
-body.dark-mode .inv-ruta-lado {
+/* Los títulos de sección, como la ficha del Catálogo de venta. */
+#modalFicha .inv-ficha-seccion {
+    margin-top: 20px;
+}
+
+#modalFicha .inv-ficha-seccion:first-child {
+    margin-top: 4px;
+}
+
+#modalFicha .inv-ficha-seccion p {
+    margin: 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #F1F5F9;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #6B7280;
+}
+
+body.dark-mode #modalFicha .inv-ficha-seccion p {
     border-color: var(--dk-line, #374151);
-}
-
-body.dark-mode .inv-ruta-lado.es-mia {
-    border-color: rgb(var(--brand-300, 232 166 143) / .35);
-    background: rgb(var(--brand-300, 232 166 143) / .08);
-}
-
-body.dark-mode .inv-historial li:not(:last-child)::before {
-    background: var(--dk-line, #374151);
-}
-
-body.dark-mode .inv-historial p {
-    color: var(--dk-text-soft, #D1D5DB);
-}
-
-body.dark-mode .inv-chip--amber {
-    border-color: rgb(180 83 9 / .5);
-    color: #FBBF24;
-}
-
-body.dark-mode .inv-chip--red {
-    border-color: rgb(185 28 28 / .5);
-    color: #F87171;
-}
-
-body.dark-mode .inv-aviso {
-    background: rgb(var(--brand-300, 232 166 143) / .10);
-    color: var(--dk-text-soft, #D1D5DB);
-}
-
-body.dark-mode .inv-rej #gridRows tr:nth-child(even) td {
-    background: rgb(255 255 255 / .03);
-}
-
-body.dark-mode button.inv-foto-btn {
-    background: transparent;
-    border-color: var(--dk-line-hi, #4B5563);
-    color: var(--dk-text-soft, #D1D5DB);
-}
-
-body.dark-mode .inv-vacio {
-    border-color: var(--dk-line-hi, #4B5563);
     color: var(--dk-muted, #9CA3AF);
 }

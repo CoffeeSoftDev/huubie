@@ -4,6 +4,8 @@
 --           del Catalogo (fayxzvov_pos.product); se quitaron item e item_category.
 --           rev 24/11/2026: traspaso con receive_note y moved_at; la vista dice a
 --           que almacen va o de cual viene.
+--           rev 27/11/2026: el renglon de una produccion confirmada en 0 no sale
+--           en el kardex (no movio nada).
 -- Pantallas: pro/app/inventarios (stock.php, entradas.php, salidas.php,
 --           traspasos.php, kardex.php)
 -- Origen:   app/inventarios (generacion alpha, BD fayxzvov_reginas, modo FAKE)
@@ -1010,7 +1012,7 @@ SELECT CONCAT('IN-', d.id)        AS movement_uid,
   FROM detail_inventory_inflow d
   JOIN inventory_inflow r ON r.id = d.inventory_inflow_id
   LEFT JOIN inflow_origin o ON o.id = r.inflow_origin_id
- WHERE d.active = 1 AND r.active = 1
+ WHERE d.active = 1 AND r.active = 1 AND d.quantity > 0
    AND (r.status = 'applied' OR (r.status = 'cancelled' AND d.cancel_resulting_stock IS NOT NULL))
 UNION ALL
 SELECT CONCAT('IN-X-', d.id), 'CANCELACION', r.folio, CONCAT('Cancelación de entrada: ', IFNULL(r.cancel_reason, '')), r.note,
@@ -1113,7 +1115,7 @@ INSERT INTO `inflow_origin`
 
 INSERT INTO `outflow_reason`
   (`code`, `name`, `description`, `icon`, `color_hex`, `is_loss`, `requires_evidence`, `requires_department`, `is_system`, `sort_order`) VALUES
-  ('CONSUMO',          'Consumo de producción',  'Insumos que usa un departamento para producir.',       'chef-hat',        '#C05A40', 0, 0, 1, 0, 1),
+  ('CONSUMO',          'Consumo de producción',  'Insumos que se usan para producir.',                    'chef-hat',        '#C05A40', 0, 0, 0, 0, 1),
   ('PEDIDO_COMP',      'Pedido complementario',  'Material extra para un pedido especial.',              'cake',            '#B45309', 0, 0, 0, 0, 2),
   ('DEGUSTACION',      'Degustación',            'Producto que se da a probar.',                         'utensils',        '#7C3AED', 0, 0, 0, 0, 3),
   ('MERMA',            'Merma',                  'Pérdida sin otra clasificación.',                      'trash-2',         '#E11D48', 1, 1, 0, 0, 4),

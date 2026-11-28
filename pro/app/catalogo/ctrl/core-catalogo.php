@@ -2,16 +2,22 @@
 require_once __DIR__ . '/../../../core/security/_Session.php';
 require_once __DIR__ . '/../../../core/security/_Permission.php';
 require_once __DIR__ . '/../mdl/mdl-catalogo.php';
+require_once __DIR__ . '/../../inventarios/mdl/trait-ficha-inventario.php';
 
-/*  Base de los ctrl del Catalogo: una pestaña = un ctrl que extiende esta clase.
+/*  Base de los ctrl del Catalogo de venta: una pestaña = un ctrl que extiende esta clase.
 
     Permission::dispatch solo ejecuta los metodos declarados en la clase ctrl de
     cada archivo. Por eso aqui todo es protected y las operaciones (ls*, get*,
     add*, edit*, status*) se escriben publicas en cada ctrl.
 
     Ojo: dispatch valida la seccion 'catalogo', no cada accion. Quien entra a la
-    seccion puede hacer todas las operaciones. */
+    seccion puede hacer todas las operaciones.
+
+    FichaInventario: la sección Inventario de la ficha del producto (área,
+    mínimo, máximo, lotes). La misma que usan el Catálogo de insumos y Stock. */
 class core extends mdl {
+
+    use FichaInventario;
 
     private $scopeCache = null;
     private $mainCache  = null;
@@ -254,6 +260,9 @@ class core extends mdl {
     // null si la categoría sirve; si no, la respuesta de error. $keepId: la que ya tenía (se acepta inactiva).
     protected function categoryProblem($categoryId, $keepId = 0) {
         if ($categoryId === null) return null;
+
+        // La que ya tenía se queda aunque sea de la Matriz (la sucursal no la puede elegir de nuevo).
+        if ((int) $keepId > 0 && $categoryId === (int) $keepId) return null;
 
         $category = $this->qGetCategory($categoryId, $this->branchId());
 

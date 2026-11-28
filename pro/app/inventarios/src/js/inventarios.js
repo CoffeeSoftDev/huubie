@@ -77,9 +77,11 @@ Templates.prototype.viewHeader = function (options) {
     if (window.lucide) lucide.createIcons();
 };
 
-// -- Tarjetas KPI (clic = su desglose) --
+// -- Tarjetas KPI grandes (Entradas y Salidas; clic = su desglose) --
+// Las de inventory/entradas y salidas: número grande a la derecha. Traspasos y
+// Movimientos usan el kpisRow del core (chico, con tarjeta activa).
 
-Templates.prototype.kpisRow = function (options) {
+Templates.prototype.invKpisRow = function (options) {
     const defaults = {
         parent:     'root',
         id:         'kpisRow',

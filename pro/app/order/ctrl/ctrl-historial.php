@@ -987,6 +987,9 @@ class ctrl extends core {
 
                 if ($clawed > 0.005) $this->moveWallet($pointsTo, -$clawed, 'cancelSale points');
 
+                // Lo que la venta sacó del almacén regresa (core::invSaleBack).
+                $this->invSaleBack($id, "Venta V{$id} cancelada: {$reason}");
+
                 return $this->ok($message, ['id' => $id, 'returned' => $open, 'wallet' => round($closed + $purse, 2), 'credit' => $debt, 'points' => $clawed]);
             });
         }, 'No se pudo cancelar la venta.');

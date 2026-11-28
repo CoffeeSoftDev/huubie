@@ -77,38 +77,139 @@ class Categories extends Templates {
     }
 
     // -- Formulario --
+    // Datos de la categoría y el ícono que se ve en el POS (Ventas, pedidos y tienda en línea).
 
-    jsonForm(row = {}) {
+    jsonForm(row, options) {
+        const data = { name: '', description: '', icon: '', ...row };
+
         return [
-            { id: 'name', lbl: 'Nombre', tipo: 'text', required: true, maxlength: 255, class: 'w-full', value: row.name || '' },
-            { id: 'description', lbl: 'Descripción', tipo: 'textarea', rows: 3, maxlength: 1000, class: 'w-full', value: row.description || '' }
+            { id: 'name', lbl: 'Nombre', tipo: 'text', required: true, maxlength: 255, class: 'w-full', value: data.name },
+            { id: 'description', lbl: 'Descripción', tipo: 'textarea', rows: 3, maxlength: 1000, class: 'w-full', value: data.description },
+            { id: 'catSecIcon', tipo: 'html', class: 'w-full cp-seccion', html: '<p>Cómo se ve en el POS</p>' },
+            { id: 'catPreview', tipo: 'html', class: 'w-full', html: this.previewHtml() },
+            { id: 'catIcons', tipo: 'html', class: 'w-full', html: this.iconsHtml(options.icons, data.icon) }
         ];
     }
 
-    add() {
+    // -- Ícono --
+
+    previewHtml() {
+        return ''
+            + '<div class="cp-pm-muestra">'
+            +   '<span class="cp-pm-badge cp-pm-badge--lg cp-cat-badge" id="catPreviewBadge"></span>'
+            +   '<div class="min-w-0">'
+            +     '<div class="cp-celda-titulo" id="catPreviewName"></div>'
+            +     '<div class="cp-celda-sub" id="catPreviewNote"></div>'
+            +   '</div>'
+            + '</div>';
+    }
+
+    // El SVG de cada ícono lo arma el servidor (formOptions): mismo dibujo que la tabla.
+    iconsHtml(icons, current) {
+        const buttons = (icons || []).map((icon) => {
+            const on = icon.id === current;
+
+            return `<button type="button" class="cp-pm-icono${on ? ' is-active' : ''}" data-icon="${esc(icon.id)}"`
+                 + ` title="${esc(icon.valor)}" aria-label="${esc(icon.valor)}" aria-pressed="${on}">${icon.svg}</button>`;
+        }).join('');
+
+        return ''
+            + '<label class="block text-xs font-semibold text-gray-500 mb-1.5">Ícono</label>'
+            + `<div class="cp-pm-iconos" role="group" aria-label="Ícono de la categoría">${buttons}</div>`
+            + '<p class="cp-pm-nota">Sin elegir, el POS pone uno según el nombre. Otro clic sobre el elegido lo quita.</p>';
+    }
+
+    // Ícono marcado en la rejilla, o '' (el servidor guarda NULL = automático).
+    pickedIcon() {
+        return String($('#modalCategory .cp-pm-icono.is-active').data('icon') || '');
+    }
+
+    // El automático: mismas reglas que el POS (OrderForm.categoryIcon), mandadas por el servidor.
+    autoIcon(name, options) {
+        const text = String(name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+        const rule = (options.autoRules || []).find((r) => new RegExp(r.pattern).test(text));
+
+        return rule ? rule.icon : options.autoDefault;
+    }
+
+    paintPreview(options) {
+        const modal  = $('#modalCategory');
+        const name   = String(modal.find('#name').val() || '').trim();
+        const picked = this.pickedIcon();
+        const show   = picked || this.autoIcon(name, options);
+        const icon   = (options.icons || []).find((i) => i.id === show);
+
+        modal.find('#catPreviewBadge').html(icon ? icon.svg : '').toggleClass('is-chosen', picked !== '');
+        modal.find('#catPreviewName').text(name || 'Nombre de la categoría');
+        modal.find('#catPreviewNote').text(picked ? 'Ícono elegido' : 'Automático, según el nombre');
+    }
+
+    // Un clic marca el ícono; otro clic sobre el mismo lo quita (vuelve al automático).
+    bindIcon(options) {
+        const modal   = $('#modalCategory');
+        const repaint = () => this.paintPreview(options);
+
+        modal.on('click', '.cp-pm-icono', (e) => {
+            const button = $(e.currentTarget);
+            const on     = !button.hasClass('is-active');
+
+            modal.find('.cp-pm-icono').removeClass('is-active').attr('aria-pressed', 'false');
+            button.toggleClass('is-active', on).attr('aria-pressed', String(on));
+            repaint();
+        });
+
+        modal.on('input', '#name', repaint);
+
+        repaint();
+    }
+
+    async formOptions() {
+        const options = await useFetch({ url: this._link, data: { opc: 'formOptions' } });
+
+        if (!options || options.status != 200) {
+            notify(options);
+            return null;
+        }
+
+        return options;
+    }
+
+    async add() {
+        const options = await this.formOptions();
+
+        if (!options) return;
+
         this.csModal({
             id: 'modalCategory',
             title: 'Nueva categoría',
             subtitle: 'Agrupa los productos de esta sucursal',
             lucideIcon: 'folder-plus',
-            json: this.jsonForm(),
+            json: this.jsonForm({}, options),
             onSave: (values, close) => this.save('addCategory', values, close)
         });
+
+        this.bindIcon(options);
     }
 
     async edit(id) {
-        const response = await useFetch({ url: this._link, data: { opc: 'getCategory', id } });
+        const [response, options] = await Promise.all([
+            useFetch({ url: this._link, data: { opc: 'getCategory', id } }),
+            this.formOptions()
+        ]);
 
         if (!response || response.status != 200) return notify(response);
+        if (!options) return;
 
         this.csModal({
             id: 'modalCategory',
             title: 'Editar categoría',
-            subtitle: 'Cambia el nombre o la descripción',
+            subtitle: 'Cambia el nombre, la descripción o el ícono',
             lucideIcon: 'folder-pen',
-            json: this.jsonForm(response.data),
+            json: this.jsonForm(response.data, options),
             onSave: (values, close) => this.save('editCategory', { ...values, id }, close)
         });
+
+        this.bindIcon(options);
     }
 
     save(opc, values, close) {
@@ -117,8 +218,11 @@ class Categories extends Templates {
             return;
         }
 
+        // El ícono vive en la rejilla (no es un campo del formulario).
+        const data = { opc, ...values, icon: this.pickedIcon() };
+
         return saveFrom('modalCategory', async () => {
-            const response = await useFetch({ url: this._link, data: { opc, ...values } });
+            const response = await useFetch({ url: this._link, data });
 
             if (response && response.status == 200) {
                 close();

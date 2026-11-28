@@ -520,9 +520,10 @@ class OrderForm extends Templates {
         this.looks  = {};
         this.photos = {};
 
+        // El ícono elegido en Catálogo › Categorías; sin él, el que toca por el nombre.
         const categories = (this.opts.categories || []).map((c) => {
             const name = this.categoryName(c.name);
-            const look = { icon: this.categoryIcon(name), tone: tone };
+            const look = { icon: c.icon || this.categoryIcon(name), tone: tone };
 
             this.looks[c.id] = look;
 

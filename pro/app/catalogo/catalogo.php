@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../core/security/_Permission.php';
 // Sin sesion al login; sin la seccion 'catalogo', a su inicio.
 Permission::page('catalogo', '../../');
 
-$title  = 'Catálogo';
+$title  = 'Catálogo de venta';
 $script = 'catalogo';
 
 require __DIR__ . '/layout/head.php';

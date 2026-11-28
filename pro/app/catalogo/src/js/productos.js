@@ -1,5 +1,8 @@
 // -- Pestaña Productos --
 // Las globales (products, dataInit) y los ayudantes (notify, afterSave, saveFrom, esc) viven en catalogo.js.
+// Inventario (propuesta B, 28/11/2026): la ficha trae toda su sección (unidad,
+// vida útil, área, mínimo, máximo y lotes). La tabla solo dice si lo lleva:
+// se marca en la ficha o en Inventarios › Catálogo de insumos.
 
 class Products extends Templates {
 
@@ -9,6 +12,7 @@ class Products extends Templates {
         this.tab = 'products';
         this.categories = [];
         this.origins = [];
+        this.inventoryFilter = [];
         this.isMain = true;
         this.mainName = '';
     }
@@ -30,15 +34,17 @@ class Products extends Templates {
         // render() sigue esperando las opciones: él termina de pintar.
         if (!$('#prod_active').length) return;
 
-        const category = $('#prod_category_id').val();
-        const active   = $('#prod_active').val();
-        const origin   = $('#prod_origin').val();
+        const category  = $('#prod_category_id').val();
+        const active    = $('#prod_active').val();
+        const origin    = $('#prod_origin').val();
+        const inventory = $('#prod_inventory').val();
 
         await this.loadFilter();
         this.filterBar();
         this.restoreFilter('prod_category_id', category);
         this.restoreFilter('prod_active', active);
         this.restoreFilter('prod_origin', origin);
+        this.restoreFilter('prod_inventory', inventory);
         this.ls();
     }
 
@@ -56,22 +62,9 @@ class Products extends Templates {
 
     // -- Vista previa de la foto --
 
-    // Nombre y SKU salen de la misma celda (cellTitle de ctrl-productos).
+    // Nombre y SKU salen de la misma celda (photoPreview, foto-producto.js).
     preview(img) {
-        const cell = $(img).parent();
-        const name = cell.find('.cp-celda-titulo').first().text();
-        const sku  = cell.find('.cp-celda-sub').first().text();
-
-        this.csModal({
-            id: 'modalProductPhoto',
-            title: name || 'Foto del producto',
-            subtitle: sku,
-            lucideIcon: 'image',
-            width: 'max-w-lg',
-            saveText: false,
-            cancelText: 'Cerrar',
-            body: `<div class="cp-foto-vista"><img src="${esc(img.currentSrc || img.src)}" alt="${esc(name)}"></div>`
-        });
+        photoPreview(this, img);
     }
 
     // -- Filtro --
@@ -82,10 +75,11 @@ class Products extends Templates {
 
         if (!response || response.status != 200) return;
 
-        this.categories = response.categories || [];
-        this.origins    = response.origins || [];
-        this.isMain     = response.isMain !== false;
-        this.mainName   = response.main || '';
+        this.categories      = response.categories || [];
+        this.origins         = response.origins || [];
+        this.inventoryFilter = response.inventory || [];
+        this.isMain          = response.isMain !== false;
+        this.mainName        = response.main || '';
     }
 
     originFilter() {
@@ -134,6 +128,15 @@ class Products extends Templates {
                     data: dataInit.statusFilter || [],
                     onchange: 'products.ls()'
                 },
+                {
+                    opc: 'select',
+                    id: 'inventory',
+                    lbl: 'Inventario',
+                    required: false,
+                    class: 'col-12 col-lg-2',
+                    data: this.inventoryFilter,
+                    onchange: 'products.ls()'
+                },
                 ...this.originFilter(),
                 {
                     opc: 'button',
@@ -146,8 +149,8 @@ class Products extends Templates {
         });
     }
 
+    // Columnas: Producto, Origen, Categoría, Tipo, Precio, Costo, Canales, Inventario, Estado.
     ls() {
-
         this.createTable({
             parent: 'containerProducts',
             idFilterBar: 'filterBarProducts',
@@ -161,7 +164,7 @@ class Products extends Templates {
                 design: 'flowbite',
                 striped: true,
                 right: [5, 6],
-                center: [4, 7, 8]
+                center: [4, 7, 8, 9]
             },
             success: (data) => {
                 if (data && data.count !== undefined) this.csTabCount(this.tab, data.count);
@@ -191,7 +194,8 @@ class Products extends Templates {
             categories: response.categories || [],
             subcategories: response.subcategories || [],
             kinds: response.kinds || [],
-            units: response.units || []
+            units: response.units || [],
+            areas: response.areas || []
         };
     }
 
@@ -202,44 +206,54 @@ class Products extends Templates {
         return list.filter((s) => String(s.category_id) === String(categoryId));
     }
 
-    // Como el producto de inventory: secciones y una rejilla de tercios, cada campo en su columna.
+    /*  Dos columnas (layoutColumns): a la izquierda qué es el producto y dónde
+        se vende; a la derecha, desde secPrice, el precio y el inventario. */
     jsonForm(options, row = {}) {
         const data = {
             name: '', kind: 'product', sku: '', barcode: '', category_id: '', subcategory_id: '',
             price: '', cost: '', description: '', sell_pos: 1, in_catalog: 0, is_inventoriable: 0,
-            unit_id: '', shelf_life_days: '',
+            unit_id: '', shelf_life_days: '', warehouse_area_id: '', stock_min: '', stock_max: '', track_lots: 0,
             ...row
         };
         const third = 'w-full sm:w-1/3';
+        const half  = 'w-full sm:w-1/2';
 
         return [
-            this.formSection('secIdentity', 'Identificación'),
+            // -- Columna izquierda --
+            // Nombre, categoría y subcategoría van junto a la foto (layoutIdentity).
             { id: 'name', lbl: 'Nombre', tipo: 'text', icon: 'package', required: true, maxlength: 255, class: 'w-full', value: data.name },
-            { id: 'kind', lbl: 'Tipo', tipo: 'select', empty: false, class: third, data: options.kinds, value: data.kind },
-            { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', class: third, data: options.categories, value: data.category_id },
+            { id: 'category_id', lbl: 'Categoría', tipo: 'select', empty: 'Sin categoría', class: half, data: options.categories, value: data.category_id },
             {
-                id: 'subcategory_id', lbl: 'Subcategoría', tipo: 'select', empty: 'Sin subcategoría', class: third,
+                id: 'subcategory_id', lbl: 'Subcategoría', tipo: 'select', empty: 'Sin subcategoría', class: half,
                 data: this.subcategoriesOf(options.subcategories, data.category_id), value: data.subcategory_id
             },
-            { id: 'sku', lbl: 'SKU', tipo: 'text', icon: 'hash', maxlength: 80, ph: 'Opcional', class: 'w-full sm:w-1/2', value: data.sku },
-            { id: 'barcode', lbl: 'Código de barras', tipo: 'text', icon: 'barcode', maxlength: 80, ph: 'Opcional', class: 'w-full sm:w-1/2', value: data.barcode },
+            { id: 'kind', lbl: 'Tipo', tipo: 'select', empty: false, class: third, data: options.kinds, value: data.kind },
+            { id: 'sku', lbl: 'SKU', tipo: 'text', icon: 'hash', maxlength: 80, ph: 'Opcional', class: third, value: data.sku },
+            { id: 'barcode', lbl: 'Código de barras', tipo: 'text', icon: 'barcode', maxlength: 80, ph: 'Opcional', class: third, value: data.barcode },
             { id: 'photoField', tipo: 'html', class: 'w-full', html: photoFieldHtml() },
             { id: 'description', lbl: 'Descripción', tipo: 'textarea', rows: 2, maxlength: 1000, class: 'w-full', value: data.description },
 
-            this.formSection('secPrice', 'Precio'),
-            { id: 'price', lbl: 'Precio de venta', tipo: 'number', icon: 'dollar-sign', required: true, min: 0, step: '0.01', ph: '0.00', class: third, value: data.price },
-            { id: 'cost', lbl: 'Costo', tipo: 'number', icon: 'dollar-sign', min: 0, step: '0.01', ph: '0.00', class: third, value: data.cost },
-
             // cp-switch: tarjetas del mismo alto aunque el texto de una ocupe dos renglones.
-            this.formSection('secChannels', 'Dónde se vende'),
-            { id: 'sell_pos', lbl: 'POS', tipo: 'switch', class: `${third} cp-switch`, value: data.sell_pos },
-            { id: 'in_catalog', lbl: 'Catálogo', tipo: 'switch', class: `${third} cp-switch`, value: data.in_catalog },
-            { id: 'is_inventoriable', lbl: 'Inventario', tipo: 'switch', class: `${third} cp-switch`, value: data.is_inventoriable },
+            this.formSection('secChannels', 'Se vende en'),
+            { id: 'sell_pos', lbl: 'POS', tipo: 'switch', class: `${half} cp-switch`, value: data.sell_pos },
+            { id: 'in_catalog', lbl: 'Catálogo en línea', tipo: 'switch', class: `${half} cp-switch`, value: data.in_catalog },
 
-            // Lo que usa el módulo Inventarios: en qué se cuenta y cuántos días dura (caducidad).
+            // -- Columna derecha --
+            this.formSection('secPrice', 'Precio'),
+            { id: 'price', lbl: 'Precio de venta', tipo: 'number', icon: 'dollar-sign', required: true, min: 0, step: '0.01', ph: '0.00', class: half, value: data.price },
+            { id: 'cost', lbl: 'Costo', tipo: 'number', icon: 'dollar-sign', min: 0, step: '0.01', ph: '0.00', class: half, value: data.cost },
+
+            // Todo lo que usa Inventarios. Sin «Lleva inventario» el área, el mínimo,
+            // el máximo y los lotes se guardan pero no se usan (bindInventory los apaga).
+            // «Lleva inventario» sube al renglón del título (layoutColumns).
             this.formSection('secInventory', 'Inventario'),
-            { id: 'unit_id', lbl: 'Unidad', tipo: 'select', empty: 'Sin unidad', class: third, data: options.units, value: data.unit_id },
-            { id: 'shelf_life_days', lbl: 'Vida útil (días)', tipo: 'number', icon: 'calendar-clock', min: 0, step: '1', ph: 'Opcional', class: third, value: data.shelf_life_days }
+            { id: 'is_inventoriable', lbl: 'Lleva inventario', tipo: 'switch', class: 'cp-inv-switch', value: data.is_inventoriable },
+            { id: 'unit_id', lbl: 'Unidad', tipo: 'select', empty: 'Sin unidad', class: half, data: options.units, value: data.unit_id },
+            { id: 'warehouse_area_id', lbl: 'Dónde se guarda', tipo: 'select', empty: 'Sin área', class: half, data: options.areas, value: data.warehouse_area_id },
+            { id: 'shelf_life_days', lbl: 'Vida útil (días)', tipo: 'number', min: 0, step: '1', ph: 'Opcional', class: third, value: data.shelf_life_days },
+            { id: 'stock_min', lbl: 'Mínimo', tipo: 'number', min: 0, step: '0.001', ph: '0', class: third, value: data.stock_min },
+            { id: 'stock_max', lbl: 'Máximo', tipo: 'number', min: 0, step: '0.001', ph: 'Sin máximo', class: third, value: data.stock_max },
+            { id: 'track_lots', lbl: 'Lote y caducidad', tipo: 'switch', class: 'w-full cp-switch', value: data.track_lots }
         ];
     }
 
@@ -248,9 +262,34 @@ class Products extends Templates {
         return { id, tipo: 'html', class: 'w-full cp-seccion', html: `<p>${esc(text)}</p>` };
     }
 
-    // Foto a la izquierda y la identificación a la derecha (photoBeside, catalogo.js).
+    // Foto a la izquierda; nombre, categoría y subcategoría a su lado (photoBeside, foto-producto.js).
     layoutIdentity() {
-        photoBeside('modalProduct', ['name', 'kind', 'category_id', 'subcategory_id', 'sku', 'barcode']);
+        photoBeside('modalProduct', ['name', 'category_id', 'subcategory_id']);
+    }
+
+    /*  Parte el cuerpo de csModal en dos columnas: todo lo que va desde
+        secPrice pasa al panel de la derecha. Solo mueve nodos: al guardar,
+        csModal lee cada campo por su #id. Cada columna es flex-wrap para que
+        bindInventory siga hallando el contenedor con .closest('.flex-wrap > div'). */
+    layoutColumns(options) {
+        const body  = $('#modalProduct .cs-modal-panel > .flex-wrap').first();
+        const right = body.children('#secPrice').nextAll().addBack();
+
+        const side = $('<div class="cp-cols-lado flex flex-wrap content-start"></div>').append(right);
+        const main = $('<div class="cp-cols-main flex flex-wrap content-start"></div>').append(body.children());
+
+        body.addClass('cp-cols').append(main, side);
+
+        // «Lleva inventario» en el renglón del título Inventario, a la derecha.
+        const head = $('<div class="w-full cp-inv-head"></div>').insertBefore(side.children('#secInventory'));
+
+        head.append(side.children('#secInventory'), side.find('#is_inventoriable').closest('.cp-inv-switch'));
+        head.find('.cp-inv-switch label').attr('title', 'Se descuenta del almacén al venderse');
+
+        // Sin áreas, la pista va al pasar el ratón: como texto de ayuda descuadraba el renglón.
+        if (!options.areas.length) {
+            $('#modalProduct #warehouse_area_id').attr('title', 'Las áreas se dan de alta en Inventarios › Catálogo de insumos.');
+        }
     }
 
     // Al cambiar la categoría, la subcategoría solo ofrece las suyas.
@@ -264,6 +303,29 @@ class Products extends Templates {
         });
     }
 
+    /*  Un servicio no se cuenta: se apaga «Lleva inventario» y no se deja
+        prender. Sin inventario, el área, el mínimo, el máximo y los lotes se
+        ven tenues y no se tocan (el ctrl tampoco los guarda). */
+    bindInventory() {
+        const modal  = $('#modalProduct');
+        const fields = '#warehouse_area_id, #stock_min, #stock_max, #track_lots';
+
+        const sync = () => {
+            const service = modal.find('#kind').val() === 'service';
+
+            if (service) modal.find('#is_inventoriable').prop('checked', false);
+
+            modal.find('#is_inventoriable').prop('disabled', service);
+
+            const on = modal.find('#is_inventoriable').is(':checked');
+
+            modal.find(fields).prop('disabled', !on).closest('.flex-wrap > div').toggleClass('cp-off', !on);
+        };
+
+        modal.on('change', '#kind, #is_inventoriable', sync);
+        sync();
+    }
+
     async add() {
         const options = await this.formOptions();
 
@@ -274,33 +336,16 @@ class Products extends Templates {
             title: 'Nuevo producto',
             subtitle: 'Algo que se vende en caja o en el catálogo en línea',
             lucideIcon: 'package-plus',
+            width: 'max-w-6xl',
             json: this.jsonForm(options),
             onSave: (values, close) => this.save('addProduct', values, close)
         });
 
+        this.layoutColumns(options);
         this.layoutIdentity();
         this.bindCategory(options.subcategories);
-        this.bindKind();
+        this.bindInventory();
         this.photo = mountPhoto('modalProduct');
-    }
-
-    /*  Insumo (harina, domos): no se vende, siempre lleva inventario. Al elegirlo se
-        apagan POS y Catálogo y se prende Inventario; el ctrl lo vuelve a forzar al guardar. */
-    bindKind() {
-        const modal = $('#modalProduct');
-        const sync  = () => {
-            const supply = modal.find('#kind').val() === 'supply';
-
-            if (supply) {
-                modal.find('#sell_pos, #in_catalog').prop('checked', false);
-                modal.find('#is_inventoriable').prop('checked', true);
-            }
-
-            modal.find('#sell_pos, #in_catalog, #is_inventoriable').prop('disabled', supply);
-        };
-
-        modal.on('change', '#kind', sync);
-        sync();
     }
 
     async edit(id) {
@@ -317,15 +362,17 @@ class Products extends Templates {
             title: 'Editar producto',
             subtitle: this.isMain
                 ? 'Lo que cambies aquí lo ven las sucursales que no tienen el suyo'
-                : 'Cambia sus datos, su precio o dónde se vende',
+                : 'Cambia sus datos, su precio, dónde se vende o su inventario',
             lucideIcon: 'package-plus',
+            width: 'max-w-6xl',
             json: this.jsonForm(options, response.data),
             onSave: (values, close) => this.save('editProduct', { ...values, id }, close)
         });
 
+        this.layoutColumns(options);
         this.layoutIdentity();
         this.bindCategory(options.subcategories);
-        this.bindKind();
+        this.bindInventory();
         this.photo = mountPhoto('modalProduct', response.data.image);
     }
 
@@ -335,16 +382,19 @@ class Products extends Templates {
     }
 
     save(opc, values, close) {
-        const warn = (text) => warnBox(text);
+        const warn  = (text) => warnBox(text);
         const price = String(values.price || '').trim();
-
-        // El insumo no se vende: sin precio vale 0.
-        const supply = values.kind === 'supply';
+        const max   = String(values.stock_max || '').trim();
 
         if (!String(values.name || '').trim()) return warn('Escribe el nombre del producto.');
-        if (!(supply && price === '') && (price === '' || !(Number(price) >= 0))) return warn('Escribe el precio de venta: un número mayor o igual a 0.');
+        if (price === '' || !(Number(price) >= 0)) return warn('Escribe el precio de venta: un número mayor o igual a 0.');
         if (this.badAmount(values.cost)) return warn('El costo debe ser un número mayor o igual a 0.');
         if (values.subcategory_id && !values.category_id) return warn('Elige primero la categoría de la subcategoría.');
+
+        if (Number(values.is_inventoriable) === 1) {
+            if (this.badAmount(values.stock_min) || this.badAmount(max)) return warn('El mínimo y el máximo deben ser números mayores o iguales a 0.');
+            if (max !== '' && Number(max) > 0 && Number(max) < Number(values.stock_min || 0)) return warn('El máximo debe ser mayor que el mínimo (o 0 para no tener máximo).');
+        }
 
         return saveFrom('modalProduct', async () => {
             const response = await useFetch({ url: this._link, data: { opc, ...values, ...this.photo } });

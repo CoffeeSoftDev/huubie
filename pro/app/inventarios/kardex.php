@@ -6,6 +6,7 @@ Permission::page('inv-kardex', '../../');
 
 $title  = 'Kárdex';
 $script = 'kardex';
+$visor  = true;
 
 require __DIR__ . '/layout/head.php';
 require __DIR__ . '/layout/scripts.php';

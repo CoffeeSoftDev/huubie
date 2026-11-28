@@ -2,8 +2,13 @@
 require_once __DIR__ . '/../../../core/security/_Session.php';
 require_once __DIR__ . '/../../../core/security/_Permission.php';
 require_once __DIR__ . '/../mdl/mdl-inventarios.php';
+require_once __DIR__ . '/../mdl/trait-ficha-inventario.php';
+require_once __DIR__ . '/../mdl/trait-kardex-cadena.php';
 
 /*  Base de los ctrl de Inventarios: una pagina = un ctrl que extiende esta clase.
+
+    FichaInventario: la sección Inventario de la ficha (área, mínimo, máximo,
+    lotes, grupo y proveedor). La misma regla que el Catálogo de venta.
 
     Permission::dispatch solo ejecuta los metodos publicos declarados en el ctrl
     de cada archivo: aqui todo es protected.
@@ -17,6 +22,8 @@ require_once __DIR__ . '/../mdl/mdl-inventarios.php';
     que habia y lo que quedo en el renglon y deja el kardex (vista
     inventory_movement) cuadrado. */
 class core extends mdl {
+
+    use FichaInventario, KardexCadena;
 
     const SECTION = '';
 
@@ -61,10 +68,24 @@ class core extends mdl {
     protected function mainBranchId() { return $this->scope()['main_id']; }
     protected function userId()       { return (int) Session::user(); }
 
+    // Todo opc empieza aquí: sin empresa o sucursal no hay inventario. De paso, la
+    // primera vez en la sesión le copia a la empresa la plantilla de los catálogos.
     protected function needBranch() {
-        if ($this->companyId() > 0 && $this->branchId() > 0) return null;
+        if ($this->companyId() > 0 && $this->branchId() > 0) {
+            $this->seedCatalogs();
+            return null;
+        }
 
         return ['status' => 409, 'message' => 'No hay una sucursal activa para el inventario.', 'row' => []];
+    }
+
+    private function seedCatalogs() {
+        $key = 'inv_seeded_' . $this->companyId();
+
+        if (!empty($_SESSION[$key])) return;
+
+        $this->qSeedCatalogs($this->companyId());
+        $_SESSION[$key] = 1;
     }
 
     // -- Permisos de la seccion --
@@ -158,40 +179,6 @@ class core extends mdl {
 
     protected function product($id) {
         return $this->qProduct((int) $id, $this->companyId(), $this->branchId(), $this->mainBranchId());
-    }
-
-    /*  Lo que la rejilla de captura necesita de cada producto. stock: lo que hay
-        en cada almacén de la sucursal ({warehouse_id: cantidad}). Sin
-        «ver-costos» el costo no viaja. */
-    protected function captureProducts() {
-        $byWarehouse = [];
-
-        foreach ($this->qStockRows(array_map('intval', array_column($this->warehouses(), 'id'))) as $row) {
-            $byWarehouse[(int) $row['product_id']][(int) $row['warehouse_id']] = round((float) $row['quantity'], 4);
-        }
-
-        $costs = $this->costs();
-
-        return array_map(function ($p) use ($byWarehouse, $costs) {
-            $id = (int) $p['id'];
-
-            return [
-                'id'        => $id,
-                'sku'       => (string) $p['sku'],
-                'valor'     => $p['name'],
-                'kind'      => $p['kind'],
-                'unit'      => $p['unit'] ?: 'PZA',
-                'decimals'  => (int) $p['decimals'],
-                'cost'      => $costs ? round((float) $p['cost'], 4) : null,
-                'lots'      => (int) $p['track_lots'],
-                'shelf'     => $p['shelf_life_days'] === null ? null : (int) $p['shelf_life_days'],
-                'stock'     => isset($byWarehouse[$id]) ? (object) $byWarehouse[$id] : (object) []
-            ];
-        }, $this->products());
-    }
-
-    protected function kindChip($kind) {
-        return $kind === 'supply' ? chip('Insumo', 'amber') : chip('Producto', 'slate');
     }
 
     // -- Folios por sucursal: ENT-KAF-0001 (dentro de la transaccion) --
@@ -558,55 +545,7 @@ class core extends mdl {
         return $rel . $name;
     }
 
-    // -- Celdas --
-
-    // Botón cuadrado de la fila (.cp-btn-icon de catalogo.css) con su ícono ya dibujado.
-    protected function rowButton($icon, $label, $onclick, $variant = '') {
-        return [
-            'class'      => 'cp-btn-icon' . ($variant !== '' ? ' cp-btn-icon--' . $variant : ''),
-            'html'       => $this->lucideSvg($icon),
-            'aria-label' => $label,
-            'onclick'    => $onclick
-        ];
-    }
-
-    protected function lucideSvg($name) {
-        $paths = [
-            'eye'     => '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
-            'check'   => '<path d="M20 6 9 17l-5-5"/>',
-            'ban'     => '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
-            'history' => '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
-            'sliders' => '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
-            'trash'   => '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
-            'package-check' => '<path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/>'
-        ];
-
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
-             . ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $paths[$name] . '</svg>';
-    }
-
-    // «Hoy» / «Ayer» / 22/11/2026, y la hora debajo.
-    protected function dateCell($date, $stamp = null) {
-        $today = $this->qNow()['today'];
-        $label = $date === $today ? 'Hoy' : ($date === date('Y-m-d', strtotime($today . ' -1 day')) ? 'Ayer' : date('d/m/Y', strtotime($date)));
-
-        return '<div>' . h($label) . '</div>' . ($stamp ? '<div class="cp-celda-sub">' . h(substr($stamp, 11, 5)) . '</div>' : '');
-    }
-
-    protected function statusChip($status) {
-        switch ($status) {
-            case 'pending':   return chip('Pendiente', 'amber');
-            case 'cancelled': return chip('Cancelada', 'red');
-            default:          return chip('Aplicada', 'emerald');
-        }
-    }
-
-    // Chip con el color guardado en el catálogo (orígenes y motivos).
-    protected function colorChip($text, $hex) {
-        $hex = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $hex) ? $hex : '#64748B';
-
-        return '<span class="cp-chip" style="background:' . $hex . '1A;color:' . $hex . '">' . h($text) . '</span>';
-    }
+    // -- Nombres y números --
 
     protected function names(array $rows, array $keys) {
         $ids = [];
@@ -618,12 +557,6 @@ class core extends mdl {
         }
 
         return $this->qUserNames(array_values($ids));
-    }
-
-    // Cantidad con su unidad, sin ceros de más: 12 PZA, 2.5 KG.
-    protected function qty($n, $unit = '') {
-        $text = $this->num($n);
-        return $unit ? $text . ' <span class="cp-celda-sub">' . h($unit) . '</span>' : $text;
     }
 
     // El número solo, sin ceros de más (para avisos y Antes / Quedó): 1,250.5
@@ -673,12 +606,10 @@ class core extends mdl {
         return $time ? $text . ' ' . date('h:i a', $time) : $text;
     }
 
-    // El folio subrayado que abre el visor: app.<fn>('ENT-CUA-0001', 12).
-    protected function folioLink($folio, $id, $fn) {
-        $label = h($folio);
-
-        return "<a href='#' onclick=\"app.{$fn}('{$label}', " . (int) $id . "); return false;\""
-             . " class='font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700'>{$label}</a>";
+    // El folio subrayado que abre el visor; $onclick: «app.selectEntrada('ENT-CUA-0001', 12)».
+    protected function folioLink($folio, $onclick) {
+        return "<a href='#' onclick=\"{$onclick}; return false;\""
+             . " class='font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700'>" . h($folio) . '</a>';
     }
 
     // Botón de la fila (ojo, lápiz...) con el ícono de Lucide.
@@ -718,6 +649,85 @@ class core extends mdl {
         $row['opc'] = 2;
 
         return $row;
+    }
+
+    // -- Ficha de inventario (Stock › «Abrir ficha» y Catálogo de insumos › Productos) --
+    /*  Lo de la ficha que se ve sin tocarse (foto, nombre, categoría, precio,
+        costo) y su sección Inventario. «Lleva inventario», unidad y vida útil
+        son del producto: solo los cambia la sucursal dueña (los de la Matriz se
+        cambian en la Matriz, como en el Catálogo de venta). Área, mínimo,
+        máximo y lotes los cambia cualquiera que pueda editar. Cada ctrl pide
+        su permiso antes de llamarlas. */
+
+    protected function fichaResponse($id) {
+        $p = $this->qCatalogProduct((int) $id, $this->companyId(), $this->branchId(), $this->mainBranchId());
+        if (!$p) return $this->fail(404, 'Ese producto no está en el Catálogo de la sucursal.');
+
+        $supply = $p['kind'] === 'supply';
+        $ficha  = $this->fichaRead((int) $p['id'], $p['shelf_life_days']);
+
+        return [
+            'status' => 200,
+            'data'   => $ficha + [
+                'id'               => (int) $p['id'],
+                'name'             => $p['name'],
+                'kind'             => $p['kind'],
+                'sku'              => $p['sku'] ?: '',
+                'image'            => $this->photoUrl($p['image']),
+                'category'         => trim((string) $p['category']) ?: 'Sin categoría',
+                'price'            => (float) $p['price'],
+                'cost'             => $this->costs() ? (float) $p['cost'] : null,
+                'unit_id'          => $p['unit_id'] ? (int) $p['unit_id'] : '',
+                'shelf_life_days'  => $p['shelf_life_days'] === null ? '' : (int) $p['shelf_life_days'],
+                'is_inventoriable' => $supply ? 1 : (int) $p['is_inventoriable'],
+                'own'              => (int) $p['branch_id'] === $this->branchId()
+            ],
+            'units'     => $this->fichaUnits($this->companyId(), (int) $p['unit_id']),
+            'areas'     => $this->fichaAreas($this->companyId(), $this->branchId()),
+            'groups'    => $supply ? $this->fichaGroups($this->companyId(), (int) $ficha['supply_group_id']) : [],
+            'suppliers' => $supply ? $this->fichaSuppliers($this->companyId(), $this->branchId(), (int) $ficha['supplier_id']) : []
+        ];
+    }
+
+    protected function fichaSaveResponse($id) {
+        $p = $this->qCatalogProduct((int) $id, $this->companyId(), $this->branchId(), $this->mainBranchId());
+        if (!$p) return $this->fail(404, 'Ese producto no está en el Catálogo de la sucursal.');
+
+        $id     = (int) $p['id'];
+        $supply = $p['kind'] === 'supply';
+        $own    = (int) $p['branch_id'] === $this->branchId();
+
+        // De la Matriz: se quedan como están.
+        $product = $own
+            ? $this->fichaProductInput($this->companyId(), (int) $p['unit_id'], $supply)
+            : ['unit_id' => $p['unit_id'] ? (int) $p['unit_id'] : null, 'shelf_life_days' => $p['shelf_life_days'] === null ? null : (int) $p['shelf_life_days']];
+
+        if (isset($product['status'])) return $product;
+
+        $track = $supply ? 1 : ($own ? $this->flag('is_inventoriable') : (int) $p['is_inventoriable']);
+
+        if ((int) $p['is_inventoriable'] === 1 && $track === 0) {
+            $problem = $this->fichaOffProblem($id, $this->companyId(), $p['name']);
+            if ($problem) return $this->fail(409, 'No se le puede quitar el inventario: ' . $problem);
+        }
+
+        $in = $this->fichaInput($this->fichaAreas($this->companyId(), $this->branchId()), $this->fichaRead($id, $p['shelf_life_days']), $supply, $this->companyId(), $this->branchId());
+        if (isset($in['status'])) return $in;
+
+        return $this->attempt(function () use ($id, $own, $product, $track, $in) {
+            $this->transaction(function () use ($id, $own, $product, $track, $in) {
+                if ($own) {
+                    $this->must($this->qUpdateItem(
+                        ['unit_id', 'shelf_life_days', 'is_inventoriable', 'updated_at = NOW()'],
+                        [$product['unit_id'], $product['shelf_life_days'], $track, $id]
+                    ), 'fichaSave/product');
+                }
+
+                $this->fichaSave($id, $this->companyId(), $in);
+            });
+
+            return $this->ok('Ficha guardada.');
+        }, 'No se pudo guardar la ficha. Intenta de nuevo.');
     }
 
     // -- Lo que comparten los filtros y las capturas --
@@ -820,6 +830,18 @@ class core extends mdl {
         return $map;
     }
 
+    /*  Con un conteo aplicado en el almacén, lo anterior a su fecha ya no se toca:
+        ni capturar con esa fecha, ni editar un documento de esos días (el conteo
+        dejaría de cuadrar). null = se puede. */
+    protected function adjustmentBlocks($warehouseId, $date) {
+        $day  = $this->qLastAdjustmentDates([(int) $warehouseId])[(int) $warehouseId] ?? null;
+        $date = substr((string) $date, 0, 10);
+
+        if (!$day || $date === '' || $date >= $day) return null;
+
+        return 'El almacén tuvo un conteo aplicado el ' . date('d/m/Y', strtotime($day)) . ': no se usa una fecha anterior (' . date('d/m/Y', strtotime($date)) . ').';
+    }
+
     // La fecha de un documento: un día válido y no posterior a hoy. null = está bien.
     protected function badDate($date) {
         if (!$this->dateOrNull($date)) return 'Elige una fecha válida.';
@@ -832,41 +854,7 @@ class core extends mdl {
 // Corta la transaccion con un aviso para el usuario (ver attempt).
 class InvStop extends RuntimeException {}
 
-// -- Celdas (las mismas de Catalogo; aqui por si este archivo carga solo) --
-
+// Escapa texto para el HTML de las celdas.
 if (!function_exists('h')) {
     function h($text) { return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8'); }
-}
-
-if (!function_exists('money')) {
-    function money($number) { return '$' . number_format((float) $number, 2); }
-}
-
-// En cero no dice $0.00: lleva el guion de las celdas vacías.
-if (!function_exists('moneyCell')) {
-    function moneyCell($number) {
-        return abs((float) $number) < 0.005 ? '<span class="cp-celda-sub">—</span>' : money($number);
-    }
-}
-
-if (!function_exists('chip')) {
-    function chip($text, $tone = 'slate') {
-        $tones = [
-            'slate'   => 'bg-slate-100 text-slate-600',
-            'emerald' => 'bg-emerald-50 text-emerald-700',
-            'amber'   => 'bg-amber-50 text-amber-700',
-            'sky'     => 'bg-sky-50 text-sky-700',
-            'violet'  => 'bg-violet-50 text-violet-700',
-            'red'     => 'bg-red-50 text-red-700'
-        ];
-
-        return '<span class="cp-chip ' . ($tones[$tone] ?? $tones['slate']) . '">' . h($text) . '</span>';
-    }
-}
-
-if (!function_exists('cellTitle')) {
-    function cellTitle($title, $sub = '') {
-        $html = '<div class="cp-celda-titulo">' . h($title) . '</div>';
-        return ($sub === null || $sub === '') ? $html : $html . '<div class="cp-celda-sub">' . h($sub) . '</div>';
-    }
 }

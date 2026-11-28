@@ -29,7 +29,8 @@
         return is_file($file) ? 'src/js/' . $name . '.js?v=' . filemtime($file) : '';
     };
 
-    $tabs = ['productos', 'categorias', 'subcategorias', 'grupos-modificadores', 'modificadores', 'paquetes', 'metodos-pago', 'descuentos', $script];
+    // foto-producto: el campo y la vista previa de la foto (los usa también el Catálogo de insumos).
+    $tabs = ['foto-producto', 'productos', 'categorias', 'subcategorias', 'grupos-modificadores', 'modificadores', 'paquetes', 'metodos-pago', 'descuentos', $script];
 
     foreach ($tabs as $name):
         $src = $local($name);

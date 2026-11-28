@@ -169,9 +169,15 @@ a.cp-btn-icon--text {
    conserva 1rem por su `input[type]`. Por eso los selectores se veían más
    chicos que el input de al lado. Mismo arreglo que `.cs-captura select`. */
 #modalProduct select,
-#modalProduct textarea {
+#modalProduct textarea,
+#modalSupply select {
     font-size: 1rem !important;
     line-height: 1.25 !important;
+}
+
+/* Inventario apagado: sus campos se ven tenues (Products.bindInventory). */
+.cp-off {
+    opacity: .5;
 }
 
 /* La Descripción de los formularios de todas las pestañas (categoría,
@@ -185,9 +191,10 @@ a.cp-btn-icon--text {
    Todo el texto del catálogo va a 1rem (14px), menos las tablas, que van a
    12px (bloque «Tablas a 12px»). compact.css achica con !important `.text-sm` (.8rem),
    `.text-xs` (.7rem), los label (.875rem), los .btn (.85rem) y los controles
-   de DataTables (.75rem); cs-tabs.js trae la pestaña en 13.5px, su contador
-   en 11px y el subtítulo en 13px. Este archivo solo carga en el catálogo:
-   Pedidos y las demás apps no cambian. Títulos e íconos conservan su tamaño. */
+   de DataTables (.75rem); cs-tabs.js trae el subtítulo en 13px. Este archivo
+   solo carga en el catálogo: Pedidos y las demás apps no cambian. Títulos e
+   íconos conservan su tamaño. Las pestañas se quedan como en CostSys de
+   erp-pro (13.5px y su contador 11px, de cs-tabs.js; 28/11/2026). */
 #root .text-xs,
 #root .text-sm,
 #root label,
@@ -209,48 +216,23 @@ a.cp-btn-icon--text {
     font-size: 1rem !important;
 }
 
-#tabbarCatalogo button.cs-tab,
-#tabbarCatalogo .cs-tab-count,
 #headerCatalogo .cp-pagina-subtitulo {
     font-size: 1rem;
 }
 
-/* -- Pestaña seleccionada: entera, sin esquinas ni aro --
-   soft.css le redondea las esquinas de arriba y le pone un fondo al pasar el
-   cursor, y cs-tabs.js un aro al enfocarla: la pestaña quedaba como una
-   pastilla suelta. Aquí va cuadrada, sin fondo al pasar y sin aro; la
-   seleccionada se rellena de arriba a abajo y conserva su línea. */
-#tabbarCatalogo button.cs-tab {
-    border-radius: 0;
-}
-
-#tabbarCatalogo button.cs-tab:hover {
-    background: none;
-}
-
+/* -- Pestaña seleccionada: como CostSys (28/11/2026) --
+   Sin relleno: se distingue por la letra, la línea de abajo y el contador
+   (soft.css + cs-tabs.js). Antes llevaba un fondo tenue y parecía el paso del
+   cursor. Aquí solo se quita el aro que cs-tabs.js pone al enfocarla. */
 #tabbarCatalogo button.cs-tab:focus,
 #tabbarCatalogo button.cs-tab:focus-visible {
     outline: none;
     box-shadow: none;
 }
 
-#tabbarCatalogo button.cs-tab.is-active,
-#tabbarCatalogo button.cs-tab.is-active:hover {
-    background: rgb(var(--brand-600, 192 90 64) / .08);
-}
-
-/* Con teclado se sigue viendo dónde está el foco: el mismo relleno, más tenue. */
+/* Con teclado se sigue viendo dónde está el foco: su línea, tenue. */
 #tabbarCatalogo button.cs-tab:focus-visible:not(.is-active) {
-    background: rgb(var(--brand-600, 192 90 64) / .05);
-}
-
-body.dark-mode #tabbarCatalogo button.cs-tab.is-active,
-body.dark-mode #tabbarCatalogo button.cs-tab.is-active:hover {
-    background: rgb(var(--brand-600, 192 90 64) / .20);
-}
-
-body.dark-mode #tabbarCatalogo button.cs-tab:focus-visible:not(.is-active) {
-    background: rgb(255 255 255 / .05);
+    border-bottom-color: rgb(var(--brand-600, 192 90 64) / .35);
 }
 
 /* -- Tablas a 12px --
@@ -271,22 +253,158 @@ body.dark-mode #tabbarCatalogo button.cs-tab:focus-visible:not(.is-active) {
     font-size: inherit !important;
 }
 
-/* Títulos de sección, como el producto de inventory. */
+/* -- Tablas como CostSys (28/11/2026) --
+   Medidas de las tablas del catálogo de CostSys (erp-pro/pro/app/costsys:
+   createCoffeTable3 + #tbIngredientes de costsys.css). Encabezado px-3 py-2
+   en 10.5px, mayúsculas y gris; celda px-2 py-2 en 12.5px; botones de la fila
+   px-3; miniatura 40px con borde; pastillas en 10.5px como .cp-badge-sr.
+   Lo que estiraba las filas era soft.css (table.ct3-flowbite: 12px 16px
+   !important). Solo las tablas de las pestañas (Catálogo de venta y de
+   insumos); modales y la rejilla del paquete no cambian. Los colores, solo en
+   claro: en oscuro siguen los de dark-mode.css. */
+#tabbarCatalogo .cs-tabs-panels table th {
+    padding: 8px 12px !important;
+    font-size: 10.5px !important;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+#tabbarCatalogo .cs-tabs-panels table td {
+    padding: 8px !important;
+    font-size: 12.5px !important;
+}
+
+#tabbarCatalogo .cs-tabs-panels table td:last-child {
+    padding: 8px 12px !important;
+}
+
+body:not(.dark-mode) #tabbarCatalogo .cs-tabs-panels table th {
+    background: #F8FAFC !important;
+    color: #64748B !important;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+body:not(.dark-mode) #tabbarCatalogo .cs-tabs-panels table td {
+    color: #334155;
+    border-bottom-color: #F1F5F9;
+}
+
+#tabbarCatalogo .cs-tabs-panels table .cp-foto {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+}
+
+body:not(.dark-mode) #tabbarCatalogo .cs-tabs-panels table .cp-foto {
+    border: 1px solid #E2E8F0;
+}
+
+/* Sin foto (o si no carga): el ícono «imagen» de Lucide en gris, como la
+   miniatura vacía de CostSys (.cp-thumb). Reemplaza al pastel y a la caja
+   de Fontello que pintan productPhoto / itemCell; el <i> se queda oculto.
+   Va en propiedades sueltas para que el fondo oscuro de .cp-foto siga. */
+#tabbarCatalogo .cs-tabs-panels table .cp-foto-vacia {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/%3E%3C/svg%3E");
+    background-position: center;
+    background-size: 18px;
+    background-repeat: no-repeat;
+}
+
+#tabbarCatalogo .cs-tabs-panels table .cp-foto-vacia > i {
+    display: none;
+}
+
+#tabbarCatalogo .cs-tabs-panels table .cp-chip {
+    padding: 2px 9px;
+    font-size: 10.5px !important;
+    line-height: 1.6;
+}
+
+#tabbarCatalogo .cs-tabs-panels table .py-1 {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    font-size: 10.5px !important;
+}
+
+/* -- Apagador de inventario --
+   El de la columna Inventario de Inventarios › Catálogo de insumos ›
+   Productos (inventarios/ctrl/ctrl-productos). El Catálogo de venta ya no lo
+   usa (28/11/2026). is-locked: de la Matriz o inactivo, se ve pero no se
+   cambia. Los mismos colores que el switch de csModal. */
+.cp-inv {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 19px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: #D1D5DB;
+    vertical-align: middle;
+    cursor: pointer;
+    transition: background-color .15s;
+}
+
+.cp-inv::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(15 23 42 / .3);
+    transition: left .15s;
+}
+
+.cp-inv.is-on {
+    background: rgb(var(--brand-600, 192 90 64));
+}
+
+.cp-inv.is-on::after {
+    left: 17px;
+}
+
+.cp-inv:focus-visible {
+    outline: 2px solid rgb(var(--brand-600, 192 90 64) / .45);
+    outline-offset: 2px;
+}
+
+.cp-inv.is-locked {
+    cursor: not-allowed;
+    opacity: .45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cp-inv,
+    .cp-inv::after {
+        transition: none;
+    }
+}
+
+/* Títulos de sección, como el producto de inventory. #modalSupply: el insumo
+   del Catálogo de insumos, que carga esta misma hoja. */
 #modalProduct .cp-seccion,
 #modalBundle .cp-seccion,
-#modalPaymentMethod .cp-seccion {
+#modalPaymentMethod .cp-seccion,
+#modalSupply .cp-seccion {
     margin-top: 20px;
 }
 
 #modalProduct .cp-seccion:first-child,
 #modalBundle .cp-seccion:first-child,
-#modalPaymentMethod .cp-seccion:first-child {
+#modalPaymentMethod .cp-seccion:first-child,
+#modalSupply .cp-seccion:first-child {
     margin-top: 4px;
 }
 
 #modalProduct .cp-seccion p,
 #modalBundle .cp-seccion p,
-#modalPaymentMethod .cp-seccion p {
+#modalPaymentMethod .cp-seccion p,
+#modalSupply .cp-seccion p {
     margin: 0;
     padding-bottom: 6px;
     border-bottom: 1px solid #F1F5F9;
@@ -301,13 +419,15 @@ body.dark-mode #tabbarCatalogo button.cs-tab:focus-visible:not(.is-active) {
    contenedor y la tarjeta (el label) lo llena. */
 #modalProduct .cp-switch,
 #modalBundle .cp-switch,
-#modalPaymentMethod .cp-switch {
+#modalPaymentMethod .cp-switch,
+#modalSupply .cp-switch {
     display: flex;
 }
 
 #modalProduct .cp-switch > label,
 #modalBundle .cp-switch > label,
-#modalPaymentMethod .cp-switch > label {
+#modalPaymentMethod .cp-switch > label,
+#modalSupply .cp-switch > label {
     flex: 1 1 auto;
     padding: 10px 12px;
     border: 1px solid #E5E7EB;
@@ -421,6 +541,21 @@ button.cp-pm-color.is-active {
     }
 }
 
+/* -- Categoría: ícono del POS (28/11/2026) --
+   Reusa el distintivo y la rejilla de Método de pago. Elegido: color de la
+   marca. Automático (el POS lo elige por el nombre): gris. */
+#modalCategory .cs-modal-panel {
+    --pm-color: rgb(var(--brand-600, 192 90 64));
+}
+
+.cp-cat-badge {
+    --pm-color: #64748B;
+}
+
+.cp-cat-badge.is-chosen {
+    --pm-color: rgb(var(--brand-600, 192 90 64));
+}
+
 /* -- Identificación: foto a la izquierda, campos a la derecha --
    photoBeside() (catalogo.js) arma el renglón al abrir el modal de producto
    o de paquete. En celular la foto queda arriba y los campos debajo. */
@@ -446,6 +581,62 @@ button.cp-pm-color.is-active {
 
     .cp-ident-foto {
         flex: 0 0 auto;
+    }
+}
+
+/* -- Producto en dos columnas (Products.layoutColumns) --
+   Izquierda: foto, datos, descripción y dónde se vende. Derecha: un panel con
+   precio e inventario. Debajo de 1024px el modal ya no cabe a lo ancho y
+   las columnas se apilan. Va después de los .cp-seccion: mismo peso, gana. */
+#modalProduct .cp-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 16px;
+    align-items: start;
+    padding-bottom: 12px;
+}
+
+#modalProduct .cp-cols-lado {
+    margin-top: 12px;
+    padding: 4px 6px 14px;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    background: #F9FAFB;
+}
+
+/* Sobre el gris del panel la línea #F1F5F9 no se ve. */
+#modalProduct .cp-cols-lado .cp-seccion p {
+    border-color: #E5E7EB;
+}
+
+/* Título «Inventario» a la izquierda y «Lleva inventario» a la derecha. */
+#modalProduct .cp-inv-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 20px 8px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+/* !important: Bootstrap pone el px-2 de csModal con !important. */
+#modalProduct .cp-inv-head .cp-seccion,
+#modalProduct .cp-inv-head .cp-inv-switch {
+    width: auto;
+    margin: 0;
+    padding: 0 !important;
+}
+
+#modalProduct .cp-inv-head .cp-seccion p {
+    padding: 0;
+    border: 0;
+}
+
+@media (max-width: 1023px) {
+    #modalProduct .cp-cols {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
     }
 }
 
@@ -957,16 +1148,32 @@ body.dark-mode .cp-foto-vacia {
 
 body.dark-mode #modalProduct .cp-seccion p,
 body.dark-mode #modalBundle .cp-seccion p,
-body.dark-mode #modalPaymentMethod .cp-seccion p {
+body.dark-mode #modalPaymentMethod .cp-seccion p,
+body.dark-mode #modalSupply .cp-seccion p {
     border-color: var(--dk-line, #374151);
     color: var(--dk-muted, #9CA3AF);
 }
 
+body.dark-mode #modalProduct .cp-cols-lado {
+    border-color: var(--dk-line, #374151);
+    background: rgb(255 255 255 / .03);
+}
+
+body.dark-mode #modalProduct .cp-cols-lado .cp-seccion p,
+body.dark-mode #modalProduct .cp-inv-head {
+    border-color: var(--dk-line, #374151);
+}
+
 body.dark-mode #modalProduct .cp-switch > label,
 body.dark-mode #modalBundle .cp-switch > label,
-body.dark-mode #modalPaymentMethod .cp-switch > label {
+body.dark-mode #modalPaymentMethod .cp-switch > label,
+body.dark-mode #modalSupply .cp-switch > label {
     background: transparent;
     border-color: var(--dk-line-hi, #4B5563);
+}
+
+body.dark-mode .cp-inv:not(.is-on) {
+    background: var(--dk-line-hi, #4B5563);
 }
 
 body.dark-mode .cp-pm-badge {

@@ -4,108 +4,143 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-inventarios.php';
 
-/*  Kárdex: cada vez que cambió la existencia en los almacenes de la sucursal
-    (entradas, salidas, traspasos, ajustes y cancelaciones), del más nuevo al
-    más viejo, con lo que había y lo que quedó. Solo lectura: sale de la vista
-    inventory_movement.
+/*  Kárdex: el «Visor de Movimientos» de inventory/operacion/almacen/movimientos
+    aplicado al Catálogo de pro. La tabla junta los movimientos del periodo por
+    producto (cuántos, entradas, salidas, neto, el último); el ojo abre a la
+    derecha cada movimiento con lo que había y lo que quedó. Solo lectura: sale
+    de la vista inventory_movement (entradas, salidas, traspasos, ajustes y
+    cancelaciones).
 
     Casillas: show, print, ver-costos (sin ella, sin pesos). */
 class ctrl extends core {
 
     const SECTION = 'inv-kardex';
-    const LIMIT   = 2000;
+    const LIMIT   = 3000;
     const TYPES   = [
-        'ENTRADA'       => ['Entrada', 'emerald'],
-        'SALIDA'        => ['Salida', 'red'],
-        'TRANSFERENCIA' => ['Traspaso', 'sky'],
-        'AJUSTE'        => ['Ajuste', 'amber'],
-        'CANCELACION'   => ['Cancelación', 'slate']
+        'ENTRADA'       => ['ENTRADA',      'rgba(63,193,137,0.15)',                   '#15803D'],
+        'SALIDA'        => ['SALIDA',       'rgba(224,36,36,0.15)',                    '#B91C1C'],
+        'TRANSFERENCIA' => ['TRASPASO',     'rgb(var(--brand-600, 192 90 64) / 0.15)', 'rgb(var(--brand-600, 192 90 64))'],
+        'AJUSTE'        => ['AJUSTE',       'rgba(167,139,250,0.15)',                  '#7C3AED'],
+        'CANCELACION'   => ['CANCELACIÓN',  'rgba(156,163,175,0.18)',                  '#4B5563']
     ];
 
     public function init() {
         $fail = $this->needBranch();
         if ($fail) return $fail;
 
-        $types = [];
-        foreach (self::TYPES as $code => $type) $types[] = ['id' => $code, 'valor' => $type[0]];
-
         return $this->baseInit([
-            'types'    => $types,
-            'products' => array_map(function ($p) {
-                return ['id' => (int) $p['id'], 'valor' => ($p['sku'] ? $p['sku'] . ' · ' : '') . $p['name']];
-            }, $this->products())
+            'branch_id'  => $this->branchId(),
+            'sucursales' => $this->branchOptions(),
+            'costs'      => $this->costs()
         ]);
     }
 
-    // Filtros: periodo (fi, ff), warehouse_id, type, product_id.
-    public function lsMoves() {
+    private function moves() {
+        [$from, $to] = $this->period();
+
+        $type = array_key_exists($this->post('movement_type'), self::TYPES) ? $this->post('movement_type') : '';
+
+        return $this->qKardex($this->companyId(), array_map('intval', array_column($this->warehouses(), 'id')), $from, $to, $type, $this->selectOrNull('item_id'), self::LIMIT);
+    }
+
+    // Columnas: Producto, Movs, Entradas, Salidas, Neto, Últ. mov
+    public function lsMovimientos() {
         $fail = $this->needBranch() ?: $this->need('show', 'ver el kárdex');
         if ($fail) return $fail;
 
-        [$from, $to] = $this->period();
+        $moves = $this->moves();
+        $users = $this->names($moves, ['user_id']);
+        $costs = $this->costs();
+        $prod  = [];
 
-        $type      = array_key_exists($this->post('type'), self::TYPES) ? $this->post('type') : '';
-        $productId = $this->selectOrNull('product_id');
-        $moves     = $this->qKardex($this->companyId(), $this->pickWarehouses(), $from, $to, $type, $productId, self::LIMIT + 1);
-        $more      = count($moves) > self::LIMIT;
-
-        if ($more) array_pop($moves);
-
-        $users   = $this->names($moves, ['user_id']);
-        $costs   = $this->costs();
-        $many    = count($this->warehouses()) > 1;
-        $rows    = [];
-        $summary = ['moves' => count($moves), 'in' => 0, 'out' => 0, 'more' => $more];
-        $units   = ['in' => 0.0, 'out' => 0.0];
-        $value   = ['in' => 0.0, 'out' => 0.0];
-
+        // Vienen del más nuevo al más viejo: el primero de cada producto es su último movimiento.
         foreach ($moves as $m) {
-            $qty  = (float) $m['quantity'];
-            $side = $qty >= 0 ? 'in' : 'out';
-            $kind = self::TYPES[$m['movement_type']] ?? [$m['movement_type'], 'slate'];
-            $unit = $m['unit'] ?: 'PZA';
+            $id  = (int) $m['product_id'];
+            $qty = (float) $m['quantity'];
 
-            $summary[$side]++;
-            $units[$side] += abs($qty);
-            $value[$side] += abs((float) $m['cost_total']);
-
-            $row = [
-                'Fecha'    => $this->dateCell(substr($m['occurred_at'], 0, 10), $m['occurred_at']),
-                'Tipo'     => chip($kind[0], $kind[1]),
-                'Folio'    => cellTitle($m['folio'], $m['concept'] ?: ''),
-                'Producto' => cellTitle($m['product'] ?: 'Producto borrado', $m['sku'] ?: '')
-            ];
-
-            if ($many) $row['Almacén'] = h($m['warehouse']);
-
-            $row['Cantidad'] = '<span class="font-semibold ' . ($qty < 0 ? 'text-red-600' : 'text-emerald-700') . '">'
-                . ($qty > 0 ? '+' : '') . h($this->num($qty)) . '</span> <span class="cp-celda-sub">' . h($unit) . '</span>';
-            $row['Antes']    = h($this->num($m['stock_prev']));
-            $row['Quedó']    = '<span class="font-semibold">' . h($this->num($m['stock_post'])) . '</span>';
-
-            if ($costs) {
-                $row['Costo']   = moneyCell($m['cost_unit']);
-                $row['Importe'] = moneyCell(abs((float) $m['cost_total']));
+            if (!isset($prod[$id])) {
+                $prod[$id] = [
+                    'itemId'   => $id,
+                    'producto' => $m['product'] ?: 'Producto borrado',
+                    'sku'      => $m['sku'] ?: '',
+                    'unidad'   => $m['unit'] ?: 'PZA',
+                    'count'    => 0,
+                    'entradas' => 0,
+                    'salidas'  => 0,
+                    'neto'     => 0.0,
+                    'costoTot' => 0.0,
+                    'lastType' => $m['movement_type'],
+                    'lastDate' => $m['occurred_at'] ?: '',
+                    'movs'     => []
+                ];
             }
 
-            $row['Usuario'] = h($users[(int) $m['user_id']] ?? '—');
+            $prod[$id]['count']++;
+            if ($qty >= 0) $prod[$id]['entradas']++; else $prod[$id]['salidas']++;
+            $prod[$id]['neto']     += $qty;
+            $prod[$id]['costoTot'] += $costs ? (float) $m['cost_total'] : 0;
 
-            $rows[] = $row;
+            $prod[$id]['movs'][] = [
+                'tipo'      => $m['movement_type'],
+                'tipoTxt'   => self::TYPES[$m['movement_type']][0] ?? $m['movement_type'],
+                'folio'     => $m['folio'],
+                'nota'      => $m['concept'],
+                'cant'      => $qty,
+                'stockPrev' => (float) $m['stock_prev'],
+                'stockPost' => (float) $m['stock_post'],
+                'costoTot'  => $costs ? (float) $m['cost_total'] : null,
+                'almacen'   => $m['warehouse'] ?: '-',
+                'usuario'   => $users[(int) $m['user_id']] ?? '-',
+                'fecha'     => $m['occurred_at'] ?: ''
+            ];
         }
 
-        // Las unidades solo se suman con un producto elegido: kilos y piezas no se mezclan.
-        if ($productId !== null && $moves) {
-            $summary['unit']      = $moves[0]['unit'] ?: 'PZA';
-            $summary['units_in']  = round($units['in'], 4);
-            $summary['units_out'] = round($units['out'], 4);
+        $rows = [];
+        $data = [];
+
+        foreach ($prod as $id => $p) {
+            $neto = round($p['neto'], 4);
+
+            $rows[] = [
+                'id'       => $id,
+                'Producto' => h($p['producto']) . ($p['sku'] ? '<br><span class="text-[10px] text-gray-400">' . h($p['sku']) . '</span>' : ''),
+                'Movs'     => '<span class="font-semibold">' . $p['count'] . '</span>',
+                'Entradas' => '<span class="text-green-600 font-semibold">' . $p['entradas'] . '</span>',
+                'Salidas'  => '<span class="text-red-600 font-semibold">' . $p['salidas'] . '</span>',
+                'Neto'     => '<span class="font-bold ' . ($neto < 0 ? 'text-red-600' : 'text-green-600') . '">' . ($neto > 0 ? '+' : '') . h($this->num($neto)) . '</span> <span class="text-[10px] text-gray-400">' . h($p['unidad']) . '</span>',
+                'Últ. Mov' => $this->typeBadge($p['lastType']) . ' <span class="text-[10px] text-gray-400">' . h($this->dateTime(substr($p['lastDate'], 0, 10), $p['lastDate'])) . '</span>',
+                'a'        => [$this->rowIcon('eye', "app.selectProducto({$id})", 'Ver movimientos')]
+            ];
+
+            $p['neto'] = $neto;
+            $data[]    = $p;
         }
 
-        if ($costs) {
-            $summary['value_in']  = round($value['in'], 2);
-            $summary['value_out'] = round($value['out'], 2);
-        }
+        return ['status' => 200, 'row' => $rows, 'data' => $data, 'more' => count($moves) >= self::LIMIT];
+    }
 
-        return ['status' => 200, 'row' => $rows, 'summary' => $summary];
+    private function typeBadge($type) {
+        $c = self::TYPES[$type] ?? [$type, 'rgba(156,163,175,0.18)', '#6B7280'];
+
+        return "<span class='px-2 py-0.5 rounded text-[10px] font-bold' style='background:{$c[1]};color:{$c[2]};'>" . h($c[0]) . '</span>';
+    }
+
+    // Total, entradas, salidas y traspasos del periodo (los renglones, no los documentos).
+    public function showMovimientos() {
+        $fail = $this->needBranch() ?: $this->need('show', 'ver el kárdex');
+        if ($fail) return $fail;
+
+        $types = array_count_values(array_column($this->moves(), 'movement_type'));
+
+        return [
+            'status' => 200,
+            'counts' => [
+                'total'           => array_sum($types),
+                'total_entradas'  => $types['ENTRADA'] ?? 0,
+                'total_salidas'   => $types['SALIDA'] ?? 0,
+                'total_traspasos' => $types['TRANSFERENCIA'] ?? 0
+            ]
+        ];
     }
 }
 

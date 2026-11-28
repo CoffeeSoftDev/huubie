@@ -61,6 +61,9 @@ if (is_file(__DIR__ . '/../mdl/mdl-lealtad-whatsapp.php')) require_once __DIR__ 
         tarjeta alcanza el gasto de un nivel mas alto, sube y se le avisa
         (LoyaltyNotifier::levelUp). Si eso falla, la venta queda igual.
       - Sin cliente = Público en general (customer_id NULL).
+      - Inventario: al guardarse, sale del almacén por defecto de la sucursal lo
+        que lleva inventario (core::invSaleOut, trait InventarioVenta). Si eso
+        falla, la venta queda igual y el error va al log.
       - Se valida todo ANTES de la primera escritura: transaction() solo deshace
         si algo lanza una excepcion. */
 class ctrl extends core {
@@ -141,8 +144,11 @@ class ctrl extends core {
                 $key      = mb_strtolower($category, 'UTF-8');
 
                 if (!isset($categories[$key])) {
-                    $categories[$key] = ['id' => (int) $p['category_id'], 'name' => $category, 'total' => 0];
+                    $categories[$key] = ['id' => (int) $p['category_id'], 'name' => $category, 'icon' => '', 'total' => 0];
                 }
+
+                // Ícono elegido en Catálogo › Categorías; '' = la pantalla lo elige por el nombre.
+                if ($categories[$key]['icon'] === '') $categories[$key]['icon'] = $p['category_icon'];
 
                 $categories[$key]['total']++;
 
@@ -512,6 +518,9 @@ class ctrl extends core {
         }
 
         if ($sale['card']) $this->log($id, 'event', 'Tarjeta', $this->cardText($sale));
+
+        // Se entrega en el mostrador: sale del almacén lo que lleva inventario, aunque no haya existencia.
+        $this->invSaleOut($id);
 
         return $id;
     }

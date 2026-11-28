@@ -613,8 +613,11 @@ class ctrl extends core {
                 $key      = mb_strtolower($category, 'UTF-8');
 
                 if (!isset($categories[$key])) {
-                    $categories[$key] = ['id' => (int) $p['category_id'], 'name' => $category, 'total' => 0];
+                    $categories[$key] = ['id' => (int) $p['category_id'], 'name' => $category, 'icon' => '', 'total' => 0];
                 }
+
+                // Ícono elegido en Catálogo › Categorías; '' = la pantalla lo elige por el nombre.
+                if ($categories[$key]['icon'] === '') $categories[$key]['icon'] = $p['category_icon'];
 
                 $categories[$key]['total']++;
                 $categoryId = $categories[$key]['id'];
@@ -1126,6 +1129,9 @@ class ctrl extends core {
                     'where'  => ['id'],
                     'data'   => [0, $id]
                 ]), 'deleteOrder');
+
+                // Un pedido entregado sin cobro (total 0) ya había salido del almacén: regresa.
+                $this->invSaleBack($id, "Pedido P{$id} eliminado: {$reason}");
 
                 return $this->ok("Pedido P{$id} eliminado.", ['id' => $id]);
             });

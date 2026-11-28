@@ -78,7 +78,8 @@ class PublicStore extends mdl {
             $key = (int) $p['category_id'];
 
             if (!isset($categories[$key])) {
-                $categories[$key] = ['id' => $key, 'name' => trim((string) $p['category']) !== '' ? trim($p['category']) : 'Otros', 'count' => 0];
+                // icon: el elegido en Catálogo › Categorías; '' = pedir.js lo elige por el nombre.
+                $categories[$key] = ['id' => $key, 'name' => trim((string) $p['category']) !== '' ? trim($p['category']) : 'Otros', 'icon' => (string) $p['category_icon'], 'count' => 0];
             }
 
             $categories[$key]['count']++;

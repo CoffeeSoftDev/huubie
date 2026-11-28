@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../../core/security/_Session.php';
 require_once __DIR__ . '/../../../core/security/_Permission.php';
 require_once __DIR__ . '/../../../core/helpers/_CoffeeSoft.php';
 require_once __DIR__ . '/../mdl/mdl-order.php';
+require_once __DIR__ . '/../../inventarios/mdl/trait-inventario-venta.php';
 
 /*  Base de los ctrl de Pedidos (la forma de Catalogo).
 
@@ -16,6 +17,9 @@ require_once __DIR__ . '/../mdl/mdl-order.php';
     Escrituras: siempre dentro de transaction() y cada _Insert/_Update pasa por
     must(), que vuelve excepcion el string o false con el que avisa el CRUD. */
 class core extends mdl {
+
+    // La venta descuenta del almacén: invSaleOut al cobrar (V) o entregar (P), invSaleBack al cancelar o des-entregar.
+    use InventarioVenta;
 
     const SECTION = 'pos-pedidos';
 
@@ -880,6 +884,9 @@ class core extends mdl {
                 $this->log($id, 'delivery', 'Pedido entregado',
                     'Entregado el ' . date('d/m/Y') . ' a las ' . hour12(date('H:i:s')) . " ({$how}).");
 
+                // Al entregarse sale del almacén lo que lleva inventario (decisión 27/11/2026).
+                $this->invSaleOut($id);
+
                 return $this->ok("Pedido P{$id} entregado.", ['id' => $id]);
             });
         }, 'No se pudo marcar el pedido como entregado.');
@@ -943,6 +950,10 @@ class core extends mdl {
 
                 $this->log($id, 'delivery', 'Pedido marcado como ' . mb_strtolower($text, 'UTF-8'),
                     'Antes: ' . (self::DELIVERY_STATES[$before] ?? 'Sin estado') . '. Cambió el ' . date('d/m/Y') . ' a las ' . hour12(date('H:i:s')) . '.');
+
+                // Entregado saca del almacén; dejar de estar entregado lo regresa.
+                if ($state === 1)       $this->invSaleOut($id);
+                elseif ($before === 1)  $this->invSaleBack($id, "El pedido P{$id} regresó a «{$text}»");
 
                 return $this->ok("Pedido P{$id}: {$text}.", ['id' => $id, 'state' => $state]);
             });

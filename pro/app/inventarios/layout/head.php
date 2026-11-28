@@ -1,8 +1,13 @@
 <?php
-/*  Esqueleto de las páginas de Inventarios: el de Catálogo (rail, navbar y
-    hojas de pro) con catalogo.css y la hoja del módulo al final. La página lo
-    incluye después de Permission::page(), con $title y $script definidos, y
-    cierra con scripts.php. */
+/*  Esqueleto de las páginas de Inventarios: rail, navbar y hojas de pro, y la
+    hoja del módulo al final. La página lo incluye después de
+    Permission::page(), con $title, $script y $components (las capturas de
+    inventory que usa) definidos, y cierra con scripts.php.
+
+    Opcionales: $pageCss (hojas de otro módulo, desde pro/: el Catálogo de
+    insumos toma la del Catálogo de venta) y $pageClass (clase de
+    #main__content: con 'cp-pagina-pro' la página deja de ser la tarjeta
+    del visor y queda como el Catálogo de venta). */
 $asset = function ($file) {
     return '../../' . $file . '?v=' . filemtime(__DIR__ . '/../../../' . $file);
 };
@@ -41,9 +46,11 @@ $asset = function ($file) {
     <link rel="stylesheet" href="<?= $asset('assets/css/themes.css') ?>">
     <link rel="stylesheet" href="<?= $asset('assets/css/soft.css') ?>">
     <link rel="stylesheet" href="<?= $asset('assets/css/dark-mode.css') ?>">
-    <!-- Las de Catálogo (página, botones de fila, rejilla cp-rej) y luego las del módulo. -->
-    <link rel="stylesheet" href="<?= $asset('app/catalogo/src/css/catalogo.css') ?>">
+    <!-- La del módulo (casi todo viene de las hojas de pro: el visor es el de inventory). -->
     <link rel="stylesheet" href="src/css/inventarios.css?v=<?= filemtime(__DIR__ . '/../src/css/inventarios.css') ?>">
+    <?php foreach ($pageCss ?? [] as $css): ?>
+    <link rel="stylesheet" href="<?= $asset($css) ?>">
+    <?php endforeach; ?>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -59,7 +66,8 @@ $asset = function ($file) {
     <main>
         <div id="menu-navbar"></div>
 
-        <div id="main__content" class="cp-pagina-pro">
+        <!-- Visor de inventory: #root es la tarjeta de soft.css. -->
+        <div id="main__content"<?= isset($pageClass) ? ' class="' . htmlspecialchars($pageClass) . '"' : '' ?>>
             <div id="root"></div>
         </div>
     </main>

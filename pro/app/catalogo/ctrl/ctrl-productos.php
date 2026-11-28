@@ -4,17 +4,24 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once __DIR__ . '/core-catalogo.php';
 
-/*  Pestaña Productos: productos y servicios de la sucursal. Los paquetes tienen su propia pestaña.
+/*  Pestaña Productos del Catálogo de venta: productos y servicios de la
+    sucursal. Los paquetes tienen su propia pestaña y los insumos viven en
+    Inventarios › Catálogo de insumos (propuesta B, 28/11/2026).
 
     Compartido / Propio (decision F, 13/11/2026): lo de la Matriz lo venden todas
     las sucursales. Una sucursal lo «hace propio» copiandolo; mientras su copia
-    este activa vende la suya. Desactivarla = volver al de la Matriz. */
+    este activa vende la suya. Desactivarla = volver al de la Matriz.
+
+    Inventario: el producto que lo lleva sale del almacén al venderse. Su
+    ficha trae todo (unidad, vida útil, área, mínimo, máximo y lotes). La
+    tabla solo dice si lo lleva: se enciende y se apaga en la ficha o en
+    Inventarios › Catálogo de insumos (28/11/2026). */
 class ctrl extends core {
 
     // Opciones del filtro. Fuera de la Matriz las categorías también incluyen las de ella.
     public function init() {
         $fail = $this->needBranch();
-        if ($fail) return array_merge($fail, ['categories' => [], 'origins' => [], 'isMain' => true, 'main' => '']);
+        if ($fail) return array_merge($fail, ['categories' => [], 'origins' => [], 'inventory' => [], 'isMain' => true, 'main' => '']);
 
         $main = $this->mainBranch();
 
@@ -22,6 +29,7 @@ class ctrl extends core {
             'status'     => 200,
             'categories' => $this->qFilterCategories($this->branchId(), $this->mainBranchId()),
             'origins'    => $this->originOptions(),
+            'inventory'  => $this->inventoryOptions(),
             'isMain'     => $this->isMainBranch(),
             'main'       => isset($main['name']) ? $main['name'] : ''
         ];
@@ -30,7 +38,7 @@ class ctrl extends core {
     // Opciones del modal. keep_* conserva la categoría y la subcategoría actuales aunque estén inactivas.
     public function formOptions() {
         $fail = $this->needBranch();
-        if ($fail) return array_merge($fail, ['categories' => [], 'subcategories' => [], 'kinds' => [], 'units' => []]);
+        if ($fail) return array_merge($fail, ['categories' => [], 'subcategories' => [], 'kinds' => [], 'units' => [], 'areas' => []]);
 
         $branch = $this->branchId();
 
@@ -39,14 +47,16 @@ class ctrl extends core {
             'categories'    => $this->qCategoryOptions($branch, $this->postId('keep_category_id')),
             'subcategories' => $this->qSubcategoryOptions($branch, $this->postId('keep_subcategory_id')),
             'kinds'         => $this->productKinds(),
-            // Unidades del módulo Inventarios (product.unit_id): las de la empresa y las plantillas.
-            'units'         => $this->qUnitOptions($this->companyId())
+            // Unidades y áreas del módulo Inventarios: las de la empresa y las de los almacenes de la sucursal.
+            'units'         => $this->qUnitOptions($this->companyId()),
+            'areas'         => $this->fichaAreas($this->companyId(), $branch)
         ];
     }
 
     /*  En la Matriz: lo suyo. En otra sucursal: lo suyo y lo que hereda de la Matriz;
         lo heredado solo sale con «Activos» (uno inactivo de la Matriz no se le ofrece).
-        origin: '' todos, 'own' propios, 'main' de la Matriz. */
+        origin: '' todos, 'own' propios, 'main' de la Matriz.
+        inventory: '' todos, '1' con inventario, '0' sin inventario. */
     public function lsProducts() {
         $fail = $this->needBranch();
         if ($fail) return $fail;
@@ -57,6 +67,7 @@ class ctrl extends core {
         $isMain     = $this->isMainBranch();
         $active     = $this->activeFilter();
         $origin     = $isMain ? '' : $this->post('origin');
+        $inventory  = in_array($this->post('inventory'), ['0', '1'], true) ? (int) $this->post('inventory') : null;
         $count      = $this->qCountProducts($company, $branch, $main);
         $categoryId = $this->selectOrNull('category_id');
         $category   = $categoryId === null ? null : $this->qCategoryName($categoryId, $branch, $main);
@@ -74,6 +85,10 @@ class ctrl extends core {
             foreach ($this->qListMainProducts($company, $branch, $main, $category) as $item) {
                 $items[] = $item + ['from_main' => 1, 'twin_main' => 0, 'own_elsewhere' => 0];
             }
+        }
+
+        if ($inventory !== null) {
+            $items = array_values(array_filter($items, fn ($item) => (int) $item['is_inventoriable'] === $inventory));
         }
 
         // El último creado arriba: el id crece con cada alta (propios y de la Matriz viven en la misma tabla).
@@ -133,10 +148,13 @@ class ctrl extends core {
         }, 'No se pudo copiar el producto.');
     }
 
+    // El producto con lo de su sección Inventario (área, mínimo, máximo y lotes).
     public function getProduct() {
         $data = $this->qGetProduct($this->postId(), $this->companyId(), $this->branchId());
 
-        return $data ? ['status' => 200, 'data' => $data] : $this->fail(404, 'El producto no existe.');
+        if (!$data) return $this->fail(404, 'El producto no existe.');
+
+        return ['status' => 200, 'data' => $data + $this->fichaRead((int) $data['id'], $data['shelf_life_days'])];
     }
 
     public function addProduct() {
@@ -149,12 +167,15 @@ class ctrl extends core {
         $dup = $this->duplicateError($in);
         if ($dup) return $dup;
 
+        $ficha = $this->inventoryInput($in, $this->fichaRead(0, $in['shelf_life_days']));
+        if (isset($ficha['status'])) return $ficha;
+
         $photo = $this->photoInput();
         if (isset($photo['status'])) return $photo;
 
         // La foto se nombra con el id: primero el producto y luego la foto, todo o nada.
-        return $this->attempt(function () use ($in, $photo) {
-            $this->transaction(function () use ($in, $photo) {
+        return $this->attempt(function () use ($in, $ficha, $photo) {
+            $this->transaction(function () use ($in, $ficha, $photo) {
                 $this->must($this->qCreateProduct([
                     'values' => [
                         'name', 'description', 'sku', 'barcode', 'kind', 'unit_id', 'price', 'cost', 'shelf_life_days',
@@ -168,9 +189,11 @@ class ctrl extends core {
                     ]
                 ]), 'addProduct');
 
-                if ($photo['b64'] === '') return;
-
                 $id = $this->newId('addProduct');
+
+                if ($ficha !== null) $this->fichaSave($id, $this->companyId(), $ficha);
+
+                if ($photo['b64'] === '') return;
 
                 $this->must($this->qUpdateProduct([
                     'values' => ['image'],
@@ -198,23 +221,39 @@ class ctrl extends core {
         $dup = $this->duplicateError($in, $id);
         if ($dup) return $dup;
 
+        // Quitarle el inventario con existencia la dejaría contada para siempre.
+        if ((int) $current['is_inventoriable'] === 1 && $in['is_inventoriable'] === 0) {
+            $problem = $this->fichaOffProblem($id, $this->companyId(), $current['name']);
+
+            if ($problem) return $this->fail(409, 'No se le puede quitar el inventario: ' . $problem);
+        }
+
+        $ficha = $this->inventoryInput($in, $this->fichaRead($id, $current['shelf_life_days']));
+        if (isset($ficha['status'])) return $ficha;
+
         $photo = $this->photoInput();
         if (isset($photo['status'])) return $photo;
 
-        return $this->attempt(function () use ($in, $id, $photo, $current) {
-            $image = $this->nextPhoto($id, $photo, $current['image']);
+        return $this->attempt(function () use ($in, $id, $ficha, $photo, $current) {
+            $image = $this->transaction(function () use ($in, $id, $ficha, $photo, $current) {
+                $image = $this->nextPhoto($id, $photo, $current['image']);
 
-            $this->must($this->qUpdateProduct([
-                'values' => [
-                    'name', 'description', 'image', 'sku', 'barcode', 'kind', 'unit_id', 'price', 'cost', 'shelf_life_days',
-                    'is_inventoriable', 'sell_pos', 'in_catalog', 'category_id', 'subcategory_id', 'updated_at = NOW()'
-                ],
-                'where' => ['id'],
-                'data'  => [
-                    $in['name'], $in['description'], $image, $in['sku'], $in['barcode'], $in['kind'], $in['unit_id'], $in['price'], $in['cost'],
-                    $in['shelf_life_days'], $in['is_inventoriable'], $in['sell_pos'], $in['in_catalog'], $in['category_id'], $in['subcategory_id'], $id
-                ]
-            ]), 'editProduct');
+                $this->must($this->qUpdateProduct([
+                    'values' => [
+                        'name', 'description', 'image', 'sku', 'barcode', 'kind', 'unit_id', 'price', 'cost', 'shelf_life_days',
+                        'is_inventoriable', 'sell_pos', 'in_catalog', 'category_id', 'subcategory_id', 'updated_at = NOW()'
+                    ],
+                    'where' => ['id'],
+                    'data'  => [
+                        $in['name'], $in['description'], $image, $in['sku'], $in['barcode'], $in['kind'], $in['unit_id'], $in['price'], $in['cost'],
+                        $in['shelf_life_days'], $in['is_inventoriable'], $in['sell_pos'], $in['in_catalog'], $in['category_id'], $in['subcategory_id'], $id
+                    ]
+                ]), 'editProduct');
+
+                if ($ficha !== null) $this->fichaSave($id, $this->companyId(), $ficha);
+
+                return $image;
+            });
 
             if ($image !== $current['image']) $this->dropPhoto($current['image'], $id);
 
@@ -252,15 +291,13 @@ class ctrl extends core {
 
     // -- Auxiliares --
 
-    /*  supply = insumo (harina, domos, cajas): lleva inventario y no se vende.
-        23/11/2026: los insumos viven en el Catálogo para que Inventarios cuente
-        un solo catálogo. El POS, la tienda y WhatsApp siguen filtrando
-        kind IN ('product', 'service'): un insumo nunca se les ofrece. */
+    /*  Lo que se vende. Los insumos (kind supply: harina, domos, cajas) se dan
+        de alta en Inventarios › Catálogo de insumos desde el 28/11/2026: aquí ya
+        no se ofrecen ni se listan. */
     private function productKinds() {
         return [
             ['id' => 'product', 'valor' => 'Producto'],
-            ['id' => 'service', 'valor' => 'Servicio'],
-            ['id' => 'supply',  'valor' => 'Insumo']
+            ['id' => 'service', 'valor' => 'Servicio']
         ];
     }
 
@@ -270,6 +307,23 @@ class ctrl extends core {
             ['id' => 'own',  'valor' => 'Propios'],
             ['id' => 'main', 'valor' => 'De la Matriz']
         ];
+    }
+
+    private function inventoryOptions() {
+        return [
+            ['id' => '',  'valor' => 'Todos'],
+            ['id' => '1', 'valor' => 'Con inventario'],
+            ['id' => '0', 'valor' => 'Sin inventario']
+        ];
+    }
+
+    /*  La sección Inventario de la ficha, validada (FichaInventario). null =
+        no lleva inventario: lo guardado se conserva por si lo vuelven a
+        encender. Con 'status' es la respuesta de error. */
+    private function inventoryInput($in, $current) {
+        if ($in['is_inventoriable'] !== 1) return null;
+
+        return $this->fichaInput($this->fichaAreas($this->companyId(), $this->branchId()), $current);
     }
 
     private function nullIfBlank($value) {
@@ -295,9 +349,10 @@ class ctrl extends core {
 
         if ($found) return (int) $found['active'] === 1 ? (int) $found['id'] : null;
 
+        // La copia se lleva el ícono de la de la Matriz (NULL = el POS lo elige por el nombre).
         $this->must($this->qCreateCategory([
-            'values' => ['name', 'description', 'branch_id', 'active'],
-            'data'   => [$source['category'], $source['category_description'], $this->branchId(), 1]
+            'values' => ['name', 'description', 'icon', 'branch_id', 'active'],
+            'data'   => [$source['category'], $source['category_description'], $source['category_icon'], $this->branchId(), 1]
         ]), 'copyProduct/category');
 
         return $this->newId('copyProduct/category');
@@ -339,9 +394,6 @@ class ctrl extends core {
             return $this->fail(400, 'El tipo de producto no es válido.');
         }
 
-        // Un insumo no se vende: sin precio de venta vale 0.
-        if ($kind === 'supply' && $price === null && $this->post('price') === '') $price = 0;
-
         if ($unitId !== null && !$this->qUnitExists($unitId, $this->companyId())) return $this->fail(400, 'La unidad elegida no existe.');
         if ($shelfLife !== null && ($shelfLife < 0 || $shelfLife > 3650)) return $this->fail(400, 'La vida útil va de 0 a 3650 días.');
 
@@ -359,8 +411,6 @@ class ctrl extends core {
         $problem = $this->subcategoryProblem($subcategoryId, $categoryId, $current ? (int) $current['subcategory_id'] : 0);
         if ($problem) return $problem;
 
-        $supply = $kind === 'supply';
-
         return [
             'kind'             => $kind,
             'name'             => $name,
@@ -373,10 +423,10 @@ class ctrl extends core {
             'shelf_life_days'  => $shelfLife,
             'category_id'      => $categoryId,
             'subcategory_id'   => $subcategoryId,
-            // El insumo no sale en el POS ni en la tienda, y siempre lleva inventario.
-            'sell_pos'         => $supply ? 0 : $this->flag('sell_pos'),
-            'in_catalog'       => $supply ? 0 : $this->flag('in_catalog'),
-            'is_inventoriable' => $supply ? 1 : $this->flag('is_inventoriable')
+            'sell_pos'         => $this->flag('sell_pos'),
+            'in_catalog'       => $this->flag('in_catalog'),
+            // Un servicio no se cuenta en el almacén.
+            'is_inventoriable' => $kind === 'service' ? 0 : $this->flag('is_inventoriable')
         ];
     }
 
@@ -384,6 +434,9 @@ class ctrl extends core {
     private function subcategoryProblem($subcategoryId, $categoryId, $keepId = 0) {
         if ($subcategoryId === null) return null;
         if ($categoryId === null)    return $this->fail(400, 'Elige primero la categoría de la subcategoría.');
+
+        // La que ya tenía se queda aunque sea de la Matriz (como en categoryProblem).
+        if ((int) $keepId > 0 && $subcategoryId === (int) $keepId) return null;
 
         $subcategory = $this->qGetSubcategory($subcategoryId, $this->branchId());
 
@@ -436,17 +489,25 @@ class ctrl extends core {
         $id = (int) $item['id'];
 
         return [
-            'id'        => $id,
-            'Producto'  => $this->productCell($item),
-            'Origen'    => $this->originCell($item, $isMain),
-            'Categoría' => $this->categoryCell($item),
-            'Tipo'      => $item['kind'] === 'service' ? chip('Servicio', 'sky') : ($item['kind'] === 'supply' ? chip('Insumo', 'amber') : chip('Producto', 'slate')),
-            'Precio'    => moneyCell($item['price']),
-            'Costo'     => moneyCell($item['cost']),
-            'Canales'   => $this->channelsCell($item),
-            'Estado'    => renderActive($item['active']),
-            'a'         => $this->productActions($item, $id)
+            'id'         => $id,
+            'Producto'   => $this->productCell($item),
+            'Origen'     => $this->originCell($item, $isMain),
+            'Categoría'  => $this->categoryCell($item),
+            'Tipo'       => $item['kind'] === 'service' ? chip('Servicio', 'sky') : chip('Producto', 'slate'),
+            'Precio'     => moneyCell($item['price']),
+            'Costo'      => moneyCell($item['cost']),
+            'Canales'    => $this->channelsCell($item),
+            'Inventario' => $this->inventoryCell($item),
+            'Estado'     => renderActive($item['active']),
+            'a'          => $this->productActions($item, $id)
         ];
+    }
+
+    // Solo informa: «Sí» si lleva inventario; «—» si no o si es servicio.
+    private function inventoryCell($item) {
+        if ($item['kind'] !== 'product' || (int) $item['is_inventoriable'] !== 1) return '<span class="cp-celda-sub">—</span>';
+
+        return chip('Sí', 'emerald');
     }
 
     // Foto + nombre + SKU, como la celda de producto de alpha.
@@ -522,7 +583,6 @@ class ctrl extends core {
 
         if ((int) $item['sell_pos'] === 1)   $chips[] = chip('POS', 'emerald');
         if ((int) $item['in_catalog'] === 1) $chips[] = chip('Catálogo', 'sky');
-        if ((int) ($item['is_inventoriable'] ?? 0) === 1) $chips[] = chip('Inventario', 'amber');
 
         return $chips ? implode(' ', $chips) : '<span class="cp-celda-sub">—</span>';
     }

@@ -101,6 +101,7 @@ trait OnlineStore {
                 IFNULL(p.price, 0)         AS price,
                 IFNULL(c.id, 0)            AS category_id,
                 IFNULL(TRIM(c.name), '')   AS category,
+                IFNULL(c.icon, '')         AS category_icon,
                 IFNULL(p.image, '')        AS image,
                 IFNULL(p.in_catalog, 0)    AS in_catalog,
                 p.branch_id
