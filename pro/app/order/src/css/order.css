@@ -1945,6 +1945,29 @@ button.ord-desk-go.is-active { background: rgba(245, 158, 11, 0.16); }
 
 .ord-desk-btns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 
+/* Cierre de turno: Cerrar turno e Imprimir al final de la columna, a la altura del pie del ticket. */
+#modalOrderTurnDesk .ord-desk-btns { margin-top: auto; }
+
+/* Cierre de turno: la vista previa del ticket al 90 %. El Resumido (566 px) cabe sin barra desde
+   ~830 px de alto de pantalla. Solo la vista previa: lo impreso sale de ordPrintDoc, a su tamaño. */
+#modalOrderTurnDesk .ord-desk-paper .ord-ticket { zoom: .9; }
+
+/* El hueco de la barra va guardado en los dos lados: al pasar a Detallado (más alto) sale la
+   barra y el ticket no se recorre; sigue centrado en el mismo lugar que en Resumido. */
+#modalOrderTurnDesk .ord-desk-paper { scrollbar-gutter: stable both-edges; }
+
+/* El papel con alto fijo (el tope de siempre), no solo máximo: Resumido, Detallado o «sin turnos»
+   miden lo mismo y la ventana no crece al cambiar de modo. Va en flex-basis: .ord-viewer-desk trae
+   flex: 1 (base 0) y con eso el navegador ignora height. En celular manda el alto automático. */
+@media (min-width: 768px) {
+    #modalOrderTurnDesk .ord-desk-paper { flex: 0 0 max(360px, calc(100vh - 290px)); }
+}
+
+/* Cierre de turno: Sucursal con su ícono. */
+.ord-desk-field > b.has-ico { display: flex; align-items: center; gap: 8px; }
+.ord-desk-field > b.has-ico > svg { width: 16px; height: 16px; flex-shrink: 0; color: rgb(var(--gray-400, 168 162 158)); }
+.ord-desk-field > b.has-ico > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 button.ord-desk-btn {
     display: inline-flex;
     align-items: center;
@@ -2110,50 +2133,45 @@ button.ord-sale-cancel { border: 1px solid #FECACA; background: #FEF2F2; color: 
 button.ord-sale-cancel:hover { background: #FEE2E2; }
 body.dark-mode button.ord-sale-cancel { border-color: #7F1D1D; background: rgb(127 29 29 / .25); color: #FCA5A5; }
 
-/* -- Historial de ventas (V2): totales sobre la tabla y aviso de la Cajera -- */
-.his-summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-left: auto;
-}
+/* -- Vendido (antes Historial de ventas, V2) --
+   Los indicadores son kpisRow (coffeeSoft.js): aquí solo va lo que ese
+   componente no trae. */
 
-.his-summary:empty { display: none; }
-
-.his-chip {
+/* «Solo ver» junto al título: la Cajera ve todo, pero no cambia nada ni descarga. */
+.his-readonly {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     padding: 3px 10px;
     border-radius: 999px;
     border: 1px solid rgb(var(--gray-200, 231 229 228));
     background: rgb(var(--gray-50, 250 250 249));
     color: rgb(var(--gray-500, 120 113 108));
     font-size: 12px;
+    font-weight: 600;
     white-space: nowrap;
 }
 
-.his-chip b { color: rgb(var(--gray-800, 41 37 36)); font-weight: 700; }
-.his-chip.is-cancel { border-color: #FECACA; background: #FEF2F2; color: #B91C1C; }
-.his-chip.is-cancel b { color: #B91C1C; }
+/* Los indicadores no se tocan: sin la mano ni la sombra que kpisRow trae para el clic. */
+.his-kpi { cursor: default; }
 
-.his-own {
-    display: flex;
+/* «Pedido» junto al folio de una P. */
+.ord-kind {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid rgb(var(--gray-200, 231 229 228));
-    background: rgb(var(--gray-50, 250 250 249));
-    color: rgb(var(--gray-600, 87 83 78));
-    font-size: 13px;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: #EAF0FA;
+    color: #2A55A3;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    vertical-align: middle;
 }
 
-body.dark-mode .his-chip,
-body.dark-mode .his-own { border-color: var(--dk-line, #374151); background: var(--dk-row, #283341); color: var(--dk-muted, #9CA3AF); }
-body.dark-mode .his-chip b { color: var(--dk-text-soft, #D1D5DB); }
-body.dark-mode .his-chip.is-cancel { border-color: #7F1D1D; background: rgb(127 29 29 / .25); color: #FCA5A5; }
-body.dark-mode .his-chip.is-cancel b { color: #FCA5A5; }
+body.dark-mode .his-readonly { border-color: var(--dk-line, #374151); background: var(--dk-row, #283341); color: var(--dk-muted, #9CA3AF); }
+body.dark-mode .ord-kind { background: rgba(42, 85, 163, .22); color: #93B4E8; }
 
 /* -- Calendario (Etapa 4) -- */
 /*  FullCalendar lee estas variables: asi toma el tema sin pisar sus reglas. */
@@ -2567,7 +2585,8 @@ body.dark-mode button.ord-act { border-color: var(--dk-line, #374151); backgroun
     box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 80 48 165) / .14);
 }
 
-#cutPeriodWrap label.ord-cutper-opt {
+#cutPeriodWrap label.ord-cutper-opt,
+#hisPeriodWrap label.ord-cutper-opt {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -2583,7 +2602,8 @@ body.dark-mode button.ord-act { border-color: var(--dk-line, #374151); backgroun
 
 .ord-cutper-sep { flex-shrink: 0; width: 1px; height: 16px; background: rgb(var(--gray-300, 209 213 219)); }
 
-#cutPeriodWrap .ord-cutper input[type="text"] {
+#cutPeriodWrap .ord-cutper input[type="text"],
+#hisPeriodWrap .ord-cutper input[type="text"] {
     flex: 1;
     min-width: 0;
     height: 1.25rem !important;
@@ -2601,9 +2621,11 @@ body.dark-mode button.ord-act { border-color: var(--dk-line, #374151); backgroun
 
 body.dark-mode .ord-cutper { border-color: var(--dk-input-line, #374151); background: var(--dk-input, #111827); }
 body.dark-mode .ord-cutper:focus-within { border-color: rgb(var(--accent-2-600, 192 90 64)); box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 192 90 64) / .2); }
-body.dark-mode #cutPeriodWrap label.ord-cutper-opt { color: var(--dk-text-soft, #D1D5DB); }
+body.dark-mode #cutPeriodWrap label.ord-cutper-opt,
+body.dark-mode #hisPeriodWrap label.ord-cutper-opt { color: var(--dk-text-soft, #D1D5DB); }
 body.dark-mode .ord-cutper-opt input { color-scheme: dark; }
-body.dark-mode #cutPeriodWrap .ord-cutper input[type="text"] { color: var(--dk-text, #F3F4F6) !important; }
+body.dark-mode #cutPeriodWrap .ord-cutper input[type="text"],
+body.dark-mode #hisPeriodWrap .ord-cutper input[type="text"] { color: var(--dk-text, #F3F4F6) !important; }
 body.dark-mode .ord-cutper-sep { background: var(--dk-line, #374151); }
 
 /*  Ver, Periodo y Sucursal van del mismo ancho (cortes.js › filterBar), como
@@ -2615,6 +2637,13 @@ body.dark-mode .ord-cutper-sep { background: var(--dk-line, #374151); }
 
 @media (min-width: 1280px) and (max-width: 1679px) {
     #fbCuts > div:has(input[name="cutPeriod"][value="range"]:checked) { grid-column: span 4 / span 4; }
+}
+
+/*  Vendido (historial.js › filterBar): el periodo va en col-4 y el resto en
+    col-2. En «Rango» las dos fechas piden ~360 px: de 1024 a 1279 px col-4 no
+    llega, y ahí toma 6 columnas (Buscar baja de renglón). */
+@media (min-width: 1024px) and (max-width: 1279px) {
+    #fbSaleHistory > div:has(input[name="hisPeriod"][value="range"]:checked) { grid-column: span 6 / span 6; }
 }
 
 /* -- Cortes: visor (como alpha/order-visor) --
@@ -2669,9 +2698,6 @@ body.dark-mode .ord-cutper-sep { background: var(--dk-line, #374151); }
     outline: none;
 }
 .ord-vis-search input:focus { border-color: rgb(var(--brand-600, 192 90 64)); background: #FFFFFF; }
-
-.ord-vis-note { margin: 0; font-size: 11.5px; line-height: 1.4; color: rgb(var(--gray-500, 120 113 108)); }
-.ord-vis-note:empty { display: none; }
 
 .ord-vis-cols {
     display: grid;
@@ -2936,7 +2962,6 @@ body.dark-mode .ord-vrow-folio,
 body.dark-mode .ord-vrow-val { color: var(--dk-text, #F3F4F6); }
 
 body.dark-mode .ord-vis-count,
-body.dark-mode .ord-vis-note,
 body.dark-mode .ord-vis-cols,
 body.dark-mode .ord-vgroup2-title,
 body.dark-mode .ord-vis-foot span,

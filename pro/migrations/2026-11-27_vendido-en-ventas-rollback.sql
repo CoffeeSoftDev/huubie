@@ -1,7 +1,9 @@
 -- =============================================================================
--- Rollback de 2026-11-26_ventas-del-dia.sql: «Ventas del día» vuelve a ser
--- «Historial», en Administración (lugar 3), y el menu queda como el 15/11/2026.
+-- Rollback de 2026-11-27_vendido-en-ventas.sql: «Vendido» vuelve a ser
+-- «Historial», en Administración (lugar 3), y el menú queda como el 15/11/2026.
 -- Busca por code, con valores absolutos: se puede volver a correr.
+-- Los permisos del paso 4 (show/print de pos-historial para quien vende) NO
+-- se quitan: no se sabe cuáles ya estaban, y son la regla del 14/11 (A9).
 -- =============================================================================
 
 UPDATE sections s

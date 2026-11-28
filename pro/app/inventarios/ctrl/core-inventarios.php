@@ -487,6 +487,30 @@ class core extends mdl {
         return null;
     }
 
+    /*  Como en inventory: primero se pide la contraseña (verifyKey del ctrl) y
+        queda una autorización en la sesión para ESE documento durante KEY_WINDOW
+        segundos; la cancelación la exige y la consume. $doc: 'inflow', 'outflow'... */
+    const KEY_WINDOW = 600;
+
+    protected function keyCheck($doc, $id) {
+        $fail = $this->needKey('continuar');
+        if ($fail) return $fail;
+
+        $_SESSION['inv_auth'][$doc . ':' . (int) $id] = time();
+
+        return $this->ok('Contraseña correcta.');
+    }
+
+    protected function keyAuthorized($doc, $id) {
+        $at = (int) ($_SESSION['inv_auth'][$doc . ':' . (int) $id] ?? 0);
+
+        return $at > 0 && time() - $at <= self::KEY_WINDOW;
+    }
+
+    protected function keyConsume($doc, $id) {
+        unset($_SESSION['inv_auth'][$doc . ':' . (int) $id]);
+    }
+
     // Cantidad sin decimales si la unidad no los lleva (pieza, caja).
     protected function badQuantity($qty, $product) {
         if (!($qty > 0)) return 'La cantidad de «' . $product['name'] . '» debe ser mayor a 0.';
@@ -605,6 +629,203 @@ class core extends mdl {
     // El número solo, sin ceros de más (para avisos y Antes / Quedó): 1,250.5
     protected function num($n) {
         return rtrim(rtrim(number_format((float) $n, 3, '.', ','), '0'), '.');
+    }
+
+    // -- Celdas del visor (las de inventory) --
+
+    // Insignia de dos colores: texto $fg sobre fondo $bg (sin fondo: el mismo color al 10 %).
+    protected function badge($text, $fg = '#64748B', $bg = null, $icon = null) {
+        $fg    = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $fg) ? $fg : '#64748B';
+        $bg    = $bg ?: $fg . '1A';
+        $label = ($text === null || $text === '') ? '-' : $text;
+        $ico   = $icon ? '<i data-lucide="' . h($icon) . '" class="w-3 h-3"></i> ' : '';
+        $cls   = ($ico ? 'inline-flex items-center gap-1 ' : '') . 'text-[10px] font-semibold px-3 py-1 rounded';
+
+        return '<span class="cs-badge-soft ' . $cls . '" style="--b-fg:' . $fg . ';background:' . $bg . ';color:' . $fg . ';">' . $ico . h($label) . '</span>';
+    }
+
+    // pending / applied / cancelled -> como se ve: Pendiente, Aplicada, Cancelada.
+    protected function statusName($status) {
+        return ['pending' => 'Pendiente', 'applied' => 'Aplicada', 'cancelled' => 'Cancelada'][$status] ?? $status;
+    }
+
+    protected function statusBadge($status) {
+        $map = [
+            'Aplicada'  => ['#16A34A', '#DCFCE7'],
+            'Pendiente' => ['#D97706', '#FEF3C7'],
+            'Cancelada' => ['#DC2626', '#FEE2E2']
+        ];
+        $name = $this->statusName($status);
+        $c    = $map[$name] ?? ['#475569', '#F1F5F9'];
+
+        return $this->badge(mb_strtoupper($name, 'UTF-8'), $c[0], $c[1]);
+    }
+
+    // 26/nov/2026 11:38 am: el día del documento con la hora en que se capturó.
+    protected function dateTime($date, $stamp = '') {
+        $months = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        $day    = strtotime((string) $date);
+        if (!$day) return '-';
+
+        $text = date('d', $day) . '/' . $months[(int) date('n', $day)] . '/' . date('Y', $day);
+        $time = strtotime((string) $stamp);
+
+        return $time ? $text . ' ' . date('h:i a', $time) : $text;
+    }
+
+    // El folio subrayado que abre el visor: app.<fn>('ENT-CUA-0001', 12).
+    protected function folioLink($folio, $id, $fn) {
+        $label = h($folio);
+
+        return "<a href='#' onclick=\"app.{$fn}('{$label}', " . (int) $id . "); return false;\""
+             . " class='font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700'>{$label}</a>";
+    }
+
+    // Botón de la fila (ojo, lápiz...) con el ícono de Lucide.
+    protected function rowIcon($icon, $onclick, $title = '') {
+        return [
+            'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+            'html'    => '<i data-lucide="' . $icon . '" class="w-4 h-4"></i>',
+            'title'   => $title,
+            'onclick' => $onclick
+        ];
+    }
+
+    // $ 1,250.00; en cero, un guion.
+    protected function money($n) {
+        $n = (float) $n;
+        if (abs($n) < 0.005) return '-';
+
+        return $n < 0
+            ? "<span class='text-danger'>$ " . number_format($n, 2, '.', ',') . '</span>'
+            : '$ ' . number_format($n, 2, '.', ',');
+    }
+
+    protected function percent($part, $total) {
+        return (float) $total > 0 ? number_format((float) $part * 100 / (float) $total, 1) . ' %' : '-';
+    }
+
+    protected function productCell($name, $sku) {
+        return h($name) . ($sku ? ' <span class="text-[10px] text-gray-400">' . h($sku) . '</span>' : '');
+    }
+
+    // Renglón de total al pie del desglose (opc 2: borde grueso arriba).
+    protected function totalRow($cells) {
+        $row = ['id' => 'total'];
+
+        foreach ($cells as $column => $value) $row[$column] = ['html' => $value, 'class' => 'font-bold'];
+
+        $row['opc'] = 2;
+
+        return $row;
+    }
+
+    // -- Lo que comparten los filtros y las capturas --
+
+    // La sucursal: la de la barra (en pro se cambia arriba). Una sola opción.
+    protected function branchOptions() {
+        return [['id' => $this->branchId(), 'valor' => $this->scope()['branch']]];
+    }
+
+    protected function warehouseList() {
+        return array_map(function ($w) {
+            return ['id' => (int) $w['id'], 'valor' => $w['name'], 'branch_id' => (int) $w['branch_id']];
+        }, $this->warehouses());
+    }
+
+    protected function areaList() {
+        return array_map(function ($a) {
+            return ['id' => (int) $a['id'], 'valor' => $a['valor'], 'warehouse_id' => (int) $a['warehouse_id']];
+        }, $this->qAreaOptions(array_map('intval', array_column($this->warehouses(), 'id'))));
+    }
+
+    protected function unitList() {
+        return array_map(function ($u) {
+            return ['id' => (int) $u['id'], 'valor' => $u['name'], 'code' => $u['code']];
+        }, $this->qUnits($this->companyId()));
+    }
+
+    protected function categoryList() {
+        $names = [];
+
+        foreach ($this->products() as $p) {
+            if ($p['category_id']) $names[(int) $p['category_id']] = trim((string) $p['category']);
+        }
+
+        asort($names, SORT_NATURAL | SORT_FLAG_CASE);
+
+        $list = [];
+        foreach ($names as $id => $name) $list[] = ['id' => $id, 'valor' => $name];
+
+        return $list;
+    }
+
+    /*  El Catálogo como lo pide la captura de inventory (entrada-form,
+        salida-form, traspaso-form). Sin «ver-costos» el costo viaja en 0: el
+        ctrl usa el del Catálogo al guardar. stock: lo de ese almacén, si viene. */
+    protected function catalogProducts($warehouseId = 0) {
+        $costs = $this->costs();
+        $stock = [];
+
+        if ($warehouseId > 0) {
+            foreach ($this->qStockRows([(int) $warehouseId]) as $row) $stock[(int) $row['product_id']] = (float) $row['quantity'];
+        }
+
+        return array_map(function ($p) use ($costs, $stock) {
+            $id   = (int) $p['id'];
+            $cost = $costs ? round((float) $p['cost'], 4) : 0;
+
+            return [
+                'id'                => (string) $id,
+                'sku'               => (string) ($p['sku'] ?: ''),
+                'nombre'            => $p['name'],
+                'categoria'         => trim((string) $p['category']) ?: 'Sin categoria',
+                'category_id'       => (string) ($p['category_id'] ?: ''),
+                'unit_id'           => (string) ($p['unit_id'] ?: ''),
+                'unidad'            => $p['unit'] ?: 'PZA',
+                'decimals'          => (int) $p['decimals'],
+                'costo'             => $cost,
+                'price_without_tax' => $cost,
+                'tax'               => 0,
+                'stock'             => round($stock[$id] ?? 0, 4),
+                'descripcion'       => '',
+                'stock_max'         => (float) $p['stock_max'],
+                'image'             => $this->photoUrl($p['image']),
+                'editable'          => false,
+                'lots'              => (int) $p['track_lots'],
+                'icon'              => 'package',
+                'bg'                => 'bg-gray-100',
+                'color'             => 'text-gray-500'
+            ];
+        }, $this->products());
+    }
+
+    // La foto del Catálogo ('alpha_files/<empresa>/...', con espacios y acentos) desde la raíz.
+    protected function photoUrl($path) {
+        $path = trim((string) $path);
+
+        if ($path === '' || preg_match('#^https?://#i', $path)) return $path;
+
+        return '/' . implode('/', array_map('rawurlencode', explode('/', ltrim($path, '/'))));
+    }
+
+    // {product_id: existencia} de un almacén de la sucursal.
+    protected function stockMap($warehouseId) {
+        $map = [];
+
+        if ($this->ownWarehouse($warehouseId)) {
+            foreach ($this->qStockRows([(int) $warehouseId]) as $row) $map[(string) $row['product_id']] = round((float) $row['quantity'], 4);
+        }
+
+        return $map;
+    }
+
+    // La fecha de un documento: un día válido y no posterior a hoy. null = está bien.
+    protected function badDate($date) {
+        if (!$this->dateOrNull($date)) return 'Elige una fecha válida.';
+        if ($date > $this->qNow()['today']) return 'La fecha no puede ser posterior a hoy.';
+
+        return null;
     }
 }
 

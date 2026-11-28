@@ -362,6 +362,9 @@ body.dark-mode #modalOrderPay {
 #modalOrderPay .pa-stat.is-change { background: var(--pa-sunken); color: var(--pa-muted); }
 #modalOrderPay .pa-stat.is-change.is-on { background: var(--pa-ok-bg); color: var(--pa-ok); box-shadow: inset 0 0 0 1px var(--pa-ok-line); }
 #modalOrderPay .pa-stat.is-change.is-on > small { color: var(--pa-ok); }
+/* Los tres recuadros no cambian de tamaño: el renglón de la nota («Recibe $X», el descuento) queda guardado aunque esté vacío. */
+#modalOrderPay .pa-sum:has(> .pa-stat.is-change) .pa-stat > small:empty { display: block; }
+#modalOrderPay .pa-sum:has(> .pa-stat.is-change) .pa-stat > small:empty::before { content: '\00a0'; }
 #modalOrderPay .pa-disc-wrap { display: flex; flex-direction: column; gap: 8px; }
 #modalOrderPay .pa-disc-wrap[hidden],
 #modalOrderPay .pa-disc-wrap:empty { display: none; }

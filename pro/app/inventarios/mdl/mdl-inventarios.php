@@ -218,11 +218,21 @@ class mdl extends CRUD {
         return $this->_CUD("UPDATE {$this->pos}product SET cost = ?, updated_at = NOW() WHERE id = ?", [$cost, $productId]);
     }
 
+    // Unidades de la empresa y las plantillas de Huubie (company_id NULL).
+    public function qUnits($companyId) {
+        return $this->qRows("
+            SELECT id, code, name
+            FROM {$this->inv}unit
+            WHERE (company_id = ? OR company_id IS NULL) AND active = 1
+            ORDER BY sort_order, name
+        ", [$companyId]);
+    }
+
     public function qAreaOptions(array $warehouseIds) {
         if (!$warehouseIds) return [];
 
         return $this->qRows("
-            SELECT id, name AS valor
+            SELECT id, name AS valor, warehouse_id
             FROM {$this->inv}warehouse_area
             WHERE warehouse_id IN ({$this->qIn($warehouseIds)})
                 AND active = 1
@@ -413,7 +423,7 @@ class mdl extends CRUD {
 
     public function qOrigins($companyId) {
         return $this->qRows("
-            SELECT id, code, name, description, icon, color_hex, requires_supplier, updates_cost, starts_pending, is_system
+            SELECT id, code, name, description, icon, color_hex, requires_supplier, updates_cost, starts_pending, is_system, sort_order
             FROM {$this->inv}inflow_origin
             WHERE (company_id = ? OR company_id IS NULL) AND active = 1
             ORDER BY sort_order, name
@@ -453,26 +463,92 @@ class mdl extends CRUD {
 
     // -- Entradas --
 
+    /*  $status: '' todos, 'active' sin canceladas, o pending / applied / cancelled.
+        $originId null = todos los tipos. */
     public function qListInflows($companyId, $branchId, $from, $to, $originId, $status) {
         $where = '';
         $data  = [$companyId, $branchId, $from, $to];
 
-        if ($originId !== null) { $where .= ' AND i.inflow_origin_id = ?'; $data[] = $originId; }
-        if ($status !== '')     { $where .= ' AND i.status = ?';           $data[] = $status; }
+        if ($originId !== null)   { $where .= ' AND i.inflow_origin_id = ?'; $data[] = $originId; }
+        if ($status === 'active') { $where .= " AND i.status <> 'cancelled'"; }
+        elseif ($status !== '')   { $where .= ' AND i.status = ?'; $data[] = $status; }
 
         return $this->qRows("
             SELECT i.*, o.name AS origin, o.code AS origin_code, o.icon AS origin_icon, o.color_hex AS origin_color,
-                   w.name AS warehouse, a.name AS area, s.name AS supplier
+                   w.name AS warehouse, a.name AS area, s.name AS supplier, b.name AS branch
             FROM {$this->inv}inventory_inflow i
             LEFT JOIN {$this->inv}inflow_origin o  ON o.id = i.inflow_origin_id
             LEFT JOIN {$this->inv}warehouse w      ON w.id = i.warehouse_id
             LEFT JOIN {$this->inv}warehouse_area a ON a.id = i.warehouse_area_id
             LEFT JOIN {$this->inv}supplier s       ON s.id = i.supplier_id
+            LEFT JOIN {$this->bd}branches b        ON b.id = i.branch_id
             WHERE i.company_id = ? AND i.branch_id = ? AND i.active = 1
                 AND i.operation_date BETWEEN ? AND ?
                 {$where}
             ORDER BY i.operation_date DESC, i.id DESC
         ", $data);
+    }
+
+    // Lo que entró de cada producto en esas entradas (desglose de Costo y Unidades).
+    public function qInflowProducts(array $inflowIds) {
+        if (!$inflowIds) return [];
+
+        return $this->qRows("
+            SELECT d.product_id, p.name, p.sku, u.code AS unit,
+                   SUM(d.quantity) AS units, SUM(d.subtotal) AS cost
+            FROM {$this->inv}detail_inventory_inflow d
+            LEFT JOIN {$this->pos}product p ON p.id = d.product_id
+            LEFT JOIN {$this->inv}unit u    ON u.id = p.unit_id
+            WHERE d.inventory_inflow_id IN ({$this->qIn($inflowIds)}) AND d.active = 1
+            GROUP BY d.product_id, p.name, p.sku, u.code
+        ", $inflowIds);
+    }
+
+    // -- Formatos de entrada (plantillas de lote) --
+    // scope: user = quien lo guardó · subsidiary = su sucursal · company = toda la empresa.
+
+    public function qFormats($companyId, $branchId, $userId) {
+        return $this->qRows("
+            SELECT id, name, scope
+            FROM {$this->inv}inflow_format
+            WHERE company_id = ? AND active = 1
+                AND (scope = 'company'
+                     OR (scope = 'subsidiary' AND branch_id = ?)
+                     OR (scope = 'user' AND user_id = ?))
+            ORDER BY name
+        ", [$companyId, $branchId, $userId]);
+    }
+
+    public function qFormatItems(array $formatIds) {
+        if (!$formatIds) return [];
+
+        return $this->qRows("
+            SELECT inflow_format_id, product_id, quantity
+            FROM {$this->inv}inflow_format_item
+            WHERE inflow_format_id IN ({$this->qIn($formatIds)}) AND active = 1
+            ORDER BY sort_order, id
+        ", $formatIds);
+    }
+
+    public function qCreateFormat($values, $data) {
+        return $this->qInsertInv('inflow_format', $values, $data);
+    }
+
+    public function qCreateFormatItem($values, $data) {
+        return $this->qInsertInv('inflow_format_item', $values, $data);
+    }
+
+    public function qGetFormat($id, $companyId) {
+        return $this->qRow("SELECT id, user_id, scope FROM {$this->inv}inflow_format WHERE id = ? AND company_id = ? AND active = 1 LIMIT 1", [$id, $companyId]);
+    }
+
+    public function qDeleteFormat($id) {
+        return $this->_CUD("UPDATE {$this->inv}inflow_format SET active = 0 WHERE id = ?", [$id]);
+    }
+
+    // Cantidad real de un renglón al confirmar la producción.
+    public function qSetInflowLineQty($id, $quantity, $subtotal) {
+        return $this->_CUD("UPDATE {$this->inv}detail_inventory_inflow SET quantity = ?, subtotal = ? WHERE id = ?", [$quantity, $subtotal, $id]);
     }
 
     public function qCountPendingInflows($companyId, $branchId) {
@@ -485,19 +561,20 @@ class mdl extends CRUD {
     public function qGetInflow($id, $companyId, $branchId, $lock = false) {
         return $this->qRow("
             SELECT i.*, o.name AS origin, o.code AS origin_code, o.icon AS origin_icon, o.color_hex AS origin_color,
-                   o.updates_cost, w.name AS warehouse, a.name AS area, s.name AS supplier
+                   o.updates_cost, w.name AS warehouse, a.name AS area, s.name AS supplier, b.name AS branch
             FROM {$this->inv}inventory_inflow i
             LEFT JOIN {$this->inv}inflow_origin o  ON o.id = i.inflow_origin_id
             LEFT JOIN {$this->inv}warehouse w      ON w.id = i.warehouse_id
             LEFT JOIN {$this->inv}warehouse_area a ON a.id = i.warehouse_area_id
             LEFT JOIN {$this->inv}supplier s       ON s.id = i.supplier_id
+            LEFT JOIN {$this->bd}branches b        ON b.id = i.branch_id
             WHERE i.id = ? AND i.company_id = ? AND i.branch_id = ? AND i.active = 1
             LIMIT 1" . ($lock ? ' FOR UPDATE' : ''), [$id, $companyId, $branchId]);
     }
 
     public function qInflowLines($inflowId) {
         return $this->qRows("
-            SELECT d.*, p.name, p.sku, u.code AS unit
+            SELECT d.*, p.name, p.sku, p.image, u.code AS unit, IFNULL(u.allows_decimals, 0) AS decimals
             FROM {$this->inv}detail_inventory_inflow d
             LEFT JOIN {$this->pos}product p ON p.id = d.product_id
             LEFT JOIN {$this->inv}unit u    ON u.id = p.unit_id

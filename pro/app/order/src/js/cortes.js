@@ -292,7 +292,7 @@ class Cuts extends Templates {
                 class: 'w-full',
                 container: [
                     { type: 'h1', class: 'cp-pagina-titulo', text: 'Tickets/Cierre' },
-                    { type: 'p', class: 'cp-pagina-subtitulo', text: [scope.company, scope.branch].filter(Boolean).join(' · ') || 'Turnos de caja, cierres del día y tickets' }
+                    { type: 'p', class: 'cp-pagina-subtitulo', html: this.subtitle(scope) }
                 ]
             }
         });
@@ -302,6 +302,16 @@ class Cuts extends Templates {
         // Sin la franja de caja (abrir y cerrar turno): es un visor, como alpha/order-visor.
         // El turno se abre y se cierra en Ventas y en Pedidos.
         this.paintTurn();
+    }
+
+    // Empresa · sucursal, como en Pedidos: la sucursal en negritas y con el color de la marca (order.css › .ord-head-branch).
+    subtitle(scope) {
+        if (!scope.company && !scope.branch) return 'Turnos de caja, cierres del día y tickets';
+
+        return [
+            scope.company ? esc(scope.company) : '',
+            scope.branch ? `<b class="ord-head-branch">${esc(scope.branch)}</b>` : ''
+        ].filter(Boolean).join(' · ');
     }
 
     // «Cierre del día» del encabezado. orderTurn.sync() lo repinta: el botón abre el día pendiente si lo hay.
@@ -435,8 +445,7 @@ class Cuts extends Templates {
                             { type: 'i', 'data-lucide': 'search', class: 'ord-vis-search-ico' },
                             { type: 'input', id: 'cut_search', placeholder: 'Buscar por folio, cliente, persona o fecha…', autocomplete: 'off', 'aria-label': 'Buscar en la lista' }
                         ]
-                    },
-                    { type: 'p', id: `listNote${this.PROJECT_NAME}`, class: 'ord-vis-note' }
+                    }
                 ]
             }
         });
@@ -511,7 +520,7 @@ class Cuts extends Templates {
         this.data  = loaded ? data : null;
         this.items = loaded ? (data.items || []).map((item) => this.prepare(item)) : [];
 
-        this.paintHead(filters);
+        this.paintHead();
         this.paintList();
 
         const keep  = this.items.find((item) => item.key === this.selected);
@@ -572,13 +581,11 @@ class Cuts extends Templates {
         this.paintList();
     }
 
-    // Título de la vista, la nota del periodo y las columnas (alpha › columnsFor).
-    paintHead(filters) {
-        const caption = this.caption(this.data, filters);
-        const look    = this.columns[this.view];
+    // Título de la vista y las columnas (alpha › columnsFor).
+    paintHead() {
+        const look = this.columns[this.view];
 
         $(`#listTitle${this.PROJECT_NAME}`).text(look.title);
-        $(`#listNote${this.PROJECT_NAME}`).html(caption.subtitle);
 
         $(`#listCols${this.PROJECT_NAME}`)
             .css('grid-template-columns', look.grid)
@@ -1303,40 +1310,5 @@ class Cuts extends Templates {
         };
 
         return Object.keys(this.ranges).find(same) || 'custom';
-    }
-
-    // Encabezado de la lista. subtitle ya viene escapado: va con .html().
-    caption(data, filters) {
-        const view = this.views[filters.view];
-
-        if (!data) return { title: 'Sin datos', subtitle: 'No se pudo cargar la lista.' };
-
-        const count  = Number(data.count || 0);
-        const title  = count ? `${count} ${count === 1 ? view.one : view.many}` : `Sin ${view.many}`;
-        const period = `del ${ordDate(filters.fi)} al ${ordDate(filters.ff)} en ${esc(data.branch || (dataInit.scope || {}).branch || '')}.`;
-
-        if (filters.view === 'turns') {
-            const changed = Number(data.changed || 0);
-            const drift   = changed ? ` ${changed} ${changed === 1 ? 'turno cambió' : 'turnos cambiaron'} después de su corte: ábrelo para ver qué y recalcularlo.` : '';
-
-            return { title, subtitle: `Por fecha de apertura, ${period}${drift}` };
-        }
-
-        if (filters.view === 'tickets') {
-            const kinds = data.kinds || {};
-            const parts = [
-                kinds.order ? `${kinds.order} ${kinds.order === 1 ? 'pedido' : 'pedidos'}` : '',
-                kinds.online ? `${kinds.online} de la tienda en línea` : '',
-                kinds.counter ? `${kinds.counter} de mostrador` : ''
-            ].filter(Boolean).join(', ');
-            const more  = data.more ? ` Se ven los ${count} más recientes: acorta el periodo para ver el resto.` : '';
-
-            return { title, subtitle: `Por fecha de captura, ${period}${parts ? ` ${esc(parts)}.` : ''} El total es lo vendido: sin cotizaciones ni cancelados.${more}` };
-        }
-
-        const pending = Number(data.pending || 0);
-        const state   = pending ? ` ${pending} sin cerrar.` : (count ? ' Todos cerrados.' : '');
-
-        return { title, subtitle: `Días con turno o con cierre ${period}${state} Un día cerrado muestra las cifras de su cierre.` };
     }
 }

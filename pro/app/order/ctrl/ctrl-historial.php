@@ -7,13 +7,20 @@ require_once __DIR__ . '/../mdl/mdl-credito.php';
 require_once __DIR__ . '/../mdl/mdl-lealtad.php';
 require_once __DIR__ . '/../mdl/mdl-ticket.php';
 
-/*  Ventas › Historial (V2 del plan de Ventas).
+/*  Ventas › Vendido (antes «Historial»: V2 del plan de Ventas; desde el
+    27/11/2026 se llama Vendido y vive en el menu de Ventas).
 
     Reglas que no se ven en el codigo de un vistazo:
-      - Solo ventas de mostrador: sale_type_id 3. Pedidos tiene su propia lista.
-      - Quien puede cancelar en pos-ventas (Dueño o Supervisor) ve todo, cancela,
-        quita pagos y cambia el cliente. La Cajera ve solo SUS ventas del turno
-        abierto y las imprime: own() le fija usuario y turno en cada consulta.
+      - Ventas de mostrador (V: sale_type_id 3) por fecha de captura o por turno.
+      - Pedidos (P: tipo 1) por LO COBRADO: sus pagos que entraron en los turnos
+        de la sucursal abiertos en el periodo (la regla del Corte Z), o en el
+        turno elegido. El renglon trae solo eso cobrado; su saldo, el de siempre.
+      - Todos ven lo mismo. Cobrar el saldo, quitar pagos, cancelar y
+        descargar: solo quien cancela en pos-ventas (Dueño o Supervisor:
+        canAll). Cambiar el cliente: quien edita en pos-ventas (update), como
+        «Editar pedido» en Pedidos. La Cajera solo ve, imprime y manda el ticket.
+      - Un pedido aqui es solo para ver (getPedido): se trabaja en Pedidos.
+      - Lo cancelado sale en la lista, pero no suma.
       - Lo que se debe = total + propina (la propina va aparte del total).
       - Cancelar:
           pagos del turno abierto      -> borrado logico: salen del corte.
@@ -44,13 +51,13 @@ class ctrl extends core {
     const SALES        = 'pos-ventas';
     const HISTORY      = 'pos-historial';
     const SALE_TYPE    = 3;
+    const ORDER_TYPE   = 1;
+    const KINDS        = ['all', 'sale', 'order'];
     const MAX_PAYMENTS = 6;
     const MAX_AMOUNT   = 1000000;
     const MAX_NOTE     = 200;
     const MAX_REASON   = 255;
     const MAX_ROWS     = 2000;
-
-    private $ownCache = false;
 
     // -- Arranque --
 
@@ -76,7 +83,6 @@ class ctrl extends core {
             'scope'     => ['company' => $scope['company'], 'branch' => $scope['branch'], 'logo' => $this->companyLogo()],
             'actions'   => $this->actions(),
             'history'   => Permission::actions(self::HISTORY),
-            'sales'     => Permission::actions(self::SALES),
             'tickets'   => Permission::actions(self::TICKETS),
             'today'     => date('Y-m-d'),
             'turn'      => $this->turnBrief(),
@@ -84,6 +90,8 @@ class ctrl extends core {
             'user'      => ['id' => $this->userId(), 'name' => $this->userName()],
             'branch_id' => $this->branchId(),
             'can_all'   => $this->canAll(),
+            // Descargar: solo Dueño o Supervisor (lsExport lo vuelve a revisar).
+            'can_export' => $this->canAll(),
             'methods'   => $methods
         ];
     }
@@ -95,69 +103,168 @@ class ctrl extends core {
         if ($fail) return $fail;
 
         return $this->attempt(function () {
-            $own = $this->own();
-            $fi  = $this->postDate('fi', date('Y-m-d'));
-            $ff  = $this->postDate('ff', date('Y-m-d'));
-
-            if ($fi > $ff) list($fi, $ff) = [$ff, $fi];
-
-            $from = $fi . ' 00:00:00';
-            $to   = $this->dayRange($ff)[1];
-
-            $filters = [
-                'branch_id' => $this->branchId(),
-                'from'      => $from,
-                'to'        => $to,
-                'turn_id'   => $own ? $own['turn_id'] : max(0, $this->postId('turn_id')),
-                'user_id'   => $own ? $own['user_id'] : 0,
-                'method_id' => max(0, $this->postId('method_id'))
-            ];
-
-            $open   = $this->qOpenTurn($this->branchId());
-            $openId = $open ? (int) $open['id'] : 0;
-            $print  = Permission::can(self::HISTORY, 'print');
-            $all    = $this->canAll();
-
+            $filters = $this->listFilters();
+            $items   = $this->listItems($filters);
+            $open    = $this->qOpenTurn($this->branchId());
+            $openId  = $open ? (int) $open['id'] : 0;
+            $print   = Permission::can(self::HISTORY, 'print');
+            $all     = $this->canAll();
             $rows    = [];
-            $summary = ['count' => 0, 'total' => 0, 'tips' => 0, 'cancelled' => 0];
 
-            foreach ($this->qListSales($filters) as $sale) {
-                $rows[] = $this->saleRow($sale, $openId, $print, $all);
-
-                if ((int) $sale['sale_status_id'] === self::CANCELLED) {
-                    $summary['cancelled']++;
-                    continue;
-                }
-
-                $summary['count']++;
-                $summary['total'] += (float) $sale['total'];
-                $summary['tips']  += (float) $sale['tip_amount'];
+            foreach ($items as $item) {
+                $rows[] = $item['kind'] === 'P'
+                        ? $this->orderRow($item['data'], $openId, $print)
+                        : $this->saleRow($item['data'], $openId, $print, $all);
             }
-
-            $summary['total'] = round($summary['total'], 2);
-            $summary['tips']  = round($summary['tips'], 2);
 
             $turns = [];
 
-            if (!$own) {
-                foreach ($this->qTurnsInRange($this->branchId(), $from, $to) as $turn) {
-                    $opened  = strtotime($turn['opened_at']);
-                    $turns[] = [
-                        'id'    => (int) $turn['id'],
-                        'valor' => 'Turno ' . $turn['folio'] . ' · ' . date('d/m', $opened) . ' ' . date('g:i A', $opened) . ($turn['status'] === 'open' ? ' (abierto)' : '')
-                    ];
-                }
+            foreach ($this->qTurnsInRange($this->branchId(), $filters['from'], $filters['to']) as $turn) {
+                $opened  = strtotime($turn['opened_at']);
+                $turns[] = [
+                    'id'    => (int) $turn['id'],
+                    'valor' => 'Turno ' . $turn['folio'] . ' · ' . date('d/m', $opened) . ' ' . date('g:i A', $opened) . ($turn['status'] === 'open' ? ' (abierto)' : '')
+                ];
             }
 
             return [
                 'status'  => 200,
                 'row'     => $rows,
-                'summary' => $summary,
+                'summary' => $this->summaryOf($items, $filters),
                 'turns'   => $turns,
-                'own'     => $own ? ['turn_folio' => $own['turn_folio'], 'open' => $own['turn_id'] > 0] : null,
                 'branch'  => $this->scope()['branch']
             ];
-        }, 'No se pudo cargar el historial de ventas.');
+        }, 'No se pudo cargar lo vendido.');
+    }
+
+    // Lo que se ve en la lista, sin HTML, para el Excel. Solo Dueño o Supervisor.
+    public function lsExport() {
+        $fail = $this->needAll('descargar las ventas') ?: $this->needBranch();
+        if ($fail) return $fail;
+
+        return $this->attempt(function () {
+            $rows = array_map([$this, 'exportRow'], $this->listItems($this->listFilters()));
+
+            return ['status' => 200, 'row' => $rows];
+        }, 'No se pudo preparar la descarga.');
+    }
+
+    // Periodo, turno, metodo y tipo (Todo · Ventas · Pedidos) de la barra de filtros.
+    private function listFilters() {
+        $fi = $this->postDate('fi', date('Y-m-d'));
+        $ff = $this->postDate('ff', date('Y-m-d'));
+
+        if ($fi > $ff) list($fi, $ff) = [$ff, $fi];
+
+        $kind = (string) $this->post('kind');
+
+        return [
+            'branch_id' => $this->branchId(),
+            'from'      => $fi . ' 00:00:00',
+            'to'        => $this->dayRange($ff)[1],
+            'turn_id'   => max(0, $this->postId('turn_id')),
+            'method_id' => max(0, $this->postId('method_id')),
+            'kind'      => in_array($kind, self::KINDS, true) ? $kind : 'all'
+        ];
+    }
+
+    /*  Ventas (por captura) y pedidos (por cobro) en una sola lista, lo mas
+        nuevo arriba. at = cuando se vendio la V o cuando se cobro la P. */
+    private function listItems(array $f) {
+        $items = [];
+
+        if ($f['kind'] !== 'order') {
+            foreach ($this->qListSales($f) as $sale) {
+                $items[] = ['kind' => 'V', 'id' => (int) $sale['id'], 'at' => (string) $sale['created_at'], 'data' => $sale];
+            }
+        }
+
+        if ($f['kind'] !== 'sale') {
+            foreach ($this->qListOrderCharges($f) as $order) {
+                $items[] = ['kind' => 'P', 'id' => (int) $order['id'], 'at' => (string) $order['charged_at'], 'data' => $order];
+            }
+        }
+
+        usort($items, fn ($a, $b) => strcmp($b['at'], $a['at']) ?: $b['id'] <=> $a['id']);
+
+        return array_slice($items, 0, self::MAX_ROWS);
+    }
+
+    /*  Los indicadores de arriba. Vendido = total de las V vivas + lo cobrado de
+        las P vivas. methods = lo cobrado por forma de pago (con propina: es lo
+        que entra a caja). credit = lo que las V dejaron a credito. */
+    private function summaryOf(array $items, array $f) {
+        $sum   = ['count' => 0, 'sales' => 0, 'orders' => 0, 'total' => 0, 'tips' => 0, 'credit' => 0, 'cancelled' => 0, 'methods' => []];
+        $sales = [];
+        $paid  = [];
+
+        foreach ($items as $item) {
+            $d = $item['data'];
+
+            if ((int) $d['sale_status_id'] === self::CANCELLED) {
+                $sum['cancelled']++;
+                continue;
+            }
+
+            $sum['count']++;
+
+            if ($item['kind'] === 'P') {
+                $sum['orders']++;
+                $sum['total'] += (float) $d['charged'];
+                $paid[]        = $item['id'];
+                continue;
+            }
+
+            $sum['sales']++;
+            $sum['total'] += (float) $d['total'];
+            $sum['tips']  += (float) $d['tip_amount'];
+            $sales[]       = $item['id'];
+
+            if ((int) $d['on_credit'] > 0) $sum['credit'] += max($this->dueOf($d) - (float) $d['paid'], 0);
+        }
+
+        $methods = [];
+
+        foreach (array_merge($this->qSaleMethodTotals($sales), $this->qChargeMethodTotals($paid, $f)) as $m) {
+            $key = (int) $m['id'];
+
+            if (!isset($methods[$key])) $methods[$key] = ['name' => $m['name'], 'is_cash' => (int) $m['is_cash'], 'sort' => (int) $m['sort'], 'amount' => 0];
+
+            $methods[$key]['amount'] += (float) $m['amount'];
+        }
+
+        usort($methods, fn ($a, $b) => $a['sort'] <=> $b['sort'] ?: strcmp($a['name'], $b['name']));
+
+        $sum['methods'] = array_map(fn ($m) => ['name' => $m['name'], 'is_cash' => $m['is_cash'], 'amount' => round($m['amount'], 2)], $methods);
+        $sum['total']   = round($sum['total'], 2);
+        $sum['tips']    = round($sum['tips'], 2);
+        $sum['credit']  = round($sum['credit'], 2);
+
+        return $sum;
+    }
+
+    // Un renglon del Excel: texto plano, los importes como «$1,234.00» (createExcel los vuelve numero).
+    private function exportRow(array $item) {
+        $d       = $item['data'];
+        $isOrder = $item['kind'] === 'P';
+        $status  = (int) $d['sale_status_id'];
+        $balance = $status === self::CANCELLED ? 0 : max(round($this->dueOf($d) - (float) $d['paid'], 2), 0);
+        $seller  = trim((string) $d['seller']);
+
+        return [
+            'id'      => $item['id'],
+            'Tipo'    => $isOrder ? 'Pedido' : 'Venta',
+            'Folio'   => $this->saleFolio($isOrder ? self::ORDER_TYPE : self::SALE_TYPE, $d['folio'], $d['id']),
+            'Fecha'   => date('d/m/Y g:i A', strtotime($item['at'])),
+            'Cliente' => trim((string) $d['customer']) !== '' ? trim($d['customer']) : 'Público en general',
+            'Atendió' => $seller !== '' ? $seller : 'Sin registro',
+            'Turno'   => (string) ($isOrder ? $d['turns'] : $d['turn_folio']),
+            'Métodos' => trim((string) $d['methods']),
+            'Total'   => money($isOrder ? $d['charged'] : $d['total']),
+            'Propina' => money($isOrder ? 0 : $d['tip_amount']),
+            'Saldo'   => money($balance),
+            'Estado'  => trim((string) $d['status']) !== '' ? $d['status'] : 'Sin estado'
+        ];
     }
 
     // Una fila de la tabla. Las claves son los encabezados.
@@ -178,8 +285,7 @@ class ctrl extends core {
         return [
             'id'       => $id,
             'Folio'    => $this->cellFolio($id, $s['folio'], $inTurn, $cancelled),
-            'Fecha'    => '<span class="text-gray-600 whitespace-nowrap">' . shortDate($s['created_at']) . '</span>'
-                        . ($stamp ? '<div class="ord-sub">' . date('g:i A', $stamp) . '</div>' : ''),
+            'Fecha'    => $this->cellDate($stamp),
             'Cliente'  => $this->cellCustomer($s['customer'], $s['phone']),
             'Atendió'  => $seller !== '' ? '<span class="text-gray-700">' . h($seller) . '</span>' : '<span class="text-gray-400">Sin registro</span>',
             'Turno'    => $s['turn_folio'] !== '' ? '<span class="text-gray-600 whitespace-nowrap">' . h($s['turn_folio']) . '</span>' : $this->cellZero(),
@@ -191,26 +297,87 @@ class ctrl extends core {
         ];
     }
 
-    // -- Celdas (las de Pedidos con «V») --
+    /*  Un pedido cobrado en el periodo. Fecha = su ultimo cobro del periodo;
+        Atendió = quien lo cobro (si el pago no lo guardo, quien lo capturo);
+        Total = lo cobrado en el periodo y, debajo, el total del pedido. */
+    private function orderRow($o, $openId, $print) {
+        $id        = (int) $o['id'];
+        $statusId  = (int) $o['sale_status_id'];
+        $cancelled = $statusId === self::CANCELLED;
+        $inTurn    = $openId > 0 && in_array((string) $openId, explode(',', (string) $o['turn_ids']), true);
+        $seller    = trim((string) $o['seller']);
+        $methods   = trim((string) $o['methods']);
+        $turns     = trim((string) $o['turns']);
 
-    private function cellFolio($id, $folio, $inTurn, $cancelled) {
+        $menu = [['icon' => 'icon-eye', 'text' => 'Ver', 'onclick' => "orderDetail.showOrder({$id})"]];
+
+        if ($print) $menu[] = ['icon' => 'icon-print', 'text' => 'Imprimir', 'onclick' => "orderDetail.print({$id}, 'order')"];
+
+        return [
+            'id'       => $id,
+            'Folio'    => $this->cellFolio($id, $o['folio'], $inTurn, $cancelled, 'P'),
+            'Fecha'    => $this->cellDate(strtotime($o['charged_at']), 'cobro'),
+            'Cliente'  => $this->cellCustomer($o['customer'], $o['phone']),
+            'Atendió'  => $seller !== '' ? '<span class="text-gray-700">' . h($seller) . '</span>' : '<span class="text-gray-400">Sin registro</span>',
+            'Turno'    => $turns !== '' ? '<span class="text-gray-600 whitespace-nowrap">' . h($turns) . '</span>' : $this->cellZero(),
+            'Métodos'  => $methods !== '' ? '<span class="text-gray-600">' . h($methods) . '</span>' : $this->cellZero(),
+            'Total'    => $this->cellCharged($o['charged'], $o['total']),
+            'Propina'  => $this->cellZero(),
+            'Estado'   => $this->statusPill($statusId, $o['status'], $this->dueOf($o) - (float) $o['paid']),
+            'dropdown' => $menu
+        ];
+    }
+
+    // -- Celdas («V» venta, «P» pedido) --
+
+    private function cellFolio($id, $folio, $inTurn, $cancelled, $kind = 'V') {
         $dot    = $inTurn ? '<span class="ord-dot" aria-label="Del turno abierto"></span>' : '';
         $mark   = $cancelled ? ' data-cancelled="1"' : '';
         $number = $folio !== null && $folio !== '' ? $folio : $id;
+        $open   = $kind === 'P' ? 'orderDetail.showOrder(' . (int) $id . ')' : 'orderDetail.show(' . (int) $id . ')';
+        $tag    = $kind === 'P' ? '<span class="ord-kind">Pedido</span>' : '';
 
-        return '<button type="button" class="ord-folio" onclick="orderDetail.show(' . (int) $id . ')"' . $mark . '>'
-             .   $dot . 'V' . h($number)
-             . '</button>';
+        return '<button type="button" class="ord-folio" onclick="' . $open . '"' . $mark . '>'
+             .   $dot . $kind . h($number)
+             . '</button>' . $tag;
+    }
+
+    // La fecha y, debajo, la hora («· cobro» en los pedidos: es la hora en que se cobro).
+    private function cellDate($stamp, $what = '') {
+        if (!$stamp) return $this->cellZero();
+
+        return '<span class="text-gray-600 whitespace-nowrap">' . shortDate(date('Y-m-d H:i:s', $stamp)) . '</span>'
+             . '<div class="ord-sub">' . date('g:i A', $stamp) . ($what !== '' ? ' · ' . $what : '') . '</div>';
+    }
+
+    // Lo cobrado del pedido en el periodo y, si no es todo, de cuanto es el pedido.
+    private function cellCharged($charged, $total) {
+        $charged = round((float) $charged, 2);
+        $total   = round((float) $total, 2);
+        $html    = '<span class="font-semibold text-gray-800 whitespace-nowrap">' . money($charged) . '</span>';
+
+        if (abs($total - $charged) > 0.005) {
+            $html .= '<div class="text-[11px] text-gray-400 whitespace-nowrap">de ' . money($total) . '</div>';
+        }
+
+        return $html;
     }
 
     private function cellCustomer($name, $phone) {
-        if (trim((string) $name) === '') return '<span class="text-gray-500">Público en general</span>';
+        if (trim((string) $name) === '') return $this->customerBox('<span class="text-gray-500">Público en general</span>', false);
 
         $html = '<div class="font-semibold text-gray-800"><span class="ord-cliente">' . h($name) . '</span></div>';
 
         if ($phone !== '') $html .= '<div class="ord-sub">' . h($phone) . '</div>';
 
-        return $html;
+        return $this->customerBox($html, true);
+    }
+
+    // Círculo con el ícono de usuario a la izquierda (el de Puntos, order.css › .loy-avatar); apagado en Público en general.
+    private function customerBox($html, $filled) {
+        $avatar = '<span class="loy-avatar' . ($filled ? '' : ' is-empty') . '"><i data-lucide="user-round" class="w-4 h-4"></i></span>';
+
+        return '<div class="loy-owner">' . $avatar . '<div class="min-w-0">' . $html . '</div></div>';
     }
 
     private function cellZero() {
@@ -259,12 +426,34 @@ class ctrl extends core {
         $id = $this->postId();
 
         return $this->attempt(function () use ($id) {
-            $sale = $id > 0 ? $this->qGetSale($id, $this->own()) : null;
+            $sale = $id > 0 ? $this->qGetSale($id) : null;
 
             if (!$sale) return $this->fail(404, $this->missing($id));
 
             return $this->saleBundle($sale);
         }, 'No se pudo abrir la venta.');
+    }
+
+    /*  Un pedido desde Vendido: el detalle de Pedidos (orderBundle), solo para
+        ver. Sin acciones: el pedido se cobra, entrega o cancela en Pedidos.
+        Imprimir va con el permiso de esta seccion. El de otra sucursal (se
+        cobro aqui) se abre si el rol ve Vendido alla. */
+    public function getPedido() {
+        $fail = $this->needBranch();
+        if ($fail) return $fail;
+
+        $id = $this->postId();
+
+        return $this->attempt(function () use ($id) {
+            $bundle = $this->orderBundle($id, self::HISTORY);
+
+            if ($bundle['status'] !== 200) return $bundle;
+
+            $bundle['can']     = ['foreign_reason' => ''];
+            $bundle['actions'] = Permission::actions(self::HISTORY);
+
+            return $bundle;
+        }, 'No se pudo abrir el pedido.');
     }
 
     // La forma de orderBundle (lo que pinta OrderDetail) mas el ticket.
@@ -302,13 +491,16 @@ class ctrl extends core {
             'payments' => $payments,
             'history'  => $this->qHistory($id),
             'actions'  => $actions,
+            /*  La regla de cada boton es la de Pedidos: Enviar ticket = imprimir,
+                Cambiar cliente = editar (update, como «Editar pedido») y
+                Cancelar = cancel. Con los roles de hoy, la Cajera solo ve, imprime y manda el ticket. */
             'can'      => [
-                'pay'            => $alive && $owes && Permission::can(self::SALES, 'create'),
+                'pay'            => $alive && $owes && $this->canAll() && Permission::can(self::SALES, 'create'),
                 'pay_reason'     => '',
                 'delete_payment' => $alive && $this->canAll(),
                 'cancel'         => $alive && $this->canAll(),
                 'cancel_reason'  => $alive ? '' : 'La venta ya está cancelada.',
-                'customer'       => $alive && !$tied && $this->canCustomer(),
+                'customer'       => $alive && !$tied && Permission::can(self::SALES, 'update'),
                 'edit'           => false,
                 'edit_reason'    => '',
                 'money'          => true,
@@ -388,7 +580,7 @@ class ctrl extends core {
         $id = $this->postId();
 
         return $this->attempt(function () use ($id) {
-            $sale = $id > 0 ? $this->qGetSale($id, $this->own()) : null;
+            $sale = $id > 0 ? $this->qGetSale($id) : null;
 
             if (!$sale) return $this->fail(404, $this->missing($id));
 
@@ -436,8 +628,8 @@ class ctrl extends core {
 
     // null = se puede cobrar. Si no, quien lo impide: el rol, la venta o el turno.
     private function payStop($sale) {
-        if (!Permission::can(self::SALES, 'create')) {
-            return ['kind' => 'role', 'title' => 'Solo consulta', 'message' => 'Tu rol no puede cobrar ventas en esta sucursal.', 'day' => false];
+        if (!$this->canAll() || !Permission::can(self::SALES, 'create')) {
+            return ['kind' => 'role', 'title' => 'Solo ver', 'message' => 'Aquí el saldo lo cobra Dueño o Supervisor.', 'day' => false];
         }
 
         $block = $this->saleBlock($sale);
@@ -466,7 +658,7 @@ class ctrl extends core {
     // -- Cobrar el saldo --
 
     public function payOrder() {
-        $fail = $this->needSales('create') ?: $this->needBranch();
+        $fail = $this->needAll('cobrar desde Vendido') ?: $this->needSales('create') ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id    = $this->postId();
@@ -492,7 +684,7 @@ class ctrl extends core {
 
         $answer = $this->attempt(function () use ($id, $payments, $note) {
             return $this->transaction(function () use ($id, $payments, $note) {
-                $sale = $this->qLockSale($id, $this->own());
+                $sale = $this->qLockSale($id);
 
                 if (!$sale) return $this->fail(404, $this->missing($id));
 
@@ -589,7 +781,7 @@ class ctrl extends core {
 
         return $this->attempt(function () use ($id, $paymentId, $reason) {
             return $this->transaction(function () use ($id, $paymentId, $reason) {
-                $sale = $this->qLockSale($id, null);
+                $sale = $this->qLockSale($id);
 
                 if (!$sale) return $this->fail(404, $this->missing($id));
 
@@ -678,7 +870,7 @@ class ctrl extends core {
 
         return $this->attempt(function () use ($id, $reason) {
             return $this->transaction(function () use ($id, $reason) {
-                $sale = $this->qLockSale($id, null);
+                $sale = $this->qLockSale($id);
 
                 if (!$sale) return $this->fail(404, $this->missing($id));
 
@@ -803,13 +995,13 @@ class ctrl extends core {
     // -- Cambiar el cliente --
 
     public function customerOptions() {
-        $fail = $this->needCustomer() ?: $this->needBranch();
+        $fail = $this->needSales('update') ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id = $this->postId();
 
         return $this->attempt(function () use ($id) {
-            $sale = $id > 0 ? $this->qGetSale($id, null) : null;
+            $sale = $id > 0 ? $this->qGetSale($id) : null;
 
             if (!$sale) return $this->fail(404, $this->missing($id));
 
@@ -824,7 +1016,7 @@ class ctrl extends core {
     }
 
     public function setCustomer() {
-        $fail = $this->needCustomer() ?: $this->needBranch();
+        $fail = $this->needSales('update') ?: $this->needBranch();
         if ($fail) return $fail;
 
         $id         = $this->postId();
@@ -842,7 +1034,7 @@ class ctrl extends core {
 
         return $this->attempt(function () use ($id, $customerId, $customer) {
             return $this->transaction(function () use ($id, $customerId, $customer) {
-                $sale = $this->qLockSale($id, null);
+                $sale = $this->qLockSale($id);
 
                 if (!$sale) return $this->fail(404, $this->missing($id));
 
@@ -884,30 +1076,10 @@ class ctrl extends core {
 
     // -- Quien ve que --
 
-    // Dueño o Supervisor: quien puede cancelar en pos-ventas.
+    /*  Dueño o Supervisor: quien puede cancelar en pos-ventas. Todos ven todo;
+        solo ellos cambian algo o descargan (la Cajera solo ve). */
     private function canAll() {
         return Permission::can(self::SALES, 'cancel');
-    }
-
-    private function canCustomer() {
-        return $this->canAll() || Permission::can(self::SALES, 'update');
-    }
-
-    /*  null = ve todo. Si no (Cajera): solo sus ventas del turno abierto de la
-        sucursal. Sin usuario o sin turno, -1: la consulta no encuentra nada. */
-    private function own() {
-        if ($this->canAll()) return null;
-        if ($this->ownCache !== false) return $this->ownCache;
-
-        $turn = $this->qOpenTurn($this->branchId());
-
-        $this->ownCache = [
-            'user_id'    => $this->userId() ?: -1,
-            'turn_id'    => $turn ? (int) $turn['id'] : -1,
-            'turn_folio' => $turn ? (string) $turn['folio'] : ''
-        ];
-
-        return $this->ownCache;
     }
 
     private function needAll($text) {
@@ -916,16 +1088,10 @@ class ctrl extends core {
         return ['status' => 403, 'message' => "Tu rol no tiene permiso para {$text}: lo autoriza Dueño o Supervisor.", 'row' => []];
     }
 
-    private function needCustomer() {
-        if ($this->canCustomer()) return null;
-
-        return ['status' => 403, 'message' => 'Tu rol no tiene permiso para cambiar el cliente de una venta.', 'row' => []];
-    }
-
     private function needSales($action) {
         if (Permission::can(self::SALES, $action)) return null;
 
-        $what = ['show' => 'ver ventas', 'create' => 'cobrar ventas', 'cancel' => 'cancelar ventas', 'print' => 'imprimir tickets'];
+        $what = ['show' => 'ver ventas', 'create' => 'cobrar ventas', 'update' => 'cambiar el cliente de una venta', 'cancel' => 'cancelar ventas', 'print' => 'imprimir tickets'];
         $text = isset($what[$action]) ? $what[$action] : 'hacer esto';
 
         return ['status' => 403, 'message' => "Tu rol no tiene permiso para {$text} en esta sucursal.", 'row' => []];
@@ -938,10 +1104,7 @@ class ctrl extends core {
         return round((float) $s['total'] + (float) $s['tip_amount'], 2);
     }
 
-    // 404 con la frase de quien la busca: la Cajera solo encuentra lo suyo.
     private function missing($id) {
-        if ($this->own()) return "La venta V{$id} no está entre tus ventas del turno abierto.";
-
         return "La venta V{$id} no existe en " . $this->scope()['branch'] . '.';
     }
 
@@ -1074,17 +1237,8 @@ class ctrl extends core {
 
     // -- Consultas de ventas (tipo 3) --
 
-    // La de qGetOrder con propina y vendedor. $own = solo lo de la Cajera.
-    private function qGetSale($id, $own) {
-        $data  = [$id, $this->branchId(), self::SALE_TYPE];
-        $where = '';
-
-        if ($own) {
-            $where  = ' AND s.user_id = ? AND s.turn_id = ?';
-            $data[] = $own['user_id'];
-            $data[] = $own['turn_id'];
-        }
-
+    // La de qGetOrder con propina y vendedor.
+    private function qGetSale($id) {
         return $this->qRow("
             SELECT
                 s.id,
@@ -1130,22 +1284,12 @@ class ctrl extends core {
                 AND s.branch_id = ?
                 AND s.sale_type_id = ?
                 AND IFNULL(s.active, 1) = 1
-                {$where}
             LIMIT 1
-        ", $data);
+        ", [$id, $this->branchId(), self::SALE_TYPE]);
     }
 
     // La venta bloqueada hasta el commit. Solo dentro de transaction().
-    private function qLockSale($id, $own) {
-        $data  = [$id, $this->branchId(), self::SALE_TYPE];
-        $where = '';
-
-        if ($own) {
-            $where  = ' AND s.user_id = ? AND s.turn_id = ?';
-            $data[] = $own['user_id'];
-            $data[] = $own['turn_id'];
-        }
-
+    private function qLockSale($id) {
         return $this->qRow("
             SELECT
                 s.id,
@@ -1164,10 +1308,9 @@ class ctrl extends core {
                 AND s.branch_id = ?
                 AND s.sale_type_id = ?
                 AND IFNULL(s.active, 1) = 1
-                {$where}
             LIMIT 1
             FOR UPDATE
-        ", $data);
+        ", [$id, $this->branchId(), self::SALE_TYPE]);
     }
 
     /*  La lista. Con turno se ignoran las fechas; con metodo, las ventas que
@@ -1183,11 +1326,6 @@ class ctrl extends core {
             $where .= ' AND s.created_at >= ? AND s.created_at < ?';
             $data[] = $f['from'];
             $data[] = $f['to'];
-        }
-
-        if ($f['user_id'] !== 0) {
-            $where .= ' AND s.user_id = ?';
-            $data[] = $f['user_id'];
         }
 
         if ($f['method_id'] > 0) {
@@ -1239,6 +1377,130 @@ class ctrl extends core {
                 {$where}
             ORDER BY s.id DESC
             LIMIT " . self::MAX_ROWS, $data);
+    }
+
+    // -- Consultas de pedidos cobrados (tipo 1) --
+
+    /*  Los pagos que cuentan: los de los turnos de la sucursal abiertos en el
+        periodo (qDayTurnWhere, la regla del Corte Z) o los del turno elegido.
+        Un pago sin turno (los viejos de alpha) no entra. Agrega sus valores a $data. */
+    private function chargeWhere(array $f, array &$data) {
+        if ($f['turn_id'] !== 0) {
+            array_push($data, $f['turn_id'], $f['branch_id']);
+
+            return 't.id = ? AND t.branch_id = ?';
+        }
+
+        array_push($data, $f['branch_id'], $f['from'], $f['to']);
+
+        return $this->qDayTurnWhere('t');
+    }
+
+    /*  Un renglon por pedido con lo cobrado en el periodo: cuanto, el ultimo
+        cobro, con que metodos, en que turnos y quien cobro al ultimo
+        (receiver_id; vacio si el pago no lo guardo). Con metodo, los pedidos
+        que tengan un cobro del periodo con ese metodo. */
+    private function qListOrderCharges(array $f) {
+        $data   = [];
+        $where  = $this->chargeWhere($f, $data);
+        $having = '';
+
+        if ($f['method_id'] > 0) {
+            $having = 'HAVING SUM(p.payment_method_id = ?) > 0';
+            $data[] = $f['method_id'];
+        }
+
+        return $this->qRows("
+            SELECT
+                s.id,
+                s.folio,
+                s.sale_status_id,
+                s.subtotal,
+                s.discount_amount,
+                s.total,
+                IFNULL(s.tip_amount, 0) AS tip_amount,
+                IFNULL(st.name, '')     AS status,
+                IFNULL(c.name, '')      AS customer,
+                IFNULL(c.phone, '')     AS phone,
+                ch.charged,
+                ch.charged_at,
+                ch.methods,
+                ch.turns,
+                ch.turn_ids,
+                COALESCE(NULLIF(CONCAT_WS(' ', ur.name, ur.last_name), ''), CONCAT_WS(' ', u.name, u.last_name)) AS seller,
+                {$this->qPaidSql('s')} AS paid
+            FROM (
+                SELECT
+                    p.sale_id,
+                    ROUND(SUM(p.amount), 2)                        AS charged,
+                    MAX(COALESCE(p.paid_at, p.created_at))         AS charged_at,
+                    GROUP_CONCAT(DISTINCT IFNULL(pm.name, 'Sin método') SEPARATOR ', ') AS methods,
+                    GROUP_CONCAT(DISTINCT t.folio ORDER BY t.id SEPARATOR ', ')       AS turns,
+                    GROUP_CONCAT(DISTINCT t.id ORDER BY t.id)                          AS turn_ids,
+                    SUBSTRING_INDEX(GROUP_CONCAT(p.user_id ORDER BY COALESCE(p.paid_at, p.created_at) DESC, p.id DESC), ',', 1) AS receiver_id
+                FROM {$this->pos}payment p
+                JOIN {$this->pos}turn t                 ON t.id  = p.turn_id
+                JOIN {$this->pos}sale sx                ON sx.id = p.sale_id AND sx.sale_type_id = " . self::ORDER_TYPE . "
+                LEFT JOIN {$this->pos}payment_method pm ON pm.id = p.payment_method_id
+                WHERE {$where}
+                    AND IFNULL(p.active, 1) = 1
+                    AND p.deleted_at IS NULL
+                GROUP BY p.sale_id
+                {$having}
+            ) ch
+            JOIN {$this->pos}sale s              ON s.id  = ch.sale_id
+            LEFT JOIN {$this->pos}sale_status st ON st.id = s.sale_status_id
+            LEFT JOIN {$this->pos}customer c     ON c.id  = s.customer_id
+            LEFT JOIN {$this->bd}users ur        ON ur.id = ch.receiver_id
+            LEFT JOIN {$this->bd}users u         ON u.id  = s.user_id
+            WHERE IFNULL(s.active, 1) = 1
+            ORDER BY ch.charged_at DESC, s.id DESC
+            LIMIT " . self::MAX_ROWS, $data);
+    }
+
+    // Lo cobrado por metodo de las ventas de la lista (todos sus pagos vivos).
+    private function qSaleMethodTotals(array $ids) {
+        if (!$ids) return [];
+
+        return $this->qRows("
+            SELECT
+                IFNULL(pm.id, 0)              AS id,
+                IFNULL(pm.name, 'Sin método') AS name,
+                IFNULL(pm.is_cash, 0)         AS is_cash,
+                IFNULL(pm.sort, 99)           AS sort,
+                IFNULL(SUM(p.amount), 0)      AS amount
+            FROM {$this->pos}payment p
+            LEFT JOIN {$this->pos}payment_method pm ON pm.id = p.payment_method_id
+            WHERE p.sale_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")
+                AND IFNULL(p.active, 1) = 1
+                AND p.deleted_at IS NULL
+            GROUP BY pm.id, pm.name, pm.is_cash, pm.sort
+        ", array_values($ids));
+    }
+
+    // Lo cobrado por metodo de los pedidos de la lista, solo en el periodo (chargeWhere).
+    private function qChargeMethodTotals(array $ids, array $f) {
+        if (!$ids) return [];
+
+        $data  = array_values($ids);
+        $where = $this->chargeWhere($f, $data);
+
+        return $this->qRows("
+            SELECT
+                IFNULL(pm.id, 0)              AS id,
+                IFNULL(pm.name, 'Sin método') AS name,
+                IFNULL(pm.is_cash, 0)         AS is_cash,
+                IFNULL(pm.sort, 99)           AS sort,
+                IFNULL(SUM(p.amount), 0)      AS amount
+            FROM {$this->pos}payment p
+            JOIN {$this->pos}turn t                 ON t.id  = p.turn_id
+            LEFT JOIN {$this->pos}payment_method pm ON pm.id = p.payment_method_id
+            WHERE p.sale_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")
+                AND {$where}
+                AND IFNULL(p.active, 1) = 1
+                AND p.deleted_at IS NULL
+            GROUP BY pm.id, pm.name, pm.is_cash, pm.sort
+        ", $data);
     }
 
     // Los turnos abiertos en el periodo, para el filtro.

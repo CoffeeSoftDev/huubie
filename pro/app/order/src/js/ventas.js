@@ -20,17 +20,24 @@
 
     El cobro (SalePay) es la misma ventana de pagos de Pedidos (OrderPay):
     una fila por forma de pago como Soft, con el cambio arriba, el monedero,
-    el resto a crédito y la tarjeta de la venta.
+    el resto a crédito y la tarjeta de la venta. Ctrl + Enter cobra sin
+    «¿Cobrar venta?» (SalePay.quickCharge).
+
+    Los avisos salen con alertBox, no con SweetAlert (SaleNotice).
 
     Manda el ctrl (ctrl-ventas.php): aqui solo se arma la venta y se avisa
     antes de mandar. `orders` apunta a esta pantalla porque el turno y el
     cierre llaman orders.can(), orders.paintTurn() y orders.lsOrders(). */
 
 let api = 'ctrl/ctrl-ventas.php';
-let sale, orders, orderTurn, orderClosure;
+let sale, orders, orderTurn, orderClosure, saleNotice;
 let dataInit = {};
 
 $(async () => {
+    // Los avisos de esta página salen con alertBox, también los del cobro, el turno y el cierre (SaleNotice).
+    saleNotice   = new SaleNotice(api, 'root');
+    window.alert = (options) => saleNotice.show(options);
+
     dataInit     = (await useFetch({ url: api, data: { opc: 'init' } })) || {};
     orderTurn    = new OrderTurn('ctrl/ctrl-turno.php', 'root');
     orderClosure = new OrderClosure('ctrl/ctrl-cierre.php', 'root');
@@ -78,7 +85,7 @@ class Sale extends OrderForm {
         abre el descuento). Botón apagado = la tecla no hace nada. */
     chargeKey(e) {
         if (e.key !== 'F4' || e.repeat || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
-        if ($('.cs-modal-bg, .cf-overlay, .swal2-container, .select2-container--open').length) return;
+        if ($('.cs-modal-bg, .cf-overlay, .swal2-container, [data-ab-backdrop], .select2-container--open').length) return;
 
         const button = $('#btnSaleCharge');
 
@@ -423,7 +430,7 @@ class Sale extends OrderForm {
 
     onEscape(e) {
         if (e.key !== 'Escape' || this.s2Open) return;
-        if (window.Swal && Swal.isVisible()) return;
+        if ((window.Swal && Swal.isVisible()) || $('[data-ab-backdrop]').length) return;
 
         const sub = $('#modalOrderProduct, #modalOrderFree, #modalOrderCustomer, #modalSaleLineDiscount').last();
 
@@ -913,17 +920,17 @@ class Sale extends OrderForm {
         if (n === this.active) this.persistTickets();
 
         if (tk.lines.length) {
-            const answer = await this.swalQuestion({
-                opts: {
-                    title:             `¿Cerrar el ticket ${n}?`,
-                    text:              'Los productos de este ticket se pierden.',
-                    confirmButtonText: 'Cerrar ticket',
-                    cancelButtonText:  'Conservar'
-                },
-                extends: true
+            const answer = await orderTurn.ask({
+                id:          'saleAskCloseTab',
+                icon:        'x-circle',
+                tone:        'amber',
+                title:       `¿Cerrar el ticket ${n}?`,
+                detailHtml:  'Los productos de este ticket se pierden.',
+                okLabel:     'Cerrar ticket',
+                cancelLabel: 'Conservar'
             });
 
-            if (!answer || !answer.isConfirmed) return;
+            if (!answer.ok) return;
         }
 
         const wasActive = n === this.active;
@@ -951,17 +958,17 @@ class Sale extends OrderForm {
 
         const what = this.currentTicket().card ? 'el cliente, la tarjeta y la nota' : 'el cliente y la nota';
 
-        const answer = await this.swalQuestion({
-            opts: {
-                title:             '¿Vaciar la venta?',
-                text:              `Se quitan los productos, ${what} del ticket ${this.active}.`,
-                confirmButtonText: 'Vaciar',
-                cancelButtonText:  'Conservar'
-            },
-            extends: true
+        const answer = await orderTurn.ask({
+            id:          'saleAskClear',
+            icon:        'trash-2',
+            tone:        'amber',
+            title:       '¿Vaciar la venta?',
+            detailHtml:  `Se quitan los productos, ${what} del ticket ${this.active}.`,
+            okLabel:     'Vaciar',
+            cancelLabel: 'Conservar'
         });
 
-        if (answer && answer.isConfirmed) this.resetTicket();
+        if (answer.ok) this.resetTicket();
     }
 
     resetTicket() {
@@ -2306,6 +2313,29 @@ class SalePay extends OrderPay {
         sale.afterSale(data);
     }
 
+    /*  Ctrl + Enter: cobra sin la confirmación. Sin montos escritos ni «Resto a
+        crédito», cobra todo en efectivo exacto (Efectivo cubre lo que falta,
+        como al tocar su nombre). Si algo falta o no cuadra, avisa como «Cobrar». */
+    quickCharge() {
+        if (this.delPay || this.busy || !document.getElementById('paPayForm')) return;
+
+        const lock = this.lockState();
+
+        if (lock) return this.warn(this.lockText(lock));
+
+        const home = Number(this.homeId());
+
+        if (!this.onCredit && !this.calc().payments.length && home) this.takeRest(home);
+
+        const c   = this.calc();
+        const why = this.problem(c);
+
+        if (why) return this.warn(why);
+
+        this.confirmCalc = c;
+        this.commit();
+    }
+
     // -- Eventos --
 
     act(name, el) {
@@ -2355,6 +2385,12 @@ class SalePay extends OrderPay {
     quickKey(e) {
         const t = e.target;
 
+        // Ctrl + Enter: cobro rápido, sin «¿Cobrar venta?» (quickCharge).
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+            if (!e.repeat) this.quickCharge();
+            return true;
+        }
+
         if (e.ctrlKey || e.metaKey || e.altKey || !document.getElementById('paPayForm') || this.lockState() !== '') return false;
         if (t && t.matches && t.matches('select, textarea')) return false;
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return false;
@@ -2373,5 +2409,98 @@ class SalePay extends OrderPay {
         const at = list.indexOf(String(this.active));
 
         this.focusField(list[Math.min(list.length - 1, Math.max(0, at + dir))]);
+    }
+}
+
+// -- SaleNotice --
+
+/*  Los avisos de Ventas con el alertBox del framework, no con SweetAlert.
+    alert() es global (complementos.js) y también lo llaman las piezas que
+    Ventas hereda (cobro, turno, cierre del día, clientes): ventas.js lo
+    cambia solo en esta página, así Pedidos sigue igual.
+    show() recibe las opciones de alert() y responde como SweetAlert
+    ({ isConfirmed, isDismissed }): quien espera la respuesta no cambia.
+    btn1 = el botón principal, btn2 = el de cancelar; con solo btn2, ese es el
+    único y cuenta como cancelar. Sin botones se cierra solo (timer).
+    Esc = cancelar (o el único botón); Enter = el botón con el foco. */
+class SaleNotice extends Templates {
+
+    constructor(link, div_modulo) {
+        super(link, div_modulo);
+        this.PROJECT_NAME = 'SaleNotice';
+        this.count        = 0;
+        this.types        = { success: 'success', error: 'error', warning: 'warning', info: 'message', question: 'confirm' };
+    }
+
+    show(options) {
+        const o = options !== null && typeof options === 'object'
+            ? options
+            : { icon: 'info', title: String(options == null ? '' : options), btn1: true };
+
+        const ask    = o.icon === 'question';
+        const ok     = ask || !!o.btn1;
+        const cancel = ask || !!o.btn2;
+        const html   = String(o.html || '');
+        const id     = `saleNotice${++this.count}`;
+
+        return new Promise((resolve) => {
+            let done = false;
+
+            const finish = (confirmed) => {
+                if (done) return;
+
+                done = true;
+                document.removeEventListener('keydown', onKey, true);
+                resolve({ isConfirmed: confirmed, isDenied: false, isDismissed: !confirmed });
+            };
+
+            // Esc y Enter son del aviso: no llegan a la pantalla ni a la ventana de abajo.
+            const onKey = (e) => {
+                const box = $('#' + id);
+
+                if (!box.length) return finish(false);
+
+                const outside = !box[0].contains(e.target);
+
+                if (e.key !== 'Escape' && !(e.key === 'Enter' && outside)) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                const no = box.find('[data-ab-cancel]');
+
+                if (e.key === 'Escape') (no.length ? no : box.find('[data-ab-ok]')).trigger('click');
+                else box.find('[data-ab-ok]').trigger('click');
+            };
+
+            const opts = {
+                id:          id,
+                type:        this.types[o.icon || 'success'] || 'message',
+                title:       o.title || '',
+                detailHtml:  html ? '' : esc(o.text || ''),
+                dual:        ok && cancel,
+                okLabel:     ok ? (o.btn1Text || 'Continuar') : cancel ? (o.btn2Text || 'Cancelar') : 'Entendido',
+                cancelLabel: o.btn2Text || 'Cancelar',
+                timer:       ok || cancel ? 0 : (o.timer === undefined ? 1000 : Number(o.timer) || 0),
+                onOk:        () => finish(ok),
+                onCancel:    () => finish(false)
+            };
+
+            // Con html (cambio, tarjeta de lealtad) la tarjeta crece para que quepa.
+            if (html) opts.width = 'w-[380px]';
+
+            this.alertBox(opts);
+
+            const box = $('#' + id);
+
+            // El html va en su propio bloque: dentro del <p> del detalle, sus <p> y <div> se romperían.
+            if (html) box.find('.tf-alert-card > :first-child').append(`<div class="w-full mt-1.5 text-[13px] text-gray-600">${html}</div>`);
+
+            if (window.lucide && box.length) lucide.createIcons({ root: box[0] });
+
+            document.addEventListener('keydown', onKey, true);
+
+            if (ok || cancel) setTimeout(() => box.find('[data-ab-ok]').trigger('focus'), 60);
+        });
     }
 }
