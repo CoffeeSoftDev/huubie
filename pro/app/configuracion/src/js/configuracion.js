@@ -27,7 +27,7 @@ const CFG_TABS = [
 const CFG_PAGOS   = { paid: ['Pagado', 'is-ok'], pending: ['Pendiente', 'is-warn'], failed: ['Rechazado', 'is-bad'], refunded: ['Reembolsado', 'is-off'] };
 const CFG_PLAN    = { active: ['Activo', 'is-ok'], trial: ['En prueba', 'is-ok'], past_due: ['Pago vencido', 'is-warn'], cancelled: ['Cancelado', 'is-off'], expired: ['Expirado', 'is-off'] };
 const CFG_CICLOS  = { monthly: 'al mes', yearly: 'al año', lifetime: 'pago único' };
-const CFG_METODOS = { stripe: 'Tarjeta (Stripe)', manual: 'Registro manual', transfer: 'Transferencia', cash: 'Efectivo' };
+const CFG_METODOS = { stripe: 'Tarjeta (Stripe)', mercadopago: 'Tarjeta (Mercado Pago)', manual: 'Registro manual', transfer: 'Transferencia', cash: 'Efectivo' };
 
 // Lo que contesto init (la empresa, los catalogos) y lo ultimo de cada pestaña.
 // userBranch: la sucursal del filtro de Usuarios ('' = todas); sobrevive al refrescar.
