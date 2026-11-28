@@ -51,7 +51,24 @@ class Plan extends CRUD {
         (alias p), como expresion SQL. La usan state() y la lista de Empresas:
         la regla vive en un solo sitio. */
     static function trialEndSql($s = 's', $p = 'p') {
-        return "DATE(COALESCE({$s}.ends_at, DATE_ADD(COALESCE({$s}.starts_at, {$s}.created_at, NOW()), INTERVAL COALESCE(NULLIF({$p}.trial_days, 0), " . self::TRIAL_DAYS . ") DAY)))";
+        return "DATE(COALESCE({$s}.ends_at, DATE_ADD(COALESCE({$s}.starts_at, {$s}.created_at, " . self::nowSql() . "), INTERVAL COALESCE(NULLIF({$p}.trial_days, 0), " . self::TRIAL_DAYS . ") DAY)))";
+    }
+
+    /*  "Ahora" y "hoy" en hora de CDMX, como literales SQL ('2026-11-27
+        22:10:00'). NO NOW()/CURDATE(): esas dan la hora del servidor de la
+        base, que no es la de Mexico, y cerca de la medianoche una prueba
+        venceria horas antes o despues de lo que dice la landing (que guarda
+        ends_at con la hora de CDMX). date() va con core/helpers/_Zona.php.
+
+        Van escritas en la consulta y no como ?, para que trialEndSql() se
+        pueda pegar en cualquier SELECT sin mover los parametros de quien la
+        usa. Es seguro: las arma date() con un formato fijo de digitos. */
+    static function nowSql() {
+        return "'" . date('Y-m-d H:i:s') . "'";
+    }
+
+    static function todaySql() {
+        return "'" . date('Y-m-d') . "'";
     }
 
     private static $db      = null;
@@ -92,7 +109,7 @@ class Plan extends CRUD {
                 s.ends_at,
                 s.next_billing_date,
                 " . self::trialEndSql() . " AS trial_end,
-                DATEDIFF(" . self::trialEndSql() . ", CURDATE()) AS trial_left,
+                DATEDIFF(" . self::trialEndSql() . ", " . self::todaySql() . ") AS trial_left,
                 p.id     AS plan_id,
                 p.name   AS plan,
                 p.price,

@@ -24,7 +24,7 @@ class mdl extends CRUD {
                 c.ubication,
                 c.status,
                 s.status AS sub_status,
-                (s.status = 'trial' AND " . Plan::trialEndSql() . " < CURDATE()) AS trial_over,
+                (s.status = 'trial' AND " . Plan::trialEndSql() . " < " . Plan::todaySql() . ") AS trial_over,
                 p.name   AS plan,
                 (
                     SELECT COUNT(*)
